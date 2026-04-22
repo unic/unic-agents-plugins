@@ -22,7 +22,11 @@ Examples:
 ### 1. Install the Claude Code plugin
 
 ```sh
-claude plugins install git+ssh://git@github.com:unic/unic-claude-code-confluence
+# Register the marketplace (once per machine)
+claude plugins marketplace add unic/unic-claude-code-confluence
+
+# Install the plugin
+claude plugins install unic-confluence@unic-claude-code-confluence
 ```
 
 ### 2. Install as npm package (for Copilot / Cursor / other AI editors)
@@ -72,7 +76,8 @@ npm run confluence -- --verify
 
 ```sh
 # Update Claude Code plugin
-claude plugins update unic-confluence
+claude plugins marketplace update unic-claude-code-confluence
+claude plugins install unic-confluence@unic-claude-code-confluence
 
 # Update npm package
 npm install -D git+ssh://git@github.com:unic/unic-claude-code-confluence
