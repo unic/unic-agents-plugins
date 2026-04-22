@@ -35,6 +35,12 @@ claude plugins install unic-confluence@unic-claude-code-confluence
 npm install -D git+ssh://git@github.com:unic/unic-claude-code-confluence
 ```
 
+or
+
+```sh
+pnpm install -w -D git+ssh://git@github.com:unic/unic-claude-code-confluence
+```
+
 Then add to your repo's `package.json` scripts:
 
 ```json
