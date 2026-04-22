@@ -82,8 +82,12 @@ npm install -D git+ssh://git@github.com:unic/unic-claude-code-confluence
 
 This plugin follows the Unic Claude Code plugin naming convention:
 
-| Surface | Value |
-| --- | --- |
-| GitHub repo | `unic-claude-code-<service>` |
-| Plugin identifier (Claude Code) | `unic-<service>` |
-| npm package name | `unic-<service>` |
+| Surface                         | Value                        |
+| ------------------------------- | ---------------------------- |
+| GitHub repo                     | `unic-claude-code-<service>` |
+| Plugin identifier (Claude Code) | `unic-<service>`             |
+| npm package name                | `unic-<service>`             |
+
+## License
+
+Copyright © 2026 Unic. Licensed under the [LGPL-3.0-or-later](LICENSE).

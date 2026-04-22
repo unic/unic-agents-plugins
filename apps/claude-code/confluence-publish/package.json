@@ -1,6 +1,7 @@
 {
   "name": "unic-confluence",
   "private": true,
+  "license": "LGPL-3.0-or-later",
   "type": "module",
   "dependencies": {
     "marked": "17.0.5"
