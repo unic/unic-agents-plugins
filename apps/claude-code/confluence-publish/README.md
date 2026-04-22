@@ -64,6 +64,12 @@ Replace `000000000` with the actual Confluence page ID (find it in the Confluenc
 npm run confluence -- --setup
 ```
 
+Or
+
+```sh
+pnpm run confluence --setup
+```
+
 Or set environment variables instead:
 
 ```sh
@@ -78,6 +84,12 @@ CONFLUENCE_TOKEN=your-api-token
 npm run confluence -- --verify
 ```
 
+Or
+
+```sh
+pnpm run confluence --verify
+```
+
 ## Updating
 
 ```sh
@@ -87,6 +99,9 @@ claude plugins install unic-confluence@unic-claude-code-confluence
 
 # Update npm package
 npm install -D git+ssh://git@github.com:unic/unic-claude-code-confluence
+
+# Or
+pnpm install -w -D git+ssh://git@github.com:unic/unic-claude-code-confluence
 ```
 
 ## Naming convention
