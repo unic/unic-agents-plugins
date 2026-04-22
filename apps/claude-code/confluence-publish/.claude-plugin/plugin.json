@@ -1,0 +1,6 @@
+{
+  "name": "unic-confluence",
+  "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
+  "author": { "name": "Unic" },
+  "commands": ["./commands/unic-confluence.md"]
+}
