@@ -171,6 +171,13 @@ This plugin follows the Unic Claude Code plugin naming convention:
 | Plugin identifier (Claude Code) | `unic-<service>`             |
 | npm package name                | `unic-<service>`             |
 
+## Releasing
+
+1. Edit `"version"` in `.claude-plugin/plugin.json` — this is the single source of truth.
+2. Update `CHANGELOG.md`: move items from `## [Unreleased]` to a new `## [X.Y.Z] — YYYY-MM-DD` section.
+3. Run `pnpm release` — this syncs `marketplace.json`, stages both files, and commits with a `chore: release vX.Y.Z` message.
+4. Push and create a GitHub release tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
 ## License
 
 Copyright © 2026 Unic. Licensed under the [LGPL-3.0-or-later](LICENSE).

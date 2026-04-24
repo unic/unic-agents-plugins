@@ -1,4 +1,5 @@
 # 06. Version Sync Script and Changelog
+**Status: done — 2026-04-24**
 
 **Priority:** P1
 **Effort:** S
