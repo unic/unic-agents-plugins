@@ -17,6 +17,75 @@ Examples:
 /unic-confluence 804848595 docs/features/my-spec.md    # raw page ID also works
 ```
 
+### `confluence-pages.json` (optional key mapping)
+
+The `<page-key-or-id>` argument accepts either a raw numeric Confluence page ID or a short key defined in `confluence-pages.json`. Place this file at your repo root:
+
+```json
+{
+  "my-docs": 123456789,
+  "another-page": 987654321
+}
+```
+
+Then publish using the key:
+
+```sh
+pnpm confluence my-docs docs/my-file.md
+```
+
+## Page setup — injection markers
+
+The script injects your Markdown content into a Confluence page rather than replacing the whole page. To control *where* the content lands, add injection markers directly to the Confluence page body.
+
+### Adding markers to a Confluence page
+
+1. Open the target Confluence page and click **Edit**.
+2. Place your cursor where you want the injected content to appear.
+3. Type the start marker on its own line:
+   ```
+   [AUTO_INSERT_START: my-docs]
+   ```
+4. Leave a blank line (optional placeholder text helps with visual orientation):
+   ```
+   (Claude Code will inject content here)
+   ```
+5. Type the end marker on its own line:
+   ```
+   [AUTO_INSERT_END: my-docs]
+   ```
+6. **Save** the page.
+
+Full copy-paste block:
+
+```
+[AUTO_INSERT_START: my-docs]
+
+(Claude Code will inject content here)
+
+[AUTO_INSERT_END: my-docs]
+```
+
+### Label rules
+
+- The label (`my-docs` above) is **case-sensitive**. `My-Docs` and `my-docs` are different labels.
+- The label in `[AUTO_INSERT_START:label]` must exactly match the label in `[AUTO_INSERT_END:label]`.
+- Whitespace around the label is trimmed — `[AUTO_INSERT_START: my-docs]` and `[AUTO_INSERT_START:my-docs]` are equivalent.
+- A page can have only one marker pair. Multiple pairs are not supported.
+
+### What happens without markers
+
+If the page has no markers, the script currently appends the new HTML after all existing content. **Running the publish command twice will double the content.** A future update (spec 03) will change this to an explicit error with a `--replace-all` opt-out flag.
+
+### Legacy anchor-macro fallback (deprecated)
+
+Pages set up before text markers were introduced may use Confluence anchor macros instead:
+
+- Start anchor: macro named `md-start`
+- End anchor: macro named `md-end`
+
+This fallback is still supported but deprecated. Migrate legacy pages to text markers when convenient.
+
 ## Per-repo setup
 
 ### 1. Install the Claude Code plugin
