@@ -189,7 +189,7 @@ Check the file path you passed as the second argument.
 
 ### confluence-pages.json not found
 
-Either create `confluence-pages.json` at your repository root (see [Per-repo setup → Create confluence-pages.json](#create-confluence-pagesjson) above), or pass the numeric Confluence page ID directly as the first argument instead of a key name.
+Either create `confluence-pages.json` at your repository root (see [Per-repo setup → Create confluence-pages.json](#3-create-confluence-pagesjson-at-the-repo-root) above), or pass the numeric Confluence page ID directly as the first argument instead of a key name.
 
 ### Credentials not configured
 
