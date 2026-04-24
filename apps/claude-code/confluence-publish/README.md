@@ -61,13 +61,7 @@ Replace `000000000` with the actual Confluence page ID (find it in the Confluenc
 ### 4. Configure credentials (once per machine)
 
 ```sh
-npm run confluence -- --setup
-```
-
-Or
-
-```sh
-pnpm run confluence --setup
+pnpm confluence --setup
 ```
 
 Or set environment variables instead:
@@ -81,13 +75,7 @@ CONFLUENCE_TOKEN=your-api-token
 ### 5. Verify page IDs
 
 ```sh
-npm run confluence -- --verify
-```
-
-Or
-
-```sh
-pnpm run confluence --verify
+pnpm confluence --verify
 ```
 
 ## Updating

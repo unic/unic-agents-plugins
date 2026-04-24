@@ -1,4 +1,5 @@
 # 00. Convert Repo Tooling to pnpm
+**Status: done — 2026-04-24**
 
 **Priority:** P0
 **Effort:** S

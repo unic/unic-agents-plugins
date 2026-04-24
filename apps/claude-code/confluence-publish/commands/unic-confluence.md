@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(node *), Bash(npm install*)
+allowed-tools: Bash(node *), Bash(pnpm install*)
 description: Publish a markdown file to a Confluence page
 ---
 
@@ -17,7 +17,7 @@ Example: 804848595 docs/features/profile-features.md
 Check if `marked` is available in the plugin directory:
 
 ```sh
-test -d "${CLAUDE_PLUGIN_ROOT}/node_modules/marked" || npm install --prefix "${CLAUDE_PLUGIN_ROOT}"
+test -d "${CLAUDE_PLUGIN_ROOT}/node_modules/marked" || pnpm install --prefix "${CLAUDE_PLUGIN_ROOT}"
 ```
 
 ### 1. Parse arguments

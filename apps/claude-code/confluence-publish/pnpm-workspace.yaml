@@ -1,0 +1,12 @@
+packages:
+  - "."
+
+catalog:
+  marked: "17.0.5"
+
+catalogMode: prefer
+preferWorkspacePackages: true
+strictDepBuilds: true
+minimumReleaseAge: 1440
+trustPolicy: no-downgrade
+useNodeVersion: "24.15.0"
