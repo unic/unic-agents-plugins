@@ -48,7 +48,14 @@ Default Confluence URL pre-filled in setup: `https://uniccom.atlassian.net`.
 
 ## Plugin versioning
 
-Both `plugin.json` and `marketplace.json` carry a `version` field. Keep them in sync manually when releasing. There is no automated publish step.
+`.claude-plugin/plugin.json` is the single source of truth. Every `feat(spec-NN)` / `fix(spec-NN)` commit includes a version bump and a dated `CHANGELOG.md` entry, via `pnpm bump <patch|minor|major>`. Never hand-edit `.claude-plugin/marketplace.json` — `pnpm bump` mirrors into it automatically.
+
+**SemVer policy:**
+- **major**: breaking change to CLI flags, exit codes, or on-disk contracts (`confluence-pages.json` schema, `~/.unic-confluence.json` format).
+- **minor**: new flag, subcommand, or user-visible feature.
+- **patch**: bug fix, refactor, docs, internal tooling.
+
+`pnpm verify:changelog` (and CI on PRs) rejects changes that modify source or user-facing docs without a version bump and CHANGELOG entry.
 
 ## Naming convention
 

@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.0.1] — 2026-04-24
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Updated `PROMPT.md`, `docs/plans/README.md`, and `CLAUDE.md` with `pnpm bump` / `pnpm verify:changelog` workflow and per-spec versioning instructions
+
 ## [2.0.0] — 2026-04-24
 
 ### Breaking

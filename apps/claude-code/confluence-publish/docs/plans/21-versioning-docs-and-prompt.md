@@ -1,4 +1,5 @@
 # 21. Versioning docs and Ralph integration
+**Status: done — 2026-04-24**
 
 **Priority:** P1
 **Effort:** S

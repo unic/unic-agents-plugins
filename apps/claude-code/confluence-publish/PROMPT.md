@@ -30,7 +30,7 @@ Ground rules (from `docs/plans/README.md`):
 - Use `pnpm` (after spec 00 lands; use `npm` for spec 00 itself and before it's done)
 - Tabs for indentation, LF line endings (per `.editorconfig`)
 - Conventional commits: `feat(scope): description`, `fix(scope): description`
-- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm release` (available after spec 06)
+- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump` (available after spec 19)
 - If something can't be followed as written: document it in `## Deviations`, don't silently deviate
 
 ## Step 4 — Verify
@@ -38,6 +38,25 @@ Ground rules (from `docs/plans/README.md`):
 Run the exact commands in the spec's **Verification** section. Fix any failures before proceeding.
 
 Check every item in **Acceptance criteria**. If any item fails, fix it.
+
+## Step 4.5 — Bump version + CHANGELOG
+
+1. Read the spec's `**Version impact:** patch|minor|major` line at the top of the spec file.
+   If the line is absent, infer: breaking CLI/contract change → `major`; new flag/feature → `minor`; bug fix, refactor, docs → `patch`.
+
+2. Append **one bullet** to the matching subsection under `## [Unreleased]` in `CHANGELOG.md`, replacing the `- (none)` placeholder on first use:
+   - `### Breaking` — CLI flag renamed/removed, exit-code change, on-disk file schema change
+   - `### Added` — new flag, subcommand, or user-visible feature
+   - `### Fixed` — bug fix, refactor, docs, internal tooling
+   Wording: one line, user-facing, present-tense description (e.g. `- \`pnpm bump\` command for atomic version bumping`).
+
+3. Run:
+   ```sh
+   pnpm bump <patch|minor|major>
+   ```
+   This atomically: increments `plugin.json` version, mirrors into `marketplace.json`, and promotes `[Unreleased]` → a new dated section.
+
+4. Run `pnpm verify:changelog` to confirm the check passes.
 
 ## Step 5 — Mark done and commit
 
@@ -53,10 +72,11 @@ Replace `YYYY-MM-DD` with today's date.
 
 ```sh
 git add -A
-git commit -m "feat(spec-NN): <short description of what was implemented>"
+git commit -m "feat(spec-NN): <short description of what was implemented> (vX.Y.Z)"
 ```
 
 Replace `NN` with the spec number (e.g. `00`, `03`) and write a clear description.
+Replace `X.Y.Z` with the version output by `pnpm bump`.
 
 3. **Do not push.** Commits only.
 

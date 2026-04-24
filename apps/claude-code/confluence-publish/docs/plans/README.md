@@ -8,6 +8,7 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 2. Read the spec top to bottom **before** touching any code.
 3. If the "Current behaviour" section doesn't match what you find in the file, STOP and add a `## Deviations` section to the spec file documenting the discrepancy. Do NOT silently adapt.
 4. After landing the change, add `**Status: done — <YYYY-MM-DD>**` at the top of the spec.
+5. Read the spec's `**Version impact:** patch|minor|major` line and execute `PROMPT.md` Step 4.5 before committing.
 
 ## Ground rules
 
@@ -17,7 +18,7 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **Dep versioning**: all deps go through the `catalog:` section in `pnpm-workspace.yaml`, pinned exactly. Never add `^` or `~` ranges. To add/bump a dep: edit the catalog entry only.
 - **Supply-chain guards**: `minimumReleaseAge: 1440` blocks packages younger than 24 hours. If a bump is urgent, add the dep to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` and document the justification in the PR description.
 - **Node version**: Node 24.x (Active LTS). `useNodeVersion` in `pnpm-workspace.yaml` pins the exact patch. Bump it only when explicitly needed, not opportunistically.
-- **Plugin versioning**: `.claude-plugin/plugin.json` is the single source of truth for the version number. **Never hand-edit `.claude-plugin/marketplace.json`** — the `pnpm release` script (introduced in spec `06`) syncs it.
+- **Plugin versioning**: `.claude-plugin/plugin.json` is the single source of truth for the version number. **Never hand-edit `.claude-plugin/marketplace.json`** — use `pnpm bump` (spec `19`) which bumps, syncs, and promotes the CHANGELOG in one step.
 - **Before opening a PR**: run `pnpm lint` (available after spec `10`), `pnpm test` (after spec `09`), and do one end-to-end publish to a throwaway Confluence test page.
 - **Scope guard**: do NOT add MCP servers, skills, agents, image-upload support, create-page support, or multi-space support. See `CLAUDE.md` "do not add" section (added in spec `17`).
 
@@ -31,22 +32,18 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | New flag, new subcommand, new feature that doesn't break existing usage | MINOR |
 | Bug fix, docs update, internal refactor, dependency bump | PATCH |
 
-**Bump plan across this roadmap:**
+Each spec bumps per its `**Version impact:**` declaration. See `PROMPT.md` Step 4.5.
 
-| Spec(s) | Target version | Reason |
-|---|---|---|
-| `00`–`02` | `1.0.3` (optional patch) | Tooling + docs only; can skip and batch |
-| `03` | **`2.0.0`** | Breaking: "no markers" now errors instead of silently appending |
-| `04`, `05`, `07` | `2.1.0`, `2.2.0`, `2.3.0` (or batch into `2.1.0`) | New features |
-| `06`, `08`–`18` | PATCH (or batch) | Bug fixes, refactors, tooling |
-
-**Release flow** (post-spec `06`):
+**Release flow:**
 
 ```sh
-# 1. Edit version field in .claude-plugin/plugin.json
-# 2. Update CHANGELOG.md: move items from [Unreleased] to new version heading with today's date
-# 3. Run the sync + commit + tag script:
-pnpm release
+# Per change (every spec commit):
+pnpm bump <patch|minor|major>   # bumps version, promotes CHANGELOG
+pnpm verify:changelog            # confirm CI check passes
+
+# Periodic: tag and push a release boundary
+pnpm tag                         # creates local git tag vX.Y.Z
+git push --follow-tags           # publishes tag to GitHub
 ```
 
 ## Execution order
