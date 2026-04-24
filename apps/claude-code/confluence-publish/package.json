@@ -11,7 +11,8 @@
 	"scripts": {
 		"confluence": "node scripts/push-to-confluence.mjs",
 		"sync-version": "node scripts/sync-version.mjs",
-		"release": "node scripts/sync-version.mjs && git add .claude-plugin/marketplace.json CHANGELOG.md && git commit -m \"chore: release v$(node -e 'const fs=require(\"fs\");const p=JSON.parse(fs.readFileSync(\".claude-plugin/plugin.json\",\"utf8\"));process.stdout.write(p.version)')\"",
+		"bump": "node scripts/bump-version.mjs",
+		"tag": "node scripts/tag.mjs",
 		"ralph": "ralph run -c ralph.yml -H builtin:code-assist",
 		"test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs",
 		"lint": "biome lint .",

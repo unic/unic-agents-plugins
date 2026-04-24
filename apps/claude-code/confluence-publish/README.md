@@ -222,10 +222,30 @@ This plugin follows the Unic Claude Code plugin naming convention:
 
 ## Releasing
 
-1. Edit `"version"` in `.claude-plugin/plugin.json` — this is the single source of truth.
-2. Update `CHANGELOG.md`: move items from `## [Unreleased]` to a new `## [X.Y.Z] — YYYY-MM-DD` section.
-3. Run `pnpm release` — this syncs `marketplace.json`, stages both files, and commits with a `chore: release vX.Y.Z` message.
-4. Push and create a GitHub release tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+Every `feat(spec-NN)` / `fix(spec-NN)` commit includes its own version bump and CHANGELOG entry via `pnpm bump`. No separate "release commit" is needed.
+
+**Per change (every commit):**
+1. Add one bullet under the matching subsection of `## [Unreleased]` in `CHANGELOG.md` (`### Breaking`, `### Added`, or `### Fixed`).
+2. `pnpm bump <patch|minor|major>` — bumps `plugin.json`, mirrors into `marketplace.json`, promotes `[Unreleased]` → a dated version section.
+3. `git add -A && git commit -m "feat(spec-NN): <description> (vX.Y.Z)"`.
+
+**SemVer policy:**
+| Change type | Bump |
+|---|---|
+| Breaking change to CLI flags, exit codes, or on-disk contracts | `major` |
+| New flag, subcommand, or user-visible feature | `minor` |
+| Bug fix, refactor, docs, internal tooling | `patch` |
+
+**To tag and push a release boundary (optional, periodic):**
+```sh
+pnpm tag                  # creates local git tag vX.Y.Z
+git push --follow-tags    # pushes tag to GitHub
+```
+
+**Optional — enable the local pre-push changelog check:**
+```sh
+git config core.hooksPath .githooks
+```
 
 ## Contributing
 
