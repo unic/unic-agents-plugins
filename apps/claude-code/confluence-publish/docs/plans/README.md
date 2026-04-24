@@ -72,6 +72,9 @@ pnpm release
 | 16 | [Plugin-level README](./16-claude-plugin-readme.md) | P2 | — |
 | 17 | [CLAUDE.md do-not-add section](./17-claude-md-do-not-add-section.md) | P2 | — |
 | 18 | [Parallelise runVerify](./18-parallelise-runverify.md) | P2 | — |
+| 19 | [pnpm bump tooling](./19-pnpm-bump-tooling.md) | P1 | — |
+| 20 | [pnpm verify:changelog enforcement](./20-pnpm-verify-changelog.md) | P1 | — |
+| 21 | [Versioning docs and Ralph integration](./21-versioning-docs-and-prompt.md) | P1 | — |
 
 ## Cross-cutting dependencies
 
@@ -80,3 +83,6 @@ pnpm release
 - **`15` → `09`**: The `CliError` class refactor touches ~20 `process.exit(1)` sites. Land after `09` so tests catch regressions.
 - **`14` → `09` + `10`**: JSDoc pass should come after `09` (lib extraction) and `10` (Biome formatting) to avoid churning JSDoc during the format pass.
 - **`18` depends on `01` outcome**: If spec `01` deletes `--verify` entirely, skip spec `18`.
+- **`19` → `15`**: Spec `19` (`pnpm bump`) imports `CliError` from `scripts/lib/errors.mjs`. Land spec `15` first.
+- **`20` → `19`**: Spec `20` (`pnpm verify:changelog`) references `pnpm bump` in its error messages. Land spec `19` first.
+- **`21` → `19` + `20`**: Spec `21` (docs) documents `pnpm bump` and `pnpm verify:changelog`. Land both first.
