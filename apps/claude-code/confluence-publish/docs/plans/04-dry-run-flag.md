@@ -1,4 +1,5 @@
 # 04. Add --dry-run Flag
+**Status: done — 2026-04-24**
 
 **Priority:** P1
 **Effort:** S

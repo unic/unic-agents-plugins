@@ -425,10 +425,11 @@ async function main() {
 		return;
 	}
 
+	const dryRun = args.includes("--dry-run");
 	const replaceAll = args.includes("--replace-all");
 	const positionalArgs = args.filter(a => !a.startsWith("--"));
 	if (positionalArgs.length < 2) {
-		console.error("Usage: node scripts/push-to-confluence.mjs [--replace-all] {pageId} {file.md}");
+		console.error("Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] {pageId} {file.md}");
 		process.exit(1);
 	}
 	const [pageArg, filePath] = positionalArgs;
@@ -495,7 +496,15 @@ async function main() {
 
 	console.log(`Page: "${title}" (version ${version})`);
 
-	const newBody = injectContent(existingBody, html, title, { replaceAll, pageId, version });
+	const effectiveReplaceAll = dryRun ? false : replaceAll;
+	const newBody = injectContent(existingBody, html, title, { replaceAll: effectiveReplaceAll, pageId, version });
+
+	if (dryRun) {
+		console.log("=== DRY RUN — Page would be updated to: ===\n");
+		console.log(newBody);
+		console.log("\n=== END DRY RUN ===");
+		process.exit(0);
+	}
 
 	const putUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${pageId}`;
 	const putBody = {

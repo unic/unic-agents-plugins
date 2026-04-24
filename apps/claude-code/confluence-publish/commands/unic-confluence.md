@@ -52,7 +52,14 @@ Execute from the project root:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" <page-key-or-id> <markdown-file>
 ```
 
+Optional flags (pass as part of $ARGUMENTS):
+- `--dry-run` — compute the final HTML and print it to stdout without making the PUT request
+- `--replace-all` — overwrite the full page body (creates a local backup; requires no markers on the page)
+
 ### 4. Report result
+
+If --dry-run was passed, the computed page HTML is printed above. No changes were made to Confluence.
+Otherwise, report success or relay any error message to the user.
 
 If successful, confirm to the user which file was published and to which page.
 If it fails, show the error and suggest fixes:
