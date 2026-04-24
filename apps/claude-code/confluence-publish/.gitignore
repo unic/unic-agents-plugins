@@ -1,6 +1,8 @@
 node_modules/
 
 *.local.*
+.agents/scratchpad/**
+.ralph
 
 .vscode/*
 !.vscode/settings.json
