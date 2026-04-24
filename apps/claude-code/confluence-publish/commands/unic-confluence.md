@@ -42,6 +42,8 @@ Performs a single HTTP GET to verify credentials are valid. If credentials are m
 node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --setup
 ```
 
+If the publish step fails with "No markers found", the target Confluence page needs [AUTO_INSERT_START:label] / [AUTO_INSERT_END:label] markers. To overwrite the full page body instead, pass --replace-all as part of $ARGUMENTS.
+
 ### 3. Run the publish script
 
 Execute from the project root:

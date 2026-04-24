@@ -12,6 +12,7 @@ import { createRequire } from "module";
 import {
 	chmodSync,
 	existsSync,
+	mkdirSync,
 	readFileSync,
 	statSync,
 	writeFileSync,
@@ -123,7 +124,7 @@ const TEXT_START_RE =
 const TEXT_END_RE =
 	/(?:<p>\s*)?\[AUTO_INSERT_END:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
 
-function injectContent(existingBody, newHtml, title) {
+function injectContent(existingBody, newHtml, title, { replaceAll = false, pageId, version } = {}) {
 	const hasStart = TEXT_START_RE.test(existingBody);
 	const hasEnd = TEXT_END_RE.test(existingBody);
 
@@ -194,8 +195,22 @@ function injectContent(existingBody, newHtml, title) {
 		);
 	}
 
-	// Strategy 3: append (no markers found)
-	return existingBody + "\n" + newHtml;
+	// Strategy 3: no markers found
+	if (replaceAll) {
+		const safePageId = pageId ?? "unknown-page";
+		const safeVersion = version ?? "unknown-version";
+		const backupDir = path.join(os.homedir(), ".unic-confluence", "backups");
+		mkdirSync(backupDir, { recursive: true });
+		const backupPath = path.join(backupDir, `${safePageId}-v${safeVersion}.html`);
+		writeFileSync(backupPath, existingBody, "utf8");
+		console.log(`Backup saved to ${backupPath}`);
+		return newHtml;
+	}
+	console.error(
+		`No [AUTO_INSERT_START:label] / [AUTO_INSERT_END:label] markers found on page "${title}". ` +
+		`Add markers to the Confluence page, or use --replace-all to overwrite the full body.`,
+	);
+	process.exit(1);
 }
 
 // ── Page ID resolution ────────────────────────────────────────────────────────
@@ -410,12 +425,13 @@ async function main() {
 		return;
 	}
 
-	if (args.length < 2) {
-		console.error("Usage: npm run confluence -- {pageId} {file.md}");
+	const replaceAll = args.includes("--replace-all");
+	const positionalArgs = args.filter(a => !a.startsWith("--"));
+	if (positionalArgs.length < 2) {
+		console.error("Usage: node scripts/push-to-confluence.mjs [--replace-all] {pageId} {file.md}");
 		process.exit(1);
 	}
-
-	const [pageArg, filePath] = args;
+	const [pageArg, filePath] = positionalArgs;
 	const pageId = resolvePageId(pageArg);
 	const resolvedPath = path.resolve(filePath);
 
@@ -479,7 +495,7 @@ async function main() {
 
 	console.log(`Page: "${title}" (version ${version})`);
 
-	const newBody = injectContent(existingBody, html, title);
+	const newBody = injectContent(existingBody, html, title, { replaceAll, pageId, version });
 
 	const putUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${pageId}`;
 	const putBody = {

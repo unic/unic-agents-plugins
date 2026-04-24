@@ -1,4 +1,5 @@
 # 03. Refuse Publish Without Markers (Breaking Change → v2.0.0)
+**Status: done — 2026-04-24**
 
 **Priority:** P0
 **Effort:** M
