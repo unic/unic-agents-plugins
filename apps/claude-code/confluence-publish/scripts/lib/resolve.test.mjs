@@ -5,6 +5,7 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { CliError } from "./errors.mjs";
 import { isNumericId, resolvePageId } from "./resolve.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,13 @@ describe("resolvePageId — numeric input", () => {
 	it("returns a positive integer for a valid numeric string", () => {
 		const result = resolvePageId("98765");
 		assert.strictEqual(result, 98765);
+	});
+
+	it("throws CliError for zero page ID", () => {
+		assert.throws(
+			() => resolvePageId("0"),
+			(err) => err instanceof CliError && err.message.includes("Invalid page ID: 0"),
+		);
 	});
 });
 

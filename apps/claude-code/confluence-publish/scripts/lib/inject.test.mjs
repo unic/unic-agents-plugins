@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
+import { CliError } from "./errors.mjs";
 import { injectContent } from "./inject.mjs";
 
 describe("injectContent — strategy 1: plain-text markers", () => {
@@ -30,10 +31,13 @@ describe("injectContent — strategy 1: plain-text markers", () => {
 		assert.ok(!result.includes("old"), "old content removed");
 	});
 
-	// Mismatched label test is skipped until spec 15 replaces process.exit with CliError.
-	// Once CliError is in place, rewrite as:
-	//   assert.throws(() => injectContent(body, html, title), /label mismatch/);
-	it.skip("exits 1 on mismatched marker labels — enable after spec 15 CliError", () => {});
+	it("throws CliError on mismatched marker labels", () => {
+		const body = "[AUTO_INSERT_START:overview]\n<p>content</p>\n[AUTO_INSERT_END:summary]";
+		assert.throws(
+			() => injectContent(body, "<p>new</p>", "Test Page"),
+			(err) => err instanceof CliError && /label mismatch/.test(err.message),
+		);
+	});
 
 	// TC-01: bare markers — no <p> wrapping
 	it("TC-01: bare markers preserve both markers, replace content, no dangling tags", () => {

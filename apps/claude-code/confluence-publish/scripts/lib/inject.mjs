@@ -4,6 +4,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { CliError } from "./errors.mjs";
 
 // Bare markers — no surrounding <p> tags
 export const TEXT_START_BARE_RE = /\[AUTO_INSERT_START:\s*([^\]]+?)\s*\]/;
@@ -43,10 +44,9 @@ export function injectContent(
 	if (hasStart || hasEnd) {
 		// Must have both or neither
 		if (hasStart !== hasEnd) {
-			console.error(
+			throw new CliError(
 				`Found [AUTO_INSERT_START] without a matching [AUTO_INSERT_END] on page "${title}" — fix the Confluence page before publishing`,
 			);
-			process.exit(1);
 		}
 
 		// Wrapping style must be consistent across START and END
@@ -54,17 +54,16 @@ export function injectContent(
 		const endIsWrapped = hasPWrappedEnd;
 
 		if (startIsWrapped !== endIsWrapped) {
-			console.error(
+			throw new CliError(
 				`Marker wrapping mismatch on page "${title}": START is ${startIsWrapped ? "<p>-wrapped" : "bare"} but END is ${endIsWrapped ? "<p>-wrapped" : "bare"} — fix the Confluence page so both markers use the same format`,
 			);
-			process.exit(1);
 		}
 
 		const START_RE = startIsWrapped ? TEXT_START_P_RE : TEXT_START_BARE_RE;
 
 		const startMatch = START_RE.exec(existingBody);
 		// unreachable: hasBareStart or hasPWrappedStart is true above
-		if (!startMatch) process.exit(1);
+		if (!startMatch) throw new CliError("Internal error: startMatch unexpectedly null");
 		const startLabel = startMatch[1].trim();
 
 		// Build a label-specific END regex with the same wrapping style as START.
@@ -78,10 +77,9 @@ export function injectContent(
 		const endMatch = labelEndRe.exec(existingBody.slice(afterStart));
 
 		if (!endMatch) {
-			console.error(
+			throw new CliError(
 				`Marker label mismatch on page "${title}": [AUTO_INSERT_START:${startLabel}] has no matching [AUTO_INSERT_END:${startLabel}] — fix the Confluence page before publishing`,
 			);
-			process.exit(1);
 		}
 
 		// Slice construction:
@@ -103,16 +101,16 @@ export function injectContent(
 
 	if (hasAnchorStart || hasAnchorEnd) {
 		if (hasAnchorStart !== hasAnchorEnd) {
-			console.error(
+			throw new CliError(
 				`Found md-start anchor without md-end (or vice versa) on page "${title}" — fix the Confluence page before publishing`,
 			);
-			process.exit(1);
 		}
 
 		const startMatch = anchorStartRe.exec(existingBody);
 		const endMatch = anchorEndRe.exec(existingBody);
 		// unreachable: hasAnchorStart and hasAnchorEnd are both true above
-		if (!startMatch || !endMatch) process.exit(1);
+		if (!startMatch || !endMatch)
+			throw new CliError("Internal error: anchor match unexpectedly null");
 
 		return `${existingBody.slice(0, startMatch.index + startMatch[0].length)}\n${newHtml}\n${existingBody.slice(endMatch.index)}`;
 	}
@@ -130,8 +128,7 @@ export function injectContent(
 		}
 		return newHtml;
 	}
-	console.error(
+	throw new CliError(
 		`No [AUTO_INSERT_START:label] / [AUTO_INSERT_END:label] markers found on page "${title}". Add markers to the Confluence page, or use --replace-all to overwrite the full body.`,
 	);
-	process.exit(1);
 }

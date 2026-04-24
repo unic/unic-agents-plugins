@@ -1,4 +1,5 @@
 # 15. Introduce `CliError` Class — Replace `console.error` + `process.exit` Pairs
+**Status: done — 2026-04-24**
 
 **Priority:** P2
 **Effort:** M

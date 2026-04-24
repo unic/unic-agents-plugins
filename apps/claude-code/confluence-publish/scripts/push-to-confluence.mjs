@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { marked } from "marked";
+import { CliError } from "./lib/errors.mjs";
 import { stripFrontmatter } from "./lib/frontmatter.mjs";
 import { injectContent } from "./lib/inject.mjs";
 import { resolvePageId } from "./lib/resolve.mjs";
@@ -26,7 +27,7 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 /**
  * Loads Confluence credentials from environment variables or ~/.unic-confluence.json.
- * Exits with code 1 if credentials are not configured.
+ * Throws CliError if credentials are not configured.
  *
  * @returns {Credentials}
  */
@@ -53,8 +54,7 @@ function loadCredentials() {
 		}
 	}
 
-	console.error("Run `npm run confluence -- --setup` to configure credentials");
-	process.exit(1);
+	throw new CliError("Run `npm run confluence -- --setup` to configure credentials");
 }
 
 // ── HTTP helpers ───────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
 }
 
 /**
- * Prints a human-readable error for a non-2xx HTTP response and exits with code 1.
+ * Throws a CliError with a human-readable message for a non-2xx HTTP response.
  *
  * @param {number} status - HTTP status code.
  * @param {string} title - Page title, used in error messages.
@@ -136,8 +136,7 @@ function handleHttpError(status, title, { pageArg = "", filePath = "" } = {}) {
 	const msg =
 		messages[status] ??
 		`Unexpected response from Confluence (HTTP ${status}) — check VPN/network and retry`;
-	console.error(msg);
-	process.exit(1);
+	throw new CliError(msg);
 }
 
 // ── HTML post-processing ───────────────────────────────────────────────────────
@@ -180,8 +179,7 @@ function postProcessHtml(html) {
 async function runVerify() {
 	const pagesPath = path.join(process.cwd(), "confluence-pages.json");
 	if (!existsSync(pagesPath)) {
-		console.error("confluence-pages.json not found — create it first");
-		process.exit(1);
+		throw new CliError("confluence-pages.json not found — create it first");
 	}
 
 	/** @type {Record<string, unknown>} */
@@ -189,8 +187,7 @@ async function runVerify() {
 	try {
 		pages = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pagesPath, "utf8")));
 	} catch {
-		console.error("invalid JSON in confluence-pages.json — check syntax");
-		process.exit(1);
+		throw new CliError("invalid JSON in confluence-pages.json — check syntax");
 	}
 
 	const pageKeys = Object.keys(pages).filter((k) => k !== "_comment");
@@ -228,15 +225,16 @@ async function runVerify() {
 		}
 	}
 
-	process.exit(hasErrors ? 1 : 0);
+	if (hasErrors) {
+		throw new CliError("One or more pages failed verification — see errors above", 1);
+	}
 }
 
 // ── Setup flow ─────────────────────────────────────────────────────────────────
 
 async function runSetup() {
 	if (!process.stdin.isTTY) {
-		console.error("--setup requires an interactive terminal");
-		process.exit(1);
+		throw new CliError("--setup requires an interactive terminal");
 	}
 
 	const credPath = path.join(os.homedir(), ".unic-confluence.json");
@@ -282,8 +280,7 @@ async function runSetup() {
 	rl.close();
 
 	if (!username || !token) {
-		console.error("Username and API token are required.");
-		process.exit(1);
+		throw new CliError("Username and API token are required.");
 	}
 
 	const creds = { url, username, token };
@@ -312,139 +309,143 @@ async function runSetup() {
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
-	const args = process.argv.slice(2);
+	try {
+		const args = process.argv.slice(2);
 
-	if (args[0] === "--setup") {
-		await runSetup();
-		process.exit(0);
-	}
-	if (args[0] === "--check-auth") {
+		if (args[0] === "--setup") {
+			await runSetup();
+			return;
+		}
+		if (args[0] === "--check-auth") {
+			const { url: baseUrl, username, token } = loadCredentials();
+			const authHeader = makeBasicAuth(username, token);
+			let res;
+			try {
+				res = await httpsRequest(
+					"GET",
+					`${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages?limit=1`,
+					authHeader,
+				);
+			} catch (err) {
+				throw new CliError(/** @type {Error} */ (err).message);
+			}
+			if (res.status >= 200 && res.status < 300) {
+				console.log("✓ Credentials valid");
+				return;
+			}
+			handleHttpError(res.status, "");
+		}
+		if (args[0] === "--verify") {
+			await runVerify();
+			return;
+		}
+
+		const dryRun = args.includes("--dry-run");
+		const replaceAll = args.includes("--replace-all");
+		const positionalArgs = args.filter((a) => !a.startsWith("--"));
+		if (positionalArgs.length < 2) {
+			throw new CliError(
+				"Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] {pageId} {file.md}",
+			);
+		}
+		const pageArg = positionalArgs[0] ?? "";
+		const filePath = positionalArgs[1] ?? "";
+		const pageId = resolvePageId(pageArg);
+		const resolvedPath = path.resolve(filePath);
+
+		if (!existsSync(resolvedPath)) {
+			throw new CliError(`File not found: ${filePath}`);
+		}
+
+		const stats = statSync(resolvedPath);
+		if (stats.size > MAX_FILE_BYTES) {
+			throw new CliError("File too large for Confluence API — split the document");
+		}
+
+		const rawContent = readFileSync(resolvedPath, "utf8");
+		const stripped = stripFrontmatter(rawContent);
+		const rawHtml = marked(stripped);
+		const html = postProcessHtml(/** @type {string} */ (rawHtml));
+
+		if (!html || !html.trim()) {
+			throw new CliError("Markdown converted to empty HTML — check the source file is not empty");
+		}
+
 		const { url: baseUrl, username, token } = loadCredentials();
 		const authHeader = makeBasicAuth(username, token);
-		let res;
+		const getUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${pageId}?body-format=storage`;
+
+		let getRes;
 		try {
-			res = await httpsRequest(
-				"GET",
-				`${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages?limit=1`,
-				authHeader,
-			);
+			getRes = await httpsRequest("GET", getUrl, authHeader);
 		} catch (err) {
-			console.error(/** @type {Error} */ (err).message);
-			process.exit(1);
+			throw new CliError(/** @type {Error} */ (err).message);
 		}
-		if (res.status >= 200 && res.status < 300) {
-			console.log("✓ Credentials valid");
-			process.exit(0);
+		if (getRes.status < 200 || getRes.status >= 300) {
+			handleHttpError(getRes.status, "", { pageArg, filePath });
 		}
-		handleHttpError(res.status, "");
-	}
-	if (args[0] === "--verify") {
-		await runVerify();
-		return;
-	}
 
-	const dryRun = args.includes("--dry-run");
-	const replaceAll = args.includes("--replace-all");
-	const positionalArgs = args.filter((a) => !a.startsWith("--"));
-	if (positionalArgs.length < 2) {
-		console.error(
-			"Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] {pageId} {file.md}",
-		);
-		process.exit(1);
-	}
-	const pageArg = positionalArgs[0] ?? "";
-	const filePath = positionalArgs[1] ?? "";
-	const pageId = resolvePageId(pageArg);
-	const resolvedPath = path.resolve(filePath);
+		/** @type {PageData} */
+		let pageData;
+		try {
+			pageData = /** @type {PageData} */ (JSON.parse(getRes.body));
+		} catch {
+			throw new CliError("Unexpected response from Confluence — check VPN/network and retry");
+		}
 
-	if (!existsSync(resolvedPath)) {
-		console.error(`File not found: ${filePath}`);
-		process.exit(1);
-	}
+		const version = pageData?.version?.number;
+		if (typeof version !== "number" || !Number.isInteger(version) || version <= 0) {
+			throw new CliError(
+				"Could not read page version from Confluence response — retry or contact support",
+			);
+		}
 
-	const stats = statSync(resolvedPath);
-	if (stats.size > MAX_FILE_BYTES) {
-		console.error("File too large for Confluence API — split the document");
-		process.exit(1);
-	}
+		const title = pageData?.title ?? "";
+		const existingBody = pageData?.body?.storage?.value ?? "";
 
-	const rawContent = readFileSync(resolvedPath, "utf8");
-	const stripped = stripFrontmatter(rawContent);
-	const rawHtml = marked(stripped);
-	const html = postProcessHtml(/** @type {string} */ (rawHtml));
+		console.log(`Page: "${title}" (version ${version})`);
 
-	if (!html || !html.trim()) {
-		console.error("Markdown converted to empty HTML — check the source file is not empty");
-		process.exit(1);
-	}
+		const newBody = injectContent(existingBody, html, title, {
+			replaceAll,
+			dryRun,
+			pageId,
+			version,
+		});
 
-	const { url: baseUrl, username, token } = loadCredentials();
-	const authHeader = makeBasicAuth(username, token);
-	const getUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${pageId}?body-format=storage`;
+		if (dryRun) {
+			console.log("=== DRY RUN — Page would be updated to: ===\n");
+			console.log(newBody);
+			console.log("\n=== END DRY RUN ===");
+			return;
+		}
 
-	let getRes;
-	try {
-		getRes = await httpsRequest("GET", getUrl, authHeader);
+		const putUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${pageId}`;
+		const putBody = {
+			id: pageId,
+			status: "current",
+			title,
+			body: { representation: "storage", value: newBody },
+			version: { number: version + 1 },
+		};
+
+		let putRes;
+		try {
+			putRes = await httpsRequest("PUT", putUrl, authHeader, putBody);
+		} catch (err) {
+			throw new CliError(/** @type {Error} */ (err).message);
+		}
+		if (putRes.status < 200 || putRes.status >= 300) {
+			handleHttpError(putRes.status, title, { pageArg, filePath });
+		}
+
+		console.log(`✓ Published "${title}" to Confluence (version ${version + 1})`);
 	} catch (err) {
-		console.error(/** @type {Error} */ (err).message);
-		process.exit(1);
+		if (err instanceof CliError) {
+			console.error(err.message);
+			process.exit(err.exitCode);
+		}
+		throw err;
 	}
-	if (getRes.status < 200 || getRes.status >= 300) {
-		handleHttpError(getRes.status, "", { pageArg, filePath });
-	}
-
-	/** @type {PageData} */
-	let pageData;
-	try {
-		pageData = /** @type {PageData} */ (JSON.parse(getRes.body));
-	} catch {
-		console.error("Unexpected response from Confluence — check VPN/network and retry");
-		process.exit(1);
-	}
-
-	const version = pageData?.version?.number;
-	if (typeof version !== "number" || !Number.isInteger(version) || version <= 0) {
-		console.error(
-			"Could not read page version from Confluence response — retry or contact support",
-		);
-		process.exit(1);
-	}
-
-	const title = pageData?.title ?? "";
-	const existingBody = pageData?.body?.storage?.value ?? "";
-
-	console.log(`Page: "${title}" (version ${version})`);
-
-	const newBody = injectContent(existingBody, html, title, { replaceAll, dryRun, pageId, version });
-
-	if (dryRun) {
-		console.log("=== DRY RUN — Page would be updated to: ===\n");
-		console.log(newBody);
-		console.log("\n=== END DRY RUN ===");
-		process.exit(0);
-	}
-
-	const putUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${pageId}`;
-	const putBody = {
-		id: pageId,
-		status: "current",
-		title,
-		body: { representation: "storage", value: newBody },
-		version: { number: version + 1 },
-	};
-
-	let putRes;
-	try {
-		putRes = await httpsRequest("PUT", putUrl, authHeader, putBody);
-	} catch (err) {
-		console.error(/** @type {Error} */ (err).message);
-		process.exit(1);
-	}
-	if (putRes.status < 200 || putRes.status >= 300) {
-		handleHttpError(putRes.status, title, { pageArg, filePath });
-	}
-
-	console.log(`✓ Published "${title}" to Confluence (version ${version + 1})`);
 }
 
 main();
