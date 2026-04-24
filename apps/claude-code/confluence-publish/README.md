@@ -147,6 +147,55 @@ CONFLUENCE_TOKEN=your-api-token
 pnpm confluence --verify
 ```
 
+## Troubleshooting
+
+### 401 API token rejected
+
+Generate a new token at <https://id.atlassian.com> → Security → API tokens.
+Tokens created before 2025 may have expired even if the Atlassian interface shows them as active.
+After generating, re-run setup:
+
+```sh
+pnpm confluence --setup
+# or, if running the script directly:
+node scripts/push-to-confluence.mjs --setup
+```
+
+### 403 Access denied
+
+Your API token does not have Edit permission for this Confluence page or space.
+Ask a Confluence space admin to grant your account Edit access, then retry.
+
+### 404 Page ID not found
+
+The page ID in `confluence-pages.json` is incorrect, or the page has been deleted or moved.
+Verify the ID by opening the page in Confluence and checking the URL — the numeric ID appears after `/pages/`.
+Run `pnpm confluence --verify` to test all IDs in `confluence-pages.json` at once.
+
+### 409 Conflict — page updated by someone else
+
+Someone edited the Confluence page between the time this script read the current version (GET) and tried to write the new version (PUT).
+Re-run the same command — the script will fetch the current version and retry cleanly.
+
+### Network error / Cannot reach Confluence
+
+Make sure you are connected to the Unic VPN.
+The Confluence instance (`https://uniccom.atlassian.net`) is not reachable from the public internet.
+
+### Markdown converts to empty HTML
+
+The Markdown source file may be empty, or it may contain only a YAML frontmatter block with no body content below the closing `---`.
+Check the file path you passed as the second argument.
+
+### confluence-pages.json not found
+
+Either create `confluence-pages.json` at your repository root (see [Per-repo setup → Create confluence-pages.json](#create-confluence-pagesjson) above), or pass the numeric Confluence page ID directly as the first argument instead of a key name.
+
+### Credentials not configured
+
+Run `pnpm confluence --setup` (or `node scripts/push-to-confluence.mjs --setup`) to store your Confluence URL, email, and API token in `~/.unic-confluence.json`.
+Alternatively, set the environment variables `CONFLUENCE_URL`, `CONFLUENCE_USER`, and `CONFLUENCE_TOKEN`.
+
 ## Updating
 
 ```sh
