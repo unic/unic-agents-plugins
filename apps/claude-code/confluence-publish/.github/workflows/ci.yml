@@ -24,3 +24,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm ci:check
       - run: pnpm test
+      - run: pnpm verify:changelog
+        if: github.event_name == 'pull_request'

@@ -13,6 +13,7 @@
 		"sync-version": "node scripts/sync-version.mjs",
 		"bump": "node scripts/bump-version.mjs",
 		"tag": "node scripts/tag.mjs",
+		"verify:changelog": "node scripts/verify-changelog.mjs",
 		"ralph": "ralph run -c ralph.yml -H builtin:code-assist",
 		"test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs",
 		"lint": "biome lint .",
