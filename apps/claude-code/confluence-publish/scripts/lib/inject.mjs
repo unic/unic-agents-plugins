@@ -3,8 +3,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const TEXT_START_RE = /(?:<p>\s*)?\[AUTO_INSERT_START:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
-export const TEXT_END_RE = /(?:<p>\s*)?\[AUTO_INSERT_END:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
+// Bare markers — no surrounding <p> tags
+export const TEXT_START_BARE_RE = /\[AUTO_INSERT_START:\s*([^\]]+?)\s*\]/;
+export const TEXT_END_BARE_RE = /\[AUTO_INSERT_END:\s*([^\]]+?)\s*\]/;
+// Full <p>-wrapped markers — both opening and closing tags required, no optional groups
+export const TEXT_START_P_RE = /<p>\s*\[AUTO_INSERT_START:\s*([^\]]+?)\s*\]\s*<\/p>/;
+export const TEXT_END_P_RE = /<p>\s*\[AUTO_INSERT_END:\s*([^\]]+?)\s*\]\s*<\/p>/;
 
 /**
  * Injects newHtml into existingBody using one of three strategies:
@@ -26,11 +30,18 @@ export function injectContent(
 	title,
 	{ replaceAll = false, dryRun = false, pageId, version } = {},
 ) {
-	const hasStart = TEXT_START_RE.test(existingBody);
-	const hasEnd = TEXT_END_RE.test(existingBody);
+	// ── Strategy 1: plain-text markers ────────────────────────────────────────
 
-	// Strategy 1: plain-text markers
+	const hasPWrappedStart = TEXT_START_P_RE.test(existingBody);
+	const hasBareStart = TEXT_START_BARE_RE.test(existingBody);
+	const hasPWrappedEnd = TEXT_END_P_RE.test(existingBody);
+	const hasBareEnd = TEXT_END_BARE_RE.test(existingBody);
+
+	const hasStart = hasPWrappedStart || hasBareStart;
+	const hasEnd = hasPWrappedEnd || hasBareEnd;
+
 	if (hasStart || hasEnd) {
+		// Must have both or neither
 		if (hasStart !== hasEnd) {
 			console.error(
 				`Found [AUTO_INSERT_START] without a matching [AUTO_INSERT_END] on page "${title}" — fix the Confluence page before publishing`,
@@ -38,14 +49,30 @@ export function injectContent(
 			process.exit(1);
 		}
 
-		const startMatch = TEXT_START_RE.exec(existingBody);
-		const startLabel = startMatch[1].trim();
-		const afterStart = startMatch.index + startMatch[0].length;
+		// Wrapping style must be consistent across START and END
+		const startIsWrapped = hasPWrappedStart;
+		const endIsWrapped = hasPWrappedEnd;
 
+		if (startIsWrapped !== endIsWrapped) {
+			console.error(
+				`Marker wrapping mismatch on page "${title}": START is ${startIsWrapped ? "<p>-wrapped" : "bare"} but END is ${endIsWrapped ? "<p>-wrapped" : "bare"} — fix the Confluence page so both markers use the same format`,
+			);
+			process.exit(1);
+		}
+
+		const START_RE = startIsWrapped ? TEXT_START_P_RE : TEXT_START_BARE_RE;
+
+		const startMatch = START_RE.exec(existingBody);
+		const startLabel = startMatch[1].trim();
+
+		// Build a label-specific END regex with the same wrapping style as START.
 		const escapedLabel = startLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-		const labelEndRe = new RegExp(
-			`(?:<p>\\s*)?\\[AUTO_INSERT_END:\\s*${escapedLabel}\\s*\\](?:\\s*<\\/p>)?`,
-		);
+		const labelEndRe = endIsWrapped
+			? new RegExp(`<p>\\s*\\[AUTO_INSERT_END:\\s*${escapedLabel}\\s*\\]\\s*<\\/p>`)
+			: new RegExp(`\\[AUTO_INSERT_END:\\s*${escapedLabel}\\s*\\]`);
+
+		// Search for the END marker only in the content AFTER the START marker ends.
+		const afterStart = startMatch.index + startMatch[0].length;
 		const endMatch = labelEndRe.exec(existingBody.slice(afterStart));
 
 		if (!endMatch) {
@@ -55,7 +82,13 @@ export function injectContent(
 			process.exit(1);
 		}
 
-		return `${existingBody.slice(0, afterStart)}\n${newHtml}\n${existingBody.slice(afterStart + endMatch.index)}`;
+		// Slice construction:
+		//   prefix   — everything up to the start of the START marker (incl. its <p> if wrapped)
+		//   suffix   — everything from the end of the END marker (incl. its </p> if wrapped)
+		const prefixEnd = startMatch.index;
+		const suffixStart = afterStart + endMatch.index + endMatch[0].length;
+
+		return `${existingBody.slice(0, prefixEnd)}${startMatch[0]}\n${newHtml}\n${endMatch[0]}${existingBody.slice(suffixStart)}`;
 	}
 
 	// Strategy 2: anchor macros (legacy fallback)
