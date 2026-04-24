@@ -1,5 +1,7 @@
 # 16. Add `.claude-plugin/README.md` for Marketplace Documentation
 
+**Status: done — 2026-04-24**
+
 **Priority:** P2
 **Effort:** S
 **Depends on:** none
