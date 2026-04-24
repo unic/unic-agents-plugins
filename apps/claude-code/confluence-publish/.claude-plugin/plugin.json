@@ -1,11 +1,9 @@
 {
-  "author": {
-    "name": "Unic"
-  },
-  "commands": [
-    "./commands/unic-confluence.md"
-  ],
-  "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
-  "name": "unic-confluence",
-  "version": "2.0.0"
+	"author": {
+		"name": "Unic"
+	},
+	"commands": ["./commands/unic-confluence.md"],
+	"description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
+	"name": "unic-confluence",
+	"version": "2.0.0"
 }

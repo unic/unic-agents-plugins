@@ -10,8 +10,5 @@
  * @returns {string}
  */
 export function stripFrontmatter(content) {
-	return content.replace(
-		/^---\r?\n(?:[^\n]*\r?\n){0,50}?---\s*\r?\n/,
-		"",
-	);
+	return content.replace(/^---\r?\n(?:[^\n]*\r?\n){0,50}?---\s*\r?\n/, "");
 }

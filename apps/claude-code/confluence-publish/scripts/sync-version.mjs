@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: LGPL-3.0-or-later
-import { readFileSync, writeFileSync } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -33,13 +33,13 @@ try {
 }
 
 if (!Array.isArray(marketplace.plugins) || marketplace.plugins.length === 0) {
-	console.error(`sync-version: marketplace.json has no plugins[] array`);
+	console.error("sync-version: marketplace.json has no plugins[] array");
 	process.exit(1);
 }
 
 const prev = marketplace.plugins[0].version;
 marketplace.plugins[0].version = version;
-writeFileSync(marketplacePath, JSON.stringify(marketplace, null, 2) + "\n", "utf8");
+writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, "utf8");
 
 if (prev === version) {
 	console.log(`sync-version: marketplace.json already at version ${version} (no change)`);

@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { injectContent } from "./inject.mjs";
 
 describe("injectContent — strategy 1: plain-text markers", () => {
@@ -59,7 +59,10 @@ describe("injectContent — strategy 2: anchor macros", () => {
 
 describe("injectContent — strategy 3: replace-all", () => {
 	it("replaces full body when replaceAll=true (dryRun=true skips backup)", () => {
-		const result = injectContent("<p>existing</p>", "<p>new</p>", "Test", { replaceAll: true, dryRun: true });
+		const result = injectContent("<p>existing</p>", "<p>new</p>", "Test", {
+			replaceAll: true,
+			dryRun: true,
+		});
 		assert.strictEqual(result, "<p>new</p>");
 	});
 

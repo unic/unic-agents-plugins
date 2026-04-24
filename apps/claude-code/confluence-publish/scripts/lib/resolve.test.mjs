@@ -1,10 +1,10 @@
-import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, unlinkSync, existsSync, readFileSync } from "fs";
-import path from "path";
-import { spawnSync } from "child_process";
-import { fileURLToPath } from "url";
-import { resolvePageId, isNumericId } from "./resolve.mjs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { after, before, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+import { isNumericId, resolvePageId } from "./resolve.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const testPagesPath = path.join(process.cwd(), "confluence-pages.json");
@@ -42,7 +42,7 @@ describe("resolvePageId — key lookup", () => {
 		}
 		writeFileSync(
 			testPagesPath,
-			JSON.stringify({ "_comment": "test", "my-page": 11111, "other": 22222 }, null, 2),
+			JSON.stringify({ _comment: "test", "my-page": 11111, other: 22222 }, null, 2),
 			"utf8",
 		);
 	});

@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
-import { mkdirSync, writeFileSync } from "fs";
-import path from "path";
-import os from "os";
+import { mkdirSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
-export const TEXT_START_RE =
-	/(?:<p>\s*)?\[AUTO_INSERT_START:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
-export const TEXT_END_RE =
-	/(?:<p>\s*)?\[AUTO_INSERT_END:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
+export const TEXT_START_RE = /(?:<p>\s*)?\[AUTO_INSERT_START:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
+export const TEXT_END_RE = /(?:<p>\s*)?\[AUTO_INSERT_END:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
 
 /**
  * Injects newHtml into existingBody using one of three strategies:
@@ -22,7 +20,12 @@ export const TEXT_END_RE =
  * @param {{ replaceAll?: boolean, dryRun?: boolean, pageId?: number, version?: number }} [opts]
  * @returns {string}
  */
-export function injectContent(existingBody, newHtml, title, { replaceAll = false, dryRun = false, pageId, version } = {}) {
+export function injectContent(
+	existingBody,
+	newHtml,
+	title,
+	{ replaceAll = false, dryRun = false, pageId, version } = {},
+) {
 	const hasStart = TEXT_START_RE.test(existingBody);
 	const hasEnd = TEXT_END_RE.test(existingBody);
 
@@ -52,13 +55,7 @@ export function injectContent(existingBody, newHtml, title, { replaceAll = false
 			process.exit(1);
 		}
 
-		return (
-			existingBody.slice(0, afterStart) +
-			"\n" +
-			newHtml +
-			"\n" +
-			existingBody.slice(afterStart + endMatch.index)
-		);
+		return `${existingBody.slice(0, afterStart)}\n${newHtml}\n${existingBody.slice(afterStart + endMatch.index)}`;
 	}
 
 	// Strategy 2: anchor macros (legacy fallback)
@@ -80,13 +77,7 @@ export function injectContent(existingBody, newHtml, title, { replaceAll = false
 		const startMatch = anchorStartRe.exec(existingBody);
 		const endMatch = anchorEndRe.exec(existingBody);
 
-		return (
-			existingBody.slice(0, startMatch.index + startMatch[0].length) +
-			"\n" +
-			newHtml +
-			"\n" +
-			existingBody.slice(endMatch.index)
-		);
+		return `${existingBody.slice(0, startMatch.index + startMatch[0].length)}\n${newHtml}\n${existingBody.slice(endMatch.index)}`;
 	}
 
 	// Strategy 3: no markers found
@@ -103,8 +94,7 @@ export function injectContent(existingBody, newHtml, title, { replaceAll = false
 		return newHtml;
 	}
 	console.error(
-		`No [AUTO_INSERT_START:label] / [AUTO_INSERT_END:label] markers found on page "${title}". ` +
-		`Add markers to the Confluence page, or use --replace-all to overwrite the full body.`,
+		`No [AUTO_INSERT_START:label] / [AUTO_INSERT_END:label] markers found on page "${title}". Add markers to the Confluence page, or use --replace-all to overwrite the full body.`,
 	);
 	process.exit(1);
 }

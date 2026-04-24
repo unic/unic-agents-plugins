@@ -1,5 +1,7 @@
 # 10. Biome Lint, Format, and CI
 
+**Status: done — 2026-04-24**
+
 **Priority:** P1
 **Effort:** M
 **Depends on:** spec 09 (test files must exist for `pnpm test` to run in CI)

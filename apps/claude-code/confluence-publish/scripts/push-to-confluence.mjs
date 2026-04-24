@@ -8,20 +8,14 @@
  * Usage: npm run confluence -- {pageId} {file.md}
  */
 
+import { chmodSync, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import https from "node:https";
+import os from "node:os";
+import path from "node:path";
+import { createInterface } from "node:readline";
 import { marked } from "marked";
-import {
-	chmodSync,
-	existsSync,
-	readFileSync,
-	statSync,
-	writeFileSync,
-} from "fs";
-import https from "https";
-import { createInterface } from "readline";
-import os from "os";
-import path from "path";
-import { injectContent } from "./lib/inject.mjs";
 import { stripFrontmatter } from "./lib/frontmatter.mjs";
+import { injectContent } from "./lib/inject.mjs";
 import { resolvePageId } from "./lib/resolve.mjs";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -58,7 +52,7 @@ function loadCredentials() {
 // ── HTTP helpers ───────────────────────────────────────────────────────────────
 
 function makeBasicAuth(username, token) {
-	return "Basic " + Buffer.from(`${username}:${token}`).toString("base64");
+	return `Basic ${Buffer.from(`${username}:${token}`).toString("base64")}`;
 }
 
 function httpsRequest(method, urlStr, authHeader, bodyObj) {
@@ -79,14 +73,14 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
 
 		const req = https.request(options, (res) => {
 			let data = "";
-			res.on("data", (chunk) => (data += chunk));
+			res.on("data", (chunk) => {
+				data += chunk;
+			});
 			res.on("end", () => resolve({ status: res.statusCode, body: data }));
 		});
 
 		req.setTimeout(30_000, () => {
-			req.destroy(
-				new Error("Request timed out after 30s — check VPN/network connectivity"),
-			);
+			req.destroy(new Error("Request timed out after 30s — check VPN/network connectivity"));
 		});
 
 		req.on("error", (err) => {
@@ -140,9 +134,7 @@ function postProcessHtml(html) {
 		/<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/g,
 		(_, lang, code) => {
 			const rawCode = decodeEntities(code);
-			const langParam = lang
-				? `\n  <ac:parameter ac:name="language">${lang}</ac:parameter>`
-				: "";
+			const langParam = lang ? `\n  <ac:parameter ac:name="language">${lang}</ac:parameter>` : "";
 			return `<ac:structured-macro ac:name="code">${langParam}\n  <ac:plain-text-body><![CDATA[${rawCode}]]></ac:plain-text-body>\n</ac:structured-macro>`;
 		},
 	);
@@ -213,8 +205,7 @@ async function runSetup() {
 
 	const credPath = path.join(os.homedir(), ".unic-confluence.json");
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
-	const question = (prompt) =>
-		new Promise((resolve) => rl.question(prompt, resolve));
+	const question = (prompt) => new Promise((resolve) => rl.question(prompt, resolve));
 
 	let existing = null;
 	if (existsSync(credPath)) {
@@ -240,13 +231,11 @@ async function runSetup() {
 	const urlInput = await question(`Confluence URL [${defaultUrl}]: `);
 	const url = urlInput.trim() || defaultUrl;
 
-	const userInput = await question(
-		`Email${existing?.username ? ` [${existing.username}]` : ""}: `,
-	);
+	const userInput = await question(`Email${existing?.username ? ` [${existing.username}]` : ""}: `);
 	const username = userInput.trim() || existing?.username || "";
 
 	const tokenInput = await question(
-		`API token (Note: tokens created before 2025 may have expired): `,
+		"API token (Note: tokens created before 2025 may have expired): ",
 	);
 	const token = tokenInput.trim();
 
@@ -294,7 +283,11 @@ async function main() {
 		const authHeader = makeBasicAuth(username, token);
 		let res;
 		try {
-			res = await httpsRequest("GET", `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages?limit=1`, authHeader);
+			res = await httpsRequest(
+				"GET",
+				`${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages?limit=1`,
+				authHeader,
+			);
 		} catch (err) {
 			console.error(err.message);
 			process.exit(1);
@@ -312,9 +305,11 @@ async function main() {
 
 	const dryRun = args.includes("--dry-run");
 	const replaceAll = args.includes("--replace-all");
-	const positionalArgs = args.filter(a => !a.startsWith("--"));
+	const positionalArgs = args.filter((a) => !a.startsWith("--"));
 	if (positionalArgs.length < 2) {
-		console.error("Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] {pageId} {file.md}");
+		console.error(
+			"Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] {pageId} {file.md}",
+		);
 		process.exit(1);
 	}
 	const [pageArg, filePath] = positionalArgs;
@@ -338,9 +333,7 @@ async function main() {
 	const html = postProcessHtml(rawHtml);
 
 	if (!html || !html.trim()) {
-		console.error(
-			"Markdown converted to empty HTML — check the source file is not empty",
-		);
+		console.error("Markdown converted to empty HTML — check the source file is not empty");
 		process.exit(1);
 	}
 
@@ -363,9 +356,7 @@ async function main() {
 	try {
 		pageData = JSON.parse(getRes.body);
 	} catch {
-		console.error(
-			"Unexpected response from Confluence — check VPN/network and retry",
-		);
+		console.error("Unexpected response from Confluence — check VPN/network and retry");
 		process.exit(1);
 	}
 

@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { stripFrontmatter } from "./frontmatter.mjs";
 
 describe("stripFrontmatter", () => {
@@ -25,10 +25,7 @@ describe("stripFrontmatter", () => {
 
 	it("preserves --- HR in body after valid frontmatter", () => {
 		const input = "---\ntitle: Doc\n---\n# Section 1\n\nText.\n\n---\n\n# Section 2\n";
-		assert.strictEqual(
-			stripFrontmatter(input),
-			"# Section 1\n\nText.\n\n---\n\n# Section 2\n",
-		);
+		assert.strictEqual(stripFrontmatter(input), "# Section 1\n\nText.\n\n---\n\n# Section 2\n");
 	});
 
 	it("does not strip when frontmatter has no closing ---", () => {

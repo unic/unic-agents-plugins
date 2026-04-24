@@ -3,6 +3,7 @@ packages:
 
 catalog:
   marked: "17.0.5"
+  "@biomejs/biome": "1.9.4"
 
 catalogMode: prefer
 preferWorkspacePackages: true
