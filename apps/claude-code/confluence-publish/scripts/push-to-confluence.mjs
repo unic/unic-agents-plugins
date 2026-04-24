@@ -392,6 +392,19 @@ async function main() {
 		await runSetup();
 		process.exit(0);
 	}
+	if (args[0] === "--ping") {
+		const { url: baseUrl, username, token } = loadCredentials();
+		const authHeader = makeBasicAuth(username, token);
+		let res;
+		try {
+			res = await httpsRequest("GET", `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages?limit=1`, authHeader);
+		} catch (err) {
+			console.error(err.message);
+			process.exit(1);
+		}
+		if (res.status >= 200 && res.status < 300) { process.exit(0); }
+		handleHttpError(res.status, "");
+	}
 	if (args[0] === "--verify") {
 		await runVerify();
 		return;

@@ -28,15 +28,15 @@ If either is missing, tell the user: "Usage: /unic-confluence <page-key-or-id> <
 Page keys are human-friendly names defined in `confluence-pages.json` at the repo root (e.g. `spec-42410`).
 You can also pass a raw numeric Confluence page ID directly.
 
-### 2. Check credentials
+### 2. Check credentials (quick auth probe)
 
 Run to verify credentials are configured:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --verify
+node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --ping
 ```
 
-If credentials are missing, instruct the user to run:
+Performs a single HTTP GET to verify credentials are valid. If credentials are missing or rejected, instruct the user to run:
 
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --setup
