@@ -227,6 +227,10 @@ This plugin follows the Unic Claude Code plugin naming convention:
 3. Run `pnpm release` — this syncs `marketplace.json`, stages both files, and commits with a `chore: release vX.Y.Z` message.
 4. Push and create a GitHub release tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the spec-driven development workflow, how to write specs, and how to run Ralph Orchestrator.
+
 ## License
 
 Copyright © 2026 Unic. Licensed under the [LGPL-3.0-or-later](LICENSE).
