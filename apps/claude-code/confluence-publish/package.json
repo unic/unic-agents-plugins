@@ -11,7 +11,8 @@
   "scripts": {
     "confluence": "node scripts/push-to-confluence.mjs",
     "sync-version": "node scripts/sync-version.mjs",
-    "release": "node scripts/sync-version.mjs && git add .claude-plugin/marketplace.json CHANGELOG.md && git commit -m \"chore: release v$(node -e 'const fs=require(\"fs\");const p=JSON.parse(fs.readFileSync(\".claude-plugin/plugin.json\",\"utf8\"));process.stdout.write(p.version)')\""
+    "release": "node scripts/sync-version.mjs && git add .claude-plugin/marketplace.json CHANGELOG.md && git commit -m \"chore: release v$(node -e 'const fs=require(\"fs\");const p=JSON.parse(fs.readFileSync(\".claude-plugin/plugin.json\",\"utf8\"));process.stdout.write(p.version)')\"",
+    "test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs"
   },
   "dependencies": {
     "marked": "catalog:"

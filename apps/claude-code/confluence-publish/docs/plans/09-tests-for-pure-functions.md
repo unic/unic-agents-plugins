@@ -1,4 +1,5 @@
 # 09. Tests for Pure Functions
+**Status: done — 2026-04-24**
 
 **Priority:** P1
 **Effort:** M
@@ -712,6 +713,10 @@ node --check scripts/lib/resolve.test.mjs
 - Do not test `loadCredentials` — it reads from the filesystem and environment, making it an integration concern.
 - Do not add `postProcessHtml` (spec 05) to this test suite — add it in a follow-up once spec 05 is implemented.
 - Do not change the runtime behaviour of any extracted function — copy verbatim, export, and import.
+
+## Deviations
+
+- **`injectContent` signature**: The spec template shows a simple `injectContent(existingBody, newHtml, title)` signature (strategy 3 = append fallback). The actual code has evolved through specs 03 and 04 to `injectContent(existingBody, newHtml, title, { replaceAll, dryRun, pageId, version })` where strategy 3 is now an error (no markers) or a full replace (`replaceAll=true`). The lib module exports the actual current implementation verbatim. The strategy-3 tests in `inject.test.mjs` are updated to test the `replaceAll=true, dryRun=true` path instead of the old append path.
 
 ## Follow-ups
 

@@ -8,11 +8,10 @@
  * Usage: npm run confluence -- {pageId} {file.md}
  */
 
-import { createRequire } from "module";
+import { marked } from "marked";
 import {
 	chmodSync,
 	existsSync,
-	mkdirSync,
 	readFileSync,
 	statSync,
 	writeFileSync,
@@ -21,9 +20,9 @@ import https from "https";
 import { createInterface } from "readline";
 import os from "os";
 import path from "path";
-
-const require = createRequire(import.meta.url);
-const { marked } = require("marked");
+import { injectContent } from "./lib/inject.mjs";
+import { stripFrontmatter } from "./lib/frontmatter.mjs";
+import { resolvePageId } from "./lib/resolve.mjs";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -113,21 +112,6 @@ function handleHttpError(status, title) {
 	process.exit(1);
 }
 
-// ── YAML frontmatter stripping ─────────────────────────────────────────────────
-
-function stripFrontmatter(content) {
-	// Match only if opening --- is at byte 0.
-	// Allow up to 50 key:value lines inside the block — legitimate YAML frontmatter
-	// is never 50 lines; this cap prevents runaway matches on unclosed frontmatter.
-	// [^\n]*\r?\n matches one line (LF or CRLF) without crossing to the next.
-	// The s flag is intentionally absent: [^\n] provides the same line-at-a-time
-	// semantics without granting .* permission to range across the whole document.
-	return content.replace(
-		/^---\r?\n(?:[^\n]*\r?\n){0,50}?---\s*\r?\n/,
-		"",
-	);
-}
-
 // ── HTML post-processing ───────────────────────────────────────────────────────
 
 /**
@@ -162,157 +146,6 @@ function postProcessHtml(html) {
 			return `<ac:structured-macro ac:name="code">${langParam}\n  <ac:plain-text-body><![CDATA[${rawCode}]]></ac:plain-text-body>\n</ac:structured-macro>`;
 		},
 	);
-}
-
-// ── Content injection strategies ───────────────────────────────────────────────
-
-const TEXT_START_RE =
-	/(?:<p>\s*)?\[AUTO_INSERT_START:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
-const TEXT_END_RE =
-	/(?:<p>\s*)?\[AUTO_INSERT_END:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
-
-function injectContent(existingBody, newHtml, title, { replaceAll = false, dryRun = false, pageId, version } = {}) {
-	const hasStart = TEXT_START_RE.test(existingBody);
-	const hasEnd = TEXT_END_RE.test(existingBody);
-
-	// Strategy 1: plain-text markers
-	if (hasStart || hasEnd) {
-		if (hasStart !== hasEnd) {
-			console.error(
-				`Found [AUTO_INSERT_START] without a matching [AUTO_INSERT_END] on page "${title}" — fix the Confluence page before publishing`,
-			);
-			process.exit(1);
-		}
-
-		const startMatch = TEXT_START_RE.exec(existingBody);
-		const startLabel = startMatch[1].trim();
-		const afterStart = startMatch.index + startMatch[0].length;
-
-		// Construct a label-specific END pattern and search only after the start position.
-		// This avoids false label-mismatch errors when the page content contains documentation
-		// examples of the marker syntax that use different labels.
-		const escapedLabel = startLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-		const labelEndRe = new RegExp(
-			`(?:<p>\\s*)?\\[AUTO_INSERT_END:\\s*${escapedLabel}\\s*\\](?:\\s*<\\/p>)?`,
-		);
-		const endMatch = labelEndRe.exec(existingBody.slice(afterStart));
-
-		if (!endMatch) {
-			console.error(
-				`Marker label mismatch on page "${title}": [AUTO_INSERT_START:${startLabel}] has no matching [AUTO_INSERT_END:${startLabel}] — fix the Confluence page before publishing`,
-			);
-			process.exit(1);
-		}
-
-		return (
-			existingBody.slice(0, afterStart) +
-			"\n" +
-			newHtml +
-			"\n" +
-			existingBody.slice(afterStart + endMatch.index)
-		);
-	}
-
-	// Strategy 2: anchor macros (legacy fallback)
-	// Matches Confluence storage format: <ac:structured-macro ac:name="anchor"><ac:parameter ac:name="">md-start</ac:parameter></ac:structured-macro>
-	const anchorStartRe =
-		/<ac:structured-macro[^>]*ac:name="anchor"[^>]*>\s*<ac:parameter[^>]*>md-start<\/ac:parameter>\s*<\/ac:structured-macro>/;
-	const anchorEndRe =
-		/<ac:structured-macro[^>]*ac:name="anchor"[^>]*>\s*<ac:parameter[^>]*>md-end<\/ac:parameter>\s*<\/ac:structured-macro>/;
-	const hasAnchorStart = anchorStartRe.test(existingBody);
-	const hasAnchorEnd = anchorEndRe.test(existingBody);
-
-	if (hasAnchorStart || hasAnchorEnd) {
-		if (hasAnchorStart !== hasAnchorEnd) {
-			console.error(
-				`Found md-start anchor without md-end (or vice versa) on page "${title}" — fix the Confluence page before publishing`,
-			);
-			process.exit(1);
-		}
-
-		const startMatch = anchorStartRe.exec(existingBody);
-		const endMatch = anchorEndRe.exec(existingBody);
-
-		return (
-			existingBody.slice(0, startMatch.index + startMatch[0].length) +
-			"\n" +
-			newHtml +
-			"\n" +
-			existingBody.slice(endMatch.index)
-		);
-	}
-
-	// Strategy 3: no markers found
-	if (replaceAll) {
-		if (!dryRun) {
-			const safePageId = pageId ?? "unknown-page";
-			const safeVersion = version ?? "unknown-version";
-			const backupDir = path.join(os.homedir(), ".unic-confluence", "backups");
-			mkdirSync(backupDir, { recursive: true });
-			const backupPath = path.join(backupDir, `${safePageId}-v${safeVersion}.html`);
-			writeFileSync(backupPath, existingBody, "utf8");
-			console.log(`Backup saved to ${backupPath}`);
-		}
-		return newHtml;
-	}
-	console.error(
-		`No [AUTO_INSERT_START:label] / [AUTO_INSERT_END:label] markers found on page "${title}". ` +
-		`Add markers to the Confluence page, or use --replace-all to overwrite the full body.`,
-	);
-	process.exit(1);
-}
-
-// ── Page ID resolution ────────────────────────────────────────────────────────
-
-function isNumericId(arg) {
-	return /^\d+$/.test(arg);
-}
-
-function resolvePageId(arg) {
-	if (isNumericId(arg)) {
-		const id = parseInt(arg, 10);
-		if (!Number.isInteger(id) || id <= 0) {
-			console.error(`Invalid page ID: ${arg}`);
-			process.exit(1);
-		}
-		return id;
-	}
-
-	const pagesPath = path.join(process.cwd(), "confluence-pages.json");
-	if (!existsSync(pagesPath)) {
-		console.error(
-			"confluence-pages.json not found — create it or pass a page ID directly",
-		);
-		process.exit(1);
-	}
-
-	let pages;
-	try {
-		pages = JSON.parse(readFileSync(pagesPath, "utf8"));
-	} catch {
-		console.error("invalid JSON in confluence-pages.json — check syntax");
-		process.exit(1);
-	}
-
-	if (!(arg in pages)) {
-		const keys = Object.keys(pages)
-			.filter((k) => k !== "_comment")
-			.join(", ");
-		console.error(
-			`'${arg}' not found in confluence-pages.json — available keys: ${keys}`,
-		);
-		process.exit(1);
-	}
-
-	const id = pages[arg];
-	if (!Number.isInteger(id) || id <= 0) {
-		console.error(
-			`Invalid page ID for key '${arg}': ${id} — must be a positive integer`,
-		);
-		process.exit(1);
-	}
-
-	return id;
 }
 
 // ── Verify flow ────────────────────────────────────────────────────────────────
