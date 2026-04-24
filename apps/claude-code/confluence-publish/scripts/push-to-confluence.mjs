@@ -124,7 +124,7 @@ const TEXT_START_RE =
 const TEXT_END_RE =
 	/(?:<p>\s*)?\[AUTO_INSERT_END:\s*([^\]]+?)\s*\](?:\s*<\/p>)?/;
 
-function injectContent(existingBody, newHtml, title, { replaceAll = false, pageId, version } = {}) {
+function injectContent(existingBody, newHtml, title, { replaceAll = false, dryRun = false, pageId, version } = {}) {
 	const hasStart = TEXT_START_RE.test(existingBody);
 	const hasEnd = TEXT_END_RE.test(existingBody);
 
@@ -197,13 +197,15 @@ function injectContent(existingBody, newHtml, title, { replaceAll = false, pageI
 
 	// Strategy 3: no markers found
 	if (replaceAll) {
-		const safePageId = pageId ?? "unknown-page";
-		const safeVersion = version ?? "unknown-version";
-		const backupDir = path.join(os.homedir(), ".unic-confluence", "backups");
-		mkdirSync(backupDir, { recursive: true });
-		const backupPath = path.join(backupDir, `${safePageId}-v${safeVersion}.html`);
-		writeFileSync(backupPath, existingBody, "utf8");
-		console.log(`Backup saved to ${backupPath}`);
+		if (!dryRun) {
+			const safePageId = pageId ?? "unknown-page";
+			const safeVersion = version ?? "unknown-version";
+			const backupDir = path.join(os.homedir(), ".unic-confluence", "backups");
+			mkdirSync(backupDir, { recursive: true });
+			const backupPath = path.join(backupDir, `${safePageId}-v${safeVersion}.html`);
+			writeFileSync(backupPath, existingBody, "utf8");
+			console.log(`Backup saved to ${backupPath}`);
+		}
 		return newHtml;
 	}
 	console.error(
@@ -496,8 +498,7 @@ async function main() {
 
 	console.log(`Page: "${title}" (version ${version})`);
 
-	const effectiveReplaceAll = dryRun ? false : replaceAll;
-	const newBody = injectContent(existingBody, html, title, { replaceAll: effectiveReplaceAll, pageId, version });
+	const newBody = injectContent(existingBody, html, title, { replaceAll, dryRun, pageId, version });
 
 	if (dryRun) {
 		console.log("=== DRY RUN — Page would be updated to: ===\n");
