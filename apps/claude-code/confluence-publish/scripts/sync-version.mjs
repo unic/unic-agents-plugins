@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -8,11 +9,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // Read the single source of truth
 const pluginPath = path.join(root, ".claude-plugin/plugin.json");
+/** @type {{ version: string, [key: string]: unknown }} */
 let pluginJson;
 try {
-	pluginJson = JSON.parse(readFileSync(pluginPath, "utf8"));
+	pluginJson = /** @type {{ version: string, [key: string]: unknown }} */ (
+		JSON.parse(readFileSync(pluginPath, "utf8"))
+	);
 } catch (err) {
-	console.error(`sync-version: cannot read ${pluginPath}: ${err.message}`);
+	console.error(`sync-version: cannot read ${pluginPath}: ${/** @type {Error} */ (err).message}`);
 	process.exit(1);
 }
 
@@ -24,11 +28,16 @@ if (!version || typeof version !== "string") {
 
 // Write derived version into marketplace.json
 const marketplacePath = path.join(root, ".claude-plugin/marketplace.json");
+/** @type {{ plugins: Array<{ version: string, [key: string]: unknown }> }} */
 let marketplace;
 try {
-	marketplace = JSON.parse(readFileSync(marketplacePath, "utf8"));
+	marketplace = /** @type {{ plugins: Array<{ version: string, [key: string]: unknown }> }} */ (
+		JSON.parse(readFileSync(marketplacePath, "utf8"))
+	);
 } catch (err) {
-	console.error(`sync-version: cannot read ${marketplacePath}: ${err.message}`);
+	console.error(
+		`sync-version: cannot read ${marketplacePath}: ${/** @type {Error} */ (err).message}`,
+	);
 	process.exit(1);
 }
 

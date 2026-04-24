@@ -1,3 +1,4 @@
+// @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -12,13 +13,12 @@ export function isNumericId(arg) {
 }
 
 /**
- * Resolves a page ID from either a numeric string or a key in confluence-pages.json.
+ * Resolves a page argument to a numeric Confluence page ID.
+ * Accepts either a bare numeric string ("987654321") or a key name looked up
+ * in `confluence-pages.json` at the current working directory.
  *
- * Calls process.exit(1) on all error conditions. Spec 15 will replace these
- * with CliError throws.
- *
- * @param {string} arg — numeric page ID or key name from confluence-pages.json
- * @returns {number} — positive integer page ID
+ * @param {string} arg - Raw user input: numeric ID or confluence-pages.json key.
+ * @returns {number} Positive integer Confluence page ID.
  */
 export function resolvePageId(arg) {
 	if (isNumericId(arg)) {
@@ -36,9 +36,10 @@ export function resolvePageId(arg) {
 		process.exit(1);
 	}
 
+	/** @type {Record<string, unknown>} */
 	let pages;
 	try {
-		pages = JSON.parse(readFileSync(pagesPath, "utf8"));
+		pages = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pagesPath, "utf8")));
 	} catch {
 		console.error("invalid JSON in confluence-pages.json — check syntax");
 		process.exit(1);
@@ -53,7 +54,7 @@ export function resolvePageId(arg) {
 	}
 
 	const id = pages[arg];
-	if (!Number.isInteger(id) || id <= 0) {
+	if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
 		console.error(`Invalid page ID for key '${arg}': ${id} — must be a positive integer`);
 		process.exit(1);
 	}

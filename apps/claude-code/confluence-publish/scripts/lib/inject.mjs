@@ -1,4 +1,6 @@
+// @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
+/** @import { InjectOptions } from './types.mjs' */
 import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -11,18 +13,16 @@ export const TEXT_START_P_RE = /<p>\s*\[AUTO_INSERT_START:\s*([^\]]+?)\s*\]\s*<\
 export const TEXT_END_P_RE = /<p>\s*\[AUTO_INSERT_END:\s*([^\]]+?)\s*\]\s*<\/p>/;
 
 /**
- * Injects newHtml into existingBody using one of three strategies:
- *   1. Plain-text markers ([AUTO_INSERT_START: label] / [AUTO_INSERT_END: label])
- *   2. Anchor macros (md-start / md-end)
- *   3. Replace-all (--replace-all flag) or error if no markers
+ * Injects `newHtml` into `existingBody` using one of three strategies:
+ * 1. Plain-text markers ([AUTO_INSERT_START:label] / [AUTO_INSERT_END:label])
+ * 2. Confluence anchor macros (md-start / md-end)
+ * 3. Append (no markers found)
  *
- * Calls process.exit(1) on mismatched or unpaired markers.
- *
- * @param {string} existingBody — Confluence storage-format HTML
- * @param {string} newHtml — HTML to inject
- * @param {string} title — page title, used in error messages only
- * @param {{ replaceAll?: boolean, dryRun?: boolean, pageId?: number, version?: number }} [opts]
- * @returns {string}
+ * @param {string} existingBody - Current Confluence page storage-format HTML.
+ * @param {string} newHtml - New HTML to inject (output of marked()).
+ * @param {string} title - Page title, used in error messages only.
+ * @param {InjectOptions} [opts] - Injection options (replaceAll, dryRun, pageId, version).
+ * @returns {string} Updated storage-format HTML with new content injected.
  */
 export function injectContent(
 	existingBody,
@@ -63,6 +63,8 @@ export function injectContent(
 		const START_RE = startIsWrapped ? TEXT_START_P_RE : TEXT_START_BARE_RE;
 
 		const startMatch = START_RE.exec(existingBody);
+		// unreachable: hasBareStart or hasPWrappedStart is true above
+		if (!startMatch) process.exit(1);
 		const startLabel = startMatch[1].trim();
 
 		// Build a label-specific END regex with the same wrapping style as START.
@@ -109,6 +111,8 @@ export function injectContent(
 
 		const startMatch = anchorStartRe.exec(existingBody);
 		const endMatch = anchorEndRe.exec(existingBody);
+		// unreachable: hasAnchorStart and hasAnchorEnd are both true above
+		if (!startMatch || !endMatch) process.exit(1);
 
 		return `${existingBody.slice(0, startMatch.index + startMatch[0].length)}\n${newHtml}\n${existingBody.slice(endMatch.index)}`;
 	}

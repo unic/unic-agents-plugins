@@ -16,13 +16,16 @@
 		"lint": "biome lint .",
 		"format": "biome format --write .",
 		"check": "biome check .",
-		"ci:check": "biome ci ."
+		"ci:check": "biome ci .",
+		"typecheck": "tsc --noEmit --allowJs --checkJs --strict --target ES2022 --module NodeNext --moduleResolution NodeNext scripts/*.mjs scripts/lib/*.mjs"
 	},
 	"dependencies": {
 		"marked": "catalog:"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "catalog:"
+		"@biomejs/biome": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": ["@biomejs/biome"],

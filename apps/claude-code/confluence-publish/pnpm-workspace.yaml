@@ -4,6 +4,8 @@ packages:
 catalog:
   marked: "17.0.5"
   "@biomejs/biome": "1.9.4"
+  typescript: "5.8.3"
+  "@types/node": "24.12.2"
 
 catalogMode: prefer
 preferWorkspacePackages: true

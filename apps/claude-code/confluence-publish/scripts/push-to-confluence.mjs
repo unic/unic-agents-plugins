@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: LGPL-3.0-or-later
+// @ts-check
 // Copyright © 2026 Unic
 /**
  * push-to-confluence.mjs
@@ -7,6 +8,7 @@
  *
  * Usage: npm run confluence -- {pageId} {file.md}
  */
+/** @import { Credentials, HttpResponse, PageData } from './lib/types.mjs' */
 
 import { chmodSync, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import https from "node:https";
@@ -22,6 +24,12 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 // ── Credential resolution ──────────────────────────────────────────────────────
 
+/**
+ * Loads Confluence credentials from environment variables or ~/.unic-confluence.json.
+ * Exits with code 1 if credentials are not configured.
+ *
+ * @returns {Credentials}
+ */
 function loadCredentials() {
 	const { CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN } = process.env;
 
@@ -36,7 +44,7 @@ function loadCredentials() {
 	const credFile = path.join(os.homedir(), ".unic-confluence.json");
 	if (existsSync(credFile)) {
 		try {
-			const raw = JSON.parse(readFileSync(credFile, "utf8"));
+			const raw = /** @type {Credentials} */ (JSON.parse(readFileSync(credFile, "utf8")));
 			if (raw.url && raw.username && raw.token) {
 				return raw;
 			}
@@ -51,10 +59,25 @@ function loadCredentials() {
 
 // ── HTTP helpers ───────────────────────────────────────────────────────────────
 
+/**
+ * @param {string} username
+ * @param {string} token
+ * @returns {string} Base64-encoded Basic auth header value.
+ */
 function makeBasicAuth(username, token) {
 	return `Basic ${Buffer.from(`${username}:${token}`).toString("base64")}`;
 }
 
+/**
+ * Makes an HTTPS request and resolves with the status code and response body.
+ * Rejects if the network is unreachable.
+ *
+ * @param {string} method - HTTP method ("GET" or "PUT").
+ * @param {string} urlStr - Full HTTPS URL.
+ * @param {string} authHeader - Authorization header value.
+ * @param {object} [bodyObj] - Request body object, JSON-serialised if provided.
+ * @returns {Promise<HttpResponse>}
+ */
 function httpsRequest(method, urlStr, authHeader, bodyObj) {
 	return new Promise((resolve, reject) => {
 		const parsed = new URL(urlStr);
@@ -76,7 +99,7 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
 			res.on("data", (chunk) => {
 				data += chunk;
 			});
-			res.on("end", () => resolve({ status: res.statusCode, body: data }));
+			res.on("end", () => resolve({ status: res.statusCode ?? 0, body: data }));
 		});
 
 		req.setTimeout(30_000, () => {
@@ -92,16 +115,24 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
 	});
 }
 
+/**
+ * Prints a human-readable error for a non-2xx HTTP response and exits with code 1.
+ *
+ * @param {number} status - HTTP status code.
+ * @param {string} title - Page title, used in error messages.
+ * @param {{ pageArg?: string, filePath?: string }} [opts] - Used to build the 409 retry hint.
+ * @returns {never}
+ */
 function handleHttpError(status, title, { pageArg = "", filePath = "" } = {}) {
 	const retryHint = pageArg
 		? `Retry with: pnpm confluence ${pageArg} ${filePath}`
 		: "Re-run the command with the current page version.";
-	const messages = {
+	const messages = /** @type {Record<number, string>} */ ({
 		401: "API token rejected — generate a new one at https://id.atlassian.com → Security → API tokens (note: tokens created before 2025 may have expired)",
 		403: "Access denied — check that your API token has permission to read and write this page",
 		404: "Page ID not found — check confluence-pages.json or verify the page still exists",
 		409: `Page was updated by someone else. ${retryHint}`,
-	};
+	});
 	const msg =
 		messages[status] ??
 		`Unexpected response from Confluence (HTTP ${status}) — check VPN/network and retry`;
@@ -120,10 +151,11 @@ function handleHttpError(status, title, { pageArg = "", filePath = "" } = {}) {
  * `]]>` are not handled — this is exceptionally rare and can be addressed in a
  * follow-up if it surfaces.
  *
- * @param {string} html — HTML string as emitted by `marked`
- * @returns {string} — HTML with <pre><code> blocks replaced by Confluence macros
+ * @param {string} html - HTML string as emitted by `marked`
+ * @returns {string} HTML with <pre><code> blocks replaced by Confluence macros
  */
 function postProcessHtml(html) {
+	/** @param {string} str @returns {string} */
 	function decodeEntities(str) {
 		return str
 			.replace(/&lt;/g, "<")
@@ -152,9 +184,10 @@ async function runVerify() {
 		process.exit(1);
 	}
 
+	/** @type {Record<string, unknown>} */
 	let pages;
 	try {
-		pages = JSON.parse(readFileSync(pagesPath, "utf8"));
+		pages = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pagesPath, "utf8")));
 	} catch {
 		console.error("invalid JSON in confluence-pages.json — check syntax");
 		process.exit(1);
@@ -169,7 +202,7 @@ async function runVerify() {
 	let hasErrors = false;
 	for (const [key, id] of Object.entries(pages)) {
 		if (key === "_comment") continue;
-		if (!Number.isInteger(id) || id <= 0) {
+		if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
 			console.error(
 				`❌ ${key}: Invalid page ID in confluence-pages.json: ${JSON.stringify(id)} — must be a positive integer`,
 			);
@@ -180,7 +213,7 @@ async function runVerify() {
 		try {
 			const res = await httpsRequest("GET", getUrl, authHeader);
 			if (res.status === 200) {
-				const pageData = JSON.parse(res.body);
+				const pageData = /** @type {{ title?: string }} */ (JSON.parse(res.body));
 				console.log(`✅ ${key} (${id}): ${pageData.title}`);
 			} else if (res.status === 404) {
 				console.error(`❌ ${key} (${id}): Page not found — 404`);
@@ -208,12 +241,16 @@ async function runSetup() {
 
 	const credPath = path.join(os.homedir(), ".unic-confluence.json");
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
-	const question = (prompt) => new Promise((resolve) => rl.question(prompt, resolve));
+	const question = (/** @type {string} */ prompt) =>
+		new Promise((resolve) => rl.question(prompt, resolve));
 
+	/** @type {{ url?: string, username?: string, token?: string } | null} */
 	let existing = null;
 	if (existsSync(credPath)) {
 		try {
-			existing = JSON.parse(readFileSync(credPath, "utf8"));
+			existing = /** @type {{ url?: string, username?: string, token?: string }} */ (
+				JSON.parse(readFileSync(credPath, "utf8"))
+			);
 		} catch {
 			// ignore
 		}
@@ -223,7 +260,7 @@ async function runSetup() {
 		const answer = await question(
 			`Credentials already configured for ${existing.username}. Overwrite? (y/n): `,
 		);
-		if (answer.trim().toLowerCase() !== "y") {
+		if (/** @type {string} */ (answer).trim().toLowerCase() !== "y") {
 			console.log("Aborted.");
 			rl.close();
 			process.exit(0);
@@ -232,15 +269,15 @@ async function runSetup() {
 
 	const defaultUrl = existing?.url ?? "https://uniccom.atlassian.net";
 	const urlInput = await question(`Confluence URL [${defaultUrl}]: `);
-	const url = urlInput.trim() || defaultUrl;
+	const url = /** @type {string} */ (urlInput).trim() || defaultUrl;
 
 	const userInput = await question(`Email${existing?.username ? ` [${existing.username}]` : ""}: `);
-	const username = userInput.trim() || existing?.username || "";
+	const username = /** @type {string} */ (userInput).trim() || existing?.username || "";
 
 	const tokenInput = await question(
 		"API token (Note: tokens created before 2025 may have expired): ",
 	);
-	const token = tokenInput.trim();
+	const token = /** @type {string} */ (tokenInput).trim();
 
 	rl.close();
 
@@ -292,7 +329,7 @@ async function main() {
 				authHeader,
 			);
 		} catch (err) {
-			console.error(err.message);
+			console.error(/** @type {Error} */ (err).message);
 			process.exit(1);
 		}
 		if (res.status >= 200 && res.status < 300) {
@@ -315,7 +352,8 @@ async function main() {
 		);
 		process.exit(1);
 	}
-	const [pageArg, filePath] = positionalArgs;
+	const pageArg = positionalArgs[0] ?? "";
+	const filePath = positionalArgs[1] ?? "";
 	const pageId = resolvePageId(pageArg);
 	const resolvedPath = path.resolve(filePath);
 
@@ -333,7 +371,7 @@ async function main() {
 	const rawContent = readFileSync(resolvedPath, "utf8");
 	const stripped = stripFrontmatter(rawContent);
 	const rawHtml = marked(stripped);
-	const html = postProcessHtml(rawHtml);
+	const html = postProcessHtml(/** @type {string} */ (rawHtml));
 
 	if (!html || !html.trim()) {
 		console.error("Markdown converted to empty HTML — check the source file is not empty");
@@ -348,23 +386,24 @@ async function main() {
 	try {
 		getRes = await httpsRequest("GET", getUrl, authHeader);
 	} catch (err) {
-		console.error(err.message);
+		console.error(/** @type {Error} */ (err).message);
 		process.exit(1);
 	}
 	if (getRes.status < 200 || getRes.status >= 300) {
 		handleHttpError(getRes.status, "", { pageArg, filePath });
 	}
 
+	/** @type {PageData} */
 	let pageData;
 	try {
-		pageData = JSON.parse(getRes.body);
+		pageData = /** @type {PageData} */ (JSON.parse(getRes.body));
 	} catch {
 		console.error("Unexpected response from Confluence — check VPN/network and retry");
 		process.exit(1);
 	}
 
 	const version = pageData?.version?.number;
-	if (!Number.isInteger(version) || version <= 0) {
+	if (typeof version !== "number" || !Number.isInteger(version) || version <= 0) {
 		console.error(
 			"Could not read page version from Confluence response — retry or contact support",
 		);
@@ -398,7 +437,7 @@ async function main() {
 	try {
 		putRes = await httpsRequest("PUT", putUrl, authHeader, putBody);
 	} catch (err) {
-		console.error(err.message);
+		console.error(/** @type {Error} */ (err).message);
 		process.exit(1);
 	}
 	if (putRes.status < 200 || putRes.status >= 300) {
