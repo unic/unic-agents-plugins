@@ -33,7 +33,7 @@ You can also pass a raw numeric Confluence page ID directly.
 Run to verify credentials are configured:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --ping
+node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --check-auth
 ```
 
 Performs a single HTTP GET to verify credentials are valid. If credentials are missing or rejected, instruct the user to run:

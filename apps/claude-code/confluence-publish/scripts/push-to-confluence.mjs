@@ -84,10 +84,14 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
 			res.on("end", () => resolve({ status: res.statusCode, body: data }));
 		});
 
-		req.on("error", () => {
-			reject(
-				new Error("Cannot reach Confluence — check VPN/network connectivity"),
+		req.setTimeout(30_000, () => {
+			req.destroy(
+				new Error("Request timed out after 30s — check VPN/network connectivity"),
 			);
+		});
+
+		req.on("error", (err) => {
+			reject(err);
 		});
 
 		if (bodyStr) req.write(bodyStr);
@@ -445,7 +449,7 @@ async function main() {
 		await runSetup();
 		process.exit(0);
 	}
-	if (args[0] === "--ping") {
+	if (args[0] === "--check-auth") {
 		const { url: baseUrl, username, token } = loadCredentials();
 		const authHeader = makeBasicAuth(username, token);
 		let res;
@@ -455,7 +459,10 @@ async function main() {
 			console.error(err.message);
 			process.exit(1);
 		}
-		if (res.status >= 200 && res.status < 300) { process.exit(0); }
+		if (res.status >= 200 && res.status < 300) {
+			console.log("✓ Credentials valid");
+			process.exit(0);
+		}
 		handleHttpError(res.status, "");
 	}
 	if (args[0] === "--verify") {
