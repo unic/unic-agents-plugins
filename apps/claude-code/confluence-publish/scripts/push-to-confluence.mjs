@@ -117,6 +117,42 @@ function stripFrontmatter(content) {
 	return content.replace(/^---\r?\n.*?\r?\n---\s*\r?\n/s, "");
 }
 
+// ── HTML post-processing ───────────────────────────────────────────────────────
+
+/**
+ * Rewrites <pre><code> blocks emitted by `marked` into Confluence storage-format
+ * `ac:structured-macro ac:name="code"` elements so that syntax highlighting
+ * and the copy-to-clipboard button work in Confluence.
+ *
+ * Known limitation: code blocks whose content contains the CDATA close sequence
+ * `]]>` are not handled — this is exceptionally rare and can be addressed in a
+ * follow-up if it surfaces.
+ *
+ * @param {string} html — HTML string as emitted by `marked`
+ * @returns {string} — HTML with <pre><code> blocks replaced by Confluence macros
+ */
+function postProcessHtml(html) {
+	function decodeEntities(str) {
+		return str
+			.replace(/&lt;/g, "<")
+			.replace(/&gt;/g, ">")
+			.replace(/&amp;/g, "&")
+			.replace(/&quot;/g, '"')
+			.replace(/&#39;/g, "'");
+	}
+
+	return html.replace(
+		/<pre><code(?:\s+class="language-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/g,
+		(_, lang, code) => {
+			const rawCode = decodeEntities(code);
+			const langParam = lang
+				? `\n  <ac:parameter ac:name="language">${lang}</ac:parameter>`
+				: "";
+			return `<ac:structured-macro ac:name="code">${langParam}\n  <ac:plain-text-body><![CDATA[${rawCode}]]></ac:plain-text-body>\n</ac:structured-macro>`;
+		},
+	);
+}
+
 // ── Content injection strategies ───────────────────────────────────────────────
 
 const TEXT_START_RE =
@@ -451,7 +487,8 @@ async function main() {
 
 	const rawContent = readFileSync(resolvedPath, "utf8");
 	const stripped = stripFrontmatter(rawContent);
-	const html = marked(stripped);
+	const rawHtml = marked(stripped);
+	const html = postProcessHtml(rawHtml);
 
 	if (!html || !html.trim()) {
 		console.error(
