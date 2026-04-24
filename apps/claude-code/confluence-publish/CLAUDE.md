@@ -57,3 +57,25 @@ Both `plugin.json` and `marketplace.json` carry a `version` field. Keep them in 
 | GitHub repo       | `unic-claude-code-<service>` |
 | Plugin identifier | `unic-<service>`             |
 | npm package name  | `unic-<service>`             |
+
+## Do not add
+
+The following are explicitly out of scope for this plugin. Do not implement them without first opening a GitHub issue and getting explicit sign-off from the maintainer:
+
+- **Image upload / attachments** — walking the Markdown AST to find local image references and uploading them via `/wiki/rest/api/content/{id}/child/attachment` is significant work that requires a new CLI subcommand, a new content-negotiation path, and multi-part form handling. Defer until a user explicitly requests it with a concrete use case.
+
+- **Create-page support** — the script only updates existing pages. Adding `POST /wiki/api/v2/pages` with `spaceId` + `parentId` requires a schema change to `confluence-pages.json` (value becomes an object, not just a page ID integer), complicating every code path that reads the file. Defer unless there is real demand.
+
+- **Multi-space or cross-instance publishing** — `confluence-pages.json` maps keys to page IDs, and page IDs are unique per Confluence instance. Supporting multiple Confluence instances would require a different config schema (e.g. a `baseUrl` field per entry) and credential routing logic. Out of scope.
+
+- **MCP server** — there is no benefit to wrapping this plugin's functionality in a Model Context Protocol server. The slash command is the correct and sufficient surface. An MCP server would add a process lifecycle, a transport layer, and a versioned protocol schema for zero user-visible benefit.
+
+- **Agents or sub-agents** — the publish task is a deterministic one-shot sequence: read file → convert Markdown → GET page → inject → PUT page. There is no branching, no tool-selection, and no iteration. Agent autonomy adds complexity without value here.
+
+- **Recursive directory publishing** — publishing all Markdown files under a directory tree in one command (e.g. `node push-to-confluence.mjs docs/`) requires mapping every file to a page ID, handling partial failures, and defining rollback semantics. The complexity grows faster than the value. Publish one file at a time.
+
+- **Changesets or release-please** — the `sync-version.mjs` script (spec 06) is sufficient for one package with two version fields. Do not add a release-management framework (Changesets, release-please, semantic-release) — the overhead exceeds the benefit for a single-file plugin.
+
+- **Watch mode / file-watcher** — a flag like `--watch` that re-publishes on file change is not appropriate for a Confluence publishing tool. Confluence is not a live preview target; each publish increments the page version and creates a revision in Confluence's history. Accidental rapid publishes would pollute the revision history.
+
+When in doubt: if the feature is not in the existing `scripts/push-to-confluence.mjs` command set and is not listed in an open `docs/plans/` spec, it is out of scope. Open a GitHub issue before starting implementation.

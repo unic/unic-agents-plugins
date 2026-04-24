@@ -1,5 +1,7 @@
 # 17. Add "Do Not Add" Section to `CLAUDE.md`
 
+**Status: done — 2026-04-24**
+
 **Priority:** P2
 **Effort:** S
 **Depends on:** none
