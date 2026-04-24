@@ -116,9 +116,16 @@ function handleHttpError(status, title) {
 // ── YAML frontmatter stripping ─────────────────────────────────────────────────
 
 function stripFrontmatter(content) {
-	// The opening --- must be at byte 0 to avoid treating a CommonMark HR in the body as frontmatter
-	// \r?\n handles both LF and CRLF line endings
-	return content.replace(/^---\r?\n.*?\r?\n---\s*\r?\n/s, "");
+	// Match only if opening --- is at byte 0.
+	// Allow up to 50 key:value lines inside the block — legitimate YAML frontmatter
+	// is never 50 lines; this cap prevents runaway matches on unclosed frontmatter.
+	// [^\n]*\r?\n matches one line (LF or CRLF) without crossing to the next.
+	// The s flag is intentionally absent: [^\n] provides the same line-at-a-time
+	// semantics without granting .* permission to range across the whole document.
+	return content.replace(
+		/^---\r?\n(?:[^\n]*\r?\n){0,50}?---\s*\r?\n/,
+		"",
+	);
 }
 
 // ── HTML post-processing ───────────────────────────────────────────────────────
