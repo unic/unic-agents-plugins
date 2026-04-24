@@ -1,5 +1,7 @@
 # 18. Parallelise `runVerify()` with `Promise.all`
 
+**Status: done — 2026-04-24**
+
 **Priority:** P2
 **Effort:** S
 **Depends on:** spec 01 outcome — if `--verify` was fully deleted by spec 01, this spec is superseded. Spec 15 (`CliError`) is a soft dependency: if it has landed, replace `process.exit(1)` calls below with `throw new CliError(msg)`.

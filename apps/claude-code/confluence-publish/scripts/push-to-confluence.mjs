@@ -196,31 +196,66 @@ async function runVerify() {
 	const { url: baseUrl, username, token } = loadCredentials();
 	const authHeader = makeBasicAuth(username, token);
 
+	const entries = Object.entries(pages).filter(([k]) => k !== "_comment");
+
+	// Phase 1: synchronous ID validation — report all bad IDs before any network I/O.
 	let hasErrors = false;
-	for (const [key, id] of Object.entries(pages)) {
-		if (key === "_comment") continue;
+	for (const [key, id] of entries) {
 		if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
 			console.error(
 				`❌ ${key}: Invalid page ID in confluence-pages.json: ${JSON.stringify(id)} — must be a positive integer`,
 			);
 			hasErrors = true;
-			continue;
 		}
-		const getUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${id}?body-format=storage`;
-		try {
-			const res = await httpsRequest("GET", getUrl, authHeader);
-			if (res.status === 200) {
-				const pageData = /** @type {{ title?: string }} */ (JSON.parse(res.body));
-				console.log(`✅ ${key} (${id}): ${pageData.title}`);
-			} else if (res.status === 404) {
-				console.error(`❌ ${key} (${id}): Page not found — 404`);
-				hasErrors = true;
-			} else {
-				console.error(`⚠️  ${key} (${id}): Unexpected HTTP ${res.status}`);
-				hasErrors = true;
+	}
+	if (hasErrors) {
+		throw new CliError("Invalid page IDs found — fix confluence-pages.json", 1);
+	}
+
+	// Phase 2: fire all GETs concurrently.
+	const results = await Promise.all(
+		entries.map(async ([key, id]) => {
+			const numId = /** @type {number} */ (id);
+			const getUrl = `${baseUrl.replace(/\/$/, "")}/wiki/api/v2/pages/${numId}?body-format=storage`;
+			try {
+				const res = await httpsRequest("GET", getUrl, authHeader);
+				if (res.status === 200) {
+					const pageData = /** @type {{ title?: string }} */ (JSON.parse(res.body));
+					return {
+						ok: true,
+						key,
+						id: numId,
+						title: pageData.title,
+						networkError: false,
+						status: 200,
+					};
+				}
+				return {
+					ok: false,
+					key,
+					id: numId,
+					title: undefined,
+					networkError: false,
+					status: res.status,
+				};
+			} catch {
+				return { ok: false, key, id: numId, title: undefined, networkError: true, status: 0 };
 			}
-		} catch {
-			console.error(`⚠️  ${key} (${id}): Network error`);
+		}),
+	);
+
+	// Phase 3: print results in confluence-pages.json key order.
+	for (const r of results) {
+		if (r.ok) {
+			console.log(`✅ ${r.key} (${r.id}): ${r.title}`);
+		} else if (r.networkError) {
+			console.error(`⚠️  ${r.key} (${r.id}): Network error`);
+			hasErrors = true;
+		} else if (r.status === 404) {
+			console.error(`❌ ${r.key} (${r.id}): Page not found — 404`);
+			hasErrors = true;
+		} else {
+			console.error(`⚠️  ${r.key} (${r.id}): Unexpected HTTP ${r.status}`);
 			hasErrors = true;
 		}
 	}
