@@ -92,12 +92,15 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
 	});
 }
 
-function handleHttpError(status, title) {
+function handleHttpError(status, title, { pageArg = "", filePath = "" } = {}) {
+	const retryHint = pageArg
+		? `Retry with: pnpm confluence ${pageArg} ${filePath}`
+		: "Re-run the command with the current page version.";
 	const messages = {
 		401: "API token rejected — generate a new one at https://id.atlassian.com → Security → API tokens (note: tokens created before 2025 may have expired)",
 		403: "Access denied — check that your API token has permission to read and write this page",
 		404: "Page ID not found — check confluence-pages.json or verify the page still exists",
-		409: `Page was updated by someone else. Retry with: npm run confluence -- ${process.argv[2]} ${process.argv[3]}`,
+		409: `Page was updated by someone else. ${retryHint}`,
 	};
 	const msg =
 		messages[status] ??
@@ -349,7 +352,7 @@ async function main() {
 		process.exit(1);
 	}
 	if (getRes.status < 200 || getRes.status >= 300) {
-		handleHttpError(getRes.status, "");
+		handleHttpError(getRes.status, "", { pageArg, filePath });
 	}
 
 	let pageData;
@@ -399,7 +402,7 @@ async function main() {
 		process.exit(1);
 	}
 	if (putRes.status < 200 || putRes.status >= 300) {
-		handleHttpError(putRes.status, title);
+		handleHttpError(putRes.status, title, { pageArg, filePath });
 	}
 
 	console.log(`✓ Published "${title}" to Confluence (version ${version + 1})`);
