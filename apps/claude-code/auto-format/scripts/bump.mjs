@@ -17,7 +17,7 @@ function readJson(rel) {
 }
 
 function writeJson(rel, obj) {
-	writeFileSync(resolve(ROOT, rel), JSON.stringify(obj, null, '\t') + '\n', 'utf8')
+	writeFileSync(resolve(ROOT, rel), JSON.stringify(obj, null, 2) + '\n', 'utf8')
 }
 
 function bumpVersion(version, type) {

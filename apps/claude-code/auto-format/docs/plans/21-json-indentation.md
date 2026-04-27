@@ -1,5 +1,5 @@
 # 21. Honour `.editorconfig` 2-space indentation in committed JSON
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P1
 **Effort:** S

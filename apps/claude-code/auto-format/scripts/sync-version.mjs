@@ -45,7 +45,7 @@ function syncFile(filePath) {
 		return
 	}
 	obj.version = version
-	writeFileSync(filePath, JSON.stringify(obj, null, '\t') + '\n', 'utf8')
+	writeFileSync(filePath, JSON.stringify(obj, null, 2) + '\n', 'utf8')
 	process.stdout.write(`sync-version: ${rel} updated ${prev} → ${version}\n`)
 }
 

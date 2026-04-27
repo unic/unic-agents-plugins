@@ -1,18 +1,18 @@
 {
-	"name": "unic-claude-code-format",
-	"version": "0.5.0",
-	"description": "Auto-format and lint files when Claude Code edits them. Runs Prettier + ESLint --fix after Write/Edit/MultiEdit/NotebookEdit.",
-	"author": {
-		"name": "Unic AG",
-		"url": "https://www.unic.com"
-	},
-	"homepage": "https://github.com/unic/unic-claude-code-format",
-	"license": "LGPL-3.0-or-later",
-	"keywords": [
-		"formatter",
-		"prettier",
-		"eslint",
-		"hook",
-		"unic"
-	]
+  "name": "unic-claude-code-format",
+  "version": "0.5.1",
+  "description": "Auto-format and lint files when Claude Code edits them. Runs Prettier + ESLint --fix after Write/Edit/MultiEdit/NotebookEdit.",
+  "author": {
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
+  },
+  "homepage": "https://github.com/unic/unic-claude-code-format",
+  "license": "LGPL-3.0-or-later",
+  "keywords": [
+    "formatter",
+    "prettier",
+    "eslint",
+    "hook",
+    "unic"
+  ]
 }

@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.5.1] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Switch JSON output in `bump.mjs` and `sync-version.mjs` from tab to 2-space indentation to match `.editorconfig`; reformat four committed JSON files accordingly.
+
 ## [0.5.0] - 2026-04-27
 
 ### Breaking
