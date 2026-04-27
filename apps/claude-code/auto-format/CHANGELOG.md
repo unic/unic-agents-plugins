@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
-- (none)
+- Refactor `bump.mjs` to use `plugin.json` as single source of truth; add `sync-version.mjs` to propagate version to `marketplace.json` and `package.json`
 
 ## [0.2.0] - 2026-04-27
 

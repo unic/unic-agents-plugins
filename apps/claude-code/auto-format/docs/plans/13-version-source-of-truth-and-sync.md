@@ -1,4 +1,5 @@
 # 13. Single source of truth + `sync-version.mjs`
+**Status: done — 2026-04-27**
 
 **Priority:** P1
 **Effort:** M

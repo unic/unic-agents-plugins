@@ -12,6 +12,7 @@
 	"scripts": {
 		"bump": "node scripts/bump.mjs",
 		"ralph": "ralph run -c ralph.yml -H builtin:code-assist",
+		"sync-version": "node scripts/sync-version.mjs",
 		"test": "node --test tests/format-hook.test.mjs",
 		"verify:changelog": "node scripts/verify-changelog.mjs"
 	},

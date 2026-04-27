@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
  * pnpm bump <patch|minor|major>
- * Atomically bumps version in package.json, plugin.json, marketplace.json
- * and promotes [Unreleased] in CHANGELOG.md.
+ * Bumps version in plugin.json (single source of truth), syncs to
+ * marketplace.json + package.json via sync-version.mjs, and promotes
+ * [Unreleased] in CHANGELOG.md.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
@@ -57,28 +59,25 @@ if (!hasEntries) {
 	process.exit(1)
 }
 
-const pkg = readJson('package.json')
-const newVersion = bumpVersion(pkg.version, bumpType)
-
-// Bump package.json
-pkg.version = newVersion
-writeJson('package.json', pkg)
-
-// Bump .claude-plugin/plugin.json
+// Bump plugin.json (single source of truth)
 const pluginJson = readJson('.claude-plugin/plugin.json')
+const newVersion = bumpVersion(pluginJson.version, bumpType)
 pluginJson.version = newVersion
 writeJson('.claude-plugin/plugin.json', pluginJson)
 
-// Bump .claude-plugin/marketplace.json
-const marketJson = readJson('.claude-plugin/marketplace.json')
-marketJson.version = newVersion
-writeJson('.claude-plugin/marketplace.json', marketJson)
+// Propagate to marketplace.json and package.json via sync-version
+const syncResult = spawnSync('node', [resolve(ROOT, 'scripts/sync-version.mjs')], {
+	stdio: 'inherit',
+})
+if (syncResult.status !== 0) {
+	process.stderr.write(`bump: sync-version failed (exit ${syncResult.status ?? 'unknown'})\n`)
+	process.exit(1)
+}
 
 // Promote CHANGELOG
 const newUnreleased = `## [Unreleased]\n\n### Breaking\n- (none)\n\n### Added\n- (none)\n\n### Fixed\n- (none)\n\n`
 const newRelease = `## [${newVersion}] - ${today()}${unreleasedBody}`
 changelog = changelog.replace(/## \[Unreleased\][\s\S]*?(?=## \[|$)/, newUnreleased + newRelease)
-
 writeFileSync(changelogPath, changelog, 'utf8')
 
 process.stdout.write(`Bumped to v${newVersion}\n`)
