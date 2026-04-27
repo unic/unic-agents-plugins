@@ -17,6 +17,7 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **Indentation**: tabs. Line endings: LF. (See `.editorconfig`.)
 - **Commits**: conventional commits — `feat(scope): description`, `fix(scope): description`, `chore(scope): description`. No ticket numbers required.
 - **Dep versioning**: all deps go through the `catalog:` section in `pnpm-workspace.yaml`, pinned exactly. Never add `^` or `~` ranges. To add/bump a dep: edit the catalog entry only.
+- **Runtime dep specifiers**: `dependencies`, `peerDependencies`, and `optionalDependencies` in `package.json` MUST use exact pinned versions (e.g. `"marked": "17.0.5"`) — never `catalog:` or `workspace:`. The plugin is consumed via git URL (`git+ssh://...`), so consumers don't share our pnpm workspace and cannot resolve catalog specifiers; pnpm only rewrites `catalog:` at `pnpm publish` time, which this repo does not run. `devDependencies` may continue to use `catalog:` because consumers don't install transitive devDeps. To bump a runtime dep: edit `package.json` directly; do not add it to the catalog.
 - **Supply-chain guards**: `minimumReleaseAge: 1440` blocks packages younger than 24 hours. If a bump is urgent, add the dep to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` and document the justification in the PR description.
 - **Node version**: Node 24.x (Active LTS). `useNodeVersion` in `pnpm-workspace.yaml` pins the exact patch. Bump it only when explicitly needed, not opportunistically.
 - **Plugin versioning**: `.claude-plugin/plugin.json` is the single source of truth for the version number. **Never hand-edit `.claude-plugin/marketplace.json`** — use `pnpm bump` (spec `19`) which bumps, syncs, and promotes the CHANGELOG in one step.
@@ -75,6 +76,7 @@ git push --follow-tags           # publishes tag to GitHub
 | 21 | [Versioning docs and Ralph integration](./21-versioning-docs-and-prompt.md) | P1 | — |
 | 22 | [Auto-populate confluence-pages.json aliases](./22-auto-populate-aliases.md) | P1 | — |
 | 23 | [Fix CI pnpm version conflict](./23-fix-ci-pnpm-version-conflict.md) | P0 | — |
+| 24 | [Fix `catalog:` leak in git-install consumers](./24-fix-catalog-leak-in-git-install.md) | P0 | — |
 
 ## Cross-cutting dependencies
 

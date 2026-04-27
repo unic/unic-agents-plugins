@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit --allowJs --checkJs --strict --target ES2022 --module NodeNext --moduleResolution NodeNext scripts/*.mjs scripts/lib/*.mjs"
   },
   "dependencies": {
-    "marked": "catalog:"
+    "marked": "17.0.5"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
