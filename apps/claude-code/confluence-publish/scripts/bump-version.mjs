@@ -71,7 +71,7 @@ try {
 	}
 
 	pluginJson.version = nextVersion;
-	writeFileSync(pluginPath, `${JSON.stringify(pluginJson, null, 2)}\n`, "utf8");
+	writeFileSync(pluginPath, `${JSON.stringify(pluginJson, null, "\t")}\n`, "utf8");
 
 	const today = new Date().toISOString().slice(0, 10);
 	const emptyUnreleased =
@@ -87,6 +87,15 @@ try {
 	});
 	if (syncResult.status !== 0) {
 		throw new CliError(`bump: sync-version failed (exit ${syncResult.status ?? "unknown"})`);
+	}
+
+	const biomeResult = spawnSync(
+		"pnpm",
+		["biome", "format", "--write", pluginPath, path.join(root, ".claude-plugin/marketplace.json")],
+		{ stdio: "inherit", cwd: root },
+	);
+	if (biomeResult.status !== 0) {
+		throw new CliError(`bump: biome format failed (exit ${biomeResult.status ?? "unknown"})`);
 	}
 
 	console.log(`bump: ${version} → ${nextVersion}`);
