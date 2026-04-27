@@ -37,10 +37,10 @@ export function findAliasForId(pages, pageId) {
  */
 export function pickAvailableAlias(pages, baseSlug, pageId) {
 	const start = baseSlug || `page-${pageId}`
-	if (!(start in pages)) return start
+	if (!Object.hasOwn(pages, start)) return start
 	for (let i = 2; ; i++) {
 		const candidate = `${start}-${i}`
-		if (!(candidate in pages)) return candidate
+		if (!Object.hasOwn(pages, candidate)) return candidate
 	}
 }
 
