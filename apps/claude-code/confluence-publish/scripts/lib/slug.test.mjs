@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { slugify } from './slug.mjs'
 
 test('plain ASCII title', () => assert.equal(slugify('My Page Title'), 'my-page-title'))
-test('strips diacritics', () => assert.equal(slugify("Perfil de l'usuari"), 'perfil-de-l-usuari'))
+test('strips diacritics', () => assert.equal(slugify("Perfil de l'usuári"), 'perfil-de-l-usuari'))
 test('collapses repeated separators', () => assert.equal(slugify('a   b///c'), 'a-b-c'))
 test('trims leading/trailing dashes', () => assert.equal(slugify('--Hello--'), 'hello'))
 test('CJK only returns empty', () => assert.equal(slugify('漢字'), ''))
