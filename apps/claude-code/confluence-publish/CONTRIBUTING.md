@@ -4,11 +4,11 @@ This project uses a spec-driven development workflow. New features and fixes are
 
 ## Prerequisites
 
-| Tool | Version | How to get it |
-|---|---|---|
-| Node.js | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org) |
-| pnpm | ≥ 10 | `npm install -g pnpm` |
-| Claude Code CLI | latest | [claude.ai/code](https://claude.ai/code) — required as Ralph's backend |
+| Tool            | Version           | How to get it                                                          |
+| --------------- | ----------------- | ---------------------------------------------------------------------- |
+| Node.js         | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org)                                       |
+| pnpm            | ≥ 10              | `npm install -g pnpm`                                                  |
+| Claude Code CLI | latest            | [claude.ai/code](https://claude.ai/code) — required as Ralph's backend |
 
 Everything else (Ralph Orchestrator, Biome, TypeScript) is a project devDependency and installs with:
 
@@ -48,22 +48,23 @@ Check the execution order table in [`docs/plans/README.md`](docs/plans/README.md
 
 ### 3. Fill in the required sections
 
-| Section | What to write |
-|---|---|
-| `## Context` | Why this change is needed; what problem it solves |
-| `## Current behaviour` | Exact code snippets or behaviour *before* the change. Ralph uses this to verify the starting state. |
-| `## Target behaviour` | What the code/behaviour should look like *after* |
-| `## Affected files` | Table: file path → Create / Modify / Delete |
-| `## Implementation steps` | Numbered steps with exact "before → after" diffs or code to write. No ambiguity. |
-| `## Verification` | Shell commands to run and their expected output |
-| `## Acceptance criteria` | Checkbox list — Ralph checks each item before committing |
-| `## Out of scope` | Explicit list of things NOT to change in this spec |
+| Section                   | What to write                                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `## Context`              | Why this change is needed; what problem it solves                                                   |
+| `## Current behaviour`    | Exact code snippets or behaviour _before_ the change. Ralph uses this to verify the starting state. |
+| `## Target behaviour`     | What the code/behaviour should look like _after_                                                    |
+| `## Affected files`       | Table: file path → Create / Modify / Delete                                                         |
+| `## Implementation steps` | Numbered steps with exact "before → after" diffs or code to write. No ambiguity.                    |
+| `## Verification`         | Shell commands to run and their expected output                                                     |
+| `## Acceptance criteria`  | Checkbox list — Ralph checks each item before committing                                            |
+| `## Out of scope`         | Explicit list of things NOT to change in this spec                                                  |
 
 Good specs are **self-contained** — Ralph has no memory of previous runs or conversations. Include actual code snapshots; don't rely on "as discussed".
 
 ### 4. Register the spec
 
 In `docs/plans/README.md`:
+
 - Add a row to the **Execution order** table.
 - Add any ordering constraints to the **Cross-cutting dependencies** section.
 
@@ -105,15 +106,15 @@ Ralph never pushes — that is always a manual step.
 
 The `pnpm ralph` script runs `ralph run -c ralph.yml -H builtin:code-assist`. Key settings (`ralph.yml`):
 
-| Setting / flag | Value | Meaning |
-|---|---|---|
-| `-c ralph.yml` | config file | Explicit path to the Ralph config (avoids ambiguity if multiple configs exist) |
-| `-H builtin:code-assist` | hat | Runs Claude Code in code-assist mode, optimised for implementation tasks |
-| `cli.backend` | `claude` | Uses the Claude Code CLI as the underlying agent |
-| `event_loop.prompt_file` | `PROMPT.md` | The orchestration prompt fed to Claude on every iteration |
-| `event_loop.completion_promise` | `LOOP_COMPLETE` | Sentinel string that ends the loop |
-| `event_loop.max_iterations` | `100` | Hard cap on loop iterations |
-| `event_loop.max_runtime_seconds` | `14400` | 4-hour safety timeout |
+| Setting / flag                   | Value           | Meaning                                                                        |
+| -------------------------------- | --------------- | ------------------------------------------------------------------------------ |
+| `-c ralph.yml`                   | config file     | Explicit path to the Ralph config (avoids ambiguity if multiple configs exist) |
+| `-H builtin:code-assist`         | hat             | Runs Claude Code in code-assist mode, optimised for implementation tasks       |
+| `cli.backend`                    | `claude`        | Uses the Claude Code CLI as the underlying agent                               |
+| `event_loop.prompt_file`         | `PROMPT.md`     | The orchestration prompt fed to Claude on every iteration                      |
+| `event_loop.completion_promise`  | `LOOP_COMPLETE` | Sentinel string that ends the loop                                             |
+| `event_loop.max_iterations`      | `100`           | Hard cap on loop iterations                                                    |
+| `event_loop.max_runtime_seconds` | `14400`         | 4-hour safety timeout                                                          |
 
 ## Implementing manually (without Ralph)
 
@@ -128,6 +129,23 @@ Follow the same steps Ralph would take:
 7. Check every item in "Acceptance criteria".
 8. Mark the spec done — add `**Status: done — YYYY-MM-DD**` as the second line (after the title).
 9. Commit everything: `git add -A && git commit -m "feat(spec-NN): description (vX.Y.Z)"`.
+
+## Finishing your work
+
+1. Verify everything is clean
+   - `pnpm format`: Ensure formatting is correct
+   - `pnpm check`: biome lint + format check
+   - `pnpm test`: run tests
+   - `pnpm typecheck`: type check
+
+2. Bump version + add CHANGELOG entry (config/tooling change = patch)
+   - `pnpm bump <patch|minor|major>`
+
+3. Stage and commit
+   - `git add -A`
+   - `git commit -m "<Convention Commit>"`
+
+The `pnpm bump <patch|minor|major>` step is mandatory — `pnpm verify:changelog` (enforced in CI and the pre-push hook) will reject the commit if source files changed without a version bump and dated CHANGELOG entry.
 
 ## Code standards
 

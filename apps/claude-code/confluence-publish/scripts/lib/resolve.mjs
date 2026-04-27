@@ -1,8 +1,8 @@
 // @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { CliError } from "./errors.mjs";
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { CliError } from './errors.mjs'
 
 /**
  * Returns true if arg is a non-empty string of decimal digits.
@@ -10,7 +10,7 @@ import { CliError } from "./errors.mjs";
  * @returns {boolean}
  */
 export function isNumericId(arg) {
-	return /^\d+$/.test(arg);
+	return /^\d+$/.test(arg)
 }
 
 /**
@@ -23,37 +23,37 @@ export function isNumericId(arg) {
  */
 export function resolvePageId(arg) {
 	if (isNumericId(arg)) {
-		const id = Number.parseInt(arg, 10);
+		const id = Number.parseInt(arg, 10)
 		if (!Number.isInteger(id) || id <= 0) {
-			throw new CliError(`Invalid page ID: ${arg}`);
+			throw new CliError(`Invalid page ID: ${arg}`)
 		}
-		return id;
+		return id
 	}
 
-	const pagesPath = path.join(process.cwd(), "confluence-pages.json");
+	const pagesPath = path.join(process.cwd(), 'confluence-pages.json')
 	if (!existsSync(pagesPath)) {
-		throw new CliError("confluence-pages.json not found — create it or pass a page ID directly");
+		throw new CliError('confluence-pages.json not found — create it or pass a page ID directly')
 	}
 
 	/** @type {Record<string, unknown>} */
-	let pages;
+	let pages
 	try {
-		pages = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pagesPath, "utf8")));
+		pages = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pagesPath, 'utf8')))
 	} catch {
-		throw new CliError("invalid JSON in confluence-pages.json — check syntax");
+		throw new CliError('invalid JSON in confluence-pages.json — check syntax')
 	}
 
 	if (!(arg in pages)) {
 		const keys = Object.keys(pages)
-			.filter((k) => k !== "_comment")
-			.join(", ");
-		throw new CliError(`'${arg}' not found in confluence-pages.json — available keys: ${keys}`);
+			.filter((k) => k !== '_comment')
+			.join(', ')
+		throw new CliError(`'${arg}' not found in confluence-pages.json — available keys: ${keys}`)
 	}
 
-	const id = pages[arg];
-	if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
-		throw new CliError(`Invalid page ID for key '${arg}': ${id} — must be a positive integer`);
+	const id = pages[arg]
+	if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+		throw new CliError(`Invalid page ID for key '${arg}': ${id} — must be a positive integer`)
 	}
 
-	return id;
+	return id
 }

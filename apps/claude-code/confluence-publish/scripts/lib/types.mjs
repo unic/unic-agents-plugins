@@ -45,4 +45,4 @@
  * }} InjectOptions
  */
 
-export {};
+export {}

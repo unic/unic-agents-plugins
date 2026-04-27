@@ -9,5 +9,5 @@
  * @returns {string} Content with the frontmatter block removed, or the original string if none.
  */
 export function stripFrontmatter(content) {
-	return content.replace(/^---\r?\n(?:[^\n]*\r?\n){0,50}?---\s*\r?\n/, "");
+	return content.replace(/^---\r?\n(?:[^\n]*\r?\n){0,50}?---\s*\r?\n/, '')
 }
