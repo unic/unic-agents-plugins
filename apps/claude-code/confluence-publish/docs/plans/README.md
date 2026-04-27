@@ -13,6 +13,7 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 ## Ground rules
 
 - **Package manager**: `pnpm` (workspace mode, after spec `00` lands). Before `00`: use `npm`.
+- **pnpm version pinning**: `package.json#packageManager` (e.g. `pnpm@10.24.0`) is the single source of truth. CI workflows MUST NOT pass a `version` input to `pnpm/action-setup` — the action reads `packageManager` automatically. To bump pnpm: edit `packageManager` in `package.json`, run `pnpm install` to regenerate the lockfile, and commit both. Never declare the pnpm version in two places.
 - **Indentation**: tabs. Line endings: LF. (See `.editorconfig`.)
 - **Commits**: conventional commits — `feat(scope): description`, `fix(scope): description`, `chore(scope): description`. No ticket numbers required.
 - **Dep versioning**: all deps go through the `catalog:` section in `pnpm-workspace.yaml`, pinned exactly. Never add `^` or `~` ranges. To add/bump a dep: edit the catalog entry only.
@@ -72,6 +73,8 @@ git push --follow-tags           # publishes tag to GitHub
 | 19 | [pnpm bump tooling](./19-pnpm-bump-tooling.md) | P1 | — |
 | 20 | [pnpm verify:changelog enforcement](./20-pnpm-verify-changelog.md) | P1 | — |
 | 21 | [Versioning docs and Ralph integration](./21-versioning-docs-and-prompt.md) | P1 | — |
+| 22 | [Auto-populate confluence-pages.json aliases](./22-auto-populate-aliases.md) | P1 | — |
+| 23 | [Fix CI pnpm version conflict](./23-fix-ci-pnpm-version-conflict.md) | P0 | — |
 
 ## Cross-cutting dependencies
 

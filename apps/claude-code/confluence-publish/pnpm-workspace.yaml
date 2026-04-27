@@ -1,16 +1,24 @@
 packages:
-  - "."
+  - .
+
+allowBuilds:
+  "@ralph-orchestrator/ralph-cli": true
 
 catalog:
-  marked: "17.0.5"
-  "@biomejs/biome": "1.9.4"
-  typescript: "5.8.3"
-  "@types/node": "24.12.2"
-  "@ralph-orchestrator/ralph-cli": "2.9.2"
+  "@biomejs/biome": 2.4.0
+  "@ralph-orchestrator/ralph-cli": 2.9.2
+  "@types/node": 24.12.2
+  marked: 17.0.5
+  typescript: 5.8.3
 
 catalogMode: prefer
-preferWorkspacePackages: true
-strictDepBuilds: true
+
 minimumReleaseAge: 1440
+
+preferWorkspacePackages: true
+
+strictDepBuilds: true
+
 trustPolicy: no-downgrade
-useNodeVersion: "24.15.0"
+
+useNodeVersion: 24.15.0

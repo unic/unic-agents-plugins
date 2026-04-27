@@ -55,6 +55,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" <page-key-or-id> <ma
 Optional flags (pass as part of $ARGUMENTS):
 - `--dry-run` — compute the final HTML and print it to stdout without making the PUT request
 - `--replace-all` — overwrite the full page body (creates a local backup; requires no markers on the page)
+- `--no-save` — skip auto-saving the alias when publishing by numeric page ID
 
 ### 4. Report result
 
@@ -62,8 +63,19 @@ If --dry-run was passed, the computed page HTML is printed above. No changes wer
 Otherwise, report success or relay any error message to the user.
 
 If successful, confirm to the user which file was published and to which page.
+If stdout includes `✓ Saved alias` or `ℹ Page <id> already aliased as`, surface that line verbatim to the user.
 If it fails, show the error and suggest fixes:
 
 - Wrong page key: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --verify` to check all page IDs
 - File not found: verify the markdown file path
 - Expired token: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --setup` to reconfigure credentials
+
+### 5. List configured aliases
+
+To list all configured aliases in the current repo:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --list
+```
+
+Prints a two-column table of `alias → page id` from `confluence-pages.json`. Reports a friendly message if the file is missing or has no aliases.
