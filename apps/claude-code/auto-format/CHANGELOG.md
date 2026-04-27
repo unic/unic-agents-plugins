@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- Register `PostToolUse` hook for `Write|Edit|MultiEdit|NotebookEdit` via `hooks/hooks.json` (spec 02)
 - Add `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` manifest files at v0.1.0 (spec 01)
 
 ### Fixed
