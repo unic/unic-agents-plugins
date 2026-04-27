@@ -14,4 +14,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
-- (none)
+- Bootstrap pnpm workspace: add `package.json`, `pnpm-workspace.yaml`, `.npmrc`, `.editorconfig` (spec 00)

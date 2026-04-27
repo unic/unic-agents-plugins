@@ -1,4 +1,5 @@
 # 00. Bootstrap Plugin Tooling
+**Status: done — 2026-04-27**
 
 **Priority:** P0
 **Effort:** S

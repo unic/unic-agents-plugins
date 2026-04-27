@@ -1,0 +1,15 @@
+{
+	"name": "unic-claude-code-format",
+	"version": "0.1.0",
+	"private": true,
+	"license": "LGPL-3.0-or-later",
+	"type": "module",
+	"packageManager": "pnpm@10.24.0",
+	"engines": {
+		"node": ">=24",
+		"pnpm": ">=10"
+	},
+	"scripts": {
+		"test": "echo 'No tests yet'"
+	}
+}

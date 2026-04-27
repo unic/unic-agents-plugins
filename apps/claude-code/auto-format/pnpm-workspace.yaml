@@ -1,0 +1,9 @@
+catalog: {}
+
+catalogMode: prefer
+engineStrict: true
+minimumReleaseAge: 1440
+preferWorkspacePackages: true
+strictDepBuilds: true
+trustPolicy: no-downgrade
+useNodeVersion: "24.15.0"
