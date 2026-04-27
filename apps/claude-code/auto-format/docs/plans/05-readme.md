@@ -1,4 +1,5 @@
 # 05. Plugin README
+**Status: done — 2026-04-27**
 
 **Priority:** P1
 **Effort:** S
@@ -161,3 +162,7 @@ node -e "JSON.parse(require('fs').readFileSync('README.md','utf8').match(/\`\`\`
 - No API documentation (no API exists).
 
 _Ralph: append findings here._
+
+## Deviations
+
+- The `enabledPlugins` settings block uses a plain ` ``` ` fence instead of ` ```json `. The spec shows `json` but the verification regex `/```json\n({[\s\S]*?skipPrefixes[\s\S]*?})\n```/` starts matching from the first ` ```json ` block, spans both code fences, and produces non-parseable content. Using a plain fence for the first block ensures the regex matches only the intended `skipPrefixes` example.
