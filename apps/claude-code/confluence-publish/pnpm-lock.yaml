@@ -15,9 +15,6 @@ catalogs:
     '@types/node':
       specifier: 24.12.2
       version: 24.12.2
-    marked:
-      specifier: 17.0.5
-      version: 17.0.5
     typescript:
       specifier: 5.8.3
       version: 5.8.3
@@ -27,7 +24,7 @@ importers:
   .:
     dependencies:
       marked:
-        specifier: 'catalog:'
+        specifier: 17.0.5
         version: 17.0.5
     devDependencies:
       '@biomejs/biome':

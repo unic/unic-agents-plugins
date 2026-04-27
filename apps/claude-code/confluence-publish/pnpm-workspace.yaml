@@ -8,7 +8,6 @@ catalog:
   "@biomejs/biome": 2.4.0
   "@ralph-orchestrator/ralph-cli": 2.9.2
   "@types/node": 24.12.2
-  marked: 17.0.5
   typescript: 5.8.3
 
 catalogMode: prefer

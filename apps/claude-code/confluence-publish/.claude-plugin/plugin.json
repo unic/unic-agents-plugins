@@ -5,5 +5,5 @@
   "commands": ["./commands/unic-confluence.md"],
   "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
   "name": "unic-confluence",
-  "version": "2.1.4"
+  "version": "2.1.5"
 }

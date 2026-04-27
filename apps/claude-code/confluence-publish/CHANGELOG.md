@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.5] — 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Pin `marked` directly in `package.json#dependencies` instead of `catalog:` so the plugin can be installed via git URL by external pnpm/npm projects (was failing with `ERR_PNPM_SPEC_NOT_SUPPORTED_BY_ANY_RESOLVER  marked@catalog:` because `catalog:` is a pnpm workspace-internal feature that only `pnpm publish` rewrites, and this plugin is consumed via git URL, not the registry)
+
 ## [2.1.4] — 2026-04-27
 
 ### Breaking
