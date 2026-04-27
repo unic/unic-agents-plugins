@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.3.2] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Normalise path separators via `toPosix` before skip-prefix checks so Windows backslash paths are handled correctly in `shouldSkip`
+
 ## [0.3.1] - 2026-04-27
 
 ### Breaking

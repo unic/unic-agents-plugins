@@ -121,6 +121,61 @@ test('exits 0 with malformed config file and logs warning', () => {
 	}
 })
 
+test('exits 0 and skips Windows-style _bmad\\ path', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, '_bmad'))
+		writeFileSync(join(d, '_bmad', 'test.md'), '# test\n')
+	})
+	try {
+		// Simulate a Windows absolute path: replace the forward-slash separator
+		// with backslash inside the subdir portion. After toPosix(), this should
+		// still resolve to a _bmad/ prefix and be skipped.
+		const winStylePath = join(dir, '_bmad', 'test.md').replace(/_bmad\//, '_bmad\\')
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: winStylePath } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.equal(stderr, '', 'should be silent when skipping Windows-style path')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('exits 0 and skips Windows-style node_modules\\ path', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, 'node_modules', 'foo'), { recursive: true })
+		writeFileSync(join(d, 'node_modules', 'foo', 'index.md'), '# test\n')
+	})
+	try {
+		const winStylePath = join(dir, 'node_modules', 'foo', 'index.md').replace(/node_modules\//, 'node_modules\\')
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: winStylePath } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.equal(stderr, '')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('exits 0 with mixed-separator traversal path (..\\\\..\\\\)', () => {
+	const dir = makeConsumer()
+	const mixedTraversal = join(dir, 'sub', '..', '..', 'outside.md').replace(/\//g, '\\')
+	try {
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: mixedTraversal } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		// Either the file doesn't exist or path-traversal guard fires — both exit 0 silently
+		assert.equal(stderr, '')
+	} finally {
+		cleanup(dir)
+	}
+})
+
 test('respects prettierExtensions override from config', () => {
 	const dir = makeConsumer((d) => {
 		mkdirSync(join(d, '.claude'))

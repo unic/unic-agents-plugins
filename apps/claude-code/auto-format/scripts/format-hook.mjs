@@ -15,7 +15,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { extname, relative, resolve } from 'node:path'
+import { extname, relative, resolve, sep } from 'node:path'
 
 const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 
@@ -75,6 +75,10 @@ const ESLINT_EXTS = new Set(CONFIG.eslintExtensions)
 const PRETTIER_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/prettier')
 const ESLINT_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/eslint')
 
+function toPosix(p) {
+	return sep === '/' ? p : p.split(sep).join('/')
+}
+
 function shouldSkip(rel) {
 	if (rel.startsWith('..')) return true
 	return CONFIG.skipPrefixes.some((p) => rel.startsWith(p))
@@ -120,7 +124,7 @@ async function main() {
 	const filePath = event?.tool_input?.file_path || event?.tool_input?.notebook_path
 	if (!filePath || !existsSync(filePath)) return
 
-	const rel = relative(PROJECT_DIR, filePath)
+	const rel = toPosix(relative(PROJECT_DIR, filePath))
 	if (shouldSkip(rel)) return
 
 	const ext = extname(rel).toLowerCase()

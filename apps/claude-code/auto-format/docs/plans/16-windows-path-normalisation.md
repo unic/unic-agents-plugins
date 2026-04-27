@@ -1,5 +1,5 @@
 # 16. Windows path-separator normalisation in `shouldSkip`
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P0
 **Effort:** S
