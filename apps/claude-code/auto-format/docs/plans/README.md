@@ -52,6 +52,13 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | 12 | [Diff-based verify:changelog](./12-diff-based-verify-changelog.md) | P1 | S | — |
 | 13 | [Version source of truth + sync-version](./13-version-source-of-truth-and-sync.md) | P1 | M | — |
 | 14 | [pnpm tag](./14-pnpm-tag.md) | P2 | S | — |
+| 15 | [Hoist extension Sets out of main()](./15-hoist-extension-sets.md) | P1 | S | todo |
+| 16 | [Windows path-separator normalisation](./16-windows-path-normalisation.md) | P0 | S | todo |
+| 17 | [spawnSync timeout guard](./17-spawnsync-timeout-guard.md) | P1 | S | todo |
+| 18 | [notebook_path + skip-prefix test matrix](./18-notebook-and-skip-prefix-tests.md) | P1 | S | todo |
+| 19 | [Optional Biome support](./19-biome-support.md) | P1 | M | todo |
+| 20 | [additionalSkipPrefixes config key](./20-additional-skip-prefixes.md) | P2 | S | todo |
+| 21 | [JSON 2-space indentation](./21-json-indentation.md) | P1 | S | todo |
 
 ## Cross-cutting dependencies
 
@@ -69,3 +76,10 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **`12` → `08` + `10`**: Diff-based gate extends the verify:changelog script from spec `08`; CI from spec `10` must exist to test it end-to-end.
 - **`13` → `07`**: sync-version.mjs is called by the refactored bump.mjs.
 - **`14` → `13`**: tag.mjs calls sync-version.mjs as a safety step.
+- **`15` → `04`**: Hoisting Sets requires `CONFIG` (from spec `04`) to be module-level.
+- **`16` → `03`**: Adds `toPosix` helper to `format-hook.mjs`; does not conflict with `15`.
+- **`17` → `03`**: Adds timeout to `runPrettier` / `runEslint` in `format-hook.mjs`.
+- **`18` → `09`**: Extends `tests/format-hook.test.mjs`; land the original test file first.
+- **`19` → `03` + `04` + `09` + `17`**: Biome support adds a new runner to `format-hook.mjs` using the same timeout pattern; tests build on spec `09`'s helpers.
+- **`20` → `04` + `09`**: Additive-merge logic is in `loadProjectConfig` (spec `04`); tests build on spec `09`.
+- **`21` → `07` + `13`**: Changes indentation in both `bump.mjs` (spec `07`) and `sync-version.mjs` (spec `13`), and reformats their output files.
