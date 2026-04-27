@@ -71,7 +71,7 @@ try {
 	}
 
 	pluginJson.version = nextVersion
-	writeFileSync(pluginPath, `${JSON.stringify(pluginJson, null, '\t')}\n`, 'utf8')
+	writeFileSync(pluginPath, `${JSON.stringify(pluginJson, null, 2)}\n`, 'utf8')
 
 	const today = new Date().toISOString().slice(0, 10)
 	const emptyUnreleased = '## [Unreleased]\n\n### Breaking\n- (none)\n\n### Added\n- (none)\n\n### Fixed\n- (none)'
