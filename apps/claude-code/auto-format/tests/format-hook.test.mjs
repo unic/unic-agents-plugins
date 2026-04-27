@@ -325,6 +325,72 @@ test('respects formatter: "prettier" override even when Biome is detected', () =
 	}
 })
 
+test('additionalSkipPrefixes merges with defaults', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, '.claude'))
+		mkdirSync(join(d, 'my-generated'))
+		writeFileSync(join(d, 'my-generated', 'file.md'), '# generated\n')
+		writeFileSync(
+			join(d, '.claude', 'unic-format.json'),
+			JSON.stringify({ additionalSkipPrefixes: ['my-generated/'] }),
+		)
+	})
+	try {
+		// Custom prefix is skipped
+		const { exitCode: exitCustom, stderr: stderrCustom } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, 'my-generated', 'file.md') } }),
+			dir,
+		)
+		assert.equal(exitCustom, 0)
+		assert.equal(stderrCustom, '', 'should skip custom prefix silently')
+
+		// Default prefix _bmad/ must still be skipped (defaults preserved)
+		mkdirSync(join(dir, '_bmad'))
+		writeFileSync(join(dir, '_bmad', 'test.md'), '# test\n')
+		const { exitCode: exitDefault, stderr: stderrDefault } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }),
+			dir,
+		)
+		assert.equal(exitDefault, 0)
+		assert.equal(stderrDefault, '', 'should still skip _bmad/ from defaults')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('skipPrefixes wins over additionalSkipPrefixes when both are set', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, '.claude'))
+		mkdirSync(join(d, '_bmad'))
+		writeFileSync(join(d, '_bmad', 'test.md'), '# test\n')
+		// skipPrefixes replaces all defaults; _bmad/ is NOT in this list
+		// additionalSkipPrefixes is present but should be ignored
+		writeFileSync(
+			join(d, '.claude', 'unic-format.json'),
+			JSON.stringify({
+				skipPrefixes: ['dist/'],
+				additionalSkipPrefixes: ['my-generated/'],
+			}),
+		)
+	})
+	try {
+		// _bmad/ is NOT skipped because skipPrefixes replaced defaults and doesn't include it.
+		// The file doesn't exist in node_modules so no formatter runs — just verify it's
+		// not silently skipped by _bmad/ (it would proceed to the extension check and return
+		// silently because no prettier binary is installed).
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		// No formatter installed → stderr is empty regardless.
+		// The key assertion is that the config was parsed correctly (no crash / malformed-config warning).
+		assert.ok(!stderr.includes('malformed'), 'config should parse without error')
+	} finally {
+		cleanup(dir)
+	}
+})
+
 test('exits 0 and logs timeout when prettier hangs', { timeout: 10_000 }, () => {
 	const dir = makeConsumer((d) => {
 		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })

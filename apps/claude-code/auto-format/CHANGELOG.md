@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.5.0] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- `additionalSkipPrefixes` config key: merges extra path prefixes with the defaults instead of replacing them, avoiding copy-paste of defaults in consumer repos.
+
+### Fixed
+- (none)
+
 ## [0.4.0] - 2026-04-27
 
 ### Breaking

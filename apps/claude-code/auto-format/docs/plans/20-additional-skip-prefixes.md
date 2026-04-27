@@ -1,5 +1,5 @@
 # 20. `additionalSkipPrefixes` config key (additive merge)
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P2
 **Effort:** S

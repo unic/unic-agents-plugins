@@ -60,8 +60,14 @@ function loadProjectConfig() {
 		const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
 		const raw = Number(cfg.formatTimeoutMs)
 		const VALID_FORMATTERS = new Set(['auto', 'prettier', 'biome'])
+		const hasFullReplacement = Array.isArray(cfg.skipPrefixes) && cfg.skipPrefixes.length > 0
+		const hasAdditive = Array.isArray(cfg.additionalSkipPrefixes) && cfg.additionalSkipPrefixes.length > 0
 		return {
-			skipPrefixes: Array.isArray(cfg.skipPrefixes) ? cfg.skipPrefixes : DEFAULTS.skipPrefixes,
+			skipPrefixes: hasFullReplacement
+				? cfg.skipPrefixes
+				: hasAdditive
+					? [...DEFAULTS.skipPrefixes, ...cfg.additionalSkipPrefixes]
+					: DEFAULTS.skipPrefixes,
 			prettierExtensions: Array.isArray(cfg.prettierExtensions) ? cfg.prettierExtensions : DEFAULTS.prettierExtensions,
 			eslintExtensions: Array.isArray(cfg.eslintExtensions) ? cfg.eslintExtensions : DEFAULTS.eslintExtensions,
 			formatTimeoutMs: Number.isFinite(raw) ? Math.min(Math.max(raw, 1_000), 120_000) : DEFAULTS.formatTimeoutMs,

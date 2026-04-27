@@ -66,6 +66,17 @@ Create `.claude/unic-format.json` in the consumer repo root to override defaults
 
 Each key overrides the full default list for that key. Omit a key to keep the default. Config is loaded once per hook invocation.
 
+| Key | Type | Description |
+|-----|------|-------------|
+| `skipPrefixes` | `string[]` | Full replacement of the default skip-prefix list. |
+| `additionalSkipPrefixes` | `string[]` | Extra path prefixes to skip, **merged with the defaults**. Prefer this over `skipPrefixes` unless you need full replacement. Example: `["my-generated/", ".tmp/"]` |
+| `prettierExtensions` | `string[]` | File extensions to pass through Prettier (full replacement). |
+| `eslintExtensions` | `string[]` | File extensions to pass through ESLint `--fix` (full replacement). |
+| `formatTimeoutMs` | `number` | Per-formatter timeout in ms (1 000–120 000, default 30 000). |
+| `formatter` | `"auto"` \| `"prettier"` \| `"biome"` | Force a specific formatter. Default `"auto"` auto-detects Biome. |
+
+> **Precedence note:** If both `skipPrefixes` and `additionalSkipPrefixes` are present, `skipPrefixes` takes full precedence (full replacement). `additionalSkipPrefixes` is ignored when `skipPrefixes` is set.
+
 ## Biome support
 
 If your project has `biome.json` (or `biome.jsonc`) at the root and `@biomejs/biome` installed,
