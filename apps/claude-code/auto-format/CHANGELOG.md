@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Add `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` manifest files at v0.1.0 (spec 01)
 
 ### Fixed
 - Bootstrap pnpm workspace: add `package.json`, `pnpm-workspace.yaml`, `.npmrc`, `.editorconfig` (spec 00)
