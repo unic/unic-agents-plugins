@@ -195,6 +195,74 @@ test('respects prettierExtensions override from config', () => {
 	}
 })
 
+test('exits 0 with notebook_path event (NotebookEdit)', () => {
+	const dir = makeConsumer((d) => {
+		writeFileSync(join(d, 'notebook.ipynb'), '{}')
+	})
+	try {
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { notebook_path: join(dir, 'notebook.ipynb') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		// .ipynb is not in prettierExtensions defaults — file exists, passes existsSync, skipped silently
+		assert.equal(stderr, '')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('exits 0 and skips node_modules/ path', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, 'node_modules', 'foo'), { recursive: true })
+		writeFileSync(join(d, 'node_modules', 'foo', 'index.js'), 'const x = 1\n')
+	})
+	try {
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, 'node_modules', 'foo', 'index.js') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.equal(stderr, '', 'should be silent when skipping node_modules/')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('exits 0 and skips .git/ path', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, '.git', 'hooks'), { recursive: true })
+		writeFileSync(join(d, '.git', 'hooks', 'pre-commit'), '#!/bin/sh\n')
+	})
+	try {
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, '.git', 'hooks', 'pre-commit') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.equal(stderr, '', 'should be silent when skipping .git/')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('exits 0 and skips .claude/worktrees/ path', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, '.claude', 'worktrees', 'feature'), { recursive: true })
+		writeFileSync(join(d, '.claude', 'worktrees', 'feature', 'index.js'), 'const x = 1\n')
+	})
+	try {
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, '.claude', 'worktrees', 'feature', 'index.js') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.equal(stderr, '', 'should be silent when skipping .claude/worktrees/')
+	} finally {
+		cleanup(dir)
+	}
+})
+
 test('exits 0 and logs timeout when prettier hangs', { timeout: 10_000 }, () => {
 	const dir = makeConsumer((d) => {
 		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })

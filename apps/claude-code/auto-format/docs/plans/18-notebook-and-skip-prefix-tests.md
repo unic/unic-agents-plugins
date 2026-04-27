@@ -1,5 +1,5 @@
 # 18. Smoke-test coverage for `notebook_path` and skip-prefix matrix
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P1
 **Effort:** S

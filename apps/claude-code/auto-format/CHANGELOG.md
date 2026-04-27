@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.3.4] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Add smoke tests for notebook_path event and skip-prefix matrix (node_modules/, .git/, .claude/worktrees/)
+
 ## [0.3.3] - 2026-04-27
 
 ### Breaking
