@@ -36,24 +36,7 @@ if (!['patch', 'minor', 'major'].includes(bumpType)) {
 	process.exit(1)
 }
 
-const pkg = readJson('package.json')
-const newVersion = bumpVersion(pkg.version, bumpType)
-
-// Bump package.json
-pkg.version = newVersion
-writeJson('package.json', pkg)
-
-// Bump .claude-plugin/plugin.json
-const pluginJson = readJson('.claude-plugin/plugin.json')
-pluginJson.version = newVersion
-writeJson('.claude-plugin/plugin.json', pluginJson)
-
-// Bump .claude-plugin/marketplace.json
-const marketJson = readJson('.claude-plugin/marketplace.json')
-marketJson.version = newVersion
-writeJson('.claude-plugin/marketplace.json', marketJson)
-
-// Promote CHANGELOG
+// Validate CHANGELOG before touching any files
 const changelogPath = resolve(ROOT, 'CHANGELOG.md')
 let changelog = readFileSync(changelogPath, 'utf8')
 
@@ -74,6 +57,24 @@ if (!hasEntries) {
 	process.exit(1)
 }
 
+const pkg = readJson('package.json')
+const newVersion = bumpVersion(pkg.version, bumpType)
+
+// Bump package.json
+pkg.version = newVersion
+writeJson('package.json', pkg)
+
+// Bump .claude-plugin/plugin.json
+const pluginJson = readJson('.claude-plugin/plugin.json')
+pluginJson.version = newVersion
+writeJson('.claude-plugin/plugin.json', pluginJson)
+
+// Bump .claude-plugin/marketplace.json
+const marketJson = readJson('.claude-plugin/marketplace.json')
+marketJson.version = newVersion
+writeJson('.claude-plugin/marketplace.json', marketJson)
+
+// Promote CHANGELOG
 const newUnreleased = `## [Unreleased]\n\n### Breaking\n- (none)\n\n### Added\n- (none)\n\n### Fixed\n- (none)\n\n`
 const newRelease = `## [${newVersion}] - ${today()}${unreleasedBody}`
 changelog = changelog.replace(/## \[Unreleased\][\s\S]*?(?=## \[|$)/, newUnreleased + newRelease)
