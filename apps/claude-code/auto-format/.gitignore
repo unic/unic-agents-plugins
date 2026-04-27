@@ -4,7 +4,10 @@ dist/
 *.local
 pnpm-debug.log*
 
+# Ralph
 .ralph/
+.agents/scratchpad/
+
 # Visual Studio Code
 .vscode/*
 !.vscode/settings.json
