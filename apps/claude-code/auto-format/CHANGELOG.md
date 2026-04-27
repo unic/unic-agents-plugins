@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.2.0] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- Add diff-based gate to `verify:changelog`: when guarded paths change, enforces that `plugin.json` version was bumped and CHANGELOG has a real entry for the new version.
+
+### Fixed
+- (none)
+
 ## [0.1.5] - 2026-04-27
 
 ### Breaking

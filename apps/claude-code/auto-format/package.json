@@ -1,21 +1,21 @@
 {
-  "name": "unic-claude-code-format",
-  "version": "0.1.5",
-  "private": true,
-  "license": "LGPL-3.0-or-later",
-  "type": "module",
-  "packageManager": "pnpm@10.33.0",
-  "engines": {
-    "node": ">=24",
-    "pnpm": ">=10"
-  },
-  "scripts": {
-    "bump": "node scripts/bump.mjs",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
-    "test": "node --test tests/format-hook.test.mjs",
-    "verify:changelog": "node scripts/verify-changelog.mjs"
-  },
-  "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:"
-  }
+	"name": "unic-claude-code-format",
+	"version": "0.2.0",
+	"private": true,
+	"license": "LGPL-3.0-or-later",
+	"type": "module",
+	"packageManager": "pnpm@10.33.0",
+	"engines": {
+		"node": ">=24",
+		"pnpm": ">=10"
+	},
+	"scripts": {
+		"bump": "node scripts/bump.mjs",
+		"ralph": "ralph run -c ralph.yml -H builtin:code-assist",
+		"test": "node --test tests/format-hook.test.mjs",
+		"verify:changelog": "node scripts/verify-changelog.mjs"
+	},
+	"devDependencies": {
+		"@ralph-orchestrator/ralph-cli": "catalog:"
+	}
 }

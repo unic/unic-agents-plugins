@@ -1,4 +1,5 @@
 # 12. Diff-based `verify:changelog` enforcement
+**Status: done — 2026-04-27**
 
 **Priority:** P1
 **Effort:** S
