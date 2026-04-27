@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Add `pnpm tag` script (`scripts/tag.mjs`) to create a `vX.Y.Z` lightweight git tag from `plugin.json#version`, with idempotent `sync-version` safety step.
 
 ### Fixed
 - (none)

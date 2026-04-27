@@ -15,6 +15,7 @@ pnpm bump patch           # Bump patch version + promote CHANGELOG
 pnpm bump minor           # Bump minor version + promote CHANGELOG
 pnpm bump major           # Bump major version + promote CHANGELOG
 pnpm sync-version         # Propagate plugin.json version to marketplace.json + package.json
+pnpm tag                  # Create git tag v<version> (run git push --follow-tags after)
 pnpm verify:changelog     # Check CHANGELOG structure
 ```
 

@@ -1,4 +1,5 @@
 # 14. `pnpm tag` for git tagging
+**Status: done — 2026-04-27**
 
 **Priority:** P2
 **Effort:** S
