@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
-- (none)
+- Add smoke tests for format hook routing logic (`tests/format-hook.test.mjs`).
 
 ## [0.1.3] - 2026-04-27
 

@@ -10,7 +10,7 @@
 		"pnpm": ">=10"
 	},
 	"scripts": {
-		"test": "echo 'No tests yet'",
+		"test": "node --test tests/format-hook.test.mjs",
 		"bump": "node scripts/bump.mjs",
 		"verify:changelog": "node scripts/verify-changelog.mjs"
 	}

@@ -1,35 +1,3 @@
-# 09. Smoke Tests
-**Status: done — 2026-04-27**
-
-**Priority:** P1
-**Effort:** M
-**Version impact:** patch
-**Depends on:** spec-03, spec-04
-**Touches:** `tests/format-hook.test.mjs`, `package.json`
-
-## Context
-
-The hook script has no automated tests. Spec 09 adds smoke tests using Node's built-in `node:test` runner (no external test framework needed). Tests cover the core routing logic: which files are skipped, which get processed, and error paths.
-
-Since the tests can't run Prettier/ESLint in isolation (that would require a consumer repo), the test harness mocks `spawnSync` by redirecting `node_modules/.bin/prettier` to a no-op. Tests focus on: path-traversal guard, SKIP_PREFIXES, extension filtering, malformed config handling, missing file guard.
-
-**Approach:** use `node:test` + `node:assert`. Tests spawn the hook script as a subprocess with controlled `CLAUDE_PROJECT_DIR` and stdin JSON, then assert on exit code and stderr.
-
-## Current behaviour
-
-After spec `04`: `package.json` scripts = `{ "test": "echo 'No tests yet'" }`. No `tests/` directory.
-
-## Target behaviour
-
-- `tests/format-hook.test.mjs` exists with at least 8 test cases.
-- `pnpm test` runs `node --test tests/format-hook.test.mjs` and exits 0 when all tests pass.
-- Tests cover: empty stdin, missing file, path traversal, SKIP_PREFIXES, unsupported extension, config override, malformed config.
-
-## Implementation steps
-
-### Step 1 — Create `tests/format-hook.test.mjs`
-
-```js
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
@@ -171,43 +139,3 @@ test('respects prettierExtensions override from config', () => {
 		cleanup(dir)
 	}
 })
-```
-
-### Step 2 — Update `package.json` test script
-
-```json
-"scripts": {
-	"test": "node --test tests/format-hook.test.mjs",
-	"bump": "node scripts/bump.mjs",
-	"verify:changelog": "node scripts/verify-changelog.mjs"
-}
-```
-
-### Step 3 — Commit
-
-```sh
-git add tests/ package.json
-git commit -m "test(spec-09): add smoke tests for format hook routing logic"
-```
-
-## Acceptance criteria
-
-- `pnpm test` exits 0 with all 8 tests passing.
-- Tests cover: empty stdin, missing file, `_bmad/` skip, path-traversal, unsupported extension, malformed config, config override.
-- No external test framework (only `node:test` and `node:assert`).
-
-## Verification
-
-```sh
-pnpm test
-```
-
-All tests should report `✓` (or `ok` in TAP output). None should fail.
-
-## Out of scope
-
-- Integration tests (actually running Prettier on real files) — unit-level routing tests are sufficient for v1.
-- Coverage reporting.
-- Snapshot tests.
-
-_Ralph: append findings here._
