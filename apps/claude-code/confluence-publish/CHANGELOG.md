@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.0] — 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- Auto-saves a slugified alias into `confluence-pages.json` after publishing by raw numeric page ID; reports the new alias to the user.
+- `--list` flag prints configured aliases as a sorted two-column table.
+- `--no-save` flag opts out of alias auto-saving.
+
+### Fixed
+- (none)
+
 ## [2.0.1] — 2026-04-24
 
 ### Breaking

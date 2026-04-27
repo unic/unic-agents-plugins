@@ -19,7 +19,16 @@ import { marked } from "marked";
 import { CliError } from "./lib/errors.mjs";
 import { stripFrontmatter } from "./lib/frontmatter.mjs";
 import { injectContent } from "./lib/inject.mjs";
-import { resolvePageId } from "./lib/resolve.mjs";
+import { isNumericId, resolvePageId } from "./lib/resolve.mjs";
+import { slugify } from "./lib/slug.mjs";
+import {
+	appendAlias,
+	findAliasForId,
+	listAliases,
+	pickAvailableAlias,
+	readPagesFile,
+	writePagesFile,
+} from "./lib/pages-file.mjs";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -341,6 +350,32 @@ async function runSetup() {
 	}
 }
 
+// ── List ──────────────────────────────────────────────────────────────────────
+
+function runList() {
+	let res;
+	try {
+		res = readPagesFile(process.cwd());
+	} catch (err) {
+		throw new CliError(
+			`invalid JSON in confluence-pages.json — ${/** @type {Error} */ (err).message}`,
+		);
+	}
+	if (!res.existed) {
+		console.log(`No confluence-pages.json in ${process.cwd()}`);
+		return;
+	}
+	const rows = listAliases(res.pages);
+	if (rows.length === 0) {
+		console.log("No aliases configured yet.");
+		return;
+	}
+	const aliasW = Math.max(5, ...rows.map(([k]) => k.length));
+	console.log(`${"alias".padEnd(aliasW)}  page id`);
+	console.log(`${"─".repeat(aliasW)}  ──────────────`);
+	for (const [k, v] of rows) console.log(`${k.padEnd(aliasW)}  ${v}`);
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -374,16 +409,22 @@ async function main() {
 			await runVerify();
 			return;
 		}
+		if (args[0] === "--list") {
+			runList();
+			return;
+		}
 
 		const dryRun = args.includes("--dry-run");
 		const replaceAll = args.includes("--replace-all");
+		const noSave = args.includes("--no-save");
 		const positionalArgs = args.filter((a) => !a.startsWith("--"));
 		if (positionalArgs.length < 2) {
 			throw new CliError(
-				"Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] {pageId} {file.md}",
+				"Usage: node scripts/push-to-confluence.mjs [--dry-run] [--replace-all] [--no-save] {pageId} {file.md}",
 			);
 		}
 		const pageArg = positionalArgs[0] ?? "";
+		const wasNumericArg = isNumericId(pageArg);
 		const filePath = positionalArgs[1] ?? "";
 		const pageId = resolvePageId(pageArg);
 		const resolvedPath = path.resolve(filePath);
@@ -473,6 +514,21 @@ async function main() {
 			handleHttpError(putRes.status, title, { pageArg, filePath });
 		}
 
+		if (wasNumericArg && !dryRun && !noSave) {
+			try {
+				const { pages, path: pagesPath } = readPagesFile(process.cwd());
+				const existing = findAliasForId(pages, pageId);
+				if (existing) {
+					console.log(`ℹ Page ${pageId} already aliased as "${existing}"`);
+				} else {
+					const alias = pickAvailableAlias(pages, slugify(title), pageId);
+					writePagesFile(pagesPath, appendAlias(pages, alias, pageId));
+					console.log(`✓ Saved alias "${alias}" → ${pageId} in confluence-pages.json`);
+				}
+			} catch (err) {
+				console.error(`⚠ Could not save alias: ${/** @type {Error} */ (err).message}`);
+			}
+		}
 		console.log(`✓ Published "${title}" to Confluence (version ${version + 1})`);
 	} catch (err) {
 		if (err instanceof CliError) {

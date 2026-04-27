@@ -34,6 +34,23 @@ Then publish using the key:
 pnpm confluence my-docs docs/my-file.md
 ```
 
+### Auto-aliasing
+
+Publishing by raw numeric page ID auto-saves a slugified alias derived from the Confluence page's title into `confluence-pages.json` at the current working directory. Subsequent publishes can reference the page by its alias.
+
+- The slug is lowercased, ASCII-only, dash-separated, max 60 chars.
+- If the slug collides with another alias, `-2`, `-3`, … is appended.
+- If the page ID is already aliased, no write happens (the existing alias is reported).
+- Pass `--no-save` to skip auto-saving for a single run.
+
+List all aliases:
+
+```sh
+node scripts/push-to-confluence.mjs --list
+```
+
+**Known limitation:** the file write is not atomic. Two concurrent publishes against the same `confluence-pages.json` may race; one update will be lost.
+
 ## Page setup — injection markers
 
 The script injects your Markdown content into a Confluence page rather than replacing the whole page. To control *where* the content lands, add injection markers directly to the Confluence page body.

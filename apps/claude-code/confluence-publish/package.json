@@ -15,7 +15,7 @@
 		"tag": "node scripts/tag.mjs",
 		"verify:changelog": "node scripts/verify-changelog.mjs",
 		"ralph": "ralph run -c ralph.yml -H builtin:code-assist",
-		"test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs",
+		"test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs scripts/lib/slug.test.mjs scripts/lib/pages-file.test.mjs",
 		"lint": "biome lint .",
 		"format": "biome format --write .",
 		"check": "biome check .",

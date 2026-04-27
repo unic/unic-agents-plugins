@@ -72,6 +72,7 @@ git push --follow-tags           # publishes tag to GitHub
 | 19 | [pnpm bump tooling](./19-pnpm-bump-tooling.md) | P1 | — |
 | 20 | [pnpm verify:changelog enforcement](./20-pnpm-verify-changelog.md) | P1 | — |
 | 21 | [Versioning docs and Ralph integration](./21-versioning-docs-and-prompt.md) | P1 | — |
+| 22 | [Auto-populate confluence-pages.json aliases](./22-auto-populate-aliases.md) | P1 | — |
 
 ## Cross-cutting dependencies
 
