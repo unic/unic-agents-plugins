@@ -14,7 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
+- (none)
+
+## [0.1.4] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 - Add smoke tests for format hook routing logic (`tests/format-hook.test.mjs`).
+- Add GitHub Actions CI workflow (`.github/workflows/ci.yml`).
 
 ## [0.1.3] - 2026-04-27
 
