@@ -1,4 +1,5 @@
 # 08. pnpm verify:changelog
+**Status: done — 2026-04-27**
 
 **Priority:** P1
 **Effort:** S
