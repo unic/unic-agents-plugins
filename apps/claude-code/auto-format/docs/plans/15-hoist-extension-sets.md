@@ -1,5 +1,5 @@
 # 15. Hoist extension Sets out of `main()`
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P1
 **Effort:** S

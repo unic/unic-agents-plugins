@@ -69,6 +69,9 @@ function loadProjectConfig() {
 
 const CONFIG = loadProjectConfig()
 
+const PRETTIER_EXTS = new Set(CONFIG.prettierExtensions)
+const ESLINT_EXTS = new Set(CONFIG.eslintExtensions)
+
 const PRETTIER_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/prettier')
 const ESLINT_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/eslint')
 
@@ -121,10 +124,10 @@ async function main() {
 	if (shouldSkip(rel)) return
 
 	const ext = extname(rel).toLowerCase()
-	if (!new Set(CONFIG.prettierExtensions).has(ext)) return
+	if (!PRETTIER_EXTS.has(ext)) return
 
 	runPrettier(filePath)
-	if (new Set(CONFIG.eslintExtensions).has(ext)) runEslint(filePath)
+	if (ESLINT_EXTS.has(ext)) runEslint(filePath)
 }
 
 main()

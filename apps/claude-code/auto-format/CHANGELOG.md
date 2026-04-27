@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.3.1] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Hoist `PRETTIER_EXTS` and `ESLINT_EXTS` Sets to module scope to avoid per-invocation allocation
+
 ## [0.3.0] - 2026-04-27
 
 ### Breaking
