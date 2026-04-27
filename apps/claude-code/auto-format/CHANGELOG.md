@@ -11,11 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- Add per-project config support: `scripts/format-hook.mjs` reads `$CLAUDE_PROJECT_DIR/.claude/unic-format.json` and merges overrides for `skipPrefixes`, `prettierExtensions`, and `eslintExtensions` (spec 04)
-- Implement `scripts/format-hook.mjs`: PostToolUse hook that runs Prettier and ESLint `--fix` on written/edited files (spec 03)
-- Register `PostToolUse` hook for `Write|Edit|MultiEdit|NotebookEdit` via `hooks/hooks.json` (spec 02)
-- Add `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` manifest files at v0.1.0 (spec 01)
+- (none)
 
 ### Fixed
-- Write full plugin README with install, config, skip list, and invariants sections (spec 05)
-- Bootstrap pnpm workspace: add `package.json`, `pnpm-workspace.yaml`, `.npmrc`, `.editorconfig` (spec 00)
+- (none)
+
+## [0.1.0] - 2026-04-27
+
+### Added
+- PostToolUse hook for `Write|Edit|MultiEdit|NotebookEdit` Claude Code events.
+- Prettier (`--write --ignore-unknown`) applied to all supported extensions after each edit.
+- ESLint (`--fix`) applied to `.js/.mjs/.cjs/.ts/.mts/.cts/.tsx/.json/.jsonc/.md` after each edit.
+- Defensive `SKIP_PREFIXES` list (incl. `_bmad/`, BMad skills, generated dirs).
+- Path-traversal guard: paths resolving outside consumer project root are skipped.
+- Pre-flight binary existence checks: hook is a no-op if Prettier/ESLint is not installed.
+- Per-project config: `.claude/unic-format.json` in consumer root overrides `skipPrefixes`, `prettierExtensions`, `eslintExtensions`.
+- Plugin manifest: `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
