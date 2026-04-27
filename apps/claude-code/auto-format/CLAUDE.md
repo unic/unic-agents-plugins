@@ -1,29 +1,3 @@
-# 11. CLAUDE.md
-**Status: done — 2026-04-27**
-
-**Priority:** P2
-**Effort:** S
-**Version impact:** patch
-**Depends on:** none
-**Touches:** `CLAUDE.md`
-
-## Context
-
-A `CLAUDE.md` at the repo root tells Claude Code how to work with this plugin repo. It documents: commands, tech stack, coding conventions, and a scope guard (do not add unrelated features).
-
-## Current behaviour
-
-No `CLAUDE.md` exists.
-
-## Target behaviour
-
-`CLAUDE.md` exists and covers: commands, tech stack, conventions, scope guard.
-
-## Implementation steps
-
-### Step 1 — Create `CLAUDE.md`
-
-```md
 # CLAUDE.md
 
 This file provides guidance to Claude Code when working in this repository.
@@ -34,14 +8,14 @@ This file provides guidance to Claude Code when working in this repository.
 
 ## Commands
 
-​```sh
+```sh
 pnpm install              # Install dev dependencies
 pnpm test                 # Run smoke tests (node:test)
 pnpm bump patch           # Bump patch version + promote CHANGELOG
 pnpm bump minor           # Bump minor version + promote CHANGELOG
 pnpm bump major           # Bump major version + promote CHANGELOG
 pnpm verify:changelog     # Check CHANGELOG structure
-​```
+```
 
 ## Tech Stack
 
@@ -68,29 +42,3 @@ pnpm verify:changelog     # Check CHANGELOG structure
 ## Ralph Orchestrator
 
 This repo uses ralph-orchestrator for iterative development. See `docs/plans/README.md` for the spec roadmap and `PROMPT.md` for the orchestrator loop prompt.
-```
-
-### Step 2 — Commit
-
-```sh
-git add CLAUDE.md
-git commit -m "docs(spec-11): add CLAUDE.md with project guidance and scope guard"
-```
-
-## Acceptance criteria
-
-- `CLAUDE.md` exists with Commands, Tech Stack, Conventions, and Scope Guard sections.
-- Scope Guard lists at least 3 things Claude should NOT add.
-
-## Verification
-
-```sh
-grep -q "## Scope Guard" CLAUDE.md && echo "OK: scope guard present"
-grep -q "pnpm bump" CLAUDE.md && echo "OK: bump command documented"
-```
-
-## Out of scope
-
-- No auto-sync with README (they serve different audiences).
-
-_Ralph: append findings here._
