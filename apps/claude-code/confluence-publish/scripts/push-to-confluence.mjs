@@ -128,11 +128,11 @@ function httpsRequest(method, urlStr, authHeader, bodyObj) {
  * Throws a CliError with a human-readable message for a non-2xx HTTP response.
  *
  * @param {number} status - HTTP status code.
- * @param {string} title - Page title, used in error messages.
+ * @param {string} _title - Intentionally unused; signature kept for API compatibility.
  * @param {{ pageArg?: string, filePath?: string }} [opts] - Used to build the 409 retry hint.
  * @returns {never}
  */
-function handleHttpError(status, title, { pageArg = '', filePath = '' } = {}) {
+function handleHttpError(status, _title, { pageArg = '', filePath = '' } = {}) {
 	const retryHint = pageArg
 		? `Retry with: pnpm confluence ${pageArg} ${filePath}`
 		: 'Re-run the command with the current page version.'
