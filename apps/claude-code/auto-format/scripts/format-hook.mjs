@@ -14,63 +14,67 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
 
 const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 
-// Defensive skip list. Kept in sync with the convention in .prettierignore and
-// eslint.config.js so the hook short-circuits before invoking any external tool.
-// _bmad/ is intentionally excluded: BMad source is never modified by end-users.
-const SKIP_PREFIXES = [
-	'_bmad/',
-	'.claude/skills/bmad-',
-	'.claude/worktrees/',
-	'.history/',
-	'.git/',
-	'node_modules/',
-	'dist/',
-	'build/',
-	'.next/',
-	'coverage/',
-]
+const DEFAULTS = {
+	skipPrefixes: [
+		'_bmad/',
+		'.claude/skills/bmad-',
+		'.claude/worktrees/',
+		'.history/',
+		'.git/',
+		'node_modules/',
+		'dist/',
+		'build/',
+		'.next/',
+		'coverage/',
+	],
+	prettierExtensions: [
+		'.md',
+		'.mdx',
+		'.json',
+		'.jsonc',
+		'.yml',
+		'.yaml',
+		'.js',
+		'.mjs',
+		'.cjs',
+		'.ts',
+		'.mts',
+		'.cts',
+		'.tsx',
+		'.feature',
+	],
+	eslintExtensions: ['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.json', '.jsonc', '.md'],
+}
 
-const ALLOWED_PRETTIER_EXT = new Set([
-	'.md',
-	'.mdx',
-	'.json',
-	'.jsonc',
-	'.yml',
-	'.yaml',
-	'.js',
-	'.mjs',
-	'.cjs',
-	'.ts',
-	'.mts',
-	'.cts',
-	'.tsx',
-	'.feature',
-])
+function loadProjectConfig() {
+	const configPath = resolve(PROJECT_DIR, '.claude/unic-format.json')
+	if (!existsSync(configPath)) return DEFAULTS
+	try {
+		const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
+		return {
+			skipPrefixes: Array.isArray(cfg.skipPrefixes) ? cfg.skipPrefixes : DEFAULTS.skipPrefixes,
+			prettierExtensions: Array.isArray(cfg.prettierExtensions) ? cfg.prettierExtensions : DEFAULTS.prettierExtensions,
+			eslintExtensions: Array.isArray(cfg.eslintExtensions) ? cfg.eslintExtensions : DEFAULTS.eslintExtensions,
+		}
+	} catch (err) {
+		process.stderr.write(`unic-format: ignoring malformed .claude/unic-format.json: ${err.message}\n`)
+		return DEFAULTS
+	}
+}
 
-const ALLOWED_ESLINT_EXT = new Set([
-	'.js',
-	'.mjs',
-	'.cjs',
-	'.ts',
-	'.mts',
-	'.cts',
-	'.tsx',
-	'.json',
-	'.jsonc',
-	'.md',
-])
+const CONFIG = loadProjectConfig()
 
 const PRETTIER_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/prettier')
 const ESLINT_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/eslint')
 
 function shouldSkip(rel) {
 	if (rel.startsWith('..')) return true
-	return SKIP_PREFIXES.some((p) => rel.startsWith(p))
+	return CONFIG.skipPrefixes.some((p) => rel.startsWith(p))
 }
 
 function runPrettier(filePath) {
@@ -117,10 +121,10 @@ async function main() {
 	if (shouldSkip(rel)) return
 
 	const ext = extname(rel).toLowerCase()
-	if (!ALLOWED_PRETTIER_EXT.has(ext)) return
+	if (!new Set(CONFIG.prettierExtensions).has(ext)) return
 
 	runPrettier(filePath)
-	if (ALLOWED_ESLINT_EXT.has(ext)) runEslint(filePath)
+	if (new Set(CONFIG.eslintExtensions).has(ext)) runEslint(filePath)
 }
 
 main()

@@ -1,4 +1,5 @@
 # 04. Per-Project Config Support
+**Status: done — 2026-04-27**
 
 **Priority:** P1
 **Effort:** S
