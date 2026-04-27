@@ -1,0 +1,12 @@
+# Ralph Orchestrator Configuration
+# Generated for: unic-claude-code-format
+# Docs: https://github.com/mikeyobrien/ralph-orchestrator
+
+cli:
+  backend: "claude"
+
+event_loop:
+  prompt_file: "PROMPT.md"
+  completion_promise: "LOOP_COMPLETE"
+  max_iterations: 50
+  max_runtime_seconds: 7200 # 2 hours max
