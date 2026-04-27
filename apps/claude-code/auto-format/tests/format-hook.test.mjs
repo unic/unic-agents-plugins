@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -258,6 +258,68 @@ test('exits 0 and skips .claude/worktrees/ path', () => {
 		)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent when skipping .claude/worktrees/')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('uses Biome when biome.json and biome binary are present', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
+		const stubScript = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called')}', '1')\n`
+		writeFileSync(join(d, 'node_modules', '.bin', 'biome'), stubScript, { mode: 0o755 })
+		writeFileSync(join(d, 'biome.json'), '{"$schema":"https://biomejs.dev/schemas/2.4.0/schema.json"}\n')
+		writeFileSync(join(d, 'test.ts'), 'const x = 1\n')
+	})
+	try {
+		const { exitCode } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, 'test.ts') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.ok(existsSync(join(dir, '.biome-called')), 'biome should have been called for .ts')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('does not use Biome for .md even when Biome is detected', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
+		const biomeStub = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called')}', '1')\n`
+		writeFileSync(join(d, 'node_modules', '.bin', 'biome'), biomeStub, { mode: 0o755 })
+		writeFileSync(join(d, 'biome.json'), '{}')
+		writeFileSync(join(d, 'README.md'), '# hello\n')
+	})
+	try {
+		const { exitCode } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, 'README.md') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.ok(!existsSync(join(dir, '.biome-called')), 'biome should NOT be called for .md')
+	} finally {
+		cleanup(dir)
+	}
+})
+
+test('respects formatter: "prettier" override even when Biome is detected', () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
+		const biomeStub = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called')}', '1')\n`
+		writeFileSync(join(d, 'node_modules', '.bin', 'biome'), biomeStub, { mode: 0o755 })
+		writeFileSync(join(d, 'biome.json'), '{}')
+		mkdirSync(join(d, '.claude'))
+		writeFileSync(join(d, '.claude', 'unic-format.json'), JSON.stringify({ formatter: 'prettier' }))
+		writeFileSync(join(d, 'test.ts'), 'const x = 1\n')
+	})
+	try {
+		const { exitCode } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, 'test.ts') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.ok(!existsSync(join(dir, '.biome-called')), 'biome should NOT be called when formatter is "prettier"')
 	} finally {
 		cleanup(dir)
 	}

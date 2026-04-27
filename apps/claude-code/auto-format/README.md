@@ -66,6 +66,64 @@ Create `.claude/unic-format.json` in the consumer repo root to override defaults
 
 Each key overrides the full default list for that key. Omit a key to keep the default. Config is loaded once per hook invocation.
 
+## Biome support
+
+If your project has `biome.json` (or `biome.jsonc`) at the root and `@biomejs/biome` installed,
+the hook auto-detects Biome and uses it instead of Prettier + ESLint for JS/TS/JSON files.
+
+Biome handles: `.js .mjs .cjs .ts .mts .cts .tsx .jsx .json .jsonc`
+Prettier still runs for: `.md .mdx .yml .yaml .feature` (Biome does not support these)
+
+### Recommended `biome.json` (based on Unic defaults)
+
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.0/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.history",
+      "!**/pnpm-lock.yaml",
+      "!**/.claude",
+      "!**/.ralph",
+      "!**/*.min.js"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "tab",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 120,
+    "useEditorconfig": true
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "es5"
+    }
+  },
+  "json": {
+    "formatter": { "indentStyle": "space", "indentWidth": 2 }
+  },
+  "linter": { "enabled": true, "rules": { "recommended": true } }
+}
+```
+
+### Force a specific formatter via config
+
+`.claude/unic-format.json`
+```json
+{
+  "formatter": "prettier"
+}
+```
+
+Valid values: `"auto"` (default), `"prettier"`, `"biome"`.
+
 ## How to disable
 
 To disable the hook for a Claude Code session:

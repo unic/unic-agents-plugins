@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.4.0] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- Auto-detect Biome as an alternative to Prettier + ESLint: if `biome.json`/`biome.jsonc` and `node_modules/.bin/biome` are present, the hook runs `biome check --write` for JS/TS/JSON extensions; Prettier still runs for `.md`, `.yml`, etc. Override detection with `formatter` key in `.claude/unic-format.json` (`"auto"` | `"prettier"` | `"biome"`).
+
+### Fixed
+- (none)
+
 ## [0.3.4] - 2026-04-27
 
 ### Breaking

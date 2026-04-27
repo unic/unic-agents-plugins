@@ -50,6 +50,7 @@ const DEFAULTS = {
 	],
 	eslintExtensions: ['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.json', '.jsonc', '.md'],
 	formatTimeoutMs: 30_000,
+	formatter: 'auto',
 }
 
 function loadProjectConfig() {
@@ -58,11 +59,13 @@ function loadProjectConfig() {
 	try {
 		const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
 		const raw = Number(cfg.formatTimeoutMs)
+		const VALID_FORMATTERS = new Set(['auto', 'prettier', 'biome'])
 		return {
 			skipPrefixes: Array.isArray(cfg.skipPrefixes) ? cfg.skipPrefixes : DEFAULTS.skipPrefixes,
 			prettierExtensions: Array.isArray(cfg.prettierExtensions) ? cfg.prettierExtensions : DEFAULTS.prettierExtensions,
 			eslintExtensions: Array.isArray(cfg.eslintExtensions) ? cfg.eslintExtensions : DEFAULTS.eslintExtensions,
 			formatTimeoutMs: Number.isFinite(raw) ? Math.min(Math.max(raw, 1_000), 120_000) : DEFAULTS.formatTimeoutMs,
+			formatter: VALID_FORMATTERS.has(cfg.formatter) ? cfg.formatter : DEFAULTS.formatter,
 		}
 	} catch (err) {
 		process.stderr.write(`unic-format: ignoring malformed .claude/unic-format.json: ${err.message}\n`)
@@ -77,6 +80,13 @@ const ESLINT_EXTS = new Set(CONFIG.eslintExtensions)
 
 const PRETTIER_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/prettier')
 const ESLINT_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/eslint')
+const BIOME_BIN = resolve(PROJECT_DIR, 'node_modules/.bin/biome')
+const BIOME_CONFIG_PATH = [resolve(PROJECT_DIR, 'biome.json'), resolve(PROJECT_DIR, 'biome.jsonc')]
+
+const BIOME_EXTS = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.jsx', '.json', '.jsonc'])
+
+const BIOME_AVAILABLE =
+	existsSync(BIOME_BIN) && BIOME_CONFIG_PATH.some((p) => existsSync(p))
 
 function toPosix(p) {
 	return sep === '/' ? p : p.split(sep).join('/')
@@ -123,6 +133,30 @@ function runEslint(filePath) {
 	}
 }
 
+function runBiome(filePath) {
+	if (!existsSync(BIOME_BIN)) {
+		process.stderr.write(`unic-format: biome binary not found at ${BIOME_BIN}\n`)
+		return
+	}
+	const r = spawnSync(
+		'node',
+		[BIOME_BIN, 'check', '--write', '--no-errors-on-unmatched-pattern', filePath],
+		{
+			cwd: PROJECT_DIR,
+			stdio: ['ignore', 'ignore', 'pipe'],
+			timeout: CONFIG.formatTimeoutMs,
+			killSignal: 'SIGTERM',
+		},
+	)
+	if (r.signal === 'SIGTERM' || r.status === null) {
+		process.stderr.write(`unic-format: biome timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
+		return
+	}
+	if (r.status !== 0) {
+		process.stderr.write(`unic-format: biome failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`)
+	}
+}
+
 async function main() {
 	let buf = ''
 	for await (const chunk of process.stdin) buf += chunk
@@ -145,8 +179,16 @@ async function main() {
 	const ext = extname(rel).toLowerCase()
 	if (!PRETTIER_EXTS.has(ext)) return
 
-	runPrettier(filePath)
-	if (ESLINT_EXTS.has(ext)) runEslint(filePath)
+	const usesBiome =
+		CONFIG.formatter === 'biome' ||
+		(CONFIG.formatter === 'auto' && BIOME_AVAILABLE && BIOME_EXTS.has(ext))
+
+	if (usesBiome) {
+		runBiome(filePath)
+	} else {
+		runPrettier(filePath)
+		if (ESLINT_EXTS.has(ext)) runEslint(filePath)
+	}
 }
 
 main()
