@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.1.1] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- `pnpm bump <patch|minor|major>` script for atomic version bumping across `package.json`, `plugin.json`, `marketplace.json`, and `CHANGELOG.md`.
+
+### Fixed
+- (none)
+
 ## [0.1.0] - 2026-04-27
 
 ### Added

@@ -1,6 +1,6 @@
 {
 	"name": "unic-claude-code-format",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": true,
 	"license": "LGPL-3.0-or-later",
 	"type": "module",
@@ -10,6 +10,7 @@
 		"pnpm": ">=10"
 	},
 	"scripts": {
-		"test": "echo 'No tests yet'"
+		"test": "echo 'No tests yet'",
+		"bump": "node scripts/bump.mjs"
 	}
 }
