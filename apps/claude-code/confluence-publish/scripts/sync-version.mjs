@@ -44,7 +44,7 @@ if (!Array.isArray(marketplace.plugins) || marketplace.plugins.length === 0) {
 
 const prev = marketplace.plugins[0].version
 marketplace.plugins[0].version = version
-writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, '\t')}\n`, 'utf8')
+writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`, 'utf8')
 
 if (prev === version) {
 	console.log(`sync-version: marketplace.json already at version ${version} (no change)`)
