@@ -19,7 +19,8 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **Dep versioning**: `devDependencies` go through the `catalog:` section in `pnpm-workspace.yaml`, pinned exactly. No `^` or `~` ranges.
 - **No runtime deps**: the hook script uses only Node built-ins (`node:child_process`, `node:fs`, `node:path`). Keep it that way — no external npm deps in `dependencies`.
 - **Node version**: Node ≥24.15.0 (Active LTS). `useNodeVersion` in `pnpm-workspace.yaml` pins the patch.
-- **Plugin versioning**: `.claude-plugin/plugin.json` is the single source of truth for the version number. **Never hand-edit** `.claude-plugin/marketplace.json` — use `pnpm bump` (spec `07`).
+- **Plugin versioning**: `.claude-plugin/plugin.json` is the single source of truth for the version number. **Never hand-edit** `.claude-plugin/marketplace.json` — use `pnpm bump` (spec `07`). After spec `13`, `sync-version.mjs` propagates to `marketplace.json` and `package.json` automatically.
+- **Release workflow** (after spec `14`): `pnpm bump <type>` → commit → `pnpm tag` → `git push --follow-tags`.
 - **Scope guard**: this plugin formats and lints. Do NOT add MCP servers, skills, agents, or any other Claude Code plugin features unless a spec explicitly calls for it.
 
 ## Versioning policy
@@ -48,6 +49,9 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | 09 | [Smoke tests](./09-smoke-tests.md) | P1 | M | — |
 | 10 | [CI workflow](./10-ci-workflow.md) | P1 | S | — |
 | 11 | [CLAUDE.md](./11-claude-md.md) | P2 | S | — |
+| 12 | [Diff-based verify:changelog](./12-diff-based-verify-changelog.md) | P1 | S | — |
+| 13 | [Version source of truth + sync-version](./13-version-source-of-truth-and-sync.md) | P1 | M | — |
+| 14 | [pnpm tag](./14-pnpm-tag.md) | P2 | S | — |
 
 ## Cross-cutting dependencies
 
@@ -62,3 +66,6 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **`09` → `03` + `04`**: Smoke tests cover core hook logic from specs `03` and `04`.
 - **`10` → `09`**: CI runs tests; land tests first.
 - **`11`**: Can land at any time; no code dependencies.
+- **`12` → `08` + `10`**: Diff-based gate extends the verify:changelog script from spec `08`; CI from spec `10` must exist to test it end-to-end.
+- **`13` → `07`**: sync-version.mjs is called by the refactored bump.mjs.
+- **`14` → `13`**: tag.mjs calls sync-version.mjs as a safety step.
