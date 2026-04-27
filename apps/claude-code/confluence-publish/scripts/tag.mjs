@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 // @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CliError } from "./lib/errors.mjs";

@@ -1,8 +1,8 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
+import { test } from "node:test";
 import {
 	appendAlias,
 	findAliasForId,
@@ -56,5 +56,8 @@ test("readPagesFile returns existed=false when absent", () => {
 
 test("listAliases sorts alphabetically and filters _comment and non-numbers", () => {
 	const pages = { _comment: "x", zoo: 3, alpha: 1, beta: "no" };
-	assert.deepEqual(listAliases(pages), [["alpha", 1], ["zoo", 3]]);
+	assert.deepEqual(listAliases(pages), [
+		["alpha", 1],
+		["zoo", 3],
+	]);
 });

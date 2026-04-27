@@ -23,6 +23,6 @@
 		}
 	},
 	"files": {
-		"ignore": ["node_modules", ".history", "pnpm-lock.yaml"]
+		"ignore": ["node_modules", ".history", "pnpm-lock.yaml", ".claude", ".ralph"]
 	}
 }

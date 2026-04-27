@@ -19,8 +19,6 @@ import { marked } from "marked";
 import { CliError } from "./lib/errors.mjs";
 import { stripFrontmatter } from "./lib/frontmatter.mjs";
 import { injectContent } from "./lib/inject.mjs";
-import { isNumericId, resolvePageId } from "./lib/resolve.mjs";
-import { slugify } from "./lib/slug.mjs";
 import {
 	appendAlias,
 	findAliasForId,
@@ -29,6 +27,8 @@ import {
 	readPagesFile,
 	writePagesFile,
 } from "./lib/pages-file.mjs";
+import { isNumericId, resolvePageId } from "./lib/resolve.mjs";
+import { slugify } from "./lib/slug.mjs";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 

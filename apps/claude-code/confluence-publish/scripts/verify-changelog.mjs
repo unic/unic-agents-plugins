@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 // @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -95,7 +95,9 @@ try {
 }
 
 const sectionMatch = changelog.match(
-	new RegExp(`## \\[${headVersion.replace(/\./g, "\\.")}\\] — \\d{4}-\\d{2}-\\d{2}([\\s\\S]*?)(?=\\n## \\[|$)`),
+	new RegExp(
+		`## \\[${headVersion.replace(/\./g, "\\.")}\\] — \\d{4}-\\d{2}-\\d{2}([\\s\\S]*?)(?=\\n## \\[|$)`,
+	),
 );
 if (!sectionMatch) {
 	fail(

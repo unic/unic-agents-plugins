@@ -12,9 +12,7 @@ const FILENAME = "confluence-pages.json";
 export function readPagesFile(cwd) {
 	const p = path.join(cwd, FILENAME);
 	if (!existsSync(p)) return { pages: {}, path: p, existed: false };
-	const pages = /** @type {Record<string, unknown>} */ (
-		JSON.parse(readFileSync(p, "utf8"))
-	);
+	const pages = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(p, "utf8")));
 	return { pages, path: p, existed: true };
 }
 

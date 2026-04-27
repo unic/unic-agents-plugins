@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 // @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
 import { readFileSync, writeFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CliError } from "./lib/errors.mjs";
@@ -67,9 +67,7 @@ try {
 		.filter((l) => l.startsWith("- "))
 		.some((l) => l !== "- (none)");
 	if (!hasRealEntry) {
-		throw new CliError(
-			"bump: [Unreleased] has no entries — add a CHANGELOG entry before bumping",
-		);
+		throw new CliError("bump: [Unreleased] has no entries — add a CHANGELOG entry before bumping");
 	}
 
 	pluginJson.version = nextVersion;

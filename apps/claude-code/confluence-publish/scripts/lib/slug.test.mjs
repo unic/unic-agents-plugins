@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { slugify } from "./slug.mjs";
 
 test("plain ASCII title", () => assert.equal(slugify("My Page Title"), "my-page-title"));

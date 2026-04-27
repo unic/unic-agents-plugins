@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.1] — 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- CI: drop redundant `version: 10` from `pnpm/action-setup@v4` so `package.json#packageManager` is the single source of truth (CI was failing with "Multiple versions of pnpm specified")
+
 ## [2.1.0] — 2026-04-27
 
 ### Breaking
