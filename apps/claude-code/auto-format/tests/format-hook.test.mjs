@@ -194,3 +194,26 @@ test('respects prettierExtensions override from config', () => {
 		cleanup(dir)
 	}
 })
+
+test('exits 0 and logs timeout when prettier hangs', { timeout: 10_000 }, () => {
+	const dir = makeConsumer((d) => {
+		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
+		mkdirSync(join(d, '.claude'))
+		// Stub prettier that sleeps indefinitely
+		const stubScript = '#!/usr/bin/env node\nawait new Promise(r => setTimeout(r, 90_000))\n'
+		writeFileSync(join(d, 'node_modules', '.bin', 'prettier'), stubScript, { mode: 0o755 })
+		// Use a 2s timeout so the test completes quickly
+		writeFileSync(join(d, '.claude', 'unic-format.json'), JSON.stringify({ formatTimeoutMs: 2000 }))
+		writeFileSync(join(d, 'test.md'), '# hello\n')
+	})
+	try {
+		const { exitCode, stderr } = run(
+			JSON.stringify({ tool_input: { file_path: join(dir, 'test.md') } }),
+			dir,
+		)
+		assert.equal(exitCode, 0)
+		assert.match(stderr, /timed out/, 'should log timeout warning')
+	} finally {
+		cleanup(dir)
+	}
+})

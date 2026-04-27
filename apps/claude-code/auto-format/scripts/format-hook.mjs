@@ -49,6 +49,7 @@ const DEFAULTS = {
 		'.feature',
 	],
 	eslintExtensions: ['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.json', '.jsonc', '.md'],
+	formatTimeoutMs: 30_000,
 }
 
 function loadProjectConfig() {
@@ -56,10 +57,12 @@ function loadProjectConfig() {
 	if (!existsSync(configPath)) return DEFAULTS
 	try {
 		const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
+		const raw = Number(cfg.formatTimeoutMs)
 		return {
 			skipPrefixes: Array.isArray(cfg.skipPrefixes) ? cfg.skipPrefixes : DEFAULTS.skipPrefixes,
 			prettierExtensions: Array.isArray(cfg.prettierExtensions) ? cfg.prettierExtensions : DEFAULTS.prettierExtensions,
 			eslintExtensions: Array.isArray(cfg.eslintExtensions) ? cfg.eslintExtensions : DEFAULTS.eslintExtensions,
+			formatTimeoutMs: Number.isFinite(raw) ? Math.min(Math.max(raw, 1_000), 120_000) : DEFAULTS.formatTimeoutMs,
 		}
 	} catch (err) {
 		process.stderr.write(`unic-format: ignoring malformed .claude/unic-format.json: ${err.message}\n`)
@@ -89,7 +92,13 @@ function runPrettier(filePath) {
 	const r = spawnSync('node', [PRETTIER_BIN, '--write', '--ignore-unknown', '--log-level', 'warn', filePath], {
 		cwd: PROJECT_DIR,
 		stdio: ['ignore', 'ignore', 'pipe'],
+		timeout: CONFIG.formatTimeoutMs,
+		killSignal: 'SIGTERM',
 	})
+	if (r.signal === 'SIGTERM' || r.status === null) {
+		process.stderr.write(`unic-format: prettier timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
+		return
+	}
 	if (r.status !== 0) {
 		process.stderr.write(`unic-format: prettier failed: ${r.stderr?.toString().trim() || 'unknown error'}\n`)
 	}
@@ -100,7 +109,13 @@ function runEslint(filePath) {
 	const r = spawnSync('node', [ESLINT_BIN, '--fix', '--no-error-on-unmatched-pattern', filePath], {
 		cwd: PROJECT_DIR,
 		stdio: ['ignore', 'ignore', 'pipe'],
+		timeout: CONFIG.formatTimeoutMs,
+		killSignal: 'SIGTERM',
 	})
+	if (r.signal === 'SIGTERM' || r.status === null) {
+		process.stderr.write(`unic-format: eslint timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
+		return
+	}
 	// Status 1 = lint warnings/errors remain after --fix (not a hook failure).
 	// Status >1 = ESLint crash or misconfiguration.
 	if (r.status !== 0 && r.status !== 1) {

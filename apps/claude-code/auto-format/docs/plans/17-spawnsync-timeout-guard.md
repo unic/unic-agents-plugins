@@ -1,5 +1,5 @@
 # 17. `spawnSync` timeout guard for Prettier and ESLint
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P1
 **Effort:** S

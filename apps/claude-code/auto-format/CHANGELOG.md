@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.3.3] - 2026-04-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- add `timeout`/`killSignal: 'SIGTERM'` to both `spawnSync` calls in `runPrettier` and `runEslint`; default 30 s, configurable via `.claude/unic-format.json#formatTimeoutMs` (clamped [1 000, 120 000]), so a hung formatter never stalls the hook
+
 ## [0.3.2] - 2026-04-27
 
 ### Breaking
