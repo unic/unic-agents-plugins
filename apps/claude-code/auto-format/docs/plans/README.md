@@ -59,6 +59,7 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | 19 | [Optional Biome support](./19-biome-support.md) | P1 | M | todo |
 | 20 | [additionalSkipPrefixes config key](./20-additional-skip-prefixes.md) | P2 | S | todo |
 | 21 | [JSON 2-space indentation](./21-json-indentation.md) | P1 | S | todo |
+| 22 | [JSDoc types and --checkJs type-checking](./22-jsdoc-types-ts-check.md) | P2 | M | todo |
 
 ## Cross-cutting dependencies
 
@@ -83,3 +84,4 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **`19` → `03` + `04` + `09` + `17`**: Biome support adds a new runner to `format-hook.mjs` using the same timeout pattern; tests build on spec `09`'s helpers.
 - **`20` → `04` + `09`**: Additive-merge logic is in `loadProjectConfig` (spec `04`); tests build on spec `09`.
 - **`21` → `07` + `13`**: Changes indentation in both `bump.mjs` (spec `07`) and `sync-version.mjs` (spec `13`), and reformats their output files.
+- **`22` → `19`**: Biome support (spec `19`) should be committed before JSDoc annotations to keep formatting diffs and type-annotation diffs in separate commits.
