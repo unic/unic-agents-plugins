@@ -60,6 +60,8 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | 20 | [additionalSkipPrefixes config key](./20-additional-skip-prefixes.md) | P2 | S | todo |
 | 21 | [JSON 2-space indentation](./21-json-indentation.md) | P1 | S | todo |
 | 22 | [JSDoc types and --checkJs type-checking](./22-jsdoc-types-ts-check.md) | P2 | M | todo |
+| 23 | [Backfill historical git tags](./23-backfill-tags.md) | P2 | S | todo |
+| 24 | [CI auto-tag on version bump](./24-ci-auto-tag.md) | P2 | S | todo |
 
 ## Cross-cutting dependencies
 
@@ -85,3 +87,5 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **`20` → `04` + `09`**: Additive-merge logic is in `loadProjectConfig` (spec `04`); tests build on spec `09`.
 - **`21` → `07` + `13`**: Changes indentation in both `bump.mjs` (spec `07`) and `sync-version.mjs` (spec `13`), and reformats their output files.
 - **`22` → `19`**: Biome support (spec `19`) should be committed before JSDoc annotations to keep formatting diffs and type-annotation diffs in separate commits.
+- **`23` → `14`**: backfill-tags.mjs relies on the same `vX.Y.Z` tag convention as tag.mjs.
+- **`24` → `10` + `14`**: release.yml extends the CI setup from spec `10` and uses the same tag convention as tag.mjs from spec `14`.
