@@ -37,11 +37,11 @@ No automated tagging exists.
 - Detects a version bump by comparing `plugin.json#version` at HEAD vs HEAD~1.
 - If bumped:
   1. Configures git identity as `github-actions[bot]`.
-  2. Runs `pnpm tag` to create the local tag.
-  3. Runs `git push --follow-tags` to publish the tag.
-  4. Logs: `🏷️ Tagged and pushed v{version}`.
+  2. Runs `git tag v${VERSION} ${GITHUB_SHA}` to create the lightweight tag.
+  3. Runs `git push origin refs/tags/v${VERSION}` to publish the tag.
+  4. Logs: `Tagged and pushed v{version}`.
 - If **not** bumped: logs `No version bump detected — skipping tag` and exits 0.
-- If the tag already exists (re-run on the same commit): `pnpm tag` exits 1 →
+- If the tag already exists (re-run on the same commit): `git tag` exits 1 →
   workflow step exits 1 → job fails visibly so the operator knows something is off.
 
 ## Implementation steps
@@ -112,9 +112,10 @@ jobs:
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          pnpm tag
+          git tag "v${VERSION}" "${GITHUB_SHA}"
           git push origin "refs/tags/v${VERSION}"
           echo "Tagged and pushed v${VERSION}"
 ```
@@ -143,10 +144,10 @@ git commit -m "ci(spec-24): add release workflow to auto-tag version bump commit
 
 | Scenario | Expected |
 |---|---|
-| Push to `main` with version bump in `plugin.json` | `pnpm tag` runs; tag pushed; step logs `🏷️ Tagged…` |
+| Push to `main` with version bump in `plugin.json` | `git tag v${VERSION}` runs; tag pushed; step logs `Tagged and pushed v${VERSION}` |
 | Push to `main` without version bump | `bumped=false`; step logs `No version bump detected`; job exits 0 |
 | Push to a non-`main` branch | Workflow does not trigger |
-| Tag already exists for current version | `pnpm tag` exits 1; job fails visibly |
+| Tag already exists for current version | `git tag` exits 1; job fails visibly |
 | `plugin.json` absent in HEAD~1 (first ever commit on main) | `PREVIOUS` falls back to `""`; treated as a bump; tag created |
 
 ## Acceptance criteria
@@ -157,7 +158,7 @@ git commit -m "ci(spec-24): add release workflow to auto-tag version bump commit
 - `actions/checkout` uses `fetch-depth: 2`.
 - `pnpm/action-setup` has no `version:` input.
 - Version comparison uses `HEAD~1` diff, not commit message matching.
-- Tag is pushed via `git push --follow-tags` (not `git push origin tag vX.Y.Z`).
+- Tag is pushed via `git push origin refs/tags/vX.Y.Z` (not `--follow-tags`, which only pushes annotated tags).
 - Non-bump pushes exit 0 without creating a tag.
 
 ## Verification

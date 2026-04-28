@@ -32,7 +32,7 @@ tags that already exist).
   a lightweight `v{version}` tag is created at the first commit that introduced that
   version in `.claude-plugin/plugin.json`.
 - If a tag already exists it is skipped with a `skip` log line (idempotent).
-- Script ends with: `Done. Run: git push --follow-tags`
+- Script ends with: `Done. Run: git push --tags`
 - Does **not** push. Push remains a manual step.
 
 ## Implementation steps
@@ -87,7 +87,7 @@ for (const hash of commits) {
 	}
 }
 
-process.stdout.write('Done. Run: git push --follow-tags\n')
+process.stdout.write('Done. Run: git push --tags\n')
 ```
 
 ### Step 2 — Add `backfill-tags` to `package.json` scripts
@@ -139,14 +139,14 @@ git commit -m "feat(spec-23): add pnpm backfill-tags to tag historical version c
 - `pnpm backfill-tags` creates one `vX.Y.Z` tag per distinct version in git history.
 - Re-running is idempotent: skips existing tags, exits 0.
 - Script does **not** push.
-- Output ends with "Run: git push --follow-tags".
+- Output ends with "Run: git push --tags".
 
 ## Verification
 
 ```sh
 # 1. Run backfill
 pnpm backfill-tags
-# expect: "tagged  vX.Y.Z → <hash>" lines, then "Done. Run: git push --follow-tags"
+# expect: "tagged  vX.Y.Z → <hash>" lines, then "Done. Run: git push --tags"
 
 # 2. Confirm tags exist
 git tag --list | sort -V
@@ -157,7 +157,7 @@ pnpm backfill-tags
 # expect: all lines say "skip  vX.Y.Z (already exists)"
 
 # 4. Optionally push
-git push --follow-tags
+git push --tags
 ```
 
 ## Out of scope
