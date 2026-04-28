@@ -16,11 +16,16 @@ jobs:
         with:
           fetch-depth: 2   # HEAD and HEAD~1 needed for version comparison
 
+      - name: Read Node version
+        id: node-ver
+        run: echo "version=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/action-setup@v4
+        # reads packageManager from package.json
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: "pnpm-workspace.yaml"
+          node-version: ${{ steps.node-ver.outputs.version }}
           cache: "pnpm"
 
       - name: Install dependencies
@@ -53,4 +58,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           pnpm tag
           git push --follow-tags
-          echo "🏷️ Tagged and pushed v${VERSION}"
+          echo "Tagged and pushed v${VERSION}"
