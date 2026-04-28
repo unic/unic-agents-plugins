@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.5.3] - 2026-04-28
+
+### Breaking
+- (none)
+
+### Added
+- Add `scripts/backfill-tags.mjs` and `pnpm backfill-tags` to tag historical version commits idempotently.
+
+### Fixed
+- (none)
+
 ## [0.5.2] - 2026-04-28
 
 ### Breaking
