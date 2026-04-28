@@ -60,8 +60,8 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | 20 | [additionalSkipPrefixes config key](./20-additional-skip-prefixes.md) | P2 | S | todo |
 | 21 | [JSON 2-space indentation](./21-json-indentation.md) | P1 | S | todo |
 | 22 | [JSDoc types and --checkJs type-checking](./22-jsdoc-types-ts-check.md) | P2 | M | todo |
-| 23 | [Backfill historical git tags](./23-backfill-tags.md) | P2 | S | todo |
-| 24 | [CI auto-tag on version bump](./24-ci-auto-tag.md) | P2 | S | todo |
+| 23 | [Backfill historical git tags](./23-backfill-tags.md) | P2 | S | done |
+| 24 | [CI auto-tag on version bump](./24-ci-auto-tag.md) | P2 | S | done |
 
 ## Cross-cutting dependencies
 

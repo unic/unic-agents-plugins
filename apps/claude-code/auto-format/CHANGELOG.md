@@ -22,10 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Add `.github/workflows/release.yml` to auto-tag version bump commits on push to `main` via GitHub Actions.
 
 ### Fixed
-- Add `.github/workflows/release.yml` to auto-tag version bump commits on push to `main` via GitHub Actions.
+- (none)
 
 ## [0.5.3] - 2026-04-28
 

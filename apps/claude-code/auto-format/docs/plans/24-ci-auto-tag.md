@@ -67,16 +67,23 @@ jobs:
         with:
           fetch-depth: 2   # HEAD and HEAD~1 needed for version comparison
 
+      - name: Read Node version
+        id: node-ver
+        run: |
+          VERSION=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "::error::useNodeVersion not found in pnpm-workspace.yaml" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/action-setup@v4
         # reads packageManager from package.json — do not add version: here
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: "pnpm-workspace.yaml"
+          node-version: ${{ steps.node-ver.outputs.version }}
           cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Detect version bump
         id: bump
@@ -96,14 +103,20 @@ jobs:
         if: steps.bump.outputs.bumped == 'false'
         run: echo "No version bump detected — skipping tag"
 
+      - name: Install dependencies
+        if: steps.bump.outputs.bumped == 'true'
+        run: pnpm install --frozen-lockfile
+
       - name: Create and push tag
         if: steps.bump.outputs.bumped == 'true'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           pnpm tag
-          git push --follow-tags
-          echo "🏷️ Tagged and pushed v${{ steps.bump.outputs.version }}"
+          git push origin "refs/tags/v${VERSION}"
+          echo "Tagged and pushed v${VERSION}"
 ```
 
 ### Step 2 — Update `docs/plans/README.md` execution table
