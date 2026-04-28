@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # HEAD and HEAD~1 needed for version comparison
+
+      - name: Read Node version
+        id: node-ver
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "::error::useNodeVersion not found in pnpm-workspace.yaml" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node-ver.outputs.version }}
+
+      - name: Detect version bump
+        id: bump
+        run: |
+          set -euo pipefail
+          CURRENT=$(node -e "const fs=require('fs'); console.log(JSON.parse(fs.readFileSync('.claude-plugin/plugin.json','utf8')).version)")
+          PREVIOUS=$(git show HEAD~1:.claude-plugin/plugin.json 2>/dev/null \
+            | node -e "const fs=require('fs'); console.log(JSON.parse(fs.readFileSync('/dev/stdin','utf8')).version)" \
+            2>/dev/null || echo "")
+          if [ -n "$CURRENT" ] && [ -n "$PREVIOUS" ] && [ "$CURRENT" != "$PREVIOUS" ]; then
+            echo "bumped=true"  >> "$GITHUB_OUTPUT"
+            echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          else
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip (no bump)
+        if: steps.bump.outputs.bumped == 'false'
+        run: echo "No version bump detected — skipping tag"
+
+      - name: Create and push tag
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${VERSION}" "${GITHUB_SHA}"
+          git push origin "refs/tags/v${VERSION}"
+          echo "Tagged and pushed v${VERSION}"

@@ -10,12 +10,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read Node version
+        id: node-ver
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "::error::useNodeVersion not found in pnpm-workspace.yaml" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - uses: pnpm/action-setup@v4
         # reads packageManager from package.json
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: "pnpm-workspace.yaml"
+          node-version: ${{ steps.node-ver.outputs.version }}
           cache: "pnpm"
 
       - name: Install dependencies
