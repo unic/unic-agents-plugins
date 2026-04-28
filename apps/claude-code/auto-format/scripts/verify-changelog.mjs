@@ -5,6 +5,7 @@
  * Layer 2: diff-based gate — when guarded paths change, version must be bumped
  *           and CHANGELOG must have a real entry for the new version.
  */
+// @ts-check
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -72,6 +73,10 @@ if (errors.length > 0) {
 
 // Layer 2: diff-based version-bump gate
 
+/**
+ * @param {string[]} args
+ * @returns {{ stdout: string, status: number }}
+ */
 function git(...args) {
 	const result = spawnSync('git', args, { encoding: 'utf8', cwd: ROOT })
 	return { stdout: result.stdout ?? '', status: result.status ?? 1 }
@@ -98,20 +103,22 @@ if (!triggered) {
 }
 
 const pluginPath = resolve(ROOT, '.claude-plugin/plugin.json')
+/** @type {Record<string, unknown>} */
 let headPlugin
 try {
-	headPlugin = JSON.parse(readFileSync(pluginPath, 'utf8'))
+	headPlugin = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pluginPath, 'utf8')))
 } catch {
 	process.stderr.write(`verify:changelog: cannot read ${pluginPath}\n`)
 	process.exit(1)
 }
-const headVersion = headPlugin.version
+const headVersion = /** @type {string} */ (headPlugin.version)
 
 const basePluginRaw = git('show', `${base}:.claude-plugin/plugin.json`)
 let baseVersion = ''
 if (basePluginRaw.status === 0) {
 	try {
-		baseVersion = JSON.parse(basePluginRaw.stdout).version
+		const parsed = /** @type {Record<string, unknown>} */ (JSON.parse(basePluginRaw.stdout))
+		baseVersion = typeof parsed.version === 'string' ? parsed.version : ''
 	} catch {
 		// base does not have plugin.json yet — treat as empty
 	}

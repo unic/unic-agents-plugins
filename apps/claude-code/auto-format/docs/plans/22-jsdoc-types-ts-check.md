@@ -1,4 +1,5 @@
 # 22. JSDoc Types and `--checkJs` Type-Checking
+**Status: done — 2026-04-28**
 
 **Priority:** P2
 **Effort:** M

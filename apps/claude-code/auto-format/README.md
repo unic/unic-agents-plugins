@@ -151,3 +151,12 @@ To disable permanently for a repo: remove the plugin from `.claude/settings.json
 ## Contributing
 
 See `docs/plans/README.md` for the ralph-orchestrated implementation roadmap and ground rules.
+
+### Developer commands
+
+| Command | Description |
+|---|---|
+| `pnpm install` | Install dev dependencies |
+| `pnpm test` | Run smoke tests |
+| `pnpm typecheck` | Type-check plugin source (`tsc --checkJs`, dev-only) |
+| `pnpm bump <patch\|minor\|major>` | Bump version + promote CHANGELOG |

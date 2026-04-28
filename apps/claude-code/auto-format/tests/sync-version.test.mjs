@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
@@ -8,6 +9,10 @@ import { fileURLToPath } from 'node:url'
 
 const SCRIPT = fileURLToPath(new URL('../scripts/sync-version.mjs', import.meta.url))
 
+/**
+ * @param {string} version
+ * @returns {string}
+ */
 function makeFixtureRepo(version) {
 	const dir = mkdtempSync(join(tmpdir(), 'unic-sync-version-test-'))
 	mkdirSync(join(dir, '.claude-plugin'))

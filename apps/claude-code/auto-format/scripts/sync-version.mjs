@@ -5,6 +5,7 @@
  * and propagates it to .claude-plugin/marketplace.json and package.json.
  * Idempotent — safe to run multiple times.
  */
+// @ts-check
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -12,11 +13,12 @@ import { resolve } from 'node:path'
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
 const pluginPath = resolve(ROOT, '.claude-plugin/plugin.json')
+/** @type {Record<string, unknown>} */
 let pluginJson
 try {
-	pluginJson = JSON.parse(readFileSync(pluginPath, 'utf8'))
+	pluginJson = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pluginPath, 'utf8')))
 } catch (err) {
-	process.stderr.write(`sync-version: cannot read ${pluginPath}: ${err.message}\n`)
+	process.stderr.write(`sync-version: cannot read ${pluginPath}: ${/** @type {Error} */ (err).message}\n`)
 	process.exit(1)
 }
 
@@ -28,14 +30,17 @@ if (!version || typeof version !== 'string') {
 
 /**
  * Update version in a JSON file. Logs the transition (or no-op).
- * @param {string} filePath  Absolute path to the JSON file.
+ *
+ * @param {string} filePath - Absolute path to the JSON file.
+ * @returns {void}
  */
 function syncFile(filePath) {
+	/** @type {Record<string, unknown>} */
 	let obj
 	try {
-		obj = JSON.parse(readFileSync(filePath, 'utf8'))
+		obj = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(filePath, 'utf8')))
 	} catch (err) {
-		process.stderr.write(`sync-version: cannot read ${filePath}: ${err.message}\n`)
+		process.stderr.write(`sync-version: cannot read ${filePath}: ${/** @type {Error} */ (err).message}\n`)
 		process.exit(1)
 	}
 	const rel = filePath.slice(ROOT.length + 1)
@@ -46,7 +51,7 @@ function syncFile(filePath) {
 	}
 	obj.version = version
 	writeFileSync(filePath, JSON.stringify(obj, null, 2) + '\n', 'utf8')
-	process.stdout.write(`sync-version: ${rel} updated ${prev} → ${version}\n`)
+	process.stdout.write(`sync-version: ${rel} updated ${String(prev)} → ${version}\n`)
 }
 
 syncFile(resolve(ROOT, '.claude-plugin/marketplace.json'))

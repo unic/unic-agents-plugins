@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.5.2] - 2026-04-28
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Add `// @ts-check` and JSDoc type annotations to all `.mjs` scripts and tests; introduce `scripts/lib/types.mjs` with shared typedefs; add `pnpm typecheck` (`tsc --checkJs --strict`) as a dev-only type-safety gate.
+
 ## [0.5.1] - 2026-04-27
 
 ### Breaking

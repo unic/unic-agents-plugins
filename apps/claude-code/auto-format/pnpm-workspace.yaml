@@ -6,6 +6,8 @@ allowBuilds:
 
 catalog:
   "@ralph-orchestrator/ralph-cli": 2.9.2
+  "@types/node": "24.12.2"
+  typescript: "5.8.3"
 
 catalogMode: prefer
 

@@ -5,6 +5,7 @@
  * marketplace.json + package.json via sync-version.mjs, and promotes
  * [Unreleased] in CHANGELOG.md.
  */
+// @ts-check
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -12,14 +13,28 @@ import { spawnSync } from 'node:child_process'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
+/**
+ * @param {string} rel
+ * @returns {Record<string, unknown>}
+ */
 function readJson(rel) {
-	return JSON.parse(readFileSync(resolve(ROOT, rel), 'utf8'))
+	return /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(resolve(ROOT, rel), 'utf8')))
 }
 
+/**
+ * @param {string} rel
+ * @param {Record<string, unknown>} obj
+ * @returns {void}
+ */
 function writeJson(rel, obj) {
 	writeFileSync(resolve(ROOT, rel), JSON.stringify(obj, null, 2) + '\n', 'utf8')
 }
 
+/**
+ * @param {string} version
+ * @param {string} type
+ * @returns {string}
+ */
 function bumpVersion(version, type) {
 	const [major, minor, patch] = version.split('.').map(Number)
 	if (type === 'major') return `${major + 1}.0.0`
@@ -28,6 +43,9 @@ function bumpVersion(version, type) {
 	throw new Error(`Invalid bump type: ${type}`)
 }
 
+/**
+ * @returns {string}
+ */
 function today() {
 	return new Date().toISOString().slice(0, 10)
 }
@@ -61,7 +79,7 @@ if (!hasEntries) {
 
 // Bump plugin.json (single source of truth)
 const pluginJson = readJson('.claude-plugin/plugin.json')
-const newVersion = bumpVersion(pluginJson.version, bumpType)
+const newVersion = bumpVersion(/** @type {string} */ (pluginJson.version), bumpType)
 pluginJson.version = newVersion
 writeJson('.claude-plugin/plugin.json', pluginJson)
 

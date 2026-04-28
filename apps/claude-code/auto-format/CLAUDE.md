@@ -11,6 +11,7 @@ This file provides guidance to Claude Code when working in this repository.
 ```sh
 pnpm install              # Install dev dependencies
 pnpm test                 # Run smoke tests (node:test)
+pnpm typecheck            # Type-check plugin source (tsc --checkJs, dev-only)
 pnpm bump patch           # Bump patch version + promote CHANGELOG
 pnpm bump minor           # Bump minor version + promote CHANGELOG
 pnpm bump major           # Bump major version + promote CHANGELOG

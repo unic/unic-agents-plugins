@@ -5,6 +5,7 @@
  * Runs sync-version first (idempotent safety check).
  * Does not push — run: git push --follow-tags
  */
+// @ts-check
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -13,11 +14,12 @@ import { spawnSync } from 'node:child_process'
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
 const pluginPath = resolve(ROOT, '.claude-plugin/plugin.json')
+/** @type {Record<string, unknown>} */
 let pluginJson
 try {
-	pluginJson = JSON.parse(readFileSync(pluginPath, 'utf8'))
+	pluginJson = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(pluginPath, 'utf8')))
 } catch (err) {
-	process.stderr.write(`tag: cannot read ${pluginPath}: ${err.message}\n`)
+	process.stderr.write(`tag: cannot read ${pluginPath}: ${/** @type {Error} */ (err).message}\n`)
 	process.exit(1)
 }
 

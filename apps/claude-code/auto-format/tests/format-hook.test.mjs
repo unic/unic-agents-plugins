@@ -1,3 +1,4 @@
+// @ts-check
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
@@ -8,6 +9,12 @@ import { fileURLToPath } from 'node:url'
 
 const SCRIPT = fileURLToPath(new URL('../scripts/format-hook.mjs', import.meta.url))
 
+/**
+ * @param {string} stdinJson
+ * @param {string} projectDir
+ * @param {Record<string, string>} [extraEnv]
+ * @returns {{ exitCode: number | null, stderr: string, stdout: string }}
+ */
 function run(stdinJson, projectDir, extraEnv = {}) {
 	const result = spawnSync(process.execPath, [SCRIPT], {
 		input: stdinJson,
@@ -17,12 +24,20 @@ function run(stdinJson, projectDir, extraEnv = {}) {
 	return { exitCode: result.status, stderr: result.stderr, stdout: result.stdout }
 }
 
+/**
+ * @param {((dir: string) => void) | undefined} [setupFn]
+ * @returns {string}
+ */
 function makeConsumer(setupFn) {
 	const dir = mkdtempSync(join(tmpdir(), 'unic-format-test-'))
 	setupFn?.(dir)
 	return dir
 }
 
+/**
+ * @param {string} dir
+ * @returns {void}
+ */
 function cleanup(dir) {
 	rmSync(dir, { recursive: true, force: true })
 }
