@@ -1,6 +1,6 @@
 # 24. CI auto-tag on version bump
 
-**Status: todo**
+**Status: done — 2026-04-28**
 
 **Priority:** P2
 **Effort:** S
