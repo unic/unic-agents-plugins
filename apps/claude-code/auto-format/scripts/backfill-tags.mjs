@@ -45,4 +45,4 @@ for (const hash of commits) {
 	}
 }
 
-process.stdout.write('Done. Run: git push --follow-tags\n')
+process.stdout.write('Done. Run: git push --tags\n')

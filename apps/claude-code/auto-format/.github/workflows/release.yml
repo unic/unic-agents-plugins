@@ -64,5 +64,5 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           pnpm tag
-          git push --follow-tags
+          git push origin "refs/tags/v${VERSION}"
           echo "Tagged and pushed v${VERSION}"
