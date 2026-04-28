@@ -20,12 +20,12 @@ jobs:
         id: node-ver
         run: |
           set -euo pipefail
-          version=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
-          if [ -z "$version" ]; then
-            echo "Failed to determine Node version from pnpm-workspace.yaml" >&2
+          VERSION=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "::error::useNodeVersion not found in pnpm-workspace.yaml" >&2
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
         # reads packageManager from package.json
@@ -34,9 +34,6 @@ jobs:
         with:
           node-version: ${{ steps.node-ver.outputs.version }}
           cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Detect version bump
         id: bump
@@ -55,6 +52,10 @@ jobs:
       - name: Skip (no bump)
         if: steps.bump.outputs.bumped == 'false'
         run: echo "No version bump detected — skipping tag"
+
+      - name: Install dependencies
+        if: steps.bump.outputs.bumped == 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: Create and push tag
         if: steps.bump.outputs.bumped == 'true'

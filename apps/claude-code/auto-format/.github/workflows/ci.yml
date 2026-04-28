@@ -13,13 +13,13 @@ jobs:
       - name: Read Node version
         id: node-ver
         run: |
-          set -o pipefail
-          version="$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')"
-          if [ -z "$version" ]; then
-            echo "Error: useNodeVersion: not found in pnpm-workspace.yaml" >&2
+          set -euo pipefail
+          VERSION=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "::error::useNodeVersion not found in pnpm-workspace.yaml" >&2
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
         # reads packageManager from package.json
