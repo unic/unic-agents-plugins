@@ -42,7 +42,7 @@ jobs:
           PREVIOUS=$(git show HEAD~1:.claude-plugin/plugin.json 2>/dev/null \
             | node -e "const fs=require('fs'); console.log(JSON.parse(fs.readFileSync('/dev/stdin','utf8')).version)" \
             2>/dev/null || echo "")
-          if [ "$CURRENT" != "$PREVIOUS" ] && [ -n "$CURRENT" ]; then
+          if [ -n "$CURRENT" ] && [ -n "$PREVIOUS" ] && [ "$CURRENT" != "$PREVIOUS" ]; then
             echo "bumped=true"  >> "$GITHUB_OUTPUT"
             echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
           else
@@ -53,10 +53,6 @@ jobs:
         if: steps.bump.outputs.bumped == 'false'
         run: echo "No version bump detected — skipping tag"
 
-      - name: Install dependencies
-        if: steps.bump.outputs.bumped == 'true'
-        run: pnpm install --frozen-lockfile
-
       - name: Create and push tag
         if: steps.bump.outputs.bumped == 'true'
         env:
@@ -64,6 +60,6 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          pnpm tag
+          git tag "v${VERSION}" "${GITHUB_SHA}"
           git push origin "refs/tags/v${VERSION}"
           echo "Tagged and pushed v${VERSION}"
