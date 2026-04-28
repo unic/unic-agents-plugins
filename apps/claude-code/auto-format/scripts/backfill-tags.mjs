@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // @ts-check
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 const log = spawnSync('git', ['log', '--reverse', '--format=%H'], { encoding: 'utf8', cwd: ROOT })
 if (log.status !== 0) {
@@ -27,7 +28,6 @@ for (const hash of commits) {
 	}
 
 	if (!version || version === lastVersion) continue
-	lastVersion = version
 
 	const tagName = `v${version}`
 
@@ -38,11 +38,13 @@ for (const hash of commits) {
 	}
 	if (existing.stdout.trim()) {
 		process.stdout.write(`  skip  ${tagName} (already exists)\n`)
+		lastVersion = version
 		continue
 	}
 
 	const result = spawnSync('git', ['tag', tagName, hash], { cwd: ROOT, stdio: 'inherit' })
 	if (result.status === 0) {
+		lastVersion = version
 		process.stdout.write(`tagged  ${tagName} → ${hash.slice(0, 7)}\n`)
 	} else {
 		process.stderr.write(`  FAIL  ${tagName} → ${hash.slice(0, 7)}\n`)
