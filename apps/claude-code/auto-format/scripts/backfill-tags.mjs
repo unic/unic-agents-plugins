@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 const log = spawnSync('git', ['log', '--reverse', '--format=%H'], { encoding: 'utf8', cwd: ROOT })
+if (log.error) {
+	process.stderr.write(`backfill-tags: could not spawn git: ${log.error.message}\n`)
+	process.exit(1)
+}
 if (log.status !== 0) {
 	process.stderr.write('backfill-tags: git log failed\n')
 	process.exit(1)
@@ -16,6 +20,10 @@ let lastVersion = null
 
 for (const hash of commits) {
 	const show = spawnSync('git', ['show', `${hash}:.claude-plugin/plugin.json`], { encoding: 'utf8', cwd: ROOT })
+	if (show.error) {
+		process.stderr.write(`backfill-tags: could not spawn git: ${show.error.message}\n`)
+		process.exit(1)
+	}
 	if (show.status !== 0) continue
 
 	/** @type {string | null} */
@@ -23,7 +31,8 @@ for (const hash of commits) {
 	try {
 		const parsed = JSON.parse(show.stdout)
 		version = typeof parsed.version === 'string' ? parsed.version : null
-	} catch {
+	} catch (err) {
+		process.stderr.write(`  WARN  ${hash.slice(0, 7)}: plugin.json parse failed: ${/** @type {Error} */ (err).message}\n`)
 		continue
 	}
 
@@ -32,6 +41,10 @@ for (const hash of commits) {
 	const tagName = `v${version}`
 
 	const existing = spawnSync('git', ['tag', '-l', tagName], { encoding: 'utf8', cwd: ROOT })
+	if (existing.error) {
+		process.stderr.write(`backfill-tags: could not spawn git: ${existing.error.message}\n`)
+		process.exit(1)
+	}
 	if (existing.status !== 0) {
 		process.stderr.write(`  FAIL  git tag -l: ${existing.stderr || ''}\n`)
 		process.exit(1)
@@ -43,6 +56,10 @@ for (const hash of commits) {
 	}
 
 	const result = spawnSync('git', ['tag', tagName, hash], { cwd: ROOT, stdio: 'inherit' })
+	if (result.error) {
+		process.stderr.write(`backfill-tags: could not spawn git: ${result.error.message}\n`)
+		process.exit(1)
+	}
 	if (result.status === 0) {
 		lastVersion = version
 		process.stdout.write(`tagged  ${tagName} → ${hash.slice(0, 7)}\n`)
