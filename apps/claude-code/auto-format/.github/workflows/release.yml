@@ -18,7 +18,14 @@ jobs:
 
       - name: Read Node version
         id: node-ver
-        run: echo "version=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          version=$(grep '^useNodeVersion:' pnpm-workspace.yaml | awk '{print $2}')
+          if [ -z "$version" ]; then
+            echo "Failed to determine Node version from pnpm-workspace.yaml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
         # reads packageManager from package.json
