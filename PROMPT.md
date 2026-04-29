@@ -49,6 +49,7 @@ Check the spec's `**Version impact:**` line:
 **`patch` / `minor` / `major` (plugin: `<name>`)** — bump the specified plugin:
 
 1. Append one bullet under the matching subsection of `## [Unreleased]` in `apps/claude-code/<name>/CHANGELOG.md`:
+
    - `### Breaking` — CLI flag change, exit-code change, on-disk schema change
    - `### Added` — new flag, subcommand, or user-visible feature
    - `### Fixed` — bug fix, refactor, docs, internal tooling
