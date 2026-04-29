@@ -1,4 +1,5 @@
 # 10. Release Workflow
+**Status: done — 2026-04-29**
 
 **Priority:** P0
 **Effort:** M

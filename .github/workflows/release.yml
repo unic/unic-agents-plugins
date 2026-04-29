@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  tag:
+    name: Tag released plugins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # need HEAD and HEAD~1 to diff
+
+      - name: Detect version changes and tag
+        env:
+          SIGN_TAGS: ${{ secrets.UNIC_SIGN_TAGS }}
+        run: |
+          tag_if_changed() {
+            local plugin_dir="$1"
+            local json_path="$plugin_dir/.claude-plugin/plugin.json"
+
+            if [ ! -f "$json_path" ]; then return; fi
+
+            current=$(node -p "JSON.parse(require('fs').readFileSync('$json_path','utf8')).version")
+            previous=$(git show HEAD~1:"$json_path" 2>/dev/null \
+              | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version" \
+              || echo "")
+
+            if [ "$current" = "$previous" ]; then return; fi
+
+            name=$(node -p "JSON.parse(require('fs').readFileSync('$json_path','utf8')).name")
+            tag="${name}@${current}"
+
+            echo "Tagging $tag"
+            if [ "$SIGN_TAGS" = "true" ]; then
+              git tag -s "$tag" -m "Release $tag"
+            else
+              git tag "$tag"
+            fi
+            git push origin "$tag"
+          }
+
+          tag_if_changed "apps/claude-code/pr-review"
+          tag_if_changed "apps/claude-code/auto-format"
+          tag_if_changed "apps/claude-code/confluence-publish"
