@@ -31,12 +31,12 @@ try {
 
 	const sign = Boolean(process.env.UNIC_SIGN_TAGS)
 	const tagName = `${name}@${version}`
-	const tagArgs = sign
-		? ['tag', '-s', tagName, '-m', `Release ${tagName}`]
-		: ['tag', tagName]
+	const tagArgs = sign ? ['tag', '-s', tagName, '-m', `Release ${tagName}`] : ['tag', tagName]
 	const tagResult = spawnSync('git', tagArgs, { stdio: 'inherit' })
 	if (tagResult.status !== 0) {
-		throw new CliError(`tag: git tag failed — ${tagName} may already exist, or GPG key not configured (UNIC_SIGN_TAGS=${sign})`)
+		throw new CliError(
+			`tag: git tag failed — ${tagName} may already exist, or GPG key not configured (UNIC_SIGN_TAGS=${sign})`
+		)
 	}
 
 	console.log(`Tagged ${tagName}. Run: git push --follow-tags`)

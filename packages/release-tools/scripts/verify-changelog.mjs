@@ -52,9 +52,7 @@ function fail(/** @type {string} */ msg) {
 		const unreleasedIdx = changelog.indexOf('## [Unreleased]')
 		const nextSectionIdx = changelog.indexOf('\n## [', unreleasedIdx + 1)
 		const unreleasedBlock =
-			nextSectionIdx === -1
-				? changelog.slice(unreleasedIdx)
-				: changelog.slice(unreleasedIdx, nextSectionIdx)
+			nextSectionIdx === -1 ? changelog.slice(unreleasedIdx) : changelog.slice(unreleasedIdx, nextSectionIdx)
 		for (const sub of ['### Breaking', '### Added', '### Fixed']) {
 			if (!unreleasedBlock.includes(sub)) {
 				structuralErrors.push(`[Unreleased] is missing subsection: ${sub}`)
@@ -68,9 +66,7 @@ function fail(/** @type {string} */ msg) {
 		const lineEnd = changelog.indexOf('\n', m.index)
 		const line = changelog.slice(m.index, lineEnd === -1 ? undefined : lineEnd)
 		if (!/ — \d{4}-\d{2}-\d{2}/.test(line)) {
-			structuralErrors.push(
-				`Release section missing em-dash date (— YYYY-MM-DD): ${line.trim()}`
-			)
+			structuralErrors.push(`Release section missing em-dash date (— YYYY-MM-DD): ${line.trim()}`)
 		}
 	}
 

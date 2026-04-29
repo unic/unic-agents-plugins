@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import assert from 'node:assert/strict'
 // @ts-check
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import assert from 'node:assert/strict'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -64,11 +64,9 @@ function runVerify({ changelog, changedFiles }) {
 		const outputFile = path.join(tmpDir, 'diff.txt')
 		writeFileSync(outputFile, changedFiles.join('\n'), 'utf8')
 		const fakeGit = path.join(tmpDir, 'git')
-		writeFileSync(
-			fakeGit,
-			`#!/bin/sh\nif [ "$1" = "diff" ]; then\n  cat "${outputFile}"\n  exit 0\nfi\nexit 1\n`,
-			{ mode: 0o755 },
-		)
+		writeFileSync(fakeGit, `#!/bin/sh\nif [ "$1" = "diff" ]; then\n  cat "${outputFile}"\n  exit 0\nfi\nexit 1\n`, {
+			mode: 0o755,
+		})
 		const result = spawnSync('node', [script], {
 			encoding: 'utf8',
 			env: { ...process.env, PATH: `${tmpDir}:${process.env.PATH}`, CI: 'false' },
@@ -133,14 +131,14 @@ test('fix3: old regex is present as regression documentation (no assertion)', ()
 
 // ── Layer 1 structural checks ─────────────────────────────────────────────────
 
-test('exits 1 when [Unreleased] section is absent', async (t) => {
+test('exits 1 when [Unreleased] section is absent', async (_t) => {
 	const cl = `# Changelog\n\n## [1.0.0] — 2025-01-01\n\n### Added\n- initial\n`
 	const result = runVerify({ changelog: cl, changedFiles: [] })
 	assert.strictEqual(result.exitCode, 1)
 	assert.ok(result.stderr.includes('Missing ## [Unreleased] section'))
 })
 
-test('exits 1 when [Unreleased] is missing ### Breaking subsection', async (t) => {
+test('exits 1 when [Unreleased] is missing ### Breaking subsection', async (_t) => {
 	const cl = [
 		'# Changelog',
 		'',
@@ -162,7 +160,7 @@ test('exits 1 when [Unreleased] is missing ### Breaking subsection', async (t) =
 	assert.ok(result.stderr.includes('[Unreleased] is missing subsection: ### Breaking'))
 })
 
-test('exits 1 when a versioned release header lacks em-dash date', async (t) => {
+test('exits 1 when a versioned release header lacks em-dash date', async (_t) => {
 	const cl = [
 		'# Changelog',
 		'',
@@ -188,14 +186,14 @@ test('exits 1 when a versioned release header lacks em-dash date', async (t) => 
 	assert.ok(result.stderr.includes('## [1.0.0] - 2025-01-01'))
 })
 
-test('exits 0 when CHANGELOG is structurally valid and no guarded paths changed', async (t) => {
+test('exits 0 when CHANGELOG is structurally valid and no guarded paths changed', async (_t) => {
 	const cl = validChangelog()
 	const result = runVerify({ changelog: cl, changedFiles: ['docs/unguarded.md'] })
 	assert.strictEqual(result.exitCode, 0)
 	assert.ok(result.stdout.includes('no guarded paths changed'))
 })
 
-test('structural check runs even when no guarded files changed', async (t) => {
+test('structural check runs even when no guarded files changed', async (_t) => {
 	const cl = `# Changelog\n\n## [1.0.0] — 2025-01-01\n\n### Added\n- initial\n`
 	// No [Unreleased] — structural error should fire regardless of changedFiles
 	const result = runVerify({ changelog: cl, changedFiles: [] })
