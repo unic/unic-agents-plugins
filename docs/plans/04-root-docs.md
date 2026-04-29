@@ -1,4 +1,5 @@
 # 04. Root Documentation and Process Templates
+**Status: done — 2026-04-29**
 
 **Priority:** P2
 **Effort:** S

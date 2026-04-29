@@ -46,7 +46,7 @@ Enforced by Biome (`pnpm ci:check`) for `.mjs`/`.js`/`.ts`/`.json`/`.css` and Pr
 
 - Zero external runtime deps unless essential (`auto-format` ships zero; `confluence-publish` has `marked` — that's the bar).
 - Zero-config from the user's perspective: no configuration files users must create beyond credentials.
-- Every plugin uses the spec-driven workflow: `docs/plans/` + `ralph.yml` + `PROMPT.md` per the template in `docs/process/` (coming in spec 05).
+- Every plugin uses the spec-driven workflow: `docs/plans/` + `ralph.yml` + `PROMPT.md` per the template in `docs/process/`.
 
 ### License
 
