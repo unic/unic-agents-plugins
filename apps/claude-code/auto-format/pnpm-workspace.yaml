@@ -1,0 +1,24 @@
+packages:
+  - .
+
+allowBuilds:
+  "@ralph-orchestrator/ralph-cli": true
+
+catalog:
+  "@ralph-orchestrator/ralph-cli": 2.9.2
+  "@types/node": "24.12.2"
+  typescript: "5.8.3"
+
+catalogMode: prefer
+
+engineStrict: true
+
+minimumReleaseAge: 1440
+
+preferWorkspacePackages: true
+
+strictDepBuilds: true
+
+trustPolicy: no-downgrade
+
+useNodeVersion: 24.15.0

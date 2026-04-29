@@ -1,0 +1,27 @@
+{
+  "name": "unic-claude-code-format",
+  "version": "0.5.4",
+  "private": true,
+  "license": "LGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "backfill-tags": "node scripts/backfill-tags.mjs",
+    "bump": "node scripts/bump.mjs",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
+    "sync-version": "node scripts/sync-version.mjs",
+    "tag": "node scripts/tag.mjs",
+    "test": "node --test 'tests/*.test.mjs'",
+    "typecheck": "tsc --noEmit --allowJs --checkJs --strict --target ES2022 --module NodeNext --moduleResolution NodeNext scripts/*.mjs scripts/lib/*.mjs tests/*.mjs",
+    "verify:changelog": "node scripts/verify-changelog.mjs"
+  },
+  "devDependencies": {
+    "@ralph-orchestrator/ralph-cli": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
