@@ -1,5 +1,6 @@
 {
-  "name": "unic-confluence",
+  "name": "confluence-publish",
+  "version": "2.1.5",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
@@ -10,25 +11,22 @@
   },
   "scripts": {
     "confluence": "node scripts/push-to-confluence.mjs",
-    "sync-version": "node scripts/sync-version.mjs",
-    "bump": "node scripts/bump-version.mjs",
-    "tag": "node scripts/tag.mjs",
-    "verify:changelog": "node scripts/verify-changelog.mjs",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
     "test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs scripts/lib/slug.test.mjs scripts/lib/pages-file.test.mjs",
-    "lint": "biome lint .",
-    "format": "biome format --write .",
-    "check": "biome check .",
-    "ci:check": "biome ci .",
-    "typecheck": "tsc --noEmit --allowJs --checkJs --strict --target ES2022 --module NodeNext --moduleResolution NodeNext scripts/*.mjs scripts/lib/*.mjs"
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "verify:changelog": "unic-verify-changelog",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
   },
   "dependencies": {
     "marked": "17.0.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "catalog:",
     "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
     "typescript": "catalog:"
   }
 }

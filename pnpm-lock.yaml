@@ -69,6 +69,28 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
+  apps/claude-code/confluence-publish:
+    dependencies:
+      marked:
+        specifier: 17.0.5
+        version: 17.0.5
+    devDependencies:
+      '@ralph-orchestrator/ralph-cli':
+        specifier: 'catalog:'
+        version: 2.9.2
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+      '@unic/release-tools':
+        specifier: workspace:*
+        version: link:../../../packages/release-tools
+      '@unic/tsconfig':
+        specifier: workspace:*
+        version: link:../../../packages/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+
   apps/claude-code/pr-review:
     devDependencies:
       '@ralph-orchestrator/ralph-cli':
@@ -272,6 +294,11 @@ packages:
   lru-cache@11.3.5:
     resolution: {integrity: sha512-NxVFwLAnrd9i7KUBxC4DrUhmgjzOs+1Qm50D3oF1/oL+r1NpZ4gA7xvG0/zJ8evR7zIKn4vLf7qTNduWFtCrRw==}
     engines: {node: 20 || >=22}
+
+  marked@17.0.5:
+    resolution: {integrity: sha512-6hLvc0/JEbRjRgzI6wnT2P1XuM1/RrrDEX0kPt0N7jGm1133g6X7DlxFasUIx+72aKAr904GTxhSLDrd5DIlZg==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -499,6 +526,8 @@ snapshots:
       function-bind: 1.1.2
 
   lru-cache@11.3.5: {}
+
+  marked@17.0.5: {}
 
   math-intrinsics@1.1.0: {}
 
