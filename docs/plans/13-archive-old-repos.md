@@ -1,5 +1,7 @@
 # 13. Archive Old Repos
 
+**Status: done — 2026-04-30**
+
 **Priority:** P2
 **Effort:** XS
 **Version impact:** none
@@ -77,3 +79,7 @@ gh repo view unic/unic-claude-code-confluence --json isArchived --jq .isArchived
 
 - Deleting the old repos (archive is safer — keep them for historical reference)
 - Updating any external references or documentation that may link to the old repos
+
+## Deviations
+
+- **`unic-pr-review` had no GitHub remote.** This repo existed only locally and was never pushed to GitHub, so it could not be deprecated (no README/CHANGELOG to update) and could not be archived. Only 2 of the 3 target repos (`unic-claude-code-format` and `unic-claude-code-confluence`) were archived. The acceptance criterion "All three old repos are archived on GitHub" is partially unmet due to this pre-existing condition.
