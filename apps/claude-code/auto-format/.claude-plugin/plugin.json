@@ -8,11 +8,5 @@
   },
   "homepage": "https://github.com/unic/unic-agents-plugins",
   "license": "LGPL-3.0-or-later",
-  "keywords": [
-    "formatter",
-    "prettier",
-    "eslint",
-    "hook",
-    "unic"
-  ]
+  "keywords": ["formatter", "prettier", "eslint", "hook", "unic"]
 }

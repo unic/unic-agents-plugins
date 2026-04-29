@@ -19,3 +19,4 @@ node_modules/
 # AI agent spec files — not for human review
 docs/plans/
 apps/claude-code/pr-review/docs/plans/
+apps/claude-code/auto-format/docs/plans/

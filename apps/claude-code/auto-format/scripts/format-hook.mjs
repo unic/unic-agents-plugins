@@ -75,15 +75,19 @@ function loadProjectConfig() {
 			skipPrefixes: hasFullReplacement
 				? /** @type {string[]} */ (cfg.skipPrefixes)
 				: hasAdditive
-					? [...DEFAULTS.skipPrefixes, ...(/** @type {string[]} */ (cfg.additionalSkipPrefixes))]
+					? [...DEFAULTS.skipPrefixes, .../** @type {string[]} */ (cfg.additionalSkipPrefixes)]
 					: DEFAULTS.skipPrefixes,
 			prettierExtensions: Array.isArray(cfg.prettierExtensions) ? cfg.prettierExtensions : DEFAULTS.prettierExtensions,
 			eslintExtensions: Array.isArray(cfg.eslintExtensions) ? cfg.eslintExtensions : DEFAULTS.eslintExtensions,
 			formatTimeoutMs: Number.isFinite(raw) ? Math.min(Math.max(raw, 1_000), 120_000) : DEFAULTS.formatTimeoutMs,
-			formatter: /** @type {FormatterName} */ (VALID_FORMATTERS.has(/** @type {string} */ (cfg.formatter)) ? cfg.formatter : DEFAULTS.formatter),
+			formatter: /** @type {FormatterName} */ (
+				VALID_FORMATTERS.has(/** @type {string} */ (cfg.formatter)) ? cfg.formatter : DEFAULTS.formatter
+			),
 		}
 	} catch (err) {
-		process.stderr.write(`unic-format: ignoring malformed .claude/unic-format.json: ${/** @type {Error} */ (err).message}\n`)
+		process.stderr.write(
+			`unic-format: ignoring malformed .claude/unic-format.json: ${/** @type {Error} */ (err).message}\n`
+		)
 		return DEFAULTS
 	}
 }
@@ -100,8 +104,7 @@ const BIOME_CONFIG_PATH = [resolve(PROJECT_DIR, 'biome.json'), resolve(PROJECT_D
 
 const BIOME_EXTS = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.jsx', '.json', '.jsonc'])
 
-const BIOME_AVAILABLE =
-	existsSync(BIOME_BIN) && BIOME_CONFIG_PATH.some((p) => existsSync(p))
+const BIOME_AVAILABLE = existsSync(BIOME_BIN) && BIOME_CONFIG_PATH.some((p) => existsSync(p))
 
 /**
  * Converts a native path to forward-slash separators (no-op on POSIX).
@@ -170,7 +173,9 @@ function runEslint(filePath) {
 	// Status 1 = lint warnings/errors remain after --fix (not a hook failure).
 	// Status >1 = ESLint crash or misconfiguration.
 	if (r.status !== 0 && r.status !== 1) {
-		process.stderr.write(`unic-format: eslint failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`)
+		process.stderr.write(
+			`unic-format: eslint failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`
+		)
 	}
 }
 
@@ -186,22 +191,20 @@ function runBiome(filePath) {
 		process.stderr.write(`unic-format: biome binary not found at ${BIOME_BIN}\n`)
 		return
 	}
-	const r = spawnSync(
-		'node',
-		[BIOME_BIN, 'check', '--write', '--no-errors-on-unmatched-pattern', filePath],
-		{
-			cwd: PROJECT_DIR,
-			stdio: ['ignore', 'ignore', 'pipe'],
-			timeout: CONFIG.formatTimeoutMs,
-			killSignal: 'SIGTERM',
-		},
-	)
+	const r = spawnSync('node', [BIOME_BIN, 'check', '--write', '--no-errors-on-unmatched-pattern', filePath], {
+		cwd: PROJECT_DIR,
+		stdio: ['ignore', 'ignore', 'pipe'],
+		timeout: CONFIG.formatTimeoutMs,
+		killSignal: 'SIGTERM',
+	})
 	if (r.signal === 'SIGTERM' || r.status === null) {
 		process.stderr.write(`unic-format: biome timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
 		return
 	}
 	if (r.status !== 0) {
-		process.stderr.write(`unic-format: biome failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`)
+		process.stderr.write(
+			`unic-format: biome failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`
+		)
 	}
 }
 
@@ -235,8 +238,7 @@ async function main() {
 	if (!PRETTIER_EXTS.has(ext)) return
 
 	const usesBiome =
-		CONFIG.formatter === 'biome' ||
-		(CONFIG.formatter === 'auto' && BIOME_AVAILABLE && BIOME_EXTS.has(ext))
+		CONFIG.formatter === 'biome' || (CONFIG.formatter === 'auto' && BIOME_AVAILABLE && BIOME_EXTS.has(ext))
 
 	if (usesBiome) {
 		runBiome(filePath)
@@ -247,5 +249,7 @@ async function main() {
 }
 
 main()
-	.catch((err) => process.stderr.write(`unic-format: unexpected error: ${err instanceof Error ? err.message : String(err)}\n`))
+	.catch((err) =>
+		process.stderr.write(`unic-format: unexpected error: ${err instanceof Error ? err.message : String(err)}\n`)
+	)
 	.finally(() => process.exit(0))

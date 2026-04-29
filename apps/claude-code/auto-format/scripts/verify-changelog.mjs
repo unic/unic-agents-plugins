@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * pnpm verify:changelog
  * Layer 1: structural checks (Unreleased section, subsections, dated releases).
@@ -7,9 +8,9 @@
  */
 // @ts-check
 
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
 
@@ -45,9 +46,7 @@ const unreleasedIdx = changelog.indexOf('## [Unreleased]')
 if (unreleasedIdx !== -1) {
 	const nextReleaseIdx = changelog.indexOf('\n## [', unreleasedIdx + 1)
 	const unreleasedBlock =
-		nextReleaseIdx === -1
-			? changelog.slice(unreleasedIdx)
-			: changelog.slice(unreleasedIdx, nextReleaseIdx)
+		nextReleaseIdx === -1 ? changelog.slice(unreleasedIdx) : changelog.slice(unreleasedIdx, nextReleaseIdx)
 	for (const sub of ['### Breaking', '### Added', '### Fixed']) {
 		if (!unreleasedBlock.includes(sub)) {
 			errors.push(`[Unreleased] is missing subsection: ${sub}`)
@@ -56,9 +55,8 @@ if (unreleasedIdx !== -1) {
 }
 
 const releasePattern = /^## \[(\d+\.\d+\.\d+)\]/gm
-let match
-while ((match = releasePattern.exec(changelog)) !== null) {
-	const end = changelog.indexOf('\n', match.index)
+for (const match of changelog.matchAll(releasePattern)) {
+	const end = changelog.indexOf('\n', match.index ?? 0)
 	const line = changelog.slice(match.index, end === -1 ? undefined : end)
 	if (!/ - \d{4}-\d{2}-\d{2}/.test(line)) {
 		errors.push(`Release section missing date: ${line.trim()}`)
@@ -67,7 +65,9 @@ while ((match = releasePattern.exec(changelog)) !== null) {
 
 if (errors.length > 0) {
 	process.stderr.write('verify:changelog failed:\n')
-	errors.forEach((e) => process.stderr.write(`  - ${e}\n`))
+	for (const e of errors) {
+		process.stderr.write(`  - ${e}\n`)
+	}
 	process.exit(1)
 }
 
@@ -128,20 +128,18 @@ if (headVersion === baseVersion) {
 	process.stderr.write(
 		`verify:changelog: version in plugin.json was not bumped\n` +
 			`  current: ${headVersion} (same as ${base})\n` +
-			`  Run: pnpm bump <patch|minor|major>\n`,
+			`  Run: pnpm bump <patch|minor|major>\n`
 	)
 	process.exit(1)
 }
 
 const sectionMatch = changelog.match(
-	new RegExp(
-		`## \\[${headVersion.replace(/\./g, '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}([\\s\\S]*?)(?=\\n## \\[|$)`,
-	),
+	new RegExp(`## \\[${headVersion.replace(/\./g, '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}([\\s\\S]*?)(?=\\n## \\[|$)`)
 )
 if (!sectionMatch) {
 	process.stderr.write(
 		`verify:changelog: CHANGELOG.md has no entry for version ${headVersion}\n` +
-			`  Add bullets under [Unreleased] then run: pnpm bump\n`,
+			`  Add bullets under [Unreleased] then run: pnpm bump\n`
 	)
 	process.exit(1)
 }
@@ -154,7 +152,7 @@ const hasRealEntry = sectionBody
 if (!hasRealEntry) {
 	process.stderr.write(
 		`verify:changelog: CHANGELOG.md section [${headVersion}] has no real entries\n` +
-			`  Add bullets under [Unreleased] then re-run: pnpm bump\n`,
+			`  Add bullets under [Unreleased] then re-run: pnpm bump\n`
 	)
 	process.exit(1)
 }

@@ -40,15 +40,15 @@ Or add it to `.claude/settings.json` in a consumer repo:
 
 The following paths are skipped before any tool is invoked:
 
-| Prefix | Reason |
-|---|---|
-| `_bmad/` | BMad source — never user-modified |
-| `.claude/skills/bmad-` | BMad-installed skills |
-| `.claude/worktrees/` | Git worktrees |
-| `.history/` | VS Code local history |
-| `.git/` | Git internals |
-| `node_modules/` | Dependency installs |
-| `dist/`, `build/`, `.next/`, `coverage/` | Generated output |
+| Prefix                                   | Reason                            |
+| ---------------------------------------- | --------------------------------- |
+| `_bmad/`                                 | BMad source — never user-modified |
+| `.claude/skills/bmad-`                   | BMad-installed skills             |
+| `.claude/worktrees/`                     | Git worktrees                     |
+| `.history/`                              | VS Code local history             |
+| `.git/`                                  | Git internals                     |
+| `node_modules/`                          | Dependency installs               |
+| `dist/`, `build/`, `.next/`, `coverage/` | Generated output                  |
 
 Files matched by the consumer repo's `.prettierignore` are also skipped (Prettier handles this natively via `--ignore-unknown`).
 
@@ -66,14 +66,14 @@ Create `.claude/unic-format.json` in the consumer repo root to override defaults
 
 Each key overrides the full default list for that key. Omit a key to keep the default. Config is loaded once per hook invocation.
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `skipPrefixes` | `string[]` | Full replacement of the default skip-prefix list. |
-| `additionalSkipPrefixes` | `string[]` | Extra path prefixes to skip, **merged with the defaults**. Prefer this over `skipPrefixes` unless you need full replacement. Example: `["my-generated/", ".tmp/"]` |
-| `prettierExtensions` | `string[]` | File extensions to pass through Prettier (full replacement). |
-| `eslintExtensions` | `string[]` | File extensions to pass through ESLint `--fix` (full replacement). |
-| `formatTimeoutMs` | `number` | Per-formatter timeout in ms (1 000–120 000, default 30 000). |
-| `formatter` | `"auto"` \| `"prettier"` \| `"biome"` | Force a specific formatter. Default `"auto"` auto-detects Biome. |
+| Key                      | Type                                  | Description                                                                                                                                                        |
+| ------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `skipPrefixes`           | `string[]`                            | Full replacement of the default skip-prefix list.                                                                                                                  |
+| `additionalSkipPrefixes` | `string[]`                            | Extra path prefixes to skip, **merged with the defaults**. Prefer this over `skipPrefixes` unless you need full replacement. Example: `["my-generated/", ".tmp/"]` |
+| `prettierExtensions`     | `string[]`                            | File extensions to pass through Prettier (full replacement).                                                                                                       |
+| `eslintExtensions`       | `string[]`                            | File extensions to pass through ESLint `--fix` (full replacement).                                                                                                 |
+| `formatTimeoutMs`        | `number`                              | Per-formatter timeout in ms (1 000–120 000, default 30 000).                                                                                                       |
+| `formatter`              | `"auto"` \| `"prettier"` \| `"biome"` | Force a specific formatter. Default `"auto"` auto-detects Biome.                                                                                                   |
 
 > **Precedence note:** If both `skipPrefixes` and `additionalSkipPrefixes` are present, `skipPrefixes` takes full precedence (full replacement). `additionalSkipPrefixes` is ignored when `skipPrefixes` is set.
 
@@ -127,6 +127,7 @@ Prettier still runs for: `.md .mdx .yml .yaml .feature` (Biome does not support 
 ### Force a specific formatter via config
 
 `.claude/unic-format.json`
+
 ```json
 {
   "formatter": "prettier"
@@ -138,6 +139,7 @@ Valid values: `"auto"` (default), `"prettier"`, `"biome"`.
 ## How to disable
 
 To disable the hook for a Claude Code session:
+
 - In the Claude Code `/hooks` UI: toggle off `unic-claude-code-format`.
 
 To disable permanently for a repo: remove the plugin from `.claude/settings.json`.
@@ -154,9 +156,9 @@ See `docs/plans/README.md` for the ralph-orchestrated implementation roadmap and
 
 ### Developer commands
 
-| Command | Description |
-|---|---|
-| `pnpm install` | Install dev dependencies |
-| `pnpm test` | Run smoke tests |
-| `pnpm typecheck` | Type-check plugin source (`tsc --checkJs`, dev-only) |
-| `pnpm bump <patch\|minor\|major>` | Bump version + promote CHANGELOG |
+| Command                           | Description                                          |
+| --------------------------------- | ---------------------------------------------------- |
+| `pnpm install`                    | Install dev dependencies                             |
+| `pnpm test`                       | Run smoke tests                                      |
+| `pnpm typecheck`                  | Type-check plugin source (`tsc --checkJs`, dev-only) |
+| `pnpm bump <patch\|minor\|major>` | Bump version + promote CHANGELOG                     |

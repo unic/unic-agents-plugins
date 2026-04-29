@@ -1,10 +1,11 @@
 // @ts-check
-import { test } from 'node:test'
+
 import { strict as assert } from 'node:assert'
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const SCRIPT = fileURLToPath(new URL('../scripts/sync-version.mjs', import.meta.url))
@@ -18,10 +19,10 @@ function makeFixtureRepo(version) {
 	mkdirSync(join(dir, '.claude-plugin'))
 	writeFileSync(
 		join(dir, '.claude-plugin', 'plugin.json'),
-		JSON.stringify({ name: 'test-plugin', version }, null, 2) + '\n',
+		`${JSON.stringify({ name: 'test-plugin', version }, null, 2)}\n`
 	)
-	writeFileSync(join(dir, '.claude-plugin', 'marketplace.json'), JSON.stringify({ version: '0.0.0' }, null, 2) + '\n')
-	writeFileSync(join(dir, 'package.json'), JSON.stringify({ version: '0.0.0' }, null, 2) + '\n')
+	writeFileSync(join(dir, '.claude-plugin', 'marketplace.json'), `${JSON.stringify({ version: '0.0.0' }, null, 2)}\n`)
+	writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ version: '0.0.0' }, null, 2)}\n`)
 	return dir
 }
 

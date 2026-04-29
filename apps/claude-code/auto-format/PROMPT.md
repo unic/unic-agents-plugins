@@ -27,6 +27,7 @@ Read the entire spec file before writing any code. Pay special attention to:
 Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't match the current file, consult the "Deviations" section (if you wrote one) or document the discrepancy and adapt minimally.
 
 Ground rules (from `docs/plans/README.md`):
+
 - Use `pnpm` (after spec 00 lands; before it's done use `npm` only for spec 00 itself)
 - Tabs for indentation, LF line endings (per `.editorconfig` once it exists)
 - Conventional commits: `feat(scope): description`, `fix(scope): description`, `chore(scope): description`
@@ -45,14 +46,17 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
    If the line is absent, infer: breaking CLI/contract change → `major`; new flag/feature → `minor`; bug fix, refactor, docs → `patch`.
 
 2. Append **one bullet** to the matching subsection under `## [Unreleased]` in `CHANGELOG.md`, replacing the `- (none)` placeholder on first use:
+
    - `### Breaking` — on-disk file schema change, plugin-to-hook contract change
    - `### Added` — new feature, new configuration option, new extension support
    - `### Fixed` — bug fix, refactor, docs, internal tooling
 
 3. Once `pnpm bump` is available (spec 07), run it instead of manually editing CHANGELOG.md:
+
    ```sh
    pnpm bump <patch|minor|major>
    ```
+
    Until then, manually update `.claude-plugin/plugin.json` version and add the CHANGELOG bullet.
 
 4. If `pnpm verify:changelog` is available (spec 08), run it:

@@ -1,10 +1,11 @@
 // @ts-check
-import { test } from 'node:test'
+
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const SCRIPT = fileURLToPath(new URL('../scripts/format-hook.mjs', import.meta.url))
@@ -78,10 +79,7 @@ test('exits 0 and skips _bmad/ path', () => {
 		writeFileSync(join(d, '_bmad', 'test.md'), '# test\n')
 	})
 	try {
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent when skipping')
 	} finally {
@@ -107,10 +105,7 @@ test('exits 0 and skips unsupported extension (.toml)', () => {
 		writeFileSync(join(d, 'config.toml'), '[tool]\nname = "test"\n')
 	})
 	try {
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'config.toml') } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'config.toml') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '')
 	} finally {
@@ -125,10 +120,7 @@ test('exits 0 with malformed config file and logs warning', () => {
 		writeFileSync(join(d, 'test.md'), '# test\n')
 	})
 	try {
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'test.md') } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'test.md') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.match(stderr, /malformed/, 'should warn about malformed config')
 	} finally {
@@ -146,10 +138,7 @@ test('exits 0 and skips Windows-style _bmad\\ path', () => {
 		// with backslash inside the subdir portion. After toPosix(), this should
 		// still resolve to a _bmad/ prefix and be skipped.
 		const winStylePath = join(dir, '_bmad', 'test.md').replace(/_bmad\//, '_bmad\\')
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: winStylePath } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: winStylePath } }), dir)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent when skipping Windows-style path')
 	} finally {
@@ -164,10 +153,7 @@ test('exits 0 and skips Windows-style node_modules\\ path', () => {
 	})
 	try {
 		const winStylePath = join(dir, 'node_modules', 'foo', 'index.md').replace(/node_modules\//, 'node_modules\\')
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: winStylePath } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: winStylePath } }), dir)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '')
 	} finally {
@@ -179,10 +165,7 @@ test('exits 0 with mixed-separator traversal path (..\\\\..\\\\)', () => {
 	const dir = makeConsumer()
 	const mixedTraversal = join(dir, 'sub', '..', '..', 'outside.md').replace(/\//g, '\\')
 	try {
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: mixedTraversal } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: mixedTraversal } }), dir)
 		assert.equal(exitCode, 0)
 		// Either the file doesn't exist or path-traversal guard fires — both exit 0 silently
 		assert.equal(stderr, '')
@@ -199,10 +182,7 @@ test('respects prettierExtensions override from config', () => {
 		writeFileSync(join(d, 'data.json'), '{"key":"value"}')
 	})
 	try {
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'data.json') } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'data.json') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent: .json excluded by config')
 	} finally {
@@ -217,7 +197,7 @@ test('exits 0 with notebook_path event (NotebookEdit)', () => {
 	try {
 		const { exitCode, stderr } = run(
 			JSON.stringify({ tool_input: { notebook_path: join(dir, 'notebook.ipynb') } }),
-			dir,
+			dir
 		)
 		assert.equal(exitCode, 0)
 		// .ipynb is not in prettierExtensions defaults — file exists, passes existsSync, skipped silently
@@ -235,7 +215,7 @@ test('exits 0 and skips node_modules/ path', () => {
 	try {
 		const { exitCode, stderr } = run(
 			JSON.stringify({ tool_input: { file_path: join(dir, 'node_modules', 'foo', 'index.js') } }),
-			dir,
+			dir
 		)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent when skipping node_modules/')
@@ -252,7 +232,7 @@ test('exits 0 and skips .git/ path', () => {
 	try {
 		const { exitCode, stderr } = run(
 			JSON.stringify({ tool_input: { file_path: join(dir, '.git', 'hooks', 'pre-commit') } }),
-			dir,
+			dir
 		)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent when skipping .git/')
@@ -269,7 +249,7 @@ test('exits 0 and skips .claude/worktrees/ path', () => {
 	try {
 		const { exitCode, stderr } = run(
 			JSON.stringify({ tool_input: { file_path: join(dir, '.claude', 'worktrees', 'feature', 'index.js') } }),
-			dir,
+			dir
 		)
 		assert.equal(exitCode, 0)
 		assert.equal(stderr, '', 'should be silent when skipping .claude/worktrees/')
@@ -287,10 +267,7 @@ test('uses Biome when biome.json and biome binary are present', () => {
 		writeFileSync(join(d, 'test.ts'), 'const x = 1\n')
 	})
 	try {
-		const { exitCode } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'test.ts') } }),
-			dir,
-		)
+		const { exitCode } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'test.ts') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.ok(existsSync(join(dir, '.biome-called')), 'biome should have been called for .ts')
 	} finally {
@@ -307,10 +284,7 @@ test('does not use Biome for .md even when Biome is detected', () => {
 		writeFileSync(join(d, 'README.md'), '# hello\n')
 	})
 	try {
-		const { exitCode } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'README.md') } }),
-			dir,
-		)
+		const { exitCode } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'README.md') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.ok(!existsSync(join(dir, '.biome-called')), 'biome should NOT be called for .md')
 	} finally {
@@ -329,10 +303,7 @@ test('respects formatter: "prettier" override even when Biome is detected', () =
 		writeFileSync(join(d, 'test.ts'), 'const x = 1\n')
 	})
 	try {
-		const { exitCode } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'test.ts') } }),
-			dir,
-		)
+		const { exitCode } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'test.ts') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.ok(!existsSync(join(dir, '.biome-called')), 'biome should NOT be called when formatter is "prettier"')
 	} finally {
@@ -345,16 +316,13 @@ test('additionalSkipPrefixes merges with defaults', () => {
 		mkdirSync(join(d, '.claude'))
 		mkdirSync(join(d, 'my-generated'))
 		writeFileSync(join(d, 'my-generated', 'file.md'), '# generated\n')
-		writeFileSync(
-			join(d, '.claude', 'unic-format.json'),
-			JSON.stringify({ additionalSkipPrefixes: ['my-generated/'] }),
-		)
+		writeFileSync(join(d, '.claude', 'unic-format.json'), JSON.stringify({ additionalSkipPrefixes: ['my-generated/'] }))
 	})
 	try {
 		// Custom prefix is skipped
 		const { exitCode: exitCustom, stderr: stderrCustom } = run(
 			JSON.stringify({ tool_input: { file_path: join(dir, 'my-generated', 'file.md') } }),
-			dir,
+			dir
 		)
 		assert.equal(exitCustom, 0)
 		assert.equal(stderrCustom, '', 'should skip custom prefix silently')
@@ -364,7 +332,7 @@ test('additionalSkipPrefixes merges with defaults', () => {
 		writeFileSync(join(dir, '_bmad', 'test.md'), '# test\n')
 		const { exitCode: exitDefault, stderr: stderrDefault } = run(
 			JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }),
-			dir,
+			dir
 		)
 		assert.equal(exitDefault, 0)
 		assert.equal(stderrDefault, '', 'should still skip _bmad/ from defaults')
@@ -385,7 +353,7 @@ test('skipPrefixes wins over additionalSkipPrefixes when both are set', () => {
 			JSON.stringify({
 				skipPrefixes: ['dist/'],
 				additionalSkipPrefixes: ['my-generated/'],
-			}),
+			})
 		)
 	})
 	try {
@@ -393,10 +361,7 @@ test('skipPrefixes wins over additionalSkipPrefixes when both are set', () => {
 		// The file doesn't exist in node_modules so no formatter runs — just verify it's
 		// not silently skipped by _bmad/ (it would proceed to the extension check and return
 		// silently because no prettier binary is installed).
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: join(dir, '_bmad', 'test.md') } }), dir)
 		assert.equal(exitCode, 0)
 		// No formatter installed → stderr is empty regardless.
 		// The key assertion is that the config was parsed correctly (no crash / malformed-config warning).
@@ -418,10 +383,7 @@ test('exits 0 and logs timeout when prettier hangs', { timeout: 10_000 }, () => 
 		writeFileSync(join(d, 'test.md'), '# hello\n')
 	})
 	try {
-		const { exitCode, stderr } = run(
-			JSON.stringify({ tool_input: { file_path: join(dir, 'test.md') } }),
-			dir,
-		)
+		const { exitCode, stderr } = run(JSON.stringify({ tool_input: { file_path: join(dir, 'test.md') } }), dir)
 		assert.equal(exitCode, 0)
 		assert.match(stderr, /timed out/, 'should log timeout warning')
 	} finally {
