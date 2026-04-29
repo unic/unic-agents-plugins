@@ -1,0 +1,23 @@
+{
+  "name": "pr-review",
+  "version": "0.1.0",
+  "private": true,
+  "license": "LGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "verify:changelog": "unic-verify-changelog",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
+  },
+  "devDependencies": {
+    "@ralph-orchestrator/ralph-cli": "catalog:",
+    "@unic/release-tools": "workspace:*"
+  }
+}
