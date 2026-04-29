@@ -11,12 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.5.5] — 2026-04-29
+
+### Breaking
+- (none)
+
+### Added
 - Migrated to unic-agents-plugins monorepo; plugin renamed from `unic-claude-code-format` to `auto-format`
 
 ### Fixed
 - (none)
 
-## [0.5.4] - 2026-04-28
+## [0.5.4] — 2026-04-28
 
 ### Breaking
 - (none)
@@ -27,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.5.3] - 2026-04-28
+## [0.5.3] — 2026-04-28
 
 ### Breaking
 - (none)
@@ -38,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.5.2] - 2026-04-28
+## [0.5.2] — 2026-04-28
 
 ### Breaking
 - (none)
@@ -49,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Add `// @ts-check` and JSDoc type annotations to all `.mjs` scripts and tests; introduce `scripts/lib/types.mjs` with shared typedefs; add `pnpm typecheck` (`tsc --checkJs --strict`) as a dev-only type-safety gate.
 
-## [0.5.1] - 2026-04-27
+## [0.5.1] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -60,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Switch JSON output in `bump.mjs` and `sync-version.mjs` from tab to 2-space indentation to match `.editorconfig`; reformat four committed JSON files accordingly.
 
-## [0.5.0] - 2026-04-27
+## [0.5.0] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -71,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.4.0] - 2026-04-27
+## [0.4.0] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -82,7 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.3.4] - 2026-04-27
+## [0.3.4] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -93,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Add smoke tests for notebook_path event and skip-prefix matrix (node_modules/, .git/, .claude/worktrees/)
 
-## [0.3.3] - 2026-04-27
+## [0.3.3] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -104,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - add `timeout`/`killSignal: 'SIGTERM'` to both `spawnSync` calls in `runPrettier` and `runEslint`; default 30 s, configurable via `.claude/unic-format.json#formatTimeoutMs` (clamped [1 000, 120 000]), so a hung formatter never stalls the hook
 
-## [0.3.2] - 2026-04-27
+## [0.3.2] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -115,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Normalise path separators via `toPosix` before skip-prefix checks so Windows backslash paths are handled correctly in `shouldSkip`
 
-## [0.3.1] - 2026-04-27
+## [0.3.1] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -126,7 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Hoist `PRETTIER_EXTS` and `ESLINT_EXTS` Sets to module scope to avoid per-invocation allocation
 
-## [0.3.0] - 2026-04-27
+## [0.3.0] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -137,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.2.1] - 2026-04-27
+## [0.2.1] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -148,7 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Refactor `bump.mjs` to use `plugin.json` as single source of truth; add `sync-version.mjs` to propagate version to `marketplace.json` and `package.json`
 
-## [0.2.0] - 2026-04-27
+## [0.2.0] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -159,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.1.5] - 2026-04-27
+## [0.1.5] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -170,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Add `CLAUDE.md` with project overview, commands, tech stack, conventions, and scope guard.
 
-## [0.1.4] - 2026-04-27
+## [0.1.4] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -182,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add smoke tests for format hook routing logic (`tests/format-hook.test.mjs`).
 - Add GitHub Actions CI workflow (`.github/workflows/ci.yml`).
 
-## [0.1.3] - 2026-04-27
+## [0.1.3] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -193,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.1.2] - 2026-04-27
+## [0.1.2] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -204,7 +215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - bump.mjs: move CHANGELOG validation before version file writes to prevent partial state on empty [Unreleased]
 
-## [0.1.1] - 2026-04-27
+## [0.1.1] — 2026-04-27
 
 ### Breaking
 - (none)
@@ -215,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [0.1.0] - 2026-04-27
+## [0.1.0] — 2026-04-27
 
 ### Added
 - PostToolUse hook for `Write|Edit|MultiEdit|NotebookEdit` Claude Code events.

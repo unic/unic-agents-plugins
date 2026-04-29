@@ -1,4 +1,5 @@
 # 06. Migrate auto-format Plugin
+**Status: done — 2026-04-29**
 
 **Priority:** P0
 **Effort:** M
@@ -202,3 +203,5 @@ cat apps/claude-code/auto-format/.claude-plugin/plugin.json | grep '"name"'
 - **Version mismatch**: The spec expected the imported `plugin.json` version to be `"0.5.8"` (Current behaviour section), but the actual imported version was `"0.5.4"`. The `package.json` rewrite keeps `"0.5.4"` as the base. After the patch bump in step 13, the final version will be `"0.5.5"` rather than `"0.5.9"` as stated in the acceptance criteria. The acceptance criteria should be interpreted as `"0.5.5"`.
 - **`.nvmrc` absent**: The spec listed `.nvmrc` in the delete list, but the file was not present in the imported history — no action needed.
 - **`scripts/verify-changelog.mjs` retained**: Not in the delete list; left in place as dead code (superseded by `unic-verify-changelog`). Can be removed in a future cleanup.
+- **`marketplace.json` restructured**: The imported `marketplace.json` was a flat object; `sync-version` requires a `{ plugins: [...] }` structure. Restructured to match the monorepo convention.
+- **CHANGELOG date format**: Historical entries used `## [X.Y.Z] - YYYY-MM-DD` (hyphen) from the original repo; `unic-verify-changelog` requires `## [X.Y.Z] — YYYY-MM-DD` (em-dash). All historical entries updated.

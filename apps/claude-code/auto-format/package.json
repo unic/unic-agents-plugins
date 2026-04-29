@@ -1,6 +1,6 @@
 {
   "name": "auto-format",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
