@@ -15,3 +15,6 @@ pnpm-lock.yaml
 node_modules/
 .ralph/
 .history/
+
+# AI agent spec files — not for human review
+docs/plans/
