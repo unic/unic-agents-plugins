@@ -1,0 +1,18 @@
+{
+	"metadata": {
+		"description": "PR review automation plugin for Claude Code by Unic"
+	},
+	"name": "unic-pr-review",
+	"owner": { "name": "Unic" },
+	"plugins": [
+		{
+			"author": { "name": "Unic" },
+			"category": "code-quality",
+			"description": "Review Azure DevOps pull requests with multi-agent analysis and post threaded inline + summary comments back to the PR.",
+			"license": "LGPL-3.0-or-later",
+			"name": "unic-pr-review",
+			"source": "./",
+			"version": "0.1.0"
+		}
+	]
+}

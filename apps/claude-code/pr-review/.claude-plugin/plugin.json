@@ -1,0 +1,8 @@
+{
+	"name": "unic-pr-review",
+	"version": "0.1.0",
+	"description": "Review Azure DevOps pull requests with multi-agent analysis and post threaded comments back to the PR.",
+	"author": { "name": "Unic" },
+	"license": "LGPL-3.0-or-later",
+	"keywords": ["pr-review", "azure-devops", "code-review", "ado"]
+}
