@@ -51,6 +51,7 @@ Default Confluence URL pre-filled in setup: `https://uniccom.atlassian.net`.
 `.claude-plugin/plugin.json` is the single source of truth. Every `feat(spec-NN)` / `fix(spec-NN)` commit includes a version bump and a dated `CHANGELOG.md` entry, via `pnpm bump <patch|minor|major>`. Never hand-edit `.claude-plugin/marketplace.json` — `pnpm bump` mirrors into it automatically.
 
 **SemVer policy:**
+
 - **major**: breaking change to CLI flags, exit codes, or on-disk contracts (`confluence-pages.json` schema, `~/.unic-confluence.json` format).
 - **minor**: new flag, subcommand, or user-visible feature.
 - **patch**: bug fix, refactor, docs, internal tooling.

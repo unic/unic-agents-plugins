@@ -133,12 +133,14 @@ Follow the same steps Ralph would take:
 ## Finishing your work
 
 1. Verify everything is clean
+
    - `pnpm format`: Ensure formatting is correct
    - `pnpm check`: biome lint + format check
    - `pnpm test`: run tests
    - `pnpm typecheck`: type check
 
 2. Bump version + add CHANGELOG entry (config/tooling change = patch)
+
    - `pnpm bump <patch|minor|major>`
 
 3. Stage and commit

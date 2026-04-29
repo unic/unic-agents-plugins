@@ -58,6 +58,7 @@ In the Confluence page editor, place these markers where the Markdown content sh
 ```
 
 **Rules:**
+
 - The label (e.g. `my-spec`) must match exactly between START and END — case-sensitive, no extra spaces.
 - The label does not have to match the key in `confluence-pages.json`, but using the same value is recommended for clarity.
 - Each page should have exactly one START/END pair.
@@ -83,6 +84,7 @@ In Claude Code, invoke the slash command:
 ```
 
 The command will:
+
 1. Probe credentials (lightweight single GET).
 2. Read the Markdown file and convert it to HTML.
 3. Fetch the current page body from Confluence.
@@ -110,11 +112,11 @@ claude plugins install unic-confluence@unic
 
 ## Troubleshooting
 
-| Error | Cause | Fix |
-|---|---|---|
-| `Run --setup to configure credentials` | No credentials file and no env vars | Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --setup` |
-| `API token rejected` | Token expired or wrong | Generate a new token at https://id.atlassian.com |
-| `Page ID not found` | Wrong ID in `confluence-pages.json` | Run `--verify` to audit all IDs |
-| `No [AUTO_INSERT_START:label] markers found` | Markers missing from Confluence page | Add `[AUTO_INSERT_START: label]` / `[AUTO_INSERT_END: label]` to the page in Confluence |
-| `Cannot reach Confluence — check VPN/network` | Not on VPN or network down | Connect to VPN, then retry |
-| `Marker label mismatch` | START and END labels differ | Edit the Confluence page to make labels match exactly |
+| Error                                         | Cause                                | Fix                                                                                     |
+| --------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------- |
+| `Run --setup to configure credentials`        | No credentials file and no env vars  | Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" --setup`               |
+| `API token rejected`                          | Token expired or wrong               | Generate a new token at https://id.atlassian.com                                        |
+| `Page ID not found`                           | Wrong ID in `confluence-pages.json`  | Run `--verify` to audit all IDs                                                         |
+| `No [AUTO_INSERT_START:label] markers found`  | Markers missing from Confluence page | Add `[AUTO_INSERT_START: label]` / `[AUTO_INSERT_END: label]` to the page in Confluence |
+| `Cannot reach Confluence — check VPN/network` | Not on VPN or network down           | Connect to VPN, then retry                                                              |
+| `Marker label mismatch`                       | START and END labels differ          | Edit the Confluence page to make labels match exactly                                   |

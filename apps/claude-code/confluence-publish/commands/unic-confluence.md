@@ -53,6 +53,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/push-to-confluence.mjs" <page-key-or-id> <ma
 ```
 
 Optional flags (pass as part of $ARGUMENTS):
+
 - `--dry-run` — compute the final HTML and print it to stdout without making the PUT request
 - `--replace-all` — overwrite the full page body (creates a local backup; requires no markers on the page)
 - `--no-save` — skip auto-saving the alias when publishing by numeric page ID

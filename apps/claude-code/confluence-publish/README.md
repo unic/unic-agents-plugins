@@ -53,7 +53,7 @@ node scripts/push-to-confluence.mjs --list
 
 ## Page setup — injection markers
 
-The script injects your Markdown content into a Confluence page rather than replacing the whole page. To control *where* the content lands, add injection markers directly to the Confluence page body.
+The script injects your Markdown content into a Confluence page rather than replacing the whole page. To control _where_ the content lands, add injection markers directly to the Confluence page body.
 
 ### Adding markers to a Confluence page
 
@@ -242,6 +242,7 @@ This plugin follows the Unic Claude Code plugin naming convention:
 Every `feat(spec-NN)` / `fix(spec-NN)` commit includes its own version bump and CHANGELOG entry via `pnpm bump`. No separate "release commit" is needed.
 
 **Per change (every commit):**
+
 1. Add one bullet under the matching subsection of `## [Unreleased]` in `CHANGELOG.md` (`### Breaking`, `### Added`, or `### Fixed`).
 2. `pnpm bump <patch|minor|major>` — bumps `plugin.json`, mirrors into `marketplace.json`, promotes `[Unreleased]` → a dated version section.
 3. `git add -A && git commit -m "feat(spec-NN): <description> (vX.Y.Z)"`.
@@ -254,12 +255,14 @@ Every `feat(spec-NN)` / `fix(spec-NN)` commit includes its own version bump and 
 | Bug fix, refactor, docs, internal tooling | `patch` |
 
 **To tag and push a release boundary (optional, periodic):**
+
 ```sh
 pnpm tag                  # creates local git tag vX.Y.Z
 git push --follow-tags    # pushes tag to GitHub
 ```
 
 **Optional — enable the local pre-push changelog check:**
+
 ```sh
 git config core.hooksPath .githooks
 ```

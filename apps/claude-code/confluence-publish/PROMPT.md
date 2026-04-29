@@ -27,6 +27,7 @@ Read the entire spec file before writing any code. Pay special attention to:
 Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't match the current file, consult the "Deviations" section (if you wrote one) or document the discrepancy and adapt minimally.
 
 Ground rules (from `docs/plans/README.md`):
+
 - Use `pnpm` (after spec 00 lands; use `npm` for spec 00 itself and before it's done)
 - Tabs for indentation, LF line endings (per `.editorconfig`)
 - Conventional commits: `feat(scope): description`, `fix(scope): description`
@@ -45,15 +46,18 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
    If the line is absent, infer: breaking CLI/contract change → `major`; new flag/feature → `minor`; bug fix, refactor, docs → `patch`.
 
 2. Append **one bullet** to the matching subsection under `## [Unreleased]` in `CHANGELOG.md`, replacing the `- (none)` placeholder on first use:
+
    - `### Breaking` — CLI flag renamed/removed, exit-code change, on-disk file schema change
    - `### Added` — new flag, subcommand, or user-visible feature
    - `### Fixed` — bug fix, refactor, docs, internal tooling
-   Wording: one line, user-facing, present-tense description (e.g. `- \`pnpm bump\` command for atomic version bumping`).
+     Wording: one line, user-facing, present-tense description (e.g. `- \`pnpm bump\` command for atomic version bumping`).
 
 3. Run:
+
    ```sh
    pnpm bump <patch|minor|major>
    ```
+
    This atomically: increments `plugin.json` version, mirrors into `marketplace.json`, and promotes `[Unreleased]` → a new dated section.
 
 4. Run `pnpm verify:changelog` to confirm the check passes.
