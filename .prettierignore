@@ -1,0 +1,17 @@
+# Biome handles these — don't double-format
+*.js
+*.mjs
+*.cjs
+*.ts
+*.tsx
+*.json
+*.jsonc
+*.css
+
+# Generated / lock files
+pnpm-lock.yaml
+
+# Dev artifacts
+node_modules/
+.ralph/
+.history/
