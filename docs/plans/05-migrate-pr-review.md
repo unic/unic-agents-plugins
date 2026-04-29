@@ -1,4 +1,5 @@
 # 05. Migrate pr-review Plugin
+**Status: done — 2026-04-29**
 
 **Priority:** P0
 **Effort:** M
