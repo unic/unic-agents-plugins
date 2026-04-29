@@ -1,4 +1,5 @@
 # 01. tsconfig Workspace Package
+**Status: done — 2026-04-29**
 
 **Priority:** P1
 **Effort:** S
@@ -40,12 +41,12 @@ Plugin packages will need a shared TypeScript base config for `tsc --checkJs --n
 
 ## Affected files
 
-| File | Change |
-|---|---|
-| `packages/tsconfig/tsconfig.base.json` | Create |
-| `packages/tsconfig/package.json` | Modify — add `exports` |
-| `tsconfig.base.json` (root) | Delete |
-| `package.json` (root) | Modify — add `@unic/tsconfig: workspace:*` devDep |
+| File                                   | Change                                            |
+| -------------------------------------- | ------------------------------------------------- |
+| `packages/tsconfig/tsconfig.base.json` | Create                                            |
+| `packages/tsconfig/package.json`       | Modify — add `exports`                            |
+| `tsconfig.base.json` (root)            | Delete                                            |
+| `package.json` (root)                  | Modify — add `@unic/tsconfig: workspace:*` devDep |
 
 ## Implementation steps
 
@@ -93,3 +94,13 @@ node -e "import('@unic/tsconfig/tsconfig.base.json', { assert: { type: 'json' } 
 
 - Updating individual plugin packages to extend from `@unic/tsconfig` — that happens in specs 05–07
 - Adding any linting rules or additional config files
+
+## Deviations
+
+The spec's verification command uses the `assert` import attribute syntax:
+
+```sh
+node -e "import('@unic/tsconfig/tsconfig.base.json', { assert: { type: 'json' } })..."
+```
+
+Node 24 requires `with` instead of `assert` (the `assert` form throws `ERR_IMPORT_ATTRIBUTE_MISSING`). The package works correctly; the verification was run with `{ with: { type: 'json' } }` and printed `ES2022` as expected.

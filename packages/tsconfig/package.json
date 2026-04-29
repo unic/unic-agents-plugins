@@ -5,5 +5,8 @@
   "license": "LGPL-3.0-or-later",
   "files": [
     "tsconfig.base.json"
-  ]
+  ],
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  }
 }
