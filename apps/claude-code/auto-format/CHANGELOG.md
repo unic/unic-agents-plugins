@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Migrated to unic-agents-plugins monorepo; plugin renamed from `unic-claude-code-format` to `auto-format`
 
 ### Fixed
 - (none)

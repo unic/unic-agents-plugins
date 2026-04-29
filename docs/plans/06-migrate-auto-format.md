@@ -196,3 +196,9 @@ cat apps/claude-code/auto-format/.claude-plugin/plugin.json | grep '"name"'
 
 - Updating `CLAUDE.md` inside the plugin for monorepo context
 - Migrating the plugin's own release workflow (replaced by spec 10)
+
+## Deviations
+
+- **Version mismatch**: The spec expected the imported `plugin.json` version to be `"0.5.8"` (Current behaviour section), but the actual imported version was `"0.5.4"`. The `package.json` rewrite keeps `"0.5.4"` as the base. After the patch bump in step 13, the final version will be `"0.5.5"` rather than `"0.5.9"` as stated in the acceptance criteria. The acceptance criteria should be interpreted as `"0.5.5"`.
+- **`.nvmrc` absent**: The spec listed `.nvmrc` in the delete list, but the file was not present in the imported history — no action needed.
+- **`scripts/verify-changelog.mjs` retained**: Not in the delete list; left in place as dead code (superseded by `unic-verify-changelog`). Can be removed in a future cleanup.

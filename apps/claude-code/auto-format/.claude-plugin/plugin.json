@@ -1,12 +1,12 @@
 {
-  "name": "unic-claude-code-format",
+  "name": "auto-format",
   "version": "0.5.4",
   "description": "Auto-format and lint files when Claude Code edits them. Runs Prettier + ESLint --fix after Write/Edit/MultiEdit/NotebookEdit.",
   "author": {
     "name": "Unic AG",
     "url": "https://www.unic.com"
   },
-  "homepage": "https://github.com/unic/unic-claude-code-format",
+  "homepage": "https://github.com/unic/unic-agents-plugins",
   "license": "LGPL-3.0-or-later",
   "keywords": [
     "formatter",

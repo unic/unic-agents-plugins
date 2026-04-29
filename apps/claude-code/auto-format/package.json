@@ -1,5 +1,5 @@
 {
-  "name": "unic-claude-code-format",
+  "name": "auto-format",
   "version": "0.5.4",
   "private": true,
   "license": "LGPL-3.0-or-later",
@@ -10,18 +10,19 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "backfill-tags": "node scripts/backfill-tags.mjs",
-    "bump": "node scripts/bump.mjs",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
-    "sync-version": "node scripts/sync-version.mjs",
-    "tag": "node scripts/tag.mjs",
-    "test": "node --test 'tests/*.test.mjs'",
-    "typecheck": "tsc --noEmit --allowJs --checkJs --strict --target ES2022 --module NodeNext --moduleResolution NodeNext scripts/*.mjs scripts/lib/*.mjs tests/*.mjs",
-    "verify:changelog": "node scripts/verify-changelog.mjs"
+    "test": "node --test tests/format-hook.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "verify:changelog": "unic-verify-changelog",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
   },
   "devDependencies": {
     "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
     "typescript": "catalog:"
   }
 }
