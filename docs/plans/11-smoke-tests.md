@@ -1,4 +1,5 @@
 # 11. Cross-Platform Smoke Tests
+**Status: done — 2026-04-29**
 
 **Priority:** P1
 **Effort:** S
@@ -95,3 +96,15 @@ cat docs/process/smoke-test-checklist.md  # file exists and is non-empty
 
 - Automated test scripts for the smoke tests (manual checklist is sufficient)
 - Windows smoke tests before CI is live (those run automatically once spec 10 is done and the repo is on GitHub)
+
+## Results
+
+Executed on macOS 2026-04-29.
+
+**Passed (local):**
+- `docs/process/smoke-test-checklist.md` created with all required sections (marketplace setup, auto-format, pr-review, confluence-publish, cleanup).
+
+**Pending CI / pending live environment:**
+- All marketplace and plugin install/run/uninstall items require the GitHub repo to be live (for a real marketplace URL) and the corresponding live services (Azure DevOps, Confluence). These will be validated when spec 12 cuts the first releases and the repo is published.
+
+**Issues found:** None. The checklist file is well-formed and covers all three plugins.
