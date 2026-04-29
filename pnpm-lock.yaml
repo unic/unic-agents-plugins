@@ -29,9 +29,6 @@ importers:
       '@biomejs/biome':
         specifier: 'catalog:'
         version: 2.4.0
-      '@ralph-orchestrator/ralph-cli':
-        specifier: 'catalog:'
-        version: 2.9.2
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.2
@@ -50,6 +47,10 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.8.3
+    optionalDependencies:
+      '@ralph-orchestrator/ralph-cli':
+        specifier: 'catalog:'
+        version: 2.9.2
 
   apps/claude-code/auto-format:
     devDependencies:

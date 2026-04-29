@@ -18,12 +18,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
     "@unic/biome-config": "workspace:*",
     "@unic/release-tools": "workspace:*",
     "@unic/tsconfig": "workspace:*",
     "prettier": "catalog:",
     "typescript": "catalog:"
+  },
+  "optionalDependencies": {
+    "@ralph-orchestrator/ralph-cli": "catalog:"
   }
 }
