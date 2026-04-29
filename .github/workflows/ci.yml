@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  root-checks:
+    name: Root checks (Biome + Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ci:check
+
+  changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+    outputs:
+      pr-review: ${{ steps.filter.outputs.pr-review }}
+      auto-format: ${{ steps.filter.outputs.auto-format }}
+      confluence-publish: ${{ steps.filter.outputs.confluence-publish }}
+      release-tools: ${{ steps.filter.outputs.release-tools }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            pr-review:
+              - 'apps/claude-code/pr-review/**'
+            auto-format:
+              - 'apps/claude-code/auto-format/**'
+            confluence-publish:
+              - 'apps/claude-code/confluence-publish/**'
+            release-tools:
+              - 'packages/release-tools/**'
+
+  test:
+    name: Test ${{ matrix.package }} / ${{ matrix.os }} / Node ${{ matrix.node }}
+    needs: changes
+    if: |
+      needs.changes.outputs.auto-format == 'true' ||
+      needs.changes.outputs.confluence-publish == 'true' ||
+      needs.changes.outputs.release-tools == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['22', '24']
+        package:
+          - name: auto-format
+            changed: ${{ needs.changes.outputs.auto-format }}
+          - name: confluence-publish
+            changed: ${{ needs.changes.outputs.confluence-publish }}
+          - name: release-tools
+            changed: ${{ needs.changes.outputs.release-tools }}
+        exclude:
+          - package:
+              changed: 'false'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ${{ matrix.package.name }} --if-present test
+      - run: pnpm --filter ${{ matrix.package.name }} --if-present typecheck
+      - if: github.event_name == 'pull_request'
+        run: pnpm --filter ${{ matrix.package.name }} --if-present verify:changelog
