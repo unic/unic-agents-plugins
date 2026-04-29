@@ -8,4 +8,10 @@ For plugin-specific changelogs see each plugin's `CHANGELOG.md` under `apps/clau
 
 ### Added
 
-- Initial monorepo seed
+- (none)
+
+## [2026-04-29]
+
+### Added
+
+- Initial monorepo seed: workspace tooling, package stubs, and spec roadmap

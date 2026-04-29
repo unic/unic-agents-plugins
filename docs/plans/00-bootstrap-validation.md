@@ -1,5 +1,7 @@
 # 00. Bootstrap Validation
 
+**Status: done — 2026-04-29**
+
 **Priority:** P0
 **Effort:** XS
 **Version impact:** none
@@ -26,10 +28,10 @@ The monorepo seed was created by hand. Before any substantive work begins, verif
 
 ## Affected files
 
-| File | Change |
-|---|---|
-| `CHANGELOG.md` | Modify — add dated entry under a new `## [YYYY-MM-DD]` section |
-| `docs/plans/README.md` | No change required |
+| File                   | Change                                                         |
+| ---------------------- | -------------------------------------------------------------- |
+| `CHANGELOG.md`         | Modify — add dated entry under a new `## [YYYY-MM-DD]` section |
+| `docs/plans/README.md` | No change required                                             |
 
 ## Implementation steps
 
