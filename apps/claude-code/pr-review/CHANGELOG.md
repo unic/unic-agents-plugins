@@ -3,12 +3,15 @@
 ## [Unreleased]
 
 ### Breaking
+
 - (none)
 
 ### Added
+
 - (none)
 
 ### Fixed
+
 - (none)
 
 ## [0.1.1] — 2026-04-29

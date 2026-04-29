@@ -22,6 +22,7 @@ All comments are signed `🤖 *Reviewed by Claude Code*` so reviewers know they 
 This plugin uses the specialized review agents from `pr-review-toolkit`. You must have it installed and enabled.
 
 **Install:**
+
 1. Open Claude Code settings → Plugins
 2. Find `pr-review-toolkit` from `anthropics/claude-plugins-official`
 3. Enable it

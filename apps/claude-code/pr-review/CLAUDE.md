@@ -26,6 +26,7 @@ The entire behaviour of the plugin lives in `commands/review-pr.md`. There are n
 ## Plugin metadata
 
 When bumping the version, update it in **both** files:
+
 - `.claude-plugin/plugin.json` → `version`
 - `.claude-plugin/marketplace.json` → `plugins[0].version`
 
