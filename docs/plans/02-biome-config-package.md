@@ -1,4 +1,5 @@
 # 02. biome-config Workspace Package
+**Status: done — 2026-04-29**
 
 **Priority:** P1
 **Effort:** S
@@ -95,3 +96,7 @@ pnpm ci:check  # exits 0
 
 - Updating individual plugin packages to extend from `@unic/biome-config` — happens in specs 05–07
 - Changing any linting rules
+
+## Deviations
+
+- `packages/biome-config/biome.json` required `"root": false` as the first key. Biome 2.4.0 auto-discovers all `biome.json` files in the workspace and treats any without `"root": false` as a root configuration, causing the error "Found a nested root configuration, but there's already a root configuration." Running `biome migrate --write` added `"root": false` automatically. The spec content is otherwise identical.

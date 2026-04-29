@@ -20,6 +20,7 @@
     "@biomejs/biome": "catalog:",
     "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
+    "@unic/biome-config": "workspace:*",
     "@unic/tsconfig": "workspace:*",
     "prettier": "catalog:",
     "typescript": "catalog:"

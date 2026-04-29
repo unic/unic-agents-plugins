@@ -35,6 +35,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.2
+      '@unic/biome-config':
+        specifier: workspace:*
+        version: link:packages/biome-config
       '@unic/tsconfig':
         specifier: workspace:*
         version: link:packages/tsconfig
