@@ -1,4 +1,5 @@
 # 12. First Releases
+**Status: done — 2026-04-30**
 
 **Priority:** P0
 **Effort:** S
@@ -61,14 +62,21 @@ git ls-remote origin 'refs/tags/*'                     # shows all 3 release tag
 
 ## Acceptance criteria
 
-- [ ] GitHub repo `unic/unic-agents-plugins` exists
-- [ ] `main` branch is pushed
-- [ ] CI workflow passes
-- [ ] Three release tags created: `pr-review@0.1.1`, `auto-format@0.5.9`, `confluence-publish@2.4.2`
-- [ ] Tags visible on GitHub
+- [x] GitHub repo `unic/unic-agents-plugins` exists
+- [x] `main` branch is pushed
+- [x] CI workflow passes (Windows fixed via optionalDependencies)
+- [x] Three release tags created: `pr-review@0.1.1`, `auto-format@0.5.5`, `confluence-publish@2.1.6` (versions differ from spec — see Deviations)
+- [x] Tags visible on GitHub
 
 ## Out of scope
 
 - Making the repo public
 - Setting up branch protection rules
 - Adding GitHub Actions secrets for GPG signing (can be done separately)
+
+## Deviations
+
+- **Actual plugin versions differ from spec**: This spec doc stated `auto-format@0.5.9` and `confluence-publish@2.4.2`, but the actual versions after migration (specs 05–07) are `auto-format@0.5.5` and `confluence-publish@2.1.6`. The tags created are `pr-review@0.1.1`, `auto-format@0.5.5`, and `confluence-publish@2.1.6`.
+- **Release workflow did not auto-create tags**: The release workflow uses `fetch-depth: 2` and compared HEAD vs HEAD~1. Since all commits were pushed at once, the version bumps were in older commits and were not detected. Tags were created manually and pushed directly.
+- **Windows CI fix required**: `@ralph-orchestrator/ralph-cli` postinstall fails on Windows (no Windows binary). Moved from `devDependencies` to `optionalDependencies` so postinstall failure is non-fatal on Windows.
+- **Old-repo annotated tags on remote**: Tags `v0.1.0`–`v0.5.4` and `v2.3.5` (from the original plugin repos) were pushed automatically via `push.followTags=true`. These are expected migration artifacts.
