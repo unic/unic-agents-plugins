@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "description": "Confluence publishing plugin for Claude Code by Unic"
+  },
+  "name": "unic-claude-code-confluence",
+  "owner": {
+    "name": "Unic"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "Unic"
+      },
+      "category": "productivity",
+      "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
+      "license": "LGPL-3.0-or-later",
+      "name": "unic-confluence",
+      "source": "./",
+      "version": "2.1.5"
+    }
+  ]
+}
