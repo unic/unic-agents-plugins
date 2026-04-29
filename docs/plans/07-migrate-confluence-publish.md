@@ -1,4 +1,5 @@
 # 07. Migrate confluence-publish Plugin
+**Status: done — 2026-04-29**
 
 **Priority:** P0
 **Effort:** M
@@ -213,3 +214,9 @@ cat apps/claude-code/confluence-publish/.claude-plugin/plugin.json | grep '"name
 
 - Updating `CLAUDE.md` inside the plugin for monorepo context
 - Changing any push-to-confluence business logic
+
+## Deviations
+
+- **Version mismatch**: The spec expected the imported `plugin.json` version to be `"2.4.1"` (Current behaviour section), but the actual imported version was `"2.1.5"`. The `package.json` rewrite keeps `"2.1.5"` as the base. After the patch bump in step 15, the final version is `"2.1.6"` rather than `"2.4.2"` as stated in the acceptance criteria. The acceptance criteria should be interpreted as `"2.1.6"`.
+- **Test script preserved from import**: The spec's step 10 test script includes `postprocess.test.mjs`, `sanitise.test.mjs`, and `url.test.mjs` which do not exist in the imported history. The existing test script (covering the 5 test files that do exist) was preserved instead.
+- **`scripts/verify-changelog.test.mjs` absent**: Listed in step 6 delete list but not present in the imported history — no action needed.

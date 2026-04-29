@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- (none)
+
+### Fixed
+
+- (none)
+
+## [2.1.6] — 2026-04-29
+
+### Breaking
+
+- (none)
+
+### Added
+
 - Migrated to unic-agents-plugins monorepo; plugin renamed from `unic-confluence` to `confluence-publish`
 
 ### Fixed

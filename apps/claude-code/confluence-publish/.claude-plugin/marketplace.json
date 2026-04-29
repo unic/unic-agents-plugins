@@ -17,7 +17,7 @@
       "license": "LGPL-3.0-or-later",
       "name": "confluence-publish",
       "source": "./",
-      "version": "2.1.5"
+      "version": "2.1.6"
     }
   ]
 }

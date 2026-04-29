@@ -5,5 +5,5 @@
   "commands": ["./commands/confluence-publish.md"],
   "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
   "name": "confluence-publish",
-  "version": "2.1.5"
+  "version": "2.1.6"
 }
