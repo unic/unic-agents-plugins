@@ -1,5 +1,7 @@
 # 08. Root Marketplace Manifest
 
+**Status: done — 2026-04-29**
+
 **Priority:** P0
 **Effort:** S
 **Version impact:** none

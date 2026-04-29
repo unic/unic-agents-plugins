@@ -1,0 +1,15 @@
+{
+  "name": "Unic Agent Plugins",
+  "description": "Official Unic AI agent plugins",
+  "plugins": [
+    {
+      "source": "apps/claude-code/pr-review"
+    },
+    {
+      "source": "apps/claude-code/auto-format"
+    },
+    {
+      "source": "apps/claude-code/confluence-publish"
+    }
+  ]
+}

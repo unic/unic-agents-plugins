@@ -15,7 +15,7 @@ A monorepo of AI agent plugins developed at Unic. Currently hosts Claude Code pl
 Add the Unic marketplace once:
 
 ```sh
-# coming after spec 09 sets up the marketplace manifest
+claude marketplace add https://github.com/unic/unic-agents-plugins
 ```
 
 Then install individual plugins:
