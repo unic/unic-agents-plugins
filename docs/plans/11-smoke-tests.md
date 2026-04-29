@@ -102,9 +102,9 @@ cat docs/process/smoke-test-checklist.md  # file exists and is non-empty
 Executed on macOS 2026-04-29.
 
 **Passed (local):**
-- `docs/process/smoke-test-checklist.md` created with all required sections (marketplace setup, auto-format, pr-review, confluence-publish, cleanup).
+- None. No checklist items could be executed locally because all items require a live marketplace URL (the GitHub repo must be published first).
 
 **Pending CI / pending live environment:**
-- All marketplace and plugin install/run/uninstall items require the GitHub repo to be live (for a real marketplace URL) and the corresponding live services (Azure DevOps, Confluence). These will be validated when spec 12 cuts the first releases and the repo is published.
+- All checklist items are annotated "pending CI — requires live marketplace URL" in `docs/process/smoke-test-checklist.md`. Every marketplace, install, run, and uninstall step depends on the GitHub repo being live (spec 12). Windows items additionally require the CI matrix runner. These will be validated when spec 12 cuts the first releases and publishes the repo.
 
-**Issues found:** None. The checklist file is well-formed and covers all three plugins.
+**Issues found:** None. The checklist file is well-formed and covers all three plugins. All items are annotated with their blocking dependency.
