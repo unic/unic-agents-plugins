@@ -3,5 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "license": "LGPL-3.0-or-later",
-  "type": "module"
+  "type": "module",
+  "bin": {
+    "unic-bump": "./scripts/bump-version.mjs",
+    "unic-sync-version": "./scripts/sync-version.mjs",
+    "unic-tag": "./scripts/tag.mjs",
+    "unic-verify-changelog": "./scripts/verify-changelog.mjs"
+  },
+  "scripts": {
+    "test": "node --test scripts/verify-changelog.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
 }

@@ -1,4 +1,5 @@
 # 03. release-tools Workspace Package
+**Status: done — 2026-04-29**
 
 **Priority:** P0
 **Effort:** L

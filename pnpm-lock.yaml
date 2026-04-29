@@ -38,6 +38,9 @@ importers:
       '@unic/biome-config':
         specifier: workspace:*
         version: link:packages/biome-config
+      '@unic/release-tools':
+        specifier: workspace:*
+        version: link:packages/release-tools
       '@unic/tsconfig':
         specifier: workspace:*
         version: link:packages/tsconfig
@@ -50,7 +53,14 @@ importers:
 
   packages/biome-config: {}
 
-  packages/release-tools: {}
+  packages/release-tools:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
 
   packages/tsconfig: {}
 
