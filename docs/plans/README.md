@@ -23,6 +23,21 @@ Individual plugins have their own `docs/plans/` for plugin-specific development.
 | 12 | [first-releases](12-first-releases.md) | Cut `pr-review@0.1.1`, `auto-format@0.5.5`, `confluence-publish@2.1.6` | 11 |
 | 13 | [archive-old-repos](13-archive-old-repos.md) | Final CHANGELOG entries; archive old GitHub repos | 12 |
 | 14 | [fix-release-workflow](14-fix-release-workflow.md) | Fix tag detection to use tag-existence check instead of HEAD~1 diff | 12 |
+| 15 | [release-tools-tests](15-release-tools-tests.md) | `bump-version.test.mjs` + `sync-version.test.mjs` for `@unic/release-tools` | 03 |
+
+## Backlog
+
+Ideas that need a spec before Ralph can run them. When you're ready to act on one, ask Claude to write the spec (`NN-name.md`), review it, then hand it to Ralph.
+
+| Idea | Priority | Notes |
+|---|---|---|
+| Update plugin `CLAUDE.md` files for monorepo context | P1 | All three plugins (`pr-review`, `auto-format`, `confluence-publish`) still have standalone-repo instructions; deferred in specs 05–07 |
+| Bake `pnpm format` into `bump-version.mjs` | P2 | Every bump leaves CHANGELOG.md in a state Prettier disagrees with, requiring a manual `pnpm format` step; discovered during spec 14 |
+| GitHub Release notes automation | P3 | Auto-generate release notes from CHANGELOG.md when the release workflow fires a tag |
+
+**Manual actions pending (not Ralph specs):**
+
+- Execute smoke test checklist (`docs/process/smoke-test-checklist.md`) — requires a scratch Claude Code environment, an Azure DevOps PR URL, and Confluence credentials
 
 ## SemVer policy (per plugin)
 
