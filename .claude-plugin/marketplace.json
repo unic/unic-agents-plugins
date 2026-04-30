@@ -1,6 +1,9 @@
 {
   "description": "Official Unic AI Agents plugins",
   "name": "unic-agent-plugins",
+  "owner": {
+    "name": "Unic AG"
+  },
   "plugins": [
     {
       "source": "apps/claude-code/pr-review"
