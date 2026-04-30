@@ -3,7 +3,7 @@
   "plugins": [
     {
       "name": "auto-format",
-      "version": "0.5.6",
+      "version": "0.5.7",
       "displayName": "Unic Auto-Format",
       "description": "Auto-format and lint files when Claude Code edits them. Uses the consumer repo's Prettier and ESLint — no bundled formatters.",
       "author": "Unic AG",
