@@ -3,8 +3,10 @@
   "version": "0.1.1",
   "description": "Review Azure DevOps pull requests with multi-agent analysis and post threaded comments back to the PR.",
   "author": {
-    "name": "Unic"
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
   },
+  "homepage": "https://github.com/unic/unic-agents-plugins",
   "license": "LGPL-3.0-or-later",
   "keywords": ["pr-review", "azure-devops", "code-review", "ado"]
 }

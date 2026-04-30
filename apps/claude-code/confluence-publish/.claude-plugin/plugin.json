@@ -1,9 +1,13 @@
 {
-  "author": {
-    "name": "Unic"
-  },
-  "commands": ["./commands/confluence-publish.md"],
+  "name": "unic-confluence",
+  "version": "2.1.6",
   "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
-  "name": "confluence-publish",
-  "version": "2.1.6"
+  "author": {
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
+  },
+  "commands": ["./commands/unic-confluence.md"],
+  "homepage": "https://github.com/unic/unic-agents-plugins",
+  "license": "LGPL-3.0-or-later",
+  "keywords": ["confluence", "markdown", "publish", "unic"]
 }

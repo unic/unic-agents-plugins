@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- Enhance marketplace plugins with updated metadata and descriptions according to Anthropic guidelines
 
 ## [0.5.7] — 2026-04-30
 

@@ -108,23 +108,23 @@ This fallback is still supported but deprecated. Migrate legacy pages to text ma
 ### 1. Install the Claude Code plugin
 
 ```sh
-# Register the marketplace (once per machine)
-claude plugins marketplace add unic/unic-claude-code-confluence
+# Register the Unic plugin marketplace (once per machine)
+claude plugins marketplace add unic https://raw.githubusercontent.com/unic/unic-agents-plugins/main/.claude-plugin/marketplace.json
 
 # Install the plugin
-claude plugins install unic-confluence@unic-claude-code-confluence
+claude plugins install unic-confluence@unic
 ```
 
 ### 2. Install as npm package (for Copilot / Cursor / other AI editors)
 
 ```sh
-npm install -D git+ssh://git@github.com:unic/unic-claude-code-confluence
+npm install -D git+ssh://git@github.com:unic/unic-agents-plugins
 ```
 
 or
 
 ```sh
-pnpm install -w -D git+ssh://git@github.com:unic/unic-claude-code-confluence
+pnpm install -w -D git+ssh://git@github.com:unic/unic-agents-plugins
 ```
 
 Then add to your repo's `package.json` scripts:
@@ -217,14 +217,14 @@ Alternatively, set the environment variables `CONFLUENCE_URL`, `CONFLUENCE_USER`
 
 ```sh
 # Update Claude Code plugin
-claude plugins marketplace update unic-claude-code-confluence
-claude plugins install unic-confluence@unic-claude-code-confluence
+claude plugins marketplace update unic
+claude plugins install unic-confluence@unic
 
 # Update npm package
-npm install -D git+ssh://git@github.com:unic/unic-claude-code-confluence
+npm install -D git+ssh://git@github.com:unic/unic-agents-plugins
 
 # Or
-pnpm install -w -D git+ssh://git@github.com:unic/unic-claude-code-confluence
+pnpm install -w -D git+ssh://git@github.com:unic/unic-agents-plugins
 ```
 
 ## Naming convention

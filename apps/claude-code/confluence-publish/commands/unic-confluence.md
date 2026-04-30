@@ -1,7 +1,10 @@
 ---
 allowed-tools: Bash(node *), Bash(pnpm install*)
+argument-hint: "<page-key-or-id> <markdown-file>"
 description: Publish a markdown file to a Confluence page
 ---
+
+# Markdown to Confluence publisher
 
 Publish a markdown file to a Confluence page using the bundled push-to-confluence.mjs script.
 

@@ -12,7 +12,7 @@
 
 ### Fixed
 
-- (none)
+- Enhance marketplace plugins with updated metadata and descriptions according to Anthropic guidelines
 
 ## [0.1.1] — 2026-04-29
 

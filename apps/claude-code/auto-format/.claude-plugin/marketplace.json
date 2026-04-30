@@ -1,16 +1,27 @@
 {
+  "metadata": {
+    "description": "Auto-format and lint files when Claude Code edits them",
+    "homepage": "https://github.com/unic/unic-agents-plugins"
+  },
   "name": "auto-format",
+  "owner": {
+    "name": "Unic AG"
+  },
   "plugins": [
     {
-      "name": "auto-format",
-      "version": "0.5.7",
-      "displayName": "Unic Auto-Format",
+      "author": {
+        "name": "Unic AG"
+      },
+      "category": "productivity",
       "description": "Auto-format and lint files when Claude Code edits them. Uses the consumer repo's Prettier and ESLint — no bundled formatters.",
-      "author": "Unic AG",
+      "displayName": "Unic Auto-Format",
       "homepage": "https://github.com/unic/unic-agents-plugins",
-      "license": "LGPL-3.0-or-later",
       "keywords": ["formatter", "prettier", "eslint", "hook", "unic"],
-      "tags": ["productivity", "code-quality"]
+      "license": "LGPL-3.0-or-later",
+      "name": "auto-format",
+      "source": "./",
+      "tags": ["productivity", "code-quality"],
+      "version": "0.5.7"
     }
   ]
 }

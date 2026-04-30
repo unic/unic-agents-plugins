@@ -1,7 +1,7 @@
 ---
-description: "Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR"
-argument-hint: "<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]"
 allowed-tools: ["Agent", "Bash", "Read", "Write", "Grep", "Glob"]
+argument-hint: "<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]"
+description: "Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR"
 ---
 
 # Azure DevOps PR Review
@@ -272,18 +272,6 @@ az devops invoke \
 ### 🟠 Important (X found)
 
 - **[file:line]** Issue description
-
-### 🟡 Minor / Suggestions
-
-- Suggestion
-
-### ✅ What's good
-
-- Positive observation
-
----
-
-🤖 _Reviewed by Claude Code_
 
 ### 🟡 Minor / Suggestions
 

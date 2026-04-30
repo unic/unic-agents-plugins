@@ -1,4 +1,4 @@
-# unic-claude-code-format
+# auto-format
 
 A Claude Code plugin for UNIC repositories. Auto-formats and lints files whenever Claude Code writes or edits them — using the consumer repo's own Prettier and ESLint installations.
 
@@ -22,16 +22,19 @@ The consumer repo must have Prettier and/or ESLint installed in its `node_module
 ## Installation
 
 ```sh
-# In Claude Code, install from the UNIC GitHub org:
-/plugin install github:unic/unic-claude-code-format
+# Register the Unic plugin marketplace (once per machine)
+claude plugins marketplace add unic https://raw.githubusercontent.com/unic/unic-agents-plugins/main/.claude-plugin/marketplace.json
+
+# Install the plugin
+claude plugins install auto-format@unic
 ```
 
-Or add it to `.claude/settings.json` in a consumer repo:
+Or add it directly to `.claude/settings.json` in a consumer repo:
 
-```
+```json
 {
   "enabledPlugins": {
-    "unic-claude-code-format": true
+    "auto-format@unic": true
   }
 }
 ```
@@ -140,7 +143,7 @@ Valid values: `"auto"` (default), `"prettier"`, `"biome"`.
 
 To disable the hook for a Claude Code session:
 
-- In the Claude Code `/hooks` UI: toggle off `unic-claude-code-format`.
+- In the Claude Code `/hooks` UI: toggle off `auto-format`.
 
 To disable permanently for a repo: remove the plugin from `.claude/settings.json`.
 
