@@ -1,10 +1,10 @@
-# unic-pr-review
+# pr-review
 
 A Claude Code plugin that reviews Azure DevOps pull requests using multi-agent analysis and posts findings as threaded inline comments and a summary directly back to the PR.
 
 ## What it does
 
-Run `/unic-pr-review:review-pr <ADO-PR-URL>` to:
+Run `/pr-review:review-pr <ADO-PR-URL>` to:
 
 1. Fetch the PR diff from Azure DevOps
 2. Run parallel code analysis with specialized agents (code quality, error handling, test coverage, etc.)
@@ -72,10 +72,10 @@ Add to `~/.claude/settings.json`:
 
 ```json
 "extraKnownMarketplaces": {
-  "unic-pr-review": {
+  "unic": {
     "source": {
       "source": "directory",
-      "path": "/path/to/unic-pr-review"
+      "path": "/path/to/unic-agents-plugins"
     },
     "autoUpdate": true
   }
@@ -85,42 +85,36 @@ Add to `~/.claude/settings.json`:
 Then add to `enabledPlugins`:
 
 ```json
-"unic-pr-review@unic-pr-review": true
+"pr-review@unic": true
 ```
 
 Restart Claude Code for the plugin to be picked up.
 
-### Option B — Team install from Unic git remote
+### Option B — Team install from Unic marketplace
 
-Once the plugin is published to a Unic-owned git repository:
+Once published to the Unic plugin marketplace:
 
-```json
-"extraKnownMarketplaces": {
-  "unic-pr-review": {
-    "source": {
-      "source": "github",
-      "repo": "unic-org/unic-pr-review"
-    },
-    "autoUpdate": true
-  }
-}
+```sh
+# Register the Unic plugin marketplace (once per machine)
+claude plugins marketplace add unic https://raw.githubusercontent.com/unic/unic-agents-plugins/main/.claude-plugin/marketplace.json
+
+# Install the plugin
+claude plugins install pr-review@unic
 ```
-
-Then enable and restart as above.
 
 ---
 
 ## Usage
 
 ```
-/unic-pr-review:review-pr https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}
+/pr-review:review-pr https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}
 ```
 
 **With aspect filter** (optional, default is all):
 
 ```
-/unic-pr-review:review-pr https://dev.azure.com/FZAG/dxp/_git/DXP-Website/pullrequest/5472 errors
-/unic-pr-review:review-pr https://dev.azure.com/FZAG/dxp/_git/DXP-Website/pullrequest/5472 code errors
+/pr-review:review-pr https://dev.azure.com/FZAG/dxp/_git/DXP-Website/pullrequest/5472 errors
+/pr-review:review-pr https://dev.azure.com/FZAG/dxp/_git/DXP-Website/pullrequest/5472 code errors
 ```
 
 Available aspects: `code`, `errors`, `tests`, `comments`, `types`, `all`

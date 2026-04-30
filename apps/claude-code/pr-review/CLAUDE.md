@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A Claude Code plugin (`unic-pr-review`) that adds an `/unic-pr-review:review-pr` command. When invoked with an ADO PR URL it:
+A Claude Code plugin (`pr-review`) that adds a `/pr-review:review-pr` command. When invoked with an ADO PR URL it:
 
 1. Fetches the PR diff via `az devops` CLI + ADO REST API
 2. Launches specialized review agents from the `pr-review-toolkit` plugin in parallel
@@ -51,14 +51,14 @@ Add to `~/.claude/settings.json`:
 
 ```json
 "extraKnownMarketplaces": {
-  "unic-pr-review": {
-    "source": { "source": "directory", "path": "/path/to/unic-pr-review" },
+  "unic": {
+    "source": { "source": "directory", "path": "/path/to/unic-agents-plugins" },
     "autoUpdate": true
   }
 }
 ```
 
-Then add `"unic-pr-review@unic-pr-review": true` to `enabledPlugins` and restart Claude Code.
+Then add `"pr-review@unic": true` to `enabledPlugins` and restart Claude Code.
 
 ## Roadmap (not yet implemented)
 

@@ -9,7 +9,7 @@
       "source": "apps/claude-code/auto-format"
     },
     {
-      "source": "apps/claude-code/confluence-publish"
+      "source": "apps/claude-code/unic-confluence"
     }
   ]
 }

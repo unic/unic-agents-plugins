@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+## [3.0.0] — 2026-04-30
+
+### Breaking
+
+- Plugin renamed from `confluence-publish` to `unic-confluence`; update `enabledPlugins` in `settings.json` from `"confluence-publish@unic": true` to `"unic-confluence@unic": true` and reinstall the plugin
+- Command file renamed from `confluence-publish.md` to `unic-confluence.md`; the slash command is now `/unic-confluence:unic-confluence`
+
+### Added
+
+- `argument-hint` in command frontmatter for improved command picker display (`<page-key-or-id> <markdown-file>`)
+- Added `displayName`, `owner`, `category`, `homepage`, `keywords`, `tags`, and `source` fields to `marketplace.json` to satisfy Anthropic marketplace schema
+- Enriched `plugin.json` with `homepage`, `license`, `keywords`, and `author.url`
+
+### Fixed
+
+- (none)
+
 ## [2.1.6] — 2026-04-29
 
 ### Breaking

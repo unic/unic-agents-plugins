@@ -51,4 +51,4 @@ jobs:
 
           tag_if_changed "apps/claude-code/pr-review"
           tag_if_changed "apps/claude-code/auto-format"
-          tag_if_changed "apps/claude-code/confluence-publish"
+          tag_if_changed "apps/claude-code/unic-confluence"

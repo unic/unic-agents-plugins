@@ -1,10 +1,11 @@
 // @ts-check
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { CliError } from './errors.mjs'
 import { isNumericId, resolvePageId } from './resolve.mjs'
 
@@ -79,13 +80,15 @@ describe('resolvePageId — error paths (via subprocess)', () => {
 	// injection surface.
 
 	it('exits 1 for missing confluence-pages.json when using a key', () => {
-		const resolvePath = path.join(__dirname, 'resolve.mjs')
+		const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'unic-confluence-test-'))
+		const resolvePath = pathToFileURL(path.join(__dirname, 'resolve.mjs')).href
 		const script = `import {resolvePageId} from ${JSON.stringify(resolvePath)}; resolvePageId("missing-key")`
 		const result = spawnSync(process.execPath, ['--input-type=module'], {
 			input: script,
-			cwd: '/tmp',
+			cwd: tmpDir,
 			encoding: 'utf8',
 		})
+		rmSync(tmpDir, { recursive: true, force: true })
 		assert.strictEqual(result.status, 1, `expected exit 1, got ${result.status}\n${result.stderr}`)
 		assert.ok(
 			result.stderr.includes('confluence-pages.json not found'),
@@ -94,11 +97,11 @@ describe('resolvePageId — error paths (via subprocess)', () => {
 	})
 
 	it('exits 1 with available keys message for unknown key', () => {
-		const tmpDir = '/tmp'
+		const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'unic-confluence-test-'))
 		const tmpPages = path.join(tmpDir, 'confluence-pages.json')
 		writeFileSync(tmpPages, JSON.stringify({ 'known-page': 99999 }, null, 2))
 
-		const resolvePath = path.join(__dirname, 'resolve.mjs')
+		const resolvePath = pathToFileURL(path.join(__dirname, 'resolve.mjs')).href
 		const script = `import {resolvePageId} from ${JSON.stringify(resolvePath)}; resolvePageId("unknown-key")`
 		const result = spawnSync(process.execPath, ['--input-type=module'], {
 			input: script,
@@ -106,7 +109,7 @@ describe('resolvePageId — error paths (via subprocess)', () => {
 			encoding: 'utf8',
 		})
 
-		unlinkSync(tmpPages)
+		rmSync(tmpDir, { recursive: true, force: true })
 
 		assert.strictEqual(result.status, 1, `expected exit 1, got ${result.status}\n${result.stderr}`)
 		assert.ok(
