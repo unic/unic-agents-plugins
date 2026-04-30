@@ -1,7 +1,7 @@
 ---
-description: "Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR"
-argument-hint: "<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]"
 allowed-tools: ["Agent", "Bash", "Read", "Write", "Grep", "Glob"]
+argument-hint: "<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]"
+description: "Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR"
 ---
 
 # Azure DevOps PR Review
@@ -42,7 +42,7 @@ Variables to extract:
 - `ORG_URL` = `https://dev.azure.com/{org}`
 - `PR_ID` = `{id}`
 
-**GitHub URLs** (`https://github.com/...`) are not supported in v0.1.0 — tell the user and stop.
+**GitHub URLs** (`https://github.com/...`) are not supported — tell the user and stop.
 
 If no URL provided, run `az repos pr list --status active --output table` to help them pick one.
 
@@ -272,18 +272,6 @@ az devops invoke \
 ### 🟠 Important (X found)
 
 - **[file:line]** Issue description
-
-### 🟡 Minor / Suggestions
-
-- Suggestion
-
-### ✅ What's good
-
-- Positive observation
-
----
-
-🤖 _Reviewed by Claude Code_
 
 ### 🟡 Minor / Suggestions
 

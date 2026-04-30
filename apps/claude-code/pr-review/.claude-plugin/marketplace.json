@@ -5,20 +5,23 @@
   },
   "name": "pr-review",
   "owner": {
-    "name": "Unic"
+    "name": "Unic AG"
   },
   "plugins": [
     {
       "author": {
-        "name": "Unic"
+        "name": "Unic AG"
       },
       "category": "code-quality",
       "description": "Review Azure DevOps pull requests with multi-agent analysis and post threaded inline + summary comments back to the PR.",
+      "displayName": "Unic PR Review",
+      "homepage": "https://github.com/unic/unic-agents-plugins",
+      "keywords": ["pr-review", "azure-devops", "code-review", "ado"],
       "license": "LGPL-3.0-or-later",
       "name": "pr-review",
       "source": "./",
-      "version": "0.1.1",
-      "keywords": ["pr-review", "azure-devops", "code-review", "ado"]
+      "tags": ["code-quality", "azure-devops"],
+      "version": "0.1.2"
     }
   ]
 }

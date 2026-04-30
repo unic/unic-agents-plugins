@@ -13,7 +13,7 @@ apps/
 ├── claude-code/              # Claude Code plugins — one dir per plugin
 │   ├── pr-review/
 │   ├── auto-format/
-│   └── confluence-publish/
+│   └── unic-confluence/
 └── copilot/                  # GitHub Copilot plugins (future)
 packages/
 ├── biome-config/             # @unic/biome-config

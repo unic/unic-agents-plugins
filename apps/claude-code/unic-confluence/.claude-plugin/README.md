@@ -6,7 +6,7 @@ Publish local Markdown files to Confluence pages directly from Claude Code.
 
 ```sh
 # Register the Unic plugin marketplace (once per machine)
-claude plugins marketplace add unic https://raw.githubusercontent.com/unic/unic-claude-code-confluence/main/.claude-plugin/marketplace.json
+claude plugins marketplace add unic https://raw.githubusercontent.com/unic/unic-agents-plugins/main/.claude-plugin/marketplace.json
 
 # Install the plugin
 claude plugins install unic-confluence@unic

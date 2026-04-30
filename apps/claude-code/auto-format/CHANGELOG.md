@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+## [0.5.8] — 2026-04-30
+
+### Breaking
+
+- (none)
+
+### Added
+
+- Added `metadata`, `owner`, `category`, `source`, and `homepage` fields to `marketplace.json` to satisfy Anthropic marketplace schema
+- Updated README install instructions to use the monorepo marketplace URL and `auto-format@unic` identifier
+
 ## [0.5.7] — 2026-04-30
 
 ### Breaking
