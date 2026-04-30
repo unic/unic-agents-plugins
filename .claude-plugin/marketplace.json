@@ -1,6 +1,6 @@
 {
-  "name": "Unic Agent Plugins",
-  "description": "Official Unic AI agent plugins",
+  "description": "Official Unic AI Agents plugins",
+  "name": "unic-agent-plugins",
   "plugins": [
     {
       "source": "apps/claude-code/pr-review"
