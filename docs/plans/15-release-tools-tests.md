@@ -36,7 +36,7 @@
 
 ## Implementation steps
 
-1. Create `packages/release-tools/scripts/bump-version.test.mjs` with test cases listed in Acceptance criteria. Use the same subprocess-based pattern as `verify-changelog.test.mjs`: create a temp dir via `mkdtempSync`, write fixture files, run the script via `spawnSync` with `cwd: tmpDir` (since `bump-version.mjs` resolves paths from `process.cwd()`). For tests that need a clean or dirty git state, inject a fake `git` binary via PATH manipulation, matching the shell-script approach in `verify-changelog.test.mjs`. Happy-path bump tests also require a `.claude-plugin/marketplace.json` fixture in the temp dir (consumed by `sync-version.mjs`).
+1. Create `packages/release-tools/scripts/bump-version.test.mjs` with test cases listed in Acceptance criteria. Use the same subprocess-based pattern as `verify-changelog.test.mjs`: create a temp dir via `mkdtempSync`, write fixture files, run the script via `spawnSync` with `cwd: tmpDir` (since `bump-version.mjs` resolves paths from `process.cwd()`). For tests that need a clean or dirty git state, inject cross-platform fake `git` stubs into the temp dir: a POSIX shell script (`git`) for macOS/Linux and a CMD batch file (`git.cmd`) for Windows. Prepend the temp dir to PATH using `path.delimiter` (not a hard-coded `:`), matching the approach in `verify-changelog.test.mjs` but extended to cover Windows. Happy-path bump tests also require a `.claude-plugin/marketplace.json` fixture in the temp dir (consumed by `sync-version.mjs`).
 
 2. Create `packages/release-tools/scripts/sync-version.test.mjs` with test cases listed in Acceptance criteria.
 
@@ -86,4 +86,4 @@ pnpm --filter @unic/release-tools test
 ## Out of scope
 
 - Tests for `tag.mjs` (git-heavy, integration-only)
-- Cross-platform fake-binary compatibility beyond what the existing pattern covers
+- Extracting a shared reusable fake-binary helper across test files — each test file can inline its own stubs
