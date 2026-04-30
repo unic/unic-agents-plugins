@@ -82,12 +82,12 @@ Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(relea
 
 ## Git branching (Gitflow)
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Production. Only receives merge commits from `develop` (or `hotfix/*`). The release workflow fires here and creates tags. |
-| `develop` | Integration. Default target for all feature PRs. CI runs on every push and PR. |
-| `feature/<name>` | Day-to-day work. Branch from `develop`, PR back to `develop`. |
-| `hotfix/<name>` | Urgent fixes only. Branch from `main`, PR to both `main` and `develop`. |
+| Branch           | Purpose                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `main`           | Production. Only receives merge commits from `develop` (or `hotfix/*`). The release workflow fires here and creates tags. |
+| `develop`        | Integration. Default target for all feature PRs. CI runs on every push and PR.                                            |
+| `feature/<name>` | Day-to-day work. Branch from `develop`, PR back to `develop`.                                                             |
+| `hotfix/<name>`  | Urgent fixes only. Branch from `main`, PR to both `main` and `develop`.                                                   |
 
 **Never commit directly to `main` or `develop`.** Always go through a PR.
 
@@ -103,11 +103,11 @@ To ship a new plugin version:
 
 **CI summary:**
 
-| Event | Root checks | Package tests | `verify:changelog` |
-|-------|-------------|--------------|-------------------|
-| PR (any branch) | ✓ | ✓ (changed packages) | ✓ |
-| Push to `develop` | ✓ | ✓ (changed packages) | — |
-| Push to `main` | ✓ | ✓ (changed packages) | — |
+| Event             | Root checks | Package tests        | `verify:changelog` |
+| ----------------- | ----------- | -------------------- | ------------------ |
+| PR (any branch)   | ✓           | ✓ (changed packages) | ✓                  |
+| Push to `develop` | ✓           | ✓ (changed packages) | —                  |
+| Push to `main`    | ✓           | ✓ (changed packages) | —                  |
 
 ## Spec-driven development
 
