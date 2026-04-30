@@ -1,5 +1,5 @@
 # 15. Release Tools Test Coverage
-**Status: in progress**
+**Status: open**
 
 **Priority:** P1
 **Effort:** S
@@ -22,8 +22,8 @@
 
 ## Target behaviour
 
-- `bump-version.test.mjs` covers: invalid type, dirty tree, missing files, no real changelog entries, patch/minor/major version arithmetic, CHANGELOG promotion
-- `sync-version.test.mjs` covers: version sync to marketplace + package.json, no-op when up to date, error on missing files, field mirroring (license, homepage, keywords)
+- `bump-version.test.mjs` covers: invalid type, dirty tree, missing files, malformed version, no real changelog entries, missing [Unreleased] section, patch/minor/major version arithmetic, CHANGELOG promotion
+- `sync-version.test.mjs` covers: version sync to marketplace + package.json, no-op when up to date, error on missing files, malformed version, field mirroring (license, homepage, keywords)
 - `package.json` test script runs all three test files
 
 ## Affected files
@@ -36,7 +36,7 @@
 
 ## Implementation steps
 
-1. Create `packages/release-tools/scripts/bump-version.test.mjs` with test cases listed in Acceptance criteria.
+1. Create `packages/release-tools/scripts/bump-version.test.mjs` with test cases listed in Acceptance criteria. Use the same subprocess-based pattern as `verify-changelog.test.mjs`: create a temp dir via `mkdtempSync`, write fixture files, run the script via `spawnSync` with `cwd: tmpDir` (since `bump-version.mjs` resolves paths from `process.cwd()`). For tests that need a clean or dirty git state, inject a fake `git` binary via PATH manipulation, matching the shell-script approach in `verify-changelog.test.mjs`. Happy-path bump tests also require a `.claude-plugin/marketplace.json` fixture in the temp dir (consumed by `sync-version.mjs`).
 
 2. Create `packages/release-tools/scripts/sync-version.test.mjs` with test cases listed in Acceptance criteria.
 
@@ -53,7 +53,7 @@
 
 ```sh
 pnpm --filter @unic/release-tools test
-# All test cases pass on macOS
+# All test cases pass; CI validates macOS, Windows, and Linux
 ```
 
 ## Acceptance criteria
@@ -62,20 +62,23 @@ pnpm --filter @unic/release-tools test
 - [ ] `exits 1 with usage message when bump type is invalid`
 - [ ] `exits 1 when working tree is dirty`
 - [ ] `exits 1 when plugin.json is missing`
+- [ ] `exits 1 when version in plugin.json is malformed (e.g. "not-semver")`
 - [ ] `exits 1 when CHANGELOG.md is missing`
+- [ ] `exits 1 when CHANGELOG.md has no [Unreleased] section`
 - [ ] `exits 1 when [Unreleased] has no real entries (only "(none)")`
 - [ ] `patch bump: increments patch, resets nothing`
 - [ ] `minor bump: increments minor, resets patch to 0`
 - [ ] `major bump: increments major, resets minor and patch to 0`
-- [ ] `bump promotes [Unreleased] section with today's date and leaves a fresh empty [Unreleased]`
+- [ ] `bump promotes [Unreleased] section and leaves a fresh empty [Unreleased] — released section date matches YYYY-MM-DD`
 
 ### sync-version.test.mjs
 - [ ] `exits 1 when plugin.json is missing`
+- [ ] `exits 1 when .version is missing or not a string in plugin.json`
 - [ ] `exits 1 when marketplace.json has no plugins[] array`
 - [ ] `syncs version from plugin.json to marketplace.json`
 - [ ] `syncs version to package.json when it exists`
 - [ ] `reports no change when versions already match`
-- [ ] `mirrors license and homepage fields from plugin.json into marketplace entry`
+- [ ] `mirrors license, homepage, and keywords fields from plugin.json into marketplace entry`
 
 ### package.json
 - [ ] test script references all three test files
