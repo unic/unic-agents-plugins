@@ -21,7 +21,7 @@
       "name": "auto-format",
       "source": "./",
       "tags": ["productivity", "code-quality"],
-      "version": "0.5.7"
+      "version": "0.5.8"
     }
   ]
 }
