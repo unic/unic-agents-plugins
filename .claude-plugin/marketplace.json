@@ -6,12 +6,15 @@
   },
   "plugins": [
     {
+      "name": "pr-review",
       "source": "apps/claude-code/pr-review"
     },
     {
+      "name": "auto-format",
       "source": "apps/claude-code/auto-format"
     },
     {
+      "name": "unic-confluence",
       "source": "apps/claude-code/unic-confluence"
     }
   ]
