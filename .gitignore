@@ -18,6 +18,7 @@
 ## Ralph
 .ralph/
 .agents/scratchpad/
+*.local.*
 
 ########################################
 ## JetBrains IDEs

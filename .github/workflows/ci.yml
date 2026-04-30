@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 jobs:
@@ -67,12 +67,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # verify:changelog needs full history to diff against base branch
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - if: runner.os != 'Windows'
+        run: pnpm install --frozen-lockfile
+      - if: runner.os == 'Windows'
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm --filter ${{ matrix.package.name }} --if-present test
       - run: pnpm --filter ${{ matrix.package.name }} --if-present typecheck
       - if: github.event_name == 'pull_request'

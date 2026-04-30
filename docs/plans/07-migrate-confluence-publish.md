@@ -200,7 +200,7 @@ cat apps/claude-code/confluence-publish/.claude-plugin/plugin.json | grep '"name
 ## Acceptance criteria
 
 - [ ] `apps/claude-code/confluence-publish/` exists with original commit history
-- [ ] `plugin.json` has `"name": "confluence-publish"` and version `"2.4.2"`
+- [ ] `plugin.json` has `"name": "confluence-publish"` and version `"2.1.6"` (see Deviations)
 - [ ] `marketplace.json` has `"name": "confluence-publish"`
 - [ ] `package.json` uses `unic-bump` etc.
 - [ ] Per-repo tooling files deleted

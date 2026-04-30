@@ -19,6 +19,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+## [0.5.7] — 2026-04-30
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- Fix biome stub path in tests on Windows: backslashes in temp-dir paths were being mangled as JS escape sequences when embedded in the stub script string literal; now normalised to forward slashes before embedding
+
+## [0.5.6] — 2026-04-30
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- (none)
+
+### Changed
+
+- Removed `scripts/verify-changelog.mjs` (dead code — superseded by the monorepo `unic-verify-changelog` binary)
+
 ## [0.5.5] — 2026-04-29
 
 ### Breaking

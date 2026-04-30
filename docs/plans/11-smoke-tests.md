@@ -105,6 +105,9 @@ Executed on macOS 2026-04-29.
 - None. No checklist items could be executed locally because all items require a live marketplace URL (the GitHub repo must be published first).
 
 **Pending CI / pending live environment:**
-- All checklist items are annotated "pending CI — requires live marketplace URL" in `docs/process/smoke-test-checklist.md`. Every marketplace, install, run, and uninstall step depends on the GitHub repo being live (spec 12). Windows items additionally require the CI matrix runner. These will be validated when spec 12 cuts the first releases and publishes the repo.
+- All checklist items depended on the GitHub repo being live. The repo was private at the time of the initial spec execution (2026-04-29).
 
-**Issues found:** None. The checklist file is well-formed and covers all three plugins. All items are annotated with their blocking dependency.
+**Issues found:** None. The checklist file is well-formed and covers all three plugins.
+
+**Update — 2026-04-30:**
+GitHub repo is now public at `https://github.com/unic/unic-agents-plugins`. Checklist updated with the real marketplace URL (placeholder removed). All items still need to be checked off manually in a scratch Claude Code environment — none have been executed yet.

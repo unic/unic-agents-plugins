@@ -79,7 +79,7 @@ Plugin packages will need a shared TypeScript base config for `tsc --checkJs --n
 ```sh
 pnpm install            # exits 0
 pnpm typecheck          # exits 0
-node -e "import('@unic/tsconfig/tsconfig.base.json', { assert: { type: 'json' } }).then(m => console.log(m.default.compilerOptions.target))"
+node -e "import('@unic/tsconfig/tsconfig.base.json', { with: { type: 'json' } }).then(m => console.log(m.default.compilerOptions.target))"
 # prints: ES2022
 ```
 
@@ -101,7 +101,7 @@ node -e "import('@unic/tsconfig/tsconfig.base.json', { assert: { type: 'json' } 
 The spec's verification command uses the `assert` import attribute syntax:
 
 ```sh
-node -e "import('@unic/tsconfig/tsconfig.base.json', { assert: { type: 'json' } })..."
+node -e "import('@unic/tsconfig/tsconfig.base.json', { with: { type: 'json' } })..."
 ```
 
 Node 24 requires `with` instead of `assert` (the `assert` form throws `ERR_IMPORT_ATTRIBUTE_MISSING`). The package works correctly; the verification was run with `{ with: { type: 'json' } }` and printed `ES2022` as expected.

@@ -261,7 +261,7 @@ test('exits 0 and skips .claude/worktrees/ path', () => {
 test('uses Biome when biome.json and biome binary are present', () => {
 	const dir = makeConsumer((d) => {
 		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
-		const stubScript = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called')}', '1')\n`
+		const stubScript = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called').replace(/\\/g, '/')}', '1')\n`
 		writeFileSync(join(d, 'node_modules', '.bin', 'biome'), stubScript, { mode: 0o755 })
 		writeFileSync(join(d, 'biome.json'), '{"$schema":"https://biomejs.dev/schemas/2.4.0/schema.json"}\n')
 		writeFileSync(join(d, 'test.ts'), 'const x = 1\n')
@@ -278,7 +278,7 @@ test('uses Biome when biome.json and biome binary are present', () => {
 test('does not use Biome for .md even when Biome is detected', () => {
 	const dir = makeConsumer((d) => {
 		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
-		const biomeStub = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called')}', '1')\n`
+		const biomeStub = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called').replace(/\\/g, '/')}', '1')\n`
 		writeFileSync(join(d, 'node_modules', '.bin', 'biome'), biomeStub, { mode: 0o755 })
 		writeFileSync(join(d, 'biome.json'), '{}')
 		writeFileSync(join(d, 'README.md'), '# hello\n')
@@ -295,7 +295,7 @@ test('does not use Biome for .md even when Biome is detected', () => {
 test('respects formatter: "prettier" override even when Biome is detected', () => {
 	const dir = makeConsumer((d) => {
 		mkdirSync(join(d, 'node_modules', '.bin'), { recursive: true })
-		const biomeStub = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called')}', '1')\n`
+		const biomeStub = `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync('${join(d, '.biome-called').replace(/\\/g, '/')}', '1')\n`
 		writeFileSync(join(d, 'node_modules', '.bin', 'biome'), biomeStub, { mode: 0o755 })
 		writeFileSync(join(d, 'biome.json'), '{}')
 		mkdirSync(join(d, '.claude'))
