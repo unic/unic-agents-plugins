@@ -1,6 +1,6 @@
 {
   "name": "unic-confluence",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "Publish markdown files to Confluence pages via the Confluence v2 API.",
   "author": {
     "name": "Unic AG",
