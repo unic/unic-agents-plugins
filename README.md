@@ -4,11 +4,11 @@ A monorepo of AI agent plugins developed at Unic. Currently hosts Claude Code pl
 
 ## Plugins
 
-| Plugin                                                       | Agent       | Description                            |
-| ------------------------------------------------------------ | ----------- | -------------------------------------- |
-| [`pr-review`](apps/claude-code/pr-review/)                   | Claude Code | Review Azure DevOps pull requests      |
-| [`auto-format`](apps/claude-code/auto-format/)               | Claude Code | Auto-format and lint files after edits |
-| [`unic-confluence`](apps/claude-code/unic-confluence/)       | Claude Code | Publish Markdown files to Confluence   |
+| Plugin                                                 | Agent       | Description                            |
+| ------------------------------------------------------ | ----------- | -------------------------------------- |
+| [`pr-review`](apps/claude-code/pr-review/)             | Claude Code | Review Azure DevOps pull requests      |
+| [`auto-format`](apps/claude-code/auto-format/)         | Claude Code | Auto-format and lint files after edits |
+| [`unic-confluence`](apps/claude-code/unic-confluence/) | Claude Code | Publish Markdown files to Confluence   |
 
 ## Installing plugins (Claude Code)
 
