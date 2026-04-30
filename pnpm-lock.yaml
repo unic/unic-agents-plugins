@@ -70,7 +70,16 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
-  apps/claude-code/confluence-publish:
+  apps/claude-code/pr-review:
+    devDependencies:
+      '@ralph-orchestrator/ralph-cli':
+        specifier: 'catalog:'
+        version: 2.9.2
+      '@unic/release-tools':
+        specifier: workspace:*
+        version: link:../../../packages/release-tools
+
+  apps/claude-code/unic-confluence:
     dependencies:
       marked:
         specifier: 17.0.5
@@ -91,15 +100,6 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.8.3
-
-  apps/claude-code/pr-review:
-    devDependencies:
-      '@ralph-orchestrator/ralph-cli':
-        specifier: 'catalog:'
-        version: 2.9.2
-      '@unic/release-tools':
-        specifier: workspace:*
-        version: link:../../../packages/release-tools
 
   packages/biome-config: {}
 
