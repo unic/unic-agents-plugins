@@ -22,11 +22,12 @@
 
 ### Added
 
-- (none)
+- Added `displayName`, `homepage`, `tags`, and `keywords` to `marketplace.json`; enriched `plugin.json` with `author.url` and `homepage` to satisfy Anthropic marketplace schema
+- Updated README install instructions to use the monorepo marketplace URL and `pr-review@unic` identifier; replaced git-URL-based install option with marketplace CLI approach
 
 ### Fixed
 
-- Enhance marketplace plugins with updated metadata and descriptions according to Anthropic guidelines
+- Removed duplicate `🟡 Minor / Suggestions` and `✅ What's good` template blocks from the summary comment template in `review-pr.md`
 
 ## [0.1.1] — 2026-04-29
 
