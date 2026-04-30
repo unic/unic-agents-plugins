@@ -67,6 +67,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # verify:changelog needs full history to diff against base branch
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
