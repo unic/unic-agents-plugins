@@ -20,7 +20,7 @@ packages/
 ├── tsconfig/                 # @unic/tsconfig
 └── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
 docs/
-└── plans/                    # Monorepo-level Ralph spec roadmap (specs 00–13)
+└── plans/                    # Monorepo-level Ralph spec roadmap (specs 00–14)
 ```
 
 Each plugin under `apps/<agent>/` also has its own `docs/plans/` for plugin-specific future work.
@@ -41,7 +41,7 @@ pnpm format                             # Biome + Prettier fix (whole tree)
 pnpm ci:check                           # same as check, non-interactive (for CI)
 pnpm test                               # run tests across all packages
 pnpm typecheck                          # type-check across all packages
-pnpm ralph                              # run the monorepo Ralph loop (specs 00–13)
+pnpm ralph                              # run the monorepo Ralph loop (specs 00–14)
 
 # Per-plugin operations (after spec 03 sets up release-tools)
 pnpm --filter <name> bump patch         # bump plugin version
@@ -74,11 +74,40 @@ Every plugin must work on **macOS, Windows, and Linux**. Use Node.js APIs (`node
 
 Plugins are versioned independently. `plugin.json` is the source of truth. Use `pnpm --filter <name> bump <patch|minor|major>` — never hand-edit `marketplace.json`.
 
-Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.9`).
+Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
 
 ## Conventional commits
 
 Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(spec-NN): …`.
+
+## Git branching (Gitflow)
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production. Only receives merge commits from `develop` (or `hotfix/*`). The release workflow fires here and creates tags. |
+| `develop` | Integration. Default target for all feature PRs. CI runs on every push and PR. |
+| `feature/<name>` | Day-to-day work. Branch from `develop`, PR back to `develop`. |
+| `hotfix/<name>` | Urgent fixes only. Branch from `main`, PR to both `main` and `develop`. |
+
+**Never commit directly to `main` or `develop`.** Always go through a PR.
+
+## Release flow
+
+To ship a new plugin version:
+
+1. On a feature branch, bump the version: `pnpm --filter <name> bump <patch|minor|major>`
+2. Add a dated entry to the plugin's `CHANGELOG.md` under the new version.
+3. Open a PR targeting `develop`. CI runs `verify:changelog` on all PRs — it will fail if the changelog entry is missing or malformed.
+4. After the PR merges to `develop`, open a release PR from `develop` → `main`.
+5. After the release PR merges, the release workflow on `main` detects that `<name>@<version>` has no tag yet and creates it automatically.
+
+**CI summary:**
+
+| Event | Root checks | Package tests | `verify:changelog` |
+|-------|-------------|--------------|-------------------|
+| PR (any branch) | ✓ | ✓ (changed packages) | ✓ |
+| Push to `develop` | ✓ | ✓ (changed packages) | — |
+| Push to `main` | ✓ | ✓ (changed packages) | — |
 
 ## Spec-driven development
 
