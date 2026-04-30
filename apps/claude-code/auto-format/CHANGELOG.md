@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+### Changed
+
+- Removed `scripts/verify-changelog.mjs` (dead code — superseded by the monorepo `unic-verify-changelog` binary)
+
 ## [0.5.5] — 2026-04-29
 
 ### Breaking
