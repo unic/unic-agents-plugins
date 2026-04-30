@@ -42,7 +42,7 @@ Variables to extract:
 - `ORG_URL` = `https://dev.azure.com/{org}`
 - `PR_ID` = `{id}`
 
-**GitHub URLs** (`https://github.com/...`) are not supported in v0.1.0 — tell the user and stop.
+**GitHub URLs** (`https://github.com/...`) are not supported — tell the user and stop.
 
 If no URL provided, run `az repos pr list --status active --output table` to help them pick one.
 
