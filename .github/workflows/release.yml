@@ -27,6 +27,12 @@ jobs:
 
             current=$(node -p "JSON.parse(require('fs').readFileSync('$json_path','utf8')).version")
             name=$(node -p "JSON.parse(require('fs').readFileSync('$json_path','utf8')).name")
+
+            if [ -z "$current" ] || [ "$current" = "undefined" ] || [ -z "$name" ] || [ "$name" = "undefined" ]; then
+              echo "Invalid plugin metadata in $json_path: name='$name', version='$current'"
+              exit 1
+            fi
+
             tag="${name}@${current}"
 
             if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
