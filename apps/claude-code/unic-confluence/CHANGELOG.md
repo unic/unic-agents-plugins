@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- (none)
+
+## [3.0.0] — 2026-04-30
+
+### Breaking
+
 - Plugin renamed from `confluence-publish` to `unic-confluence`; update `enabledPlugins` in `settings.json` from `"confluence-publish@unic": true` to `"unic-confluence@unic": true` and reinstall the plugin
 - Command file renamed from `confluence-publish.md` to `unic-confluence.md`; the slash command is now `/unic-confluence:unic-confluence`
 
