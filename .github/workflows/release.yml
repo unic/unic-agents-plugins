@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # need HEAD and HEAD~1 to diff
+          fetch-depth: 0  # need all tags to detect existing releases
 
       - name: Detect version changes and tag
         env:
@@ -26,14 +26,13 @@ jobs:
             if [ ! -f "$json_path" ]; then return; fi
 
             current=$(node -p "JSON.parse(require('fs').readFileSync('$json_path','utf8')).version")
-            previous=$(git show HEAD~1:"$json_path" 2>/dev/null \
-              | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version" \
-              || echo "")
-
-            if [ "$current" = "$previous" ]; then return; fi
-
             name=$(node -p "JSON.parse(require('fs').readFileSync('$json_path','utf8')).name")
             tag="${name}@${current}"
+
+            if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+              echo "Tag $tag already exists, skipping"
+              return
+            fi
 
             echo "Tagging $tag"
             if [ "$SIGN_TAGS" = "true" ]; then

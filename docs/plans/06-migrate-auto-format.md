@@ -184,7 +184,7 @@ cat apps/claude-code/auto-format/.claude-plugin/plugin.json | grep '"name"'
 ## Acceptance criteria
 
 - [ ] `apps/claude-code/auto-format/` exists with original commit history
-- [ ] `plugin.json` has `"name": "auto-format"` and version `"0.5.9"`
+- [ ] `plugin.json` has `"name": "auto-format"` and version `"0.5.5"` (see Deviations)
 - [ ] `marketplace.json` has `"name": "auto-format"`
 - [ ] `package.json` uses `unic-bump` etc. (no local release script paths)
 - [ ] Per-repo tooling files (`.editorconfig`, `.nvmrc`, `pnpm-workspace.yaml`, `.github/`, etc.) deleted

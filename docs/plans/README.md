@@ -20,8 +20,9 @@ Individual plugins have their own `docs/plans/` for plugin-specific development.
 | 09 | [ci-workflow](09-ci-workflow.md) | `.github/workflows/ci.yml` — path-filtered matrix (3 OS × 2 Node) | 08 |
 | 10 | [release-workflow](10-release-workflow.md) | `.github/workflows/release.yml` — per-plugin version-diff tagging | 09 |
 | 11 | [smoke-tests](11-smoke-tests.md) | Cross-platform install and run validation | 10 |
-| 12 | [first-releases](12-first-releases.md) | Cut `pr-review@0.1.1`, `auto-format@0.5.9`, `confluence-publish@2.4.2` | 11 |
+| 12 | [first-releases](12-first-releases.md) | Cut `pr-review@0.1.1`, `auto-format@0.5.5`, `confluence-publish@2.1.6` | 11 |
 | 13 | [archive-old-repos](13-archive-old-repos.md) | Final CHANGELOG entries; archive old GitHub repos | 12 |
+| 14 | [fix-release-workflow](14-fix-release-workflow.md) | Fix tag detection to use tag-existence check instead of HEAD~1 diff | 12 |
 
 ## SemVer policy (per plugin)
 
