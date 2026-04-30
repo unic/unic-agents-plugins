@@ -12,18 +12,18 @@ A monorepo of AI agent plugins developed at Unic. Currently hosts Claude Code pl
 
 ## Installing plugins (Claude Code)
 
-Add the Unic marketplace once:
+Add the Unic marketplace once (run inside `claude`):
 
-```sh
-claude marketplace add https://github.com/unic/unic-agents-plugins
+```
+/plugin marketplace add https://github.com/unic/unic-agents-plugins
 ```
 
 Then install individual plugins:
 
-```sh
-claude plugins install pr-review
-claude plugins install auto-format
-claude plugins install unic-confluence
+```
+/plugin install pr-review@unic-agent-plugins
+/plugin install auto-format@unic-agent-plugins
+/plugin install unic-confluence@unic-agent-plugins
 ```
 
 ## Development
