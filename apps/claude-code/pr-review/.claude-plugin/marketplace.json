@@ -21,7 +21,7 @@
       "name": "pr-review",
       "source": "./",
       "tags": ["code-quality", "azure-devops"],
-      "version": "0.1.1"
+      "version": "0.1.2"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "pr-review",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Review Azure DevOps pull requests with multi-agent analysis and post threaded comments back to the PR.",
   "author": {
     "name": "Unic AG",
