@@ -77,7 +77,7 @@ jobs:
       - if: runner.os != 'Windows'
         run: pnpm install --frozen-lockfile
       - if: runner.os == 'Windows'
-        run: pnpm install --frozen-lockfile --no-optional
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm --filter ${{ matrix.package.name }} --if-present test
       - run: pnpm --filter ${{ matrix.package.name }} --if-present typecheck
       - if: github.event_name == 'pull_request'
