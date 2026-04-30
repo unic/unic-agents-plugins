@@ -8,7 +8,7 @@ A monorepo of AI agent plugins developed at Unic. Currently hosts Claude Code pl
 | ------------------------------------------------------------ | ----------- | -------------------------------------- |
 | [`pr-review`](apps/claude-code/pr-review/)                   | Claude Code | Review Azure DevOps pull requests      |
 | [`auto-format`](apps/claude-code/auto-format/)               | Claude Code | Auto-format and lint files after edits |
-| [`confluence-publish`](apps/claude-code/confluence-publish/) | Claude Code | Publish Markdown files to Confluence   |
+| [`unic-confluence`](apps/claude-code/unic-confluence/)       | Claude Code | Publish Markdown files to Confluence   |
 
 ## Installing plugins (Claude Code)
 
@@ -23,7 +23,7 @@ Then install individual plugins:
 ```sh
 claude plugins install pr-review
 claude plugins install auto-format
-claude plugins install confluence-publish
+claude plugins install unic-confluence
 ```
 
 ## Development

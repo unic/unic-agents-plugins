@@ -37,8 +37,8 @@ jobs:
               - 'apps/claude-code/pr-review/**'
             auto-format:
               - 'apps/claude-code/auto-format/**'
-            confluence-publish:
-              - 'apps/claude-code/confluence-publish/**'
+            unic-confluence:
+              - 'apps/claude-code/unic-confluence/**'
             release-tools:
               - 'packages/release-tools/**'
 
@@ -47,7 +47,7 @@ jobs:
     needs: changes
     if: |
       needs.changes.outputs.auto-format == 'true' ||
-      needs.changes.outputs.confluence-publish == 'true' ||
+      needs.changes.outputs.unic-confluence == 'true' ||
       needs.changes.outputs.release-tools == 'true'
     strategy:
       fail-fast: false
@@ -57,8 +57,8 @@ jobs:
         package:
           - name: auto-format
             changed: ${{ needs.changes.outputs.auto-format }}
-          - name: confluence-publish
-            changed: ${{ needs.changes.outputs.confluence-publish }}
+          - name: unic-confluence
+            changed: ${{ needs.changes.outputs.unic-confluence }}
           - name: release-tools
             changed: ${{ needs.changes.outputs.release-tools }}
         exclude:

@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "marked": "17.0.5"
+  },
+  "devDependencies": {
+    "@ralph-orchestrator/ralph-cli": "catalog:",
+    "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "license": "LGPL-3.0-or-later",
+  "name": "unic-confluence",
+  "packageManager": "pnpm@10.33.0",
+  "private": true,
+  "scripts": {
+    "bump": "unic-bump",
+    "confluence": "node scripts/push-to-confluence.mjs",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs scripts/lib/slug.test.mjs scripts/lib/pages-file.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "verify:changelog": "unic-verify-changelog"
+  },
+  "type": "module",
+  "version": "2.1.7"
+}
