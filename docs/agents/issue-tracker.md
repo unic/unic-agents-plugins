@@ -16,4 +16,4 @@ Create a new file under `docs/issues/<feature-slug>/` (creating the directory if
 
 ## When a skill says "fetch the relevant ticket"
 
-Read the file at the referenced path. The user will normally pass the path or the issue number directly.
+Read the file at the referenced path. The user will normally pass the full path (e.g. `docs/issues/<feature-slug>/<NN>-<slug>.md`). Issue numbers are scoped per feature directory, not globally unique — always use the full path to locate a file unambiguously.

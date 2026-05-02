@@ -150,4 +150,4 @@ Issues live as local markdown files under `docs/issues/`. See `docs/agents/issue
 
 ### Domain docs
 
-Multi-context repo — `CONTEXT-MAP.md` at root points to per-plugin `CONTEXT.md` files. See `docs/agents/domain.md`.
+Multi-context repo: Per-plugin `CONTEXT.md` files (created lazily by `/grill-with-docs`) live under `apps/claude-code/<plugin>/`. A root `CONTEXT-MAP.md` may be added later. See `docs/agents/domain.md`.

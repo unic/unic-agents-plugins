@@ -8,6 +8,7 @@ const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 /** @type {Array<{ prefix: string; filter: string }>} */
 const PACKAGES = [
 	{ prefix: 'apps/claude-code/auto-format/', filter: 'auto-format' },
+	{ prefix: 'apps/claude-code/unic-confluence/', filter: 'unic-confluence' },
 	{ prefix: 'packages/release-tools/', filter: '@unic/release-tools' },
 ]
 
