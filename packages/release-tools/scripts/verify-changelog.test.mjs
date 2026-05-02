@@ -6,9 +6,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
-const script = new URL('./verify-changelog.mjs', import.meta.url).pathname
-const projectRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+const script = fileURLToPath(new URL('./verify-changelog.mjs', import.meta.url))
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /**
  * Run the verify script with controlled env.

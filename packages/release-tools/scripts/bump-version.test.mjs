@@ -6,8 +6,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
-const script = new URL('./bump-version.mjs', import.meta.url).pathname
+const script = fileURLToPath(new URL('./bump-version.mjs', import.meta.url))
 
 /**
  * @param {string[]} args
