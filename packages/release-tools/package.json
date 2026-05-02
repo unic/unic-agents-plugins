@@ -11,7 +11,7 @@
     "unic-verify-changelog": "./scripts/verify-changelog.mjs"
   },
   "scripts": {
-    "test": "node --test scripts/verify-changelog.test.mjs"
+    "test": "node --test scripts/verify-changelog.test.mjs scripts/bump-version.test.mjs scripts/sync-version.test.mjs"
   },
   "devDependencies": {
     "@types/node": "catalog:",
