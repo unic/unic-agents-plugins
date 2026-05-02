@@ -4,7 +4,9 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { CliError } from './lib/errors.mjs'
+import { isWindows } from './lib/platform.mjs'
 
 try {
 	const root = process.cwd()
@@ -23,7 +25,7 @@ try {
 
 	// Safety sync before tagging (idempotent). Assert success — a failed sync
 	// means plugin.json and marketplace.json are out of sync; do not tag.
-	const syncScript = new URL('./sync-version.mjs', import.meta.url).pathname
+	const syncScript = fileURLToPath(new URL('./sync-version.mjs', import.meta.url))
 	const syncResult = spawnSync('node', [syncScript], { stdio: 'inherit' })
 	if (syncResult.status !== 0) {
 		throw new CliError(`tag: sync-version failed (exit ${syncResult.status ?? 'unknown'}) — fix before tagging`)
@@ -32,7 +34,7 @@ try {
 	const sign = Boolean(process.env.UNIC_SIGN_TAGS)
 	const tagName = `${name}@${version}`
 	const tagArgs = sign ? ['tag', '-s', tagName, '-m', `Release ${tagName}`] : ['tag', tagName]
-	const tagResult = spawnSync('git', tagArgs, { stdio: 'inherit' })
+	const tagResult = spawnSync('git', tagArgs, { stdio: 'inherit', shell: isWindows })
 	if (tagResult.status !== 0) {
 		throw new CliError(
 			`tag: git tag failed — ${tagName} may already exist, or GPG key not configured (UNIC_SIGN_TAGS=${sign})`

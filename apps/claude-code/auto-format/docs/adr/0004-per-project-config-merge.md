@@ -8,7 +8,7 @@ Some projects need to disable specific formatters or file extensions. Without an
 
 ## Decision
 
-The plugin reads an optional `.claude-auto-format.json` (or equivalent key in `package.json`) in the consumer project root. Settings in this file merge over the plugin defaults, allowing users to opt out of specific tools or add extension sets without modifying the plugin.
+The plugin reads an optional `.claude/unic-format.json` in the consumer project root. Settings in this file merge over the plugin defaults, allowing users to opt out of specific tools or add extension sets without modifying the plugin.
 
 ## Consequences
 

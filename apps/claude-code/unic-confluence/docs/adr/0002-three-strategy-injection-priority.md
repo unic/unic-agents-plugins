@@ -10,7 +10,7 @@ Authors need different levels of precision when placing Markdown content into a 
 
 The injection engine tries three strategies in priority order:
 
-1. **Plain markers** (`<!-- confluence:start -->` / `<!-- confluence:end -->`): highest precision; replaces exactly the bounded section.
+1. **Plain markers** (`[AUTO_INSERT_START: label]` / `[AUTO_INSERT_END: label]`): highest precision; replaces exactly the bounded section.
 2. **Anchor macros**: places content relative to a named Confluence anchor macro.
 3. **Append**: appends to the end of the page as a last resort.
 

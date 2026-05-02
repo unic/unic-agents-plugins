@@ -68,9 +68,18 @@ function runVerify({ changelog, changedFiles }) {
 		writeFileSync(fakeGit, `#!/bin/sh\nif [ "$1" = "diff" ]; then\n  cat "${outputFile}"\n  exit 0\nfi\nexit 1\n`, {
 			mode: 0o755,
 		})
+		// Windows: .cmd wrapper so cmd.exe finds the fake git (git.cmd is tried when shell: isWindows)
+		const outputFileWin = outputFile.replace(/\\/g, '\\\\')
+		writeFileSync(
+			path.join(tmpDir, 'git.cmd'),
+			`@echo off\nif "%1"=="diff" (\n  type "${outputFileWin}"\n  exit /b 0\n)\nexit /b 1\n`
+		)
+		// On Windows, PATH may be stored as 'Path'; use the same key to avoid duplicates
+		const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+		const newPath = [tmpDir, process.env[pathKey]].filter(Boolean).join(path.delimiter)
 		const result = spawnSync('node', [script], {
 			encoding: 'utf8',
-			env: { ...process.env, PATH: `${tmpDir}:${process.env.PATH}`, CI: 'false' },
+			env: { ...process.env, [pathKey]: newPath, CI: 'false' },
 		})
 		return {
 			exitCode: result.status ?? 1,

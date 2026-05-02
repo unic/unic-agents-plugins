@@ -8,7 +8,7 @@ Publishing to Confluence without placement markers would silently overwrite hand
 
 ## Decision
 
-The publish script refuses to process a Markdown file that contains no placement markers (e.g. `<!-- confluence:start -->` / `<!-- confluence:end -->`). To overwrite an entire page unconditionally, the caller must pass `--replace-all` explicitly.
+The publish script refuses to process a Markdown file that contains no placement markers (e.g. `[AUTO_INSERT_START: label]` / `[AUTO_INSERT_END: label]`). To overwrite an entire page unconditionally, the caller must pass `--replace-all` explicitly.
 
 ## Consequences
 
