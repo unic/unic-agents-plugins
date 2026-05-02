@@ -1,5 +1,5 @@
 # 15. Release Tools Test Coverage
-**Status: open**
+**Status: done — 2026-05-02**
 
 **Priority:** P1
 **Effort:** S
