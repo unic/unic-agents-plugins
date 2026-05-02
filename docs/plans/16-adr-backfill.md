@@ -1,4 +1,5 @@
 # 16. Back-fill ADRs from existing specs and tooling
+**Status: done — 2026-05-02**
 
 **Priority:** P2
 **Effort:** L
