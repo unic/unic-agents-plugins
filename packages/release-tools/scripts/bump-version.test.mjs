@@ -28,10 +28,12 @@ function run(args, cwd, extraEnv = {}) {
 function makeTmpDir() {
 	const tmpDir = mkdtempSync(path.join(tmpdir(), 'bv-test-'))
 	mkdirSync(path.join(tmpDir, '.claude-plugin'), { recursive: true })
-	const pathParts = [tmpDir, process.env.PATH].filter(Boolean)
+	// On Windows, PATH may be stored as 'Path'; use the same key to avoid duplicates
+	const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+	const pathParts = [tmpDir, process.env[pathKey]].filter(Boolean)
 	return {
 		tmpDir,
-		env: { PATH: pathParts.join(path.delimiter) },
+		env: { [pathKey]: pathParts.join(path.delimiter) },
 		cleanup: () => rmSync(tmpDir, { recursive: true, force: true }),
 	}
 }

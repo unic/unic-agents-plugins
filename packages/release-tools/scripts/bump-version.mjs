@@ -4,6 +4,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { CliError } from './lib/errors.mjs'
 import { isWindows, pnpmBin } from './lib/platform.mjs'
 
@@ -15,7 +16,7 @@ try {
 		throw new CliError('Usage: pnpm bump <patch|minor|major>')
 	}
 
-	const statusResult = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8' })
+	const statusResult = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8', shell: isWindows })
 	if (statusResult.status !== 0) {
 		throw new CliError(`bump: could not run git status (exit ${statusResult.status ?? 'unknown'})`)
 	}
@@ -89,7 +90,7 @@ try {
 	)
 	writeFileSync(changelogPath, newChangelog, 'utf8')
 
-	const syncScript = new URL('./sync-version.mjs', import.meta.url).pathname
+	const syncScript = fileURLToPath(new URL('./sync-version.mjs', import.meta.url))
 	const syncResult = spawnSync('node', [syncScript], { stdio: 'inherit' })
 	if (syncResult.status !== 0) {
 		throw new CliError(`bump: sync-version failed (exit ${syncResult.status ?? 'unknown'})`)
