@@ -835,7 +835,7 @@ Some projects need to disable specific formatters or file extensions. Without an
 
 ## Decision
 
-The plugin reads an optional `.claude-auto-format.json` (or equivalent key in `package.json`) in the consumer project root. Settings in this file merge over the plugin defaults, allowing users to opt out of specific tools or add extension sets without modifying the plugin.
+The plugin reads an optional `.claude/unic-format.json` in the consumer project root. Settings in this file merge over the plugin defaults, allowing users to opt out of specific tools or add extension sets without modifying the plugin.
 
 ## Consequences
 
@@ -1157,7 +1157,7 @@ Authors need different levels of precision when placing Markdown content into a 
 
 The injection engine tries three strategies in priority order:
 
-1. **Plain markers** (`<!-- confluence:start -->` / `<!-- confluence:end -->`): highest precision; replaces exactly the bounded section.
+1. **Plain markers** (`[AUTO_INSERT_START: label]` / `[AUTO_INSERT_END: label]`): highest precision; replaces exactly the bounded section.
 2. **Anchor macros**: places content relative to a named Confluence anchor macro.
 3. **Append**: appends to the end of the page as a last resort.
 

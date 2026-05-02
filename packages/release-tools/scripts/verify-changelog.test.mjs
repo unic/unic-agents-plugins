@@ -68,7 +68,7 @@ function runVerify({ changelog, changedFiles }) {
 		writeFileSync(fakeGit, `#!/bin/sh\nif [ "$1" = "diff" ]; then\n  cat "${outputFile}"\n  exit 0\nfi\nexit 1\n`, {
 			mode: 0o755,
 		})
-		// Windows: .cmd wrapper so cmd.exe finds the fake git (git.cmd is tried when shell: isWindows)
+		// Windows: .cmd wrapper found via PATHEXT resolution (no shell required)
 		const outputFileWin = outputFile.replace(/\\/g, '\\\\')
 		writeFileSync(
 			path.join(tmpDir, 'git.cmd'),

@@ -1,6 +1,6 @@
 # Architectural Decision Records
 
-Back-filled from existing specs and tooling in 2025-05. Format: MADR-lite.
+Back-filled from existing specs and tooling in 2026-05. Format: MADR-lite.
 
 ## Format
 

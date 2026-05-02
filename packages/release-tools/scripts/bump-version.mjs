@@ -16,7 +16,7 @@ try {
 		throw new CliError('Usage: pnpm bump <patch|minor|major>')
 	}
 
-	const statusResult = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8', shell: isWindows })
+	const statusResult = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8' })
 	if (statusResult.status !== 0) {
 		throw new CliError(`bump: could not run git status (exit ${statusResult.status ?? 'unknown'})`)
 	}
