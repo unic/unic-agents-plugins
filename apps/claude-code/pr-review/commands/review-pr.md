@@ -1,7 +1,7 @@
 ---
-allowed-tools: ["Agent", "Bash", "Read", "Write", "Grep", "Glob"]
-argument-hint: "<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]"
-description: "Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR"
+allowed-tools: ['Agent', 'Bash', 'Read', 'Write', 'Grep', 'Glob']
+argument-hint: '<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]'
+description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR'
 ---
 
 # Azure DevOps PR Review
