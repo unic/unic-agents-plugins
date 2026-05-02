@@ -10,6 +10,7 @@
 
 # Generated / lock files
 pnpm-lock.yaml
+skills-lock.json
 
 # Dev artifacts
 node_modules/
@@ -21,3 +22,4 @@ docs/plans/
 apps/claude-code/pr-review/docs/plans/
 apps/claude-code/auto-format/docs/plans/
 apps/claude-code/unic-confluence/docs/plans/
+.agents/skills/
