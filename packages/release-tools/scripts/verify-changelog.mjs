@@ -4,6 +4,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { gitCmd } from './lib/platform.mjs'
 
 const root = process.cwd()
 
@@ -22,7 +23,8 @@ const GUARDED = [
  * @returns {{ stdout: string, status: number }}
  */
 function git(...args) {
-	const result = spawnSync('git', args, { encoding: 'utf8', cwd: root })
+	const [cmd, ...spawnArgs] = gitCmd(args)
+	const result = spawnSync(cmd, spawnArgs, { encoding: 'utf8', cwd: root })
 	return { stdout: result.stdout ?? '', status: result.status ?? 1 }
 }
 

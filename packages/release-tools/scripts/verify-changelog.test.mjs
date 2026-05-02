@@ -53,6 +53,7 @@ function validChangelog() {
 
 /**
  * Run verify-changelog.mjs with controlled CHANGELOG content and changed files.
+ * Uses a Node.js CJS shim as a cross-platform fake git (no shell required).
  * @param {{ changelog: string, changedFiles: string[] }} opts
  * @returns {{ exitCode: number, stdout: string, stderr: string }}
  */
@@ -62,24 +63,25 @@ function runVerify({ changelog, changedFiles }) {
 	const tmpDir = mkdtempSync(path.join(tmpdir(), 'vc-test-'))
 	writeFileSync(changelogPath, changelog, 'utf8')
 	try {
-		const outputFile = path.join(tmpDir, 'diff.txt')
-		writeFileSync(outputFile, changedFiles.join('\n'), 'utf8')
-		const fakeGit = path.join(tmpDir, 'git')
-		writeFileSync(fakeGit, `#!/bin/sh\nif [ "$1" = "diff" ]; then\n  cat "${outputFile}"\n  exit 0\nfi\nexit 1\n`, {
-			mode: 0o755,
-		})
-		// Windows: .cmd wrapper found via PATHEXT resolution (no shell required)
-		const outputFileWin = outputFile.replace(/\\/g, '\\\\')
+		const diffFile = path.join(tmpDir, 'diff.txt')
+		writeFileSync(diffFile, changedFiles.join('\n'), 'utf8')
+		const shimPath = path.join(tmpDir, 'fake-git.cjs')
 		writeFileSync(
-			path.join(tmpDir, 'git.cmd'),
-			`@echo off\nif "%1"=="diff" (\n  type "${outputFileWin}"\n  exit /b 0\n)\nexit /b 1\n`
+			shimPath,
+			[
+				"const { readFileSync } = require('node:fs')",
+				'const cmd = process.argv[2]',
+				"if (cmd === 'diff') {",
+				'  const f = process.env._GIT_DIFF_FILE',
+				"  if (f) process.stdout.write(readFileSync(f, 'utf8'))",
+				'  process.exit(0)',
+				'}',
+				'process.exit(1)',
+			].join('\n')
 		)
-		// On Windows, PATH may be stored as 'Path'; use the same key to avoid duplicates
-		const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
-		const newPath = [tmpDir, process.env[pathKey]].filter(Boolean).join(path.delimiter)
 		const result = spawnSync('node', [script], {
 			encoding: 'utf8',
-			env: { ...process.env, [pathKey]: newPath, CI: 'false' },
+			env: { ...process.env, _GIT_BIN: shimPath, _GIT_DIFF_FILE: diffFile, CI: 'false' },
 		})
 		return {
 			exitCode: result.status ?? 1,

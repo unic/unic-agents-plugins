@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CliError } from './lib/errors.mjs'
+import { gitCmd } from './lib/platform.mjs'
 
 try {
 	const root = process.cwd()
@@ -33,7 +34,8 @@ try {
 	const sign = Boolean(process.env.UNIC_SIGN_TAGS)
 	const tagName = `${name}@${version}`
 	const tagArgs = sign ? ['tag', '-s', tagName, '-m', `Release ${tagName}`] : ['tag', tagName]
-	const tagResult = spawnSync('git', tagArgs, { stdio: 'inherit' })
+	const [gitExe, ...tagSpawnArgs] = gitCmd(tagArgs)
+	const tagResult = spawnSync(gitExe, tagSpawnArgs, { stdio: 'inherit' })
 	if (tagResult.status !== 0) {
 		throw new CliError(
 			`tag: git tag failed — ${tagName} may already exist, or GPG key not configured (UNIC_SIGN_TAGS=${sign})`
