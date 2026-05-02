@@ -10,7 +10,7 @@
 
 ## Context
 
-Each prior Claude Code thread must be tagged so Step 10 knows whether to reply, ignore, or escalate.
+Each prior bot thread must be tagged so Step 10 knows whether to reply, skip, or auto-resolve. Classification uses ADO thread status as the primary signal and diff-hunk intersection as a secondary signal. No comment-text analysis is performed.
 
 ## Current behaviour
 
@@ -20,45 +20,58 @@ Threads are not classified.
 
 For every thread in `PRIOR_THREADS`, compute one of:
 
-- `addressed` — the file/line still exists in the new diff but the originally flagged code is gone (heuristic: original anchor line no longer matches the snippet quoted in the bot comment).
-- `disputed` — author replied in the thread (any comment whose `author.uniqueName` differs from the bot identity used by the plugin).
-- `pending` — neither addressed nor disputed; line still shows the same code.
-- `obsolete` — file no longer in PR diff at all (deleted upstream or excluded).
+- `addressed` — ADO thread `status` is not `active` (i.e. `fixed`, `wontFix`, `closed`, or `byDesign`), **OR** the thread `status` is `active` and the thread's line range intersects a changed hunk in the incremental diff (spec 03).
+- `disputed` — `status` is `active` AND at least one comment in the thread does not contain the signature prefix `🤖 *Reviewed by Claude Code*`.
+- `pending` — `status` is `active` AND no comment in the thread lacks the signature prefix (i.e. only bot comments present).
+- `obsolete` — the thread's `filePath` does not appear in the PR diff at all (or `filePath` is null and the thread is not the summary thread).
 
-Author identity check uses the `createdBy.displayName` / `createdBy.uniqueName` fields from `pullRequestThreadComments`. The bot identity is whatever PAT the plugin runs as — capture it once during Step 3 (`az devops invoke --area connectionData …` or read from PR threads where Claude Code itself authored).
+ADO status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed, 5 = byDesign, 6 = pending.
+
+**Line-range intersection** (for the secondary `addressed` signal): a thread is considered intersecting a hunk when `max(thread.start.line, hunk.startLine) ≤ min(thread.end.line, hunk.endLine)`. Use line numbers only; offsets are not used in intersection logic.
+
+**Human reply detection** (for `disputed`): a comment is human-authored when its `content` does not contain the substring `🤖 *Reviewed by Claude Code*`. No `createdBy` identity check is performed — this makes classification PAT-agnostic.
 
 ## Edge cases
 
-- Mixed conversation (bot → author → bot): treat as `disputed` once any non-bot comment is present.
-- General threads (no file): only `disputed` / `pending` apply.
+- General threads (`filePath = null`) that are not the summary thread: `addressed` and `obsolete` do not apply. Classify as `disputed` or `pending` only.
+- The summary thread (`isSummaryThread = true`): skip classification entirely; it is handled by spec 06.
+- Multi-line threads: intersection check uses the full `[start.line, end.line]` range.
+- Threads where the entire file was deleted from the PR: `obsolete`.
 
 ## Implementation steps
 
-1. Add a helper subroutine "classify thread" that takes the thread JSON + the new diff text + bot identity.
-2. Run it for each `PRIOR_THREADS` entry; store results in `PRIOR_THREADS` under a new `classification` field.
-3. Print a one-line summary count: `Threads: N addressed, N disputed, N pending, N obsolete`.
+1. Extract diff hunk boundaries from Step 5 output (file path, start line, end line per hunk).
+2. For each `PRIOR_THREADS` entry (skipping the summary thread), apply the classification logic above.
+3. Store results in `PRIOR_THREADS` under a new `classification` field.
+4. Print a one-line summary count: `Threads: N addressed, N disputed, N pending, N obsolete`.
 
 ## Test cases
 
-- Thread on a line that author has since deleted → `addressed`.
-- Thread with an author reply → `disputed`.
-- Thread on unchanged code, no replies → `pending`.
-- Thread on a file the author removed from PR → `obsolete`.
+- Thread whose line range intersects a changed hunk (status active) → `addressed`.
+- Thread with ADO status `fixed` (no diff intersection needed) → `addressed`.
+- Thread with a human reply (no signature prefix in that reply) → `disputed`.
+- Thread with only bot comments and no diff intersection → `pending`.
+- Thread on a file not in the diff → `obsolete`.
+- Thread spanning lines 10–15 with a hunk at lines 12–13 → `addressed`.
+- General thread (no file) with no human reply → `pending`.
 
 ## Acceptance criteria
 
-- Every thread receives exactly one classification.
-- Summary line printed before Step 6.
+- Every non-summary thread receives exactly one classification.
+- Summary thread is skipped.
+- Summary count line printed before Step 6.
 
 ## Verification
 
-- Replay against PR 5509 thread set; cross-check classifications against manual review notes:
-  - `??` nullish coalescing thread → `disputed` (author replied and corrected the finding).
-  - `build:static-pages` thread → `addressed` (author pushed iteration 3 fixing it).
+- Run the command against a PR where one thread was addressed, one disputed, one pending, and one is on a deleted file — confirm all four classifications appear in the summary count.
 
 ## Out of scope
 
 - Posting replies (spec 05).
+
+## Notes
+
+The `disputed` reply template (spec 05) will remind the author to mark the thread resolved in ADO when they consider the conversation done.
 
 ## Follow-ups
 

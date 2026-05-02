@@ -10,52 +10,85 @@
 
 ## Context
 
-Step 10 posts inline comments via `pullRequestThreads` (creates a new thread). On re-review we must reuse existing threads via `pullRequestThreadComments` instead.
+Step 10 posts inline comments via `pullRequestThreads` (creates a new thread). On re-review we must reuse existing threads: reply via `pullRequestThreadComments` and PATCH thread status via `pullRequestThreads` when resolving.
 
 ## Current behaviour
 
-Every finding becomes a fresh thread, regardless of whether one already exists at that file/line.
+Every finding becomes a fresh thread regardless of whether one already exists at that file/line range.
 
 ## Target behaviour
 
-Per finding:
+### Thread matching
 
-1. Match the finding to a `PRIOR_THREADS` entry by `(filePath, rightFileLine)` or by stable rule id where available.
-2. If matched and prior `classification` is:
-   - `pending` and the finding is unchanged → **skip** (do not re-post).
-   - `pending` and the finding has new evidence → **reply** via `az devops invoke --area git --resource pullRequestThreadComments --route-parameters project={project} repositoryId={REPO_ID} pullRequestId={PR_ID} threadId={id} --org {ORG_URL} --api-version 7.1` with a body starting `🤖 *Reviewed by Claude Code* — Iteration N` and containing only the new evidence.
-   - `disputed` → **reply** acknowledging the author's argument; never re-assert without explicit new info.
-   - `addressed` → **reply** with `Resolved as of iteration N — thanks!` and PATCH the thread `status` to `fixed`.
-   - `obsolete` → leave alone.
-3. If no match: brand-new finding. Create a fresh thread as before, but include `Iteration N` in the first line so future re-reviews can date it.
+For each finding, attempt to match a prior thread by:
+
+1. `filePath` equality (exact match).
+2. Line-range overlap: `max(finding.start.line, thread.start.line) ≤ min(finding.end.line, thread.end.line)`, with a ±3 line drift tolerance applied to both endpoints (i.e. expand each range by 3 lines before testing overlap).
+
+If no match is found, the finding is new — create a fresh thread as in the current flow.
+
+### Reply actions per classification
+
+| Classification | Action |
+|---|---|
+| `pending` (unchanged finding) | **Skip** — do not post. |
+| `pending` (new evidence in finding) | **Reply** via `pullRequestThreadComments` with only the new evidence. |
+| `disputed` | **Reply** acknowledging the author's point; never re-assert without new evidence. Include: *"If you consider this resolved, please mark the thread as fixed in Azure DevOps."* |
+| `addressed` | **Reply** with `Resolved as of Iteration N — thanks!` then **PATCH** thread status to `fixed` via `pullRequestThreads`. |
+| `obsolete` | Leave alone — no action. |
+
+### ADO API resources
+
+- **Reply content** (add a comment to an existing thread): POST to `--resource pullRequestThreadComments` with `--route-parameters … threadId={id}`.
+- **Thread status PATCH** (mark as fixed): PATCH to `--resource pullRequestThreads` with `--route-parameters … threadId={id}`. Body: `{ "status": 2 }`. ADO status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed.
+- If the PATCH returns a 409 (concurrent resolution by human), log and continue.
+
+### New findings on re-review
+
+Fresh threads (no prior match) are created as in the current flow. The first comment body does **not** include a separate "Iteration N" header line — the iteration is carried by the signature suffix: `🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}`.
+
+### Run completion marker
+
+After all threads and replies are posted, post one final reply to the summary thread:
+
+```
+✅ Review complete — Iteration {LATEST_ITERATION_ID} ({N} findings posted)
+```
+
+This is the last action of every successful run (first review or re-review). Its absence for `LATEST_ITERATION_ID` signals a partial prior run; on the next run, treat the current iteration as a first-time review.
 
 ## Edge cases
 
-- Concurrency: if the author resolves a thread mid-run, the PATCH to `status=fixed` may 409 — log and continue.
-- Reply rate limiting: cap replies at 50 per run; if exceeded, fall back to a single summary table comment listing the remainder.
+- **No reply cap.** Post all replies regardless of count.
+- **`pending` general threads** (not the summary thread, no file): skip — same rule as inline `pending`.
+- **Concurrency:** PATCH to `status=fixed` may 409 if author resolved the thread mid-run — log and continue.
+- **Partial prior run detected** (no completion marker for `LATEST_ITERATION_ID`): treat as first-review mode; skip thread matching for this iteration.
 
 ## Implementation steps
 
-1. Add the matching function (filePath + rightFileLine equality; fall back to fuzzy snippet match if line drifted by ≤ 3).
+1. Add the matching function (file path equality + range overlap with ±3 line drift).
 2. Branch Step 10 on `IS_REREVIEW`.
-3. Wire the four classification branches.
-4. Always include `Iteration N` in the first line of any new comment so spec 04 is cheaper next time.
+3. Wire the five classification branches (pending-skip, pending-reply, disputed, addressed, obsolete).
+4. Add the completion marker reply as the final action after all posts.
 
 ## Test cases
 
-- Re-running on PR 5509 with no code changes: zero new comments posted, zero replies (all matched threads are `pending` and unchanged).
-- Re-run after author fixes one finding: one `addressed` reply, thread marked fixed.
-- Re-run after author replies to one finding: one `disputed` acknowledgement.
-- Re-run with one new commit introducing a new issue: one fresh thread.
+- Re-review with no new commits: spec 03 exits early before Step 10 is reached.
+- Re-review where author fixed one finding (ADO status fixed): one `addressed` reply posted, thread patched to fixed.
+- Re-review where author replied to one finding: one `disputed` acknowledgement with ADO nudge.
+- Re-review with one new commit introducing a new issue: one fresh thread posted with signature suffix.
+- Re-review with no partial-run marker: treated as first-review mode for this iteration.
+- Multi-line thread at lines 10–15 matched by finding at lines 12–13: match found, range overlap confirmed.
 
 ## Acceptance criteria
 
 - No duplicate thread is ever created when a matching prior thread exists.
-- Replies always carry the canonical signature on their first line.
+- All replies carry the canonical signature on their last line.
+- Completion marker is the final comment posted on every successful run.
 
 ## Verification
 
-- Inspect PR 5509 after a fresh re-run with this branch: comment count must not have grown unless a new commit is present.
+- Inspect a PR after a fresh re-run — comment count must not have grown unless a new commit is present or an addressed/disputed reply was warranted.
 
 ## Out of scope
 

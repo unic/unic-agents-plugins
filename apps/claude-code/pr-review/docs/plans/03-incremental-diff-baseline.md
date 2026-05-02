@@ -19,34 +19,43 @@ Full branch diff regardless of `IS_REREVIEW`.
 ## Target behaviour
 
 - When `IS_REREVIEW=false`: keep existing full-branch diff.
-- When `IS_REREVIEW=true`: diff between the source-commit of `PRIOR_ITERATION_ID` and the source-commit of `LATEST_ITERATION_ID`. Use the `sourceRefCommit.commitId` field returned by `pullRequestIterations`.
-- If the two commit ids are equal (no new pushes since prior review), abort early: print `No new commits since last review — nothing to do` and exit Step 5 cleanly.
+- When `IS_REREVIEW=true`: diff between `PRIOR_COMMIT_ID` and `LATEST_COMMIT_ID` (both provided by spec 02 via `sourceRefCommit.commitId`).
+- If the two commit IDs are identical (no new pushes since prior review), exit Step 5 early:
+  1. Print `No new commits since last review.`
+  2. Print a list of all `pending` threads from `PRIOR_THREADS` (file path and line range for each), so the user knows what is still outstanding.
+  3. Exit cleanly — do not proceed to Steps 6–11.
+- If `PRIOR_COMMIT_ID` is null (legacy comment with no parseable iteration), fall back to full diff with a warning: `Warning: could not resolve prior commit — falling back to full diff.`
 
 ## Edge cases
 
-- Force-pushes rewrite history; the prior commit id may not exist locally. Fetch it (`git fetch origin <commit>`) before diffing; if the fetch fails, fall back to full diff with a warning.
-- Files renamed between iterations: rely on `git diff -M` (already default) so renames map.
+- Force-push rewrites history; `PRIOR_COMMIT_ID` may no longer exist locally. Attempt `git fetch origin {PRIOR_COMMIT_ID}` before diffing; if the fetch fails, fall back to full diff with a warning that includes both commit IDs: `Warning: prior commit {PRIOR_COMMIT_ID} unreachable; latest commit {LATEST_COMMIT_ID} — falling back to full diff.`
+- Files renamed between iterations: rely on `git diff -M` (already default) so renames map correctly.
+- `LATEST_COMMIT_ID` is null (spec 02 edge case): fall back to full diff with a warning.
 
 ## Implementation steps
 
-1. Extend the iteration metadata captured in spec 02 to include `sourceRefCommit.commitId`.
-2. Branch Step 5 on `IS_REREVIEW`.
-3. Add the early-exit path with a clear log line.
+1. Branch Step 5 on `IS_REREVIEW`.
+2. Add the early-exit path: print "No new commits" message, list pending threads, exit cleanly.
+3. Add the `git fetch` attempt with the detailed fallback warning message.
+4. The diff hunk output from this step is consumed by spec 04 for thread classification — ensure hunk boundaries (file path, start line, end line) are exported in a structured format (JSON or line-delimited) to `$TMPDIR`.
 
 ## Test cases
 
-- Re-review with no new pushes: early-exit path fires.
+- Re-review with identical commit IDs: early-exit path fires, pending thread list printed to console, no ADO comments posted.
 - Re-review with one new commit: diff contains exactly that commit's changes.
-- Re-review after a force-push that rebased the branch: fall-back warning fires; full diff is used.
+- Re-review after a force-push that rebased the branch: fallback warning fires with both commit IDs; full diff is used.
+- Re-review with `PRIOR_COMMIT_ID=null` (legacy): fallback warning fires; full diff used.
 
 ## Acceptance criteria
 
 - First-time review behaviour unchanged.
-- Re-review token usage measurably lower on PRs with small follow-up pushes (smoke-test on PR 5509: diff should be ~iteration-3 delta only).
+- Early exit lists all pending threads before stopping.
+- Fallback warnings always include both commit IDs when available.
 
 ## Verification
 
-- Run the command against PR 5509 (currently at iteration 3) — confirm Step 5 output matches `git diff <iter2-commit>..<iter3-commit>`.
+- Run the command on a PR with no new commits since last review — confirm early exit fires and pending threads are listed.
+- Run the command on a PR with one new commit — confirm diff output matches `git diff {PRIOR_COMMIT_ID}..{LATEST_COMMIT_ID}`.
 
 ## Out of scope
 

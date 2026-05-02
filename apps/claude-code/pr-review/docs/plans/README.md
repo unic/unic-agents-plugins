@@ -14,7 +14,9 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 05 | Reply to threads instead of posting   | pending | 04         |
 | 06 | Summary comment policy on re-review   | pending | 05         |
 | 07 | Version bump, README, CLAUDE.md       | pending | 06         |
+| 08 | Test harness — node:test + modules    | pending | 05         |
 
 ## Discovered work
 
-(Empty. Add bullets if a spec uncovers extra work.)
+- Spec 07 must also supersede ADR 0007 (`docs/adr/0009-summary-delta-as-reply.md`).
+- Monorepo `.prettierignore` must include `**/CHANGELOG.md` before the first bump (spec 07 step 3).
