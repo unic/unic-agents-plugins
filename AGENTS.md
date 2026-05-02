@@ -137,3 +137,17 @@ All work starts with a spec file under `docs/plans/`. Specs follow this format:
 ## LICENSE files
 
 **Never create, copy, or delete `LICENSE` files.** The maintainer manages these manually in every package and plugin directory. If a spec step or acceptance criterion requires a `LICENSE` file to exist, warn the maintainer to add it themselves before continuing.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as local markdown files under `docs/issues/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+8-state vocabulary: `needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed` (or `rejected`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context repo — `CONTEXT-MAP.md` at root points to per-plugin `CONTEXT.md` files. See `docs/agents/domain.md`.
