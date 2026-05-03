@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+### Changed
+
+- Internal: extracted shared subprocess contract from `runPrettier`/`runEslint`/`runBiome` into
+  `lib/runners.mjs` — no behaviour change for consumers.
+
 ### Fixed
 
 - (none)
