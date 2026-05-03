@@ -6,7 +6,7 @@
 - Effort: S
 - Version impact: minor (cumulative roll-up)
 - Depends on: 07
-- Touches: `.claude-plugin/plugin.json`, `marketplace.json`, `README.md`, `CLAUDE.md`, `CHANGELOG.md`
+- Touches: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `README.md`, `CLAUDE.md`, `CHANGELOG.md`
 
 ## Context
 
@@ -20,7 +20,7 @@ Specs 01–07 ship behaviour; this spec finalises metadata, versioning, and docu
 
 3. **Verify `.prettierignore`.** Confirm `**/CHANGELOG.md` is present in the monorepo-root `.prettierignore` (added by spec 00). Run `grep -F '**/CHANGELOG.md' .prettierignore` — must return a match. No action required; this is a pre-flight guard check.
 
-4. **Update `CLAUDE.md`.** Remove the roadmap line: *"Re-review: detect existing Claude Code threads and update instead of duplicating."* The rules about signature format and iteration targeting (added by specs 01 and 03) should already be present.
+4. **Update `CLAUDE.md`.** Remove the roadmap line: *"Re-review: detect existing Claude Code threads and update instead of duplicating."* Also update line 37 (`All comments posted to ADO **must** end with the exact signature: …`) to reflect the new iteration-suffixed form: `---\n🤖 *Reviewed by Claude Code* — Iteration N`. The iteration-targeting rule (added by spec 03) should already be present.
 
 5. **Add a "Re-review" section to `README.md`:**
    - Trigger: re-running `/unic-pr-review:review-pr` on a PR that already has Claude Code threads.

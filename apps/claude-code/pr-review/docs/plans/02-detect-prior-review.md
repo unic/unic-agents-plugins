@@ -30,8 +30,8 @@ After Step 3 (PR metadata) and before Step 4 (iteration), the command runs a det
    - `end: { line, offset }` (from `threadContext.rightFileEnd`)
    - `comments` (full array)
    - `status` (ADO thread status integer)
-   - `isSummaryThread` — `true` when `filePath` is `null` and the first comment contains the summary heading (`## PR Review Summary`)
-5. Identifies the most recent bot comment across all prior threads and parses `PRIOR_ITERATION_ID` from its signature suffix (`— Iteration N`). Falls back to a timestamp-based lookup (see spec 03) for legacy comments that lack the suffix.
+   - `isSummaryThread` — `true` when `filePath` is `null` and the first comment begins with the prefix `## PR Review Summary` (substring match — the actual heading may include a ` — {PR_TITLE}` suffix)
+5. Identifies the most recent bot comment across all prior threads and parses `PRIOR_ITERATION_ID` from its signature suffix (`— Iteration N`). When the suffix is absent (legacy format), sets `PRIOR_ITERATION_ID=null` — spec 03 resolves the actual ID via timestamp comparison against the iterations API.
 6. Sets `IS_REREVIEW=true` and records `PRIOR_THREADS` and `SUMMARY_THREAD_ID`.
 7. Logs a one-line summary: `Detected N prior Claude Code threads — re-review mode ON` (or `…OFF`).
 
@@ -47,7 +47,7 @@ After Step 3 (PR metadata) and before Step 4 (iteration), the command runs a det
 
 1. Insert a new section "Step 3.5: Detect prior review" with the paginated API call and parsing logic.
 2. Write thread JSON to a temp file under `$TMPDIR`; parse with `jq`.
-3. Export `IS_REREVIEW`, `PRIOR_THREADS_FILE` (path to jq-readable JSON), `SUMMARY_THREAD_ID`, and `PRIOR_ITERATION_ID` for use by later steps.
+3. Export `IS_REREVIEW`, `PRIOR_THREADS_FILE` (path to the jq-readable JSON file — downstream steps consume it as `jq ... < "$PRIOR_THREADS_FILE"`), `SUMMARY_THREAD_ID`, and `PRIOR_ITERATION_ID` for use by later steps. Within spec descriptions, `PRIOR_THREADS` refers to the in-memory thread collection; `PRIOR_THREADS_FILE` is the on-disk path used by the command layer.
 
 ## Test cases
 

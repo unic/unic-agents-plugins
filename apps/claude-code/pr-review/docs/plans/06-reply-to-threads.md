@@ -69,7 +69,7 @@ This is the last action of every successful run (first review or re-review). Its
 1. Add the matching function (file path equality + range overlap with ±3 line drift).
 2. Branch Step 10 on `IS_REREVIEW`.
 3. Wire the five classification branches (pending-skip, pending-reply, disputed, addressed, obsolete).
-4. Add the completion marker reply as the final action after all posts.
+4. Add the completion marker reply as the final action after Step 11 (delta summary reply) completes — the posting order is: inline thread replies (Step 10) → delta summary reply (Step 11) → completion marker.
 
 ## Test cases
 

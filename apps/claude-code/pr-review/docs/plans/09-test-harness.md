@@ -122,7 +122,7 @@ Each module has a corresponding test file under `tests/`:
 1. Create `scripts/re-review/` directory; add the four `.mjs` modules.
 2. Create `tests/fixtures/` and author the fixture JSON files.
 3. Write the four test files using `node:test` and `node:assert/strict`.
-4. Add `"test": "node --test tests/**/*.test.mjs"` to `package.json` scripts (or verify it already runs via workspace `pnpm test`).
+4. Add `"test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs"` to `package.json` scripts. Use explicit paths rather than a glob to avoid cross-platform globstar issues (consistent with the pattern in `packages/release-tools/package.json`).
 5. Update `commands/review-pr.md` to call the modules via Bash at the appropriate steps.
 
 ## Acceptance criteria
