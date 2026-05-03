@@ -1,5 +1,5 @@
 ---
-allowed-tools: ['Read', 'Write', 'Bash']
+allowed-tools: [Write, Bash]
 argument-hint: '<one-liner idea>'
 description: 'Capture a raw idea into docs/inbox/ without interrupting the current conversation'
 ---
@@ -21,19 +21,21 @@ From the idea text:
 4. Strip leading/trailing hyphens
 5. Truncate to 50 characters at a word boundary
 
-Example: "pr-review should support GitLab!" → `pr-review-should-support-gitlab`
+Examples:
+- `"pr-review should support GitLab!"` → `pr-review-should-support-gitlab`
+- `"add dark mode support to the dashboard component"` → `add-dark-mode-support-to-the-dashboard` (truncated at word boundary before 50 chars)
 
 ## Step 2 — Check for collisions
 
 ```bash
-ls docs/inbox/<slug>.md 2>/dev/null
+ls "$(git rev-parse --show-toplevel)/docs/inbox/<slug>.md" 2>/dev/null
 ```
 
 If the file exists, append `-2` (then `-3`, etc.) until the path is free.
 
 ## Step 3 — Write the file
 
-Create `docs/inbox/<slug>.md`:
+Resolve the repo root with `git rev-parse --show-toplevel`, then create `<root>/docs/inbox/<slug>.md`:
 
 ```markdown
 ---
