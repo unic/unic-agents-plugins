@@ -8,13 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking
+
 - (none)
 
 ### Added
+
 - (none)
 
 ### Fixed
-- (none)
+
+- Extract `runFormatter` to `scripts/lib/runners.mjs` with six unit tests; update `pnpm test` to run both test files
 
 ## [0.5.9] — 2026-05-03
 
