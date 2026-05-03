@@ -28,10 +28,11 @@ Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't
 
 Ground rules (from `docs/plans/README.md`):
 
-- Use `pnpm` (after spec 00 lands; use `npm` for spec 00 itself and before it's done)
+- Use `pnpm` for all package operations
 - Tabs for indentation, LF line endings (per `.editorconfig`)
-- Conventional commits: `feat(scope): description`, `fix(scope): description`
-- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump` (available after spec 19)
+- Conventional commits: `feat(scope): description`, `fix(scope): description`, `chore(scope): description`
+- Cross-platform: use Node.js APIs (`node:path`, `node:fs`, `node:os`) instead of shell commands; no bash/sh assumptions
+- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump`
 - If something can't be followed as written: document it in `## Deviations`, don't silently deviate
 
 ## Step 4 — Verify
