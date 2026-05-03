@@ -65,17 +65,17 @@ _Avoid_: watermark, marker, signature
 The process of categorising existing Review Threads during a Re-review to decide how to handle each one.
 _Avoid_: thread analysis, thread triage
 
-**Stale**:
-A Thread Classification state. The underlying code changed since the last Review; the finding no longer applies.
+**addressed**:
+A Thread Classification state. The issue was fixed in the new diff.
 
-**Resolved**:
-A Thread Classification state. The author addressed the finding; the thread was closed or the code was fixed.
+**disputed**:
+A Thread Classification state. The reviewer replied disagreeing with the bot comment.
 
-**Pending**:
-A Thread Classification state. The finding still applies and no action has been taken by the author.
+**pending**:
+A Thread Classification state. No action taken; the issue still exists in the new diff.
 
-**New**:
-A Thread Classification state. The Thread was opened since the last Review (not by this Plugin).
+**obsolete**:
+A Thread Classification state. The relevant code was deleted or moved; the comment no longer applies.
 
 ## Relationships
 
@@ -91,8 +91,8 @@ A Thread Classification state. The Thread was opened since the last Review (not 
 > **Dev:** "During a Re-review, do we post a new Review Summary or update the existing one?"
 > **Domain expert:** "We rewrite the existing one — a PR should never have more than one Review Summary."
 
-> **Dev:** "What do we do with a Pending Thread when the Revision hasn't changed that area?"
-> **Domain expert:** "Leave it. A Pending Thread stays open until the author resolves it or the code changes."
+> **Dev:** "What do we do with a pending thread when the Revision hasn't changed that area?"
+> **Domain expert:** "Leave it as pending. It stays open until the author fixes the code or the relevant code is deleted or moved."
 
 > **Dev:** "How do we know which Threads were opened by us vs the author?"
 > **Domain expert:** "The Bot Signature — every Plugin comment ends with it. No signature means it's not ours."
