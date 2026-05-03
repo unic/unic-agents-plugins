@@ -54,7 +54,7 @@ With grilling and prototyping complete, document the destination:
 /to-prd
 ```
 
-This synthesises the conversation into a PRD at `docs/issues/<slug>/PRD.md`, describing the end state, user stories, implementation decisions, and what's explicitly out of scope.
+This synthesizes the conversation into a PRD at `docs/issues/<slug>/PRD.md`, describing the end state, user stories, implementation decisions, and what's explicitly out of scope.
 
 The PRD answers "what does done look like?" — not "how do we get there?"
 

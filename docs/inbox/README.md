@@ -32,7 +32,7 @@ No `status` field — the location is the status. Every file here is awaiting tr
 When you're ready to act on an item:
 
 1. Open the file and run `/grill-with-docs` or `/grill-me` to refine it
-2. Run `/to-prd` to synthesise into a PRD → creates `docs/issues/<slug>/PRD.md`
+2. Run `/to-prd` to synthesize into a PRD → creates `docs/issues/<slug>/PRD.md`
 3. Delete the inbox file (or let the skill handle it)
 
 Items do **not** move to `docs/issues/<slug>/` until a scope and slug have been agreed via grilling.
