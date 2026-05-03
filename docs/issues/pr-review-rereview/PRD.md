@@ -71,7 +71,7 @@ When a prior review is detected, the diff is scoped to commits between the prior
 
 ### Thread classification rules
 
-- **Addressed:** ADO thread status is not `active`, OR (status is `active` AND the thread's line range intersects a changed hunk in the incremental diff).
+- **Addressed:** ADO thread status is one of `fixed` (2), `wontFix` (3), `closed` (4), or `byDesign` (5), OR (status is `active` (1) or `pending` (6) AND the thread's line range intersects a changed hunk in the incremental diff). ADO `pending` (6) is treated like `active` — diff intersection is required.
 - **Disputed:** status is `active` AND at least one comment in the thread does not contain the signature prefix.
 - **Pending:** status is `active` AND no human replies.
 - **Obsolete:** the thread's file path does not appear in the PR diff at all.

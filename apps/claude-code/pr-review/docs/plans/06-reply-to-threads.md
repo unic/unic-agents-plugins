@@ -73,7 +73,7 @@ This is the last action of every successful run (first review or re-review). Its
 
 ## Test cases
 
-- Re-review with no new commits: spec 03 exits early before Step 10 is reached.
+- Re-review with no new commits: spec 04 exits early before Step 10 is reached.
 - Re-review where author fixed one finding (ADO status fixed): one `addressed` reply posted, thread patched to fixed.
 - Re-review where author replied to one finding: one `disputed` acknowledgement with ADO nudge.
 - Re-review with one new commit introducing a new issue: one fresh thread posted with signature suffix.
