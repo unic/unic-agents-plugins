@@ -19,7 +19,7 @@ Full branch diff regardless of `IS_REREVIEW`.
 ## Target behaviour
 
 - When `IS_REREVIEW=false`: keep existing full-branch diff.
-- When `IS_REREVIEW=true`: diff between `PRIOR_COMMIT_ID` and `LATEST_COMMIT_ID` (both provided by spec 02 via `sourceRefCommit.commitId`).
+- When `IS_REREVIEW=true`: diff between `PRIOR_COMMIT_ID` and `LATEST_COMMIT_ID` (both provided by spec 03 via `sourceRefCommit.commitId`).
 - If the two commit IDs are identical (no new pushes since prior review), exit Step 5 early:
   1. Print `No new commits since last review.`
   2. Print a list of all `pending` threads from `PRIOR_THREADS` (file path and line range for each), so the user knows what is still outstanding.
@@ -30,14 +30,14 @@ Full branch diff regardless of `IS_REREVIEW`.
 
 - Force-push rewrites history; `PRIOR_COMMIT_ID` may no longer exist locally. Attempt `git fetch origin {PRIOR_COMMIT_ID}` before diffing; if the fetch fails, fall back to full diff with a warning that includes both commit IDs: `Warning: prior commit {PRIOR_COMMIT_ID} unreachable; latest commit {LATEST_COMMIT_ID} — falling back to full diff.`
 - Files renamed between iterations: rely on `git diff -M` (already default) so renames map correctly.
-- `LATEST_COMMIT_ID` is null (spec 02 edge case): fall back to full diff with a warning.
+- `LATEST_COMMIT_ID` is null (spec 03 edge case): fall back to full diff with a warning.
 
 ## Implementation steps
 
 1. Branch Step 5 on `IS_REREVIEW`.
 2. Add the early-exit path: print "No new commits" message, list pending threads, exit cleanly.
 3. Add the `git fetch` attempt with the detailed fallback warning message.
-4. The diff hunk output from this step is consumed by spec 04 for thread classification — ensure hunk boundaries (file path, start line, end line) are exported in a structured format (JSON or line-delimited) to `$TMPDIR`.
+4. The diff hunk output from this step is consumed by spec 05 for thread classification — ensure hunk boundaries (file path, start line, end line) are exported in a structured format (JSON or line-delimited) to `$TMPDIR`.
 
 ## Test cases
 
@@ -59,7 +59,7 @@ Full branch diff regardless of `IS_REREVIEW`.
 
 ## Out of scope
 
-- Thread classification (spec 04).
+- Thread classification (spec 05).
 
 ## Follow-ups
 

@@ -10,7 +10,7 @@
 
 ## Context
 
-A re-review must first know whether Claude Code already reviewed this PR. The signal is the canonical signature prefix (spec 00) inside any thread comment on the PR. Detection must also identify the existing summary thread and parse the prior iteration number from the most recent bot comment, so later specs can act on that information.
+A re-review must first know whether Claude Code already reviewed this PR. The signal is the canonical signature prefix (spec 01) inside any thread comment on the PR. Detection must also identify the existing summary thread and parse the prior iteration number from the most recent bot comment, so later specs can act on that information.
 
 ## Current behaviour
 
@@ -31,7 +31,7 @@ After Step 3 (PR metadata) and before Step 4 (iteration), the command runs a det
    - `comments` (full array)
    - `status` (ADO thread status integer)
    - `isSummaryThread` — `true` when `filePath` is `null` and the first comment contains the summary heading (`## PR Review Summary`)
-5. Identifies the most recent bot comment across all prior threads and parses `PRIOR_ITERATION_ID` from its signature suffix (`— Iteration N`). Falls back to a timestamp-based lookup (see spec 02) for legacy comments that lack the suffix.
+5. Identifies the most recent bot comment across all prior threads and parses `PRIOR_ITERATION_ID` from its signature suffix (`— Iteration N`). Falls back to a timestamp-based lookup (see spec 03) for legacy comments that lack the suffix.
 6. Sets `IS_REREVIEW=true` and records `PRIOR_THREADS` and `SUMMARY_THREAD_ID`.
 7. Logs a one-line summary: `Detected N prior Claude Code threads — re-review mode ON` (or `…OFF`).
 
@@ -71,7 +71,7 @@ After Step 3 (PR metadata) and before Step 4 (iteration), the command runs a det
 
 ## Out of scope
 
-- Acting on the detection (specs 02–06).
+- Acting on the detection (specs 03–07).
 
 ## Notes
 

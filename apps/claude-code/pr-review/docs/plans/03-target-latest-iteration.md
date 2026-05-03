@@ -22,9 +22,9 @@ Re-reviews must reason about the latest pushed commits, not the initial iteratio
 2. Use `LATEST_ITERATION_ID` for the `pullRequestIterationChanges` call in Step 4 (file list).
 3. Capture `sourceRefCommit.commitId` for `LATEST_ITERATION_ID` as `LATEST_COMMIT_ID`.
 4. When `IS_REREVIEW=true`:
-   - Use `PRIOR_ITERATION_ID` (from spec 01: parsed from signature suffix, with timestamp fallback for legacy comments) to look up that iteration's `sourceRefCommit.commitId` as `PRIOR_COMMIT_ID`.
-   - Export both `LATEST_COMMIT_ID` and `PRIOR_COMMIT_ID` for spec 03.
-5. Update `CLAUDE.md` line 38 to: "Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 03."
+   - Use `PRIOR_ITERATION_ID` (from spec 02: parsed from signature suffix, with timestamp fallback for legacy comments) to look up that iteration's `sourceRefCommit.commitId` as `PRIOR_COMMIT_ID`.
+   - Export both `LATEST_COMMIT_ID` and `PRIOR_COMMIT_ID` for spec 04.
+5. Update `CLAUDE.md` line 38 to: "Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 02."
 
 ## Timestamp fallback for legacy `PRIOR_ITERATION_ID`
 
@@ -34,7 +34,7 @@ When the prior review's newest comment lacks the `— Iteration N` suffix (legac
 
 - A brand-new PR has only iteration 1 — this is valid; `LATEST_ITERATION_ID=1` and no fallback needed.
 - `pullRequestIterations` returns iterations unsorted — use `jq 'max_by(.id) | .id'` not array index.
-- `sourceRefCommit.commitId` may be absent on a very new PR before the first push completes — treat as null and fall back to full diff in spec 03.
+- `sourceRefCommit.commitId` may be absent on a very new PR before the first push completes — treat as null and fall back to full diff in spec 04.
 
 ## Implementation steps
 
@@ -64,7 +64,7 @@ When the prior review's newest comment lacks the `— Iteration N` suffix (legac
 
 ## Out of scope
 
-- Computing the diff baseline (spec 03).
+- Computing the diff baseline (spec 04).
 
 ## Follow-ups
 

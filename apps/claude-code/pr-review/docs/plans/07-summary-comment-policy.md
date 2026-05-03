@@ -12,7 +12,7 @@
 
 Step 11 posts a long summary comment. On re-review we do not want a second one. This spec encodes explicit user feedback: *"Refrain from publishing another general comment, only inline or file comments and only if the findings aren't yet commented."*
 
-The existing summary thread is identified by the `isSummaryThread = true` flag set in spec 01. The delta comment is posted as a **reply to that thread**, not as a new general thread. This keeps the PR conversation to a single summary entry.
+The existing summary thread is identified by the `isSummaryThread = true` flag set in spec 02. The delta comment is posted as a **reply to that thread**, not as a new general thread. This keeps the PR conversation to a single summary entry.
 
 ## Current behaviour
 
@@ -25,7 +25,7 @@ Summary always posted at the end of the run.
   - Counts: `X new findings, Y resolved, Z disputed, W pending`.
   - Bullet list of new finding titles only (each linked to its thread).
   - No prose, no section headings beyond the title.
-- `IS_REREVIEW=true` and nothing changed (early-exit from spec 03, or all matches were `pending` and unchanged): post **nothing** at the summary level.
+- `IS_REREVIEW=true` and nothing changed (early-exit from spec 04, or all matches were `pending` and unchanged): post **nothing** at the summary level.
 
 If the prior summary thread is not found (e.g. it was deleted by a human), fall back to first-review mode: post a full summary as a new thread.
 
@@ -34,8 +34,8 @@ If the prior summary thread is not found (e.g. it was deleted by a human), fall 
 1. Track counters during Step 10: new threads, addressed replies, disputed replies.
 2. Feed counters to Step 11.
 3. Branch Step 11 on `IS_REREVIEW` and the counters.
-4. When posting the delta, use `SUMMARY_THREAD_ID` from spec 01 to reply via `pullRequestThreadComments`.
-5. Update Step 11's signature line to use the canonical form from spec 00.
+4. When posting the delta, use `SUMMARY_THREAD_ID` from spec 02 to reply via `pullRequestThreadComments`.
+5. Update Step 11's signature line to use the canonical form from spec 01.
 
 ## Test cases
 
@@ -56,7 +56,7 @@ If the prior summary thread is not found (e.g. it was deleted by a human), fall 
 
 ## Out of scope
 
-- Versioning and docs (spec 07).
+- Versioning and docs (spec 08).
 
 ## Follow-ups
 

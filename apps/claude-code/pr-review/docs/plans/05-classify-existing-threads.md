@@ -20,7 +20,7 @@ Threads are not classified.
 
 For every thread in `PRIOR_THREADS`, compute one of:
 
-- `addressed` — ADO thread `status` is not `active` (i.e. `fixed`, `wontFix`, `closed`, or `byDesign`), **OR** the thread `status` is `active` and the thread's line range intersects a changed hunk in the incremental diff (spec 03).
+- `addressed` — ADO thread `status` is not `active` (i.e. `fixed`, `wontFix`, `closed`, or `byDesign`), **OR** the thread `status` is `active` and the thread's line range intersects a changed hunk in the incremental diff (spec 04).
 - `disputed` — `status` is `active` AND at least one comment in the thread does not contain the signature prefix `🤖 *Reviewed by Claude Code*`.
 - `pending` — `status` is `active` AND no comment in the thread lacks the signature prefix (i.e. only bot comments present).
 - `obsolete` — the thread's `filePath` does not appear in the PR diff at all (or `filePath` is null and the thread is not the summary thread).
@@ -34,7 +34,7 @@ ADO status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed, 5 = byDesign, 
 ## Edge cases
 
 - General threads (`filePath = null`) that are not the summary thread: `addressed` and `obsolete` do not apply. Classify as `disputed` or `pending` only.
-- The summary thread (`isSummaryThread = true`): skip classification entirely; it is handled by spec 06.
+- The summary thread (`isSummaryThread = true`): skip classification entirely; it is handled by spec 07.
 - Multi-line threads: intersection check uses the full `[start.line, end.line]` range.
 - Threads where the entire file was deleted from the PR: `obsolete`.
 
@@ -67,11 +67,11 @@ ADO status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed, 5 = byDesign, 
 
 ## Out of scope
 
-- Posting replies (spec 05).
+- Posting replies (spec 06).
 
 ## Notes
 
-The `disputed` reply template (spec 05) will remind the author to mark the thread resolved in ADO when they consider the conversation done.
+The `disputed` reply template (spec 06) will remind the author to mark the thread resolved in ADO when they consider the conversation done.
 
 ## Follow-ups
 
