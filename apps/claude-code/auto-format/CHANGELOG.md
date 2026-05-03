@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+### Fixed
+
+- (none)
+
+## [0.5.12] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
 ### Changed
 
 - Internal: extracted shared subprocess contract from `runPrettier`/`runEslint`/`runBiome` into

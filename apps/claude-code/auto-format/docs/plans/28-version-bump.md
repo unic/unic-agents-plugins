@@ -1,5 +1,7 @@
 # 28. Version bump and CHANGELOG entry
 
+**Status: done — 2026-05-04**
+
 **Priority:** P2
 **Effort:** XS
 **Version impact:** patch
