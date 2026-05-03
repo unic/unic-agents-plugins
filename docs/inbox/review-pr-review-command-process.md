@@ -3,9 +3,10 @@ title: review pr-review command process
 created: 2026-05-03
 ---
 
-review pr-review command process
+review pr-review command process. This idea is very related to `./automate-qa-in-github.md`
 
 Check Prompt I use for GitHub PRs:
+
 ```prompt
 /pr-review-toolkit:review-pr Perform the following:
 
@@ -16,10 +17,10 @@ Check Prompt I use for GitHub PRs:
 5. Push and wait to see the checks. If not pass, reiterate till all checks green.
 ```
 
-1. Improve it, convert it to plugin/command/etc
+1. Improve it, convert it to plugin/command/skill/etc
 2. Ensure it spawns sub-agents to prevent context-rot (it quickly surpasses 100k tokens)
 3. I usually do the following workflow:
    1. Open PR, wait for checks to finish
    2. Request PR-review (or custom ADO PR review, should be united)
    3. Request copilot review if repo remote is GitHub
-   4. Request PR-review again focussing on comments from Copilot (in clear context), but it should use a similar approach as in custom prompt, whereas now not.
+   4. Request PR-review again focussing on unresolved comments from Copilot (in clear context), but it should use a similar approach as in custom prompt, whereas now not.
