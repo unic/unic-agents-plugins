@@ -1,0 +1,8 @@
+---
+title: Adapt release package to gitflow
+created: 2026-05-03
+---
+
+Adapt release package to gitflow
+
+If I'm using Git-flow, shouldn't the release process be adapted? And CI? Now I need to remember to merge main into develop before starting a new feature branch.
