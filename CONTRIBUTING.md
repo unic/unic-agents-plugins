@@ -1,6 +1,8 @@
 # Contributing
 
-This monorepo uses a spec-driven development workflow. New features and fixes are described in self-contained spec files under `docs/plans/`. Implementation is automated with **Ralph Orchestrator** (recommended) or done by hand following the same steps.
+This monorepo uses a spec-driven development workflow. For the full lifecycle — from idea capture through grilling, PRD, issues, execution, and QA — see **[`docs/process/development-workflow.md`](docs/process/development-workflow.md)**.
+
+New features and fixes are described in self-contained spec files under `docs/plans/`. Implementation is automated with the **Spec Runner** (`pnpm ralph`, currently backed by `ralph-orchestrator`) or done by hand following the same steps.
 
 ## Cross-cutting standards
 
