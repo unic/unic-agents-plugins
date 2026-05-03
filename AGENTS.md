@@ -126,7 +126,7 @@ All work starts with a spec file under `docs/plans/`. Specs follow this format:
 ## Out of scope
 ```
 
-`pnpm ralph` runs Ralph Orchestrator, which implements specs one at a time in a loop.
+`pnpm ralph` runs the Spec Runner (currently `ralph-orchestrator`), which implements specs one at a time in a loop.
 
 ## Do not add
 
@@ -150,4 +150,8 @@ Issues live as local markdown files under `docs/issues/`. See `docs/agents/issue
 
 ### Domain docs
 
-Multi-context repo: Per-plugin `CONTEXT.md` files (created lazily by `/grill-with-docs`) live under `apps/claude-code/<plugin>/`. A root `CONTEXT-MAP.md` may be added later. See `docs/agents/domain.md`.
+Multi-context repo: Per-plugin `CONTEXT.md` files live under `apps/claude-code/<plugin>/`. Root `CONTEXT-MAP.md` at repo root. See `docs/agents/domain.md`.
+
+### Inbox
+
+Raw ideas, bugs, and stray thoughts that haven't been grilled or scoped yet live in `docs/inbox/`. Use `/inbox <one-liner>` to capture without interrupting the current flow. Items graduate to `docs/issues/<slug>/` after grilling. See `docs/inbox/README.md`.

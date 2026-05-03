@@ -1,0 +1,98 @@
+# pr-review
+
+A Claude Code Plugin that analyses pull requests across multiple dimensions and posts findings back as comments. Currently targets Azure DevOps; designed to be Platform-agnostic.
+
+## Language
+
+### Platforms and PRs
+
+**Platform**:
+The VCS hosting service where pull requests live — currently Azure DevOps, with GitHub and GitLab planned.
+_Avoid_: provider, host, VCS (too generic)
+
+**Revision**:
+A snapshot of the PR's code at a point in time. Platform-agnostic term for what each Platform calls differently: ADO calls it an Iteration, GitHub calls it a push, GitLab calls it a version.
+_Avoid_: Iteration (ADO-specific), push (GitHub-specific), version (GitLab-specific)
+
+### Review output
+
+**Review**:
+A full analysis of a PR, producing Inline Comments, a Review Summary, and zero or more General Comments. Covers all Review Aspects.
+_Avoid_: scan, audit, check
+
+**Re-review**:
+An incremental Review targeting only the delta since the last Review. Reuses existing Review Threads where possible rather than opening new ones.
+_Avoid_: follow-up review, second pass, incremental review
+
+**Review Aspect**:
+A named dimension of analysis that a Review covers — e.g. code quality, error handling, test coverage, comment accuracy, type design. Each Aspect is run by a separate agent in parallel.
+_Avoid_: category, check, dimension
+
+**Review Summary**:
+A General Comment posted by the Plugin that aggregates the findings of a Review or Re-review. Rewritten in-place during a Re-review rather than posted anew.
+_Avoid_: summary comment, overview comment
+
+### Comments and threads
+
+**Inline Comment**:
+A review comment attached to a specific file and line within a PR.
+_Avoid_: line comment, file comment
+
+**General Comment**:
+A PR-level comment not tied to any file or line.
+_Avoid_: top-level comment, PR comment
+
+**Thread**:
+A Platform-native grouping of a top-level comment and its Replies.
+(ADO: `pullRequestThread`; GitHub: review thread; GitLab: discussion)
+_Avoid_: conversation, discussion (conflicts with GitLab's term)
+
+**Review Thread**:
+A Thread opened by the pr-review Plugin.
+_Avoid_: bot thread, plugin thread
+
+**Reply**:
+A follow-up comment added by the Plugin to an existing Thread during a Re-review.
+_Avoid_: response, follow-up comment
+
+**Bot Signature**:
+A fixed text marker appended to every Plugin-authored comment, used to identify Review Threads and Replies created by this Plugin.
+_Avoid_: watermark, marker, signature
+
+### Re-review classification
+
+**Thread Classification**:
+The process of categorising existing Review Threads during a Re-review to decide how to handle each one.
+_Avoid_: thread analysis, thread triage
+
+**Stale**:
+A Thread Classification state. The underlying code changed since the last Review; the finding no longer applies.
+
+**Resolved**:
+A Thread Classification state. The author addressed the finding; the thread was closed or the code was fixed.
+
+**Pending**:
+A Thread Classification state. The finding still applies and no action has been taken by the author.
+
+**New**:
+A Thread Classification state. The Thread was opened since the last Review (not by this Plugin).
+
+## Relationships
+
+- A **Review** produces one **Review Summary**, zero or more **Inline Comments**, and zero or more **General Comments**
+- An **Inline Comment** and a **General Comment** each open a new **Review Thread**
+- A **Re-review** performs **Thread Classification** on existing **Review Threads** before opening new ones
+- A **Reply** is added to an existing **Review Thread** — it does not open a new one
+- The **Bot Signature** is present on every comment authored by the Plugin, enabling prior-review detection
+- A **Revision** is the code snapshot a **Review** or **Re-review** analyses
+
+## Example dialogue
+
+> **Dev:** "During a Re-review, do we post a new Review Summary or update the existing one?"
+> **Domain expert:** "We rewrite the existing one — a PR should never have more than one Review Summary."
+
+> **Dev:** "What do we do with a Pending Thread when the Revision hasn't changed that area?"
+> **Domain expert:** "Leave it. A Pending Thread stays open until the author resolves it or the code changes."
+
+> **Dev:** "How do we know which Threads were opened by us vs the author?"
+> **Domain expert:** "The Bot Signature — every Plugin comment ends with it. No signature means it's not ours."
