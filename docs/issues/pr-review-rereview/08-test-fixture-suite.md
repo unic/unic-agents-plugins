@@ -13,19 +13,19 @@ Author the complete set of JSON fixture files and finalize the `node:test` suite
 
 **Fixture files to create under `tests/fixtures/`:**
 
-| File | Scenario |
-|---|---|
-| `threads-fresh-pr.json` | No prior bot threads |
-| `threads-pending.json` | Bot threads, active status, no human replies |
-| `threads-disputed.json` | Bot threads with human replies |
-| `threads-addressed-status.json` | Bot threads with ADO status `fixed` |
-| `threads-addressed-diff.json` | Bot threads, active status, line range in diff hunk |
-| `threads-obsolete.json` | Bot threads on file not present in diff |
-| `threads-partial-run.json` | Bot threads present, no completion marker for current iteration |
-| `threads-paginated-p1.json` | First page (100 threads + `continuationToken`) |
-| `threads-paginated-p2.json` | Second page (remaining threads, no token) |
-| `diff-hunks-no-change.json` | Empty hunk set (identical commits) |
-| `diff-hunks-with-changes.json` | Hunks covering a known line range |
+| File                            | Scenario                                                        |
+| ------------------------------- | --------------------------------------------------------------- |
+| `threads-fresh-pr.json`         | No prior bot threads                                            |
+| `threads-pending.json`          | Bot threads, active status, no human replies                    |
+| `threads-disputed.json`         | Bot threads with human replies                                  |
+| `threads-addressed-status.json` | Bot threads with ADO status `fixed`                             |
+| `threads-addressed-diff.json`   | Bot threads, active status, line range in diff hunk             |
+| `threads-obsolete.json`         | Bot threads on file not present in diff                         |
+| `threads-partial-run.json`      | Bot threads present, no completion marker for current iteration |
+| `threads-paginated-p1.json`     | First page (100 threads + `continuationToken`)                  |
+| `threads-paginated-p2.json`     | Second page (remaining threads, no token)                       |
+| `diff-hunks-no-change.json`     | Empty hunk set (identical commits)                              |
+| `diff-hunks-with-changes.json`  | Hunks covering a known line range                               |
 
 Fixture JSON shapes must match the ADO `pullRequestThreads` API response format (including `threadContext`, `comments`, `status`, `id` fields).
 

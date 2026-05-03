@@ -12,6 +12,7 @@
 Branch Step 5 of `commands/review-pr.md` on `IS_REREVIEW` so re-reviews only diff the new commits, not the entire branch.
 
 When `IS_REREVIEW=true`:
+
 - Diff between `PRIOR_COMMIT_ID` and `LATEST_COMMIT_ID` (from the previous issue).
 - If both commit IDs are identical (no new pushes since last review): print `No new commits since last review.`, list all `pending` threads from `PRIOR_THREADS` (file path and line range per thread) to the console, then exit cleanly without proceeding to Steps 6–11.
 - Attempt `git fetch origin {PRIOR_COMMIT_ID}` before diffing; if the fetch fails (force-push / garbage collection), fall back to full diff with a warning that includes both commit IDs: `Warning: prior commit {PRIOR_COMMIT_ID} unreachable; latest commit {LATEST_COMMIT_ID} — falling back to full diff.`

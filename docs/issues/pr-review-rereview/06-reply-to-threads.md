@@ -15,13 +15,13 @@ Branch Step 10 of `commands/review-pr.md` on `IS_REREVIEW` so re-reviews reply t
 
 **Reply actions per classification:**
 
-| Classification | Action |
-|---|---|
-| `pending` (unchanged) | Skip — do not post |
-| `pending` (new evidence) | Reply via `pullRequestThreadComments` with new evidence only |
-| `disputed` | Reply acknowledging the author's point; include nudge to mark thread fixed in ADO |
-| `addressed` | Reply `Resolved as of Iteration N — thanks!`; PATCH thread status to `fixed` via `pullRequestThreads` (body `{ "status": 2 }`) |
-| `obsolete` | No action |
+| Classification           | Action                                                                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `pending` (unchanged)    | Skip — do not post                                                                                                             |
+| `pending` (new evidence) | Reply via `pullRequestThreadComments` with new evidence only                                                                   |
+| `disputed`               | Reply acknowledging the author's point; include nudge to mark thread fixed in ADO                                              |
+| `addressed`              | Reply `Resolved as of Iteration N — thanks!`; PATCH thread status to `fixed` via `pullRequestThreads` (body `{ "status": 2 }`) |
+| `obsolete`               | No action                                                                                                                      |
 
 New findings (no prior match): create a fresh thread as before; signature suffix carries the iteration number — no separate "Iteration N" header line needed.
 

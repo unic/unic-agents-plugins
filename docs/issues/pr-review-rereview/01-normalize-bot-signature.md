@@ -12,6 +12,7 @@
 Update every signature occurrence in `commands/review-pr.md` to a single canonical form: `🤖 *Reviewed by Claude Code* — Iteration N` (asterisk italics, iteration suffix). The detection substring remains `🤖 *Reviewed by Claude Code*` (prefix match) so it stays backwards-compatible with any legacy comments already on live PRs.
 
 Two types of locations must be updated end-to-end:
+
 - **Runtime-emitted** locations (inside JSON payloads written to `/tmp/` in Steps 10 and 11) must emit the full `— Iteration {LATEST_ITERATION_ID}` suffix.
 - **Documentation/example** locations (the summary structure markdown block) must switch from underscore to asterisk italics, using a `{N}` placeholder.
 
