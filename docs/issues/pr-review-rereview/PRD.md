@@ -1,8 +1,8 @@
 # PRD: pr-review — Incremental Re-review
 
-**Status:** closed
+**Status:** resolved
 **Plugin:** `apps/claude-code/pr-review`
-**Specs:** `apps/claude-code/pr-review/docs/plans/00` through `08`
+**Specs:** `apps/claude-code/pr-review/docs/plans/00` through `09`
 
 ---
 
@@ -135,7 +135,7 @@ The test structure mirrors `packages/release-tools/scripts/verify-changelog.test
 
 **ADR 0007 conflict:** ADR 0007 (accepted 2025-04) states the summary comment is "edited (rewritten)" on re-review. The grilling session (2026-05-02) resolved this as "reply to the existing summary thread" after weighing rewrite vs reply. ADR 0007 should be superseded by a new ADR recording this updated decision before implementation begins.
 
-**PR 5509:** This was a real production PR used as an informal smoke test during initial development. It must not be referenced in specs, tests, or documentation. All test scenarios must use fixture files.
+**Production smoke test:** A real production PR was used as an informal smoke test during initial development. It must not be referenced by number in specs, tests, or documentation. All test scenarios must use fixture files.
 
 **Cross-user PAT:** Detection relies on signature substring only — no `createdBy` identity check. The plugin works correctly when different team members' PATs are used across review runs.
 
