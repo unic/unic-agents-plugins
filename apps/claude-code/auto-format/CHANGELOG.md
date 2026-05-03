@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- Added `FormatterDescriptor` typedef to `scripts/lib/types.mjs` in preparation for `lib/runners.mjs` extraction
 
 ## [0.5.8] — 2026-04-30
 
