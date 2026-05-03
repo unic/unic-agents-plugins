@@ -40,7 +40,7 @@ If no match is found, the finding is new — create a fresh thread as in the cur
 ### ADO API resources
 
 - **Reply content** (add a comment to an existing thread): POST to `--resource pullRequestThreadComments` with `--route-parameters … threadId={id}`.
-- **Thread status PATCH** (mark as fixed): PATCH to `--resource pullRequestThreads` with `--route-parameters … threadId={id}`. Body: `{ "status": 2 }`. ADO status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed.
+- **Thread status PATCH** (mark as fixed): PATCH to `--resource pullRequestThreads` with `--route-parameters … threadId={id}`. Body: `{ "status": 2 }`. ADO status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed, 5 = byDesign, 6 = pending.
 - If the PATCH returns a 409 (concurrent resolution by human), log and continue.
 
 ### New findings on re-review

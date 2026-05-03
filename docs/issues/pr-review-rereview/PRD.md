@@ -93,7 +93,7 @@ The final action of every successful run is to post a reply to the summary threa
 
 - Thread status changes (active → fixed): PATCH `pullRequestThreads` resource.
 - Reply content: POST to `pullRequestThreadComments` resource.
-- Thread status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed.
+- Thread status codes: 1 = active, 2 = fixed, 3 = wontFix, 4 = closed, 5 = byDesign, 6 = pending.
 
 ### Release process
 

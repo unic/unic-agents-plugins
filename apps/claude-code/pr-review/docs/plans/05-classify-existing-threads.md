@@ -20,7 +20,7 @@ Threads are not classified.
 
 For every thread in `PRIOR_THREADS`, compute one of:
 
-- `addressed` — ADO thread `status` is not `active` (i.e. `fixed`, `wontFix`, `closed`, or `byDesign`), **OR** the thread `status` is `active` and the thread's line range intersects a changed hunk in the incremental diff (spec 04).
+- `addressed` — ADO thread `status` is one of `fixed` (2), `wontFix` (3), `closed` (4), or `byDesign` (5), **OR** the thread `status` is `active` (1) or `pending` (6) and the thread's line range intersects a changed hunk in the incremental diff (spec 04). ADO `pending` (6) is treated the same as `active` — it is not auto-addressed; diff intersection is still required.
 - `disputed` — `status` is `active` AND at least one comment in the thread does not contain the signature prefix `🤖 *Reviewed by Claude Code*`.
 - `pending` — `status` is `active` AND no comment in the thread lacks the signature prefix (i.e. only bot comments present).
 - `obsolete` — the thread's `filePath` does not appear in the PR diff at all (or `filePath` is null and the thread is not the summary thread).
