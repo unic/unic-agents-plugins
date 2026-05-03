@@ -15,7 +15,7 @@ Finalise metadata, documentation, and release artefacts for the re-review featur
 
 1. **Add CHANGELOG entries.** Under `## [Unreleased]` in `CHANGELOG.md`, add bullets under `### Added` describing the re-review feature. Do this before running the bump script — the bump will fail verification if the versioned section only has `(none)` placeholders.
 
-2. **Check `.prettierignore`.** At the monorepo root, verify `**/CHANGELOG.md` is present. Add it if absent. Prettier must not reformat CHANGELOG files.
+2. **Check `.prettierignore`.** At the monorepo root, verify `**/CHANGELOG.md` is present (added during spec 00 preflight). If missing, re-run spec 00 before continuing. Prettier must not reformat CHANGELOG files.
 
 3. **Bump the version.** Run `pnpm --filter pr-review bump minor`. This updates both `.claude-plugin/plugin.json` and `marketplace.json` atomically. Never hand-edit `marketplace.json`.
 
@@ -23,7 +23,7 @@ Finalise metadata, documentation, and release artefacts for the re-review featur
 
 5. **Add Re-review section to `README.md`** covering: trigger condition, what changes (detection, thread reuse, delta summary reply, completion marker), new signature format, and known limitations (force-push fallback, partial-run recovery).
 
-6. **Create `apps/claude-code/pr-review/docs/adr/0009-summary-delta-as-reply.md`.** Status: Accepted. Context: ADR 0007 specified that the summary comment is rewritten in place on re-review. Decision: the implemented behaviour posts a reply to the existing summary thread instead, keeping the edit timestamp on the original comment and maintaining a linear thread history. Consequences: the summary thread accumulates replies over iterations; the first comment body is never modified after posting.
+6. **Verify `apps/claude-code/pr-review/docs/adr/0009-summary-delta-as-reply.md` exists** (created in spec 00 preflight). If missing, re-run spec 00 before continuing. Do not create a duplicate.
 
 7. **Verify.** Run `pnpm --filter pr-review verify:changelog` locally before opening the PR.
 

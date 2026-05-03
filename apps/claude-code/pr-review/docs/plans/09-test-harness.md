@@ -6,7 +6,7 @@
 - Effort: M
 - Version impact: none (test infrastructure only)
 - Depends on: 06
-- Touches: `scripts/re-review/`, `tests/`
+- Touches: `scripts/re-review/`, `tests/`, `commands/review-pr.md`, `package.json`
 
 ## Context
 

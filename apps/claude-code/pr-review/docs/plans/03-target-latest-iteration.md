@@ -24,7 +24,7 @@ Re-reviews must reason about the latest pushed commits, not the initial iteratio
 4. When `IS_REREVIEW=true`:
    - Use `PRIOR_ITERATION_ID` (from spec 02: parsed from signature suffix, with timestamp fallback for legacy comments) to look up that iteration's `sourceRefCommit.commitId` as `PRIOR_COMMIT_ID`.
    - Export both `LATEST_COMMIT_ID` and `PRIOR_COMMIT_ID` for spec 04.
-5. Update `CLAUDE.md` line 38 to: "Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 02."
+5. In `CLAUDE.md`, replace the bullet beginning with `` `iterationId=1` is always used `` with: "Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 02."
 
 ## Timestamp fallback for legacy `PRIOR_ITERATION_ID`
 
