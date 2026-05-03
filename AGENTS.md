@@ -20,7 +20,7 @@ packages/
 ├── tsconfig/                 # @unic/tsconfig
 └── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
 docs/
-└── plans/                    # Monorepo-level Ralph spec roadmap (specs 00–14)
+└── plans/                    # Monorepo-level Spec Runner roadmap (specs 00–14)
 ```
 
 Each plugin under `apps/<agent>/` also has its own `docs/plans/` for plugin-specific future work.
@@ -41,12 +41,12 @@ pnpm format                             # Biome + Prettier fix (whole tree)
 pnpm ci:check                           # same as check, non-interactive (for CI)
 pnpm test                               # run tests across all packages
 pnpm typecheck                          # type-check across all packages
-pnpm ralph                              # run the monorepo Ralph loop (specs 00–14)
+pnpm ralph                              # run the monorepo Spec Runner loop (specs 00–14)
 
 # Per-plugin operations (after spec 03 sets up release-tools)
 pnpm --filter <name> bump patch         # bump plugin version
 pnpm --filter <name> verify:changelog   # check changelog
-pnpm --filter <name> ralph              # run that plugin's own Ralph loop
+pnpm --filter <name> ralph              # run that plugin's own Spec Runner loop
 ```
 
 ## Tech stack

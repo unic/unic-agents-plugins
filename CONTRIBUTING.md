@@ -60,9 +60,9 @@ LGPL-3.0-or-later for all packages in this monorepo.
 | --------------- | ----------------- | ---------------------------------------------------------------------- |
 | Node.js         | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org)                                       |
 | pnpm            | ≥ 10              | `npm install -g pnpm`                                                  |
-| Claude Code CLI | latest            | [claude.ai/code](https://claude.ai/code) — required as Ralph's backend |
+| Claude Code CLI | latest            | [claude.ai/code](https://claude.ai/code) — required as the Spec Runner's backend |
 
-Everything else (Ralph Orchestrator, Biome, Prettier, TypeScript) is a workspace devDependency and installs with:
+Everything else (ralph-orchestrator, Biome, Prettier, TypeScript) is a workspace devDependency and installs with:
 
 ```sh
 pnpm install
@@ -107,29 +107,29 @@ Check `docs/plans/README.md` for the current highest spec number. Create `docs/p
 | `## Acceptance criteria`  | Checkbox list                            |
 | `## Out of scope`         | Explicit list of things NOT to change    |
 
-Good specs are **self-contained** — Ralph has no memory of prior runs. Include actual code snapshots.
+Good specs are **self-contained** — the Spec Runner has no memory of prior runs. Include actual code snapshots.
 
 ### 4. Register the spec
 
 Add a row to the execution order table in `docs/plans/README.md`.
 
-## Running Ralph
+## Running the Spec Runner
 
 ```sh
 pnpm ralph
 ```
 
-Ralph reads `ralph.yml`, which points to `PROMPT.md`. Each iteration implements one spec, commits, and stops. Run `pnpm ralph` again for the next spec.
+The Spec Runner reads `ralph.yml`, which points to `PROMPT.md`. Each iteration implements one spec, commits, and stops. Run `pnpm ralph` again for the next spec.
 
 - **Stop early**: `Ctrl+C`
 - **Resume**: `pnpm ralph` again — it finds the first unfinished spec
-- **Paused for review**: a `## Questions` section in a spec means Ralph emitted `LOOP_COMPLETE` — answer the question, remove the section, re-run
+- **Paused for review**: a `## Questions` section in a spec means the Spec Runner emitted `LOOP_COMPLETE` — answer the question, remove the section, re-run
 
-## Running manually (without Ralph)
+## Running manually (without the Spec Runner)
 
-Follow the steps in `PROMPT.md` yourself, replacing Ralph's role.
+Follow the steps in `PROMPT.md` yourself, replacing the Spec Runner's role.
 
-## Running per-plugin Ralph loops
+## Running per-plugin Spec Runner loops
 
 Each plugin also has its own `ralph.yml` + `PROMPT.md` for plugin-specific development. Run from inside the plugin directory:
 
