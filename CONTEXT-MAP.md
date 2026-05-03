@@ -14,5 +14,5 @@
 
 - All three Plugin contexts share the vocabulary defined in the monorepo context
 - **auto-format** and **pr-review** are Claude Code Plugins with no runtime dependencies on each other
-- **unic-confluence** also ships as an npm package for use outside Claude Code
+- **unic-confluence** can be installed as a git dependency for use outside Claude Code.
 - **pr-review** has a soft dependency on the `pr-review-toolkit` plugin from `anthropics/claude-plugins-official`

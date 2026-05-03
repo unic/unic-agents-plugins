@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repo follows an adapted version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
+This repo follows an adapted 8-phase version of Matt Pocock's 7-phase workflow. version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
 
 Not every phase is required for every piece of work. A typo fix can go straight to execution. A major feature will touch every phase.
 
@@ -26,7 +26,7 @@ Before writing a PRD or spec, reach shared understanding with the agent:
 /grill-with-docs
 ```
 
-Use `/grill-with-docs` when the topic involves domain concepts — it updates `CONTEXT.md` and ADRs alongside the grilling. Use `/grill-me` for everything else.
+Use `/grill-with-docs` when the topic involves domain concepts — it is designed to update `CONTEXT.md` and ADRs alongside the grilling. Use `/grill-me` for everything else.
 
 The grilling session walks down every branch of the design tree until the idea is concrete: edge cases surfaced, ambiguities resolved, out-of-scope items named.
 
