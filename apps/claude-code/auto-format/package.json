@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test tests/format-hook.test.mjs scripts/lib/runners.test.mjs",
+    "test": "node --test tests/format-hook.test.mjs scripts/lib/runners.test.mjs scripts/lib/config.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",

@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- Extract `DEFAULTS` and `loadConfig(projectDir)` to `scripts/lib/config.mjs` with 10 unit tests
 
 ## [0.5.12] — 2026-05-03
 
