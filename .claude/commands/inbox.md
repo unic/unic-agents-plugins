@@ -29,7 +29,11 @@ Examples:
 ## Step 2 — Check for collisions
 
 ```bash
-ls "$(git rev-parse --show-toplevel)/docs/inbox/<slug>.md" 2>/dev/null
+node -e "
+  const root = require('child_process').execSync('git rev-parse --show-toplevel').toString().trim();
+  const p = require('path').join(root, 'docs', 'inbox', '<slug>.md');
+  process.exit(require('fs').existsSync(p) ? 0 : 1);
+"
 ```
 
 If the file exists, append `-2` (then `-3`, etc.) until the path is free.

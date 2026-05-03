@@ -1,4 +1,5 @@
 # 17. Fix inbox command ls collision check for cross-platform support
+**Status: done — 2026-05-03**
 
 **Priority:** P2
 **Effort:** XS
