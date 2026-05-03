@@ -5,7 +5,7 @@
 - Priority: P0
 - Effort: M
 - Version impact: minor
-- Depends on: 05
+- Depends on: 04, 05
 - Touches: `commands/review-pr.md`
 
 ## Context

@@ -5,7 +5,7 @@
 - Priority: P1
 - Effort: M
 - Version impact: none (test infrastructure only)
-- Depends on: 06
+- Depends on: 02, 05, 06
 - Touches: `scripts/re-review/`, `tests/`, `commands/review-pr.md`, `package.json`
 
 ## Context
