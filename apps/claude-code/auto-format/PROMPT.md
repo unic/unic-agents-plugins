@@ -28,10 +28,11 @@ Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't
 
 Ground rules (from `docs/plans/README.md`):
 
-- Use `pnpm` (after spec 00 lands; before it's done use `npm` only for spec 00 itself)
-- Tabs for indentation, LF line endings (per `.editorconfig` once it exists)
+- Use `pnpm` for all package operations
+- Tabs for indentation, LF line endings (per `.editorconfig`)
 - Conventional commits: `feat(scope): description`, `fix(scope): description`, `chore(scope): description`
-- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump` once available (spec 07)
+- Cross-platform: use Node.js APIs (`node:path`, `node:fs`, `node:os`) instead of shell commands; no bash/sh assumptions
+- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump`
 - If something can't be followed as written: document it in `## Deviations`, don't silently deviate
 
 ## Step 4 — Verify
@@ -51,19 +52,15 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
    - `### Added` — new feature, new configuration option, new extension support
    - `### Fixed` — bug fix, refactor, docs, internal tooling
 
-3. Once `pnpm bump` is available (spec 07), run it instead of manually editing CHANGELOG.md:
+3. Run:
 
    ```sh
    pnpm bump <patch|minor|major>
    ```
 
-   Until then, manually update `.claude-plugin/plugin.json` version and add the CHANGELOG bullet.
+   This atomically increments `plugin.json` version, mirrors into `marketplace.json`, and promotes `[Unreleased]` → a new dated section.
 
-4. If `pnpm verify:changelog` is available (spec 08), run it:
-
-   ```sh
-   pnpm verify:changelog
-   ```
+4. Run `pnpm verify:changelog` to confirm the check passes.
 
 ## Step 5 — Mark done and commit
 
@@ -79,10 +76,11 @@ Replace `YYYY-MM-DD` with today's date.
 
 ```sh
 git add -A
-git commit -m "feat(spec-NN): <short description of what was implemented>"
+git commit -m "feat(spec-NN): <short description of what was implemented> (vX.Y.Z)"
 ```
 
 Replace `NN` with the spec number (e.g. `00`, `03`) and write a clear description.
+Replace `X.Y.Z` with the version output by `pnpm bump`.
 
 1. **Do not push.** Commits only.
 
