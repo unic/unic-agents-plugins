@@ -56,10 +56,10 @@ LGPL-3.0-or-later for all packages in this monorepo.
 
 ## Prerequisites
 
-| Tool            | Version           | How to get it                                                          |
-| --------------- | ----------------- | ---------------------------------------------------------------------- |
-| Node.js         | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org)                                       |
-| pnpm            | ≥ 10              | `npm install -g pnpm`                                                  |
+| Tool            | Version           | How to get it                                                                    |
+| --------------- | ----------------- | -------------------------------------------------------------------------------- |
+| Node.js         | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org)                                                 |
+| pnpm            | ≥ 10              | `npm install -g pnpm`                                                            |
 | Claude Code CLI | latest            | [claude.ai/code](https://claude.ai/code) — required as the Spec Runner's backend |
 
 Everything else (ralph-orchestrator, Biome, Prettier, TypeScript) is a workspace devDependency and installs with:

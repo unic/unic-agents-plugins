@@ -22,6 +22,7 @@ From the idea text:
 5. Truncate to 50 characters at a word boundary
 
 Examples:
+
 - `"pr-review should support GitLab!"` → `pr-review-should-support-gitlab`
 - `"add dark mode support to the dashboard component"` → `add-dark-mode-support-to-the-dashboard-component`
 - `"implement user authentication with OAuth2 and role-based access control"` → `implement-user-authentication-with-oauth2-and` (truncated at word boundary before 50 chars)
