@@ -62,6 +62,13 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 | 22 | [JSDoc types and --checkJs type-checking](./22-jsdoc-types-ts-check.md) | P2 | M | todo |
 | 23 | [Backfill historical git tags](./23-backfill-tags.md) | P2 | S | done |
 | 24 | [CI auto-tag on version bump](./24-ci-auto-tag.md) | P2 | S | done |
+| 25 | [Add FormatterDescriptor typedef](./25-formatter-descriptor-type.md) | P2 | XS | todo |
+| 26 | [Extract lib/runners.mjs with runFormatter](./26-runner-module.md) | P2 | S | todo |
+| 27 | [Replace runner functions with descriptors](./27-replace-runner-functions.md) | P2 | S | todo |
+| 28 | [Version bump — runner extraction refactor](./28-version-bump.md) | P2 | XS | todo |
+| 29 | [Extract lib/config.mjs with DEFAULTS and loadConfig](./29-config-module.md) | P2 | S | todo |
+| 30 | [Update format-hook.mjs to use lib/config.mjs](./30-wire-up-config-module.md) | P2 | XS | todo |
+| 31 | [Version bump — config extraction refactor](./31-version-bump.md) | P2 | XS | todo |
 
 ## Cross-cutting dependencies
 
@@ -89,3 +96,10 @@ This directory contains one Ralph-ready implementation spec per feature. Each fi
 - **`22` → `19`**: Biome support (spec `19`) should be committed before JSDoc annotations to keep formatting diffs and type-annotation diffs in separate commits.
 - **`23` → `14`**: backfill-tags.mjs relies on the same `vX.Y.Z` tag convention as tag.mjs.
 - **`24` → `10` + `14`**: release.yml extends the CI setup from spec `10` and uses the same tag convention as tag.mjs from spec `14`.
+- **`25` → `22`**: `FormatterDescriptor` typedef lives in `lib/types.mjs`, which spec `22` creates.
+- **`26` → `25`**: `runners.mjs` imports `FormatterDescriptor` via JSDoc `@import` from `types.mjs`.
+- **`27` → `26`**: replaces the three runner functions in `format-hook.mjs` with descriptors + `runFormatter`.
+- **`28` → `27`**: version bump after all three refactor specs land.
+- **`29` → `22`**: `lib/config.mjs` uses `ProjectConfig` and `FormatterName` from `lib/types.mjs` (spec `22`).
+- **`30` → `29`**: wires `format-hook.mjs` to the new config module.
+- **`31` → `30`**: version bump after config extraction specs land.
