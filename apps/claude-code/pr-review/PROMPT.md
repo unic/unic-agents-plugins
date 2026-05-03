@@ -24,7 +24,11 @@ Read the entire spec file before writing any code. Pay special attention to:
 
 ## Step 3 — Implement
 
-Make the smallest set of edits that fully satisfies the spec's _Acceptance criteria_.
+Check the spec's `**Version impact:**` line to choose the implementation approach:
+
+**`none` (workspace/infrastructure spec)** — implement directly. Make the smallest set of edits that fully satisfies the spec's _Acceptance criteria_.
+
+**`patch` / `minor` / `major` (plugin spec)** — use `/tdd` to drive implementation. Treat the spec's "Implementation steps" as guidance (key files to touch, rough order), not a recipe. The spec's **Acceptance criteria** are the target; the red-green-refactor cycle drives the path there.
 
 Ground rules:
 
@@ -36,11 +40,19 @@ Ground rules:
 - Don't invent new specs; if you find missing work, add a `## Follow-ups` line to the current spec and surface it in `docs/plans/README.md` under "Discovered work"
 - If something can't be followed as written: document it in `## Deviations`, don't silently deviate
 
+**Supporting skill:** `/diagnose` — if a failure persists and the root cause appears to be outside the spec's scope (an existing module, tooling, or dependency the spec doesn't touch), use `/diagnose` to isolate it before continuing.
+
 ## Step 4 — Verify
 
 Run the exact commands in the spec's **Verification** section. Fix any failures before proceeding.
 
 Check every item in **Acceptance criteria**. If any item fails, fix it.
+
+Then run the always-on repo hygiene checks regardless of spec type:
+
+```sh
+pnpm -w check   # Biome + Prettier (workspace root) — fix any failures before proceeding
+```
 
 ## Step 4.5 — Version bump (conditional)
 

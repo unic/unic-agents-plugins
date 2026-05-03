@@ -24,7 +24,11 @@ Read the entire spec file before writing any code. Pay special attention to:
 
 ## Step 3 — Implement
 
-Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't match the current file, consult the "Deviations" section (if you wrote one) or document the discrepancy and adapt minimally.
+Check the spec's `**Version impact:**` line to choose the implementation approach:
+
+**`none` (workspace/infrastructure spec)** — implement directly. Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't match the current file, consult the "Deviations" section (if you wrote one) or document the discrepancy and adapt minimally.
+
+**`patch` / `minor` / `major` (plugin spec)** — use `/tdd` to drive implementation. Treat the spec's "Implementation steps" as guidance (key files to touch, rough order), not a recipe. The spec's **Acceptance criteria** are the target; the red-green-refactor cycle drives the path there.
 
 Ground rules (from `docs/plans/README.md`):
 
@@ -35,11 +39,19 @@ Ground rules (from `docs/plans/README.md`):
 - **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump`
 - If something can't be followed as written: document it in `## Deviations`, don't silently deviate
 
+**Supporting skill:** `/diagnose` — if a failure persists and the root cause appears to be outside the spec's scope (an existing module, tooling, or dependency the spec doesn't touch), use `/diagnose` to isolate it before continuing.
+
 ## Step 4 — Verify
 
 Run the exact commands in the spec's **Verification** section. Fix any failures before proceeding.
 
 Check every item in **Acceptance criteria**. If any item fails, fix it.
+
+Then run the always-on repo hygiene checks regardless of spec type:
+
+```sh
+pnpm -w check   # Biome + Prettier (workspace root) — fix any failures before proceeding
+```
 
 ## Step 4.5 — Bump version + CHANGELOG
 
