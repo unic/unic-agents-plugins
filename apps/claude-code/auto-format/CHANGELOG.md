@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+### Changed
+
+- Internal: extracted `DEFAULTS` and `loadConfig` from `format-hook.mjs` into `lib/config.mjs`,
+  with ten unit tests covering the merge strategy — no behaviour change for consumers.
+
 ### Fixed
 
 - (none)
