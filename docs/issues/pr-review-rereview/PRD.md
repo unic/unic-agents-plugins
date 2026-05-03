@@ -1,6 +1,6 @@
 # PRD: pr-review — Incremental Re-review
 
-**Status:** resolved
+**Status:** closed
 **Plugin:** `apps/claude-code/pr-review`
 **Specs:** `apps/claude-code/pr-review/docs/plans/00` through `09`
 
