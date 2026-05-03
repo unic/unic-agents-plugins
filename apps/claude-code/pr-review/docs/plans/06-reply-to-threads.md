@@ -92,7 +92,7 @@ This is the last action of every successful run (first review or re-review). Its
 
 ## Out of scope
 
-- Summary comment behaviour (spec 06).
+- Summary comment behaviour (spec 07).
 
 ## Follow-ups
 

@@ -10,7 +10,7 @@
 
 ## Context
 
-The re-review feature (specs 01–06) contains complex logic for thread detection, classification, and matching. Without an automated test harness, regressions can only be caught during a live review run. This spec extracts the core logic into importable Node.js modules and provides a `node:test` suite with JSON fixtures — no live ADO connection required.
+The re-review feature (specs 01–07) contains complex logic for thread detection, classification, and matching. Without an automated test harness, regressions can only be caught during a live review run. This spec extracts the core logic into importable Node.js modules and provides a `node:test` suite with JSON fixtures — no live ADO connection required.
 
 All prior references to specific production PRs as test targets are replaced by named fixture scenarios. Production PRs must never be used as test dependencies.
 
@@ -34,7 +34,7 @@ input:  { thread: PriorThread, diffHunks: DiffHunk[], signaturePrefix: string }
 output: 'addressed' | 'disputed' | 'pending' | 'obsolete'
 ```
 
-Applies the four-state classification rules (spec 04). Pure function — no I/O.
+Applies the four-state classification rules (spec 05). Pure function — no I/O.
 
 ### `match-finding.mjs`
 

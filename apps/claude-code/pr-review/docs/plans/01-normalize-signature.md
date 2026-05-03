@@ -59,7 +59,7 @@ Two distinct types of location must be updated:
 
 ## Out of scope
 
-- Detection logic itself (spec 01).
+- Detection logic itself (spec 02).
 
 ## Follow-ups
 

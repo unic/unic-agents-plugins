@@ -41,7 +41,7 @@ After Step 3 (PR metadata) and before Step 4 (iteration), the command runs a det
 - General threads (no `threadContext`) have `filePath = null`, `start = null`, `end = null`. The summary thread is the general thread with `isSummaryThread = true`.
 - A thread can have multiple comments; scan all of them for the signature prefix to confirm bot authorship.
 - A human who quotes the signature string triggers a false positive — this is accepted and documented in Notes.
-- Threads from a prior run that was interrupted (no completion marker) are included in `PRIOR_THREADS` normally; spec 05 detects the partial-run state from the missing completion marker.
+- Threads from a prior run that was interrupted (no completion marker) are included in `PRIOR_THREADS` normally; spec 06 detects the partial-run state from the missing completion marker.
 
 ## Implementation steps
 
