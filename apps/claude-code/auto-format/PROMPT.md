@@ -4,7 +4,7 @@ You are implementing the roadmap for the `unic-claude-code-format` Claude Code p
 
 ## Step 1 — Determine what's next
 
-Check the execution order in `docs/plans/README.md`. Then scan spec files in order (00 → 11) and find the first file that does NOT contain the string `**Status: done`.
+Check the execution order in `docs/plans/README.md`. Then scan spec files in order and find the first file that does NOT contain the string `**Status: done`.
 
 If **all** specs contain `**Status: done**, output exactly:
 
@@ -60,6 +60,7 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
    Until then, manually update `.claude-plugin/plugin.json` version and add the CHANGELOG bullet.
 
 4. If `pnpm verify:changelog` is available (spec 08), run it:
+
    ```sh
    pnpm verify:changelog
    ```
@@ -74,7 +75,7 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
 
 Replace `YYYY-MM-DD` with today's date.
 
-2. Stage and commit all changes:
+1. Stage and commit all changes:
 
 ```sh
 git add -A
@@ -83,7 +84,7 @@ git commit -m "feat(spec-NN): <short description of what was implemented>"
 
 Replace `NN` with the spec number (e.g. `00`, `03`) and write a clear description.
 
-3. **Do not push.** Commits only.
+1. **Do not push.** Commits only.
 
 ## Step 6 — Stop for this iteration
 
@@ -95,9 +96,12 @@ Output a brief summary of what was implemented and committed. Then stop — Ralp
 
 - Implement **one spec per iteration**. Do not implement multiple specs in a single run.
 - If a spec requires human judgment (e.g. choosing between two design approaches not covered by the spec), stop, document the question in a `## Questions` section at the bottom of the spec file, and output:
+
   ```
   <promise>LOOP_COMPLETE</promise>
   ```
+
   This pauses the loop for human review.
+
 - Do not create any files outside of what the spec describes.
 - Do not modify any spec files except to add `**Status: done**`, `## Deviations`, or `## Questions` sections.
