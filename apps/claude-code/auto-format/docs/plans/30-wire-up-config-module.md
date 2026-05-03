@@ -1,4 +1,5 @@
 # 30. Update `format-hook.mjs` to use `lib/config.mjs`
+**Status: done — 2026-05-04**
 
 **Priority:** P2
 **Effort:** XS

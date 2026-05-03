@@ -13,87 +13,17 @@
  *     so each repo keeps its own pinned versions and configs.
  */
 // @ts-check
-/** @import { HookEvent, ProjectConfig, FormatterName } from './lib/types.mjs' */
+/** @import { HookEvent } from './lib/types.mjs' */
 /** @import { FormatterDescriptor } from './lib/types.mjs' */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { extname, relative, resolve, sep } from 'node:path'
+import { loadConfig } from './lib/config.mjs'
 import { runFormatter } from './lib/runners.mjs'
 
 const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 
-/** @type {ProjectConfig} */
-const DEFAULTS = {
-	skipPrefixes: [
-		'_bmad/',
-		'.claude/skills/bmad-',
-		'.claude/worktrees/',
-		'.history/',
-		'.git/',
-		'node_modules/',
-		'dist/',
-		'build/',
-		'.next/',
-		'coverage/',
-	],
-	prettierExtensions: [
-		'.md',
-		'.mdx',
-		'.json',
-		'.jsonc',
-		'.yml',
-		'.yaml',
-		'.js',
-		'.mjs',
-		'.cjs',
-		'.ts',
-		'.mts',
-		'.cts',
-		'.tsx',
-		'.feature',
-	],
-	eslintExtensions: ['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx', '.json', '.jsonc', '.md'],
-	formatTimeoutMs: 30_000,
-	formatter: 'auto',
-}
-
-/**
- * Reads .claude/unic-format.json from the consumer project root and merges
- * it with DEFAULTS. Returns DEFAULTS on missing file or parse error.
- *
- * @returns {ProjectConfig}
- */
-function loadProjectConfig() {
-	const configPath = resolve(PROJECT_DIR, '.claude/unic-format.json')
-	if (!existsSync(configPath)) return DEFAULTS
-	try {
-		const cfg = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(configPath, 'utf8')))
-		const raw = Number(cfg.formatTimeoutMs)
-		const VALID_FORMATTERS = new Set(['auto', 'prettier', 'biome'])
-		const hasFullReplacement = Array.isArray(cfg.skipPrefixes) && cfg.skipPrefixes.length > 0
-		const hasAdditive = Array.isArray(cfg.additionalSkipPrefixes) && cfg.additionalSkipPrefixes.length > 0
-		return {
-			skipPrefixes: hasFullReplacement
-				? /** @type {string[]} */ (cfg.skipPrefixes)
-				: hasAdditive
-					? [...DEFAULTS.skipPrefixes, .../** @type {string[]} */ (cfg.additionalSkipPrefixes)]
-					: DEFAULTS.skipPrefixes,
-			prettierExtensions: Array.isArray(cfg.prettierExtensions) ? cfg.prettierExtensions : DEFAULTS.prettierExtensions,
-			eslintExtensions: Array.isArray(cfg.eslintExtensions) ? cfg.eslintExtensions : DEFAULTS.eslintExtensions,
-			formatTimeoutMs: Number.isFinite(raw) ? Math.min(Math.max(raw, 1_000), 120_000) : DEFAULTS.formatTimeoutMs,
-			formatter: /** @type {FormatterName} */ (
-				VALID_FORMATTERS.has(/** @type {string} */ (cfg.formatter)) ? cfg.formatter : DEFAULTS.formatter
-			),
-		}
-	} catch (err) {
-		process.stderr.write(
-			`unic-format: ignoring malformed .claude/unic-format.json: ${/** @type {Error} */ (err).message}\n`
-		)
-		return DEFAULTS
-	}
-}
-
-const CONFIG = loadProjectConfig()
+const CONFIG = loadConfig(PROJECT_DIR)
 
 const PRETTIER_EXTS = new Set(CONFIG.prettierExtensions)
 const ESLINT_EXTS = new Set(CONFIG.eslintExtensions)
