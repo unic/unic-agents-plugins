@@ -1,11 +1,11 @@
-# 06. Summary comment policy on re-review
+# 07. Summary comment policy on re-review
 
 **Status: pending**
 
 - Priority: P1
 - Effort: S
 - Version impact: minor
-- Depends on: 05
+- Depends on: 06
 - Touches: `commands/review-pr.md`
 
 ## Context

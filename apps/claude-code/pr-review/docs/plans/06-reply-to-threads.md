@@ -1,11 +1,11 @@
-# 05. Reply to threads instead of duplicating
+# 06. Reply to threads instead of duplicating
 
 **Status: pending**
 
 - Priority: P0
 - Effort: M
 - Version impact: minor
-- Depends on: 04
+- Depends on: 05
 - Touches: `commands/review-pr.md`
 
 ## Context

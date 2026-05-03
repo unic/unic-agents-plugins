@@ -1,11 +1,11 @@
-# 01. Detect prior review on PR
+# 02. Detect prior review on PR
 
 **Status: pending**
 
 - Priority: P0
 - Effort: S
 - Version impact: minor
-- Depends on: 00
+- Depends on: 01
 - Touches: `commands/review-pr.md`
 
 ## Context

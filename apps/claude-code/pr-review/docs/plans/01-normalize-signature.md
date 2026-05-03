@@ -1,11 +1,11 @@
-# 00. Normalize Claude Code signature
+# 01. Normalize Claude Code signature
 
 **Status: pending**
 
 - Priority: P0 (blocks detection)
 - Effort: XS
 - Version impact: patch
-- Depends on: —
+- Depends on: 00
 - Touches: `commands/review-pr.md`
 
 ## Context

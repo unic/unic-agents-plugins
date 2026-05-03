@@ -1,11 +1,11 @@
-# 03. Incremental diff baseline on re-review
+# 04. Incremental diff baseline on re-review
 
 **Status: pending**
 
 - Priority: P1
 - Effort: M
 - Version impact: minor
-- Depends on: 02
+- Depends on: 03
 - Touches: `commands/review-pr.md`
 
 ## Context

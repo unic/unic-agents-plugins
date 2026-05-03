@@ -1,11 +1,11 @@
-# 04. Classify existing threads
+# 05. Classify existing threads
 
 **Status: pending**
 
 - Priority: P1
 - Effort: M
 - Version impact: minor
-- Depends on: 01
+- Depends on: 02
 - Touches: `commands/review-pr.md`
 
 ## Context

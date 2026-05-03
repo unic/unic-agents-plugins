@@ -6,17 +6,13 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 
 | #  | Spec                                  | Status  | Depends on |
 |----|---------------------------------------|---------|------------|
-| 00 | Normalize Claude Code signature       | pending | —          |
-| 01 | Detect prior review on PR             | pending | 00         |
-| 02 | Target latest PR iteration            | pending | 01         |
-| 03 | Incremental diff baseline             | pending | 02         |
-| 04 | Classify existing threads             | pending | 01         |
-| 05 | Reply to threads instead of posting   | pending | 04         |
-| 06 | Summary comment policy on re-review   | pending | 05         |
-| 07 | Version bump, README, CLAUDE.md       | pending | 06         |
-| 08 | Test harness — node:test + modules    | pending | 05         |
-
-## Discovered work
-
-- Spec 07 must also supersede ADR 0007 (`docs/adr/0009-summary-delta-as-reply.md`).
-- Monorepo `.prettierignore` must include `**/CHANGELOG.md` before the first bump (spec 07 step 3).
+| 00 | Pre-flight: ADR supersession + prettierignore guard | pending | — |
+| 01 | Normalize Claude Code signature       | pending | 00         |
+| 02 | Detect prior review on PR             | pending | 01         |
+| 03 | Target latest PR iteration            | pending | 02         |
+| 04 | Incremental diff baseline             | pending | 03         |
+| 05 | Classify existing threads             | pending | 02         |
+| 06 | Reply to threads instead of posting   | pending | 05         |
+| 07 | Summary comment policy on re-review   | pending | 06         |
+| 08 | Version bump, README, CLAUDE.md       | pending | 07         |
+| 09 | Test harness — node:test + modules    | pending | 06         |

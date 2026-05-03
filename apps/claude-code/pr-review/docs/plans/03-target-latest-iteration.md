@@ -1,11 +1,11 @@
-# 02. Target latest PR iteration
+# 03. Target latest PR iteration
 
 **Status: pending**
 
 - Priority: P0
 - Effort: S
 - Version impact: minor
-- Depends on: 01
+- Depends on: 02
 - Touches: `commands/review-pr.md`, `CLAUDE.md`
 
 ## Context

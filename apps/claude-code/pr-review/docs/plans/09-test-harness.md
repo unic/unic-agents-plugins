@@ -1,11 +1,11 @@
-# 08. Test harness — node:test + extracted modules
+# 09. Test harness — node:test + extracted modules
 
 **Status: pending**
 
 - Priority: P1
 - Effort: M
 - Version impact: none (test infrastructure only)
-- Depends on: 05
+- Depends on: 06
 - Touches: `scripts/re-review/`, `tests/`
 
 ## Context
