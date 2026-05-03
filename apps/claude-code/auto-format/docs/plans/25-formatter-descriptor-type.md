@@ -1,4 +1,5 @@
 # 25. Add `FormatterDescriptor` typedef to `lib/types.mjs`
+**Status: done — 2026-05-04**
 
 **Priority:** P2
 **Effort:** XS
