@@ -31,7 +31,7 @@ before any of them runs:
 ## Target behaviour
 
 - ADR 0007: `**Status:** Superseded by 0009 (2026-05)`. Body untouched.
-- New `docs/adr/0009-summary-delta-as-reply.md` created with status
+- New `apps/claude-code/pr-review/docs/adr/0009-summary-delta-as-reply.md` created with status
   `Accepted (2026-05) — Supersedes 0007`, recording:
   - **Decision:** the re-review delta is posted as a reply to the existing summary
     thread, identified via `isSummaryThread = true` (set by spec 02).

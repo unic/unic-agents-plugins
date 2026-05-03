@@ -23,7 +23,7 @@ Finalise metadata, documentation, and release artefacts for the re-review featur
 
 5. **Add Re-review section to `README.md`** covering: trigger condition, what changes (detection, thread reuse, delta summary reply, completion marker), new signature format, and known limitations (force-push fallback, partial-run recovery).
 
-6. **Create `docs/adr/0009-summary-delta-as-reply.md`.** Status: Accepted. Context: ADR 0007 specified that the summary comment is rewritten in place on re-review. Decision: the implemented behaviour posts a reply to the existing summary thread instead, keeping the edit timestamp on the original comment and maintaining a linear thread history. Consequences: the summary thread accumulates replies over iterations; the first comment body is never modified after posting.
+6. **Create `apps/claude-code/pr-review/docs/adr/0009-summary-delta-as-reply.md`.** Status: Accepted. Context: ADR 0007 specified that the summary comment is rewritten in place on re-review. Decision: the implemented behaviour posts a reply to the existing summary thread instead, keeping the edit timestamp on the original comment and maintaining a linear thread history. Consequences: the summary thread accumulates replies over iterations; the first comment body is never modified after posting.
 
 7. **Verify.** Run `pnpm --filter pr-review verify:changelog` locally before opening the PR.
 
@@ -33,7 +33,7 @@ Finalise metadata, documentation, and release artefacts for the re-review featur
 - [ ] Versions match across `plugin.json` and `marketplace.json`
 - [ ] `README.md` includes a Re-review section
 - [ ] Roadmap line removed from `CLAUDE.md`; signature and iteration rules present
-- [ ] `docs/adr/0009-summary-delta-as-reply.md` exists, references ADR 0007, status Accepted
+- [ ] `apps/claude-code/pr-review/docs/adr/0009-summary-delta-as-reply.md` exists, references ADR 0007, status Accepted
 - [ ] Monorepo `.prettierignore` contains `**/CHANGELOG.md`
 - [ ] CI passes on the release PR
 
