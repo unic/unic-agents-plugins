@@ -84,14 +84,14 @@ module imports it via JSDoc `@import`.
 Tests in `scripts/lib/runners.test.mjs` use `spawnSync` against stub Node.js scripts written to
 temp directories. No mocking framework.
 
-| Scenario | Stub | Observable |
-|---|---|---|
-| Missing binary, `warnIfMissing: false` | non-existent path | zero stderr lines |
-| Missing binary, `warnIfMissing: true` | non-existent path | stderr contains "binary not found" |
-| Timeout | `setInterval(()=>{}, 999)` with `timeoutMs: 50` | stderr contains "timed out" |
-| Tolerated exit code | `process.exit(1)` | zero stderr lines with `toleratedStatuses: [1]` |
-| Non-tolerated exit code | `process.exit(2)` | stderr contains "failed (exit 2)" |
-| Args passed correctly | echoes `process.argv[2]` to sentinel file | sentinel file exists |
+| Scenario                               | Stub                                            | Observable                                      |
+| -------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| Missing binary, `warnIfMissing: false` | non-existent path                               | zero stderr lines                               |
+| Missing binary, `warnIfMissing: true`  | non-existent path                               | stderr contains "binary not found"              |
+| Timeout                                | `setInterval(()=>{}, 999)` with `timeoutMs: 50` | stderr contains "timed out"                     |
+| Tolerated exit code                    | `process.exit(1)`                               | zero stderr lines with `toleratedStatuses: [1]` |
+| Non-tolerated exit code                | `process.exit(2)`                               | stderr contains "failed (exit 2)"               |
+| Args passed correctly                  | echoes `process.argv[2]` to sentinel file       | sentinel file exists                            |
 
 ### Test command update
 

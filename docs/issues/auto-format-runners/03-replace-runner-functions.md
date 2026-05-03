@@ -14,6 +14,7 @@ Replace the three inline runner functions (`runPrettier`, `runEslint`, `runBiome
 `runFormatter` from `lib/runners.mjs`.
 
 Changes:
+
 1. Add `import { runFormatter } from './lib/runners.mjs'`
 2. Add `/** @import { FormatterDescriptor } from './lib/types.mjs' */` type-import tag
 3. Define `PRETTIER_DESCRIPTOR`, `ESLINT_DESCRIPTOR`, `BIOME_DESCRIPTOR` constants

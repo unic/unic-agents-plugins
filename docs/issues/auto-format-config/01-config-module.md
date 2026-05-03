@@ -12,6 +12,7 @@
 Create `scripts/lib/config.mjs` and `scripts/lib/config.test.mjs`.
 
 `config.mjs` exports:
+
 - `DEFAULTS` — the `ProjectConfig` constant currently at lines 25–57 of `format-hook.mjs`
 - `loadConfig(projectDir: string) → ProjectConfig` — the merge logic currently in
   `loadProjectConfig()`, with `PROJECT_DIR` replaced by the `projectDir` parameter

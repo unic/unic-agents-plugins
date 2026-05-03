@@ -53,6 +53,7 @@ Not exported — it is an implementation detail of the validation step, not part
 ### 4. Test strategy: real temp directories
 
 Consistent with spec-26 (runners). Tests in `scripts/lib/config.test.mjs`:
+
 - `mkdtempSync` to create isolated project root
 - Write `.claude/unic-format.json` for scenarios that need it
 - Call `loadConfig(tempDir)`, assert on returned `ProjectConfig`
@@ -64,18 +65,18 @@ No mocking of `fs` module.
 
 Ten scenarios covering the complete merge logic:
 
-| Scenario | Input | Expected |
-|---|---|---|
-| No config file | directory with no `.claude/` | `DEFAULTS` |
-| Malformed JSON | invalid JSON in config file | `DEFAULTS` + stderr warning |
-| Full `skipPrefixes` replacement | non-empty `skipPrefixes` array | provided array only |
-| Additive `additionalSkipPrefixes` | `additionalSkipPrefixes` array, no `skipPrefixes` | DEFAULTS + provided extras |
-| Neither field | empty config object `{}` | `DEFAULTS.skipPrefixes` |
-| `formatTimeoutMs` lower clamp | value below 1000 | 1000 |
-| `formatTimeoutMs` upper clamp | value above 120000 | 120000 |
-| `formatTimeoutMs` valid | value within range | provided value |
-| Invalid `formatter` value | `"webpack"` | `DEFAULTS.formatter` |
-| Valid `formatter` value | `"biome"` | `"biome"` |
+| Scenario                          | Input                                             | Expected                    |
+| --------------------------------- | ------------------------------------------------- | --------------------------- |
+| No config file                    | directory with no `.claude/`                      | `DEFAULTS`                  |
+| Malformed JSON                    | invalid JSON in config file                       | `DEFAULTS` + stderr warning |
+| Full `skipPrefixes` replacement   | non-empty `skipPrefixes` array                    | provided array only         |
+| Additive `additionalSkipPrefixes` | `additionalSkipPrefixes` array, no `skipPrefixes` | DEFAULTS + provided extras  |
+| Neither field                     | empty config object `{}`                          | `DEFAULTS.skipPrefixes`     |
+| `formatTimeoutMs` lower clamp     | value below 1000                                  | 1000                        |
+| `formatTimeoutMs` upper clamp     | value above 120000                                | 120000                      |
+| `formatTimeoutMs` valid           | value within range                                | provided value              |
+| Invalid `formatter` value         | `"webpack"`                                       | `DEFAULTS.formatter`        |
+| Valid `formatter` value           | `"biome"`                                         | `"biome"`                   |
 
 `tests/format-hook.test.mjs` must pass without modification (no external behaviour change).
 
