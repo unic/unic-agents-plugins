@@ -14,10 +14,11 @@
  */
 // @ts-check
 /** @import { HookEvent, ProjectConfig, FormatterName } from './lib/types.mjs' */
+/** @import { FormatterDescriptor } from './lib/types.mjs' */
 
-import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, relative, resolve, sep } from 'node:path'
+import { runFormatter } from './lib/runners.mjs'
 
 const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 
@@ -106,6 +107,29 @@ const BIOME_EXTS = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx'
 
 const BIOME_AVAILABLE = existsSync(BIOME_BIN) && BIOME_CONFIG_PATH.some((p) => existsSync(p))
 
+/** @type {FormatterDescriptor} */
+const PRETTIER_DESCRIPTOR = {
+	name: 'prettier',
+	bin: PRETTIER_BIN,
+	args: (f) => ['--write', '--ignore-unknown', '--log-level', 'warn', f],
+}
+
+/** @type {FormatterDescriptor} */
+const ESLINT_DESCRIPTOR = {
+	name: 'eslint',
+	bin: ESLINT_BIN,
+	args: (f) => ['--fix', '--no-error-on-unmatched-pattern', f],
+	toleratedStatuses: [1],
+}
+
+/** @type {FormatterDescriptor} */
+const BIOME_DESCRIPTOR = {
+	name: 'biome',
+	bin: BIOME_BIN,
+	args: (f) => ['check', '--write', '--no-errors-on-unmatched-pattern', f],
+	warnIfMissing: true,
+}
+
 /**
  * Converts a native path to forward-slash separators (no-op on POSIX).
  *
@@ -125,87 +149,6 @@ function toPosix(p) {
 function shouldSkip(rel) {
 	if (rel.startsWith('..')) return true
 	return CONFIG.skipPrefixes.some((p) => rel.startsWith(p))
-}
-
-/**
- * Runs `prettier --write` on filePath using the consumer's local Prettier binary.
- * No-ops if Prettier is not installed. Always returns undefined.
- *
- * @param {string} filePath - Absolute path to the file to format.
- * @returns {void}
- */
-function runPrettier(filePath) {
-	if (!existsSync(PRETTIER_BIN)) return
-	const r = spawnSync('node', [PRETTIER_BIN, '--write', '--ignore-unknown', '--log-level', 'warn', filePath], {
-		cwd: PROJECT_DIR,
-		stdio: ['ignore', 'ignore', 'pipe'],
-		timeout: CONFIG.formatTimeoutMs,
-		killSignal: 'SIGTERM',
-	})
-	if (r.signal === 'SIGTERM' || r.status === null) {
-		process.stderr.write(`unic-format: prettier timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
-		return
-	}
-	if (r.status !== 0) {
-		process.stderr.write(`unic-format: prettier failed: ${r.stderr?.toString().trim() || 'unknown error'}\n`)
-	}
-}
-
-/**
- * Runs `eslint --fix` on filePath using the consumer's local ESLint binary.
- * No-ops if ESLint is not installed. Exit status 1 (unfixed lint violations) is tolerated.
- *
- * @param {string} filePath - Absolute path to the file to lint.
- * @returns {void}
- */
-function runEslint(filePath) {
-	if (!existsSync(ESLINT_BIN)) return
-	const r = spawnSync('node', [ESLINT_BIN, '--fix', '--no-error-on-unmatched-pattern', filePath], {
-		cwd: PROJECT_DIR,
-		stdio: ['ignore', 'ignore', 'pipe'],
-		timeout: CONFIG.formatTimeoutMs,
-		killSignal: 'SIGTERM',
-	})
-	if (r.signal === 'SIGTERM' || r.status === null) {
-		process.stderr.write(`unic-format: eslint timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
-		return
-	}
-	// Status 1 = lint warnings/errors remain after --fix (not a hook failure).
-	// Status >1 = ESLint crash or misconfiguration.
-	if (r.status !== 0 && r.status !== 1) {
-		process.stderr.write(
-			`unic-format: eslint failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`
-		)
-	}
-}
-
-/**
- * Runs `biome check --write` on filePath using the consumer's local Biome binary.
- * No-ops (with stderr warning) if Biome binary is missing.
- *
- * @param {string} filePath - Absolute path to the file to format.
- * @returns {void}
- */
-function runBiome(filePath) {
-	if (!existsSync(BIOME_BIN)) {
-		process.stderr.write(`unic-format: biome binary not found at ${BIOME_BIN}\n`)
-		return
-	}
-	const r = spawnSync('node', [BIOME_BIN, 'check', '--write', '--no-errors-on-unmatched-pattern', filePath], {
-		cwd: PROJECT_DIR,
-		stdio: ['ignore', 'ignore', 'pipe'],
-		timeout: CONFIG.formatTimeoutMs,
-		killSignal: 'SIGTERM',
-	})
-	if (r.signal === 'SIGTERM' || r.status === null) {
-		process.stderr.write(`unic-format: biome timed out after ${CONFIG.formatTimeoutMs / 1000}s on ${filePath}\n`)
-		return
-	}
-	if (r.status !== 0) {
-		process.stderr.write(
-			`unic-format: biome failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`
-		)
-	}
 }
 
 /**
@@ -240,11 +183,12 @@ async function main() {
 	const usesBiome =
 		CONFIG.formatter === 'biome' || (CONFIG.formatter === 'auto' && BIOME_AVAILABLE && BIOME_EXTS.has(ext))
 
+	const run = (/** @type {FormatterDescriptor} */ d) => runFormatter(d, filePath, PROJECT_DIR, CONFIG.formatTimeoutMs)
 	if (usesBiome) {
-		runBiome(filePath)
+		run(BIOME_DESCRIPTOR)
 	} else {
-		runPrettier(filePath)
-		if (ESLINT_EXTS.has(ext)) runEslint(filePath)
+		run(PRETTIER_DESCRIPTOR)
+		if (ESLINT_EXTS.has(ext)) run(ESLINT_DESCRIPTOR)
 	}
 }
 

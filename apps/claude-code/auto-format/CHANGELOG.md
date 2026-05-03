@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- Replaced inline `runPrettier`, `runEslint`, `runBiome` functions in `format-hook.mjs` with `FormatterDescriptor` constants and a single `runFormatter` call-through
 
 ## [0.5.10] — 2026-05-03
 
