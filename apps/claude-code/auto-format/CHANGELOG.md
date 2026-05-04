@@ -81,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+### Changed
+
+- Prettier failure messages now include the exit code (`prettier failed (exit N): …`) to align with the ESLint/Biome format; previous format was `prettier failed: …`
+
 ### Fixed
 
 - Replaced inline `runPrettier`, `runEslint`, `runBiome` functions in `format-hook.mjs` with `FormatterDescriptor` constants and a single `runFormatter` call-through
