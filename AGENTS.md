@@ -20,7 +20,7 @@ packages/
 ├── tsconfig/                 # @unic/tsconfig
 └── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
 docs/
-└── plans/                    # Monorepo-level Ralph spec roadmap (specs 00–14)
+└── plans/                    # Monorepo-level Spec Runner roadmap (specs 00–14)
 ```
 
 Each plugin under `apps/<agent>/` also has its own `docs/plans/` for plugin-specific future work.
@@ -41,12 +41,12 @@ pnpm format                             # Biome + Prettier fix (whole tree)
 pnpm ci:check                           # same as check, non-interactive (for CI)
 pnpm test                               # run tests across all packages
 pnpm typecheck                          # type-check across all packages
-pnpm ralph                              # run the monorepo Ralph loop (specs 00–14)
+pnpm ralph                              # run the monorepo Spec Runner loop (specs 00–14)
 
 # Per-plugin operations (after spec 03 sets up release-tools)
 pnpm --filter <name> bump patch         # bump plugin version
 pnpm --filter <name> verify:changelog   # check changelog
-pnpm --filter <name> ralph              # run that plugin's own Ralph loop
+pnpm --filter <name> ralph              # run that plugin's own Spec Runner loop
 ```
 
 ## Tech stack
@@ -126,7 +126,7 @@ All work starts with a spec file under `docs/plans/`. Specs follow this format:
 ## Out of scope
 ```
 
-`pnpm ralph` runs Ralph Orchestrator, which implements specs one at a time in a loop.
+`pnpm ralph` runs the Spec Runner (currently `ralph-orchestrator`), which implements specs one at a time in a loop.
 
 ## Do not add
 
@@ -150,4 +150,8 @@ Issues live as local markdown files under `docs/issues/`. See `docs/agents/issue
 
 ### Domain docs
 
-Multi-context repo: Per-plugin `CONTEXT.md` files (created lazily by `/grill-with-docs`) live under `apps/claude-code/<plugin>/`. A root `CONTEXT-MAP.md` may be added later. See `docs/agents/domain.md`.
+Multi-context repo: Per-plugin `CONTEXT.md` files live under `apps/claude-code/<plugin>/`. Root `CONTEXT-MAP.md` at repo root. See `docs/agents/domain.md`.
+
+### Inbox
+
+Raw ideas, bugs, and stray thoughts that haven't been grilled or scoped yet live in `docs/inbox/`. Use `/inbox <one-liner>` to capture without interrupting the current flow. Items graduate to `docs/issues/<slug>/` after grilling. See `docs/inbox/README.md`.

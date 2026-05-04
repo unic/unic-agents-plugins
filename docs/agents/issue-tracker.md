@@ -1,5 +1,7 @@
 # Issue tracker: Local Markdown
 
+Pre-scope ideas live in `docs/inbox/` (see `docs/inbox/README.md`). Once an idea has been grilled and a feature slug agreed, it moves here.
+
 Issues and PRDs for this repo live as markdown files in `docs/issues/`.
 
 ## Conventions

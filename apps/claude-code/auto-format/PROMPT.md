@@ -4,7 +4,7 @@ You are implementing the roadmap for the `unic-claude-code-format` Claude Code p
 
 ## Step 1 — Determine what's next
 
-Check the execution order in `docs/plans/README.md`. Then scan spec files in order (00 → 11) and find the first file that does NOT contain the string `**Status: done`.
+Check the execution order in `docs/plans/README.md`. Then scan spec files in order and find the first file that does NOT contain the string `**Status: done`.
 
 If **all** specs contain `**Status: done**, output exactly:
 
@@ -24,21 +24,34 @@ Read the entire spec file before writing any code. Pay special attention to:
 
 ## Step 3 — Implement
 
-Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't match the current file, consult the "Deviations" section (if you wrote one) or document the discrepancy and adapt minimally.
+Check the spec's `**Version impact:**` line to choose the implementation approach:
+
+**`none` (workspace/infrastructure spec)** — implement directly. Follow the "Implementation steps" exactly. If a step's "before" snapshot doesn't match the current file, consult the "Deviations" section (if you wrote one) or document the discrepancy and adapt minimally.
+
+**`patch` / `minor` / `major` (plugin spec)** — use `/tdd` to drive implementation. Treat the spec's "Implementation steps" as guidance (key files to touch, rough order), not a recipe. The spec's **Acceptance criteria** are the target; the red-green-refactor cycle drives the path there.
 
 Ground rules (from `docs/plans/README.md`):
 
-- Use `pnpm` (after spec 00 lands; before it's done use `npm` only for spec 00 itself)
-- Tabs for indentation, LF line endings (per `.editorconfig` once it exists)
+- Use `pnpm` for all package operations
+- Tabs for indentation, LF line endings (per `.editorconfig`)
 - Conventional commits: `feat(scope): description`, `fix(scope): description`, `chore(scope): description`
-- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump` once available (spec 07)
+- Cross-platform: use Node.js APIs (`node:path`, `node:fs`, `node:os`) instead of shell commands; no bash/sh assumptions
+- **Never hand-edit** `.claude-plugin/marketplace.json` version — use `pnpm bump`
 - If something can't be followed as written: document it in `## Deviations`, don't silently deviate
+
+**Supporting skill:** `/diagnose` — if a failure persists and the root cause appears to be outside the spec's scope (an existing module, tooling, or dependency the spec doesn't touch), use `/diagnose` to isolate it before continuing.
 
 ## Step 4 — Verify
 
 Run the exact commands in the spec's **Verification** section. Fix any failures before proceeding.
 
 Check every item in **Acceptance criteria**. If any item fails, fix it.
+
+Then run the always-on repo hygiene checks regardless of spec type:
+
+```sh
+pnpm -w check   # Biome + Prettier (workspace root) — fix any failures before proceeding
+```
 
 ## Step 4.5 — Bump version + CHANGELOG
 
@@ -51,18 +64,15 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
    - `### Added` — new feature, new configuration option, new extension support
    - `### Fixed` — bug fix, refactor, docs, internal tooling
 
-3. Once `pnpm bump` is available (spec 07), run it instead of manually editing CHANGELOG.md:
+3. Run:
 
    ```sh
    pnpm bump <patch|minor|major>
    ```
 
-   Until then, manually update `.claude-plugin/plugin.json` version and add the CHANGELOG bullet.
+   This atomically increments `plugin.json` version, mirrors into `marketplace.json`, and promotes `[Unreleased]` → a new dated section.
 
-4. If `pnpm verify:changelog` is available (spec 08), run it:
-   ```sh
-   pnpm verify:changelog
-   ```
+4. Run `pnpm verify:changelog` to confirm the check passes.
 
 ## Step 5 — Mark done and commit
 
@@ -74,16 +84,17 @@ Check every item in **Acceptance criteria**. If any item fails, fix it.
 
 Replace `YYYY-MM-DD` with today's date.
 
-2. Stage and commit all changes:
+1. Stage and commit all changes:
 
 ```sh
 git add -A
-git commit -m "feat(spec-NN): <short description of what was implemented>"
+git commit -m "feat(spec-NN): <short description of what was implemented> (vX.Y.Z)"
 ```
 
 Replace `NN` with the spec number (e.g. `00`, `03`) and write a clear description.
+Replace `X.Y.Z` with the version output by `pnpm bump`.
 
-3. **Do not push.** Commits only.
+1. **Do not push.** Commits only.
 
 ## Step 6 — Stop for this iteration
 
@@ -95,9 +106,12 @@ Output a brief summary of what was implemented and committed. Then stop — Ralp
 
 - Implement **one spec per iteration**. Do not implement multiple specs in a single run.
 - If a spec requires human judgment (e.g. choosing between two design approaches not covered by the spec), stop, document the question in a `## Questions` section at the bottom of the spec file, and output:
+
   ```
   <promise>LOOP_COMPLETE</promise>
   ```
+
   This pauses the loop for human review.
+
 - Do not create any files outside of what the spec describes.
 - Do not modify any spec files except to add `**Status: done**`, `## Deviations`, or `## Questions` sections.

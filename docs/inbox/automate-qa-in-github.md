@@ -1,0 +1,39 @@
+---
+title: Automate QA in GitHub
+created: 2026-05-03
+---
+
+Automate QA in GitHub. This idea is very related to `./review-pr-review-command-process.md`
+
+My usual workflow:
+
+1. AFK automated development -> multiple commits
+2. Push -> GitHub triggers Actions
+3. Wait for Actions' results
+   1. All green -> Go to 4
+   2. Any red -> Manual or Agentic fixes. go to 6 for Agentic Fixes
+4. On green Actions -> Request GitHub Copilot review
+   1. Wait for Copilot's review complete -> request review throug /pr-review-toolkit:review-pr (go to 5)
+5. Request review Mode 1 (Copilot comments review)
+
+   ```prompt
+   /pr-review-toolkit:review-pr Perform the following:
+   1. Check the failing checks in PR #N.
+   2. Fix them, commit (conventional commits), push and wait to see checks. If not pass, reiterate till all checks green.
+   3. When all checks pass, perform a full PR review.
+   4. For each found issues, fix them, run `pnpm format`. If the affected files are from any `apps` path, then run `pnpm test` and  `pnpm --filter <name> verify:changelog` too. If all fine, then commit. If not fix issues and re-iterate.
+   5. Push and wait to see the checks. If not pass, reiterate till all checks green.
+   ```
+
+6. Request review Mode 2 (Fixes for Actions checks)
+
+   ```prompt
+   /pr-review-toolkit:review-pr Perform the following:
+   1. Check Copilot's unresolved comments in PR #N.
+   2. Evaluate them, triage them and batch them in common logical groups, fix them by logical groups, 1 commit (conventional commits) per group, do al fixes and commits before push, push, wait to see checks. If not pass, reiterate till all checks green.
+   3. When all checks pass, perform a full PR review.
+   4. For each found issues, fix them, run `pnpm format`. If the affected files are from any `apps` path, then run `pnpm test` and  `pnpm --filter <name> verify:changelog` too. If all fine, then commit. If not fix issues and re-iterate.
+   5. Push and wait to see the checks. If not pass, reiterate till all checks green.
+   ```
+
+Is this worth for this repo only? Or for `pr-review` app too?

@@ -1,7 +1,7 @@
 ---
 name: verify-spec
 description: This skill should be used when the user asks to "verify spec 15", "check acceptance criteria for spec N", "is spec 14 ready to merge", "run verify-spec on 08", "check if spec 15 is done", or invokes /verify-spec with a spec number or filename. Locates the matching spec file and checks every acceptance criterion against the current codebase.
-argument-hint: "<spec-number-or-filename> (e.g. 15 or 15-release-tools-tests.md)"
+argument-hint: '<spec-number-or-filename> (e.g. 15 or 15-release-tools-tests.md)'
 user-invocable: true
 ---
 
