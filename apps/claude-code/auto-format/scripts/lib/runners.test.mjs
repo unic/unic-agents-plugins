@@ -105,6 +105,30 @@ test('reports failure for non-tolerated non-zero exit code', () => {
 	}
 })
 
+test('reports args error and never throws when args() throws', () => {
+	const { binPath, dir } = makeStub('')
+	try {
+		const lines = captureStderr(() => {
+			runFormatter(
+				{
+					name: 'bad-args',
+					bin: binPath,
+					args: () => {
+						throw new Error('cannot compute args')
+					},
+				},
+				'/some/file.ts',
+				dir,
+				5_000
+			)
+		})
+		strictEqual(lines.length, 1)
+		ok(lines[0].includes('args error'), `expected "args error" in: ${lines[0]}`)
+	} finally {
+		rmSync(dir, { recursive: true, force: true })
+	}
+})
+
 test('passes args(filePath) to the subprocess', () => {
 	const { binPath, dir } = makeStub(
 		`import { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[2] + '.called', '1')\n`

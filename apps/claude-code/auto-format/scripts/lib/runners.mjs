@@ -22,14 +22,31 @@ export function runFormatter(descriptor, filePath, cwd, timeoutMs) {
 			process.stderr.write(`unic-format: ${descriptor.name} binary not found at ${descriptor.bin}\n`)
 		return
 	}
-	const r = spawnSync('node', [descriptor.bin, ...descriptor.args(filePath)], {
+	let args
+	try {
+		args = descriptor.args(filePath)
+	} catch (err) {
+		process.stderr.write(
+			`unic-format: ${descriptor.name} args error: ${err instanceof Error ? err.message : String(err)}\n`
+		)
+		return
+	}
+	const r = spawnSync('node', [descriptor.bin, ...args], {
 		cwd,
 		stdio: ['ignore', 'ignore', 'pipe'],
 		timeout: timeoutMs,
 		killSignal: 'SIGTERM',
 	})
-	if (r.signal === 'SIGTERM' || r.status === null) {
+	if (r.error?.code === 'ETIMEDOUT') {
 		process.stderr.write(`unic-format: ${descriptor.name} timed out after ${timeoutMs / 1000}s on ${filePath}\n`)
+		return
+	}
+	if (r.signal) {
+		process.stderr.write(`unic-format: ${descriptor.name} killed by signal ${r.signal} on ${filePath}\n`)
+		return
+	}
+	if (r.error) {
+		process.stderr.write(`unic-format: ${descriptor.name} spawn error: ${r.error.message}\n`)
 		return
 	}
 	const tolerated = descriptor.toleratedStatuses ?? []

@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- `runFormatter`: detect ETIMEDOUT precisely for timeouts; report signal-kill and spawn errors with distinct messages; wrap `descriptor.args()` in try/catch to uphold the never-throws contract
 
 ## [0.5.14] — 2026-05-03
 
