@@ -19,6 +19,118 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+## [0.5.15] — 2026-05-04
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- `runFormatter`: detect ETIMEDOUT precisely for timeouts; report signal-kill and spawn errors with distinct messages; wrap `descriptor.args()` in try/catch to uphold the never-throws contract
+
+## [0.5.14] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Changed
+
+- Internal: extracted `DEFAULTS` and `loadConfig` from `format-hook.mjs` into `lib/config.mjs`,
+  with ten unit tests covering the merge strategy — no behaviour change for consumers.
+
+### Fixed
+
+- (none)
+
+## [0.5.13] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- Extract `DEFAULTS` and `loadConfig(projectDir)` to `scripts/lib/config.mjs` with 10 unit tests
+
+## [0.5.12] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Changed
+
+- Internal: extracted shared subprocess contract from `runPrettier`/`runEslint`/`runBiome` into
+  `lib/runners.mjs` — no behaviour change for consumers.
+
+### Fixed
+
+- (none)
+
+## [0.5.11] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Changed
+
+- Prettier failure messages now include the exit code (`prettier failed (exit N): …`) to align with the ESLint/Biome format; previous format was `prettier failed: …`
+
+### Fixed
+
+- Replaced inline `runPrettier`, `runEslint`, `runBiome` functions in `format-hook.mjs` with `FormatterDescriptor` constants and a single `runFormatter` call-through
+
+## [0.5.10] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- Extract `runFormatter` to `scripts/lib/runners.mjs` with six unit tests; update `pnpm test` to run both test files
+
+## [0.5.9] — 2026-05-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- Added `FormatterDescriptor` typedef to `scripts/lib/types.mjs` in preparation for `lib/runners.mjs` extraction
+
 ## [0.5.8] — 2026-04-30
 
 ### Breaking

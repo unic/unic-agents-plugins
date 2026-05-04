@@ -1,4 +1,5 @@
 # 27. Replace runner functions with descriptors in `format-hook.mjs`
+**Status: done — 2026-05-04**
 
 **Priority:** P2
 **Effort:** S

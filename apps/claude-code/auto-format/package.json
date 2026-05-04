@@ -1,6 +1,6 @@
 {
   "name": "auto-format",
-  "version": "0.5.8",
+  "version": "0.5.15",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test tests/format-hook.test.mjs",
+    "test": "node --test tests/format-hook.test.mjs scripts/lib/runners.test.mjs scripts/lib/config.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",

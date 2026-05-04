@@ -1,4 +1,5 @@
 # 26. Extract `lib/runners.mjs` with `runFormatter` and tests
+**Status: done — 2026-05-04**
 
 **Priority:** P2
 **Effort:** S

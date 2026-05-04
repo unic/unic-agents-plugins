@@ -1,4 +1,5 @@
 # 29. Extract `lib/config.mjs` with `DEFAULTS`, `loadConfig`, and tests
+**Status: done — 2026-05-04**
 
 **Priority:** P2
 **Effort:** S

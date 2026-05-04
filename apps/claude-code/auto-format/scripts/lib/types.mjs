@@ -35,4 +35,16 @@
  * }} ProjectConfig
  */
 
+/**
+ * Descriptor for a single formatter invocation.
+ *
+ * @typedef {{
+ *   name: string,
+ *   bin: string,
+ *   args: (filePath: string) => string[],
+ *   warnIfMissing?: boolean,
+ *   toleratedStatuses?: number[],
+ * }} FormatterDescriptor
+ */
+
 export {}
