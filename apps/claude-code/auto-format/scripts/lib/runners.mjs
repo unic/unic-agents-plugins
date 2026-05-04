@@ -37,7 +37,8 @@ export function runFormatter(descriptor, filePath, cwd, timeoutMs) {
 		timeout: timeoutMs,
 		killSignal: 'SIGTERM',
 	})
-	if (r.error?.code === 'ETIMEDOUT') {
+	const spawnError = /** @type {NodeJS.ErrnoException | undefined} */ (r.error)
+	if (spawnError?.code === 'ETIMEDOUT') {
 		process.stderr.write(`unic-format: ${descriptor.name} timed out after ${timeoutMs / 1000}s on ${filePath}\n`)
 		return
 	}
@@ -45,12 +46,12 @@ export function runFormatter(descriptor, filePath, cwd, timeoutMs) {
 		process.stderr.write(`unic-format: ${descriptor.name} killed by signal ${r.signal} on ${filePath}\n`)
 		return
 	}
-	if (r.error) {
-		process.stderr.write(`unic-format: ${descriptor.name} spawn error: ${r.error.message}\n`)
+	if (spawnError) {
+		process.stderr.write(`unic-format: ${descriptor.name} spawn error: ${spawnError.message}\n`)
 		return
 	}
 	const tolerated = descriptor.toleratedStatuses ?? []
-	if (r.status !== 0 && !tolerated.includes(r.status))
+	if (r.status !== null && r.status !== 0 && !tolerated.includes(r.status))
 		process.stderr.write(
 			`unic-format: ${descriptor.name} failed (exit ${r.status}): ${r.stderr?.toString().trim() || 'unknown error'}\n`
 		)
