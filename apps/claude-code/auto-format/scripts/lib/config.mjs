@@ -73,7 +73,7 @@ export function loadConfig(projectDir) {
 		}
 	} catch (err) {
 		process.stderr.write(
-			`unic-format: ignoring malformed .claude/unic-format.json: ${/** @type {Error} */ (err).message}\n`
+			`unic-format: ignoring malformed .claude/unic-format.json: ${err instanceof Error ? err.message : String(err)}\n`
 		)
 		return DEFAULTS
 	}
