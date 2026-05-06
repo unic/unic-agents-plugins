@@ -1,6 +1,6 @@
 # 10. Doc Context Enrichment — work items + Confluence pages
 
-**Status: pending**
+**Status: ignore**
 
 - Priority: P1
 - Effort: M
@@ -55,11 +55,13 @@ After step 4 (changed files list is known), a new **step 4a** runs:
      precedence; `~/.unic-confluence.json` is the fallback.
    - If credentials are absent **and** at least one Confluence URL was found: emit
      a console warning (never post to the PR):
+
      ```
      ⚠ Confluence pages not fetched — set CONFLUENCE_URL, CONFLUENCE_USER,
        CONFLUENCE_TOKEN (or run `node scripts/push-to-confluence.mjs --setup`)
        to enable doc-aware review.
      ```
+
    - If credentials are absent and no Confluence URLs were found: skip silently.
 6. If a Confluence page fetch fails (network error, 401, 403, etc.): skip that page,
    emit a console warning (`⚠ Could not fetch Confluence page <url> — <reason>`),
@@ -114,9 +116,11 @@ A standalone Node.js script (`// @ts-check`, ESM, zero external deps) that:
     agent reads through the XML directly — no dedicated parser needed.
   - Throws on non-2xx response or network error (caller handles the warning).
 - CLI entry point (when called directly):
+
   ```
   node scripts/confluence-client.mjs <confluence-page-url>
   ```
+
   Prints the storage-format body to stdout; exits non-zero on error.
 
 ### 2. Add step 4a to `commands/review-pr.md`
