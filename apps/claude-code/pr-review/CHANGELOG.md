@@ -3,12 +3,15 @@
 ## [Unreleased]
 
 ### Breaking
+
 - (none)
 
 ### Added
-- (none)
+
+- Added Step 3.5 (Detect prior review): paginated fetch of all PR threads, bot-comment detection via signature prefix, and export of `IS_REREVIEW`, `PRIOR_THREADS_FILE`, `SUMMARY_THREAD_ID`, and `PRIOR_ITERATION_ID` for use by later re-review steps
 
 ### Fixed
+
 - (none)
 
 ## [0.1.3] — 2026-05-06

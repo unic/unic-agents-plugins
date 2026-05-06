@@ -40,6 +40,7 @@ https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}
 Variables to extract:
 
 - `ORG_URL` = `https://dev.azure.com/{org}`
+- `PROJECT` = `{project}`
 - `PR_ID` = `{id}`
 
 **GitHub URLs** (`https://github.com/...`) are not supported — tell the user and stop.
@@ -74,6 +75,112 @@ Capture and remember:
 - `createdBy.displayName`
 
 Strip `refs/heads/` prefix to get plain branch names for git commands.
+
+Capture additionally:
+
+- `repository.project.name` → `PROJECT`
+
+---
+
+## Step 3.5 — Detect prior review
+
+Fetch all existing PR threads and check for prior Claude Code comments. This step runs **unconditionally** and performs **no write actions**.
+
+### Variables exported by this step
+
+| Variable             | Type                | Description                                                    |
+| -------------------- | ------------------- | -------------------------------------------------------------- |
+| `IS_REREVIEW`        | `true`/`false`      | Whether a prior Claude Code review was found                   |
+| `PRIOR_THREADS_FILE` | path                | Temp file — jq-readable JSON array of prior bot threads        |
+| `SUMMARY_THREAD_ID`  | integer or `""`     | Thread ID of the prior summary thread (if any)                 |
+| `PRIOR_ITERATION_ID` | integer or `"null"` | Iteration number parsed from the most recent prior bot comment |
+
+### Fetch all threads (paginated)
+
+```bash
+PRIOR_THREADS_RAW="$(mktemp "${TMPDIR:-/tmp}/pr_threads_raw_XXXXXX.json")"
+PRIOR_THREADS_ALL="$(mktemp "${TMPDIR:-/tmp}/pr_threads_all_XXXXXX.json")"
+echo '[]' > "$PRIOR_THREADS_ALL"
+
+CONTINUATION_TOKEN=""
+while true; do
+  EXTRA_ARGS=()
+  if [ -n "$CONTINUATION_TOKEN" ]; then
+    EXTRA_ARGS=(--query-parameters "continuationToken=$CONTINUATION_TOKEN")
+  fi
+
+  az devops invoke \
+    --area git \
+    --resource pullRequestThreads \
+    --route-parameters "project=$PROJECT" "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
+    --org "$ORG_URL" \
+    --api-version "7.1" \
+    "${EXTRA_ARGS[@]}" \
+    --output json > "$PRIOR_THREADS_RAW"
+
+  jq -s '.[0] + .[1].value' "$PRIOR_THREADS_ALL" "$PRIOR_THREADS_RAW" \
+    > "${PRIOR_THREADS_ALL}.tmp" \
+    && mv "${PRIOR_THREADS_ALL}.tmp" "$PRIOR_THREADS_ALL"
+
+  CONTINUATION_TOKEN=$(jq -r '.continuationToken // empty' "$PRIOR_THREADS_RAW")
+  [ -z "$CONTINUATION_TOKEN" ] && break
+done
+rm -f "$PRIOR_THREADS_RAW"
+```
+
+### Parse bot threads
+
+```bash
+PRIOR_THREADS_FILE="$(mktemp "${TMPDIR:-/tmp}/pr_prior_threads_XXXXXX.json")"
+SIGNATURE_PREFIX="🤖 *Reviewed by Claude Code*"
+
+jq --arg sig "$SIGNATURE_PREFIX" '
+  [
+    .[] |
+    select(any(.comments[]?; (.content // "") | contains($sig))) |
+    {
+      threadId: .id,
+      filePath: (.threadContext?.filePath // null),
+      start:    (.threadContext?.rightFileStart // null),
+      end:      (.threadContext?.rightFileEnd // null),
+      comments: .comments,
+      status:   .status,
+      isSummaryThread: (
+        (.threadContext?.filePath == null) and
+        ((.comments[0]?.content // "") | startswith("## PR Review Summary"))
+      )
+    }
+  ]
+' "$PRIOR_THREADS_ALL" > "$PRIOR_THREADS_FILE"
+rm -f "$PRIOR_THREADS_ALL"
+```
+
+### Set detection variables
+
+```bash
+BOT_THREAD_COUNT=$(jq 'length' "$PRIOR_THREADS_FILE")
+
+if [ "$BOT_THREAD_COUNT" -gt 0 ]; then
+  IS_REREVIEW=true
+
+  SUMMARY_THREAD_ID=$(jq -r '
+    first(.[] | select(.isSummaryThread == true) | .threadId | tostring) // ""
+  ' "$PRIOR_THREADS_FILE")
+
+  PRIOR_ITERATION_ID=$(jq -r '
+    [ .[].comments[].content | strings |
+      match("Iteration ([0-9]+)") | .captures[0].string
+    ] | last // "null"
+  ' "$PRIOR_THREADS_FILE")
+
+  echo "Detected $BOT_THREAD_COUNT prior Claude Code threads — re-review mode ON"
+else
+  IS_REREVIEW=false
+  SUMMARY_THREAD_ID=""
+  PRIOR_ITERATION_ID="null"
+  echo "Detected 0 prior Claude Code threads — re-review mode OFF"
+fi
+```
 
 ---
 
@@ -292,6 +399,7 @@ az devops invoke \
 
 ```bash
 rm -f /tmp/pr_thread_*.json /tmp/pr_summary.json
+rm -f "$PRIOR_THREADS_FILE"
 ```
 
 ---
