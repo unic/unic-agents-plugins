@@ -145,12 +145,17 @@ jq --arg sig "$SIGNATURE_PREFIX" '
       end:      (.threadContext?.rightFileEnd // null),
       comments: .comments,
       status:   .status,
-      isSummaryThread: (
+      isSummaryCandidate: (
         (.threadContext?.filePath == null) and
         ((.comments[0]?.content // "") | startswith("## PR Review Summary"))
       )
     }
-  ]
+  ] |
+  (map(select(.isSummaryCandidate) | .threadId) | max) as $maxSummaryId |
+  map(
+    .isSummaryThread = (.isSummaryCandidate and .threadId == $maxSummaryId) |
+    del(.isSummaryCandidate)
+  )
 ' "$PRIOR_THREADS_ALL" > "$PRIOR_THREADS_FILE"
 rm -f "$PRIOR_THREADS_ALL"
 ```
@@ -164,7 +169,7 @@ if [ "$BOT_THREAD_COUNT" -gt 0 ]; then
   IS_REREVIEW=true
 
   SUMMARY_THREAD_ID=$(jq -r '
-    first(.[] | select(.isSummaryThread == true) | .threadId | tostring) // ""
+    last(.[] | select(.isSummaryThread == true) | .threadId | tostring) // ""
   ' "$PRIOR_THREADS_FILE")
 
   PRIOR_ITERATION_ID=$(jq -r '
