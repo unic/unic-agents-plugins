@@ -11,6 +11,17 @@
 ### Fixed
 - (none)
 
+## [0.4.0] — 2026-05-06
+
+### Breaking
+- (none)
+
+### Added
+- Branch Step 5 on `IS_REREVIEW`: incremental diff between `PRIOR_COMMIT_ID` and `LATEST_COMMIT_ID` for re-reviews; early exit with pending thread list when no new commits; fallback warnings with both commit IDs on fetch failure or missing commit IDs; hunk boundaries exported to `DIFF_HUNKS_FILE` for spec 05 (spec 04)
+
+### Fixed
+- (none)
+
 ## [0.3.0] — 2026-05-06
 
 ### Breaking

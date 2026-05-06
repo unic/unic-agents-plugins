@@ -1,6 +1,6 @@
 # 04. Incremental diff baseline on re-review
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P1
 - Effort: M

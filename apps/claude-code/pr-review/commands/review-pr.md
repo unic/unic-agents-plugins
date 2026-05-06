@@ -287,11 +287,103 @@ az repos pr checkout --id {PR_ID} --org {ORG_URL}
 # or: git fetch origin {source-branch} && git checkout {source-branch}
 ```
 
-Then get the diff:
+Create the diff hunks output file (consumed by spec 05 for thread classification):
+
+```bash
+DIFF_HUNKS_FILE="$(mktemp "${TMPDIR:-/tmp}/pr_diff_hunks_XXXXXX.json")"
+echo '[]' > "$DIFF_HUNKS_FILE"
+```
+
+### Diff strategy
+
+Branch on `IS_REREVIEW` to decide which diff range to use.
+
+#### Path A — First-time review (`IS_REREVIEW=false`)
+
+Run the full branch diff:
 
 ```bash
 git diff origin/{target-branch}...HEAD --name-only
-git diff origin/{target-branch}...HEAD
+RAW_DIFF=$(git diff origin/{target-branch}...HEAD)
+```
+
+Then [parse hunk boundaries](#hunk-boundary-parsing).
+
+#### Path B — Re-review, no prior commit (`IS_REREVIEW=true`, `PRIOR_COMMIT_ID` empty)
+
+```bash
+echo "Warning: could not resolve prior commit — falling back to full diff."
+git diff origin/{target-branch}...HEAD --name-only
+RAW_DIFF=$(git diff origin/{target-branch}...HEAD)
+```
+
+Then [parse hunk boundaries](#hunk-boundary-parsing).
+
+#### Path B2 — Re-review, no latest commit (`IS_REREVIEW=true`, `LATEST_COMMIT_ID` empty)
+
+```bash
+echo "Warning: could not resolve latest commit — falling back to full diff."
+git diff origin/{target-branch}...HEAD --name-only
+RAW_DIFF=$(git diff origin/{target-branch}...HEAD)
+```
+
+Then [parse hunk boundaries](#hunk-boundary-parsing).
+
+#### Path C — Re-review, no new commits (`IS_REREVIEW=true`, `PRIOR_COMMIT_ID == LATEST_COMMIT_ID`)
+
+```bash
+echo "No new commits since last review."
+echo ""
+echo "Pending threads from prior review:"
+jq -r '.[] | select(.status == 1 or .status == "active" or .status == 6 or .status == "pending") |
+  "  \(.filePath // "(general)") L\(.start.line // "?")-\(.end.line // "?")"' "$PRIOR_THREADS_FILE"
+```
+
+**Stop here — do not proceed to Steps 6–11.** Clean up temp files and return to the user:
+
+```bash
+rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
+```
+
+#### Path D — Re-review, new commits (`IS_REREVIEW=true`, `PRIOR_COMMIT_ID != LATEST_COMMIT_ID`)
+
+Attempt to fetch the prior commit, then diff only the new range:
+
+```bash
+if git fetch origin "$PRIOR_COMMIT_ID" 2>/dev/null; then
+  git diff "${PRIOR_COMMIT_ID}".."${LATEST_COMMIT_ID}" --name-only
+  RAW_DIFF=$(git diff "${PRIOR_COMMIT_ID}".."${LATEST_COMMIT_ID}")
+else
+  echo "Warning: prior commit ${PRIOR_COMMIT_ID} unreachable; latest commit ${LATEST_COMMIT_ID} — falling back to full diff."
+  git diff origin/{target-branch}...HEAD --name-only
+  RAW_DIFF=$(git diff origin/{target-branch}...HEAD)
+fi
+```
+
+Then [parse hunk boundaries](#hunk-boundary-parsing).
+
+### Hunk boundary parsing
+
+After obtaining `$RAW_DIFF` in Paths A, B, B2, or D, parse file paths and line ranges into `DIFF_HUNKS_FILE`:
+
+```bash
+echo "$RAW_DIFF" | python3 -c "
+import sys, json, re
+hunks = []
+current_file = None
+for line in sys.stdin:
+    m = re.match(r'^diff --git a/.* b/(.*)', line.rstrip())
+    if m:
+        current_file = '/' + m.group(1)
+        continue
+    m = re.match(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@', line)
+    if m and current_file:
+        start = int(m.group(1))
+        count = int(m.group(2)) if m.group(2) is not None else 1
+        end = start + max(count - 1, 0)
+        hunks.append({'filePath': current_file, 'startLine': start, 'endLine': end})
+print(json.dumps(hunks))
+" > "$DIFF_HUNKS_FILE"
 ```
 
 If the diff is very large (>500 lines), focus on the most significant changed files rather than trying to pass the entire diff to agents.
@@ -464,7 +556,7 @@ az devops invoke \
 
 ```bash
 rm -f /tmp/pr_thread_*.json /tmp/pr_summary.json
-rm -f "$PRIOR_THREADS_FILE"
+rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
 ```
 
 ---
