@@ -530,10 +530,14 @@ Combine results from all agents. For each finding assign:
 
 ## Step 10 — Post inline comments
 
-Initialize the findings-posted counter:
+Initialize the findings-posted counter and re-review delta counters:
 
 ```bash
 FINDINGS_POSTED=0
+NEW_THREAD_COUNT=0
+ADDRESSED_COUNT=0
+DISPUTED_COUNT=0
+PENDING_COUNT=0
 ```
 
 Branch on `IS_REREVIEW`.
@@ -573,6 +577,7 @@ az devops invoke \
   --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Thread', d.get('id'), d.get('status'))"
 
 FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+NEW_THREAD_COUNT=$((NEW_THREAD_COUNT + 1))
 ```
 
 **Rules:**
@@ -649,7 +654,7 @@ CLASSIFICATION=$(echo "$MATCH" | python3 -c "import json,sys; d=json.load(sys.st
 THREAD_ID=$(echo "$MATCH"      | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('threadId',''))"      2>/dev/null || echo "")
 ```
 
-- If `MATCH` is empty → **no prior thread**: post a fresh thread via Path A (increment `FINDINGS_POSTED`).
+- If `MATCH` is empty → **no prior thread**: post a fresh thread via Path A (increment `FINDINGS_POSTED` and `NEW_THREAD_COUNT`).
 - If `MATCH` is non-empty → **prior thread found**: dispatch on `CLASSIFICATION` below.
 
 #### `obsolete` — skip
@@ -657,6 +662,12 @@ THREAD_ID=$(echo "$MATCH"      | python3 -c "import json,sys; d=json.load(sys.st
 No action. Do not post. Do not increment `FINDINGS_POSTED`.
 
 #### `pending` — evaluate for new evidence
+
+Increment `PENDING_COUNT` for each matched `pending` thread (whether replied to or skipped):
+
+```bash
+PENDING_COUNT=$((PENDING_COUNT + 1))
+```
 
 Read the most recent bot comment from the matched thread (last entry in `matched_thread['comments']` where the content contains `SIGNATURE_PREFIX`). Compare its text against the current finding's comment.
 
@@ -709,6 +720,7 @@ az devops invoke \
   --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Reply posted, comment', d.get('id'))"
 
 FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+DISPUTED_COUNT=$((DISPUTED_COUNT + 1))
 ```
 
 #### `addressed` — confirm resolution and mark thread fixed
@@ -762,13 +774,20 @@ except Exception:
 "
 
 FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+ADDRESSED_COUNT=$((ADDRESSED_COUNT + 1))
 ```
 
 ---
 
 ## Step 11 — Post summary comment
 
-After all inline comments, post one general thread **without** `threadContext`:
+Branch on `IS_REREVIEW` and the counters set in Step 10.
+
+---
+
+### IS_REREVIEW=false — full summary (unchanged behaviour)
+
+Post one general thread **without** `threadContext`:
 
 ```bash
 cat > /tmp/pr_summary.json << 'ENDJSON'
@@ -826,6 +845,59 @@ SUMMARY_THREAD_ID=$(echo "$SUMMARY_RESPONSE" | python3 -c "import json,sys; d=js
 
 ---
 
+### IS_REREVIEW=true, all counters zero — skip
+
+If `NEW_THREAD_COUNT=0` AND `ADDRESSED_COUNT=0` AND `DISPUTED_COUNT=0`:
+
+```bash
+echo "Re-review: nothing changed — skipping summary comment."
+```
+
+Do not post anything. `SUMMARY_THREAD_ID` remains set from Step 3.5 so Step 11.5 can still post the completion marker to the existing summary thread.
+
+---
+
+### IS_REREVIEW=true, at least one counter > 0 — delta reply or fallback
+
+#### SUMMARY_THREAD_ID set — post delta reply to existing summary thread
+
+Reply to the existing summary thread via `pullRequestThreadComments`:
+
+```bash
+cat > /tmp/pr_delta.json << 'ENDJSON'
+{
+  "content": "🤖 *Reviewed by Claude Code* — Re-review delta (Iteration {LATEST_ITERATION_ID})\n\n{NEW_THREAD_COUNT} new findings, {ADDRESSED_COUNT} resolved, {DISPUTED_COUNT} disputed, {PENDING_COUNT} pending.\n\n{BULLET_LIST_OF_NEW_FINDING_TITLES}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
+  "commentType": 1
+}
+ENDJSON
+
+az devops invoke \
+  --area git \
+  --resource pullRequestThreadComments \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$SUMMARY_THREAD_ID" \
+  --org {ORG_URL} \
+  --http-method POST \
+  --in-file /tmp/pr_delta.json \
+  --api-version "7.1" \
+  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Delta reply posted, comment', d.get('id'))"
+```
+
+`{BULLET_LIST_OF_NEW_FINDING_TITLES}` — one bullet per new thread posted in Step 10, format:
+
+```
+- **[{filePath}:{startLine}]** {one-line finding title}
+```
+
+Include only threads created in this run (`NEW_THREAD_COUNT` threads). No prose, no section headings.
+
+`SUMMARY_THREAD_ID` is **not** updated — it already points to the existing summary thread for Step 11.5 to use.
+
+#### SUMMARY_THREAD_ID empty — full summary fallback
+
+The prior summary thread was deleted. Fall back to first-review mode: post a full summary as a new general thread (use the IS_REREVIEW=false code above) and update `SUMMARY_THREAD_ID`.
+
+---
+
 ## Step 11.5 — Post completion marker
 
 After Step 11 completes, post one final reply to the summary thread. This is the last write action of every successful run (first review or re-review):
@@ -856,7 +928,7 @@ The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a p
 ## Step 12 — Clean up
 
 ```bash
-rm -f /tmp/pr_thread_*.json /tmp/pr_reply_*.json /tmp/pr_thread_patch_*.json /tmp/pr_patch_err_*.json /tmp/pr_completion_marker.json /tmp/pr_summary.json
+rm -f /tmp/pr_thread_*.json /tmp/pr_reply_*.json /tmp/pr_thread_patch_*.json /tmp/pr_patch_err_*.json /tmp/pr_completion_marker.json /tmp/pr_summary.json /tmp/pr_delta.json
 rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
 ```
 

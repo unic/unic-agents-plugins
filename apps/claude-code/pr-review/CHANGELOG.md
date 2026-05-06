@@ -6,7 +6,7 @@
 - (none)
 
 ### Added
-- (none)
+- On re-review, skip full summary when nothing changed; post delta reply (counts + new finding bullet list) to existing summary thread when findings exist; fall back to full summary if prior summary thread was deleted (spec 07)
 
 ### Fixed
 - (none)
