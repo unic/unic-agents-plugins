@@ -530,6 +530,18 @@ Combine results from all agents. For each finding assign:
 
 ## Step 10 — Post inline comments
 
+Initialize the findings-posted counter:
+
+```bash
+FINDINGS_POSTED=0
+```
+
+Branch on `IS_REREVIEW`.
+
+---
+
+### Path A — IS_REREVIEW=false (first-review flow)
+
 For each finding with a known file and line, post a PR thread:
 
 ```bash
@@ -559,6 +571,8 @@ az devops invoke \
   --in-file /tmp/pr_thread_N.json \
   --api-version "7.1" \
   --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Thread', d.get('id'), d.get('status'))"
+
+FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
 ```
 
 **Rules:**
@@ -569,6 +583,186 @@ az devops invoke \
 - Multi-line findings: set `rightFileStart.line` to first line, `rightFileEnd.line` to last
 - If exact line is unknown, omit `threadContext` entirely (becomes a general comment)
 - Use a unique temp file name per comment (e.g. `/tmp/pr_thread_1.json`, `/tmp/pr_thread_2.json`)
+
+---
+
+### Path B — IS_REREVIEW=true (re-review reply flow)
+
+#### Partial-prior-run check
+
+Before processing findings, verify the prior review completed. If the summary thread is known, check it for a completion marker for `PRIOR_ITERATION_ID`. If none is found, the prior run was partial — fall back to Path A for this iteration.
+
+Skip this check when `PRIOR_ITERATION_ID` is `"null"` (no iteration suffix was parsed from the prior signature) — in that case, assume the prior run completed and proceed in re-review mode:
+
+```bash
+if [ -n "$SUMMARY_THREAD_ID" ] && [ "$PRIOR_ITERATION_ID" != "null" ]; then
+  MARKER_FOUND=$(python3 -c "
+import json, sys
+threads = json.load(open(sys.argv[1]))
+sid = int(sys.argv[2])
+pid = sys.argv[3]
+prefix = '✅ Review complete — Iteration ' + pid
+for t in threads:
+    if t.get('threadId') == sid:
+        for c in t.get('comments', []):
+            if (c.get('content') or '').startswith(prefix):
+                print('true')
+                sys.exit(0)
+print('false')
+" "$PRIOR_THREADS_FILE" "$SUMMARY_THREAD_ID" "$PRIOR_ITERATION_ID")
+
+  if [ "$MARKER_FOUND" = "false" ]; then
+    echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."
+    IS_REREVIEW=false
+  fi
+fi
+```
+
+If `IS_REREVIEW` was reset to `false` above, use Path A for all findings in this step.
+
+#### Thread matching
+
+For each finding (`{FINDING_FILE}`, line range `{FINDING_START}`–`{FINDING_END}`), search `PRIOR_THREADS_FILE` for a matching prior thread using filePath equality and line-range overlap with ±3 line drift:
+
+```bash
+MATCH=$(python3 -c "
+import json, sys
+DRIFT = 3
+threads = json.load(open(sys.argv[1]))
+file  = sys.argv[2]
+start = int(sys.argv[3])
+end   = int(sys.argv[4])
+fs, fe = start - DRIFT, end + DRIFT
+for t in threads:
+    if t.get('isSummaryThread'):
+        continue
+    if t.get('filePath') != file:
+        continue
+    ts = ((t.get('start') or {}).get('line') or 0) - DRIFT
+    te = ((t.get('end')   or {}).get('line') or 0) + DRIFT
+    if max(fs, ts) <= min(fe, te):
+        print(json.dumps(t))
+        sys.exit(0)
+" "$PRIOR_THREADS_FILE" "{FINDING_FILE}" {FINDING_START} {FINDING_END})
+
+CLASSIFICATION=$(echo "$MATCH" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('classification',''))" 2>/dev/null || echo "")
+THREAD_ID=$(echo "$MATCH"      | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('threadId',''))"      2>/dev/null || echo "")
+```
+
+- If `MATCH` is empty → **no prior thread**: post a fresh thread via Path A (increment `FINDINGS_POSTED`).
+- If `MATCH` is non-empty → **prior thread found**: dispatch on `CLASSIFICATION` below.
+
+#### `obsolete` — skip
+
+No action. Do not post. Do not increment `FINDINGS_POSTED`.
+
+#### `pending` — evaluate for new evidence
+
+Read the most recent bot comment from the matched thread (last entry in `matched_thread['comments']` where the content contains `SIGNATURE_PREFIX`). Compare its text against the current finding's comment.
+
+- **No new evidence** (same issue, no additional analysis): skip. Do not post. Do not increment `FINDINGS_POSTED`.
+- General `pending` threads with no `filePath` (non-summary): always skip.
+
+- **New evidence** (additional analysis, different suggested fix, new code examples not present in the prior comment): reply with only the new content:
+
+```bash
+cat > /tmp/pr_reply_N.json << 'ENDJSON'
+{
+  "content": "{NEW_EVIDENCE_CONTENT}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
+  "commentType": 1
+}
+ENDJSON
+
+az devops invoke \
+  --area git \
+  --resource pullRequestThreadComments \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$THREAD_ID" \
+  --org {ORG_URL} \
+  --http-method POST \
+  --in-file /tmp/pr_reply_N.json \
+  --api-version "7.1" \
+  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Reply posted, comment', d.get('id'))"
+
+FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+```
+
+#### `disputed` — acknowledge the author's point
+
+Reply without re-asserting the finding. Briefly acknowledge the author's perspective. Always include the ADO nudge before the signature:
+
+```bash
+cat > /tmp/pr_reply_N.json << 'ENDJSON'
+{
+  "content": "{BRIEF_ACKNOWLEDGEMENT}\n\nIf you consider this resolved, please mark the thread as fixed in Azure DevOps.\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
+  "commentType": 1
+}
+ENDJSON
+
+az devops invoke \
+  --area git \
+  --resource pullRequestThreadComments \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$THREAD_ID" \
+  --org {ORG_URL} \
+  --http-method POST \
+  --in-file /tmp/pr_reply_N.json \
+  --api-version "7.1" \
+  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Reply posted, comment', d.get('id'))"
+
+FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+```
+
+#### `addressed` — confirm resolution and mark thread fixed
+
+Reply to confirm the fix, then PATCH the thread status to `fixed` (`status: 2`). Log 409 and continue:
+
+```bash
+# 1. Post reply
+cat > /tmp/pr_reply_N.json << 'ENDJSON'
+{
+  "content": "Resolved as of Iteration {LATEST_ITERATION_ID} — thanks!\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
+  "commentType": 1
+}
+ENDJSON
+
+az devops invoke \
+  --area git \
+  --resource pullRequestThreadComments \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$THREAD_ID" \
+  --org {ORG_URL} \
+  --http-method POST \
+  --in-file /tmp/pr_reply_N.json \
+  --api-version "7.1" \
+  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Reply posted, comment', d.get('id'))"
+
+# 2. PATCH thread status to fixed (2)
+cat > /tmp/pr_thread_patch_N.json << 'ENDJSON'
+{ "status": 2 }
+ENDJSON
+
+az devops invoke \
+  --area git \
+  --resource pullRequestThreads \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$THREAD_ID" \
+  --org {ORG_URL} \
+  --http-method PATCH \
+  --in-file /tmp/pr_thread_patch_N.json \
+  --api-version "7.1" \
+  --output json 2>/tmp/pr_patch_err_N.json | \
+  python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print('Thread patched to fixed')
+except Exception:
+    err = open('/tmp/pr_patch_err_N.json').read()
+    if '409' in err or 'conflict' in err.lower():
+        print('409 Conflict — thread resolved concurrently. Continuing.')
+    else:
+        print('PATCH warning:', err[:200])
+"
+
+FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+```
 
 ---
 
@@ -589,7 +783,7 @@ cat > /tmp/pr_summary.json << 'ENDJSON'
 }
 ENDJSON
 
-az devops invoke \
+SUMMARY_RESPONSE=$(az devops invoke \
   --area git \
   --resource pullRequestThreads \
   --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" \
@@ -597,7 +791,11 @@ az devops invoke \
   --http-method POST \
   --in-file /tmp/pr_summary.json \
   --api-version "7.1" \
-  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Summary thread', d.get('id'), d.get('status'))"
+  --output json)
+echo "$SUMMARY_RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Summary thread', d.get('id'), d.get('status'))"
+# Always update SUMMARY_THREAD_ID to the newly posted thread so Step 11.5 posts the
+# completion marker to the current run's summary thread, not the prior one.
+SUMMARY_THREAD_ID=$(echo "$SUMMARY_RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))")
 ```
 
 **Summary structure:**
@@ -628,10 +826,37 @@ az devops invoke \
 
 ---
 
+## Step 11.5 — Post completion marker
+
+After Step 11 completes, post one final reply to the summary thread. This is the last write action of every successful run (first review or re-review):
+
+```bash
+cat > /tmp/pr_completion_marker.json << 'ENDJSON'
+{
+  "content": "✅ Review complete — Iteration {LATEST_ITERATION_ID} ({FINDINGS_POSTED} findings posted)\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
+  "commentType": 1
+}
+ENDJSON
+
+az devops invoke \
+  --area git \
+  --resource pullRequestThreadComments \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$SUMMARY_THREAD_ID" \
+  --org {ORG_URL} \
+  --http-method POST \
+  --in-file /tmp/pr_completion_marker.json \
+  --api-version "7.1" \
+  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Completion marker posted, comment', d.get('id'))"
+```
+
+The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a partial prior run — Step 10 detects this and falls back to first-review mode.
+
+---
+
 ## Step 12 — Clean up
 
 ```bash
-rm -f /tmp/pr_thread_*.json /tmp/pr_summary.json
+rm -f /tmp/pr_thread_*.json /tmp/pr_reply_*.json /tmp/pr_thread_patch_*.json /tmp/pr_patch_err_*.json /tmp/pr_completion_marker.json /tmp/pr_summary.json
 rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
 ```
 
