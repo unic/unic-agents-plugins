@@ -1,6 +1,6 @@
 # 08. Version bump, README, CLAUDE.md
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P1
 - Effort: S

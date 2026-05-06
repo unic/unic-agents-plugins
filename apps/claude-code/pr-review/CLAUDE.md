@@ -34,7 +34,7 @@ When bumping the version, update it in **both** files:
 
 - YAML frontmatter declares `allowed-tools` — add any new tools the command needs there
 - Auto-generated files are explicitly skipped in Step 6 (serialization YAMLs, `*.g.cs`, generated types output, `swagger.md`)
-- All comments posted to ADO **must** end with the exact signature: `---\n🤖 *Reviewed by Claude Code*`
+- All comments posted to ADO **must** end with the exact signature: `---\n🤖 *Reviewed by Claude Code* — Iteration N` (where N = LATEST_ITERATION_ID)
 - Inline threads use ADO REST `pullRequestThreads` via `az devops invoke`; file paths must match ADO format (leading `/`, forward slashes)
 - Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 02.
 - If `az devops invoke` returns a `threadContext` error, fall back to posting without `threadContext` (general comment)
@@ -64,5 +64,4 @@ Then add `"pr-review@unic": true` to `enabledPlugins` and restart Claude Code.
 
 - GitHub PR support
 - Vote on PR (approve/reject) after review
-- Re-review: detect existing Claude Code threads and update instead of duplicating
 - PR description generation from diff

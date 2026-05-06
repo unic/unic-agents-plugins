@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [0.8.0] — 2026-05-06
+
+### Breaking
+- (none)
+
+### Added
+- Re-review: detect prior Claude Code threads in Step 3.5; set `IS_REREVIEW`, `PRIOR_THREADS_FILE`, `SUMMARY_THREAD_ID`, and `PRIOR_ITERATION_ID`; normalize signature format to `🤖 *Reviewed by Claude Code* — Iteration N` for detection and iteration targeting (specs 01–02)
+- Re-review: resolve `LATEST_ITERATION_ID` and `LATEST_COMMIT_ID` from PR iterations API; compute `PRIOR_COMMIT_ID` from prior review signature; replace hardcoded `iterationId=1` (spec 03)
+- Re-review: incremental diff between `PRIOR_COMMIT_ID` and `LATEST_COMMIT_ID` in Step 5; early exit with pending thread list when no new commits detected (spec 04)
+- Re-review: classify each prior bot thread as `addressed`, `disputed`, `pending`, or `obsolete` in Step 5.5; detect deleted-file threads as `obsolete` (spec 05)
+- Re-review: reply to existing bot threads instead of posting new duplicates in Step 10; apply per-classification actions and post run-completion marker on every successful run (spec 06)
+- Re-review: skip full summary when no new or addressed findings; post delta reply (counts + new finding bullets) to existing summary thread; fall back to full summary if prior summary thread was deleted (spec 07)
+
+### Fixed
+- (none)
+
 ## [0.7.0] — 2026-05-06
 
 ### Breaking

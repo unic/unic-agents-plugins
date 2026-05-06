@@ -11,7 +11,7 @@ Run `/pr-review:review-pr <ADO-PR-URL>` to:
 3. Post each finding as an inline comment at the exact file and line in the ADO web UI
 4. Post a summary comment with severity-grouped findings and positive observations
 
-All comments are signed `🤖 *Reviewed by Claude Code*` so reviewers know they are AI-generated.
+All comments are signed `🤖 *Reviewed by Claude Code* — Iteration N` so reviewers know they are AI-generated and can track which review iteration produced each finding.
 
 ---
 
@@ -127,10 +127,32 @@ Every comment posted to the PR ends with:
 
 ```
 ---
-🤖 *Reviewed by Claude Code*
+🤖 *Reviewed by Claude Code* — Iteration N
 ```
 
-This consistent signature lets team members immediately identify AI-generated review comments.
+This consistent signature lets team members immediately identify AI-generated review comments and track which review iteration produced each finding.
+
+---
+
+## Re-review
+
+Running `/pr-review:review-pr <url>` on a PR that already has Claude Code review threads triggers re-review mode automatically.
+
+**What changes in re-review mode:**
+
+- **Detection** — Step 3.5 scans all existing PR threads for the bot signature and extracts their file paths, line ranges, and classification metadata.
+- **Thread reuse** — New findings are posted as replies to the matching prior thread (matched by file path and line-range overlap ±3 lines) rather than creating duplicate threads.
+- **Classification** — Each prior thread is classified as `addressed` (resolved), `disputed` (active disagreement), `pending` (still open), or `obsolete` (file deleted or lines moved far).
+- **Incremental diff** — The diff is computed between the prior review's commit and the latest commit, so only new changes are analysed.
+- **Delta summary** — Instead of a full summary, a short reply is posted to the existing summary thread listing new findings and counts. If nothing changed, no summary is posted.
+- **Completion marker** — Every successful run appends a completion marker to the summary thread so subsequent runs can detect partial-run failures.
+
+**Signature format:** `🤖 *Reviewed by Claude Code* — Iteration N` (N = ADO PR iteration number).
+
+**Known limitations:**
+
+- Force-push that rewrites history falls back to a full diff (prior commit no longer exists in the remote).
+- If a run was interrupted before posting the completion marker, the next run treats it as a partial run and skips to a recovery path.
 
 ---
 
@@ -138,7 +160,6 @@ This consistent signature lets team members immediately identify AI-generated re
 
 - **GitHub PR support** — detect `https://github.com/...` URLs and route to `gh pr review`
 - **Vote on PR** — optionally set approval/rejection after review
-- **Re-review** — detect existing Claude Code threads and update rather than duplicate
 - **PR description generation** — generate a PR description from the diff
 
 ---
