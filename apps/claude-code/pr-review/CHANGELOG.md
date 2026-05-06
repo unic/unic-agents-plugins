@@ -9,6 +9,17 @@
 - (none)
 
 ### Fixed
+- (none)
+
+## [0.2.1] — 2026-05-06
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 - Set `isSummaryThread` flag only on the most-recent prior summary thread (not all matching threads) to avoid ambiguity in re-review targeting
 
 ## [0.2.0] — 2026-05-06
