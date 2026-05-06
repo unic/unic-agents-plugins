@@ -6,7 +6,7 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 
 | #  | Spec                                  | Status  | Depends on |
 |----|---------------------------------------|---------|------------|
-| 00 | Pre-flight: ADR supersession + prettierignore guard | pending | — |
+| 00 | Pre-flight: ADR supersession + prettierignore guard | done | — |
 | 01 | Normalize Claude Code signature       | pending | 00         |
 | 02 | Detect prior review on PR             | pending | 01         |
 | 03 | Target latest PR iteration            | pending | 02         |
