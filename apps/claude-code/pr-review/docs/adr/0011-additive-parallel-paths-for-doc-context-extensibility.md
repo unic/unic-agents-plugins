@@ -24,9 +24,11 @@ parallel path.
 **Status:** Accepted (2026-05)
 
 **Considered alternatives:**
+
 - Plugin registry / config-file dispatch — rejected for now: premature at one source
   each; revisit when a third source type is introduced
 
 **See also:**
+
 - `docs/inbox/alternative-work-item-sources-for-doc-context.md`
 - `docs/inbox/alternative-doc-sources-for-doc-context.md`

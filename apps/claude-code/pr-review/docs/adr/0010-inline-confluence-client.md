@@ -7,5 +7,6 @@ We therefore replicate the minimal Confluence fetch logic as a self-contained `.
 **Status:** Accepted (2026-05)
 
 **Considered alternatives:**
+
 - Soft dependency on `unic-confluence` (ADR-0008 pattern) — rejected: wrong scope (publishing vs. reading), not guaranteed to be installed
 - Shared workspace package — rejected: no runtime package resolution for installed plugins without a bundler

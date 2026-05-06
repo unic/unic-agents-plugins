@@ -8,7 +8,7 @@
 
 ## Problem Statement
 
-When a developer runs `/pr-review:review-pr` on an Azure DevOps pull request, the review agents receive only the diff and the contents of changed files. They have no visibility into *why* the PR exists — what the work item asked for, what design constraints were documented, or what the stakeholder intended. This means the agents can only assess *how* the code was written, not *whether* it solves the right problem. Mismatches between the specification and the implementation go undetected, and context that would help the reviewer produce sharper, more targeted findings is silently discarded.
+When a developer runs `/pr-review:review-pr` on an Azure DevOps pull request, the review agents receive only the diff and the contents of changed files. They have no visibility into _why_ the PR exists — what the work item asked for, what design constraints were documented, or what the stakeholder intended. This means the agents can only assess _how_ the code was written, not _whether_ it solves the right problem. Mismatches between the specification and the implementation go undetected, and context that would help the reviewer produce sharper, more targeted findings is silently discarded.
 
 ## Solution
 
@@ -89,6 +89,7 @@ Doc Context Sub-agents run in parallel with the local-diff step (step 5), the ke
 A good test for this feature verifies external behaviour, not internal plumbing: given a certain credential configuration and API response, what does the Confluence page client return or throw? Tests should not assert on private implementation details (URL construction internals, base64 encoding logic) — only on the observable contract.
 
 **Confluence page client** is the primary module to test with `node:test`. Test cases:
+
 - Returns storage-format body on 200 response
 - Throws a descriptive error on 401, 403, 404
 - Throws a descriptive error on network failure / timeout
