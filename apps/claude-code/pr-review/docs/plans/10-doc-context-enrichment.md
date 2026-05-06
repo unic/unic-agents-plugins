@@ -1,6 +1,6 @@
 # 10. Doc Context Enrichment — work items + Confluence pages
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P1
 - Effort: M

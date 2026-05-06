@@ -294,6 +294,74 @@ for c in data.get('changeEntries', []):
 
 ---
 
+## Step 4a — Gather Doc Context (work items + Confluence pages)
+
+Fetch work items linked to the PR:
+
+```bash
+az devops invoke \
+  --area git \
+  --resource pullRequestWorkItems \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" \
+  --org {ORG_URL} \
+  --api-version "7.1" \
+  --output json
+```
+
+If the `value` array is empty, set `DOC_CONTEXT=''` and skip to step 5.
+
+For each work item ID returned, fetch its details:
+
+```bash
+az boards work-item show --id {WI_ID} --org {ORG_URL} --output json
+```
+
+If this command fails (network error, auth expiry, deleted work item), emit `⚠ Could not fetch work item {WI_ID} — {error}` to the console and skip that work item. Do not abort the step.
+
+Capture `fields.System.Title` and `fields.System.Description`.
+
+Spawn one **Doc Context Sub-agent** per work item in parallel (single message).
+Each sub-agent receives:
+
+- Work item ID, title, and description (HTML — read through the markup)
+- The changed files list from step 4
+- The local diff from step 5 (pass it if already available; otherwise omit)
+
+Each Doc Context Sub-agent must:
+
+1. Summarise the work item description, focusing only on what is relevant to the changed files. Ignore sections that have no bearing on the diff.
+2. Extract all Confluence URLs from the description.
+3. Check Confluence credentials: `node scripts/confluence-client.mjs --check-creds` (exit 0 = creds available). If the command does not return within 10 seconds, treat as creds absent and follow instruction 5.
+4. If creds available: spawn one nested Doc Context Sub-agent per Confluence URL in parallel. Each runs `node scripts/confluence-client.mjs <url>` and returns a diff-aware plain-text summary of the page.
+5. If creds absent and Confluence URLs were found: emit this console warning (never post to the PR):
+   ```
+   ⚠ Confluence pages not fetched — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN (or create ~/.unic-confluence.json with { url, username, token }) to enable doc-aware review.
+   ```
+   Do not spawn Confluence sub-agents.
+6. If a Confluence page fetch fails (network error, 401, 403, etc.): skip that page, emit `⚠ Could not fetch Confluence page <url> — <reason>`, continue with remaining context. If every Confluence page for a work item fails to fetch, include the following note in that work item's Doc Context section (in addition to the console warnings):
+   ```
+   > Note: Confluence pages could not be fetched for this work item. The review is based on the work item description only.
+   ```
+7. Return a Doc Context block in this format:
+
+```markdown
+## Business context for this PR
+
+### Work item: [{ID}] {Title}
+
+{diff-aware summary of work item description}
+
+### Confluence — {Page Title} ({URL})
+
+{diff-aware summary of page content}
+```
+
+Collect all sub-agent outputs and concatenate into a single Doc Context block. Store as `DOC_CONTEXT`.
+
+Steps 5–7 run **in parallel** with step 4a. Step 8 waits for all of step 4a to complete before launching review agents.
+
+---
+
 ## Step 5 — Get the diff locally
 
 Check if the local branch matches the PR source branch:
@@ -479,23 +547,38 @@ Map aspects to agents:
 
 Launch at least `code-reviewer` and `silent-failure-hunter` in a **single message** (parallel). For each agent, provide a self-contained prompt including:
 
-1. The PR title and description
-2. The full diff (or the most important sections if large)
-3. The content of key changed files (from Step 6)
-4. Project conventions from `CLAUDE.md` if present
-5. File paths and language context
+1. The Doc Context block from step 4a (if `DOC_CONTEXT` is non-empty)
+2. The PR title and description
+3. The full diff (or the most important sections if large)
+4. The content of key changed files (from Step 6)
+5. Project conventions from `CLAUDE.md` if present
+6. File paths and language context
+
+Inject `DOC_CONTEXT` as a preamble before the diff content. If `DOC_CONTEXT` is empty, omit the preamble and agents receive the same prompt as today.
+
+Prompt structure when `DOC_CONTEXT` is non-empty:
+
+```
+{DOC_CONTEXT}
+
+## Diff
+{diff content}
+
+## Changed files
+{file contents}
+```
 
 **Example agent invocations (parallel):**
 
 ```txt
 Agent(
   subagent_type: "pr-review-toolkit:code-reviewer",
-  prompt: "Review PR '{title}' targeting {target-branch}. [diff content] [key file contents] [CLAUDE.md conventions]"
+  prompt: "Review PR '{title}' targeting {target-branch}. {DOC_CONTEXT if non-empty}\n\n## Diff\n[diff content]\n\n## Changed files\n[key file contents]\n\n[CLAUDE.md conventions]"
 )
 
 Agent(
   subagent_type: "pr-review-toolkit:silent-failure-hunter",
-  prompt: "Review PR '{title}' for silent failures. [diff content] [key file contents]"
+  prompt: "Review PR '{title}' for silent failures. {DOC_CONTEXT if non-empty}\n\n## Diff\n[diff content]\n\n## Changed files\n[key file contents]"
 )
 ```
 

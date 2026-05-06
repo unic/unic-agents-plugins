@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [0.9.0] — 2026-05-06
+
+### Breaking
+- (none)
+
+### Added
+- Doc Context enrichment: before review agents run, fetch linked ADO work items and
+  any Confluence pages referenced in their descriptions; inject structured,
+  diff-aware summaries as business context into every review agent's prompt.
+  Requires Confluence credentials (`CONFLUENCE_URL`, `CONFLUENCE_USER`,
+  `CONFLUENCE_TOKEN` or `~/.unic-confluence.json`) for Confluence page fetching;
+  degrades gracefully when absent or unreachable.
+
+### Fixed
+- (none)
+
 ## [0.8.0] — 2026-05-06
 
 ### Breaking
