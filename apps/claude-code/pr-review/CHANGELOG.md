@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.3.0] — 2026-05-06
+
+### Breaking
+- (none)
+
+### Added
 - Fetch PR iterations to resolve `LATEST_ITERATION_ID` and `LATEST_COMMIT_ID`; replace hardcoded `iterationId=1` in Step 4; add `PRIOR_COMMIT_ID` resolution for re-review mode (spec 03)
 
 ### Fixed
