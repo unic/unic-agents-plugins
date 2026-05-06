@@ -211,6 +211,8 @@ Under `[Unreleased]`, add:
 
 ### 6. Bump version
 
+Check what version the re-review feature (`docs/issues/pr-review-rereview/09-version-bump-and-release.md`) shipped at before running the bump — this feature must take the next available minor version after re-review.
+
 ```bash
 pnpm --filter pr-review bump minor
 ```
@@ -235,8 +237,10 @@ pnpm --filter pr-review bump minor
 
 - All changes land in a single conventional commit:
   `feat(pr-review): add doc context enrichment from work items and Confluence pages`
-- Version bumped to `0.2.0` in `plugin.json` and `marketplace.json`.
-- `CHANGELOG.md` has a dated `[0.2.0]` entry when the version is finalised.
+- Version bumped to the next available minor version after the re-review feature ships
+  (check `docs/issues/pr-review-rereview/09-version-bump-and-release.md` first).
+- `plugin.json` and `marketplace.json` versions match.
+- `CHANGELOG.md` has a dated entry for the new version when the bump is finalised.
 - `scripts/confluence-client.mjs` has zero external runtime dependencies.
 - Doc Context is never posted to the PR — it is internal agent context only.
 - Degradation is graceful at every tier: no work items → skip; no creds → warn + skip
