@@ -37,7 +37,7 @@ export function loadCredentials(credPath = DEFAULT_CRED_FILE) {
 	}
 	throw new Error(
 		'Confluence credentials not configured — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN' +
-			' or run `node scripts/push-to-confluence.mjs --setup` to configure ~/.unic-confluence.json'
+			' or create ~/.unic-confluence.json with { url, username, token }'
 	)
 }
 
@@ -129,7 +129,12 @@ export async function fetchPageText(pageUrl, credentials) {
 
 // ── CLI entry point ────────────────────────────────────────────────────────────
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1] ?? '').href
+let isMain = false
+try {
+	isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
+} catch {
+	// not running as a CLI entry point (e.g. node -e / REPL / relative argv[1])
+}
 
 if (isMain) {
 	const args = process.argv.slice(2)

@@ -1,5 +1,5 @@
 ---
-allowed-tools: ['Agent', 'Bash', 'Read', 'Write', 'Grep', 'Glob', 'WebFetch']
+allowed-tools: ['Agent', 'Bash', 'Read', 'Write', 'Grep', 'Glob']
 argument-hint: '<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]'
 description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR'
 ---
@@ -333,7 +333,7 @@ Each Doc Context Sub-agent must:
 4. If creds available: spawn one nested Doc Context Sub-agent per Confluence URL in parallel. Each runs `node scripts/confluence-client.mjs <url>` and returns a diff-aware plain-text summary of the page.
 5. If creds absent and Confluence URLs were found: emit this console warning (never post to the PR):
    ```
-   ⚠ Confluence pages not fetched — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN (or run `node scripts/push-to-confluence.mjs --setup`) to enable doc-aware review.
+   ⚠ Confluence pages not fetched — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN (or create ~/.unic-confluence.json with { url, username, token }) to enable doc-aware review.
    ```
    Do not spawn Confluence sub-agents.
 6. If a Confluence page fetch fails (network error, 401, 403, etc.): skip that page, emit `⚠ Could not fetch Confluence page <url> — <reason>`, continue with remaining context.
