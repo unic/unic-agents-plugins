@@ -1,6 +1,6 @@
 # Version bump + CHANGELOG + docs
 
-**Status:** ready-for-human
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent
