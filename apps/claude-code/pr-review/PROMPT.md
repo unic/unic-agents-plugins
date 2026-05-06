@@ -84,7 +84,7 @@ Check the spec's `**Version impact:**` line:
 
 Replace `YYYY-MM-DD` with today's date.
 
-1. Stage and commit all changes:
+2. Stage and commit all changes:
 
 - **`none` specs**: `git commit -m "chore(spec-NN): <short description>"`
 - **`patch`/`minor`/`major` specs**: `git commit -m "feat(spec-NN): <short description> (vX.Y.Z)"`
@@ -92,7 +92,7 @@ Replace `YYYY-MM-DD` with today's date.
 Replace `NN` with the spec number (e.g. `00`, `03`).
 Replace `X.Y.Z` with the version output by `pnpm bump`.
 
-1. **Do not push.** Commits only.
+3. **Do not push.** Commits only.
 
 ## Step 6 — Stop for this iteration
 
@@ -104,13 +104,10 @@ Output a brief summary of what was implemented and committed. Then stop — Ralp
 
 - Implement **one spec per iteration**. Do not implement multiple specs in a single run.
 - If a spec requires human judgment (e.g. choosing between two design approaches not covered by the spec), stop, document the question in a `## Questions` section at the bottom of the spec file, and output:
-
   ```
   <promise>LOOP_COMPLETE</promise>
   ```
-
   This pauses the loop for human review.
-
 - Do not create any files outside of what the spec describes.
 - Do not modify any spec files except to add `**Status: done**`, `## Deviations`, `## Questions`, or `## Follow-ups` sections.
 - Never edit `CLAUDE.md`'s rule list silently — propose the change in the spec instead.

@@ -6,7 +6,7 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 
 | #  | Spec                                  | Status  | Depends on |
 |----|---------------------------------------|---------|------------|
-| 00 | Pre-flight: ADR supersession + prettierignore guard | done | — |
+| 00 | Pre-flight: ADR supersession + prettierignore guard | done    | — |
 | 01 | Normalize Claude Code signature       | done    | 00         |
 | 02 | Detect prior review on PR             | done    | 01         |
 | 03 | Target latest PR iteration            | done    | 02         |
@@ -16,4 +16,4 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 07 | Summary comment policy on re-review   | done    | 06         |
 | 08 | Version bump, README, CLAUDE.md       | done    | 07         |
 | 09 | Test harness — node:test + modules    | done    | 02, 05, 06 |
-| 10 | Doc Context enrichment — work items + Confluence pages | ignore | — |
+| 10 | Doc Context enrichment — work items + Confluence pages | pending | — |
