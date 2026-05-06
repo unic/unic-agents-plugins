@@ -10,7 +10,7 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 01 | Normalize Claude Code signature       | done    | 00         |
 | 02 | Detect prior review on PR             | done    | 01         |
 | 03 | Target latest PR iteration            | done    | 02         |
-| 04 | Incremental diff baseline             | pending | 03         |
+| 04 | Incremental diff baseline             | done    | 03         |
 | 05 | Classify existing threads             | pending | 02         |
 | 06 | Reply to threads instead of posting   | pending | 04, 05     |
 | 07 | Summary comment policy on re-review   | pending | 06         |

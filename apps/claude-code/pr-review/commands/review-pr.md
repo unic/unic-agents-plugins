@@ -335,7 +335,7 @@ Then [parse hunk boundaries](#hunk-boundary-parsing).
 echo "No new commits since last review."
 echo ""
 echo "Pending threads from prior review:"
-jq -r '.[] | select(.status == 1 or .status == "active" or .status == 6 or .status == "pending") |
+jq -r '.[] | select(.status == "active" or .status == "pending") |
   "  \(.filePath // "(general)") L\(.start.line // "?")-\(.end.line // "?")"' "$PRIOR_THREADS_FILE"
 ```
 
