@@ -1,6 +1,6 @@
 # 01. Normalize Claude Code signature
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P0 (blocks detection)
 - Effort: XS

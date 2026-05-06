@@ -1,0 +1,29 @@
+{
+  "value": [
+    {
+      "id": 1,
+      "threadContext": {
+        "filePath": "/src/api.ts",
+        "rightFileStart": { "line": 42 },
+        "rightFileEnd": { "line": 42 }
+      },
+      "comments": [
+        {
+          "content": "Consider adding a null check here before dereferencing.\n---\n🤖 *Reviewed by Claude Code* — Iteration 1"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "threadContext": null,
+      "comments": [
+        {
+          "content": "## PR Review Summary\n\n| Severity | Count |\n|---|---|\n| High | 0 |\n| Medium | 1 |\n| Low | 0 |\n\n### Medium\n- `/src/api.ts` line 42: Missing null check\n---\n🤖 *Reviewed by Claude Code* — Iteration 1"
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 2
+}

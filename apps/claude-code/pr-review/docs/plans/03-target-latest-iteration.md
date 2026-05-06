@@ -1,6 +1,6 @@
 # 03. Target latest PR iteration
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P0
 - Effort: S

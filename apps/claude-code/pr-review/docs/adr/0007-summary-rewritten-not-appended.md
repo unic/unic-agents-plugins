@@ -1,6 +1,6 @@
 # 0007. Summary comment is rewritten on re-review, not appended
 
-**Status:** Accepted (2025-04)
+**Status:** Superseded by 0009 (2026-05)
 
 ## Context
 

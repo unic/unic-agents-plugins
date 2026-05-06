@@ -1,0 +1,22 @@
+{
+  "value": [
+    {
+      "id": 3,
+      "threadContext": {
+        "filePath": "/src/api.ts",
+        "rightFileStart": { "line": 42 },
+        "rightFileEnd": { "line": 42 }
+      },
+      "comments": [
+        {
+          "content": "Consider adding a null check here before dereferencing.\n---\n🤖 *Reviewed by Claude Code* — Iteration 1"
+        },
+        {
+          "content": "This is intentional — the caller contract guarantees a non-null value at this point."
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 1
+}

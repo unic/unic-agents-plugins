@@ -33,7 +33,7 @@ Examples:
 node -e "
   const root = require('child_process').execSync('git rev-parse --show-toplevel').toString().trim();
   const p = require('path').join(root, 'docs', 'inbox', '<slug>.md');
-  process.exit(require('fs').existsSync(p) ? 0 : 1);
+  process.exit(require('fs').existsSync(p) ? 1 : 0);
 "
 ```
 
