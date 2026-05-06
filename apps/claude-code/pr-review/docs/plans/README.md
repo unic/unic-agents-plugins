@@ -9,7 +9,7 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 00 | Pre-flight: ADR supersession + prettierignore guard | done | — |
 | 01 | Normalize Claude Code signature       | done    | 00         |
 | 02 | Detect prior review on PR             | done    | 01         |
-| 03 | Target latest PR iteration            | pending | 02         |
+| 03 | Target latest PR iteration            | done    | 02         |
 | 04 | Incremental diff baseline             | pending | 03         |
 | 05 | Classify existing threads             | pending | 02         |
 | 06 | Reply to threads instead of posting   | pending | 04, 05     |
