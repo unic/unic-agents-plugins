@@ -193,7 +193,12 @@ const prefix = '✅ Review complete — Iteration ' + process.env.PID
 const found = threads.some(t => t.threadId === sid && (t.comments ?? []).some(c => (c.content ?? '').startsWith(prefix)))
 console.log(found ? 'true' : 'false')
 EOJS
-  )
+  ) || { echo "ERROR: partial-run check script failed — falling back to first-review mode for safety."; MARKER_FOUND="false"; }
+
+  if [ "$MARKER_FOUND" != "true" ] && [ "$MARKER_FOUND" != "false" ]; then
+    echo "ERROR: unexpected MARKER_FOUND value '${MARKER_FOUND}' — falling back to first-review mode for safety."
+    MARKER_FOUND="false"
+  fi
 
   if [ "$MARKER_FOUND" = "false" ]; then
     echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."

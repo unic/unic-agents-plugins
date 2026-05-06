@@ -110,4 +110,60 @@ describe('classifyThread', () => {
 		const result = classifyThread({ thread, diffHunks: [], signaturePrefix: SIGNATURE_PREFIX })
 		assert.equal(result, 'pending')
 	})
+
+	it('thread with null end, file changed in diff → pending (intersection requires both start and end)', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 102,
+			filePath: '/src/feature.ts',
+			start: { line: 42 },
+			end: null,
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'active',
+		}
+		const result = classifyThread({ thread, diffHunks: withChangesDiff, signaturePrefix: SIGNATURE_PREFIX })
+		assert.equal(result, 'pending')
+	})
+
+	it('file present in diff with all-zero hunks (deleted) → obsolete', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 103,
+			filePath: '/src/deleted.ts',
+			start: { line: 5 },
+			end: { line: 5 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'active',
+		}
+		/** @type {import('../scripts/re-review/classify-thread.mjs').DiffHunk[]} */
+		const hunks = [{ filePath: '/src/deleted.ts', startLine: 0, endLine: 0 }]
+		const result = classifyThread({ thread, diffHunks: hunks, signaturePrefix: SIGNATURE_PREFIX })
+		assert.equal(result, 'obsolete')
+	})
+
+	it('numeric status 2 (wontFix) → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 104,
+			filePath: '/src/api.ts',
+			start: { line: 42 },
+			end: { line: 42 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 2,
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
+
+	it('numeric status 5 (byDesign) → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 105,
+			filePath: '/src/api.ts',
+			start: { line: 42 },
+			end: { line: 42 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 5,
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
 })

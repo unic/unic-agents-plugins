@@ -49,6 +49,28 @@ describe('detectPriorReview', () => {
 		assert.notEqual(result.summaryThread, null)
 	})
 
+	it('priorIterationId is highest iteration seen, regardless of thread order', () => {
+		/** @type {import('../scripts/re-review/detect-prior-review.mjs').RawADOThread[]} */
+		const threads = [
+			{
+				id: 1,
+				threadContext: null,
+				comments: [{ content: `## PR Review Summary\n\nSummary.\n---\n${SIGNATURE_PREFIX} — Iteration 2` }],
+				status: 'active',
+			},
+			{
+				id: 2,
+				threadContext: { filePath: '/src/api.ts', rightFileStart: { line: 5 }, rightFileEnd: { line: 5 } },
+				comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+				status: 'active',
+			},
+		]
+		const result = detectPriorReview({ threads, signaturePrefix: SIGNATURE_PREFIX })
+		// Summary thread (Iteration 2) appears before inline thread (Iteration 1)
+		// priorIterationId must be 2 (max), not 1 (last-seen in array order)
+		assert.equal(result.priorIterationId, 2)
+	})
+
 	it('highest threadId wins when multiple summary candidates present', () => {
 		/** @type {import('../scripts/re-review/detect-prior-review.mjs').RawADOThread[]} */
 		const threads = [

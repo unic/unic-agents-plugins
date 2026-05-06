@@ -41,12 +41,15 @@ export function detectPriorReview({ threads, signaturePrefix }) {
 		isSummaryThread: isSummaryCandidate && t.threadId === maxSummaryId,
 	}))
 
-	// Last "Iteration N" seen across all bot comments in thread order
+	// Highest "Iteration N" seen across all bot comments — use max, not last-seen,
+	// so thread insertion order does not affect the result.
 	let priorIterationId = null
 	for (const t of priorThreads) {
 		for (const c of t.comments) {
 			const parsed = parseSignature(c.content ?? '')
-			if (parsed) priorIterationId = parsed.iterationId
+			if (parsed && (priorIterationId === null || parsed.iterationId > priorIterationId)) {
+				priorIterationId = parsed.iterationId
+			}
 		}
 	}
 

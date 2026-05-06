@@ -22,8 +22,9 @@ export function matchFinding({ finding, priorThreads, driftLines = 3 }) {
 	for (const t of priorThreads) {
 		if (t.isSummaryThread) continue
 		if (t.filePath !== filePath) continue
-		const ts = (t.start?.line ?? 0) - driftLines
-		const te = (t.end?.line ?? 0) + driftLines
+		if (t.start == null || t.end == null) continue
+		const ts = t.start.line - driftLines
+		const te = t.end.line + driftLines
 		if (Math.max(fs, ts) <= Math.min(fe, te)) return t
 	}
 	return null

@@ -67,4 +67,11 @@ describe('matchFinding', () => {
 		const result = matchFinding({ finding, priorThreads, driftLines: 0 })
 		assert.equal(result, null)
 	})
+
+	it('thread with null start/end does not match any line-based finding', () => {
+		const finding = { filePath: '/src/api.ts', startLine: 1, endLine: 3 }
+		const priorThreads = [makeThread(9, '/src/api.ts', null, null)]
+		const result = matchFinding({ finding, priorThreads })
+		assert.equal(result, null)
+	})
 })
