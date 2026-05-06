@@ -189,6 +189,66 @@ fi
 
 ---
 
+## Step 3.6 — Fetch PR iterations
+
+Resolve the latest iteration ID and capture its commit SHA. These values drive the file-list query (Step 4) and the incremental diff baseline (spec 04).
+
+```bash
+ITERATIONS_JSON=$(az devops invoke \
+  --area git \
+  --resource pullRequestIterations \
+  --route-parameters "project=$PROJECT" "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
+  --org "$ORG_URL" \
+  --api-version "7.1" \
+  --output json)
+
+ITERATIONS_VALUE=$(echo "$ITERATIONS_JSON" | jq '.value // []')
+ITERATION_COUNT=$(echo "$ITERATIONS_VALUE" | jq 'length')
+
+if [ "$ITERATION_COUNT" -eq 0 ]; then
+  echo "Warning: no iterations returned — defaulting to iteration 1"
+  LATEST_ITERATION_ID=1
+  LATEST_COMMIT_ID=""
+else
+  LATEST_ITERATION_ID=$(echo "$ITERATIONS_VALUE" | jq 'max_by(.id) | .id')
+  LATEST_COMMIT_ID=$(echo "$ITERATIONS_VALUE" | jq -r --argjson id "$LATEST_ITERATION_ID" \
+    '.[] | select(.id == $id) | .sourceRefCommit.commitId // ""')
+fi
+echo "Latest iteration: $LATEST_ITERATION_ID (commit: ${LATEST_COMMIT_ID:-n/a})"
+```
+
+When `IS_REREVIEW=true`, resolve the prior commit for spec 04's incremental diff:
+
+```bash
+if [ "$IS_REREVIEW" = "true" ]; then
+  if [ "$PRIOR_ITERATION_ID" != "null" ]; then
+    # Iteration ID was parsed directly from the "— Iteration N" signature suffix
+    PRIOR_COMMIT_ID=$(echo "$ITERATIONS_VALUE" | jq -r --argjson id "$PRIOR_ITERATION_ID" \
+      '.[] | select(.id == $id) | .sourceRefCommit.commitId // ""')
+  else
+    # Timestamp fallback: the prior comment had no "— Iteration N" suffix.
+    # Find the max publishedDate across all prior bot comments, then pick the
+    # highest iteration whose createdDate is still ≤ that timestamp.
+    PRIOR_MAX_DATE=$(jq -r '[.[].comments[].publishedDate // empty] | max // ""' "$PRIOR_THREADS_FILE")
+    if [ -n "$PRIOR_MAX_DATE" ]; then
+      PRIOR_ITERATION_ID=$(echo "$ITERATIONS_VALUE" | jq -r --arg d "$PRIOR_MAX_DATE" \
+        '[.[] | select(.createdDate <= $d)] | max_by(.id) | .id // "null"')
+      if [ "$PRIOR_ITERATION_ID" != "null" ]; then
+        PRIOR_COMMIT_ID=$(echo "$ITERATIONS_VALUE" | jq -r --argjson id "$PRIOR_ITERATION_ID" \
+          '.[] | select(.id == $id) | .sourceRefCommit.commitId // ""')
+      else
+        PRIOR_COMMIT_ID=""
+      fi
+    else
+      PRIOR_COMMIT_ID=""
+    fi
+  fi
+  echo "Prior iteration: $PRIOR_ITERATION_ID (commit: ${PRIOR_COMMIT_ID:-n/a})"
+fi
+```
+
+---
+
 ## Step 4 — List changed files
 
 Use the ADO REST API (note: `az repos pr` has no file-list subcommand):
@@ -197,7 +257,7 @@ Use the ADO REST API (note: `az repos pr` has no file-list subcommand):
 az devops invoke \
   --area git \
   --resource pullRequestIterationChanges \
-  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "iterationId=1" \
+  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "iterationId=$LATEST_ITERATION_ID" \
   --org {ORG_URL} \
   --api-version "7.1" \
   --output json | python3 -c "
@@ -431,6 +491,6 @@ Never alter the prefix — re-review detection depends on it.
 
 - The PR may already be merged — post comments anyway as a review record.
 - Use `az repos pr checkout --id {PR_ID} --org {ORG_URL}` if the local branch doesn't match the source branch.
-- For multi-iteration PRs, always use `iterationId=1` unless you have a specific reason to review a later iteration.
+- Always use the latest iteration of the PR (`LATEST_ITERATION_ID`). Re-reviews additionally compute `PRIOR_ITERATION_ID` — see Step 3.5 and Step 3.6.
 - If `az devops invoke` returns an error on `threadContext` (e.g. file not found in the diff), retry without `threadContext` to post as a general comment.
 - The detection prefix is `🤖 *Reviewed by Claude Code*` (substring match). The full emitted form is `🤖 *Reviewed by Claude Code* — Iteration N`. Never alter the prefix — re-review detection depends on it.

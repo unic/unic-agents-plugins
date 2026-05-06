@@ -6,7 +6,7 @@
 - (none)
 
 ### Added
-- (none)
+- Fetch PR iterations to resolve `LATEST_ITERATION_ID` and `LATEST_COMMIT_ID`; replace hardcoded `iterationId=1` in Step 4; add `PRIOR_COMMIT_ID` resolution for re-review mode (spec 03)
 
 ### Fixed
 - (none)

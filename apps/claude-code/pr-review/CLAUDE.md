@@ -36,7 +36,7 @@ When bumping the version, update it in **both** files:
 - Auto-generated files are explicitly skipped in Step 6 (serialization YAMLs, `*.g.cs`, generated types output, `swagger.md`)
 - All comments posted to ADO **must** end with the exact signature: `---\n🤖 *Reviewed by Claude Code*`
 - Inline threads use ADO REST `pullRequestThreads` via `az devops invoke`; file paths must match ADO format (leading `/`, forward slashes)
-- `iterationId=1` is always used unless there's a specific reason to target a later iteration
+- Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 02.
 - If `az devops invoke` returns a `threadContext` error, fall back to posting without `threadContext` (general comment)
 
 ## External dependencies
