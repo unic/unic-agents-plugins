@@ -1,4 +1,5 @@
 // @ts-check
+import { parseSignature } from './parse-signature.mjs'
 
 /**
  * @typedef {{ line: number }} LinePos
@@ -44,8 +45,8 @@ export function detectPriorReview({ threads, signaturePrefix }) {
 	let priorIterationId = null
 	for (const t of priorThreads) {
 		for (const c of t.comments) {
-			const match = (c.content ?? '').match(/Iteration ([0-9]+)/)
-			if (match) priorIterationId = Number(match[1])
+			const parsed = parseSignature(c.content ?? '')
+			if (parsed) priorIterationId = parsed.iterationId
 		}
 	}
 

@@ -173,6 +173,37 @@ else
 fi
 ```
 
+### Partial-prior-run check
+
+If `IS_REREVIEW=true`, verify the prior review completed **before** committing to re-review mode. This ensures the entire pipeline — diff range, agent analysis, and comment-posting — uses a consistent mode.
+
+If the summary thread is known, check it for a completion marker for `PRIOR_ITERATION_ID`. If none is found, the prior run was partial — reset to first-review mode now so Steps 4–10 all run in the same path.
+
+Skip this check when `PRIOR_ITERATION_ID` is `"null"` (no iteration suffix was parsed from the prior signature) — assume the prior run completed:
+
+```bash
+if [ "$IS_REREVIEW" = "true" ] && [ -n "$SUMMARY_THREAD_ID" ] && [ "$PRIOR_ITERATION_ID" != "null" ]; then
+  MARKER_FOUND=$(
+    THREADS_F="$PRIOR_THREADS_FILE" SID="$SUMMARY_THREAD_ID" PID="$PRIOR_ITERATION_ID" \
+    node --input-type=module << 'EOJS'
+import { readFileSync } from 'node:fs'
+const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
+const sid = Number(process.env.SID)
+const prefix = '✅ Review complete — Iteration ' + process.env.PID
+const found = threads.some(t => t.threadId === sid && (t.comments ?? []).some(c => (c.content ?? '').startsWith(prefix)))
+console.log(found ? 'true' : 'false')
+EOJS
+  )
+
+  if [ "$MARKER_FOUND" = "false" ]; then
+    echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."
+    IS_REREVIEW=false
+    SUMMARY_THREAD_ID=""
+    PRIOR_ITERATION_ID="null"
+  fi
+fi
+```
+
 ---
 
 ## Step 3.6 — Fetch PR iterations
@@ -541,35 +572,6 @@ NEW_THREAD_COUNT=$((NEW_THREAD_COUNT + 1))
 
 ### Path B — IS_REREVIEW=true (re-review reply flow)
 
-#### Partial-prior-run check
-
-Before processing findings, verify the prior review completed. If the summary thread is known, check it for a completion marker for `PRIOR_ITERATION_ID`. If none is found, the prior run was partial — fall back to Path A for this iteration.
-
-Skip this check when `PRIOR_ITERATION_ID` is `"null"` (no iteration suffix was parsed from the prior signature) — in that case, assume the prior run completed and proceed in re-review mode:
-
-```bash
-if [ -n "$SUMMARY_THREAD_ID" ] && [ "$PRIOR_ITERATION_ID" != "null" ]; then
-  MARKER_FOUND=$(
-    THREADS_F="$PRIOR_THREADS_FILE" SID="$SUMMARY_THREAD_ID" PID="$PRIOR_ITERATION_ID" \
-    node --input-type=module << 'EOJS'
-import { readFileSync } from 'node:fs'
-const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
-const sid = Number(process.env.SID)
-const prefix = '✅ Review complete — Iteration ' + process.env.PID
-const found = threads.some(t => t.threadId === sid && (t.comments ?? []).some(c => (c.content ?? '').startsWith(prefix)))
-console.log(found ? 'true' : 'false')
-EOJS
-  )
-
-  if [ "$MARKER_FOUND" = "false" ]; then
-    echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."
-    IS_REREVIEW=false
-  fi
-fi
-```
-
-If `IS_REREVIEW` was reset to `false` above, use Path A for all findings in this step.
-
 #### Thread matching
 
 For each finding (`{FINDING_FILE}`, line range `{FINDING_START}`–`{FINDING_END}`), search `PRIOR_THREADS_FILE` for a matching prior thread using filePath equality and line-range overlap with ±3 line drift:
@@ -843,28 +845,32 @@ The prior summary thread was deleted. Fall back to first-review mode: post a ful
 
 ## Step 11.5 — Post completion marker
 
-After Step 11 completes, post one final reply to the summary thread. This is the last write action of every successful run (first review or re-review):
+After Step 11 completes, post one final reply to the summary thread **if `SUMMARY_THREAD_ID` is set**. Skip silently if it is empty (this can happen when prior bot threads exist but no summary thread was detected). This is the last write action of every successful run:
 
 ```bash
-cat > /tmp/pr_completion_marker.json << 'ENDJSON'
+if [ -n "$SUMMARY_THREAD_ID" ]; then
+  cat > /tmp/pr_completion_marker.json << 'ENDJSON'
 {
   "content": "✅ Review complete — Iteration {LATEST_ITERATION_ID} ({FINDINGS_POSTED} findings posted)\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
   "commentType": 1
 }
 ENDJSON
 
-az devops invoke \
-  --area git \
-  --resource pullRequestThreadComments \
-  --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$SUMMARY_THREAD_ID" \
-  --org {ORG_URL} \
-  --http-method POST \
-  --in-file /tmp/pr_completion_marker.json \
-  --api-version "7.1" \
-  --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Completion marker posted, comment', d.get('id'))"
+  az devops invoke \
+    --area git \
+    --resource pullRequestThreadComments \
+    --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" "threadId=$SUMMARY_THREAD_ID" \
+    --org {ORG_URL} \
+    --http-method POST \
+    --in-file /tmp/pr_completion_marker.json \
+    --api-version "7.1" \
+    --output json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Completion marker posted, comment', d.get('id'))"
+else
+  echo "No summary thread — skipping completion marker."
+fi
 ```
 
-The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a partial prior run — Step 10 detects this and falls back to first-review mode.
+The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a partial prior run — Step 3.5 detects this and falls back to first-review mode.
 
 ---
 
