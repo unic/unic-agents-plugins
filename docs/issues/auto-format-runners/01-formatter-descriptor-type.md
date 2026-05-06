@@ -1,6 +1,6 @@
 # Add `FormatterDescriptor` typedef to `lib/types.mjs`
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** refactor
 
 ## Parent

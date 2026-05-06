@@ -1,6 +1,6 @@
 # Reply to threads + extract match-finding module + completion marker
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

@@ -1,6 +1,6 @@
 # Replace runner functions with descriptors in `format-hook.mjs`
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** refactor
 
 ## Parent

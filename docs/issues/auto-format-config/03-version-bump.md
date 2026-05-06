@@ -1,6 +1,6 @@
 # Version bump and CHANGELOG entry
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** release
 
 ## Parent

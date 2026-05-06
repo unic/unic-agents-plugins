@@ -1,6 +1,6 @@
 # Extract `lib/config.mjs` with `DEFAULTS`, `loadConfig`, and tests
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** refactor
 
 ## Parent
