@@ -1,0 +1,19 @@
+{
+  "value": [
+    {
+      "id": 4,
+      "threadContext": {
+        "filePath": "/src/api.ts",
+        "rightFileStart": { "line": 42 },
+        "rightFileEnd": { "line": 42 }
+      },
+      "comments": [
+        {
+          "content": "Consider adding a null check here before dereferencing.\n---\n🤖 *Reviewed by Claude Code* — Iteration 1"
+        }
+      ],
+      "status": "fixed"
+    }
+  ],
+  "count": 1
+}

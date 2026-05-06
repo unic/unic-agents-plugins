@@ -4,7 +4,7 @@ You are implementing the **re-review** capability for the `unic-pr-review` plugi
 
 ## Step 1 — Determine what's next
 
-Open `docs/plans/README.md`. Scan spec files in order (00 → 09) and find the first file whose status is **not** `done`.
+Open `docs/plans/README.md`. Scan spec files in order and find the first file whose status is **not** `done` nor `ignore`.
 
 If **all** specs contain `**Status: done**`, output exactly:
 

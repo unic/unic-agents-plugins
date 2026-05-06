@@ -1,0 +1,43 @@
+{
+  "value": [
+    {
+      "id": 25,
+      "threadContext": {
+        "filePath": "/src/db.ts",
+        "rightFileStart": { "line": 55 },
+        "rightFileEnd": { "line": 55 }
+      },
+      "comments": [
+        {
+          "content": "Connection pool size is not bounded — could exhaust database connections.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 26,
+      "threadContext": {
+        "filePath": "/src/logger.ts",
+        "rightFileStart": { "line": 12 },
+        "rightFileEnd": { "line": 12 }
+      },
+      "comments": [
+        {
+          "content": "Sensitive user data is logged at INFO level.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 27,
+      "threadContext": null,
+      "comments": [
+        {
+          "content": "## PR Review Summary\n\n| Severity | Count |\n|---|---|\n| High | 3 |\n| Medium | 2 |\n| Low | 2 |\n\n### High\n- `/src/auth.ts` line 5: Hardcoded secret\n- `/src/router.ts` line 15: Missing auth middleware\n- `/src/db.ts` line 8: SQL injection risk\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 3
+}

@@ -1,0 +1,19 @@
+{
+  "value": [
+    {
+      "id": 6,
+      "threadContext": {
+        "filePath": "/src/legacy.ts",
+        "rightFileStart": { "line": 10 },
+        "rightFileEnd": { "line": 10 }
+      },
+      "comments": [
+        {
+          "content": "This function appears to be unused — consider removing it.\n---\n🤖 *Reviewed by Claude Code* — Iteration 1"
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 1
+}

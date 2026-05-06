@@ -1,0 +1,23 @@
+---
+title: alternative work item sources for doc context enrichment
+created: 2026-05-06
+---
+
+alternative work item sources for doc context enrichment:
+
+Spec 10 fetches ADO work items linked to an ADO PR. But PRs can have links to work
+items in other systems. Support should be added for at least:
+
+- Jira issues (linked from ADO PR description or via ADO-Jira integration)
+- GitHub Issues (linked from ADO PR description)
+
+Each source needs its own client script (e.g. `jira-client.mjs`) following the same
+pattern as `confluence-client.mjs`: credential loading from env vars / config file,
+fetch by ID or URL, return structured content for a Doc Context Sub-agent to summarise.
+
+The Doc Context gathering phase in `review-pr.md` step 4a would add parallel paths for
+each configured source — no rewrite of the ADO path needed, purely additive.
+
+Architecture note: if the number of supported sources grows, consider a config file
+(similar to `setup-matt-pocock-skills/issue-tracker-*.md`) that declares which work
+item trackers are active for a given install. Needs grilling before implementation.

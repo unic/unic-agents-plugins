@@ -1,0 +1,76 @@
+{
+  "value": [
+    {
+      "id": 20,
+      "threadContext": {
+        "filePath": "/src/auth.ts",
+        "rightFileStart": { "line": 5 },
+        "rightFileEnd": { "line": 5 }
+      },
+      "comments": [
+        {
+          "content": "Hardcoded secret detected — move to environment variable.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 21,
+      "threadContext": {
+        "filePath": "/src/auth.ts",
+        "rightFileStart": { "line": 30 },
+        "rightFileEnd": { "line": 32 }
+      },
+      "comments": [
+        {
+          "content": "Token expiry is not validated on refresh.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 22,
+      "threadContext": {
+        "filePath": "/src/router.ts",
+        "rightFileStart": { "line": 15 },
+        "rightFileEnd": { "line": 15 }
+      },
+      "comments": [
+        {
+          "content": "Route handler is missing authentication middleware.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 23,
+      "threadContext": {
+        "filePath": "/src/router.ts",
+        "rightFileStart": { "line": 40 },
+        "rightFileEnd": { "line": 40 }
+      },
+      "comments": [
+        {
+          "content": "Error response leaks internal stack trace.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 24,
+      "threadContext": {
+        "filePath": "/src/db.ts",
+        "rightFileStart": { "line": 8 },
+        "rightFileEnd": { "line": 8 }
+      },
+      "comments": [
+        {
+          "content": "SQL query is not parameterised — potential injection risk.\n---\n🤖 *Reviewed by Claude Code* — Iteration 2"
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 5,
+  "continuationToken": "page2-token-xyz"
+}

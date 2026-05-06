@@ -1,0 +1,29 @@
+{
+  "value": [
+    {
+      "id": 10,
+      "threadContext": {
+        "filePath": "/src/utils.ts",
+        "rightFileStart": { "line": 20 },
+        "rightFileEnd": { "line": 20 }
+      },
+      "comments": [
+        {
+          "content": "Error case is not handled here — add a try/catch or propagate the error.\n---\n🤖 *Reviewed by Claude Code* — Iteration 3"
+        }
+      ],
+      "status": "active"
+    },
+    {
+      "id": 11,
+      "threadContext": null,
+      "comments": [
+        {
+          "content": "## PR Review Summary\n\n| Severity | Count |\n|---|---|\n| High | 1 |\n| Medium | 0 |\n| Low | 0 |\n\n### High\n- `/src/utils.ts` line 20: Unhandled error\n---\n🤖 *Reviewed by Claude Code* — Iteration 3"
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 2
+}

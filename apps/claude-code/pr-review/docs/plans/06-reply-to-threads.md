@@ -1,6 +1,6 @@
 # 06. Reply to threads instead of duplicating
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P0
 - Effort: M

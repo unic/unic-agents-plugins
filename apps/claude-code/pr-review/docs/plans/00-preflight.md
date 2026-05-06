@@ -1,6 +1,6 @@
 # 00. Pre-flight: ADR-0007 supersession + .prettierignore CHANGELOG guard
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P0 (blocks every other spec in this feature)
 - Effort: XS

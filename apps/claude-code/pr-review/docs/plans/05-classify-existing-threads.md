@@ -1,6 +1,6 @@
 # 05. Classify existing threads
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P1
 - Effort: M
