@@ -1,6 +1,6 @@
 {
   "name": "pr-review",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs",
+    "test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs tests/confluence-client.test.mjs",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",

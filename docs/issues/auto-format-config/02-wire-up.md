@@ -1,6 +1,6 @@
 # Update `format-hook.mjs` to use `lib/config.mjs`
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** refactor
 
 ## Parent

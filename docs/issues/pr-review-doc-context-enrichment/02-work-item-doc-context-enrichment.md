@@ -1,6 +1,6 @@
 # Work item Doc Context enrichment
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

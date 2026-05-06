@@ -1,6 +1,6 @@
 # Incremental diff baseline
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

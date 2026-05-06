@@ -1,6 +1,6 @@
 # Extract `lib/runners.mjs` with `runFormatter` and tests
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** refactor
 
 ## Parent

@@ -1,6 +1,6 @@
 # Complete test fixture suite
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

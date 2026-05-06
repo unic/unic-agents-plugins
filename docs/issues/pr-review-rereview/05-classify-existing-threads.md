@@ -1,6 +1,6 @@
 # Classify existing threads + extract classify-thread module
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent
