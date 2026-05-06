@@ -6,7 +6,7 @@
 - (none)
 
 ### Added
-- (none)
+- Classify each prior bot thread as `addressed`, `disputed`, `pending`, or `obsolete` in Step 5.5; print summary count before Step 6; detect deleted-file threads as `obsolete` (spec 05)
 
 ### Fixed
 - (none)

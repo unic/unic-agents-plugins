@@ -339,7 +339,7 @@ jq -r '.[] | select(.status == "active" or .status == "pending") |
   "  \(.filePath // "(general)") L\(.start.line // "?")-\(.end.line // "?")"' "$PRIOR_THREADS_FILE"
 ```
 
-**Stop here — do not proceed to Steps 6–11.** Clean up temp files and return to the user:
+**Stop here — do not proceed to Steps 5.5–11.** Clean up temp files and return to the user:
 
 ```bash
 rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
@@ -387,6 +387,82 @@ print(json.dumps(hunks))
 ```
 
 If the diff is very large (>500 lines), focus on the most significant changed files rather than trying to pass the entire diff to agents.
+
+---
+
+## Step 5.5 — Classify existing threads
+
+For each non-summary thread in `PRIOR_THREADS_FILE`, assign exactly one classification using diff hunks from `DIFF_HUNKS_FILE`. This step runs **unconditionally** — it is a no-op when `PRIOR_THREADS_FILE` is empty.
+
+**Classification rules (evaluated in order):**
+
+1. **`addressed`** — ADO status is `fixed`, `wontFix`, `closed`, or `byDesign` (string or numeric 2–5), **or** status is `active`/`pending` and the thread's `[start.line, end.line]` range intersects a changed hunk.
+2. **`obsolete`** — `filePath` is non-null and does not appear in the diff at all.
+3. **`disputed`** — status is `active` and at least one comment does not contain the signature prefix `🤖 *Reviewed by Claude Code*`.
+4. **`pending`** — status is `active` and all comments contain the signature prefix (bot-only thread).
+
+General threads (`filePath = null`, non-summary): rules 1 (intersection) and 2 do not apply; classify as `disputed` or `pending` only.
+
+```bash
+python3 -c "
+import json, sys
+
+threads = json.load(open(sys.argv[1]))
+hunks   = json.load(open(sys.argv[2]))
+
+diff_files = {h['filePath'] for h in hunks}
+hunk_map   = {}
+for h in hunks:
+    hunk_map.setdefault(h['filePath'], []).append((h['startLine'], h['endLine']))
+
+deleted_files = {
+    fp for fp, ranges in hunk_map.items()
+    if all(s == 0 and e == 0 for s, e in ranges)
+}
+
+sig_prefix        = '$SIGNATURE_PREFIX'
+resolved_statuses = {'fixed', 'wontFix', 'closed', 'byDesign', 2, 3, 4, 5}
+counts = {'addressed': 0, 'disputed': 0, 'pending': 0, 'obsolete': 0}
+
+for t in threads:
+    if t.get('isSummaryThread'):
+        continue
+
+    status    = t.get('status')
+    file_path = t.get('filePath')
+    comments  = t.get('comments', [])
+
+    if status in resolved_statuses:
+        cls = 'addressed'
+    elif file_path is not None and (file_path not in diff_files or file_path in deleted_files):
+        cls = 'obsolete'
+    else:
+        start_line = (t.get('start') or {}).get('line')
+        end_line   = (t.get('end')   or {}).get('line')
+        intersects = (
+            file_path is not None
+            and start_line is not None
+            and end_line is not None
+            and any(
+                max(start_line, hs) <= min(end_line, he)
+                for hs, he in hunk_map.get(file_path, [])
+            )
+        )
+        if intersects:
+            cls = 'addressed'
+        else:
+            has_human = any(sig_prefix not in (c.get('content') or '') for c in comments)
+            cls = 'disputed' if has_human else 'pending'
+
+    t['classification'] = cls
+    counts[cls] += 1
+
+json.dump(threads, open(sys.argv[1], 'w'))
+print('Threads: %d addressed, %d disputed, %d pending, %d obsolete' % (
+    counts['addressed'], counts['disputed'], counts['pending'], counts['obsolete']
+))
+" "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
+```
 
 ---
 
