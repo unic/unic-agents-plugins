@@ -1,6 +1,6 @@
 # PRD: auto-format — Config Loading Extraction
 
-**Status:** open
+**Status:** closed
 **Plugin:** `apps/claude-code/auto-format`
 **Specs:** `apps/claude-code/auto-format/docs/plans/29` through `31`
 

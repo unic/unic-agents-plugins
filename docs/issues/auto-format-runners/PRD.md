@@ -1,6 +1,6 @@
 # PRD: auto-format — Formatter Runner Extraction
 
-**Status:** open
+**Status:** closed
 **Plugin:** `apps/claude-code/auto-format`
 **Specs:** `apps/claude-code/auto-format/docs/plans/25` through `28`
 
