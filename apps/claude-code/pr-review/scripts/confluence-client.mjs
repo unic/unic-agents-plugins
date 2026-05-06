@@ -28,12 +28,21 @@ export function loadCredentials(credPath = DEFAULT_CRED_FILE) {
 		return { url: CONFLUENCE_URL, username: CONFLUENCE_USER, token: CONFLUENCE_TOKEN }
 	}
 	if (existsSync(credPath)) {
+		let raw
 		try {
-			const raw = /** @type {Credentials} */ (JSON.parse(readFileSync(credPath, 'utf8')))
-			if (raw.url && raw.username && raw.token) return raw
-		} catch {
-			// fall through to error below
+			raw = JSON.parse(readFileSync(credPath, 'utf8'))
+		} catch (err) {
+			throw new Error(
+				`Failed to read Confluence credentials from ${credPath}: ${/** @type {Error} */ (err).message}\n` +
+					'Verify the file is readable and contains valid JSON.',
+				{ cause: err }
+			)
 		}
+		const typed = /** @type {Credentials} */ (raw)
+		if (typed.url && typed.username && typed.token) return typed
+		throw new Error(
+			`Confluence credentials file ${credPath} is missing required fields — expected { url, username, token }`
+		)
 	}
 	throw new Error(
 		'Confluence credentials not configured — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN' +
@@ -43,15 +52,21 @@ export function loadCredentials(credPath = DEFAULT_CRED_FILE) {
 
 /**
  * Extracts the numeric page ID from a Confluence page URL.
- * Handles patterns: /pages/{id}/ and /pages/{id}
+ * Handles patterns:
+ *   - /pages/{id}/slug
+ *   - /pages/{id} (end of string)
+ *   - /pages/{id}?query
+ *   - /pages/{id}#anchor
  *
  * @param {string} pageUrl
  * @returns {string}
  */
 export function extractPageId(pageUrl) {
-	const match = pageUrl.match(/\/pages\/(\d+)(?:\/|$)/)
+	const match = pageUrl.match(/\/pages\/(\d+)(?:\/|[?#]|$)/)
 	if (!match) throw new Error(`Could not extract numeric page ID from URL: ${pageUrl}`)
-	return match[1] ?? ''
+	const id = match[1]
+	if (!id) throw new Error(`Could not extract numeric page ID from URL: ${pageUrl}`)
+	return id
 }
 
 /**
@@ -60,6 +75,7 @@ export function extractPageId(pageUrl) {
  * @param {string} urlStr
  * @param {string} authHeader
  * @returns {Promise<{ status: number, body: string }>}
+ * @throws {Error} On network error, request timeout, or response stream error (promise rejects).
  */
 function httpsGet(urlStr, authHeader) {
 	return new Promise((resolve, reject) => {
@@ -79,6 +95,7 @@ function httpsGet(urlStr, authHeader) {
 				data += chunk
 			})
 			res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }))
+			res.on('error', reject)
 		})
 		req.setTimeout(30_000, () => {
 			req.destroy(new Error('Request timed out after 30s — check VPN/network connectivity'))
@@ -95,7 +112,7 @@ function httpsGet(urlStr, authHeader) {
  *
  * @param {string} pageUrl
  * @param {Credentials} credentials
- * @returns {Promise<string>} Confluence storage XML body
+ * @returns {Promise<string>} The raw Confluence storage-format markup for the page body
  */
 export async function fetchPageText(pageUrl, credentials) {
 	const pageId = extractPageId(pageUrl)
@@ -106,7 +123,7 @@ export async function fetchPageText(pageUrl, credentials) {
 	try {
 		res = await httpsGet(apiUrl, authHeader)
 	} catch (err) {
-		throw new Error(`Network error fetching ${pageUrl}: ${/** @type {Error} */ (err).message}`)
+		throw new Error(`Network error fetching ${pageUrl}: ${/** @type {Error} */ (err).message}`, { cause: err })
 	}
 
 	if (res.status < 200 || res.status >= 300) {
@@ -139,7 +156,7 @@ try {
 if (isMain) {
 	const args = process.argv.slice(2)
 
-	if (args.length === 0 || (args[0] !== '--check-creds' && !args[0].startsWith('http'))) {
+	if (args.length === 0 || (args[0] !== '--check-creds' && !args[0]?.startsWith('http'))) {
 		console.error('Usage:')
 		console.error('  node scripts/confluence-client.mjs --check-creds')
 		console.error('  node scripts/confluence-client.mjs <confluence-page-url>')
@@ -161,7 +178,12 @@ if (isMain) {
 			const text = await fetchPageText(url, creds)
 			process.stdout.write(text)
 		} catch (err) {
-			console.error(/** @type {Error} */ (err).message)
+			const message = err instanceof Error ? err.message : String(err)
+			console.error(message)
+			const cause = err instanceof Error ? /** @type {any} */ (err).cause : undefined
+			if (cause instanceof Error) {
+				console.error(`Caused by: ${cause.message}`)
+			}
 			process.exit(1)
 		}
 	}
