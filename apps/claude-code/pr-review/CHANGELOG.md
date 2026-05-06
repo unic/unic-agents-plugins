@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.6.0] — 2026-05-06
+
+### Breaking
+- (none)
+
+### Added
 - Reply to existing bot threads instead of duplicating them on re-review: match prior threads by file path and line-range overlap (±3 line drift), branch Step 10 on `IS_REREVIEW`, apply per-classification actions (skip `pending`, reply `disputed`/`addressed`, ignore `obsolete`), post run-completion marker on every successful run (spec 06)
 
 ### Fixed

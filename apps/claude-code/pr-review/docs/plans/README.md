@@ -12,7 +12,7 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 03 | Target latest PR iteration            | done    | 02         |
 | 04 | Incremental diff baseline             | done    | 03         |
 | 05 | Classify existing threads             | done    | 02         |
-| 06 | Reply to threads instead of posting   | pending | 04, 05     |
+| 06 | Reply to threads instead of posting   | done    | 04, 05     |
 | 07 | Summary comment policy on re-review   | pending | 06         |
 | 08 | Version bump, README, CLAUDE.md       | pending | 07         |
 | 09 | Test harness — node:test + modules    | pending | 02, 05, 06 |
