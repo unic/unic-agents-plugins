@@ -1,6 +1,6 @@
 # 02. Detect prior review on PR
 
-**Status: pending**
+**Status: done — 2026-05-06**
 
 - Priority: P0
 - Effort: S
