@@ -198,7 +198,7 @@ cat > /tmp/pr_thread_N.json << 'ENDJSON'
   "comments": [
     {
       "commentType": 1,
-      "content": "{COMMENT_TEXT}\n\n---\n🤖 *Reviewed by Claude Code*"
+      "content": "{COMMENT_TEXT}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}"
     }
   ],
   "status": 1,
@@ -242,7 +242,7 @@ cat > /tmp/pr_summary.json << 'ENDJSON'
   "comments": [
     {
       "commentType": 1,
-      "content": "## PR Review Summary — {PR_TITLE}\n\n{SUMMARY_CONTENT}\n\n---\n🤖 *Reviewed by Claude Code*"
+      "content": "## PR Review Summary — {PR_TITLE}\n\n{SUMMARY_CONTENT}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}"
     }
   ],
   "status": 1
@@ -283,7 +283,7 @@ az devops invoke \
 
 ---
 
-🤖 _Reviewed by Claude Code_
+🤖 _Reviewed by Claude Code_ — Iteration {N}
 ```
 
 ---
@@ -302,10 +302,15 @@ Every comment — inline or summary — **must** end with this trailer on its ow
 
 ```txt
 ---
-🤖 *Reviewed by Claude Code*
+🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}
 ```
 
-Never vary this signature.
+Two constants govern signature generation:
+
+- `SIGNATURE_PREFIX` = `🤖 *Reviewed by Claude Code*`
+- `SIGNATURE` = `🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}` (resolved at post time)
+
+Never alter the prefix — re-review detection depends on it.
 
 ---
 
@@ -315,3 +320,4 @@ Never vary this signature.
 - Use `az repos pr checkout --id {PR_ID} --org {ORG_URL}` if the local branch doesn't match the source branch.
 - For multi-iteration PRs, always use `iterationId=1` unless you have a specific reason to review a later iteration.
 - If `az devops invoke` returns an error on `threadContext` (e.g. file not found in the diff), retry without `threadContext` to post as a general comment.
+- The detection prefix is `🤖 *Reviewed by Claude Code*` (substring match). The full emitted form is `🤖 *Reviewed by Claude Code* — Iteration N`. Never alter the prefix — re-review detection depends on it.

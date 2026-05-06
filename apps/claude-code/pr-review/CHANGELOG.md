@@ -12,7 +12,7 @@
 
 ### Fixed
 
-- (none)
+- Normalized all emitted comment signatures to asterisk italics and added `— Iteration {LATEST_ITERATION_ID}` suffix; documented detection prefix in Notes and Comment signature sections
 
 ## [0.1.2] — 2026-04-30
 
