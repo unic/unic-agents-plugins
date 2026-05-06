@@ -1,0 +1,19 @@
+{
+  "value": [
+    {
+      "id": 5,
+      "threadContext": {
+        "filePath": "/src/feature.ts",
+        "rightFileStart": { "line": 42 },
+        "rightFileEnd": { "line": 42 }
+      },
+      "comments": [
+        {
+          "content": "This conditional logic looks incorrect — it should check the opposite condition.\n---\n🤖 *Reviewed by Claude Code* — Iteration 1"
+        }
+      ],
+      "status": "active"
+    }
+  ],
+  "count": 1
+}

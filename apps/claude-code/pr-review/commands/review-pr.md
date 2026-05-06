@@ -134,53 +134,39 @@ rm -f "$PRIOR_THREADS_RAW"
 PRIOR_THREADS_FILE="$(mktemp "${TMPDIR:-/tmp}/pr_prior_threads_XXXXXX.json")"
 SIGNATURE_PREFIX="🤖 *Reviewed by Claude Code*"
 
-jq --arg sig "$SIGNATURE_PREFIX" '
-  [
-    .[] |
-    select(any(.comments[]?; (.content // "") | contains($sig))) |
-    {
-      threadId: .id,
-      filePath: (.threadContext?.filePath // null),
-      start:    (.threadContext?.rightFileStart // null),
-      end:      (.threadContext?.rightFileEnd // null),
-      comments: .comments,
-      status:   .status,
-      isSummaryCandidate: (
-        (.threadContext?.filePath == null) and
-        ((.comments[0]?.content // "") | startswith("## PR Review Summary"))
-      )
-    }
-  ] |
-  (map(select(.isSummaryCandidate) | .threadId) | max) as $maxSummaryId |
-  map(
-    .isSummaryThread = (.isSummaryCandidate and .threadId == $maxSummaryId) |
-    del(.isSummaryCandidate)
-  )
-' "$PRIOR_THREADS_ALL" > "$PRIOR_THREADS_FILE"
+DETECT_JSON=$(
+  THREADS_ALL_F="$PRIOR_THREADS_ALL" \
+  SIG_P="$SIGNATURE_PREFIX" \
+  THREADS_OUT_F="$PRIOR_THREADS_FILE" \
+  PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
+  node --input-type=module << 'EOJS'
+import { readFileSync, writeFileSync } from 'node:fs'
+const { detectPriorReview } = await import('file://' + process.env.PLUGIN_R + '/scripts/re-review/detect-prior-review.mjs')
+const threads = JSON.parse(readFileSync(process.env.THREADS_ALL_F, 'utf8'))
+const r = detectPriorReview({ threads, signaturePrefix: process.env.SIG_P })
+writeFileSync(process.env.THREADS_OUT_F, JSON.stringify(r.priorThreads))
+process.stdout.write(JSON.stringify({
+  isRereview: r.isRereview,
+  summaryThreadId: r.summaryThread != null ? r.summaryThread.threadId : '',
+  priorIterationId: r.priorIterationId,
+  count: r.priorThreads.length,
+}))
+EOJS
+)
 rm -f "$PRIOR_THREADS_ALL"
 ```
 
 ### Set detection variables
 
 ```bash
-BOT_THREAD_COUNT=$(jq 'length' "$PRIOR_THREADS_FILE")
+IS_REREVIEW=$(echo "$DETECT_JSON" | jq -r '.isRereview')
+BOT_THREAD_COUNT=$(echo "$DETECT_JSON" | jq -r '.count')
+SUMMARY_THREAD_ID=$(echo "$DETECT_JSON" | jq -r '.summaryThreadId // ""')
+PRIOR_ITERATION_ID=$(echo "$DETECT_JSON" | jq -r 'if .priorIterationId == null then "null" else (.priorIterationId | tostring) end')
 
-if [ "$BOT_THREAD_COUNT" -gt 0 ]; then
-  IS_REREVIEW=true
-
-  SUMMARY_THREAD_ID=$(jq -r '
-    last(.[] | select(.isSummaryThread == true) | .threadId | tostring) // ""
-  ' "$PRIOR_THREADS_FILE")
-
-  PRIOR_ITERATION_ID=$(jq -r '
-    [ .[].comments[].content | strings |
-      match("Iteration ([0-9]+)") | .captures[0].string
-    ] | last // "null"
-  ' "$PRIOR_THREADS_FILE")
-
+if [ "$IS_REREVIEW" = "true" ]; then
   echo "Detected $BOT_THREAD_COUNT prior Claude Code threads — re-review mode ON"
 else
-  IS_REREVIEW=false
   SUMMARY_THREAD_ID=""
   PRIOR_ITERATION_ID="null"
   echo "Detected 0 prior Claude Code threads — re-review mode OFF"
@@ -404,64 +390,26 @@ For each non-summary thread in `PRIOR_THREADS_FILE`, assign exactly one classifi
 General threads (`filePath = null`, non-summary): rules 1 (intersection) and 2 do not apply; classify as `disputed` or `pending` only.
 
 ```bash
-python3 -c "
-import json, sys
-
-threads = json.load(open(sys.argv[1]))
-hunks   = json.load(open(sys.argv[2]))
-
-diff_files = {h['filePath'] for h in hunks}
-hunk_map   = {}
-for h in hunks:
-    hunk_map.setdefault(h['filePath'], []).append((h['startLine'], h['endLine']))
-
-deleted_files = {
-    fp for fp, ranges in hunk_map.items()
-    if all(s == 0 and e == 0 for s, e in ranges)
+THREADS_FILE="$PRIOR_THREADS_FILE" \
+HUNKS_FILE="$DIFF_HUNKS_FILE" \
+SIG_P="$SIGNATURE_PREFIX" \
+PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
+node --input-type=module << 'EOJS'
+import { readFileSync, writeFileSync } from 'node:fs'
+const { classifyThread } = await import('file://' + process.env.PLUGIN_R + '/scripts/re-review/classify-thread.mjs')
+const threads = JSON.parse(readFileSync(process.env.THREADS_FILE, 'utf8'))
+const diffHunks = JSON.parse(readFileSync(process.env.HUNKS_FILE, 'utf8'))
+const signaturePrefix = process.env.SIG_P
+const counts = { addressed: 0, disputed: 0, pending: 0, obsolete: 0 }
+for (const t of threads) {
+  if (t.isSummaryThread) continue
+  const cls = classifyThread({ thread: t, diffHunks, signaturePrefix })
+  t.classification = cls
+  counts[cls]++
 }
-
-sig_prefix        = '$SIGNATURE_PREFIX'
-resolved_statuses = {'fixed', 'wontFix', 'closed', 'byDesign', 2, 3, 4, 5}
-counts = {'addressed': 0, 'disputed': 0, 'pending': 0, 'obsolete': 0}
-
-for t in threads:
-    if t.get('isSummaryThread'):
-        continue
-
-    status    = t.get('status')
-    file_path = t.get('filePath')
-    comments  = t.get('comments', [])
-
-    if status in resolved_statuses:
-        cls = 'addressed'
-    elif file_path is not None and (file_path not in diff_files or file_path in deleted_files):
-        cls = 'obsolete'
-    else:
-        start_line = (t.get('start') or {}).get('line')
-        end_line   = (t.get('end')   or {}).get('line')
-        intersects = (
-            file_path is not None
-            and start_line is not None
-            and end_line is not None
-            and any(
-                max(start_line, hs) <= min(end_line, he)
-                for hs, he in hunk_map.get(file_path, [])
-            )
-        )
-        if intersects:
-            cls = 'addressed'
-        else:
-            has_human = any(sig_prefix not in (c.get('content') or '') for c in comments)
-            cls = 'disputed' if has_human else 'pending'
-
-    t['classification'] = cls
-    counts[cls] += 1
-
-json.dump(threads, open(sys.argv[1], 'w'))
-print('Threads: %d addressed, %d disputed, %d pending, %d obsolete' % (
-    counts['addressed'], counts['disputed'], counts['pending'], counts['obsolete']
-))
-" "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
+writeFileSync(process.env.THREADS_FILE, JSON.stringify(threads))
+console.log(`Threads: ${counts.addressed} addressed, ${counts.disputed} disputed, ${counts.pending} pending, ${counts.obsolete} obsolete`)
+EOJS
 ```
 
 ---
@@ -601,20 +549,17 @@ Skip this check when `PRIOR_ITERATION_ID` is `"null"` (no iteration suffix was p
 
 ```bash
 if [ -n "$SUMMARY_THREAD_ID" ] && [ "$PRIOR_ITERATION_ID" != "null" ]; then
-  MARKER_FOUND=$(python3 -c "
-import json, sys
-threads = json.load(open(sys.argv[1]))
-sid = int(sys.argv[2])
-pid = sys.argv[3]
-prefix = '✅ Review complete — Iteration ' + pid
-for t in threads:
-    if t.get('threadId') == sid:
-        for c in t.get('comments', []):
-            if (c.get('content') or '').startswith(prefix):
-                print('true')
-                sys.exit(0)
-print('false')
-" "$PRIOR_THREADS_FILE" "$SUMMARY_THREAD_ID" "$PRIOR_ITERATION_ID")
+  MARKER_FOUND=$(
+    THREADS_F="$PRIOR_THREADS_FILE" SID="$SUMMARY_THREAD_ID" PID="$PRIOR_ITERATION_ID" \
+    node --input-type=module << 'EOJS'
+import { readFileSync } from 'node:fs'
+const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
+const sid = Number(process.env.SID)
+const prefix = '✅ Review complete — Iteration ' + process.env.PID
+const found = threads.some(t => t.threadId === sid && (t.comments ?? []).some(c => (c.content ?? '').startsWith(prefix)))
+console.log(found ? 'true' : 'false')
+EOJS
+  )
 
   if [ "$MARKER_FOUND" = "false" ]; then
     echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."
@@ -630,28 +575,26 @@ If `IS_REREVIEW` was reset to `false` above, use Path A for all findings in this
 For each finding (`{FINDING_FILE}`, line range `{FINDING_START}`–`{FINDING_END}`), search `PRIOR_THREADS_FILE` for a matching prior thread using filePath equality and line-range overlap with ±3 line drift:
 
 ```bash
-MATCH=$(python3 -c "
-import json, sys
-DRIFT = 3
-threads = json.load(open(sys.argv[1]))
-file  = sys.argv[2]
-start = int(sys.argv[3])
-end   = int(sys.argv[4])
-fs, fe = start - DRIFT, end + DRIFT
-for t in threads:
-    if t.get('isSummaryThread'):
-        continue
-    if t.get('filePath') != file:
-        continue
-    ts = ((t.get('start') or {}).get('line') or 0) - DRIFT
-    te = ((t.get('end')   or {}).get('line') or 0) + DRIFT
-    if max(fs, ts) <= min(fe, te):
-        print(json.dumps(t))
-        sys.exit(0)
-" "$PRIOR_THREADS_FILE" "{FINDING_FILE}" {FINDING_START} {FINDING_END})
+MATCH=$(
+  THREADS_F="$PRIOR_THREADS_FILE" \
+  FINDING_F="{FINDING_FILE}" \
+  FINDING_S="{FINDING_START}" \
+  FINDING_E="{FINDING_END}" \
+  PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
+  node --input-type=module << 'EOJS'
+import { readFileSync } from 'node:fs'
+const { matchFinding } = await import('file://' + process.env.PLUGIN_R + '/scripts/re-review/match-finding.mjs')
+const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
+const result = matchFinding({
+  finding: { filePath: process.env.FINDING_F, startLine: Number(process.env.FINDING_S), endLine: Number(process.env.FINDING_E) },
+  priorThreads: threads,
+})
+process.stdout.write(result != null ? JSON.stringify(result) : '')
+EOJS
+)
 
-CLASSIFICATION=$(echo "$MATCH" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('classification',''))" 2>/dev/null || echo "")
-THREAD_ID=$(echo "$MATCH"      | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('threadId',''))"      2>/dev/null || echo "")
+CLASSIFICATION=$(printf '%s' "$MATCH" | jq -r '.classification // ""' 2>/dev/null || echo "")
+THREAD_ID=$(printf '%s' "$MATCH"      | jq -r '.threadId // ""'       2>/dev/null || echo "")
 ```
 
 - If `MATCH` is empty → **no prior thread**: post a fresh thread via Path A (increment `FINDINGS_POSTED` and `NEW_THREAD_COUNT`).
