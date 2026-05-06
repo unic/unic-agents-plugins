@@ -106,22 +106,31 @@ function httpsGet(urlStr, authHeader) {
 }
 
 /**
+ * @typedef {(url: string, authHeader: string) => Promise<{ status: number, body: string }>} HttpGet
+ */
+
+/**
  * Fetches the Confluence storage-format body of a page by its URL.
  * Uses the Confluence v2 API with Basic auth.
  * Throws on non-2xx response or network error.
  *
+ * The optional `httpGet` parameter allows injecting an alternative transport
+ * (used by tests). It defaults to the internal `httpsGet` so callers do not
+ * need to pass anything.
+ *
  * @param {string} pageUrl
  * @param {Credentials} credentials
+ * @param {HttpGet} [httpGet]
  * @returns {Promise<string>} The raw Confluence storage-format markup for the page body
  */
-export async function fetchPageText(pageUrl, credentials) {
+export async function fetchPageText(pageUrl, credentials, httpGet = httpsGet) {
 	const pageId = extractPageId(pageUrl)
 	const apiUrl = `${credentials.url.replace(/\/$/, '')}/wiki/api/v2/pages/${pageId}?body-format=storage`
 	const authHeader = `Basic ${Buffer.from(`${credentials.username}:${credentials.token}`).toString('base64')}`
 
 	let res
 	try {
-		res = await httpsGet(apiUrl, authHeader)
+		res = await httpGet(apiUrl, authHeader)
 	} catch (err) {
 		throw new Error(`Network error fetching ${pageUrl}: ${/** @type {Error} */ (err).message}`, { cause: err })
 	}
