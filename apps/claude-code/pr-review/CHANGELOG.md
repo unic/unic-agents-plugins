@@ -20,6 +20,14 @@
 - (none)
 
 ### Fixed
+- Credential check in Step 4 now runs only when at least one Confluence URL was found across
+  all Work Item Summarizer outputs; when no URLs are present the check is skipped entirely.
+  Stderr from `--check-creds` is now suppressed so only the orchestrator's standardised
+  warning is visible to the user rather than duplicate or misleading output from the tool.
+- Fixed ambiguous `{CHANGED_FILES}` placeholder in the synthesizer delegation prompt: replaced
+  with `{CHANGED_FILES_LIST}` and explicit wording that instructs the orchestrator to forward
+  the actual changed-files list it received, preventing the token from being interpreted
+  literally and ensuring the synthesizer stays diff-aware.
 - Doc Context phase was silently skipped on every run: three defects combined — step 4a
   lacked an explicit `Agent()` spawn (orchestrator intent was satisfied inline and skipped),
   `confluence-client.mjs` was resolved relative to the reviewed project root instead of the

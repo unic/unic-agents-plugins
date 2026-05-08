@@ -57,17 +57,21 @@ Collect all Work Item Summarizer outputs before proceeding.
 
 ---
 
-## Step 4 — Check Confluence credentials (once)
+## Step 4 — Check Confluence credentials (conditional)
 
-Run the credential check **exactly once** using the absolute path provided:
+Collect all unique Confluence URLs from all Work Item Summarizer outputs.
+
+If **no** Confluence URLs were found across any summarizer output: skip this step and Step 5 entirely, and proceed directly to Step 6.
+
+If at least one Confluence URL was found, run the credential check **exactly once** using the absolute path provided, suppressing the tool's own output so only the orchestrator's standardised warning reaches the user:
 
 ```bash
-node {CONFLUENCE_CLIENT_PATH} --check-creds
+node {CONFLUENCE_CLIENT_PATH} --check-creds 2>/dev/null
 ```
 
 Exit code 0 = credentials available. Any other outcome = credentials absent.
 
-If credentials are absent **and** any work item summarizer returned at least one Confluence URL: emit the following warning to console only (never post to the PR):
+If credentials are absent, emit the following warning to console only (never post to the PR):
 
 ```
 ⚠ Confluence pages not fetched — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN (or create ~/.unic-confluence.json with { url, username, token }) to enable doc-aware review.
@@ -106,8 +110,8 @@ Work item summaries:
 Confluence page summaries:
 {all confluence fetcher outputs concatenated, one block per page; or '(none)' if no pages were fetched}
 
-Changed files:
-{CHANGED_FILES}
+Changed files (paste the full changed-files list you received in your own prompt above):
+{CHANGED_FILES_LIST}
 
 Return the complete ## Business context for this PR markdown block, or an empty string if no meaningful context was gathered."
 )
