@@ -1,6 +1,6 @@
 # Wire-up: step 4a rewrite + README + CHANGELOG
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** bug
 **Type:** AFK
 

@@ -1,6 +1,6 @@
 # PRD: pr-review — Doc Context Spawn Reliability
 
-**Status:** ready-for-agent
+**Status:** closed
 **Category:** bug
 **Plugin:** `apps/claude-code/pr-review`
 **Specs:** `apps/claude-code/pr-review/docs/plans/11-doc-context-spawn-reliability.md`
