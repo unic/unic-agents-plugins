@@ -300,19 +300,26 @@ for c in data.get('changeEntries', []):
 DOC_CONTEXT=''
 ```
 
-Fetch work items linked to the PR:
+Fetch work items linked to the PR and capture the output:
 
 ```bash
-az devops invoke \
+WI_JSON=$(az devops invoke \
   --area git \
   --resource pullRequestWorkItems \
   --route-parameters "repositoryId={REPO_ID}" "pullRequestId={PR_ID}" \
   --org {ORG_URL} \
   --api-version "7.1" \
-  --output json
+  --output json 2>/dev/null) || WI_JSON=""
 ```
 
-If the `value` array is empty or the command fails, leave `DOC_CONTEXT=''` and proceed.
+Extract the work item IDs into a comma-separated string:
+
+```bash
+WI_IDS=$(echo "$WI_JSON" | jq -r '[.value[]?.id | tostring] | join(",")' 2>/dev/null) || WI_IDS=""
+```
+
+If `WI_JSON` is empty, the command failed, or `WI_IDS` is empty (the `value` array
+had no entries), leave `DOC_CONTEXT=''` and proceed to step 5.
 
 Otherwise, wait for the diff from step 5 to be available (step 4a and step 5 run
 concurrently up to this point; only the orchestrator spawn waits for the diff).
@@ -332,7 +339,7 @@ Agent(
 
   ORG_URL: {ORG_URL}
   PR_ID: {PR_ID}
-  Work item IDs: {comma-separated list from value array}
+  Work item IDs: {WI_IDS}
   Confluence client path: {CONFLUENCE_CLIENT_PATH}
 
   Changed files:

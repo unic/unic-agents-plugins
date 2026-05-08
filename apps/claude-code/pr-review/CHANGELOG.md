@@ -27,6 +27,11 @@
   Fixed by extracting the entire gathering phase to a dedicated Doc Context Orchestrator
   agent (isolates token consumption in a fresh context window), resolving all script paths
   from `${CLAUDE_PLUGIN_ROOT}`, and initialising `DOC_CONTEXT=''` at the top of step 4a.
+- Step 4a bash snippet was non-deterministic: `az devops invoke` output was printed but
+  never captured, so failure detection and work item ID extraction were impossible. Fixed
+  by capturing output into `WI_JSON`, extracting IDs via `jq` into `WI_IDS`, branching
+  on empty array / non-zero exit, and passing `{WI_IDS}` (the computed variable) to the
+  `Agent()` call instead of an unresolved placeholder.
 
 ## [0.9.0] — 2026-05-06
 
