@@ -10,6 +10,7 @@ pr-review - supress thanks comments on addressed threads
 The plugin runs in **iterations**. Each iteration is identified by a number stamped in a signature on every bot comment: `🤖 *Reviewed by Claude Code* — Iteration N`.
 
 On a **re-review**, it:
+
 1. Fetches all PR threads and finds the ones it posted before (via that signature)
 2. Computes an incremental diff (only changes since the last review)
 3. **Classifies** each prior thread into one of four states:
