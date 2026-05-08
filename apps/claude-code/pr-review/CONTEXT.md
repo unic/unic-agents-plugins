@@ -62,12 +62,16 @@ _Avoid_: watermark, marker, signature
 ### Doc context enrichment
 
 **Doc Context**:
-The aggregated summaries of linked work items and Confluence pages passed to Review Aspect agents as background on the business intent of the PR. Produced before the review phase and injected as a preamble into each agent's prompt.
-_Avoid_: ticket context, background info, extra context
+A synthesised, flat narrative of the business intent behind a PR — what the change is supposed to accomplish and why, drawn from linked work items and Confluence pages. Injected as a preamble into each Review Aspect agent's prompt so it can judge whether the code is not only correct but meaningful relative to the specifications.
+_Avoid_: ticket context, background info, extra context, aggregated summaries
 
 **Doc Context Sub-agent**:
-A short-lived agent spawned to fetch and summarise a single source — either a work item description or a Confluence page — in a diff-aware way. Multiple Doc Context Sub-agents run in parallel; their outputs are merged into the Doc Context.
+A short-lived agent spawned to fetch and summarise a single source — either a work item description or a Confluence page — in a diff-aware way. Multiple Doc Context Sub-agents run in parallel; their outputs are passed to the Doc Context Synthesizer.
 _Avoid_: context agent, doc agent, fetcher agent
+
+**Doc Context Synthesizer**:
+The agent responsible for taking all Doc Context Sub-agent outputs (work item and Confluence summaries, potentially overlapping) and producing a single coherent Doc Context narrative with no redundant content.
+_Avoid_: merger, aggregator, deduplicator
 
 ### Re-review classification
 
