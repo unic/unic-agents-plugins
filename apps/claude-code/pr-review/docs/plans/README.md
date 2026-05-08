@@ -17,4 +17,4 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 08 | Version bump, README, CLAUDE.md       | done    | 07         |
 | 09 | Test harness — node:test + modules    | done    | 02, 05, 06 |
 | 10 | Doc Context enrichment — work items + Confluence pages | done | — |
-| 11 | Doc Context spawn reliability — fix silently skipped phase | open | 10 |
+| 11 | Doc Context spawn reliability — fix silently skipped phase | done | 10 |

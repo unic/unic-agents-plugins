@@ -9,6 +9,17 @@
 - (none)
 
 ### Fixed
+- (none)
+
+## [0.9.1] — 2026-05-08
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 - Doc Context phase was silently skipped on every run: three defects combined — step 4a
   lacked an explicit `Agent()` spawn (orchestrator intent was satisfied inline and skipped),
   `confluence-client.mjs` was resolved relative to the reviewed project root instead of the

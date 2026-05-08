@@ -1,6 +1,6 @@
 # 11. Doc Context Spawn Reliability
 
-**Status: open**
+**Status: done — 2026-05-08**
 
 - Priority: P1
 - Effort: S
