@@ -35,6 +35,9 @@
   Fixed by extracting the entire gathering phase to a dedicated Doc Context Orchestrator
   agent (isolates token consumption in a fresh context window), resolving all script paths
   from `${CLAUDE_PLUGIN_ROOT}`, and initialising `DOC_CONTEXT=''` at the top of step 4a.
+- Doc Context Synthesizer agent added to produce a single flat `## Business context for this PR`
+  narrative from all work item and Confluence summaries, isolating synthesis in a dedicated
+  context window.
 - Step 4a bash snippet was non-deterministic: `az devops invoke` output was printed but
   never captured, so failure detection and work item ID extraction were impossible. Fixed
   by capturing output into `WI_JSON`, extracting IDs via `jq` into `WI_IDS`, branching

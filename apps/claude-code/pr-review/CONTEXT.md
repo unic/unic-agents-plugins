@@ -73,6 +73,10 @@ _Avoid_: context agent, doc agent, fetcher agent
 The agent responsible for taking all Doc Context Sub-agent outputs (work item and Confluence summaries, potentially overlapping) and producing a single coherent Doc Context narrative with no redundant content.
 _Avoid_: merger, aggregator, deduplicator
 
+**Doc Context Orchestrator**:
+A self-contained plugin agent that orchestrates the entire Doc Context gathering phase — fetching work item details, running the Confluence credential check once, spawning Work Item Summarizer and Confluence Fetcher agents in parallel, and delegating final synthesis to the Doc Context Synthesizer. Returns the Synthesizer's output verbatim as a plain markdown string.
+_Avoid_: context orchestrator, doc orchestrator, gathering agent
+
 ### Re-review classification
 
 **Thread Classification**:
@@ -99,8 +103,9 @@ A Thread Classification state. The relevant code was deleted or moved; the comme
 - A **Reply** is added to an existing **Review Thread** — it does not open a new one
 - The **Bot Signature** is present on every comment authored by the Plugin, enabling prior-review detection
 - A **Revision** is the code snapshot a **Review** or **Re-review** analyses
-- A **Doc Context** is assembled by one or more **Doc Context Sub-agents** before the Review phase and injected into every Review Aspect agent
+- A **Doc Context** is assembled via a three-tier pipeline: the **Doc Context Orchestrator** spawns **Work Item Summarizer** and **Confluence Fetcher** agents (Doc Context Sub-agents) in parallel, then delegates their outputs to the **Doc Context Synthesizer**, which produces the final `DOC_CONTEXT` narrative injected into every Review Aspect agent
 - A **Doc Context Sub-agent** operates on a single source (work item or Confluence page) and receives the changed files list and the local diff when available
+- The **Doc Context Orchestrator** returns the **Doc Context Synthesizer**'s output verbatim; it does not rewrite or reformat the narrative
 
 ## Example dialogue
 

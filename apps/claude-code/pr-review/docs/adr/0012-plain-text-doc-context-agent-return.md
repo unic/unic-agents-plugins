@@ -4,8 +4,12 @@
 
 ## Context
 
-The Doc Context Orchestrator agent returns its output as a plain markdown string,
-not as a JSON object (e.g. `{ "docContext": "...", "warnings": [...] }`).
+The Doc Context pipeline uses two agents: the Doc Context Synthesizer produces the
+`## Business context for this PR` markdown narrative from all work item and Confluence
+summaries; the Doc Context Orchestrator delegates synthesis to the Synthesizer and
+returns the Synthesizer's output verbatim — it does not rewrite or reformat it. The
+Orchestrator's output therefore arrives as a plain markdown string, not as a JSON
+object (e.g. `{ "docContext": "...", "warnings": [...] }`).
 
 ## Decision
 
@@ -29,9 +33,12 @@ extracting `docContext` in the calling step via `jq`. Rejected because:
 
 ## Consequences
 
-The orchestrator must return an empty string (not JSON null or an error object)
-when no meaningful context is gathered. The calling step checks for an empty
-string and leaves `DOC_CONTEXT=''` unchanged.
+Both the Orchestrator and the Synthesizer must return an empty string (not JSON
+null or an error object) when no meaningful context is gathered. Step 4a in
+`review-pr.md` stores the agent output verbatim with no explicit empty-check
+guard; the guarantee that `DOC_CONTEXT` stays `''` on failure comes from the
+Orchestrator and Synthesizer always returning `""` rather than from any
+caller-side conditional.
 
 **See also:**
 
