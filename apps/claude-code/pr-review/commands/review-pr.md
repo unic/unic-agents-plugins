@@ -296,6 +296,10 @@ for c in data.get('changeEntries', []):
 
 ## Step 4a — Gather Doc Context (work items + Confluence pages)
 
+```bash
+DOC_CONTEXT=''
+```
+
 Fetch work items linked to the PR:
 
 ```bash
@@ -308,57 +312,43 @@ az devops invoke \
   --output json
 ```
 
-If the `value` array is empty, set `DOC_CONTEXT=''` and skip to step 5.
+If the `value` array is empty or the command fails, leave `DOC_CONTEXT=''` and proceed.
 
-For each work item ID returned, fetch its details:
+Otherwise, wait for the diff from step 5 to be available (step 4a and step 5 run
+concurrently up to this point; only the orchestrator spawn waits for the diff).
+
+Resolve the plugin path:
 
 ```bash
-az boards work-item show --id {WI_ID} --org {ORG_URL} --output json
+CONFLUENCE_CLIENT_PATH="${CLAUDE_PLUGIN_ROOT}/scripts/confluence-client.mjs"
 ```
 
-If this command fails (network error, auth expiry, deleted work item), emit `⚠ Could not fetch work item {WI_ID} — {error}` to the console and skip that work item. Do not abort the step.
+Delegate to the Doc Context Orchestrator agent:
 
-Capture `fields.System.Title` and `fields.System.Description`.
+```txt
+Agent(
+  subagent_type: "pr-review:doc-context-orchestrator",
+  prompt: "Orchestrate Doc Context gathering.
 
-Spawn one **Doc Context Sub-agent** per work item in parallel (single message).
-Each sub-agent receives:
+  ORG_URL: {ORG_URL}
+  PR_ID: {PR_ID}
+  Work item IDs: {comma-separated list from value array}
+  Confluence client path: {CONFLUENCE_CLIENT_PATH}
 
-- Work item ID, title, and description (HTML — read through the markup)
-- The changed files list from step 4
-- The local diff from step 5 (pass it if already available; otherwise omit)
+  Changed files:
+  {CHANGED_FILES_LIST}
 
-Each Doc Context Sub-agent must:
+  Diff:
+  {RAW_DIFF}
 
-1. Summarise the work item description, focusing only on what is relevant to the changed files. Ignore sections that have no bearing on the diff.
-2. Extract all Confluence URLs from the description.
-3. Check Confluence credentials: `node scripts/confluence-client.mjs --check-creds` (exit 0 = creds available). If the command does not return within 10 seconds, treat as creds absent and follow instruction 5.
-4. If creds available: spawn one nested Doc Context Sub-agent per Confluence URL in parallel. Each runs `node scripts/confluence-client.mjs <url>` and returns a diff-aware plain-text summary of the page.
-5. If creds absent and Confluence URLs were found: emit this console warning (never post to the PR):
-   ```
-   ⚠ Confluence pages not fetched — set CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_TOKEN (or create ~/.unic-confluence.json with { url, username, token }) to enable doc-aware review.
-   ```
-   Do not spawn Confluence sub-agents.
-6. If a Confluence page fetch fails (network error, 401, 403, etc.): skip that page, emit `⚠ Could not fetch Confluence page <url> — <reason>`, continue with remaining context. If every Confluence page for a work item fails to fetch, include the following note in that work item's Doc Context section (in addition to the console warnings):
-   ```
-   > Note: Confluence pages could not be fetched for this work item. The review is based on the work item description only.
-   ```
-7. Return a Doc Context block in this format:
-
-```markdown
-## Business context for this PR
-
-### Work item: [{ID}] {Title}
-
-{diff-aware summary of work item description}
-
-### Confluence — {Page Title} ({URL})
-
-{diff-aware summary of page content}
+  Return the complete Doc Context markdown block, or an empty string if no
+  meaningful context could be gathered."
+)
 ```
 
-Collect all sub-agent outputs and concatenate into a single Doc Context block. Store as `DOC_CONTEXT`.
+Store the agent's output as `DOC_CONTEXT`.
 
-Steps 5–7 run **in parallel** with step 4a. Step 8 waits for all of step 4a to complete before launching review agents.
+Step 4a pre-fetch (work item IDs) runs in parallel with step 5. The orchestrator agent spawn waits for the diff from step 5. Step 8 waits for the orchestrator agent to complete before launching review agents.
 
 ---
 

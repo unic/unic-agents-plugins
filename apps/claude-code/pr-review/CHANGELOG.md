@@ -9,7 +9,13 @@
 - (none)
 
 ### Fixed
-- (none)
+- Doc Context phase was silently skipped on every run: three defects combined — step 4a
+  lacked an explicit `Agent()` spawn (orchestrator intent was satisfied inline and skipped),
+  `confluence-client.mjs` was resolved relative to the reviewed project root instead of the
+  plugin directory, and `DOC_CONTEXT` was never initialised so failures were invisible.
+  Fixed by extracting the entire gathering phase to a dedicated Doc Context Orchestrator
+  agent (isolates token consumption in a fresh context window), resolving all script paths
+  from `${CLAUDE_PLUGIN_ROOT}`, and initialising `DOC_CONTEXT=''` at the top of step 4a.
 
 ## [0.9.0] — 2026-05-06
 

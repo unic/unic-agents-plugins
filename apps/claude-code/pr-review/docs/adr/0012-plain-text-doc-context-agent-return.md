@@ -10,8 +10,9 @@ returned in the agent's output.
 
 **Alternatives considered:**
 
-*JSON wrapper* — returning `{ "docContext": "...", "warnings": [...] }` and
+_JSON wrapper_ — returning `{ "docContext": "...", "warnings": [...] }` and
 extracting `docContext` in the calling step via `jq`. Rejected because:
+
 1. LLM agents frequently wrap JSON in markdown fences, add explanatory prose, or
    produce malformed JSON when the output is long. A silent extraction failure
    leaves `DOC_CONTEXT` empty with no diagnostic.
