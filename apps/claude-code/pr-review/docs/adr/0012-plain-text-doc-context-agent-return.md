@@ -1,12 +1,18 @@
-# Plain-text return from Doc Context Orchestrator agent, no JSON wrapper
+# 0012. Plain-text return from Doc Context Orchestrator agent, no JSON wrapper
+
+**Status:** Accepted (2026-05)
+
+## Context
 
 The Doc Context Orchestrator agent returns its output as a plain markdown string,
 not as a JSON object (e.g. `{ "docContext": "...", "warnings": [...] }`).
 
-**Decision:** the orchestrator agent outputs the final `## Business context` markdown
-block directly. The calling step stores the output verbatim as `DOC_CONTEXT`.
-Warnings are emitted to console as side effects during execution — they are not
-returned in the agent's output.
+## Decision
+
+The orchestrator agent outputs the final `## Business context` markdown block
+directly. The calling step stores the output verbatim as `DOC_CONTEXT`. Warnings
+are emitted to console as side effects during execution — they are not returned in
+the agent's output.
 
 **Alternatives considered:**
 
@@ -21,11 +27,11 @@ extracting `docContext` in the calling step via `jq`. Rejected because:
 3. `jq` extraction from an LLM output string is conceptual (not real shell
    execution), making the failure mode harder to reason about and test.
 
-**Consequence:** the orchestrator must return an empty string (not JSON null or an
-error object) when no meaningful context is gathered. The calling step checks for
-an empty string and leaves `DOC_CONTEXT=''` unchanged.
+## Consequences
 
-**Status:** Accepted (2026-05)
+The orchestrator must return an empty string (not JSON null or an error object)
+when no meaningful context is gathered. The calling step checks for an empty
+string and leaves `DOC_CONTEXT=''` unchanged.
 
 **See also:**
 
