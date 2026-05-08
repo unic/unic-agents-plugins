@@ -19,7 +19,7 @@ For each work item ID provided, run:
 az boards work-item show --id {WI_ID} --org {ORG_URL} --output json
 ```
 
-If the command fails (network error, auth expiry, deleted item): emit `⚠ Could not fetch work item {WI_ID} — {error}` to console and skip that item. Do not abort the step.
+If the command fails (non-zero exit): emit the warning, mark that work item as skipped, and continue to the next ID. Never abort Step 1 due to a single item failure. If all items fail, proceed to Step 6 with empty summarizer outputs.
 
 ---
 
@@ -95,7 +95,7 @@ Collect all Confluence Fetcher outputs before proceeding.
 
 ---
 
-## Step 6 — Delegate to Doc Context Synthesizer
+## Step 6 — Invoke Doc Context Synthesizer
 
 Pass all Work Item Summarizer outputs and Confluence Fetcher outputs to the Doc Context Synthesizer agent:
 
@@ -122,3 +122,5 @@ Return the complete ## Business context for this PR markdown block, or an empty 
 ## Step 7 — Return synthesizer output
 
 Return the Doc Context Synthesizer agent's output **verbatim** as your final output. Do not add any wrapping, headers, or explanatory prose — just the plain markdown block (or empty string) that the synthesizer returned.
+
+Before returning, check whether the synthesizer's output — after trimming leading/trailing whitespace — is empty or contains only the `## Business context for this PR` heading with no body text. If so, return an empty string instead.

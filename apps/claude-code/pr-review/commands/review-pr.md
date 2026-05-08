@@ -319,7 +319,7 @@ WI_IDS=$(echo "$WI_JSON" | jq -r '[.value[]?.id | tostring] | join(",")' 2>/dev/
 ```
 
 If `WI_JSON` is empty, the command failed, or `WI_IDS` is empty (the `value` array
-had no entries), leave `DOC_CONTEXT=''` and proceed to step 5.
+had no entries), leave `DOC_CONTEXT=''` and skip the orchestrator spawn — step 5 (diff) continues independently.
 
 Otherwise, wait for the diff from step 5 to be available (step 4a and step 5 run
 concurrently up to this point; only the orchestrator spawn waits for the diff).
