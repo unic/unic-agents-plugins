@@ -23,6 +23,8 @@ apps/claude-code/pr-review/docs/plans/
 apps/claude-code/auto-format/docs/plans/
 apps/claude-code/unic-confluence/docs/plans/
 .agents/skills/
+.agents/scratchpad/
+**/.agents/scratchpad/
 
 # Plugin changelogs — em-dash dates must not be reflowed
 **/CHANGELOG.md

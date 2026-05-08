@@ -11,6 +11,39 @@
 ### Fixed
 - (none)
 
+## [0.9.1] — 2026-05-08
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Credential check in Step 4 now runs only when at least one Confluence URL was found across
+  all Work Item Summarizer outputs; when no URLs are present the check is skipped entirely.
+  Stderr from `--check-creds` is now suppressed so only the orchestrator's standardised
+  warning is visible to the user rather than duplicate or misleading output from the tool.
+- Fixed ambiguous `{CHANGED_FILES}` placeholder in the synthesizer delegation prompt: replaced
+  with `{CHANGED_FILES_LIST}` and explicit wording that instructs the orchestrator to forward
+  the actual changed-files list it received, preventing the token from being interpreted
+  literally and ensuring the synthesizer stays diff-aware.
+- Doc Context phase was silently skipped on every run: three defects combined — step 4a
+  lacked an explicit `Agent()` spawn (orchestrator intent was satisfied inline and skipped),
+  `confluence-client.mjs` was resolved relative to the reviewed project root instead of the
+  plugin directory, and `DOC_CONTEXT` was never initialised so failures were invisible.
+  Fixed by extracting the entire gathering phase to a dedicated Doc Context Orchestrator
+  agent (isolates token consumption in a fresh context window), resolving all script paths
+  from `${CLAUDE_PLUGIN_ROOT}`, and initialising `DOC_CONTEXT=''` at the top of step 4a.
+- Doc Context Synthesizer agent added to produce a single flat `## Business context for this PR`
+  narrative from all work item and Confluence summaries, isolating synthesis in a dedicated
+  context window.
+- Step 4a bash snippet was non-deterministic: `az devops invoke` output was printed but
+  never captured, so failure detection and work item ID extraction were impossible. Fixed
+  by capturing output into `WI_JSON`, extracting IDs via `jq` into `WI_IDS`, branching
+  on empty array / non-zero exit, and passing `{WI_IDS}` (the computed variable) to the
+  `Agent()` call instead of an unresolved placeholder.
+
 ## [0.9.0] — 2026-05-06
 
 ### Breaking
