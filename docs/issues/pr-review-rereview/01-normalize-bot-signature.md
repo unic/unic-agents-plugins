@@ -1,6 +1,6 @@
 # Normalize bot signature
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

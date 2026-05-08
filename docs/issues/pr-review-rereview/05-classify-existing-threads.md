@@ -1,6 +1,6 @@
 # Classify existing threads + extract classify-thread module
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

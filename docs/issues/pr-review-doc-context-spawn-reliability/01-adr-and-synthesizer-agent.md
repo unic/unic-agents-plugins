@@ -1,6 +1,6 @@
 # ADR-0012 + Doc Context Synthesizer agent
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 **Type:** AFK
 
