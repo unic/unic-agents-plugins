@@ -52,6 +52,8 @@ The slug argument maps directly to `docs/issues/<slug>/`. Use the Read tool to c
 - **Plugin feature** — one or more `apps/claude-code/<plugin>/` references found → use that plugin's `apps/claude-code/<plugin>/CONTEXT.md` and `apps/claude-code/<plugin>/docs/adr/`. Do **not** also inject root ADRs.
 - **Repo/tooling feature** — no such references found → use root `CONTEXT.md` and root `docs/adr/`.
 
+Also extract the `title:` field from the PRD's YAML frontmatter (the value between the opening `---` and closing `---` at the top of the file). Retain it for use in step 7's PR title derivation.
+
 **Read the scoped CONTEXT.md** using the Read tool.
 
 **Read all ADR files** in the scoped ADR directory: list `*.md` files using the Bash tool, then read each one using the Read tool.
