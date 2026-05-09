@@ -1,0 +1,71 @@
+---
+name: implement-feature
+description: Feature Runner — implement all ready-for-agent issues for a named feature slug in an isolated worktree and branch. Use when user wants to run the Feature Runner for a feature, implement a feature's issues end-to-end, or drain the issue queue AFK.
+---
+
+# Implement Feature
+
+Automate the implementation side of the AI-development cycle for one Feature. Takes a slug, creates an isolated branch, runs `/tdd` on every `ready-for-agent` issue in numerical order, and marks each `resolved` on success.
+
+**Invocation:** `/implement-feature <slug>`
+
+## Steps
+
+### 1. Resolve the feature directory
+
+The slug argument maps directly to `docs/issues/<slug>/`. Use the Read tool to confirm the directory exists by reading its file listing. If the directory is missing, stop and report it to the user.
+
+Locate the PRD: `docs/issues/<slug>/PRD.md`. Read it now — it is part of the context bundle passed to every `/tdd` sub-agent invocation.
+
+### 2. Create the worktree and branch
+
+Run this command using the Bash tool (not a shell script):
+
+```
+git worktree add .claude/worktrees/<slug> -b feature/afk/<slug> develop
+```
+
+The worktree lands at `.claude/worktrees/<slug>`. All subsequent implementation work happens inside that worktree.
+
+### 3. Collect and filter issues
+
+Use the Bash tool to list files matching `docs/issues/<slug>/[0-9]*.md`:
+
+```
+ls docs/issues/<slug>/[0-9]*.md
+```
+
+For each file, use the Read tool to read its contents and check the `**Status:**` line:
+
+- Keep files where status is exactly `ready-for-agent`.
+- Skip files where status is `resolved` or `closed` — these are already done.
+
+Sort the kept files by their numeric prefix (the `NN-` part of the filename) in ascending order. This is the execution queue.
+
+### 4. Implement each issue via `/tdd`
+
+For each issue file in queue order, invoke `/tdd` as a non-interactive sub-agent using the Agent tool. The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
+
+Construct the prompt as follows:
+
+```
+You are running /tdd in AFK mode. The planning phase is complete — do not ask for confirmation. Use the acceptance criteria below as the pre-approved plan and proceed directly to the red→green→refactor loop.
+
+Working directory: .claude/worktrees/<slug>
+
+--- ISSUE ---
+<full content of the issue file>
+
+--- PRD (parent context) ---
+<full content of docs/issues/<slug>/PRD.md>
+```
+
+Pass this prompt to the Agent tool. Wait for the agent to return before continuing to the next issue.
+
+### 5. Mark each issue resolved
+
+After the Agent call for an issue returns successfully, update the issue file using the Edit tool: change the `**Status:** ready-for-agent` line to `**Status:** resolved`.
+
+### 6. Continue until queue is empty
+
+Repeat steps 4–5 for every issue in the queue. When all issues are resolved, the feature is complete. Report which issues were resolved and what branch they landed on (`feature/afk/<slug>`).
