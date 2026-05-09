@@ -85,4 +85,51 @@ After the Agent call for an issue returns **successfully**, update the issue fil
 
 ### 6. Continue until queue is empty
 
-Repeat steps 4–5 for every issue in the queue. When all issues are resolved, the feature is complete. Report which issues were resolved and what branch they landed on (`feature/afk/<slug>`).
+Repeat steps 4–5 for every issue in the queue. When the last issue is resolved, proceed to step 7.
+
+### 7. Open a pull request and clean up
+
+**Push the branch:**
+
+```
+git -C .claude/worktrees/<slug> push -u origin feature/afk/<slug>
+```
+
+**Derive the PR title** from the PRD's `title` frontmatter field (already read in step 1) and the slug:
+
+```
+feat(<slug>): <PRD title>
+```
+
+**List the resolved issues** — all `NN-*.md` files in `docs/issues/<slug>/` whose status is now `resolved` (every issue the runner just processed, in numerical order).
+
+**Open the PR** using the Bash tool:
+
+```
+gh pr create \
+  --base develop \
+  --title "feat(<slug>): <PRD title>" \
+  --body "$(cat <<'EOF'
+## Feature
+
+`docs/issues/<slug>/PRD.md`
+
+## Resolved issues
+
+- `docs/issues/<slug>/NN-<name>.md`
+- ...
+
+🤖 Implemented by the Feature Runner via `/implement-feature <slug>`
+EOF
+)"
+```
+
+Run `gh pr create` from inside the worktree (`git -C .claude/worktrees/<slug>`) or pass `--repo` if needed.
+
+**Remove the worktree** after the PR is opened successfully:
+
+```
+git worktree remove .claude/worktrees/<slug>
+```
+
+Report the PR URL and the list of resolved issues to the user.
