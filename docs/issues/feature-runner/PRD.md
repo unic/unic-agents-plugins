@@ -167,3 +167,5 @@ The skill name `/implement-feature` is provisional. If the team adopts shorter n
 **2026-05-09 — Triage:** Marked `resolved`. The PRD has fulfilled its purpose — it defined the feature and spawned 15 implementation issues (13 `resolved`, 1 `rejected`, 1 `ready-for-agent` → subsequently `resolved`). No changes to the spec are needed. PRD will move to `closed` once all child issues are `closed`.
 
 **2026-05-09 — Skill review follow-up:** Surfaced four refinement issues during a post-resolution skill review. Filed as `16-explicit-tdd-skill-invocation.md`, `17-prd-title-extraction-step-1.md`, `18-failure-loop-protection.md`, `19-skill-agents-doc-crosslink.md`. PRD remains `resolved` — these are scope refinements, not a respec.
+
+**2026-05-09 — Second-pass review:** Issues 16–19 resolved. Second-pass surfaced one follow-up: `20-prompt-template-and-step-cleanup.md` — deduplicates the prompt-template AFK framing (side-effect of issue 16) and tightens two minor wording nits in SKILL.md step 1 and step 4.
