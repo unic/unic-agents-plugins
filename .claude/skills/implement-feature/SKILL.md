@@ -40,11 +40,19 @@ For each file, use the Read tool to read its contents and check the `**Status:**
 - Keep files where status is exactly `ready-for-agent`.
 - Skip files where status is `resolved` or `closed` — these are already done.
 
-Sort the kept files by their numeric prefix (the `NN-` part of the filename) in ascending order. This is the execution queue.
+Sort the kept files by their numeric prefix (the `NN-` part of the filename) in ascending order. This is the execution queue. Record M = total number of files in the queue (the count frozen at this moment — do not recount mid-run).
 
 ### 4. Implement each issue via `/tdd`
 
-For each issue file in queue order, invoke `/tdd` as a non-interactive sub-agent using the Agent tool. The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
+For each issue file in queue order (N = 1, 2, … M), before invoking `/tdd`, output a progress line:
+
+```
+Implementing issue N of M: <issue title>
+```
+
+The issue title is the text of the first `# Heading` line in the issue file.
+
+Then invoke `/tdd` as a non-interactive sub-agent using the Agent tool. The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
 
 Construct the prompt as follows:
 
