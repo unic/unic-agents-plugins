@@ -12,7 +12,7 @@ Automate the implementation side of the AI-development cycle for one Feature. Ta
 ## Quick start
 
 - **Named run** — `/implement-feature pr-review-doc-context-enrichment` — targets a specific Feature slug directly; creates a worktree, runs all `ready-for-agent` issues, opens a PR.
-- **Auto-select** — `/implement-feature` with no argument — scans `docs/issues/` and picks the first fully `ready-for-agent` Feature alphabetically.
+- **Auto-select** — `/implement-feature` with no argument — scans `docs/issues/` and picks the first Feature alphabetically that has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`). Picks up partial features after a failure fix automatically.
 - **Overnight loop** — `/loop /implement-feature` — drains the queue unattended; the runner emits `LOOP_COMPLETE` when no qualifying Feature remains, which terminates the loop.
 
 ## Steps
@@ -29,7 +29,11 @@ Automate the implementation side of the AI-development cycle for one Feature. Ta
 ls -d docs/issues/*/
 ```
 
-2. For each subdirectory (potential feature slug), use the Bash tool to list its `NN-*.md` files and use the Read tool to check the `**Status:**` line of each one. A feature **qualifies** only if **every** `NN-*.md` file in its directory is exactly `ready-for-agent`. Features with any `resolved`, `closed`, or other status are skipped — they are partial runs or already done.
+2. For each subdirectory (potential feature slug), use the Bash tool to list its `NN-*.md` files and use the Read tool to check the `**Status:**` line of each one. A feature **qualifies** if:
+   - At least one `NN-*.md` file has status `ready-for-agent`, **and**
+   - Every `NN-*.md` file has a status in `{ready-for-agent, resolved, closed, rejected, ready-for-human}`.
+
+   Any file with status `needs-triage`, `needs-info`, `needs-specs`, or any unrecognised state **disqualifies the whole feature** — it is not fully prepped for autonomous execution. Features where every file is `resolved`, `closed`, or `rejected` (nothing left to run) are also skipped.
 
 3. Sort the qualifying slugs alphabetically and select the first one.
 
@@ -60,7 +64,14 @@ These four items (PRD, CONTEXT.md, ADRs, recent commits) are static — gather t
 
 ### 2. Create the worktree and branch
 
-Run this command using the Bash tool (not a shell script):
+First, check whether a worktree from a prior run already exists using the Bash tool:
+
+```
+ls .claude/worktrees/<slug>
+```
+
+- **Exists** — reuse it. The branch `feature/afk/<slug>` already contains the committed work from the previous run. Skip `git worktree add`.
+- **Does not exist** — create it using the Bash tool:
 
 ```
 git worktree add .claude/worktrees/<slug> -b feature/afk/<slug> develop

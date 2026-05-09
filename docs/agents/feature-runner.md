@@ -13,17 +13,17 @@ feature selected → worktree created → issues implemented in topological orde
 ### 1. Feature selection
 
 - **Named**: `/implement-feature <slug>` targets `docs/issues/<slug>/` directly.
-- **Auto-select**: `/implement-feature` with no argument scans `docs/issues/` and picks the first Feature (alphabetically by slug) where every `NN-*.md` file is `Status: ready-for-agent`. Partial Features (any `resolved` or `closed` files) are skipped.
+- **Auto-select**: `/implement-feature` with no argument scans `docs/issues/` and picks the first Feature (alphabetically by slug) where at least one `NN-*.md` file is `ready-for-agent` and no file is in an unprepped state (`needs-triage`, `needs-info`, `needs-specs`). Partially-completed Features (mix of `resolved` and `ready-for-agent`) are included — the runner resumes from where it stopped. Features where every issue is `resolved`, `closed`, or `rejected` are skipped (nothing left to run). Issues with status `ready-for-human` or `rejected` do not disqualify a feature.
 - **Empty queue**: when no qualifying Feature exists, the runner emits `LOOP_COMPLETE` on its own line and exits cleanly. This is the stop signal that `/loop` uses to terminate an overnight run.
 
 ### 2. Worktree creation
 
-The runner creates a git worktree and branch from `develop`:
+The runner creates (or reuses) a git worktree and branch:
 
 - Branch: `feature/afk/<slug>`
 - Worktree path: `.claude/worktrees/<slug>`
 
-All implementation work happens inside this worktree. On failure, the worktree is left in place for inspection. On success, it is removed after the PR is opened.
+If `.claude/worktrees/<slug>` already exists (prior failed run), the runner reuses it — `git worktree add` is skipped and the existing branch retains its committed work. If it does not exist, the runner creates it from `develop`. On success, the worktree is removed after the PR is opened. On failure, it is left in place for inspection.
 
 ### 3. Issue implementation
 
