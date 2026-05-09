@@ -11,11 +11,26 @@ Automate the implementation side of the AI-development cycle for one Feature. Ta
 
 ## Steps
 
-### 1. Resolve the feature directory
+### 1. Resolve the feature directory and assemble the static context bundle
 
 The slug argument maps directly to `docs/issues/<slug>/`. Use the Read tool to confirm the directory exists by reading its file listing. If the directory is missing, stop and report it to the user.
 
-Locate the PRD: `docs/issues/<slug>/PRD.md`. Read it now — it is part of the context bundle passed to every `/tdd` sub-agent invocation.
+**Read the PRD:** `docs/issues/<slug>/PRD.md`. Scan its content for references matching `apps/claude-code/<plugin>/` (any path that starts with that prefix). This determines the ADR scope:
+
+- **Plugin feature** — one or more `apps/claude-code/<plugin>/` references found → use that plugin's `apps/claude-code/<plugin>/CONTEXT.md` and `apps/claude-code/<plugin>/docs/adr/`. Do **not** also inject root ADRs.
+- **Repo/tooling feature** — no such references found → use root `CONTEXT.md` and root `docs/adr/`.
+
+**Read the scoped CONTEXT.md** using the Read tool.
+
+**Read all ADR files** in the scoped ADR directory: list `*.md` files using the Bash tool, then read each one using the Read tool.
+
+**Get the last 5 git commits** using the Bash tool:
+
+```
+git log --oneline -5
+```
+
+These four items (PRD, CONTEXT.md, ADRs, recent commits) are static — gather them once before the issue loop begins.
 
 ### 2. Create the worktree and branch
 
@@ -54,6 +69,8 @@ The issue title is the text of the first `# Heading` line in the issue file.
 
 Then invoke `/tdd` as a non-interactive sub-agent using the Agent tool. The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
 
+Before constructing the prompt, use the Read tool to read all sibling issue files (`docs/issues/<slug>/[0-9]*.md` except the current issue) at their current state — this gives the sub-agent visibility into what is already resolved and what is still pending.
+
 Construct the prompt as follows:
 
 ```
@@ -62,10 +79,22 @@ You are running /tdd in AFK mode. The planning phase is complete — do not ask 
 Working directory: .claude/worktrees/<slug>
 
 --- ISSUE ---
-<full content of the issue file>
+<full content of the current issue file>
 
 --- PRD (parent context) ---
 <full content of docs/issues/<slug>/PRD.md>
+
+--- SIBLING ISSUES ---
+<full content of each sibling issue file, separated by the filename as a header>
+
+--- CONTEXT.md ---
+<full content of the scoped CONTEXT.md>
+
+--- ADRs ---
+<full content of each scoped ADR file, separated by the filename as a header>
+
+--- RECENT COMMITS (last 5) ---
+<output of git log --oneline -5>
 ```
 
 Pass this prompt to the Agent tool. Wait for the agent to return before continuing.
