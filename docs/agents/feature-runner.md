@@ -101,6 +101,7 @@ When a `/tdd` sub-agent cannot complete an issue:
 
 The worktree at `.claude/worktrees/<slug>` has been left in place for inspection. Once the issue is resolved manually, restore `**Status:** ready-for-agent` and re-run `/implement-feature <slug>` to resume. Alternatively, close or reject the issue if it should not be retried.
 ```
+
 3. The runner stops. No subsequent issues in the Feature are executed.
 4. The worktree is left at `.claude/worktrees/<slug>` on `feature/afk/<slug>` for inspection.
 
