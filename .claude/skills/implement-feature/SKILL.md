@@ -14,6 +14,7 @@ Automate the implementation side of the AI-development cycle for one Feature. Ta
 - **Named run** — `/implement-feature pr-review-doc-context-enrichment` — targets a specific Feature slug directly; creates a worktree, runs all `ready-for-agent` issues, opens a PR.
 - **Auto-select** — `/implement-feature` with no argument — scans `docs/issues/` and picks the first Feature alphabetically that has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`). Picks up partial features after a failure fix automatically.
 - **Overnight loop** — `/loop /implement-feature` — drains the queue unattended; the runner emits `LOOP_COMPLETE` when no qualifying Feature remains, which terminates the loop.
+- **Safe to interrupt** — Ctrl+C during any issue leaves that issue at `ready-for-agent`; re-running resumes from the first unresolved issue.
 
 ## Steps
 
@@ -166,3 +167,8 @@ git worktree remove .claude/worktrees/<slug>
 ```
 
 Report the PR URL and the list of resolved issues to the user.
+
+## Supporting Documentation
+
+- **`references/runner-output-formats.md`** — verbatim strings for the progress line, dependency conflict error, unsatisfied dependency error, failure note, PR body template, and `LOOP_COMPLETE` signal.
+- **`references/tdd-prompt-template.md`** — the AFK prompt template passed to the Agent tool for each `/tdd` sub-agent invocation; substitute all `<placeholder>` values at runtime.
