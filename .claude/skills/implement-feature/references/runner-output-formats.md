@@ -57,6 +57,18 @@ The body passed to `gh pr create` after all issues in a feature are resolved.
 🤖 Implemented by the Feature Runner via `/implement-feature <slug>`
 ```
 
+Pass via a bash heredoc:
+
+```
+gh pr create \
+  --base develop \
+  --title "feat(<slug>): <PRD title>" \
+  --body "$(cat <<'EOF'
+<substituted body content>
+EOF
+)"
+```
+
 ---
 
 ## LOOP_COMPLETE signal
