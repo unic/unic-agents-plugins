@@ -176,3 +176,4 @@ Report the PR URL and the list of resolved issues to the user.
 
 - **`references/runner-output-formats.md`** — verbatim strings for the progress line, dependency conflict error, unsatisfied dependency error, failure note, PR body template, and `LOOP_COMPLETE` signal.
 - **`references/tdd-prompt-template.md`** — the AFK prompt template passed to the Agent tool for each `/tdd` sub-agent invocation; substitute all `<placeholder>` values at runtime.
+- **`docs/agents/feature-runner.md`** — human-facing reference: lifecycle diagram, dependency-satisfaction matrix, ADR scope, historical cleanup convention. Maintained in parallel; consult for broader context, not for runtime instructions.
