@@ -7,9 +7,35 @@ description: Feature Runner — implement all ready-for-agent issues for a named
 
 Automate the implementation side of the AI-development cycle for one Feature. Takes a slug, creates an isolated branch, runs `/tdd` on every `ready-for-agent` issue in dependency order, and marks each `resolved` on success.
 
-**Invocation:** `/implement-feature <slug>`
+**Invocation:** `/implement-feature [slug]`
 
 ## Steps
+
+### 0. Resolve the slug
+
+**If a slug argument was provided**, use it directly and proceed to step 1.
+
+**If no argument was provided**, scan `docs/issues/` for qualifying features:
+
+1. Use the Bash tool to list immediate subdirectories of `docs/issues/`:
+
+```
+ls -d docs/issues/*/
+```
+
+2. For each subdirectory (potential feature slug), use the Bash tool to list its `NN-*.md` files and use the Read tool to check the `**Status:**` line of each one. A feature **qualifies** only if **every** `NN-*.md` file in its directory is exactly `ready-for-agent`. Features with any `resolved`, `closed`, or other status are skipped — they are partial runs or already done.
+
+3. Sort the qualifying slugs alphabetically and select the first one.
+
+4. **If no qualifying feature exists**, output the following line on its own and exit cleanly (no error):
+
+```
+LOOP_COMPLETE
+```
+
+This is the stop signal that `/loop /implement-feature` uses to terminate an overnight draining run. Do not output anything after `LOOP_COMPLETE`.
+
+5. **If a qualifying feature was found**, set the slug to that feature's directory name and continue to step 1.
 
 ### 1. Resolve the feature directory and assemble the static context bundle
 
