@@ -113,7 +113,7 @@ This ordered list is the execution queue. Record M = number of items in the queu
 
 For each issue file in queue order (N = 1, 2, … M), before invoking `/tdd`, emit the **progress line** (see `references/runner-output-formats.md`) substituting N, M, and the issue title (first `# Heading` line of the issue file).
 
-Then invoke `/tdd` as a non-interactive sub-agent using the Agent tool. The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
+Invoke the sub-agent using the Agent tool with `subagent_type: general-purpose` — the only stock type with access to both the `Skill` tool (to load `/tdd`) and `Edit`/`Write` tools (to write code). The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
 
 Before constructing the prompt, use the Read tool to read all sibling issue files (`docs/issues/<slug>/[0-9]*.md` except the current issue) at their current state — this gives the sub-agent visibility into what is already resolved and what is still pending.
 
