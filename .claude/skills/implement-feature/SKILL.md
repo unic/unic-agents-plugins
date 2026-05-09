@@ -100,7 +100,11 @@ For each issue A that lists issue B in `## Blocked by`: if B's numeric prefix is
 
 **Build the execution queue:**
 
-From the dependency graph, compute a topological order over all issues (using `## Blocked by` edges). Filter the topological sequence to only `ready-for-agent` issues — `resolved`, `closed`, and `rejected` issues are satisfied and act as satisfied dependency nodes, not as items to execute. `ready-for-human` issues are **not** satisfied: if a `ready-for-agent` issue depends on one, halt before executing anything (see unsatisfied dependency error in `references/runner-output-formats.md`).
+From the dependency graph, compute a topological order over all issues (using `## Blocked by` edges). Filter the topological sequence to only `ready-for-agent` issues — `resolved`, `closed`, and `rejected` issues are satisfied and act as satisfied dependency nodes, not as items to execute.
+
+**Unsatisfied dependency check — halt before executing anything if violated:**
+
+For each `ready-for-agent` issue in the execution queue, inspect its `## Blocked by` list. If any listed blocker has status `ready-for-human`, halt immediately with the **unsatisfied dependency error** (see `references/runner-output-formats.md`), naming both issues.
 
 This ordered list is the execution queue. Record M = number of items in the queue (frozen at this moment — do not recount mid-run).
 

@@ -26,6 +26,18 @@ Feature Runner error: dependency conflict detected.
 
 ---
 
+## Unsatisfied dependency error
+
+Emitted when a `ready-for-agent` issue in the execution queue has a `## Blocked by` dependency whose status is `ready-for-human`. The runner halts before executing any issue.
+
+```
+Feature Runner error: unsatisfied dependency.
+  Issue NN-<A> is blocked by NN-<B>, but NN-<B> has status ready-for-human.
+  Complete issue NN-<B> manually (or update its status) before re-running /implement-feature <slug>.
+```
+
+---
+
 ## Failure note
 
 Appended to a failing issue file under `## Comments` when `/tdd` cannot complete an issue. The `**Status:**` line is not changed.
