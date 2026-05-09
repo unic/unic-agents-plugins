@@ -64,7 +64,7 @@ Also extract the `title:` field from the PRD's YAML frontmatter (the value betwe
 git log --oneline -5
 ```
 
-These four items (PRD, CONTEXT.md, ADRs, recent commits) are static — gather them once before the issue loop begins.
+These items (PRD content + title, CONTEXT.md, ADRs, recent commits) are static — gather them once before the issue loop begins.
 
 ### 2. Create the worktree and branch
 
@@ -123,9 +123,9 @@ Construct the prompt using the template in `references/tdd-prompt-template.md`, 
 
 **On failure:** If the Agent call signals failure (throws, returns an error, or explicitly reports it could not complete the issue):
 
-1. Append the **failure note** (see `references/runner-output-formats.md`) to the issue file using the Edit tool, substituting `<slug>`.
+1. Using the Edit tool, change the `**Status:** ready-for-agent` line to `**Status:** needs-info`. This prevents auto-select from picking up this Feature on subsequent loop iterations.
 
-2. Using the Edit tool, change the `**Status:** ready-for-agent` line to `**Status:** needs-info`. This prevents auto-select from picking up this Feature on subsequent loop iterations.
+2. Append the **failure note** (see `references/runner-output-formats.md`) to the issue file using the Edit tool, substituting `<slug>`.
 
 3. Stop the runner immediately. Do not execute any subsequent issues — they may depend on a foundation this issue was meant to lay.
 

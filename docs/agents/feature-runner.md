@@ -89,7 +89,8 @@ Feature Runner error: dependency conflict detected.
 
 When a `/tdd` sub-agent cannot complete an issue:
 
-1. The runner appends a failure note to the issue file under `## Comments`:
+1. The issue status is changed to `needs-info`. This prevents the auto-selection path from picking up this Feature on subsequent `/loop` iterations until the developer investigates and restores `ready-for-agent` (or closes/rejects the issue).
+2. The runner appends a failure note to the issue file under `## Comments`:
 
 ```markdown
 ## Comments
@@ -100,8 +101,6 @@ When a `/tdd` sub-agent cannot complete an issue:
 
 The worktree at `.claude/worktrees/<slug>` has been left in place for inspection. Once the issue is resolved manually, restore `**Status:** ready-for-agent` and re-run `/implement-feature <slug>` to resume. Alternatively, close or reject the issue if it should not be retried.
 ```
-
-2. The issue status is changed to `needs-info`. This prevents the auto-selection path from picking up this Feature on subsequent `/loop` iterations until the developer investigates and restores `ready-for-agent` (or closes/rejects the issue).
 3. The runner stops. No subsequent issues in the Feature are executed.
 4. The worktree is left at `.claude/worktrees/<slug>` on `feature/afk/<slug>` for inspection.
 

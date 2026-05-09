@@ -3,9 +3,7 @@
 Passed to the Agent tool for each `/tdd` sub-agent invocation. All `<placeholder>` values are substituted at runtime before the prompt is sent.
 
 ```
-Begin by invoking the `tdd` skill via the Skill tool to load its full procedural guidance (red→green→refactor, vertical-slice rule, deep-modules / interface-design / refactoring sub-references). Then follow it using the acceptance criteria below as the pre-approved plan — the planning phase is complete; do not ask for confirmation.
-
-You are running /tdd in AFK mode. The planning phase is complete — do not ask for confirmation. Use the acceptance criteria below as the pre-approved plan and proceed directly to the red→green→refactor loop.
+You are running `/tdd` in AFK mode. The interactive planning phase is complete — do not ask for confirmation. Begin by invoking the `tdd` skill via the Skill tool to load its full procedural guidance (red→green→refactor, vertical-slice rule, deep-modules / interface-design / refactoring sub-references), then follow it using the acceptance criteria below as the pre-approved plan and proceed directly to the red→green→refactor loop.
 
 Working directory: .claude/worktrees/<slug>
 
