@@ -99,33 +99,7 @@ Then invoke `/tdd` as a non-interactive sub-agent using the Agent tool. The issu
 
 Before constructing the prompt, use the Read tool to read all sibling issue files (`docs/issues/<slug>/[0-9]*.md` except the current issue) at their current state — this gives the sub-agent visibility into what is already resolved and what is still pending.
 
-Construct the prompt as follows:
-
-```
-You are running /tdd in AFK mode. The planning phase is complete — do not ask for confirmation. Use the acceptance criteria below as the pre-approved plan and proceed directly to the red→green→refactor loop.
-
-Working directory: .claude/worktrees/<slug>
-
---- ISSUE ---
-<full content of the current issue file>
-
---- PRD (parent context) ---
-<full content of docs/issues/<slug>/PRD.md>
-
---- SIBLING ISSUES ---
-<full content of each sibling issue file, separated by the filename as a header>
-
---- CONTEXT.md ---
-<full content of the scoped CONTEXT.md>
-
---- ADRs ---
-<full content of each scoped ADR file, separated by the filename as a header>
-
---- RECENT COMMITS (last 5) ---
-<output of git log --oneline -5>
-```
-
-Pass this prompt to the Agent tool. Wait for the agent to return before continuing.
+Construct the prompt using the template in `references/tdd-prompt-template.md`, substituting all `<placeholder>` values at runtime. Pass the constructed prompt to the Agent tool. Wait for the agent to return before continuing.
 
 **On failure:** If the Agent call signals failure (throws, returns an error, or explicitly reports it could not complete the issue):
 
