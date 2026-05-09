@@ -9,6 +9,12 @@ Automate the implementation side of the AI-development cycle for one Feature. Ta
 
 **Invocation:** `/implement-feature [slug]`
 
+## Quick start
+
+- **Named run** — `/implement-feature pr-review-doc-context-enrichment` — targets a specific Feature slug directly; creates a worktree, runs all `ready-for-agent` issues, opens a PR.
+- **Auto-select** — `/implement-feature` with no argument — scans `docs/issues/` and picks the first fully `ready-for-agent` Feature alphabetically.
+- **Overnight loop** — `/loop /implement-feature` — drains the queue unattended; the runner emits `LOOP_COMPLETE` when no qualifying Feature remains, which terminates the loop.
+
 ## Steps
 
 ### 0. Resolve the slug
