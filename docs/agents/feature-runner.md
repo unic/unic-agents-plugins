@@ -27,7 +27,7 @@ If `.claude/worktrees/<slug>` already exists (prior failed run), the runner reus
 
 ### 3. Issue implementation
 
-Issues are executed via `/tdd` sub-agent invocations in **topological order** derived from `## Blocked by` references (see [Dependency ordering](#dependency-ordering) below). Only `ready-for-agent` issues are executed — `resolved` and `closed` issues satisfy dependencies but are skipped.
+Issues are executed via `/tdd` sub-agent invocations in **topological order** derived from `## Blocked by` references (see [Dependency ordering](#dependency-ordering) below). Only `ready-for-agent` issues are executed. `resolved`, `closed`, and `rejected` issues satisfy dependencies but are skipped. `ready-for-human` issues are unsatisfied — if a `ready-for-agent` issue depends on one, the runner halts before executing anything.
 
 Before each invocation the runner outputs:
 

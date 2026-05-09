@@ -30,6 +30,7 @@ ls -d docs/issues/*/
 ```
 
 2. For each subdirectory (potential feature slug), use the Bash tool to list its `NN-*.md` files and use the Read tool to check the `**Status:**` line of each one. A feature **qualifies** if:
+
    - At least one `NN-*.md` file has status `ready-for-agent`, **and**
    - Every `NN-*.md` file has a status in `{ready-for-agent, resolved, closed, rejected, ready-for-human}`.
 
@@ -99,7 +100,7 @@ For each issue A that lists issue B in `## Blocked by`: if B's numeric prefix is
 
 **Build the execution queue:**
 
-From the dependency graph, compute a topological order over all issues (using `## Blocked by` edges). Filter the topological sequence to only `ready-for-agent` issues — `resolved` and `closed` issues are already satisfied and act only as satisfied dependencies, not as items to execute.
+From the dependency graph, compute a topological order over all issues (using `## Blocked by` edges). Filter the topological sequence to only `ready-for-agent` issues — `resolved`, `closed`, and `rejected` issues are satisfied and act as satisfied dependency nodes, not as items to execute. `ready-for-human` issues are **not** satisfied: if a `ready-for-agent` issue depends on one, halt before executing anything (see unsatisfied dependency error in `references/runner-output-formats.md`).
 
 This ordered list is the execution queue. Record M = number of items in the queue (frozen at this moment — do not recount mid-run).
 
