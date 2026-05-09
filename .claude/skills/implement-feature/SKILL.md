@@ -5,7 +5,7 @@ description: Feature Runner — implement all ready-for-agent issues for a named
 
 # Implement Feature
 
-Automate the implementation side of the AI-development cycle for one Feature. Takes a slug, creates an isolated branch, runs `/tdd` on every `ready-for-agent` issue in numerical order, and marks each `resolved` on success.
+Automate the implementation side of the AI-development cycle for one Feature. Takes a slug, creates an isolated branch, runs `/tdd` on every `ready-for-agent` issue in dependency order, and marks each `resolved` on success.
 
 **Invocation:** `/implement-feature <slug>`
 
@@ -42,20 +42,34 @@ git worktree add .claude/worktrees/<slug> -b feature/afk/<slug> develop
 
 The worktree lands at `.claude/worktrees/<slug>`. All subsequent implementation work happens inside that worktree.
 
-### 3. Collect and filter issues
+### 3. Collect issues, build the dependency graph, and derive execution order
 
-Use the Bash tool to list files matching `docs/issues/<slug>/[0-9]*.md`:
+Use the Bash tool to list **all** `NN-*.md` files in `docs/issues/<slug>/` (including `resolved` and `closed` — they are needed for graph completeness):
 
 ```
 ls docs/issues/<slug>/[0-9]*.md
 ```
 
-For each file, use the Read tool to read its contents and check the `**Status:**` line:
+Use the Read tool to read each file. For every file record:
+- Its **numeric prefix** (the `NN` integer from the filename).
+- Its **status** (`**Status:**` line).
+- Its **`## Blocked by`** list — the filenames or paths referenced there. `## Blocked by: None`, `## Blocked by: None — can start immediately`, or a missing `## Blocked by` section all mean no predecessors.
 
-- Keep files where status is exactly `ready-for-agent`.
-- Skip files where status is `resolved` or `closed` — these are already done.
+**Conflict check — halt before executing anything if violated:**
 
-Sort the kept files by their numeric prefix (the `NN-` part of the filename) in ascending order. This is the execution queue. Record M = total number of files in the queue (the count frozen at this moment — do not recount mid-run).
+For each issue A that lists issue B in `## Blocked by`: if B's numeric prefix is greater than A's numeric prefix, the dependency contradicts numerical convention. Halt immediately with an error in the format:
+
+```
+Feature Runner error: dependency conflict detected.
+  Issue NN-<A> is blocked by NN-<B>, but NN-<B> has a higher number than NN-<A>.
+  This conflicts with the numerical ordering convention. Resolve the ordering manually before re-running.
+```
+
+**Build the execution queue:**
+
+From the dependency graph, compute a topological order over all issues (using `## Blocked by` edges). Filter the topological sequence to only `ready-for-agent` issues — `resolved` and `closed` issues are already satisfied and act only as satisfied dependencies, not as items to execute.
+
+This ordered list is the execution queue. Record M = number of items in the queue (frozen at this moment — do not recount mid-run).
 
 ### 4. Implement each issue via `/tdd`
 
