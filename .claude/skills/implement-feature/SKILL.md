@@ -14,7 +14,7 @@ Automate the implementation side of the AI-development cycle for one Feature. Ta
 - **Named run** — `/implement-feature pr-review-doc-context-enrichment` — targets a specific Feature slug directly; creates a worktree, runs all `ready-for-agent` issues, opens a PR.
 - **Auto-select** — `/implement-feature` with no argument — scans `docs/issues/` and picks the first Feature alphabetically that has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`). Picks up partial features after a failure fix automatically.
 - **Overnight loop** — `/loop /implement-feature` — drains the queue unattended; the runner emits `LOOP_COMPLETE` when no qualifying Feature remains, which terminates the loop.
-- **Safe to interrupt** — Ctrl+C during any issue leaves that issue at `ready-for-agent`; re-running resumes from the first unresolved issue.
+- **Safe to interrupt** — Ctrl+C during any issue leaves that issue at `ready-for-agent`; re-running resumes from the first unresolved issue. Note: a **/tdd failure** (as opposed to a Ctrl+C interrupt) sets the failing issue to `needs-info`, preventing auto-select from retrying until the developer intervenes.
 
 ## Steps
 
@@ -123,11 +123,13 @@ Construct the prompt using the template in `references/tdd-prompt-template.md`, 
 
 **On failure:** If the Agent call signals failure (throws, returns an error, or explicitly reports it could not complete the issue):
 
-1. Append the **failure note** (see `references/runner-output-formats.md`) to the issue file using the Edit tool, substituting `<slug>`. Do **not** change the `**Status:**` line, which must remain `ready-for-agent`.
+1. Append the **failure note** (see `references/runner-output-formats.md`) to the issue file using the Edit tool, substituting `<slug>`.
 
-2. Stop the runner immediately. Do not execute any subsequent issues — they may depend on a foundation this issue was meant to lay.
+2. Using the Edit tool, change the `**Status:** ready-for-agent` line to `**Status:** needs-info`. This prevents auto-select from picking up this Feature on subsequent loop iterations.
 
-3. Report to the user: which issue failed, that the worktree is at `.claude/worktrees/<slug>` on branch `feature/afk/<slug>`, and that no subsequent issues were run.
+3. Stop the runner immediately. Do not execute any subsequent issues — they may depend on a foundation this issue was meant to lay.
+
+4. Report to the user: which issue failed, that the worktree is at `.claude/worktrees/<slug>` on branch `feature/afk/<slug>`, and that no subsequent issues were run.
 
 ### 5. Mark each issue resolved
 
