@@ -72,22 +72,41 @@ Use the triage labels (`needs-triage` → `ready-for-agent` / `ready-for-human`)
 
 ## Phase 7 — Execute
 
-Work through the tickets. For agent-ready tickets:
+There are two execution paths depending on the type of work. Choose based on where the work item lives, not on personal preference — the two runners are not interchangeable.
+
+### Spec Runner — for `docs/plans/` specs
+
+Use the Spec Runner when implementing infrastructure, tooling, or repo-level changes captured as Specs in `docs/plans/`:
 
 ```
-pnpm ralph          # runs the Spec Runner (currently ralph-orchestrator)
+pnpm ralph                        # root specs
+pnpm --filter <plugin> ralph      # plugin-specific specs
 ```
 
-Or for plugin-specific work:
+Specs follow a prescriptive format (before/after snapshots, shell verification commands, acceptance criteria). The Spec Runner implements one Spec per iteration, commits, and stops. See `docs/process/ralph-loop-guide.md`.
+
+### Feature Runner — for `docs/issues/` features
+
+Use the Feature Runner when implementing product features tracked as Issues in `docs/issues/<slug>/`. Once all issues in a feature reach `ready-for-agent`:
 
 ```
-cd apps/claude-code/<plugin>
-pnpm ralph
+/implement-feature <slug>         # target a specific feature
+/implement-feature                # auto-select next ready feature
 ```
 
-For test-driven work, use the `/tdd` skill to enforce a red-green-refactor loop.
+The Feature Runner builds a dependency graph from `## Blocked by` references, invokes `/tdd` non-interactively for each issue in topological order, marks each issue `resolved` on completion, and opens a PR targeting `develop` when all issues are done.
 
-Tickets that require human judgment (`ready-for-human`) are done by hand following the same steps.
+Compose with `/loop` for overnight queue draining:
+
+```
+/loop /implement-feature
+```
+
+The runner outputs `LOOP_COMPLETE` when the queue is empty, which terminates the loop cleanly.
+
+### Human execution
+
+Tickets marked `ready-for-human` require judgment that cannot be delegated to an agent. Work through them by hand, following the same red-green-refactor discipline as `/tdd`. Mark the issue `resolved` when done.
 
 ## Phase 8 — QA
 
@@ -107,7 +126,8 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 | 4. Prototype | Uncertain design or UX           | Ad hoc throwaway route                        |
 | 5. PRD       | After grilling                   | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
 | 6. Issues    | After PRD                        | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
-| 7. Execute   | Tickets are `ready-for-agent`    | `pnpm ralph` or `/tdd`                        |
+| 7a. Execute (Spec)    | Specs in `docs/plans/` are ready       | `pnpm ralph` (Spec Runner)                    |
+| 7b. Execute (Feature) | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner) |
 | 8. QA        | After execution                  | QA plan (agent-generated, human-verified)     |
 
 ## Related
@@ -117,3 +137,4 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
 - `docs/process/ralph-loop-guide.md` — Spec Runner detail
 - `docs/process/spec-template.md` — spec file format
+- `docs/process/ai-development.md` — deep guide: mental model, context quality, AFK trust chain, key decisions
