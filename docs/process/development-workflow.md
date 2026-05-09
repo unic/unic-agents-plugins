@@ -118,17 +118,17 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                             | Tool                                          |
-| ------------ | -------------------------------- | --------------------------------------------- |
-| 1. Capture   | Idea surfaces mid-task           | `/inbox <one-liner>`                          |
-| 2. Grill     | Before any PRD or spec           | `/grill-with-docs` or `/grill-me`             |
-| 3. Research  | Unfamiliar external dependencies | `research.md` (ad hoc)                        |
-| 4. Prototype | Uncertain design or UX           | Ad hoc throwaway route                        |
-| 5. PRD       | After grilling                   | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
-| 6. Issues    | After PRD                        | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
-| 7a. Execute (Spec)    | Specs in `docs/plans/` are ready       | `pnpm ralph` (Spec Runner)                    |
-| 7b. Execute (Feature) | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner) |
-| 8. QA        | After execution                  | QA plan (agent-generated, human-verified)     |
+| Phase                 | When                                           | Tool                                          |
+| --------------------- | ---------------------------------------------- | --------------------------------------------- |
+| 1. Capture            | Idea surfaces mid-task                         | `/inbox <one-liner>`                          |
+| 2. Grill              | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`             |
+| 3. Research           | Unfamiliar external dependencies               | `research.md` (ad hoc)                        |
+| 4. Prototype          | Uncertain design or UX                         | Ad hoc throwaway route                        |
+| 5. PRD                | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
+| 6. Issues             | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
+| 7a. Execute (Spec)    | Specs in `docs/plans/` are ready               | `pnpm ralph` (Spec Runner)                    |
+| 7b. Execute (Feature) | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner)         |
+| 8. QA                 | After execution                                | QA plan (agent-generated, human-verified)     |
 
 ## Related
 

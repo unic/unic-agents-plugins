@@ -8,14 +8,14 @@ This guide explains the mental model behind the AI-development workflow, the arc
 
 The most important thing to understand is that this repo has two distinct execution loops, and they are not interchangeable.
 
-| | Spec Runner | Feature Runner |
-|---|---|---|
-| **Input** | `docs/plans/NN-*.md` Spec | `docs/issues/<slug>/NN-*.md` Issue |
-| **Invocation** | `pnpm ralph` | `/implement-feature` |
-| **Format** | Prescriptive: before/after snapshots, shell verification commands, explicit steps | Descriptive: `## What to build` + `## Acceptance criteria` |
-| **Worker** | Agent follows spec as recipe (or `/tdd` for behavioral specs) | `/tdd` in non-interactive AFK mode |
-| **Completion marker** | `**Status: done**` in spec file | `Status: resolved` in issue file |
-| **Branch** | Current branch | `feature/afk/<slug>` worktree |
+|                       | Spec Runner                                                                       | Feature Runner                                             |
+| --------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Input**             | `docs/plans/NN-*.md` Spec                                                         | `docs/issues/<slug>/NN-*.md` Issue                         |
+| **Invocation**        | `pnpm ralph`                                                                      | `/implement-feature`                                       |
+| **Format**            | Prescriptive: before/after snapshots, shell verification commands, explicit steps | Descriptive: `## What to build` + `## Acceptance criteria` |
+| **Worker**            | Agent follows spec as recipe (or `/tdd` for behavioral specs)                     | `/tdd` in non-interactive AFK mode                         |
+| **Completion marker** | `**Status: done**` in spec file                                                   | `Status: resolved` in issue file                           |
+| **Branch**            | Current branch                                                                    | `feature/afk/<slug>` worktree                              |
 
 **When to use which:** The Spec Runner is for building and evolving the repo itself — release tooling, CI configuration, monorepo infrastructure. The Feature Runner is for product work on top of a stable system — new plugin capabilities, improvements to existing features. A rough heuristic: if the work would change something under `packages/` or `.github/`, it belongs in a Spec. If it changes something under `apps/claude-code/<plugin>/`, it belongs in a Feature.
 
@@ -51,7 +51,7 @@ When `/tdd` runs inside the Feature Runner, it runs non-interactively. In a norm
 
 The issue's `## Acceptance criteria` replaces that conversation. The planning phase is not skipped — it was completed during the grilling and issue-writing stages. The Feature Runner simply does not repeat it at runtime.
 
-This means there is a direct line between **grilling quality → PRD quality → issue acceptance criteria quality → implementation correctness**. If any link in that chain is weak, the agent produces a *correct-but-wrong* implementation: code that satisfies the literal issue description but diverges from what you actually intended.
+This means there is a direct line between **grilling quality → PRD quality → issue acceptance criteria quality → implementation correctness**. If any link in that chain is weak, the agent produces a _correct-but-wrong_ implementation: code that satisfies the literal issue description but diverges from what you actually intended.
 
 The grilling session (`/grill-with-docs`) is where that chain is forged. It is not a formality — it is the point at which ambiguity is eliminated and architectural constraints are identified. Skipping or shortcutting it shifts the cost downstream, where it is much more expensive to recover from.
 
@@ -61,14 +61,14 @@ The grilling session (`/grill-with-docs`) is where that chain is forged. It is n
 
 When the Feature Runner invokes `/tdd` for an issue, it does not pass only the issue file. It assembles a **context bundle** from six sources:
 
-| Input | Why it matters |
-|---|---|
-| **Issue file** | The `## What to build` and `## Acceptance criteria` — the pre-answered plan |
-| **PRD** | The "why" behind the feature; the shared vision from grilling. Without it, the agent reasons from a vertical slice with no broader context |
-| **Sibling issue files** | Dependency awareness; "what is already resolved" without the runner summarising |
-| **Scoped CONTEXT.md** | Domain glossary — ensures test names and interfaces match the project's vocabulary |
-| **Scoped ADRs** | Architectural constraints the implementation must respect |
-| **Recent commits (last 5)** | The ideation trail — grilling sessions typically modify CONTEXT.md and ADRs, and those changes land in commits before the runner executes |
+| Input                       | Why it matters                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Issue file**              | The `## What to build` and `## Acceptance criteria` — the pre-answered plan                                                                |
+| **PRD**                     | The "why" behind the feature; the shared vision from grilling. Without it, the agent reasons from a vertical slice with no broader context |
+| **Sibling issue files**     | Dependency awareness; "what is already resolved" without the runner summarising                                                            |
+| **Scoped CONTEXT.md**       | Domain glossary — ensures test names and interfaces match the project's vocabulary                                                         |
+| **Scoped ADRs**             | Architectural constraints the implementation must respect                                                                                  |
+| **Recent commits (last 5)** | The ideation trail — grilling sessions typically modify CONTEXT.md and ADRs, and those changes land in commits before the runner executes  |
 
 ### ADR scoping
 
@@ -160,7 +160,7 @@ The convention: when a Spec is marked `**Status: done**`, check for a correspond
 ```markdown
 ## Comments
 
-> *Closed 2026-05-09 — implemented via Spec Runner (docs/plans/NN-<slug>.md marked done).*
+> _Closed 2026-05-09 — implemented via Spec Runner (docs/plans/NN-<slug>.md marked done)._
 ```
 
 This is a manual step. There is no automation for it. The `docs/agents/feature-runner.md` reference document records this convention for agents that need to be briefed on it.
