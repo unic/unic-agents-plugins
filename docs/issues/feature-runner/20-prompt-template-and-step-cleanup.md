@@ -35,7 +35,7 @@ You are running `/tdd` in AFK mode. The interactive planning phase is complete â
 
 ### 20.c â€” Reorder step 4 "On failure" sub-steps
 
-`SKILL.md` step 4 "On failure" currently appends the failure note (whose text says "Status has been set to `needs-info`") *before* flipping the status to `needs-info`. This briefly leaves the file self-contradicting: the note says the status is `needs-info` while the status line still reads `ready-for-agent`.
+`SKILL.md` step 4 "On failure" currently appends the failure note (whose text says "Status has been set to `needs-info`") _before_ flipping the status to `needs-info`. This briefly leaves the file self-contradicting: the note says the status is `needs-info` while the status line still reads `ready-for-agent`.
 
 Swap the order so the status flip happens first:
 
