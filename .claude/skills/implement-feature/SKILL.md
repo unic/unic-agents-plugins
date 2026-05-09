@@ -1,6 +1,6 @@
 ---
 name: implement-feature
-description: Feature Runner — implement all ready-for-agent issues for a named feature slug in an isolated worktree and branch. Use when user wants to run the Feature Runner for a feature, implement a feature's issues end-to-end, or drain the issue queue AFK.
+description: This skill should be used when the user asks to "implement a feature", "run the Feature Runner", "/implement-feature", "implement all issues for <slug>", or "drain the issue queue overnight". Automates the implementation side of the AI-development cycle for one Feature: creates an isolated worktree and branch, runs /tdd on every ready-for-agent issue in dependency order, and opens a PR when done.
 ---
 
 # Implement Feature
@@ -77,6 +77,7 @@ ls docs/issues/<slug>/[0-9]*.md
 ```
 
 Use the Read tool to read each file. For every file record:
+
 - Its **numeric prefix** (the `NN` integer from the filename).
 - Its **status** (`**Status:**` line).
 - Its **`## Blocked by`** list — the filenames or paths referenced there. `## Blocked by: None`, `## Blocked by: None — can start immediately`, or a missing `## Blocked by` section all mean no predecessors.
