@@ -74,7 +74,7 @@ Three new agents live in the plugin's `.agents/` directory:
 
 **ADO Fetcher** — encapsulates all ADO read operations: PR metadata, iterations, changed files list, and raw diff. Returns a structured context block consumed by the orchestrator for passing to review agents and the writer. Used by first-review and re-review modes only.
 
-**Re-review Coordinator** — owns everything in the current re-review path: prior thread detection (calling `detect-prior-review`), partial-run check, early exit for no-new- commits, Thread Classification (calling `classify-thread`), finding matching (calling `match-finding`), reply posting, and delta summary. The four Node.js modules remain in `scripts/re-review/` and are called from this agent, not inlined. Used only in
+**Re-review Coordinator** — owns everything in the current re-review path: prior thread detection (calling `detect-prior-review`), partial-run check, early exit for no new commits, Thread Classification (calling `classify-thread`), finding matching (calling `match-finding`), reply posting, and delta summary. The four Node.js modules remain in `scripts/re-review/` and are called from this agent, not inlined. Used only in
 re-review mode.
 
 **ADO Writer** — owns all ADO write-back: posting new Inline Comment threads for fresh findings, patching Thread status to fixed for addressed findings, posting reply comments for disputed and pending findings with new evidence, posting the Review Summary on first-review, posting the delta reply on re-review, and posting the completion marker. Used by first-review and re-review modes.
@@ -107,7 +107,7 @@ The four existing re-review modules (`detect-prior-review`, `classify-thread`, `
 
 ### Prior art
 
-The existing test structure mirrors `packages/release-tools/scripts/verify-changelog .test.mjs` and `bump-version.test.mjs` — `node:test` built-in, no external deps, fixtures as imported JSON, assertions via `node:assert/strict`.
+The existing test structure mirrors `packages/release-tools/scripts/verify-changelog.test.mjs` and `bump-version.test.mjs` — `node:test` built-in, no external deps, fixtures as imported JSON, assertions via `node:assert/strict`.
 
 ## Out of Scope
 
