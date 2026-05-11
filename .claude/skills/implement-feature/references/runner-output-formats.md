@@ -14,6 +14,18 @@ Implementing issue N of M: <issue title>
 
 ---
 
+## Missing blocker error
+
+Emitted when a `## Blocked by` reference points to a filename that does not exist in `docs/issues/<slug>/`. The runner halts before executing any issue.
+
+```
+Feature Runner error: missing blocker reference.
+  Issue NN-<A> lists "<reference>" in ## Blocked by, but that file does not exist in docs/issues/<slug>/.
+  Check for a typo, a rename, or a deleted issue. Resolve the reference manually before re-running.
+```
+
+---
+
 ## Dependency conflict error
 
 Emitted when a `## Blocked by` reference points to an issue with a higher numeric prefix than the issue being blocked. The runner halts before executing any issue.

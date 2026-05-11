@@ -11,7 +11,7 @@ Working directory: .claude/worktrees/<slug>
 <full content of the current issue file>
 
 --- PRD (parent context) ---
-<full content of docs/issues/<slug>/PRD.md>
+<full content of the PRD file at docs/issues/{slug}/PRD.md>
 
 --- SIBLING ISSUES ---
 <full content of each sibling issue file, separated by the filename as a header>

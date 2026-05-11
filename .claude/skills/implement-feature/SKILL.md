@@ -45,7 +45,13 @@ ls -d docs/issues/*/
 
 ### 1. Resolve the feature directory and assemble the static context bundle
 
-The slug argument maps directly to `docs/issues/<slug>/`. Use the Bash tool to confirm the directory exists (e.g. `ls docs/issues/<slug>/`). If the directory is missing, stop and report it to the user.
+The slug argument maps directly to `docs/issues/<slug>/`. Use the Bash tool to confirm:
+
+1. The directory exists (e.g. `ls docs/issues/<slug>/`).
+2. It contains at least one `NN-*.md` file (e.g. `ls docs/issues/<slug>/[0-9]*.md`).
+3. At least one of those files has `**Status:** ready-for-agent` (use the Read tool on each file and inspect the `**Status:**` line).
+
+If any of these checks fails, stop and report the specific reason to the user. Do not create a worktree.
 
 **Read the PRD:** `docs/issues/<slug>/PRD.md`. Scan its content for references matching `apps/claude-code/<plugin>/` (any path that starts with that prefix). This determines the ADR scope:
 
@@ -97,6 +103,10 @@ Use the Read tool to read each file. For every file record:
 - Its **status** (`**Status:**` line).
 - Its **`## Blocked by`** list — the filenames or paths referenced there. `## Blocked by: None`, `## Blocked by: None — can start immediately`, or a missing `## Blocked by` section all mean no predecessors.
 
+**Missing-blocker check — halt before executing anything if violated:**
+
+For each `## Blocked by` reference, verify the referenced filename actually exists in `docs/issues/<slug>/`. If a referenced blocker file is missing (typo, renamed, deleted), halt immediately with the **missing blocker error** (see `references/runner-output-formats.md`), naming the issue and the unresolvable reference. Do not silently treat it as satisfied.
+
 **Conflict check — halt before executing anything if violated:**
 
 For each issue A that lists issue B in `## Blocked by`: if B's numeric prefix is greater than A's numeric prefix, the dependency contradicts numerical convention. Halt immediately with the **dependency conflict error** (see `references/runner-output-formats.md`), naming both issues.
@@ -115,7 +125,7 @@ This ordered list is the execution queue. Record M = number of items in the queu
 
 For each issue file in queue order (N = 1, 2, … M), before invoking `/tdd`, emit the **progress line** (see `references/runner-output-formats.md`) substituting N, M, and the issue title (first `# Heading` line of the issue file).
 
-Invoke the sub-agent using the Agent tool with `subagent_type: general-purpose` — the only stock type with access to both the `Skill` tool (to load `/tdd`) and `Edit`/`Write` tools (to write code). The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
+Invoke the sub-agent using the Agent tool with `subagent_type: general-purpose` — the only stock type with access to both the Skill tool (to load `/tdd`) and the Edit/Write tools (to write code). The issue's `## Acceptance criteria` replaces the interactive planning phase — pass it as the pre-approved plan so the agent skips confirmation and proceeds directly to implementation.
 
 Before constructing the prompt, use the Read tool to read all sibling issue files (`docs/issues/<slug>/[0-9]*.md` except the current issue) at their current state — this gives the sub-agent visibility into what is already resolved and what is still pending.
 
@@ -155,19 +165,15 @@ feat(<slug>): <PRD title>
 
 **List the resolved issues** — all `NN-*.md` files in `docs/issues/<slug>/` whose status is now `resolved` (every issue the runner just processed, in numerical order).
 
-**Open the PR** using the Bash tool, passing the **PR body template** (see `references/runner-output-formats.md`) with `<slug>` and the resolved issue list substituted. The body is multiline and must be passed via a bash heredoc — see the exact form in `references/runner-output-formats.md` under "PR body template". Run `gh pr create` from inside the worktree (`git -C .claude/worktrees/<slug>`) or pass `--repo` if needed:
+**Open the PR** using the Bash tool. The exact `gh pr create` invocation with the heredoc-wrapped body lives in `references/runner-output-formats.md` under "PR body template" — use that form verbatim, substituting `<slug>`, `<PRD title>`, and the resolved-issue list before running it. Run from inside the worktree (`git -C .claude/worktrees/<slug>`) or pass `--repo` if needed. **Do not run the snippet without substitution** — angle-bracket placeholders are not valid shell.
 
-```
-gh pr create \
-  --base develop \
-  --title "feat(<slug>): <PRD title>" \
-  --body "$(cat <<'EOF'
-<substituted body content>
-EOF
-)"
-```
+**Failure handling for steps 7a and 7b:** If `git push` or `gh pr create` fails (non-zero exit, network error, permission denied, branch protection, etc.):
 
-**Remove the worktree** after the PR is opened successfully:
+1. Stop immediately. Do **not** remove the worktree.
+2. Report to the user: which command failed, the error output, that the worktree is at `.claude/worktrees/<slug>` on branch `feature/afk/<slug>`, and that all issues are still `resolved` (the failure is post-implementation).
+3. Suggest re-running `git push` / `gh pr create` manually once the cause is resolved.
+
+**Remove the worktree** only after the PR is opened successfully (PR URL returned by `gh`):
 
 ```
 git worktree remove .claude/worktrees/<slug>
