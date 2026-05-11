@@ -19,7 +19,7 @@ It performs in order:
 4. Calls `classify-thread` on each prior thread against the diff hunks.
 5. For each new finding passed in, calls `match-finding` to look for a matching prior thread.
 6. Based on classification, posts replies to prior threads: acknowledges disputes, confirms resolutions (and PATCHes thread status to fixed), adds new evidence to pending threads with new information, skips pending threads with no new evidence, ignores obsolete threads.
-7. Returns the classification counts (new, addressed, disputed, pending), the updated findings list (unmatched findings pass through as fresh; matched findings are consumed), and an `earlyExit` flag. `earlyExit` is `true` only on the no-new-commits path (step 3); it is `false` on all other paths including normal completion with zero fresh findings.
+7. Returns the classification counts (addressed, disputed, pending), the updated findings list (unmatched findings pass through as fresh; matched findings are consumed), and an `earlyExit` flag. `earlyExit` is `true` only on the no-new-commits path (step 3); it is `false` on all other paths including normal completion with zero fresh findings.
 
 The four Node.js modules (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) remain in `scripts/re-review/` unchanged. This agent calls them via `node --input-type=module` inline scripts, exactly as the current `review-pr.md` does.
 

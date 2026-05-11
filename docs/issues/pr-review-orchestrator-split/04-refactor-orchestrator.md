@@ -15,11 +15,11 @@ Refactor `review-pr.md` into a thin orchestrator of approximately 200 lines. The
 2. Parses `$ARGUMENTS` for a PR URL. If absent, sets mode to Pre-PR; if present, proceeds to detection.
 3. For PR URL cases: makes a lightweight ADO thread-list call directly (not via the ADO Fetcher) using `az repos pr thread list` (not `az devops invoke`) to check for a prior Bot Signature, determining mode and extracting the prior commit SHA if found. The full thread list from this call is captured and passed forward to the Re-review Coordinator in step 6 — no second ADO thread-list call is made.
 4. Logs the detected mode clearly before delegating.
-5. For First-review: runs Doc Context Orchestrator + review aspect agents in parallel, collects compact findings, delegates write-back to the ADO Writer agent.
-6. For Re-review: runs Doc Context Orchestrator + review aspect agents in parallel, passes findings and prior-thread data to the Re-review Coordinator agent (which handles replies). If the Coordinator returns `earlyExit: true` (no new commits), the orchestrator stops — ADO Writer is not called. Otherwise passes fresh findings to the ADO Writer agent.
+5. For First-review: invokes the ADO Fetcher agent (passing org URL, project, PR ID), then runs Doc Context Orchestrator + review aspect agents in parallel, collects compact findings, delegates write-back to the ADO Writer agent.
+6. For Re-review: invokes the ADO Fetcher agent (passing org URL, project, PR ID, and prior commit SHA), then runs Doc Context Orchestrator + review aspect agents in parallel, passes findings and prior-thread data to the Re-review Coordinator agent (which handles replies). If the Coordinator returns `earlyExit: true` (no new commits), the orchestrator stops — ADO Writer is not called. Otherwise passes fresh findings to the ADO Writer agent.
 7. Pre-PR mode is a stub at this slice — it detects the mode and prints a "Pre-PR mode not yet implemented" message. Full Pre-PR behaviour is delivered in issue 05.
 
-The `review-pr.md` file must contain no `az devops invoke` shell commands after this refactor — all ADO operations live in the three focused agents. The Bot Signature constants and detection prefix are unchanged. All existing re-review module unit tests must pass.
+The `review-pr.md` file must contain no `az devops invoke` shell commands after this refactor — the three focused agents own all data-fetch and write-back ADO operations. The one allowed inline ADO call is the mode-detection `az repos pr thread list` in step 3, which is an orchestration concern, not a data-fetch or write-back operation. The Bot Signature constants and detection prefix are unchanged. All existing re-review module unit tests must pass.
 
 ## Acceptance criteria
 

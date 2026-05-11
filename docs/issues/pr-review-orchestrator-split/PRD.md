@@ -146,7 +146,7 @@ The existing test structure mirrors `packages/release-tools/scripts/verify-chang
 
 Each of the three new agents lives in the plugin's own `.agents/` directory. `pr-review-toolkit` is not modified (it is a read-only dependency). The four existing re-review Node.js modules (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) remain in the plugin's `scripts/re-review/` directory and are called from the Re-review Coordinator agent.
 
-Review aspect agents are instructed via the orchestrator's Step 8 prompt to return compact structured findings (severity, file path, start line, end line, one-line title, one-paragraph body) rather than prose with embedded code quotes. This guidance lives in the orchestrator prompt only.
+Review aspect agents are instructed via the review-agent launch step in the orchestrator to return compact structured findings (severity, file path, start line, end line, one-line title, one-paragraph body) rather than prose with embedded code quotes. This guidance lives in the orchestrator prompt only.
 
 **Key interfaces:**
 
