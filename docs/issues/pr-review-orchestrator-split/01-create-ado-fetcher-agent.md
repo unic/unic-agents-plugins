@@ -9,7 +9,7 @@
 
 ## What to build
 
-Create a new plugin agent (`pr-review:ado-fetcher`) that encapsulates all Azure DevOps read operations required for a PR review. The agent receives a PR URL (org, project, PR ID) and returns a structured context block containing: PR metadata (title, description, source/target branches, repo ID), latest iteration ID and its commit SHA, prior commit SHA (passed in for re-review, empty for first-review), changed files list, raw diff, and work-item IDs linked to the PR.
+Create a new plugin agent (`pr-review:ado-fetcher`) that encapsulates all Azure DevOps read operations required for a PR review. The agent receives a PR URL (org, project, PR ID) and an optional prior iteration ID (passed in for re-review, empty string for first-review), and returns a structured context block containing: PR metadata (title, description, source/target branches, repo ID), latest iteration ID and its commit SHA, changed files list, raw diff, and work-item IDs linked to the PR.
 
 This agent replaces the inline ADO shell commands currently scattered across Steps 2–5 of the `review-pr` command. It is invoked by first-review and re-review modes; pre-PR mode never calls it.
 
@@ -45,7 +45,7 @@ A new plugin agent (`pr-review:ado-fetcher`) accepts PR URL components and retur
 
 **Key interfaces:**
 
-- Input: org URL, project, PR ID, optional prior commit SHA (passed in for re-review)
+- Input: org URL, project, PR ID, optional prior iteration ID (passed in for re-review)
 - Output: structured context block — PR metadata, latest iteration ID, latest commit SHA, changed files list, raw diff, work-item IDs list
 - The agent must handle zero-iteration PRs and already-merged PRs gracefully
 

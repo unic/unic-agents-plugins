@@ -28,7 +28,7 @@ Refactor `review-pr.md` into a thin orchestrator of ~200 lines that detects the 
 
 6. As a developer on a large PR, I want review-agent findings returned as compact structured records rather than prose with embedded code quotes, so that the parent context stays within budget.
 
-7. As a developer, I want the structured finding to include severity, file path, line range, a short title, and one-paragraph comment body, so that the ADO Writer has everything it needs to post the Inline Comment without re-querying the agent.
+7. As a developer, I want the structured finding to include severity, file path, start line, end line, a short title, and one-paragraph comment body, so that the ADO Writer has everything it needs to post the Inline Comment without re-querying the agent.
 
 8. As a developer, I want the ADO Fetcher to encapsulate all ADO API calls needed to retrieve PR metadata, iterations, changed files, and the raw diff, so that the orchestrator does not contain any platform-specific shell commands.
 
@@ -151,8 +151,8 @@ Review aspect agents are instructed via the review-agent launch step in the orch
 **Key interfaces:**
 
 - `review-pr` command orchestrator — validates prerequisites, detects mode within first ~50 lines, delegates entirely; carries no ADO shell commands
-- ADO Fetcher agent — returns a structured context block: PR metadata, latest iteration ID, prior commit ID (re-review only), changed files list, raw diff, and work-item IDs for Doc Context
-- Re-review Coordinator agent — receives the ADO Fetcher context and prior-threads data; produces classified thread list and executes reply/resolution actions; delegates to `detect-prior-review`, `classify-thread`, and `match-finding` modules
+- ADO Fetcher agent — accepts org URL, project, PR ID, and optional prior iteration ID (re-review only); returns a structured context block: PR metadata, latest iteration ID, changed files list, raw diff, and work-item IDs for Doc Context
+- Re-review Coordinator agent — receives the ADO Fetcher context and prior-threads data; produces classified thread list and executes reply/resolution actions; delegates to `detect-prior-review`, `classify-thread`, and `match-finding` modules; returns `{ addressed, disputed, pending, obsolete, freshFindings[], earlyExit }` — when `earlyExit: true`, the orchestrator skips the ADO Writer entirely
 - ADO Writer agent — receives the findings list and PR context; posts all Inline Comment threads, patches thread statuses, posts the Review Summary or delta reply, posts the completion marker
 - Compact finding schema: `{ severity, filePath, startLine, endLine, title, body }`
 - Bot Signature constant: `🤖 *Reviewed by Claude Code*` prefix — must remain unchanged
