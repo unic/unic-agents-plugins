@@ -1,5 +1,6 @@
 ---
 name: implement-feature
+argument-hint: '[slug]'
 description: This skill should be used when the user asks to "implement a feature", "run the Feature Runner", "/implement-feature", "implement all issues for <slug>", or "drain the issue queue overnight". Automates the implementation side of the AI-development cycle for one Feature: creates an isolated worktree and branch, runs /tdd on every ready-for-agent issue in dependency order, and opens a PR when done.
 ---
 
