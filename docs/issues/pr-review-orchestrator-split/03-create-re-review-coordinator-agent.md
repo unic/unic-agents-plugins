@@ -9,7 +9,7 @@
 
 ## What to build
 
-Create a new plugin agent (`pr-review:re-review-coordinator`) that owns the full re-review state machine. The agent receives the ADO Fetcher context block, the raw prior-threads JSON, and the diff hunks file path.
+Create a new plugin agent (`pr-review:re-review-coordinator`) that owns the full re-review state machine. The agent receives the ADO Fetcher context block (which includes the raw diff) and the raw full PR threads JSON (the unfiltered ADO thread list). It parses the raw diff into diff hunks internally before calling `classify-thread` — the hunks file is a temp artefact managed inside the agent, not an input from the orchestrator.
 
 It performs in order:
 
@@ -19,7 +19,7 @@ It performs in order:
 4. Calls `classify-thread` on each prior thread against the diff hunks.
 5. For each new finding passed in, calls `match-finding` to look for a matching prior thread.
 6. Based on classification, posts replies to prior threads: acknowledges disputes, confirms resolutions (and PATCHes thread status to fixed), adds new evidence to pending threads with new information, skips pending threads with no new evidence, ignores obsolete threads.
-7. Returns the classification counts (new, addressed, disputed, pending) and the updated findings list (unmatched findings pass through as fresh; matched findings are consumed).
+7. Returns the classification counts (new, addressed, disputed, pending), the updated findings list (unmatched findings pass through as fresh; matched findings are consumed), and an `earlyExit` flag. `earlyExit` is `true` only on the no-new-commits path (step 3); it is `false` on all other paths including normal completion with zero fresh findings.
 
 The four Node.js modules (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) remain in `scripts/re-review/` unchanged. This agent calls them via `node --input-type=module` inline scripts, exactly as the current `review-pr.md` does.
 
@@ -27,13 +27,13 @@ The four Node.js modules (`detect-prior-review`, `classify-thread`, `match-findi
 
 - [ ] The agent correctly detects prior bot threads using the `detect-prior-review` module
 - [ ] The agent falls back to first-review mode when no completion marker is found for the prior iteration
-- [ ] The agent exits early (console output only, no ADO writes) when prior and latest commit SHAs are identical
+- [ ] The agent exits early (console output only, no ADO writes) when prior and latest commit SHAs are identical, and returns `earlyExit: true`
 - [ ] The agent classifies all prior threads using the `classify-thread` module
 - [ ] The agent matches new findings to prior threads using the `match-finding` module with ±3-line drift tolerance
 - [ ] The agent posts a dispute acknowledgement reply to disputed threads including the ADO nudge
 - [ ] The agent posts a resolution confirmation reply and PATCHes status to fixed for addressed threads
 - [ ] The agent posts a new-evidence reply to pending threads that have new analysis; skips pending threads with no new evidence
-- [ ] The agent returns classification counts and the unmatched (fresh) findings list
+- [ ] The agent returns classification counts, the unmatched (fresh) findings list, and the `earlyExit` flag
 - [ ] The existing re-review module unit tests (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) pass unchanged
 
 ## Blocked by
@@ -53,20 +53,21 @@ None — can start immediately.
 The re-review state machine (prior thread detection, partial-run check, Thread Classification, finding matching, reply/resolution posting) lives inline in `review-pr.md` across Steps 3.5–10-Path-B. It is loaded on every invocation regardless of mode.
 
 **Desired behavior:**
-A new plugin agent (`pr-review:re-review-coordinator`) receives the ADO Fetcher context block, raw prior-threads JSON, and diff hunks. It runs the full re-review state machine, posts classified replies directly to ADO, and returns classification counts plus the list of unmatched (fresh) findings for the ADO Writer to post as new threads. The four existing Node.js modules (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) are called from this agent unchanged.
+A new plugin agent (`pr-review:re-review-coordinator`) receives the ADO Fetcher context block (which includes the raw diff) and the raw full PR threads JSON (unfiltered). It calls `detect-prior-review` internally to identify bot threads, parses the raw diff into diff hunks internally, then runs the full re-review state machine, posts classified replies directly to ADO, and returns classification counts plus the list of unmatched (fresh) findings for the ADO Writer to post as new threads. The four existing Node.js modules (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) are called from this agent unchanged.
 
 **Key interfaces:**
 
-- Input: ADO Fetcher context block, prior-threads JSON (from `detect-prior-review`), diff hunks JSON, new findings list, Bot Signature prefix constant
-- Output: `{ addressed, disputed, pending, freshFindings[] }` — fresh findings are those with no matching prior thread
+- Input: ADO Fetcher context block (includes raw diff), raw full PR threads JSON (captured by the orchestrator during mode detection via `az repos pr thread list` — not re-fetched; `detect-prior-review` filters this list inside the Coordinator), new findings list, Bot Signature prefix constant
+- The Coordinator parses the raw diff into diff hunks internally; this is not an orchestrator concern
+- Output: `{ addressed, disputed, pending, freshFindings[], earlyExit }` — fresh findings are those with no matching prior thread; `earlyExit: true` signals the no-new-commits path to the orchestrator
 - The agent calls the four Node.js modules via `node --input-type=module` inline scripts (same pattern as current `review-pr.md`)
-- Early-exit path: when prior commit SHA equals latest commit SHA, prints pending threads to console and returns with empty fresh findings — no ADO writes
+- Early-exit path: when prior commit SHA equals latest commit SHA, prints pending threads to console and returns `{ earlyExit: true, freshFindings: [] }` — no ADO writes; the orchestrator must skip the ADO Writer entirely when this flag is set
 
 **Acceptance criteria:**
 
 - [ ] The agent correctly detects prior bot threads using the `detect-prior-review` module
 - [ ] The agent falls back to first-review mode when no completion marker is found for the prior iteration
-- [ ] The agent exits early when prior and latest commit SHAs are identical (console output only, no ADO writes)
+- [ ] The agent exits early when prior and latest commit SHAs are identical (console output only, no ADO writes), returning `earlyExit: true`
 - [ ] The agent classifies all prior threads using the `classify-thread` module
 - [ ] The agent matches new findings to prior threads using `match-finding` with ±3-line drift tolerance
 - [ ] The agent posts dispute acknowledgement, resolution confirmation, and new-evidence replies appropriately

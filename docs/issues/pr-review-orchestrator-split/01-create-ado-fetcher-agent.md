@@ -13,7 +13,7 @@ Create a new plugin agent (`pr-review:ado-fetcher`) that encapsulates all Azure 
 
 This agent replaces the inline ADO shell commands currently scattered across Steps 2–5 of the `review-pr` command. It is invoked by first-review and re-review modes; pre-PR mode never calls it.
 
-The ADO Fetcher and the Doc Context Orchestrator agent must be invocable concurrently — the ADO Fetcher provides the work-item IDs that the Doc Context Orchestrator needs, so the Fetcher runs first, but the Fetcher and Doc Context Orchestrator may overlap in wall-clock time.
+The ADO Fetcher is a prerequisite for the Doc Context Orchestrator — the Fetcher must complete first because its output (work-item IDs) is the input the Doc Context Orchestrator needs. Once the Fetcher returns, the Doc Context Orchestrator and review aspect agents launch concurrently with each other.
 
 ## Acceptance criteria
 

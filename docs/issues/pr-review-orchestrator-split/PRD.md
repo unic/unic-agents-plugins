@@ -48,9 +48,9 @@ Refactor `review-pr.md` into a thin orchestrator of ~200 lines that detects the 
 
 16. As a developer reading the codebase, I want each agent to have a single clearly named responsibility, so that I know exactly which file to open when debugging an ADO write error versus a thread-classification error.
 
-17. As a developer running a first-review, I want the ADO Fetcher and the Doc Context Orchestrator to run concurrently as before, so that the split does not increase wall-clock time.
+17. As a developer running a first-review, I want the ADO Fetcher to complete first (providing work-item IDs), then the Doc Context Orchestrator and review aspect agents to run concurrently with each other, so that the split does not increase wall-clock time.
 
-18. As a developer, I want the guidance for compact review-agent output to live in the orchestrator's Step 8 prompt rather than in the `pr-review-toolkit` agent definitions, so that the toolkit remains an unmodified read-only dependency.
+18. As a developer, I want the guidance for compact review-agent output to live in the orchestrator's review-agent launch step rather than in the `pr-review-toolkit` agent definitions, so that the toolkit remains an unmodified read-only dependency.
 
 19. As a plugin operator, I want the existing test suite for the four re-review modules to continue passing after the split with no changes, so that I have confidence the refactor is behaviour-preserving.
 
@@ -125,8 +125,6 @@ The existing test structure mirrors `packages/release-tools/scripts/verify-chang
 
 **CONTEXT.md** has already been updated with the three operating modes, three orchestration agent terms, and their relationships.
 
-**GitHub prompt as reference.** The `.claude/prompts/pr-review-workflow.prompt.md` file is the model for what the thin orchestrator should look like — it coordinates review activities in ~80 lines by staying a pure coordinator. The refactored `review-pr.md` should be structurally similar.
-
 ---
 
 ## Agent Brief
@@ -167,7 +165,7 @@ Review aspect agents are instructed via the orchestrator's Step 8 prompt to retu
 - [ ] Running with a URL where prior Bot Signature exists enters Re-review mode; the Re-review Coordinator correctly classifies threads and posts replies
 - [ ] The orchestrator logs the detected mode (Pre-PR / First-review / Re-review) before delegating
 - [ ] The four existing re-review module unit tests pass unchanged after the refactor
-- [ ] The ADO Fetcher and Doc Context Orchestrator still run concurrently (no wall-clock regression for first-review)
+- [ ] The ADO Fetcher completes before the Doc Context Orchestrator is launched; the Doc Context Orchestrator and review aspect agents then run concurrently with each other (no wall-clock regression for first-review)
 - [ ] The Bot Signature format and detection prefix are unchanged
 - [ ] `pnpm test` passes; `pnpm format` produces no diff
 

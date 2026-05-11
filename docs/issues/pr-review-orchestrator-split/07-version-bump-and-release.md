@@ -13,11 +13,14 @@ Bump the `pr-review` plugin version (minor bump — new features added) and add 
 
 Run `pnpm --filter pr-review bump minor` to update both `plugin.json` and `marketplace.json`. Add a `[Unreleased]` → versioned entry to `CHANGELOG.md` following the existing format. Run `pnpm --filter pr-review verify:changelog` to confirm the entry passes validation.
 
+Update `CLAUDE.md` to reflect the new architecture: remove the claim that "the entire behaviour of the plugin lives in `commands/review-pr.md`", add the `.agents/` directory to the repository layout, and update the command conventions section to note that ADO calls now live in the three focused agents (ADO Fetcher, Re-review Coordinator, ADO Writer) rather than inline in the command.
+
 ## Acceptance criteria
 
 - [ ] `plugin.json` and `marketplace.json` both reflect the new minor version
 - [ ] `CHANGELOG.md` has a dated entry for the new version describing the orchestrator split, three new agents, pre-PR mode, and compact output guidance
 - [ ] `pnpm --filter pr-review verify:changelog` passes
+- [ ] `CLAUDE.md` updated: "entire behaviour lives in `commands/review-pr.md`" claim removed, `.agents/` directory added to layout, command conventions updated to reflect ADO calls live in the focused agents
 - [ ] `pnpm format` produces no diff
 
 ## Blocked by
@@ -51,6 +54,7 @@ Run `pnpm --filter pr-review bump minor` to update both version files atomically
 - [ ] `plugin.json` and `marketplace.json` both reflect the new minor version
 - [ ] `CHANGELOG.md` has a dated entry for the new version covering all four feature areas
 - [ ] `pnpm --filter pr-review verify:changelog` passes
+- [ ] `CLAUDE.md` updated to reflect the three-agent architecture
 - [ ] `pnpm format` produces no diff
 
 **Out of scope:**
