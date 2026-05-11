@@ -54,7 +54,7 @@ Alongside the skill, the domain vocabulary is extended ("Feature", "Feature Runn
 
 - Implemented as a Claude Code skill at `.claude/skills/implement-feature/SKILL.md`.
 - No Node.js code — the skill uses Claude's built-in tools (file reads/writes, Bash for git and gh CLI, Agent tool for `/tdd` sub-invocations).
-- Invocation: `/implement-feature [slug]`. With a slug, targets that feature directly. Without a slug, scans `docs/issues/` for features that **qualify** (at least one issue at `ready-for-agent` and every other issue in `{resolved, closed, rejected, ready-for-human}`) and picks the first alphabetically. The full qualification rule lives in `.claude/skills/implement-feature/SKILL.md` step 0.
+- Invocation: `/implement-feature [slug]`. With a slug, targets that feature directly and verifies that the directory exists, contains at least one `NN-*.md` file, and has at least one `ready-for-agent` issue — stopping with a specific error if any check fails. Without a slug, scans `docs/issues/` for features that **qualify** (at least one issue at `ready-for-agent` and every other issue in `{resolved, closed, rejected, ready-for-human}`) and picks the first alphabetically. The full qualification rule lives in `.claude/skills/implement-feature/SKILL.md` step 0.
 - When invoked with no argument and the queue is empty, the skill outputs `LOOP_COMPLETE` before exiting. This is the configured `completion_promise` in `ralph.yml` and is the signal that both `/loop` (the Claude Code skill) and `ralph-orchestrator` use to stop the loop. The skill must emit this string on a line of its own so loop drivers can detect it reliably.
 - Cross-platform: all git and file operations expressed as Claude tool calls, not shell scripts or POSIX paths.
 
@@ -68,7 +68,7 @@ Alongside the skill, the domain vocabulary is extended ("Feature", "Feature Runn
 
 - Issues are discovered by reading `docs/issues/<slug>/` and collecting files matching `NN-*.md`.
 - Only files with `Status: ready-for-agent` are executed. Files already `resolved`, `closed`, or `rejected` are kept in the dependency graph as satisfied nodes but skipped for execution (supports resuming a partially completed feature).
-- **`## Blocked by` is the canonical dependency signal, not numerical filename order.** Numerical ordering is a UX convenience produced by `to-issues` (it publishes blockers first so numbers usually match), but it is not an execution contract. The runner builds a topological order from `## Blocked by` references before executing. If `## Blocked by` references conflict with numerical order, the runner halts with an error rather than proceeding in the wrong order.
+- **`## Blocked by` is the canonical dependency signal, not numerical filename order.** Numerical ordering is a UX convenience produced by `to-issues` (it publishes blockers first so numbers usually match), but it is not an execution contract. The runner builds a topological order from `## Blocked by` references before executing. If `## Blocked by` references conflict with numerical order, the runner halts with an error rather than proceeding in the wrong order. If a `## Blocked by` reference names a file that does not exist in the feature directory, the runner also halts before executing anything (missing-blocker error) — it does not silently treat the reference as satisfied.
 - Each issue is handed to `/tdd` as a non-interactive sub-agent invocation with the full context bundle (see below).
 
 ### Context bundle
@@ -76,7 +76,7 @@ Alongside the skill, the domain vocabulary is extended ("Feature", "Feature Runn
 The runner assembles a context bundle for each `/tdd` sub-agent invocation. The bundle contains:
 
 - **Issue file** — the `## What to build` and `## Acceptance criteria` that replace `/tdd`'s interactive planning phase (see AFK invocation below).
-- **PRD** — the `## Parent` reference resolved to its full content. The PRD carries the "why" and the shared vision from the grilling session; without it, `/tdd` reasons from a vertical slice with no broader context, risking a correct-but-wrong implementation.
+- **PRD** — read from `docs/issues/<slug>/PRD.md` (slug-derived; the `## Parent` link on issue files is informational for human readers only). Carries the "why" and the shared vision from the grilling session; without it, `/tdd` reasons from a vertical slice with no broader context, risking a correct-but-wrong implementation.
 - **Sibling issue files** — all other issues in the feature directory. Provides dependency awareness and "what is already resolved" signal without relying on the runner to summarise prior work.
 - **CONTEXT.md** — the domain glossary scoped to the feature (see ADR scoping below). Ensures test names and interface vocabulary match the project's language.
 - **Scoped ADRs** — the architectural decisions that constrain the implementation (see ADR scoping below).
@@ -106,6 +106,7 @@ Scope is inferred by scanning the PRD for `apps/claude-code/<plugin>` path refer
 - PR is opened automatically using the `gh` CLI, targeting `develop`.
 - PR title: derived from the feature slug and PRD title.
 - PR body: references the feature PRD and lists the resolved issues.
+- If `git push` or `gh pr create` fails, the runner stops without removing the worktree and reports the failure to the user; all issues remain at `resolved` since the failure is post-implementation.
 
 ### Auto-selection heuristic
 
