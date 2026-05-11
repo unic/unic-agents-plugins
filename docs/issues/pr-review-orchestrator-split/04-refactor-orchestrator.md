@@ -11,7 +11,7 @@
 
 Refactor `review-pr.md` into a thin orchestrator of approximately 200 lines. The orchestrator:
 
-1. Validates prerequisites (Azure CLI, `azure-devops` extension, `pr-review-toolkit` availability) — same checks as today, just earlier and shared across all modes.
+1. Validates prerequisites in a mode-aware way: always checks `git` availability and `pr-review-toolkit`; checks Azure CLI and `azure-devops` extension only when a PR URL is present (Pre-PR mode requires no ADO credentials).
 2. Parses `$ARGUMENTS` for a PR URL. If absent, sets mode to Pre-PR; if present, proceeds to detection.
 3. For PR URL cases: invokes the ADO Fetcher agent, then checks for prior Bot Signature threads to determine First-review vs Re-review mode.
 4. Logs the detected mode clearly before delegating.
@@ -24,6 +24,7 @@ The `review-pr.md` file must contain no `az devops invoke` shell commands after 
 ## Acceptance criteria
 
 - [ ] `review-pr.md` is ≤ 200 lines and contains no `az devops invoke` calls
+- [ ] Prerequisite checks are mode-aware: Azure CLI and `azure-devops` extension are not required in Pre-PR mode (no PR URL provided)
 - [ ] The orchestrator logs the detected mode (Pre-PR / First-review / Re-review) before delegating
 - [ ] First-review mode produces the same ADO comment output as the pre-refactor command (full Review Summary + Inline Comments + completion marker)
 - [ ] Re-review mode produces the same ADO comment output as the pre-refactor command (classified replies + fresh findings + delta summary + completion marker)
@@ -52,7 +53,7 @@ The `review-pr.md` file must contain no `az devops invoke` shell commands after 
 `review-pr.md` is ~1000 lines, mixing orchestration logic, ADO shell commands, re-review state machine, and write-back in a single file. Every invocation loads the entire file into context.
 
 **Desired behavior:**
-`review-pr.md` shrinks to ~200 lines containing: prerequisite validation, argument parsing, mode detection (Pre-PR / First-review / Re-review), and delegation calls to the ADO Fetcher, Re-review Coordinator, and ADO Writer agents. The file contains no `az devops invoke` calls. Pre-PR mode is a stub that prints "not yet implemented" — full implementation is in issue 05.
+`review-pr.md` shrinks to ~200 lines containing: mode-aware prerequisite validation (ADO tooling skipped for Pre-PR), argument parsing, mode detection (Pre-PR / First-review / Re-review), and delegation calls to the ADO Fetcher, Re-review Coordinator, and ADO Writer agents. The file contains no `az devops invoke` calls. Pre-PR mode is a stub that prints "not yet implemented" — full implementation is in issue 05.
 
 **Key interfaces:**
 
@@ -66,6 +67,7 @@ The `review-pr.md` file must contain no `az devops invoke` shell commands after 
 **Acceptance criteria:**
 
 - [ ] `review-pr.md` is ≤ 200 lines and contains no `az devops invoke` calls
+- [ ] Prerequisite checks are mode-aware: Azure CLI and `azure-devops` extension are not required in Pre-PR mode
 - [ ] The orchestrator logs the detected mode before delegating
 - [ ] First-review produces the same ADO output as pre-refactor
 - [ ] Re-review produces the same ADO output as pre-refactor

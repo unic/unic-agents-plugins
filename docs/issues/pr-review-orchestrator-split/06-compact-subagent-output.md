@@ -17,7 +17,7 @@ No changes are made to `pr-review-toolkit` agent definitions — this guidance l
 
 ## Acceptance criteria
 
-- [ ] The Step 8 prompt explicitly requests structured JSON findings with the five required fields
+- [ ] The Step 8 prompt explicitly requests structured JSON findings with the six required fields
 - [ ] The prompt instructs agents to omit code quotes and prose reasoning from the return value
 - [ ] The ADO Writer agent correctly receives and processes the structured finding schema
 - [ ] Pre-PR mode findings are also presented using the same structured schema
@@ -51,7 +51,7 @@ The Step 8 prompt in the thin orchestrator explicitly instructs each review aspe
 
 **Acceptance criteria:**
 
-- [ ] The Step 8 prompt requests structured JSON findings with all five required fields
+- [ ] The Step 8 prompt requests structured JSON findings with all six required fields
 - [ ] The prompt instructs agents to omit code quotes and prose reasoning from the return value
 - [ ] The ADO Writer agent correctly receives and processes the structured schema
 - [ ] Pre-PR mode findings are presented using the same schema
