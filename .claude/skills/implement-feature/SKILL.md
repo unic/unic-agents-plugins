@@ -45,7 +45,7 @@ ls -d docs/issues/*/
 
 ### 1. Resolve the feature directory and assemble the static context bundle
 
-The slug argument maps directly to `docs/issues/<slug>/`. Use the Read tool to confirm the directory exists by reading its file listing. If the directory is missing, stop and report it to the user.
+The slug argument maps directly to `docs/issues/<slug>/`. Use the Bash tool to confirm the directory exists (e.g. `ls docs/issues/<slug>/`). If the directory is missing, stop and report it to the user.
 
 **Read the PRD:** `docs/issues/<slug>/PRD.md`. Scan its content for references matching `apps/claude-code/<plugin>/` (any path that starts with that prefix). This determines the ADR scope:
 
@@ -155,13 +155,16 @@ feat(<slug>): <PRD title>
 
 **List the resolved issues** — all `NN-*.md` files in `docs/issues/<slug>/` whose status is now `resolved` (every issue the runner just processed, in numerical order).
 
-**Open the PR** using the Bash tool, passing the **PR body template** (see `references/runner-output-formats.md`) with `<slug>` and the resolved issue list substituted. Run `gh pr create` from inside the worktree (`git -C .claude/worktrees/<slug>`) or pass `--repo` if needed:
+**Open the PR** using the Bash tool, passing the **PR body template** (see `references/runner-output-formats.md`) with `<slug>` and the resolved issue list substituted. The body is multiline and must be passed via a bash heredoc — see the exact form in `references/runner-output-formats.md` under "PR body template". Run `gh pr create` from inside the worktree (`git -C .claude/worktrees/<slug>`) or pass `--repo` if needed:
 
 ```
 gh pr create \
   --base develop \
   --title "feat(<slug>): <PRD title>" \
-  --body "<PR body template with substitutions>"
+  --body "$(cat <<'EOF'
+<substituted body content>
+EOF
+)"
 ```
 
 **Remove the worktree** after the PR is opened successfully:
