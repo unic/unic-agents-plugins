@@ -54,7 +54,7 @@ Alongside the skill, the domain vocabulary is extended ("Feature", "Feature Runn
 
 - Implemented as a Claude Code skill at `.claude/skills/implement-feature/SKILL.md`.
 - No Node.js code — the skill uses Claude's built-in tools (file reads/writes, Bash for git and gh CLI, Agent tool for `/tdd` sub-invocations).
-- Invocation: `/implement-feature [slug]`. With a slug, targets that feature directly. Without a slug, scans `docs/issues/` for features where all issues are `ready-for-agent` and picks the first (oldest by directory creation or alphabetical order).
+- Invocation: `/implement-feature [slug]`. With a slug, targets that feature directly. Without a slug, scans `docs/issues/` for features that **qualify** (at least one issue at `ready-for-agent` and every other issue in `{resolved, closed, rejected, ready-for-human}`) and picks the first alphabetically. The full qualification rule lives in `.claude/skills/implement-feature/SKILL.md` step 0.
 - When invoked with no argument and the queue is empty, the skill outputs `LOOP_COMPLETE` before exiting. This is the configured `completion_promise` in `ralph.yml` and is the signal that both `/loop` (the Claude Code skill) and `ralph-orchestrator` use to stop the loop. The skill must emit this string on a line of its own so loop drivers can detect it reliably.
 - Cross-platform: all git and file operations expressed as Claude tool calls, not shell scripts or POSIX paths.
 
@@ -67,7 +67,7 @@ Alongside the skill, the domain vocabulary is extended ("Feature", "Feature Runn
 ### Issue sequencing
 
 - Issues are discovered by reading `docs/issues/<slug>/` and collecting files matching `NN-*.md`.
-- Only files with `Status: ready-for-agent` are included. If a file is already `resolved` or `closed`, it is skipped (supports resuming a partially completed feature).
+- Only files with `Status: ready-for-agent` are executed. Files already `resolved`, `closed`, or `rejected` are kept in the dependency graph as satisfied nodes but skipped for execution (supports resuming a partially completed feature).
 - **`## Blocked by` is the canonical dependency signal, not numerical filename order.** Numerical ordering is a UX convenience produced by `to-issues` (it publishes blockers first so numbers usually match), but it is not an execution contract. The runner builds a topological order from `## Blocked by` references before executing. If `## Blocked by` references conflict with numerical order, the runner halts with an error rather than proceeding in the wrong order.
 - Each issue is handed to `/tdd` as a non-interactive sub-agent invocation with the full context bundle (see below).
 
@@ -157,8 +157,6 @@ The Feature Runner completes the AI-development cycle. With it in place, the ful
 ```
 
 The historical drift between `docs/plans/` (Spec Runner) and `docs/issues/` (Feature Runner) is a one-time cleanup problem, not a structural gap. The stale `docs/issues/` folders that correspond to already-completed Specs should be manually marked `closed` before the Feature Runner is introduced, to avoid the runner attempting to implement already-done work.
-
-The skill name `/implement-feature` is provisional. If the team adopts shorter naming conventions, alternatives like `/run-feature` or `/afk` are equivalent.
 
 ## Comments
 

@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repo follows an adapted 8-phase version of Matt Pocock's 7-phase workflow. version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
+This repo follows an adapted 8-phase version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
 
 Not every phase is required for every piece of work. A typo fix can go straight to execution. A major feature will touch every phase.
 
@@ -68,7 +68,7 @@ Turn the PRD into independently-executable tickets:
 
 This creates `docs/issues/<slug>/<NN>-<ticket>.md` files — vertical slices that cut through all integration layers. Each ticket should be small enough to fit in a single agent context window.
 
-Use the triage labels (`needs-triage` → `ready-for-agent` / `ready-for-human`) to track state. See `docs/agents/triage-labels.md`.
+Use the triage labels to track state — see `docs/agents/triage-labels.md` for the full 8-state vocabulary (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed` / `rejected`).
 
 ## Phase 7 — Execute
 
@@ -87,7 +87,7 @@ Specs follow a prescriptive format (before/after snapshots, shell verification c
 
 ### Feature Runner — for `docs/issues/` features
 
-Use the Feature Runner when implementing product features tracked as Issues in `docs/issues/<slug>/`. Once all issues in a feature reach `ready-for-agent`:
+Use the Feature Runner when implementing product features tracked as Issues in `docs/issues/<slug>/`. Once a feature has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`):
 
 ```
 /implement-feature <slug>         # target a specific feature
