@@ -14,7 +14,7 @@ Remove the Reply POST from the `addressed` branch of the re-review flow in the m
 
 Update the `addressed` branch section heading to no longer reference "confirm resolution".
 
-Revise ADR 0006 (`0006-reply-not-duplicate-auto-resolve.md`) to remove the requirement to post a Reply for `addressed` threads. Add a `**Revised:**` note with the date and the reason: notification spam; developers self-resolve most threads, causing the bot to comment on already-closed threads.
+Revise `apps/claude-code/pr-review/docs/adr/0006-reply-not-duplicate-auto-resolve.md` (ADR 0006) to remove the requirement to post a Reply for `addressed` threads. Add a `**Revised:**` note with the date and the reason: notification spam; developers self-resolve most threads, causing the bot to comment on already-closed threads.
 
 ## Acceptance criteria
 
@@ -23,7 +23,7 @@ Revise ADR 0006 (`0006-reply-not-duplicate-auto-resolve.md`) to remove the requi
 - [ ] `ADDRESSED_COUNT` is still incremented for each `addressed` thread and reflected correctly in the Step 11 delta summary.
 - [ ] `FINDINGS_POSTED` is still incremented for each `addressed` thread.
 - [ ] `disputed`, `pending`, and `obsolete` branch behavior is unchanged.
-- [ ] ADR 0006 no longer states that a Reply is required for `addressed` threads.
+- [ ] `apps/claude-code/pr-review/docs/adr/0006-reply-not-duplicate-auto-resolve.md` no longer states that a Reply is required for `addressed` threads.
 - [ ] The `addressed` branch section heading no longer references "confirm resolution".
 
 ## Blocked by
@@ -51,7 +51,7 @@ ADR `0006-reply-not-duplicate-auto-resolve.md` is revised: the addressed-thread 
 
 - The `addressed` branch inside the re-review reply flow in `commands/review-pr.md` — locate the block under the `addressed` classification label; remove only the Reply POST heredoc and the `az devops invoke … pullRequestThreadComments` call that follows it; leave the PATCH block and both counter increments intact.
 - The section heading for the `addressed` branch — remove "confirm resolution and" from the heading.
-- ADR 0006 — update the bullet for `addressed` threads under the Decision section; append a Revised note.
+- `apps/claude-code/pr-review/docs/adr/0006-reply-not-duplicate-auto-resolve.md` — update the bullet for `addressed` threads under the Decision section; append a Revised note.
 
 **Acceptance criteria:**
 
@@ -60,7 +60,7 @@ ADR `0006-reply-not-duplicate-auto-resolve.md` is revised: the addressed-thread 
 - [ ] `ADDRESSED_COUNT` is still incremented for each `addressed` thread and reflected correctly in the delta summary.
 - [ ] `FINDINGS_POSTED` is still incremented for each `addressed` thread.
 - [ ] `disputed`, `pending`, and `obsolete` branch behavior is unchanged.
-- [ ] ADR 0006 no longer states that a Reply is required for `addressed` threads, and includes a Revised note.
+- [ ] `apps/claude-code/pr-review/docs/adr/0006-reply-not-duplicate-auto-resolve.md` no longer states that a Reply is required for `addressed` threads, and includes a Revised note.
 - [ ] The `addressed` branch section heading no longer references "confirm resolution".
 
 **Out of scope:**
