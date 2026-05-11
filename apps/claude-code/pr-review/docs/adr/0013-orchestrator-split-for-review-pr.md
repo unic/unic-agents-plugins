@@ -25,12 +25,12 @@ Refactor `review-pr.md` into a **thin orchestrator** of ~200 lines that:
 Three focused agents live in the plugin's `.agents/` directory (not in `pr-review-toolkit`, which is a read-only dependency):
 
 - **`pr-review:ado-fetcher`** — fetches PR metadata, iterations, changed files, and raw diff from ADO. Used by first-review and re-review modes.
-- **`pr-review:re-review-coordinator`** — owns Steps 3.5–10-Path-B: prior thread detection, partial-run check, thread classification, finding matching, reply posting, and delta summary. Used only in re-review mode.
+- **`pr-review:re-review-coordinator`** — owns Steps 3.5–10-Path-B: prior thread detection, partial-run check, thread classification, finding matching, and reply posting to classified threads. Used only in re-review mode.
 - **`pr-review:ado-writer`** — owns the ADO write-back pipeline: posting inline threads, patching thread status, and posting the summary comment. Used by first-review and re-review modes.
 
 Pre-PR mode skips the ADO fetcher and writer entirely; it goes straight from the orchestrator to the `pr-review-toolkit` review agents and presents findings locally.
 
-**Compact sub-agent output.** Review agents (`pr-review-toolkit:code-reviewer`, etc.) are asked via the Step 8 prompt in `review-pr.md` to return structured findings (`severity`, `file`, `startLine`, `endLine`, `title`, `body`) rather than prose with embedded code quotes. This keeps what flows back into the parent context small. This guidance stays in `review-pr.md`'s prompt, not in the toolkit agent definitions, because `pr-review-toolkit` is not owned by this plugin.
+**Compact sub-agent output.** Review agents (`pr-review-toolkit:code-reviewer`, etc.) are asked via the Step 8 prompt in `review-pr.md` to return structured findings (`severity`, `filePath`, `startLine`, `endLine`, `title`, `body`) rather than prose with embedded code quotes. This keeps what flows back into the parent context small. This guidance stays in `review-pr.md`'s prompt, not in the toolkit agent definitions, because `pr-review-toolkit` is not owned by this plugin.
 
 **Re-review logic ownership.** The four Node.js modules in `scripts/re-review/` are already algorithmically platform-agnostic; only their input shapes are ADO-specific. When a second write-back platform (GitHub) is built, normalising to a canonical thread shape and lifting these modules to `pr-review-toolkit` is the correct move. That work is deferred until a second platform consumer exists.
 
@@ -51,7 +51,7 @@ _Option B: re-review coordinator as a procedural agent_ — keep re-review logic
 
 **See also:**
 
-- `docs/plans/` for the spec that implements this split
+- `docs/issues/pr-review-orchestrator-split/PRD.md` for the feature PRD and implementation issues that deliver this split
 - ADR 0008 (soft dependency on `pr-review-toolkit`)
 - `.claude/prompts/pr-review-workflow.prompt.md` (the GitHub orchestrator pattern this
   mirrors)

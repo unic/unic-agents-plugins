@@ -88,7 +88,7 @@ A Review run against an ADO PR where no prior Bot Signature is found. Produces a
 _Avoid_: initial review, fresh review
 
 **Re-review mode**:
-A Review run against an ADO PR where prior Review Threads are detected. Focuses on commits since the last Review, performs Thread Classification, and replies to or resolves existing Review Threads rather than duplicating them.
+A Review run against an ADO PR where a prior **Bot Signature** is found in the PR's threads. Focuses on commits since the last Review, performs Thread Classification, and replies to or resolves existing Review Threads rather than duplicating them.
 _Avoid_: incremental review, follow-up review, second pass
 
 ### Orchestration agents
@@ -98,7 +98,7 @@ A plugin agent that retrieves PR metadata, iterations, changed files, and the ra
 _Avoid_: fetcher, data agent, ADO client
 
 **Re-review Coordinator**:
-A plugin agent that owns the full re-review state machine — prior thread detection, partial-run check, Thread Classification, finding matching, reply posting, and delta summary. Invoked only in re-review mode.
+A plugin agent that owns the full re-review state machine — prior thread detection, partial-run check, Thread Classification, finding matching, and reply posting to classified threads. Invoked only in re-review mode.
 _Avoid_: re-review agent, rereview handler
 
 **ADO Writer**:

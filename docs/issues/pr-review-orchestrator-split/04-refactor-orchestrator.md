@@ -13,7 +13,7 @@ Refactor `review-pr.md` into a thin orchestrator of approximately 200 lines. The
 
 1. Validates prerequisites in a mode-aware way: always checks `git` availability and `pr-review-toolkit`; checks Azure CLI and `azure-devops` extension only when a PR URL is present (Pre-PR mode requires no ADO credentials).
 2. Parses `$ARGUMENTS` for a PR URL. If absent, sets mode to Pre-PR; if present, proceeds to detection.
-3. For PR URL cases: invokes the ADO Fetcher agent, then checks for prior Bot Signature threads to determine First-review vs Re-review mode.
+3. For PR URL cases: makes a lightweight ADO thread-list call directly (not via the ADO Fetcher) to check for a prior Bot Signature, determining mode and extracting the prior commit SHA if found; then invokes the ADO Fetcher agent (passing the prior commit SHA for re-review runs).
 4. Logs the detected mode clearly before delegating.
 5. For First-review: runs Doc Context Orchestrator + review aspect agents in parallel, collects compact findings, delegates write-back to the ADO Writer agent.
 6. For Re-review: runs Doc Context Orchestrator + review aspect agents in parallel, passes findings and prior-thread data to the Re-review Coordinator agent (which handles replies), then passes remaining fresh findings to the ADO Writer agent.
@@ -57,7 +57,7 @@ The `review-pr.md` file must contain no `az devops invoke` shell commands after 
 
 **Key interfaces:**
 
-- Mode detection: no URL → Pre-PR; URL + no prior Bot Signature → First-review; URL + prior Bot Signature → Re-review
+- Mode detection sequence: no URL → Pre-PR; URL → orchestrator makes a lightweight ADO thread-list call → no Bot Signature → First-review; Bot Signature found → extract prior commit SHA → Re-review
 - Bot Signature detection prefix: `🤖 *Reviewed by Claude Code*` — must not change
 - ADO Fetcher agent invocation: passes org URL, project, PR ID
 - Re-review Coordinator agent invocation (re-review only): passes ADO Fetcher context + new findings list
