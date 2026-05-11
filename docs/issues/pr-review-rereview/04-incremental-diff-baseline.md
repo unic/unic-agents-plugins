@@ -1,6 +1,6 @@
 # Incremental diff baseline
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

@@ -1,6 +1,6 @@
 # Version bump, README, CLAUDE.md, ADR 0009
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

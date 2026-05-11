@@ -1,6 +1,6 @@
 # Target latest PR iteration
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

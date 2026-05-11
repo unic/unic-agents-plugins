@@ -1,6 +1,6 @@
 # Complete test fixture suite
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

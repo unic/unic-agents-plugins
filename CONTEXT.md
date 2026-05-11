@@ -28,6 +28,14 @@ _Avoid_: ticket, task, issue, story
 The agent automation that reads Specs and implements them one at a time. Currently backed by `ralph-orchestrator` but the concept is tool-agnostic.
 _Avoid_: Ralph, Ralph Orchestrator (tool-specific, not domain terms)
 
+**Feature**:
+A self-contained unit of work tracked as a directory under `docs/issues/<slug>/`, containing a PRD and numbered implementation issues. The atomic input to the Feature Runner.
+_Avoid_: ticket, epic, story
+
+**Feature Runner**:
+The skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request. Parallel concept to Spec Runner, but driven by the issue tracker rather than `docs/plans/`.
+_Avoid_: issue runner, queue runner
+
 **Consumer**:
 A repository that installs and uses a Plugin. External to this monorepo.
 _Avoid_: client, user repo, target repo, host repo
@@ -38,6 +46,7 @@ _Avoid_: client, user repo, target repo, host repo
 - A **Claude Code Plugin** is a **Plugin** — the inverse is not always true
 - A **Workspace Package** supports **Plugin** development but is not itself a **Plugin**
 - A **Spec** drives exactly one **Spec Runner** iteration
+- A **Feature** drives one **Feature Runner** execution — a Feature is to the Feature Runner what a Spec is to the Spec Runner
 - A **Consumer** installs one or more **Plugins**
 
 ## Example dialogue

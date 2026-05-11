@@ -1,6 +1,6 @@
 # Confluence page Doc Context enrichment
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

@@ -1,6 +1,6 @@
 # Doc Context Orchestrator agent
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 **Type:** AFK
 

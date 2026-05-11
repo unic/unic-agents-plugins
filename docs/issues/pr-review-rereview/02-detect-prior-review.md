@@ -1,6 +1,6 @@
 # Detect prior review + extract parse-signature and detect-prior-review modules
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent
