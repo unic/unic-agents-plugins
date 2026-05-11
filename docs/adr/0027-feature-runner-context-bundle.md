@@ -15,7 +15,7 @@ Matt Pocock's reference AFK loop (`afk.sh`) injects all issue files plus recent 
 The Feature Runner assembles a **context bundle** for each `/tdd` sub-agent invocation:
 
 1. **Issue file** — `## What to build` and `## Acceptance criteria` serve as the pre-answered planning conversation (see ADR-0029).
-2. **PRD** — resolved from the issue's `## Parent` link. Carries the shared vision from the grilling session and the "why" behind the feature. Without it, the agent lacks the context needed to judge correctness beyond the literal issue description.
+2. **PRD** — read from the feature's `docs/issues/<slug>/PRD.md` (the slug is the feature directory name; the PRD lives at a fixed path within it). Carries the shared vision from the grilling session and the "why" behind the feature. Without it, the agent lacks the context needed to judge correctness beyond the literal issue description.
 3. **Sibling issue files** — all other `NN-*.md` files in the feature directory. Provides dependency awareness and a "what is already resolved" signal without requiring the runner to summarise prior work.
 4. **Scoped CONTEXT.md** — the domain glossary for the feature's domain (see scoping rule below). Ensures test names and interface vocabulary match the project's language.
 5. **Scoped ADRs** — the architectural decisions constraining the implementation (see scoping rule below).
@@ -38,7 +38,6 @@ Scope is inferred by scanning the PRD for `apps/claude-code/<plugin>` path refer
 
 ## Consequences
 
-- The Feature Runner skill must resolve the `## Parent` link in each issue file to obtain the PRD path before building the bundle.
+- The Feature Runner skill reads the PRD from the fixed slug-derived path `docs/issues/<slug>/PRD.md`. The `## Parent` link on issue files is informational for human readers; the runner does not parse it. Features without a `PRD.md` at that path cannot be run by the Feature Runner without manual intervention.
 - The Feature Runner skill must scan the PRD for `apps/claude-code/<plugin>` references to determine which CONTEXT.md and ADR directory to inject.
-- Issue files that omit `## Parent` (i.e. are not linked to a PRD) cannot be run by the Feature Runner without manual intervention.
 - The context bundle grows with the number of sibling issues; for features with many issues, later invocations carry more sibling context than earlier ones. This is acceptable — it mirrors the growing "what is done" signal available in real commits.
