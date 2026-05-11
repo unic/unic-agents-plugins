@@ -77,6 +77,34 @@ _Avoid_: merger, aggregator, deduplicator
 A self-contained plugin agent that orchestrates the entire Doc Context gathering phase — fetching work item details, running the Confluence credential check once, spawning Work Item Summarizer and Confluence Fetcher agents in parallel, and delegating final synthesis to the Doc Context Synthesizer. Returns the Synthesizer's output verbatim as a plain markdown string.
 _Avoid_: context orchestrator, doc orchestrator, gathering agent
 
+### Operating modes
+
+**Pre-PR mode**:
+A Review run without a PR URL, targeting a local branch diff. No ADO write-back occurs; findings are presented in the Claude interface only.
+_Avoid_: local review, offline review, draft review
+
+**First-review mode**:
+A Review run against an ADO PR where no prior Bot Signature is found. Produces a full set of Inline Comments and a Review Summary posted to ADO.
+_Avoid_: initial review, fresh review
+
+**Re-review mode**:
+A Review run against an ADO PR where a prior **Bot Signature** is found in the PR's threads. Focuses on commits since the last Review, performs Thread Classification, and replies to or resolves existing Review Threads rather than duplicating them.
+_Avoid_: incremental review, follow-up review, second pass
+
+### Orchestration agents
+
+**ADO Fetcher**:
+A plugin agent that retrieves PR metadata, iterations, changed files, and the raw diff from Azure DevOps. Used by first-review and re-review modes; not invoked in pre-PR mode.
+_Avoid_: fetcher, data agent, ADO client
+
+**Re-review Coordinator**:
+A plugin agent that owns the full re-review state machine — prior thread detection, partial-run check, Thread Classification, finding matching, and reply posting to classified threads. Invoked only in re-review mode.
+_Avoid_: re-review agent, rereview handler
+
+**ADO Writer**:
+A plugin agent responsible for all ADO write-back operations — posting Inline Comments, patching thread status, and posting the Review Summary or delta reply. Used by first-review and re-review modes.
+_Avoid_: writer agent, comment poster, ADO publisher
+
 ### Re-review classification
 
 **Thread Classification**:
@@ -106,6 +134,9 @@ A Thread Classification state. The relevant code was deleted or moved; the comme
 - A **Doc Context** is assembled via a three-tier pipeline: the **Doc Context Orchestrator** spawns **Work Item Summarizer** and **Confluence Fetcher** agents (Doc Context Sub-agents) in parallel, then delegates their outputs to the **Doc Context Synthesizer**, which produces the final `DOC_CONTEXT` narrative injected into every Review Aspect agent
 - A **Doc Context Sub-agent** operates on a single source (work item or Confluence page) and receives the changed files list and the local diff when available
 - The **Doc Context Orchestrator** returns the **Doc Context Synthesizer**'s output verbatim; it does not rewrite or reformat the narrative
+- The **ADO Fetcher** is invoked by first-review and re-review modes; **Pre-PR mode** skips it entirely and goes directly to Review Aspect agents
+- The **Re-review Coordinator** is invoked only when the mode is re-review; first-review and pre-PR modes never load it
+- The **ADO Writer** is invoked by first-review and re-review modes; **Pre-PR mode** does not write back to ADO
 
 ## Example dialogue
 
