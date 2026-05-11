@@ -99,7 +99,7 @@ Scope is inferred by scanning the PRD for `apps/claude-code/<plugin>` path refer
 
 - Issue file: `ready-for-agent` → `resolved` after `/tdd` completes successfully.
 - Feature (all issues): after PR is opened, the runner does not automatically mark issues `closed` — that happens when the PR is merged (manual or via a future hook).
-- On failure: the failing issue is left at `ready-for-agent` with a failure note appended; the runner stops.
+- On `/tdd` failure: the failing issue is flipped to `needs-info` with a failure note appended; the runner stops. This prevents `/loop /implement-feature` from re-picking the same feature until a developer triages the failure. A Ctrl+C interrupt (as opposed to a `/tdd` failure) leaves the issue at `ready-for-agent`.
 
 ### PR creation
 
@@ -109,8 +109,8 @@ Scope is inferred by scanning the PRD for `apps/claude-code/<plugin>` path refer
 
 ### Auto-selection heuristic
 
-- When invoked with no argument, the runner selects the feature with the earliest alphabetical slug that has all issues at `ready-for-agent`.
-- If no such feature exists, the runner outputs `LOOP_COMPLETE` and exits. This is the stop signal that the `/loop` skill catches to terminate an overnight draining run cleanly. It mirrors the Spec Runner's `completion_promise: LOOP_COMPLETE` in `ralph.yml`.
+- When invoked with no argument, the runner selects the feature with the earliest alphabetical slug that **qualifies**: at least one issue at `ready-for-agent`, and every other issue in `{resolved, closed, rejected, ready-for-human}`. Any issue at `needs-triage`, `needs-info`, or `needs-specs` disqualifies the whole feature. Features where everything is already `resolved`/`closed`/`rejected` (nothing left to run) are also skipped. Partial features (mix of completed and `ready-for-agent` issues) are picked up — this enables resuming after a failure fix.
+- If no qualifying feature exists, the runner outputs `LOOP_COMPLETE` and exits. This is the stop signal that the `/loop` skill catches to terminate an overnight draining run cleanly. It mirrors the Spec Runner's `completion_promise: LOOP_COMPLETE` in `ralph.yml`.
 
 ### CONTEXT.md vocabulary
 
