@@ -13,13 +13,13 @@ Refactor `review-pr.md` into a thin orchestrator of approximately 200 lines. The
 
 1. Validates prerequisites in a mode-aware way: always checks `git` availability and `pr-review-toolkit`; checks Azure CLI and `azure-devops` extension only when a PR URL is present (Pre-PR mode requires no ADO credentials).
 2. Parses `$ARGUMENTS` for a PR URL. If absent, sets mode to Pre-PR; if present, proceeds to detection.
-3. For PR URL cases: makes a lightweight ADO thread-list call directly (not via the ADO Fetcher) to check for a prior Bot Signature, determining mode and extracting the prior commit SHA if found; then invokes the ADO Fetcher agent (passing the prior commit SHA for re-review runs).
+3. For PR URL cases: makes a lightweight ADO thread-list call directly (not via the ADO Fetcher) using `az repos pr thread list` (not `az devops invoke`) to check for a prior Bot Signature, determining mode and extracting the prior iteration ID if found. The full thread list from this call is captured and passed forward to the Re-review Coordinator in step 6 — no second ADO thread-list call is made.
 4. Logs the detected mode clearly before delegating.
-5. For First-review: runs Doc Context Orchestrator + review aspect agents in parallel, collects compact findings, delegates write-back to the ADO Writer agent.
-6. For Re-review: runs Doc Context Orchestrator + review aspect agents in parallel, passes findings and prior-thread data to the Re-review Coordinator agent (which handles replies), then passes remaining fresh findings to the ADO Writer agent.
+5. For First-review: invokes the ADO Fetcher agent (passing org URL, project, PR ID), then runs Doc Context Orchestrator + review aspect agents in parallel, collects compact findings, delegates write-back to the ADO Writer agent.
+6. For Re-review: invokes the ADO Fetcher agent (passing org URL, project, PR ID, and prior iteration ID), then runs Doc Context Orchestrator + review aspect agents in parallel. Once all review aspect agents return their findings, passes the complete findings list and prior-thread data to the Re-review Coordinator agent (which handles replies). If the Coordinator returns `earlyExit: true` (no new revisions), the orchestrator stops — ADO Writer is not called. Otherwise passes fresh findings to the ADO Writer agent.
 7. Pre-PR mode is a stub at this slice — it detects the mode and prints a "Pre-PR mode not yet implemented" message. Full Pre-PR behaviour is delivered in issue 05.
 
-The `review-pr.md` file must contain no `az devops invoke` shell commands after this refactor — all ADO operations live in the three focused agents. The Bot Signature constants and detection prefix are unchanged. All existing re-review module unit tests must pass.
+The `review-pr.md` file must contain no `az devops invoke` shell commands after this refactor — the three focused agents own all data-fetch and write-back ADO operations. The one allowed inline ADO call is the mode-detection `az repos pr thread list` in step 3, which is an orchestration concern, not a data-fetch or write-back operation. The Bot Signature constants and detection prefix are unchanged. All existing re-review module unit tests must pass.
 
 ## Acceptance criteria
 
@@ -57,12 +57,12 @@ The `review-pr.md` file must contain no `az devops invoke` shell commands after 
 
 **Key interfaces:**
 
-- Mode detection sequence: no URL → Pre-PR; URL → orchestrator makes a lightweight ADO thread-list call → no Bot Signature → First-review; Bot Signature found → extract prior commit SHA → Re-review
+- Mode detection sequence: no URL → Pre-PR; URL → orchestrator calls `az repos pr thread list` (not `az devops invoke`) → no Bot Signature → First-review; Bot Signature found → extract prior iteration ID → Re-review
 - Bot Signature detection prefix: `🤖 *Reviewed by Claude Code*` — must not change
-- ADO Fetcher agent invocation: passes org URL, project, PR ID
-- Re-review Coordinator agent invocation (re-review only): passes ADO Fetcher context + new findings list
-- ADO Writer agent invocation: passes PR context + fresh findings list + mode flag
-- The GitHub prompt (`.claude/prompts/pr-review-workflow.prompt.md`) is the structural reference for what the orchestrator should look like
+- ADO Fetcher agent invocation: passes org URL, project, PR ID (plus prior iteration ID in re-review)
+- Re-review Coordinator agent invocation (re-review only): called after all review aspect agents complete; passes ADO Fetcher context + full PR threads JSON (captured from mode detection in step 3, not re-fetched) + new findings list; returns `{ earlyExit, freshFindings[], addressed, disputed, pending, obsolete }`
+- If Coordinator returns `earlyExit: true`, orchestrator stops — ADO Writer is not called
+- ADO Writer agent invocation: passes PR context + fresh findings list + mode (`"first-review"` | `"re-review"`); the mode determines whether ADO Writer posts a new Review Summary (first-review) or a delta reply (re-review)
 
 **Acceptance criteria:**
 

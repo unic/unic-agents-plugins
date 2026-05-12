@@ -28,7 +28,7 @@ Refactor `review-pr.md` into a thin orchestrator of ~200 lines that detects the 
 
 6. As a developer on a large PR, I want review-agent findings returned as compact structured records rather than prose with embedded code quotes, so that the parent context stays within budget.
 
-7. As a developer, I want the structured finding to include severity, file path, line range, a short title, and one-paragraph comment body, so that the ADO Writer has everything it needs to post the Inline Comment without re-querying the agent.
+7. As a developer, I want the structured finding to include severity, file path, start line, end line, a short title, and one-paragraph comment body, so that the ADO Writer has everything it needs to post the Inline Comment without re-querying the agent.
 
 8. As a developer, I want the ADO Fetcher to encapsulate all ADO API calls needed to retrieve PR metadata, iterations, changed files, and the raw diff, so that the orchestrator does not contain any platform-specific shell commands.
 
@@ -48,9 +48,9 @@ Refactor `review-pr.md` into a thin orchestrator of ~200 lines that detects the 
 
 16. As a developer reading the codebase, I want each agent to have a single clearly named responsibility, so that I know exactly which file to open when debugging an ADO write error versus a thread-classification error.
 
-17. As a developer running a first-review, I want the ADO Fetcher and the Doc Context Orchestrator to run concurrently as before, so that the split does not increase wall-clock time.
+17. As a developer running a first-review, I want the ADO Fetcher to complete first (providing work-item IDs), then the Doc Context Orchestrator and review aspect agents to run concurrently with each other, so that the split does not increase wall-clock time.
 
-18. As a developer, I want the guidance for compact review-agent output to live in the orchestrator's Step 8 prompt rather than in the `pr-review-toolkit` agent definitions, so that the toolkit remains an unmodified read-only dependency.
+18. As a developer, I want the guidance for compact review-agent output to live in the orchestrator's review-agent launch step rather than in the `pr-review-toolkit` agent definitions, so that the toolkit remains an unmodified read-only dependency.
 
 19. As a plugin operator, I want the existing test suite for the four re-review modules to continue passing after the split with no changes, so that I have confidence the refactor is behaviour-preserving.
 
@@ -125,8 +125,6 @@ The existing test structure mirrors `packages/release-tools/scripts/verify-chang
 
 **CONTEXT.md** has already been updated with the three operating modes, three orchestration agent terms, and their relationships.
 
-**GitHub prompt as reference.** The `.claude/prompts/pr-review-workflow.prompt.md` file is the model for what the thin orchestrator should look like — it coordinates review activities in ~80 lines by staying a pure coordinator. The refactored `review-pr.md` should be structurally similar.
-
 ---
 
 ## Agent Brief
@@ -148,13 +146,13 @@ The existing test structure mirrors `packages/release-tools/scripts/verify-chang
 
 Each of the three new agents lives in the plugin's own `.agents/` directory. `pr-review-toolkit` is not modified (it is a read-only dependency). The four existing re-review Node.js modules (`detect-prior-review`, `classify-thread`, `match-finding`, `parse-signature`) remain in the plugin's `scripts/re-review/` directory and are called from the Re-review Coordinator agent.
 
-Review aspect agents are instructed via the orchestrator's Step 8 prompt to return compact structured findings (severity, file path, start line, end line, one-line title, one-paragraph body) rather than prose with embedded code quotes. This guidance lives in the orchestrator prompt only.
+Review aspect agents are instructed via the review-agent launch step in the orchestrator to return compact structured findings (severity, file path, start line, end line, one-line title, one-paragraph body) rather than prose with embedded code quotes. This guidance lives in the orchestrator prompt only.
 
 **Key interfaces:**
 
 - `review-pr` command orchestrator — validates prerequisites, detects mode within first ~50 lines, delegates entirely; carries no ADO shell commands
-- ADO Fetcher agent — returns a structured context block: PR metadata, latest iteration ID, prior commit ID (re-review only), changed files list, raw diff, and work-item IDs for Doc Context
-- Re-review Coordinator agent — receives the ADO Fetcher context and prior-threads data; produces classified thread list and executes reply/resolution actions; delegates to `detect-prior-review`, `classify-thread`, and `match-finding` modules
+- ADO Fetcher agent — accepts org URL, project, PR ID, and optional prior iteration ID (re-review only); returns a structured context block: PR metadata, latest iteration ID, changed files list, raw diff, and work-item IDs for Doc Context
+- Re-review Coordinator agent — receives the ADO Fetcher context and prior-threads data; produces classified thread list and executes reply/resolution actions; delegates to `detect-prior-review`, `classify-thread`, and `match-finding` modules; returns `{ addressed, disputed, pending, obsolete, freshFindings[], earlyExit }` — when `earlyExit: true`, the orchestrator skips the ADO Writer entirely
 - ADO Writer agent — receives the findings list and PR context; posts all Inline Comment threads, patches thread statuses, posts the Review Summary or delta reply, posts the completion marker
 - Compact finding schema: `{ severity, filePath, startLine, endLine, title, body }`
 - Bot Signature constant: `🤖 *Reviewed by Claude Code*` prefix — must remain unchanged
@@ -167,7 +165,7 @@ Review aspect agents are instructed via the orchestrator's Step 8 prompt to retu
 - [ ] Running with a URL where prior Bot Signature exists enters Re-review mode; the Re-review Coordinator correctly classifies threads and posts replies
 - [ ] The orchestrator logs the detected mode (Pre-PR / First-review / Re-review) before delegating
 - [ ] The four existing re-review module unit tests pass unchanged after the refactor
-- [ ] The ADO Fetcher and Doc Context Orchestrator still run concurrently (no wall-clock regression for first-review)
+- [ ] The ADO Fetcher completes before the Doc Context Orchestrator is launched; the Doc Context Orchestrator and review aspect agents then run concurrently with each other (no wall-clock regression for first-review)
 - [ ] The Bot Signature format and detection prefix are unchanged
 - [ ] `pnpm test` passes; `pnpm format` produces no diff
 
