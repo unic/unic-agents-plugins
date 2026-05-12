@@ -1,6 +1,6 @@
 # Refactor review-pr.md to thin orchestrator
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

@@ -1,6 +1,6 @@
 # Create ADO Fetcher agent
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent
@@ -17,12 +17,12 @@ The ADO Fetcher is a prerequisite for the Doc Context Orchestrator — the Fetch
 
 ## Acceptance criteria
 
-- [ ] The agent accepts PR URL components (org URL, project, PR ID) and returns a structured context block
-- [ ] The context block includes PR metadata, latest iteration ID, latest commit SHA, changed files list, and raw diff
-- [ ] The context block includes the work-item IDs linked to the PR (empty list if none)
-- [ ] The agent handles the case where no iterations are returned (defaults gracefully)
-- [ ] The agent handles PRs that are already merged (continues without error)
-- [ ] The agent contains no write operations — it is purely a read agent
+- [x] The agent accepts PR URL components (org URL, project, PR ID) and returns a structured context block
+- [x] The context block includes PR metadata, latest iteration ID, latest commit SHA, changed files list, and raw diff
+- [x] The context block includes the work-item IDs linked to the PR (empty list if none)
+- [x] The agent handles the case where no iterations are returned (defaults gracefully)
+- [x] The agent handles PRs that are already merged (continues without error)
+- [x] The agent contains no write operations — it is purely a read agent
 
 ## Blocked by
 
@@ -51,12 +51,12 @@ A new plugin agent (`pr-review:ado-fetcher`) accepts PR URL components and retur
 
 **Acceptance criteria:**
 
-- [ ] The agent accepts PR URL components and returns a structured context block
-- [ ] The context block includes PR metadata, latest iteration ID, latest commit SHA, changed files list, and raw diff
-- [ ] The context block includes the work-item IDs linked to the PR (empty list if none)
-- [ ] The agent handles the case where no iterations are returned (defaults gracefully)
-- [ ] The agent handles PRs that are already merged (continues without error)
-- [ ] The agent contains no write operations — it is purely a read agent
+- [x] The agent accepts PR URL components and returns a structured context block
+- [x] The context block includes PR metadata, latest iteration ID, latest commit SHA, changed files list, and raw diff
+- [x] The context block includes the work-item IDs linked to the PR (empty list if none)
+- [x] The agent handles the case where no iterations are returned (defaults gracefully)
+- [x] The agent handles PRs that are already merged (continues without error)
+- [x] The agent contains no write operations — it is purely a read agent
 
 **Out of scope:**
 
