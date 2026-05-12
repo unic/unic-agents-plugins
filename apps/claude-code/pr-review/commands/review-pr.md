@@ -120,7 +120,22 @@ Store output as `DOC_CONTEXT`.
 
 For each agent provide: PR title + description, full diff, changed file contents. Prepend `DOC_CONTEXT` as preamble if non-empty.
 
-Collect findings. For each assign: severity (`critical`/`important`/`minor`), `filePath` (leading `/`, forward slashes matching ADO), `startLine`, `endLine`, `title`, `body`. Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
+Each agent prompt **must** end with the following output contract:
+
+```
+Return your findings as a JSON array. Each element must have exactly these six fields:
+- severity: "critical" | "important" | "minor"
+- filePath: string — leading /, forward slashes, matching ADO format (e.g. /src/foo.ts)
+- startLine: integer — first line of the relevant range
+- endLine: integer — last line of the relevant range (same as startLine for single-line findings)
+- title: string — one line, ≤ 80 chars
+- body: string — one paragraph; the exact text to post as the ADO comment or local-interface comment
+
+Keep your reasoning, analysis, and supporting evidence inside your own context.
+Do not include code quotes, prose reasoning, or any text outside the JSON array in your return value.
+```
+
+Collect the JSON arrays returned by all agents. Deduplicate and sort by severity (`critical` first). Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
 
 ---
 
@@ -238,7 +253,22 @@ Launch all applicable review aspect agents in a single message, passing:
 - Changed file contents
 - No preamble (Doc Context is empty in pre-PR mode)
 
-For each agent provide: full diff, filtered changed file contents. Collect findings and assign for each: `severity` (`critical`/`important`/`minor`), `filePath` (leading `/`, forward slashes), `startLine`, `endLine`, `title`, `body`. Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
+Each agent prompt **must** end with the same output contract used in ADO modes:
+
+```
+Return your findings as a JSON array. Each element must have exactly these six fields:
+- severity: "critical" | "important" | "minor"
+- filePath: string — leading /, forward slashes (e.g. /src/foo.ts)
+- startLine: integer — first line of the relevant range
+- endLine: integer — last line of the relevant range (same as startLine for single-line findings)
+- title: string — one line, ≤ 80 chars
+- body: string — one paragraph; the exact text to post as the comment
+
+Keep your reasoning, analysis, and supporting evidence inside your own context.
+Do not include code quotes, prose reasoning, or any text outside the JSON array in your return value.
+```
+
+Collect the JSON arrays returned by all agents. Deduplicate and sort by severity (`critical` first). Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
 
 ### Step E — Present findings
 
