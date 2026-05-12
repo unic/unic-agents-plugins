@@ -1,6 +1,6 @@
 # Extract `lib/config.mjs` with `DEFAULTS`, `loadConfig`, and tests
 
-**Status:** resolved
+**Status:** closed
 **Category:** refactor
 
 ## Parent

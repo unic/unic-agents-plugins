@@ -1,6 +1,6 @@
 # Update `format-hook.mjs` to use `lib/config.mjs`
 
-**Status:** resolved
+**Status:** closed
 **Category:** refactor
 
 ## Parent

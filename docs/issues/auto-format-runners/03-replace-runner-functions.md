@@ -1,6 +1,6 @@
 # Replace runner functions with descriptors in `format-hook.mjs`
 
-**Status:** resolved
+**Status:** closed
 **Category:** refactor
 
 ## Parent
