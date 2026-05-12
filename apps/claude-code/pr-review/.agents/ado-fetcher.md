@@ -235,6 +235,7 @@ ADO_FETCHER_RESULT_END
 ```
 
 Where:
+
 - `WORK_ITEM_IDS` is the JSON array from Step 5, e.g. `[42, 7]` or `[]`
 - `CHANGED_FILES` is the newline-separated list from Step 3, e.g. `edit: /src/api.ts`
 - `RAW_DIFF` is the full diff text from Step 4 (may be empty if no new commits)

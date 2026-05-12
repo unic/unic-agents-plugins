@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [1.0.0] — 2026-05-12
+
+### Breaking
+- (none)
+
+### Added
 - Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (~199 lines) that delegates ADO API calls and coordination logic to three focused agents
 - ADO Fetcher agent: handles all Azure DevOps REST API fetches (diff, threads, iterations) in a single dedicated context window
 - Re-review Coordinator agent: classifies prior bot threads, computes incremental diffs, and decides per-thread reply actions
