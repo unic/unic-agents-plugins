@@ -6,7 +6,12 @@
 - (none)
 
 ### Added
-- (none)
+- Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (~199 lines) that delegates ADO API calls and coordination logic to three focused agents
+- ADO Fetcher agent: handles all Azure DevOps REST API fetches (diff, threads, iterations) in a single dedicated context window
+- Re-review Coordinator agent: classifies prior bot threads, computes incremental diffs, and decides per-thread reply actions
+- ADO Writer agent: posts all inline thread comments and the summary comment back to ADO, keeping write operations isolated from analysis
+- Pre-PR mode: invoke `/pr-review:review-pr` without an ADO URL to review a local branch diff before the PR is created; findings are printed to the terminal instead of posted to ADO
+- Compact sub-agent output: all review-aspect agent prompts now include an explicit JSON output contract, keeping reasoning inside each agent's context window and returning only structured `{ severity, filePath, startLine, endLine, title, body }[]` arrays to the orchestrator
 
 ### Fixed
 - (none)
