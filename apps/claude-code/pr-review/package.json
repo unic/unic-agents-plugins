@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs tests/confluence-client.test.mjs tests/ado-fetcher.test.mjs tests/ado-writer.test.mjs",
+    "test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs tests/confluence-client.test.mjs tests/ado-fetcher.test.mjs tests/ado-writer.test.mjs tests/pre-pr.test.mjs",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",

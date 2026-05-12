@@ -186,9 +186,77 @@ Agent(
 
 ## Pre-PR mode
 
-> **Pre-PR mode is not yet implemented.** Re-run this command with an ADO PR URL to perform a full review.
+**Pre-PR mode active** — no PR URL provided. Reviewing local branch diff; no ADO calls will be made.
 
-Exit cleanly.
+### Step A — Detect default branch and compute diff
+
+```bash
+# Detect the default remote branch (main or develop)
+DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || echo "main")
+
+RAW_DIFF=$(git diff "origin/${DEFAULT_BRANCH}...HEAD")
+```
+
+If `git diff` fails (e.g. no upstream remote), inform the user and stop.
+
+### Step B — Parse changed files
+
+```bash
+PRE_PR_CONTEXT=$(
+  RAW_DIFF_STR="$RAW_DIFF" \
+  PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
+  node --input-type=module << 'EOJS'
+import { buildPrePrContext } from 'file://' + process.env.PLUGIN_R + '/scripts/pre-pr.mjs'
+const ctx = buildPrePrContext(process.env.RAW_DIFF_STR)
+process.stdout.write(JSON.stringify(ctx))
+EOJS
+)
+
+FILTERED_FILES=$(printf '%s' "$PRE_PR_CONTEXT" | node -e "
+const chunks = []
+process.stdin.on('data', c => chunks.push(c))
+process.stdin.on('end', () => {
+  const ctx = JSON.parse(Buffer.concat(chunks).toString())
+  process.stdout.write(ctx.filteredFiles.join('\n'))
+})")
+```
+
+Read the contents of each file in `FILTERED_FILES` (skip any that are deleted or unavailable).
+
+### Step C — Resolve aspect filter
+
+Parse `$ARGUMENTS` for aspect filter (`code`/`errors`/`tests`/`comments`/`types`/`all`); default `all`.
+Use the same selection logic as ADO modes: always run `pr-review-toolkit:code-reviewer` and `pr-review-toolkit:silent-failure-hunter`. Also run `pr-review-toolkit:pr-test-analyzer` if test files changed, `pr-review-toolkit:comment-analyzer` if docs/comments added, `pr-review-toolkit:type-design-analyzer` if new types introduced.
+
+### Step D — Run review aspect agents
+
+Doc Context is skipped (no PR URL means no work items to fetch).
+
+Launch all applicable review aspect agents in a single message, passing:
+
+- The raw diff (`RAW_DIFF`)
+- Changed file contents
+- No preamble (Doc Context is empty in pre-PR mode)
+
+For each agent provide: full diff, filtered changed file contents. Collect findings and assign for each: `severity` (`critical`/`important`/`minor`), `filePath` (leading `/`, forward slashes), `startLine`, `endLine`, `title`, `body`. Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
+
+### Step E — Present findings
+
+Present all findings directly in the Claude interface as a structured list — no ADO write-back occurs in pre-PR mode.
+
+For each finding print:
+
+```
+[{severity}] {filePath} L{startLine}–{endLine}
+{title}
+{body}
+```
+
+Group by severity: `critical` first, then `important`, then `minor`. Print a summary count at the end.
+
+If no findings, print: `✅ Pre-PR review complete — no issues found.`
+
+Otherwise, print: `✅ Pre-PR review complete — {N} finding(s). Open a PR to post these as inline ADO comments.`
 
 ---
 
