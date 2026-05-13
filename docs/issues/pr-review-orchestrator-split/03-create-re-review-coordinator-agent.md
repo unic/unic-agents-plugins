@@ -1,6 +1,6 @@
 # Create Re-review Coordinator agent
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

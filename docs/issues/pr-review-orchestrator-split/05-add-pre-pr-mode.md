@@ -1,6 +1,6 @@
 # Add Pre-PR mode
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent
@@ -21,13 +21,13 @@ No ADO credentials are required and no ADO calls are made in this mode. The pre-
 
 ## Acceptance criteria
 
-- [ ] Running the command without a URL enters Pre-PR mode with a console message confirming the mode
-- [ ] The diff used is the local branch diff against its upstream target
-- [ ] Review aspect agents receive the local diff and changed file contents
-- [ ] Findings are presented in the Claude interface with severity, file path, line range, title, and body
-- [ ] No ADO API calls are made in this mode
-- [ ] The aspect filter argument (e.g. `code`, `errors`, `all`) is respected in pre-PR mode
-- [ ] `pnpm test` passes; `pnpm format` produces no diff
+- [x] Running the command without a URL enters Pre-PR mode with a console message confirming the mode
+- [x] The diff used is the local branch diff against its upstream target
+- [x] Review aspect agents receive the local diff and changed file contents
+- [x] Findings are presented in the Claude interface with severity, file path, line range, title, and body
+- [x] No ADO API calls are made in this mode
+- [x] The aspect filter argument (e.g. `code`, `errors`, `all`) is respected in pre-PR mode
+- [x] `pnpm test` passes; `pnpm format` produces no diff
 
 ## Blocked by
 

@@ -1,6 +1,6 @@
 # Add compact sub-agent output guidance to the review-agent launch step
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 
 ## Parent

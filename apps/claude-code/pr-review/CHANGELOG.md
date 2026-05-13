@@ -11,6 +11,48 @@
 ### Fixed
 - (none)
 
+## [1.0.0] — 2026-05-12
+
+### Breaking
+- (none)
+
+### Added
+- Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (≤ 200 lines per PRD acceptance criterion) that delegates ADO API calls and coordination logic to three focused agents
+- ADO Fetcher agent: handles all Azure DevOps REST API fetches (diff, threads, iterations) in a single dedicated context window
+- Re-review Coordinator agent: classifies prior bot threads, computes incremental diffs, and decides per-thread reply actions
+- ADO Writer agent: posts all inline thread comments and the summary comment back to ADO, keeping write operations isolated from analysis
+- Pre-PR mode: invoke `/pr-review:review-pr` without an ADO URL to review a local branch diff before the PR is created; findings are printed to the terminal instead of posted to ADO
+- Compact sub-agent output: all review-aspect agent prompts now include an explicit JSON output contract, keeping reasoning inside each agent's context window and returning only structured `{ severity, filePath, startLine, endLine, title, body }[]` arrays to the orchestrator
+- New `scripts/re-review/parse-diff-hunks.mjs` helper module (with 7 unit tests) that parses raw `git diff` text into per-hunk `{ filePath, startLine, endLine }` entries — pure function, no I/O, slash-prefixed file paths.
+- New `scripts/mode-detection.mjs` helper that consolidates `Step 4` re-review detection and exports both `detectMode()` and `formatModeEnv()` used by the orchestrator.
+
+### Changed
+- Trim `commands/review-pr.md` from 297 lines to ≤ 200 lines to meet the PRD acceptance criterion: extracted mode-detection to a helper, factored the duplicated `MODE`/`SUMMARY_THREAD_ID` write-back into a single ADO Writer prompt, consolidated the compact finding schema into one shared block referenced by Step 6 and Pre-PR Step D, and tightened instructional prose. Realigned the compact-output guidance tests to assert against the shared schema block + each section's reference, removing fragile section-slice substring assertions.
+
+### Fixed
+- Convert static imports of helper modules to `await import(...)` in agent prompts — static `import` does not accept dynamic specifiers.
+- Port the re-review diff-hunk parser from a `python3` heredoc to a Node helper (`parse-diff-hunks.mjs`) in `re-review-coordinator.md` Step 1 — Windows-native CI and developer machines have no `python3`, breaking the cross-platform rule.
+- Replace bare `/tmp/` literals with `${TMPDIR:-/tmp}/` across `re-review-coordinator.md` (reply/patch/error files in Steps 6 and 7) and `ado-writer.md` (thread, fallback, summary, delta, completion files in Steps 1–4) so temp files honour the OS-configured temp directory.
+- Drop the `.json` suffix from `mktemp ".../re_review_hunks_XXXXXX"` / `re_review_prior_threads_XXXXXX` patterns — BSD `mktemp` on macOS rejects suffixes after the `X` template.
+- H1 — ADO Writer Step 1 no longer bumps `FINDINGS_POSTED` unconditionally after the threadContext fallback. The substring `"message"` heuristic is replaced by a structural check (exit code + numeric `id` parsed by Node); on confirmed failure the writer logs the captured stderr from the `*.err` file and continues to the next finding rather than miscounting a missing post as success.
+- H2 — ADO Writer Step 2 no longer swallows summary/delta POST failures. The summary POST and the re-review delta-reply POST now capture exit code + parsed numeric `id`; on failure the writer aborts with a non-zero exit and a clear stderr message, because the completion marker and the next re-review's detection both depend on a valid `SUMMARY_THREAD_ID` — silent failure here corrupts re-review state forever.
+- H3 — Orchestrator Step 4 no longer coerces `az repos pr thread list` failures to `[]`. The fetch is now captured separately; on non-zero exit the orchestrator emits a clear stderr error ("ERROR: failed to fetch PR threads via Azure CLI. Try `az devops login` to re-authenticate.") and exits `1`, preventing a fetch failure from being mistaken for "no prior threads" and triggering a duplicate-post storm on re-review.
+- H4 — Re-review Coordinator Step 3 partial-run check no longer conflates "marker missing" with "check crashed". The Node heredoc now wraps its body in try/catch and exits with distinct codes (`0` = found, `1` = not found, `2` = crash); the bash side branches on those codes and aborts the coordinator with exit `3` on a crash instead of silently downgrading to first-review mode and re-posting every prior thread.
+- H5 — ADO Fetcher Step 4 branch-checkout fallback is now an executable `||` chain instead of a literal shell comment. If `az repos pr checkout` fails, the agent now actually runs `git fetch origin "$SOURCE_BRANCH" && git checkout "$SOURCE_BRANCH"`, and aborts with a clear stderr error if both fail — previously the comment-form fallback never ran and the agent silently continued on the wrong branch.
+- Re-review Coordinator inline cross-references in Steps 2 and 3 pointed to a non-existent `Step 7 — Return result` section (the actual return-result heading is Step 8, after `Step 7 — Clean up`). Anchors now resolve and use the same numbering as the headings.
+- Re-review Coordinator Inputs section now states explicitly that `PRIOR_ITERATION_ID` is recomputed internally by `detect-prior-review` from `RAW_THREADS_JSON`; the orchestrator's own `PRIOR_ITERATION_ID` is not threaded in, preventing redundant input plumbing.
+- Re-review Coordinator no-prior-threads and partial-run branches no longer claim to "fall back to first-review mode" — the coordinator does not switch modes, it returns a result block with zero counts and `freshFindings = FINDINGS`, and the orchestrator does not change agent dispatch based on this. Prose corrected in Step 2, Step 3, and the two associated `echo` log lines.
+- Re-review Coordinator Step 6a now states up front that `{finding.filePath}` / `{finding.startLine}` / `{finding.endLine}` are prompt-template placeholders to be substituted by the agent for the current `FINDINGS` element, not bash variables.
+- ADO Writer Step 2's `MODE=re-review, zero new findings` branch now notes that Step 3 still posts the completion marker on every successful run, resolving the apparent contradiction with the "Do not post anything" line.
+- ADO Fetcher output documentation now flags `LATEST_COMMIT_SHA` as reserved for future diff-range debugging and unused by any current downstream agent (the diff-range logic that needed it is self-contained in Step 4) — prevents future contributors from threading it through new agents under the assumption it is consumed.
+- Orchestrator Step 6 prose no longer claims the review-aspect-agent prompts receive `PR_TITLE` and `PR_DESCRIPTION`. The Fetcher captures them for downstream use, but the orchestrator does not parse them, so the prose now reads "full diff and changed file contents" only — removing the contradiction with Step 5's parse list.
+- Pre-PR mode default-branch detection no longer silently leaves `DEFAULT_BRANCH` empty when `git remote show origin` produces no `HEAD branch:` line. The pipeline now filters empty awk output through `grep .` so the `|| echo "main"` fallback fires for real, instead of being short-circuited by a still-zero-exit awk.
+- `shouldSkipFile` now uses the lower-cased path for the `/generated/` directory check too, so capitalised `.NET`-style paths like `/Source/Generated/ApiClient.cs` are skipped consistently with the other rules.
+- `parseChangedFilesFromDiff` now splits the diff text on `/\r?\n/` (matching the sibling `parseDiffHunks` helper), so CRLF-formatted diffs from Windows Git no longer produce paths with a trailing `\r`.
+
+### Fixed
+- (none)
+
 ## [0.9.1] — 2026-05-08
 
 ### Breaking
