@@ -48,10 +48,10 @@ Every comment posted — inline or summary — **must** end with this trailer:
 
 For each finding in `FINDINGS`, post one new Inline Comment thread to ADO at the correct file path and line range.
 
-Use a unique temp file per comment (e.g. `/tmp/ado_writer_thread_1.json`, `_2.json`, etc.).
+Use a unique temp file per comment (e.g. `${TMPDIR:-/tmp}/ado_writer_thread_1.json`, `_2.json`, etc.).
 
 ```bash
-cat > /tmp/ado_writer_thread_N.json << 'ENDJSON'
+cat > "${TMPDIR:-/tmp}/ado_writer_thread_N.json" << 'ENDJSON'
 {
   "comments": [
     {
@@ -74,9 +74,9 @@ THREAD_RESPONSE=$(az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" \
   --org "${ORG_URL}" \
   --http-method POST \
-  --in-file /tmp/ado_writer_thread_N.json \
+  --in-file "${TMPDIR:-/tmp}/ado_writer_thread_N.json" \
   --api-version "7.1" \
-  --output json 2>/tmp/ado_writer_thread_N.err)
+  --output json 2>"${TMPDIR:-/tmp}/ado_writer_thread_N.err")
 THREAD_EXIT=$?
 ```
 
@@ -93,7 +93,7 @@ If the `az devops invoke` call fails (non-zero exit) or the response contains an
 
 ```bash
 if [ $THREAD_EXIT -ne 0 ] || echo "$THREAD_RESPONSE" | grep -qi '"message"'; then
-  cat > /tmp/ado_writer_thread_N_fallback.json << 'ENDJSON'
+  cat > "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" << 'ENDJSON'
   {
     "comments": [
       {
@@ -111,7 +111,7 @@ ENDJSON
     --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" \
     --org "${ORG_URL}" \
     --http-method POST \
-    --in-file /tmp/ado_writer_thread_N_fallback.json \
+    --in-file "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" \
     --api-version "7.1" \
     --output json)
 fi
@@ -137,7 +137,7 @@ Branch on `MODE` and the `SUMMARY_THREAD_ID` value.
 Post one general thread **without** `threadContext`:
 
 ```bash
-cat > /tmp/ado_writer_summary.json << 'ENDJSON'
+cat > "${TMPDIR:-/tmp}/ado_writer_summary.json" << 'ENDJSON'
 {
   "comments": [
     {
@@ -155,7 +155,7 @@ SUMMARY_RESPONSE=$(az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" \
   --org "${ORG_URL}" \
   --http-method POST \
-  --in-file /tmp/ado_writer_summary.json \
+  --in-file "${TMPDIR:-/tmp}/ado_writer_summary.json" \
   --api-version "7.1" \
   --output json)
 
@@ -206,7 +206,7 @@ If `FINDINGS_POSTED > 0`:
 Reply to the existing summary thread via `pullRequestThreadComments`:
 
 ```bash
-cat > /tmp/ado_writer_delta.json << 'ENDJSON'
+cat > "${TMPDIR:-/tmp}/ado_writer_delta.json" << 'ENDJSON'
 {
   "content": "🔄 Re-review delta — Iteration {LATEST_ITERATION_ID}\n\n{FINDINGS_POSTED} new finding(s).\n\n{BULLET_LIST_OF_NEW_FINDING_TITLES}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
   "commentType": 1
@@ -219,7 +219,7 @@ az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${SUMMARY_THREAD_ID}" \
   --org "${ORG_URL}" \
   --http-method POST \
-  --in-file /tmp/ado_writer_delta.json \
+  --in-file "${TMPDIR:-/tmp}/ado_writer_delta.json" \
   --api-version "7.1" \
   --output json | node -e "process.stdout.write('Delta reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 ```
@@ -242,7 +242,7 @@ After Step 2 completes, post one final reply to the summary thread. This is the 
 
 ```bash
 if [ -n "${SUMMARY_THREAD_ID}" ]; then
-  cat > /tmp/ado_writer_completion.json << 'ENDJSON'
+  cat > "${TMPDIR:-/tmp}/ado_writer_completion.json" << 'ENDJSON'
   {
     "content": "✅ Review complete — Iteration {LATEST_ITERATION_ID} ({FINDINGS_POSTED} findings posted)\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}",
     "commentType": 1
@@ -255,7 +255,7 @@ ENDJSON
     --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${SUMMARY_THREAD_ID}" \
     --org "${ORG_URL}" \
     --http-method POST \
-    --in-file /tmp/ado_writer_completion.json \
+    --in-file "${TMPDIR:-/tmp}/ado_writer_completion.json" \
     --api-version "7.1" \
     --output json | node -e "process.stdout.write('Completion marker posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 else
@@ -270,7 +270,7 @@ The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a p
 ## Step 4 — Clean up
 
 ```bash
-rm -f /tmp/ado_writer_thread_*.json /tmp/ado_writer_thread_*.err /tmp/ado_writer_summary.json /tmp/ado_writer_delta.json /tmp/ado_writer_completion.json
+rm -f "${TMPDIR:-/tmp}"/ado_writer_thread_*.json "${TMPDIR:-/tmp}"/ado_writer_thread_*.err "${TMPDIR:-/tmp}/ado_writer_summary.json" "${TMPDIR:-/tmp}/ado_writer_delta.json" "${TMPDIR:-/tmp}/ado_writer_completion.json"
 ```
 
 ---

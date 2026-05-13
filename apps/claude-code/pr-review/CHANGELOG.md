@@ -6,10 +6,13 @@
 - (none)
 
 ### Added
-- (none)
+- New `scripts/re-review/parse-diff-hunks.mjs` helper module (with 7 unit tests) that parses raw `git diff` text into per-hunk `{ filePath, startLine, endLine }` entries — pure function, no I/O, slash-prefixed file paths.
 
 ### Fixed
 - Convert static imports of helper modules to `await import(...)` in agent prompts — static `import` does not accept dynamic specifiers.
+- Port the re-review diff-hunk parser from a `python3` heredoc to a Node helper (`parse-diff-hunks.mjs`) in `re-review-coordinator.md` Step 1 — Windows-native CI and developer machines have no `python3`, breaking the cross-platform rule.
+- Replace bare `/tmp/` literals with `${TMPDIR:-/tmp}/` across `re-review-coordinator.md` (reply/patch/error files in Steps 6 and 7) and `ado-writer.md` (thread, fallback, summary, delta, completion files in Steps 1–4) so temp files honour the OS-configured temp directory.
+- Drop the `.json` suffix from `mktemp ".../re_review_hunks_XXXXXX"` / `re_review_prior_threads_XXXXXX` patterns — BSD `mktemp` on macOS rejects suffixes after the `X` template.
 
 ## [1.0.0] — 2026-05-12
 

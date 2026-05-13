@@ -43,30 +43,22 @@ SIGNATURE="🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}"
 Parse the raw diff text into a JSON array of `{ filePath, startLine, endLine }` objects. Store in a temp file.
 
 ```bash
-DIFF_HUNKS_FILE="$(mktemp "${TMPDIR:-/tmp}/re_review_hunks_XXXXXX.json")"
+DIFF_HUNKS_FILE="$(mktemp "${TMPDIR:-/tmp}/re_review_hunks_XXXXXX")"
 echo '[]' > "$DIFF_HUNKS_FILE"
 ```
 
-Parse hunk boundaries from `RAW_DIFF`:
+Parse hunk boundaries from `RAW_DIFF` via the Node helper `parse-diff-hunks.mjs` (cross-platform; no python3 dependency):
 
 ```bash
-printf '%s' "$RAW_DIFF" | python3 -c "
-import sys, json, re
-hunks = []
-current_file = None
-for line in sys.stdin:
-    m = re.match(r'^diff --git a/.* b/(.*)', line.rstrip())
-    if m:
-        current_file = '/' + m.group(1)
-        continue
-    m = re.match(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@', line)
-    if m and current_file:
-        start = int(m.group(1))
-        count = int(m.group(2)) if m.group(2) is not None else 1
-        end = start + max(count - 1, 0)
-        hunks.append({'filePath': current_file, 'startLine': start, 'endLine': end})
-print(json.dumps(hunks))
-" > "$DIFF_HUNKS_FILE"
+RAW_DIFF="$RAW_DIFF" \
+HUNKS_OUT_F="$DIFF_HUNKS_FILE" \
+PLUGIN_R="$PLUGIN_ROOT" \
+node --input-type=module << 'EOJS'
+import { writeFileSync } from 'node:fs'
+const { parseDiffHunks } = await import(`file://${process.env.PLUGIN_R}/scripts/re-review/parse-diff-hunks.mjs`)
+const hunks = parseDiffHunks(process.env.RAW_DIFF ?? '')
+writeFileSync(process.env.HUNKS_OUT_F, JSON.stringify(hunks))
+EOJS
 ```
 
 If `RAW_DIFF` is empty, `DIFF_HUNKS_FILE` remains `[]` — this is valid for a no-new-commits path.
@@ -78,7 +70,7 @@ If `RAW_DIFF` is empty, `DIFF_HUNKS_FILE` remains `[]` — this is valid for a n
 Call `detect-prior-review` on the raw threads JSON:
 
 ```bash
-PRIOR_THREADS_FILE="$(mktemp "${TMPDIR:-/tmp}/re_review_prior_threads_XXXXXX.json")"
+PRIOR_THREADS_FILE="$(mktemp "${TMPDIR:-/tmp}/re_review_prior_threads_XXXXXX")"
 
 DETECT_JSON=$(
   RAW_THREADS="$RAW_THREADS_JSON" \
@@ -302,7 +294,7 @@ Read the most recent bot comment from the matched thread (last comment whose con
 - If **new evidence** (additional analysis, different suggested fix, new code examples): post a new-evidence reply:
 
 ```bash
-cat > /tmp/re_review_reply_${THREAD_ID}.json << ENDJSON
+cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
 {
   "content": "{NEW_EVIDENCE_CONTENT}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
   "commentType": 1
@@ -315,7 +307,7 @@ az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
   --org "${ORG_URL}" \
   --http-method POST \
-  --in-file /tmp/re_review_reply_${THREAD_ID}.json \
+  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
   --api-version "7.1" \
   --output json | node -e "process.stdout.write('New-evidence reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 ```
@@ -325,7 +317,7 @@ az devops invoke \
 Briefly acknowledge the reviewer's perspective without re-asserting the finding. Always include the ADO nudge before the signature:
 
 ```bash
-cat > /tmp/re_review_reply_${THREAD_ID}.json << ENDJSON
+cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
 {
   "content": "{BRIEF_ACKNOWLEDGEMENT}\n\nIf you consider this resolved, please mark the thread as fixed in Azure DevOps.\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
   "commentType": 1
@@ -338,7 +330,7 @@ az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
   --org "${ORG_URL}" \
   --http-method POST \
-  --in-file /tmp/re_review_reply_${THREAD_ID}.json \
+  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
   --api-version "7.1" \
   --output json | node -e "process.stdout.write('Dispute acknowledgement posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 ```
@@ -347,7 +339,7 @@ az devops invoke \
 
 ```bash
 # 1. Post resolution reply
-cat > /tmp/re_review_reply_${THREAD_ID}.json << ENDJSON
+cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
 {
   "content": "Resolved as of Iteration ${LATEST_ITERATION_ID} — thanks!\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
   "commentType": 1
@@ -360,12 +352,12 @@ az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
   --org "${ORG_URL}" \
   --http-method POST \
-  --in-file /tmp/re_review_reply_${THREAD_ID}.json \
+  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
   --api-version "7.1" \
   --output json | node -e "process.stdout.write('Resolution reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 
 # 2. PATCH thread status to fixed (2)
-cat > /tmp/re_review_patch_${THREAD_ID}.json << ENDJSON
+cat > "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" << ENDJSON
 { "status": 2 }
 ENDJSON
 
@@ -375,15 +367,15 @@ az devops invoke \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
   --org "${ORG_URL}" \
   --http-method PATCH \
-  --in-file /tmp/re_review_patch_${THREAD_ID}.json \
+  --in-file "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" \
   --api-version "7.1" \
-  --output json 2>/tmp/re_review_patch_${THREAD_ID}.err | \
+  --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" | \
   node -e "
 try {
   const d = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'))
   process.stdout.write('Thread ' + d.id + ' patched to fixed')
 } catch (e) {
-  const err = require('fs').readFileSync('/tmp/re_review_patch_${THREAD_ID}.err', 'utf8')
+  const err = require('fs').readFileSync(\`\${process.env.TMPDIR || '/tmp'}/re_review_patch_${THREAD_ID}.err\`, 'utf8')
   if (err.includes('409') || err.toLowerCase().includes('conflict')) {
     process.stdout.write('409 Conflict — thread resolved concurrently. Continuing.')
   } else {
@@ -399,7 +391,7 @@ try {
 
 ```bash
 rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
-rm -f /tmp/re_review_reply_*.json /tmp/re_review_patch_*.json /tmp/re_review_patch_*.err
+rm -f "${TMPDIR:-/tmp}"/re_review_reply_*.json "${TMPDIR:-/tmp}"/re_review_patch_*.json "${TMPDIR:-/tmp}"/re_review_patch_*.err
 ```
 
 ---
