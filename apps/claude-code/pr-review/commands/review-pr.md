@@ -55,8 +55,10 @@ Run `az --version` and `az extension list | grep azure-devops`. If missing: `az 
 Fetch the thread list **once**; never re-fetch downstream.
 
 ```bash
-RAW_THREADS_JSON=$(az repos pr thread list \
-  --id "$PR_ID" --org "$ORG_URL" --output json 2>/dev/null) || RAW_THREADS_JSON="[]"
+PR_THREADS_ERR="${TMPDIR:-/tmp}/pr_threads.err"
+RAW_THREADS_JSON=$(az repos pr thread list --id "$PR_ID" --org "$ORG_URL" --output json 2>"$PR_THREADS_ERR") || {
+  echo "ERROR: failed to fetch PR threads via Azure CLI. Try \`az devops login\` to re-authenticate." >&2
+  cat "$PR_THREADS_ERR" >&2; exit 1; }
 
 eval "$(
   RAW_T="$RAW_THREADS_JSON" SIG_P="🤖 *Reviewed by Claude Code*" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
@@ -70,11 +72,11 @@ EOJS
 echo "Mode detected: $MODE"
 ```
 
-After this block: `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, and `SUMMARY_THREAD_ID` are set.
+Sets `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`.
 
 ## Step 5 — ADO Fetcher
 
-Launch the ADO Fetcher agent and **wait for its result** before launching anything else (the PRD requires the Fetcher to complete before the Doc Context Orchestrator and review aspect agents run).
+Launch the ADO Fetcher agent and **wait for its result** before anything else (the PRD requires the Fetcher to complete before downstream agents run).
 
 ```txt
 Agent(
@@ -112,9 +114,7 @@ Agent(
 )
 ```
 
-**Review aspect agents** — apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) above. For each selected agent, pass: PR title + description, full diff, and changed file contents. Every prompt **must** end with the [compact finding schema](#compact-finding-schema) block verbatim.
-
-Collect the JSON arrays returned by all agents. Deduplicate and sort by severity (`critical` first). Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
+**Review aspect agents** — apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) above. For each selected agent, pass: PR title + description, full diff, and changed file contents. Every prompt **must** end with the [compact finding schema](#compact-finding-schema) block verbatim. Collect returned JSON arrays, deduplicate, sort by severity (`critical` first); assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
 
 ## Step 7 — Write-back (branch on mode)
 

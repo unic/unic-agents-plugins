@@ -129,8 +129,9 @@ git branch --show-current
 If it does not match, check out the PR branch:
 
 ```bash
-az repos pr checkout --id "$PR_ID" --org "$ORG_URL"
-# fallback: git fetch origin "$SOURCE_BRANCH" && git checkout "$SOURCE_BRANCH"
+az repos pr checkout --id "$PR_ID" --org "$ORG_URL" \
+  || (git fetch origin "$SOURCE_BRANCH" && git checkout "$SOURCE_BRANCH") \
+  || { echo "ERROR: could not check out PR source branch $SOURCE_BRANCH" >&2; exit 1; }
 ```
 
 If `PRIOR_ITERATION_ID` is non-empty, determine the incremental diff range. Fetch the prior iteration's commit SHA from the iterations list:

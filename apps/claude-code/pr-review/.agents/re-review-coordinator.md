@@ -116,24 +116,40 @@ fi
 
 If `IS_REREVIEW=true`, `SUMMARY_THREAD_ID` is non-empty, and `PRIOR_ITERATION_ID` is not `"null"`, verify the prior review completed. Check the summary thread for the completion marker `✅ Review complete — Iteration {PRIOR_ITERATION_ID}`:
 
+The Node check distinguishes three outcomes via distinct exit codes — this prevents conflating "marker missing" (legitimate partial prior run; downgrade is correct) with "check crashed" (silent downgrade would re-post every prior thread):
+
+- exit `0` → marker found → `MARKER_FOUND=true` (proceed normally)
+- exit `1` → marker not found → `MARKER_FOUND=false` (legitimate partial run; downgrade to first-review mode)
+- exit `2` or any other non-zero → the check itself crashed → **abort the coordinator with exit code 3** (do not silently downgrade)
+
+The orchestrator's Step 7 only treats an `earlyExit: true` block as a non-fatal skip; a non-zero coordinator exit propagates as a fatal failure that surfaces to the user and stops the run — which is the correct behaviour when the partial-run check is itself broken.
+
 ```bash
 if [ "$IS_REREVIEW" = "true" ] && [ -n "$SUMMARY_THREAD_ID" ] && [ "$PRIOR_ITERATION_ID" != "null" ]; then
-  MARKER_FOUND=$(
-    THREADS_F="$PRIOR_THREADS_FILE" SID="$SUMMARY_THREAD_ID" PID="$PRIOR_ITERATION_ID" \
-    node --input-type=module << 'EOJS'
+  THREADS_F="$PRIOR_THREADS_FILE" SID="$SUMMARY_THREAD_ID" PID="$PRIOR_ITERATION_ID" \
+  node --input-type=module << 'EOJS'
 import { readFileSync } from 'node:fs'
-const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
-const sid = Number(process.env.SID)
-const prefix = '✅ Review complete — Iteration ' + process.env.PID
-const found = threads.some(t => t.threadId === sid && (t.comments ?? []).some(c => (c.content ?? '').startsWith(prefix)))
-console.log(found ? 'true' : 'false')
+try {
+  const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
+  const sid = Number(process.env.SID)
+  const prefix = '✅ Review complete — Iteration ' + process.env.PID
+  const found = threads.some(t => t.threadId === sid && (t.comments ?? []).some(c => (c.content ?? '').startsWith(prefix)))
+  process.exit(found ? 0 : 1)
+} catch (e) {
+  process.stderr.write('PARTIAL_RUN_CHECK_ERROR: ' + e.message + '\n')
+  process.exit(2)
+}
 EOJS
-  ) || { echo "ERROR: partial-run check failed — falling back to first-review mode."; MARKER_FOUND="false"; }
+  PARTIAL_RUN_EXIT=$?
 
-  if [ "$MARKER_FOUND" != "true" ] && [ "$MARKER_FOUND" != "false" ]; then
-    echo "ERROR: unexpected MARKER_FOUND value '${MARKER_FOUND}' — falling back to first-review mode."
-    MARKER_FOUND="false"
-  fi
+  case "$PARTIAL_RUN_EXIT" in
+    0) MARKER_FOUND="true" ;;
+    1) MARKER_FOUND="false" ;;
+    *)
+      echo "ERROR: partial-run check crashed unexpectedly (exit ${PARTIAL_RUN_EXIT}); refusing to silently downgrade mode." >&2
+      exit 3
+      ;;
+  esac
 
   if [ "$MARKER_FOUND" = "false" ]; then
     echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."

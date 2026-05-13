@@ -89,10 +89,11 @@ Map severity to emoji before writing the content:
 
 ### threadContext rejection fallback
 
-If the `az devops invoke` call fails (non-zero exit) or the response contains an error related to `threadContext` (file not in diff, invalid path), **retry without `threadContext`** to post as a general comment:
+Decide whether the primary POST succeeded by parsing the response structurally — exit code zero **and** the response JSON contains a numeric `id`. The old substring `"message"` heuristic produced false positives on any error-shaped response and false negatives when an `id` field appeared alongside a benign `message`. If the structural check fails, **retry without `threadContext`** to post as a general comment:
 
 ```bash
-if [ $THREAD_EXIT -ne 0 ] || echo "$THREAD_RESPONSE" | grep -qi '"message"'; then
+THREAD_ID=$(printf '%s' "$THREAD_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
+if [ $THREAD_EXIT -ne 0 ] || [ -z "$THREAD_ID" ]; then
   cat > "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" << 'ENDJSON'
   {
     "comments": [
@@ -113,15 +114,25 @@ ENDJSON
     --http-method POST \
     --in-file "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" \
     --api-version "7.1" \
-    --output json)
+    --output json 2>"${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err")
+  FALLBACK_EXIT=$?
+  THREAD_ID=$(printf '%s' "$THREAD_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
 fi
 ```
 
-After each successful post (primary or fallback):
+**Only increment `FINDINGS_POSTED` after confirming the response contains a numeric `id`.** On confirmed failure (no numeric `id` after the fallback), emit a clear stderr message with the captured `*.err` payload and **continue to the next finding** — losing one comment is recoverable; aborting the writer loses every remaining comment.
 
 ```bash
-FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
-echo "Thread posted: $(echo "$THREAD_RESPONSE" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))")"
+if [ -n "$THREAD_ID" ]; then
+  FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
+  echo "Thread posted: $THREAD_ID"
+else
+  {
+    echo "WARN: failed to post inline thread for finding N — continuing with remaining findings."
+    [ -s "${TMPDIR:-/tmp}/ado_writer_thread_N.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_thread_N.err"
+    [ -s "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err"
+  } >&2
+fi
 ```
 
 ---
@@ -157,9 +168,17 @@ SUMMARY_RESPONSE=$(az devops invoke \
   --http-method POST \
   --in-file "${TMPDIR:-/tmp}/ado_writer_summary.json" \
   --api-version "7.1" \
-  --output json)
+  --output json 2>"${TMPDIR:-/tmp}/ado_writer_summary.err")
+SUMMARY_EXIT=$?
 
-SUMMARY_THREAD_ID=$(echo "$SUMMARY_RESPONSE" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))")
+SUMMARY_THREAD_ID=$(printf '%s' "$SUMMARY_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
+
+if [ $SUMMARY_EXIT -ne 0 ] || [ -z "$SUMMARY_THREAD_ID" ]; then
+  echo "ERROR: failed to post review summary; aborting writer. The completion marker depends on a valid SUMMARY_THREAD_ID, and the next re-review depends on it being detectable — silently continuing here would corrupt re-review state forever." >&2
+  echo "ADO response: $SUMMARY_RESPONSE" >&2
+  [ -s "${TMPDIR:-/tmp}/ado_writer_summary.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_summary.err" >&2
+  exit 1
+fi
 echo "Summary thread posted: ${SUMMARY_THREAD_ID}"
 ```
 
@@ -213,7 +232,7 @@ cat > "${TMPDIR:-/tmp}/ado_writer_delta.json" << 'ENDJSON'
 }
 ENDJSON
 
-az devops invoke \
+DELTA_RESPONSE=$(az devops invoke \
   --area git \
   --resource pullRequestThreadComments \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${SUMMARY_THREAD_ID}" \
@@ -221,7 +240,16 @@ az devops invoke \
   --http-method POST \
   --in-file "${TMPDIR:-/tmp}/ado_writer_delta.json" \
   --api-version "7.1" \
-  --output json | node -e "process.stdout.write('Delta reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
+  --output json 2>"${TMPDIR:-/tmp}/ado_writer_delta.err")
+DELTA_EXIT=$?
+DELTA_COMMENT_ID=$(printf '%s' "$DELTA_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
+if [ $DELTA_EXIT -ne 0 ] || [ -z "$DELTA_COMMENT_ID" ]; then
+  echo "ERROR: failed to post delta reply to summary thread ${SUMMARY_THREAD_ID}; aborting writer. The completion marker depends on this thread being detectable on the next re-review." >&2
+  echo "ADO response: $DELTA_RESPONSE" >&2
+  [ -s "${TMPDIR:-/tmp}/ado_writer_delta.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_delta.err" >&2
+  exit 1
+fi
+echo "Delta reply posted, comment ${DELTA_COMMENT_ID}"
 ```
 
 `{BULLET_LIST_OF_NEW_FINDING_TITLES}` — one bullet per finding posted in Step 1, format:
@@ -270,7 +298,7 @@ The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a p
 ## Step 4 — Clean up
 
 ```bash
-rm -f "${TMPDIR:-/tmp}"/ado_writer_thread_*.json "${TMPDIR:-/tmp}"/ado_writer_thread_*.err "${TMPDIR:-/tmp}/ado_writer_summary.json" "${TMPDIR:-/tmp}/ado_writer_delta.json" "${TMPDIR:-/tmp}/ado_writer_completion.json"
+rm -f "${TMPDIR:-/tmp}"/ado_writer_thread_*.json "${TMPDIR:-/tmp}"/ado_writer_thread_*.err "${TMPDIR:-/tmp}/ado_writer_summary.json" "${TMPDIR:-/tmp}/ado_writer_summary.err" "${TMPDIR:-/tmp}/ado_writer_delta.json" "${TMPDIR:-/tmp}/ado_writer_delta.err" "${TMPDIR:-/tmp}/ado_writer_completion.json"
 ```
 
 ---
