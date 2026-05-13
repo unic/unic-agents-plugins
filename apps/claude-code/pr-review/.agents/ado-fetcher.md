@@ -240,5 +240,6 @@ Where:
 - `WORK_ITEM_IDS` is the JSON array from Step 5, e.g. `[42, 7]` or `[]`
 - `CHANGED_FILES` is the newline-separated list from Step 3, e.g. `edit: /src/api.ts`
 - `RAW_DIFF` is the full diff text from Step 4 (may be empty if no new commits)
+- `LATEST_COMMIT_SHA` is the latest source-branch commit SHA captured in Step 2; reserved for future diff-range debugging and not consumed by any current downstream agent — the diff-range logic that needed it is now self-contained in Step 4 above.
 
 **Never add any ADO write operations (POST, PATCH, DELETE) to this agent.**

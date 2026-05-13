@@ -212,7 +212,7 @@ If `FINDINGS_POSTED=0` (no new findings were posted in Step 1):
 echo "Re-review: no new findings — skipping summary reply."
 ```
 
-Do not post anything. `SUMMARY_THREAD_ID` remains as provided.
+Do not post anything in Step 2. `SUMMARY_THREAD_ID` remains as provided. Step 3 still posts the completion marker on every successful run, even when zero inline findings were posted.
 
 ---
 

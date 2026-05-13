@@ -27,6 +27,8 @@ You receive:
 - `SIGNATURE_PREFIX` — always `🤖 *Reviewed by Claude Code*`
 - `PLUGIN_ROOT` — absolute path to this plugin's directory (for Node.js helper scripts)
 
+`PRIOR_ITERATION_ID` is recomputed internally from `RAW_THREADS_JSON` by `detect-prior-review` (Step 2); the orchestrator's own `PRIOR_ITERATION_ID` is not passed in.
+
 ---
 
 ## Constants
@@ -98,7 +100,7 @@ SUMMARY_THREAD_ID=$(printf '%s' "$DETECT_JSON" | node -e "process.stdout.write(S
 PRIOR_ITERATION_ID=$(printf '%s' "$DETECT_JSON" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.priorIterationId != null ? String(d.priorIterationId) : 'null')")
 ```
 
-If `IS_REREVIEW=false`: no prior bot threads found. Fall back to first-review mode — skip to [Step 7 — Return result](#step-7--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `earlyExit: false`.
+If `IS_REREVIEW=false`: no prior bot threads found — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `earlyExit: false`. (The coordinator does not switch modes; the orchestrator does not change agent dispatch based on this branch.)
 
 Log:
 
@@ -106,7 +108,7 @@ Log:
 if [ "$IS_REREVIEW" = "true" ]; then
   echo "Detected $BOT_THREAD_COUNT prior bot threads — re-review mode."
 else
-  echo "No prior bot threads detected — first-review mode. Returning all findings as fresh."
+  echo "No prior bot threads detected — returning all findings as fresh; no classification or replies."
 fi
 ```
 
@@ -119,7 +121,7 @@ If `IS_REREVIEW=true`, `SUMMARY_THREAD_ID` is non-empty, and `PRIOR_ITERATION_ID
 The Node check distinguishes three outcomes via distinct exit codes — this prevents conflating "marker missing" (legitimate partial prior run; downgrade is correct) with "check crashed" (silent downgrade would re-post every prior thread):
 
 - exit `0` → marker found → `MARKER_FOUND=true` (proceed normally)
-- exit `1` → marker not found → `MARKER_FOUND=false` (legitimate partial run; downgrade to first-review mode)
+- exit `1` → marker not found → `MARKER_FOUND=false` (legitimate partial run; treat prior threads as absent — all findings will be returned as fresh)
 - exit `2` or any other non-zero → the check itself crashed → **abort the coordinator with exit code 3** (do not silently downgrade)
 
 The orchestrator's Step 7 only treats an `earlyExit: true` block as a non-fatal skip; a non-zero coordinator exit propagates as a fatal failure that surfaces to the user and stops the run — which is the correct behaviour when the partial-run check is itself broken.
@@ -152,7 +154,7 @@ EOJS
   esac
 
   if [ "$MARKER_FOUND" = "false" ]; then
-    echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run. Falling back to first-review mode."
+    echo "No completion marker for Iteration $PRIOR_ITERATION_ID — partial prior run; treating prior threads as absent and returning all findings as fresh."
     IS_REREVIEW=false
     SUMMARY_THREAD_ID=""
     PRIOR_ITERATION_ID="null"
@@ -160,7 +162,7 @@ EOJS
 fi
 ```
 
-If `IS_REREVIEW` is now `false` after the partial-run check: skip to [Step 7 — Return result](#step-7--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `earlyExit: false`.
+If `IS_REREVIEW` is now `false` after the partial-run check: no prior bot threads remain valid — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `earlyExit: false`.
 
 ---
 
@@ -263,6 +265,8 @@ FRESH_FINDINGS_JSON='[]'
 Process each finding one at a time. For each finding:
 
 ### 6a — Find matching prior thread
+
+Substitute the `{finding.x}` placeholders below with concrete values from the current `FINDINGS` array element — these are prompt-template tokens, not shell variables.
 
 ```bash
 MATCH=$(

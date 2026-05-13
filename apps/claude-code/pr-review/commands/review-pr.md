@@ -114,7 +114,7 @@ Agent(
 )
 ```
 
-**Review aspect agents** — apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) above. For each selected agent, pass: PR title + description, full diff, and changed file contents. Every prompt **must** end with the [compact finding schema](#compact-finding-schema) block verbatim. Collect returned JSON arrays, deduplicate, sort by severity (`critical` first); assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
+**Review aspect agents** — apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) above. For each selected agent, pass the full diff and changed file contents (the Fetcher captures PR title and description for downstream use only; they are not parsed by the orchestrator). Every prompt **must** end with the [compact finding schema](#compact-finding-schema) block verbatim. Collect returned JSON arrays, deduplicate, sort by severity (`critical` first); assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
 
 ## Step 7 — Write-back (branch on mode)
 
