@@ -1,0 +1,37 @@
+# A4. `DIFF_RANGE` sentinel + ADR-0004 amendment
+
+**Status:** needs-triage
+**Category:** enhancement
+**Plugin:** `apps/claude-code/pr-review`
+**Type:** AFK
+
+## Parent
+
+`docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
+
+## What to build
+
+Emit the `DIFF_RANGE` sentinel and the corresponding Notice when the Fetcher's existing diff-range fallback fires, and amend ADR 0004 in-place with the γ-downgrade rule that PRD B's Coordinator will consume.
+
+Implementation cuts through every layer:
+
+- **ADO Fetcher prompt** — Step 4 (raw diff) updated to emit `DIFF_RANGE: full | incremental` as a new field in the `ADO_FETCHER_RESULT_START/END` block. The value reflects which diff range was actually computed: `incremental` when the prior iteration's commit was reachable and the diff ran against `${PRIOR_COMMIT_SHA}..${LATEST_COMMIT_SHA}`; `full` when any fallback fired and the diff ran against `origin/${TARGET_BRANCH}...HEAD`. When `full`, the prompt also appends a DEGRADED Notice (`kind: diff-range`, message: "Incremental diff unavailable — Coordinator will classify against the full PR diff with conservative downgrades.") to the Fetcher's `NOTICES` array.
+- **Orchestrator** — parses the new `DIFF_RANGE` field alongside the other Fetcher result fields. PRD A does not yet consume the value; PRD B (issue B3) will.
+- **ADR 0004 amendment** — `apps/claude-code/pr-review/docs/adr/0004-incremental-diff-baseline.md` gets a new "Degraded baseline" subsection (in-place, not a separate ADR) documenting the rule: when `DIFF_RANGE=full`, the Coordinator MAY classify against the full diff but MUST downgrade `addressed` / `obsolete` outputs to `pending` and emit a DEGRADED Notice. Status of ADR 0004 stays `Accepted`; the amendment is additive.
+- **CHANGELOG** — `[Unreleased]` Changed entry for the Fetcher result-block extension; Fixed entry for the diff-range fallback no longer being silent.
+
+End-to-end demoable: invoke `/pr-review:review-pr` against a PR where the prior iteration's commit has been force-pushed away (so the Fetcher's `git fetch origin "$PRIOR_COMMIT_SHA"` fails). The Summary opens with `⚠ diff-range: Incremental diff unavailable — Coordinator will classify against the full PR diff with conservative downgrades.` The Trailer reports `· 1 warning notice`. (Without PRD B's B3 landed, the Coordinator does not yet downgrade — that's B3's verification surface.)
+
+## Acceptance criteria
+
+- [ ] `ADO_FETCHER_RESULT_START/END` block emits a `DIFF_RANGE: full | incremental` field.
+- [ ] When the diff-range fallback fires, the Fetcher's `NOTICES` array contains a `warning`-severity entry with `kind: diff-range`.
+- [ ] When the incremental diff succeeds, `DIFF_RANGE=incremental` and no diff-range Notice is emitted.
+- [ ] Orchestrator parses the new field (does not yet consume it — PRD B will).
+- [ ] ADR 0004 has the "Degraded baseline" subsection appended in-place.
+- [ ] `commands/review-pr.md` is ≤ 200 lines.
+- [ ] `pnpm format`, `pnpm check`, `pnpm --filter pr-review test`, `pnpm --filter pr-review verify:changelog` all pass.
+
+## Blocked by
+
+`docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`

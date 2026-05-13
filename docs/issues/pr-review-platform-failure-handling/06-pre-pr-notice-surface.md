@@ -1,0 +1,40 @@
+# B6. Pre-PR Notice surface: suspicious-shape Notice + Gitflow-aware default-branch fallback
+
+**Status:** needs-triage
+**Category:** enhancement
+**Plugin:** `apps/claude-code/pr-review`
+**Type:** AFK
+
+## Parent
+
+`docs/issues/pr-review-platform-failure-handling/PRD.md`
+
+## What to build
+
+Give Pre-PR mode the same Notice surface as ADO modes. Detect malformed diff inputs. Replace the hardcoded `main` fallback with a Gitflow-aware fallback chain.
+
+Implementation cuts through two helpers and the orchestrator's Pre-PR steps:
+
+- **`scripts/pre-pr.mjs` (`buildPrePrContext` + `parseChangedFilesFromDiff`)** — return shape of `buildPrePrContext` extended to `{ rawDiff, changedFiles, filteredFiles, notices: Notice[] }`. `parseChangedFilesFromDiff` detects suspicious shape: non-empty input that contains ≥ 1 `diff --git` header but produces zero parsed paths. When detected, `buildPrePrContext` pushes a DEGRADED Notice (`kind: diff-parse`, message: "Pre-PR diff parsed to zero files but contained diff headers — input may be malformed.") to the returned `notices` array. Existing test file extended with cases covering the suspicious-shape detection.
+- **New helper** `scripts/pre-pr/detect-default-branch.mjs` — pure function `({ branchExists }) → { branch: string | null, source: 'remote-show' | 'develop-fallback' | 'main-fallback' | 'master-fallback' | 'none', notice?: Notice }`. The function tries (in order): the value from `git remote show origin HEAD branch` if non-empty; then `origin/develop`; then `origin/main`; then `origin/master`. Returns `{ branch: null, source: 'none' }` when nothing exists. Emits a `warning` Notice (`kind: default-branch`, message: `"Default branch not detected via remote-show; computed diff against origin/<branch> (<source>)."`) when any fallback level fires. With unit tests covering each branch.
+- **`commands/review-pr.md` (Pre-PR Step A)** — wires `detect-default-branch.mjs` via the same `await import(...)` pattern as other helpers. The bash side passes an injected `branchExists(name)` implementation that runs `git rev-parse --verify --quiet "refs/remotes/origin/$name"`. On `branch: null`, the orchestrator emits a stderr message and prints the Trailer aborted line; on any fallback level, the Notice is pushed into the Pre-PR `notices` array.
+- **`commands/review-pr.md` (Pre-PR Step B + E)** — Step B uses `buildPrePrContext().notices` and merges them with the default-branch Notice. Step E prints all Notices before findings (per PRD A's pre-PR contract), then the findings, then the Trailer line (which already includes notice counts).
+- **CHANGELOG** — `[Unreleased]` Added entry for `detect-default-branch.mjs`; Changed entry for `buildPrePrContext` return shape; Fixed entries for the suspicious-shape detection and the Gitflow-aware fallback.
+
+End-to-end demoable: run `/pr-review:review-pr` (no URL) in a Gitflow project where `origin/develop` exists but the local `git remote show origin` is offline (e.g. break the remote). The Claude interface prints `⚠ default-branch: Default branch not detected via remote-show; computed diff against origin/develop (develop-fallback).` then the findings, then the Trailer. Repeat in a trunk-only project (no develop branch) → fallback message names `main`. Repeat in a project with no `develop`, `main`, or `master` → `❌ Review aborted: default-branch — No detectable default branch on origin (tried develop, main, master). Specify a base manually.`
+
+## Acceptance criteria
+
+- [ ] `buildPrePrContext` returns a `notices: Notice[]` field.
+- [ ] `parseChangedFilesFromDiff` suspicious-shape detection emits a DEGRADED Notice (`kind: diff-parse`) via `buildPrePrContext`.
+- [ ] `scripts/pre-pr/detect-default-branch.mjs` exists with full unit-test coverage (≥ 6 cases).
+- [ ] The fallback chain order is `remote-show` → `origin/develop` → `origin/main` → `origin/master` → `none`.
+- [ ] Any fallback level fires a `warning` Notice (`kind: default-branch`) that names the actually-used branch.
+- [ ] `none` aborts the run with a clear stderr message and a Trailer aborted line.
+- [ ] Pre-PR mode prints all Notices before findings.
+- [ ] `commands/review-pr.md` is ≤ 200 lines.
+- [ ] `pnpm format`, `pnpm check`, `pnpm --filter pr-review test`, `pnpm --filter pr-review verify:changelog` all pass.
+
+## Blocked by
+
+`docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`

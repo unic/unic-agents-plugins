@@ -1,0 +1,40 @@
+# B5. Coordinator PATCH-to-fixed routed through `parse-write-response`
+
+**Status:** needs-triage
+**Category:** enhancement
+**Plugin:** `apps/claude-code/pr-review`
+**Type:** AFK
+
+## Parent
+
+`docs/issues/pr-review-platform-failure-handling/PRD.md`
+
+## What to build
+
+Apply the canonical HTTP-tier mapping to the Re-review Coordinator's PATCH-to-fixed call site, replacing the existing 409-only catch-all with the same uniform error handling every other ADO write surface now uses.
+
+Implementation cuts through every layer:
+
+- **Re-review Coordinator prompt** — Step 5's PATCH-to-fixed call site (where the Coordinator marks an `addressed` thread as fixed by PATCHing its `status`) is refactored to capture exit code, response body, and stderr, then route them through `parse-write-response.mjs` (from B1).
+- **Tier handling for PATCH-to-fixed:**
+  - `ok: true` → thread successfully marked fixed; continue.
+  - `ok: false, tier: 'aborted'` (401/403) → emit stderr message and exit the Coordinator non-zero. The orchestrator surfaces the abort in the Trailer.
+  - `ok: false, tier: 'degraded'` (5xx/network/other-4xx) → push a per-thread Notice (`kind: patch-to-fixed`, message: "Could not mark thread <threadId> as fixed (HTTP <status>). Thread remains active and will be re-evaluated on next re-review.") to the Coordinator's `NOTICES` array, continue to the next thread.
+- **Special-cases preserved by the canonical mapping** — 404 (thread deleted) and 409 (state already changed) both map to `ok: true` in `classify-http-error`, so the Coordinator continues silently for those, matching today's behaviour and the user's intent.
+- **CHANGELOG** — `[Unreleased]` Changed entry for the Coordinator's PATCH-to-fixed call site; Fixed entry covering the silent-failure auth gap (401/403 used to be a "PATCH warning" string on stdout that nothing read).
+
+End-to-end demoable: run a re-review against a PR whose threads include at least one `addressed` candidate, while the local `az devops login` is revoked. The Claude interface ends with `❌ Review aborted: auth — Could not mark thread N as fixed (HTTP 401). Try \`az devops login\` to re-authenticate.`Restore auth and simulate a 5xx (e.g. throttling), and the Summary renders`## Notices`with`⚠ patch-to-fixed: Could not mark thread N as fixed (HTTP 503). Thread remains active and will be re-evaluated on next re-review.` plus a passing re-review.
+
+## Acceptance criteria
+
+- [ ] Coordinator's PATCH-to-fixed call routes through `parse-write-response.mjs`.
+- [ ] 401 or 403 from any PATCH-to-fixed aborts the Coordinator with a clear stderr message; the orchestrator's Trailer line reads `❌ Review aborted: auth — ...`.
+- [ ] 5xx / network / other-4xx from any PATCH-to-fixed emits a per-thread DEGRADED Notice; the Coordinator continues to the next thread.
+- [ ] 404 and 409 continue silently (canonical OK tier).
+- [ ] The old 409-only catch-all is removed from the Coordinator prompt.
+- [ ] `commands/review-pr.md` is ≤ 200 lines.
+- [ ] `pnpm format`, `pnpm check`, `pnpm --filter pr-review test`, `pnpm --filter pr-review verify:changelog` all pass.
+
+## Blocked by
+
+`docs/issues/pr-review-platform-failure-handling/01-writer-http-tier-mapping.md`
