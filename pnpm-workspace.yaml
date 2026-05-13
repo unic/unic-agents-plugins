@@ -24,4 +24,13 @@ strictDepBuilds: true
 
 trustPolicy: no-downgrade
 
-useNodeVersion: 24.15.0
+supportedArchitectures:
+  os:
+    - current
+    - linux
+    - darwin
+    - win32
+  cpu:
+    - current
+    - x64
+    - arm64
