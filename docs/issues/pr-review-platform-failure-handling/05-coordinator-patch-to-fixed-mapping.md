@@ -23,7 +23,7 @@ Implementation cuts through every layer:
 - **Special-cases preserved by the canonical mapping** — 404 (thread deleted) and 409 (state already changed) both map to `ok: true` in `classify-http-error`, so the Coordinator continues silently for those, matching today's behaviour and the user's intent.
 - **CHANGELOG** — `[Unreleased]` Changed entry for the Coordinator's PATCH-to-fixed call site; Fixed entry covering the silent-failure auth gap (401/403 used to be a "PATCH warning" string on stdout that nothing read).
 
-End-to-end demoable: run a re-review against a PR whose threads include at least one `addressed` candidate, while the local `az devops login` is revoked. The Claude interface ends with `❌ Review aborted: auth — Could not mark thread N as fixed (HTTP 401). Try \`az devops login\` to re-authenticate.`Restore auth and simulate a 5xx (e.g. throttling), and the Summary renders`## Notices`with`⚠ patch-to-fixed: Could not mark thread N as fixed (HTTP 503). Thread remains active and will be re-evaluated on next re-review.` plus a passing re-review.
+End-to-end demoable: run a re-review against a PR whose threads include at least one `addressed` candidate, while the local `az devops login` is revoked. The Claude interface ends with the Trailer aborted line naming the auth failure ("Could not mark thread N as fixed (HTTP 401). Try `az devops login` to re-authenticate."). Restore auth and simulate a 5xx (e.g. throttling), and the Summary's `## Notices` block contains an entry like "⚠ patch-to-fixed: Could not mark thread N as fixed (HTTP 503). Thread remains active and will be re-evaluated on next re-review." — and the rest of the re-review completes normally.
 
 ## Acceptance criteria
 
