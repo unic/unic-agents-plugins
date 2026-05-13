@@ -49,7 +49,7 @@ All shared helpers (`scripts/ado/classify-http-error.mjs`, `scripts/ado/notices.
 ### New helpers
 
 - **`scripts/ado/parse-write-response.mjs`** — pure function composing PRD A's `classify-http-error` with response-`id` parsing. Returns `{ ok: true, id } | { ok: false, tier, kind, message }`. Consumed by every ADO write call site (inline POST, threadContext fallback, summary POST, delta reply, completion marker, PATCH-to-fixed). One shape, one classifier.
-- **`scripts/pre-pr/detect-default-branch.mjs`** — pure function over an injectable `branchExists(name) → bool` tester. Walks the fallback chain `git remote show origin HEAD` → `origin/develop` → `origin/main` → `origin/master` → `{ branch: null }`. Returns `{ branch, source: 'remote-show' | 'develop-fallback' | 'main-fallback' | 'master-fallback' | 'none', notice?: Notice }`. The bash side wires the tester to `git rev-parse --verify --quiet`. ABORTED when all four fail.
+- **`scripts/pre-pr/detect-default-branch.mjs`** — pure function over an injectable `branchExists(name) → bool` tester and a `remoteHeadBranch` argument (a string parsed by the bash side from the `HEAD branch:` line of `git remote show origin` output, or empty string on failure). Walks the fallback chain `remoteHeadBranch` → `origin/develop` → `origin/main` → `origin/master` → `{ branch: null }`. Returns `{ branch, source: 'remote-show' | 'develop-fallback' | 'main-fallback' | 'master-fallback' | 'none', notice?: Notice }`. The bash side parses `HEAD branch:` from `git remote show origin 2>/dev/null` and wires the `branchExists` tester to `git rev-parse --verify --quiet`. ABORTED when all four fallback levels fail.
 
 ### Modified helpers
 
@@ -97,7 +97,7 @@ Same as PRD A: tests assert the external behaviour of each helper given controll
 **New deep helpers (full unit-test coverage):**
 
 - `scripts/ado/parse-write-response.mjs` — happy path (`{ id: 12345 }` response), 401 → `{ ok: false, tier: 'aborted', kind: 'auth' }`, 5xx → `{ ok: false, tier: 'degraded' }`, 404 → `{ ok: true }` (domain-OK), 409 → `{ ok: true }`, malformed JSON body, network exit-code path, missing `id` field on otherwise-200 response.
-- `scripts/pre-pr/detect-default-branch.mjs` — `git remote show` succeeds → no fallback Notice, `develop` exists → `develop-fallback` with Notice, only `main` exists → `main-fallback` with Notice, only `master` exists → `master-fallback` with Notice, nothing exists → ABORTED (no branch, no Notice — Trailer carries the abort), `branchExists` thrown exception → propagated.
+- `scripts/pre-pr/detect-default-branch.mjs` — non-empty `remoteHeadBranch` (e.g. `'develop'`) → no fallback Notice, empty `remoteHeadBranch` and `branchExists('develop')=true` → `develop-fallback` with Notice, empty `remoteHeadBranch` and only `main` exists → `main-fallback` with Notice, only `master` exists → `master-fallback` with Notice, nothing exists → `{ branch: null, source: 'none' }` (no notice — Trailer carries the abort), `branchExists` thrown exception → propagated.
 
 ### MODIFY helpers — minimal branch-verification cases
 
@@ -165,7 +165,7 @@ Same as PRD A: `packages/release-tools/scripts/verify-changelog.test.mjs`, `bump
 - Writer streams `*.err` content to stderr at the moment of failure; unconditional cleanup follows.
 - `parseAdoWriterResult` returns the discriminated union; orchestrator fails-loud on `{ ok: false, reason: 'missing-block' }`.
 - Pre-PR `parseChangedFilesFromDiff` detects suspicious-shape and emits a DEGRADED Notice (`kind: diff-parse`); `buildPrePrContext` returns the Notice array.
-- Pre-PR `detect-default-branch.mjs` walks `develop` → `main` → `master`; emits a Notice naming the actually-used branch; aborts when none exists.
+- Pre-PR `detect-default-branch.mjs` walks the parsed `HEAD branch:` line from `git remote show origin` → `origin/develop` → `origin/main` → `origin/master`; emits a Notice naming the actually-used branch; aborts when none exists.
 
 **Key interfaces:**
 
@@ -186,7 +186,7 @@ Same as PRD A: `packages/release-tools/scripts/verify-changelog.test.mjs`, `bump
 - [ ] `match-finding` throws on parse error; the Coordinator's call site catches the throw and emits a DEGRADED Notice (`kind: thread-match`).
 - [ ] `parseAdoWriterResult` returns a discriminated union; the orchestrator surfaces `{ ok: false, reason: 'missing-block' }` as an ABORTED run.
 - [ ] `buildPrePrContext` returns a `notices: Notice[]` field; suspicious-shape diffs emit a DEGRADED Notice (`kind: diff-parse`).
-- [ ] `detect-default-branch.mjs` exists, has unit tests covering the four fallback levels + the abort case, and the orchestrator wires it via injectable `branchExists`.
+- [ ] `detect-default-branch.mjs` exists, has unit tests covering the four fallback levels + the abort case, and the orchestrator wires it via injectable `branchExists` plus a `remoteHeadBranch` argument parsed from `git remote show origin`'s `HEAD branch:` line.
 - [ ] Pre-PR mode aborts with a clear stderr message when none of `develop`, `main`, `master` exist.
 - [ ] `*.err` content is streamed to stderr at the moment of failure; cleanup is unconditional.
 - [ ] `commands/review-pr.md` remains ≤ 200 lines.
