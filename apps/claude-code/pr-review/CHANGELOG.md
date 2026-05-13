@@ -11,6 +11,20 @@
 ### Fixed
 - (none)
 
+## [1.2.2] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- ADO Fetcher result block (`ADO_FETCHER_RESULT_START/END`) now includes a `DIFF_RANGE: full | incremental` field reflecting which diff strategy was used. Orchestrator parses the field; the Coordinator γ-downgrade that consumes it is deferred to PRD B issue B3.
+
+### Fixed
+- Diff-range fallback in the ADO Fetcher no longer fires silently. When the prior iteration's commit is unreachable and the Fetcher falls back to `origin/${TARGET_BRANCH}...HEAD`, a `warning` Notice (`kind: diff-range`) is now emitted in the Fetcher's `NOTICES` array so the reviewer sees the degraded state in the Summary.
+
 ## [1.2.1] — 2026-05-13
 
 ### Breaking

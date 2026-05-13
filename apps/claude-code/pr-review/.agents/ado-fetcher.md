@@ -168,6 +168,7 @@ Branch on whether `PRIOR_ITERATION_ID` is set and whether commits are available:
 
 ```bash
 RAW_DIFF=$(git diff "origin/${TARGET_BRANCH}...HEAD")
+DIFF_RANGE=full
 ```
 
 **Re-review with resolvable prior commit (`PRIOR_COMMIT_SHA` non-empty, differs from `LATEST_COMMIT_SHA`):**
@@ -175,9 +176,12 @@ RAW_DIFF=$(git diff "origin/${TARGET_BRANCH}...HEAD")
 ```bash
 if git fetch origin "$PRIOR_COMMIT_SHA" 2>/dev/null; then
   RAW_DIFF=$(git diff "${PRIOR_COMMIT_SHA}..${LATEST_COMMIT_SHA}")
+  DIFF_RANGE=incremental
 else
   echo "Warning: prior commit $PRIOR_COMMIT_SHA unreachable — falling back to full diff."
   RAW_DIFF=$(git diff "origin/${TARGET_BRANCH}...HEAD")
+  DIFF_RANGE=full
+  DIFF_RANGE_FALLBACK=true
 fi
 ```
 
@@ -186,6 +190,7 @@ fi
 ```bash
 echo "No new commits since last review."
 RAW_DIFF=""
+DIFF_RANGE=incremental
 ```
 
 ---
@@ -234,13 +239,13 @@ rm -f /tmp/ado_fetcher_wi.err
 
 Initialise the per-agent Notices array. Emission sites:
 
+- **DEGRADED warning** (`kind: diff-range`) — when `DIFF_RANGE_FALLBACK=true` (prior commit unreachable; fell back to full diff).
+- **DEGRADED warning** (`kind: work-items`) — when the work-item fetch failed (`WI_OK=false`); message comes from the helper.
 - **EMPTY-BY-DESIGN info** (`kind: doc-context`) — when `WORK_ITEM_IDS=[]` and the fetch succeeded (no work items linked to the PR).
-- **DEGRADED warning** (`kind: work-items`) — when the fetch failed (`WI_OK=false`); message comes from the helper.
-
-Additional Notices (A4 diff-range DEGRADED) are appended to the same array by their respective steps.
 
 ```bash
 NOTICES=$(
+  DIFF_RANGE_FB="${DIFF_RANGE_FALLBACK:-false}" \
   WI_IDS="$WORK_ITEM_IDS" \
   WI_OK="$WI_OK" \
   WI_MSG="$WI_FAIL_MESSAGE" \
@@ -249,6 +254,9 @@ NOTICES=$(
 const { createNotice } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
 const ids = JSON.parse(process.env.WI_IDS || '[]')
 const notices = []
+if (process.env.DIFF_RANGE_FB === 'true') {
+  notices.push(createNotice('warning', 'diff-range', 'Incremental diff unavailable — Coordinator will classify against the full PR diff with conservative downgrades.'))
+}
 if (process.env.WI_OK !== 'true') {
   notices.push(createNotice('warning', 'work-items', process.env.WI_MSG || 'Failed to fetch linked work items. Review proceeded without business context.'))
 } else if (ids.length === 0) {
@@ -278,6 +286,7 @@ SOURCE_BRANCH: {SOURCE_BRANCH}
 TARGET_BRANCH: {TARGET_BRANCH}
 LATEST_ITERATION_ID: {LATEST_ITERATION_ID}
 LATEST_COMMIT_SHA: {LATEST_COMMIT_SHA}
+DIFF_RANGE: {DIFF_RANGE}
 WORK_ITEM_IDS: {WORK_ITEM_IDS}
 NOTICES: {NOTICES}
 
@@ -291,6 +300,7 @@ ADO_FETCHER_RESULT_END
 
 Where:
 
+- `DIFF_RANGE` is `full` when the diff ran against `origin/${TARGET_BRANCH}...HEAD` (first-review or fallback), or `incremental` when it ran against `${PRIOR_COMMIT_SHA}..${LATEST_COMMIT_SHA}`. When `full` due to a fallback, the `NOTICES` array also contains a `warning`-severity `diff-range` entry.
 - `WORK_ITEM_IDS` is the JSON array from Step 5, e.g. `[42, 7]` or `[]`
 - `NOTICES` is the JSON array from Step 6, e.g. `[{"severity":"info","kind":"doc-context","message":"..."}]` or `[]`
 - `CHANGED_FILES` is the newline-separated list from Step 3, e.g. `edit: /src/api.ts`

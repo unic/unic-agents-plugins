@@ -37,6 +37,7 @@ describe('ado-fetcher agent content', () => {
 			'PR_TITLE',
 			'LATEST_ITERATION_ID',
 			'LATEST_COMMIT_SHA',
+			'DIFF_RANGE',
 			'WORK_ITEM_IDS',
 			'CHANGED_FILES',
 			'RAW_DIFF',
@@ -44,6 +45,29 @@ describe('ado-fetcher agent content', () => {
 		for (const field of requiredFields) {
 			assert.ok(agentContent.includes(field), `Missing required output field: ${field}`)
 		}
+	})
+
+	it('emits DIFF_RANGE=incremental on successful incremental diff and DIFF_RANGE=full on fallback', () => {
+		assert.ok(agentContent.includes('DIFF_RANGE=incremental'), 'Missing DIFF_RANGE=incremental assignment')
+		assert.ok(agentContent.includes('DIFF_RANGE=full'), 'Missing DIFF_RANGE=full assignment')
+	})
+
+	it('sets DIFF_RANGE_FALLBACK=true when prior commit is unreachable', () => {
+		assert.ok(
+			agentContent.includes('DIFF_RANGE_FALLBACK=true'),
+			'Fallback branch must set DIFF_RANGE_FALLBACK=true so Step 6 can emit the diff-range Notice'
+		)
+	})
+
+	it('emits a warning diff-range Notice when DIFF_RANGE_FALLBACK is set', () => {
+		assert.ok(
+			agentContent.includes('diff-range'),
+			'Step 6 must check DIFF_RANGE_FALLBACK and emit a warning Notice with kind: diff-range'
+		)
+		assert.ok(
+			agentContent.includes('DIFF_RANGE_FB') || agentContent.includes('DIFF_RANGE_FALLBACK'),
+			'Step 6 must pass the fallback flag into the Notice-building script'
+		)
 	})
 
 	it('aborts on empty iterations (no iterationId=1 default)', () => {
