@@ -176,91 +176,88 @@ describe('review-pr command — compact sub-agent output guidance', () => {
 	/** Pre-PR step D — the review-agent launch step in pre-PR mode */
 	const stepDSection = commandContent.slice(commandContent.indexOf('### Step D'), commandContent.indexOf('### Step E'))
 
-	it('Step 6 instructs agents to return a JSON array of findings', () => {
+	/** The shared "Compact finding schema" block referenced by both Step 6 and Step D */
+	const schemaStart = commandContent.indexOf('### Compact finding schema')
+	const schemaEnd = commandContent.indexOf('### Aspect-filter selection')
+	const schemaSection = schemaStart >= 0 && schemaEnd > schemaStart ? commandContent.slice(schemaStart, schemaEnd) : ''
+
+	it('orchestrator defines a single Compact finding schema block', () => {
+		assert.ok(schemaSection.length > 0, 'review-pr.md must define a "### Compact finding schema" block')
+	})
+
+	it('Step 6 references the compact finding schema', () => {
 		assert.ok(
-			step6Section.includes('JSON') && step6Section.includes('array'),
-			'Step 6 must instruct review agents to return a JSON array of findings'
+			step6Section.toLowerCase().includes('compact finding schema'),
+			'Step 6 must reference the shared compact finding schema'
 		)
 	})
 
-	it('Step 6 requires all six finding fields in agent prompt', () => {
+	it('Step D references the compact finding schema', () => {
+		assert.ok(
+			stepDSection.toLowerCase().includes('compact finding schema'),
+			'Step D must reference the shared compact finding schema'
+		)
+	})
+
+	it('schema instructs agents to return a JSON array of findings', () => {
+		assert.ok(
+			schemaSection.includes('JSON') && schemaSection.includes('array'),
+			'Compact finding schema must instruct review agents to return a JSON array of findings'
+		)
+	})
+
+	it('schema requires all six finding fields', () => {
 		const requiredFields = ['severity', 'filePath', 'startLine', 'endLine', 'title', 'body']
 		for (const field of requiredFields) {
-			assert.ok(step6Section.includes(field), `Step 6 agent prompt must mention required finding field: ${field}`)
+			assert.ok(schemaSection.includes(field), `Compact finding schema must mention required field: ${field}`)
 		}
 	})
 
-	it('Step 6 instructs agents to omit code quotes from return value', () => {
+	it('schema instructs agents to omit code quotes from return value', () => {
 		assert.ok(
-			step6Section.includes('no code quote') ||
-				step6Section.includes('omit code quote') ||
-				step6Section.includes('no code quotes') ||
-				step6Section.includes('omit code quotes') ||
-				step6Section.includes('without code quote') ||
-				step6Section.includes('code quotes') ||
-				step6Section.toLowerCase().includes('code quote'),
-			'Step 6 must instruct agents to omit code quotes from the return value'
+			schemaSection.toLowerCase().includes('code quote'),
+			'Compact finding schema must instruct agents to omit code quotes from the return value'
 		)
 	})
 
-	it('Step 6 instructs agents to omit prose reasoning from return value', () => {
+	it('schema instructs agents to omit prose reasoning from return value', () => {
 		assert.ok(
-			step6Section.toLowerCase().includes('reasoning') ||
-				step6Section.toLowerCase().includes('prose') ||
-				step6Section.toLowerCase().includes('analysis') ||
-				step6Section.toLowerCase().includes('supporting'),
-			'Step 6 must instruct agents to keep reasoning inside their own context, not in return value'
+			schemaSection.toLowerCase().includes('reasoning') ||
+				schemaSection.toLowerCase().includes('prose') ||
+				schemaSection.toLowerCase().includes('analysis'),
+			'Compact finding schema must instruct agents to keep reasoning inside their own context, not in return value'
 		)
 	})
 
-	it('Step 6 severity values are exactly critical / important / minor', () => {
-		assert.ok(step6Section.includes('critical'), 'Step 6 must specify "critical" as a severity value')
-		assert.ok(step6Section.includes('important'), 'Step 6 must specify "important" as a severity value')
-		assert.ok(step6Section.includes('minor'), 'Step 6 must specify "minor" as a severity value')
+	it('schema severity values are exactly critical / important / minor', () => {
+		assert.ok(schemaSection.includes('critical'), 'Compact finding schema must specify "critical" as a severity value')
+		assert.ok(
+			schemaSection.includes('important'),
+			'Compact finding schema must specify "important" as a severity value'
+		)
+		assert.ok(schemaSection.includes('minor'), 'Compact finding schema must specify "minor" as a severity value')
 	})
 
-	it('Step 6 requires filePath to use leading slash and forward slashes', () => {
+	it('schema requires filePath to use leading slash and forward slashes', () => {
 		assert.ok(
-			step6Section.includes('leading') || step6Section.includes('forward slash') || step6Section.includes('leading /'),
-			'Step 6 must require filePath with leading slash and forward slashes matching ADO format'
+			schemaSection.includes('leading') ||
+				schemaSection.includes('forward slash') ||
+				schemaSection.includes('leading /'),
+			'Compact finding schema must require filePath with leading slash and forward slashes matching ADO format'
 		)
 	})
 
-	it('Step 6 requires title to be one line capped at 80 chars', () => {
+	it('schema requires title to be one line capped at 80 chars', () => {
 		assert.ok(
-			step6Section.includes('80') || step6Section.includes('one line') || step6Section.includes('≤ 80'),
-			'Step 6 must require title to be one line, at most 80 characters'
+			schemaSection.includes('80') || schemaSection.includes('one line') || schemaSection.includes('≤ 80'),
+			'Compact finding schema must require title to be one line, at most 80 characters'
 		)
 	})
 
-	it('Step 6 requires body to be exactly the text to post as comment (no code quotes)', () => {
+	it('schema describes body as the exact text to post as the ADO or local-interface comment', () => {
 		assert.ok(
-			step6Section.includes('body') && (step6Section.includes('post') || step6Section.includes('comment')),
-			'Step 6 must describe body as the exact text to post as the ADO or local-interface comment'
-		)
-	})
-
-	it('Step D instructs agents to return structured JSON findings (same schema as ADO modes)', () => {
-		assert.ok(
-			stepDSection.includes('JSON') || stepDSection.includes('structured'),
-			'Step D must instruct review agents to return structured JSON findings'
-		)
-	})
-
-	it('Step D requires same six finding fields as Step 6', () => {
-		const requiredFields = ['severity', 'filePath', 'startLine', 'endLine', 'title', 'body']
-		for (const field of requiredFields) {
-			assert.ok(stepDSection.includes(field), `Step D agent prompt must mention required finding field: ${field}`)
-		}
-	})
-
-	it('Step D instructs agents to omit code quotes and prose reasoning from return value', () => {
-		assert.ok(
-			stepDSection.toLowerCase().includes('code quote') ||
-				stepDSection.toLowerCase().includes('reasoning') ||
-				stepDSection.toLowerCase().includes('prose') ||
-				stepDSection.toLowerCase().includes('analysis'),
-			'Step D must instruct agents to keep reasoning inside their own context, not in return value'
+			schemaSection.includes('body') && (schemaSection.includes('post') || schemaSection.includes('comment')),
+			'Compact finding schema must describe body as the exact text to post as the ADO or local-interface comment'
 		)
 	})
 })

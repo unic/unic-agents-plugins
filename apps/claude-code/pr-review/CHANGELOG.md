@@ -7,6 +7,10 @@
 
 ### Added
 - New `scripts/re-review/parse-diff-hunks.mjs` helper module (with 7 unit tests) that parses raw `git diff` text into per-hunk `{ filePath, startLine, endLine }` entries — pure function, no I/O, slash-prefixed file paths.
+- New `scripts/mode-detection.mjs` helper that consolidates `Step 4` re-review detection and exports both `detectMode()` and `formatModeEnv()` used by the orchestrator.
+
+### Changed
+- Trim `commands/review-pr.md` from 297 lines to ≤ 200 lines to meet the PRD acceptance criterion: extracted mode-detection to a helper, factored the duplicated `MODE`/`SUMMARY_THREAD_ID` write-back into a single ADO Writer prompt, consolidated the compact finding schema into one shared block referenced by Step 6 and Pre-PR Step D, and tightened instructional prose. Realigned the compact-output guidance tests to assert against the shared schema block + each section's reference, removing fragile section-slice substring assertions.
 
 ### Fixed
 - Convert static imports of helper modules to `await import(...)` in agent prompts — static `import` does not accept dynamic specifiers.
@@ -20,7 +24,7 @@
 - (none)
 
 ### Added
-- Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (~199 lines) that delegates ADO API calls and coordination logic to three focused agents
+- Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (≤ 200 lines per PRD acceptance criterion) that delegates ADO API calls and coordination logic to three focused agents
 - ADO Fetcher agent: handles all Azure DevOps REST API fetches (diff, threads, iterations) in a single dedicated context window
 - Re-review Coordinator agent: classifies prior bot threads, computes incremental diffs, and decides per-thread reply actions
 - ADO Writer agent: posts all inline thread comments and the summary comment back to ADO, keeping write operations isolated from analysis

@@ -8,73 +8,73 @@ description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent a
 
 **Arguments:** "$ARGUMENTS"
 
----
+Thin orchestrator that detects one of three modes — Pre-PR, First-review, Re-review — and delegates to focused agents.
 
-## Step 1 — Prerequisites (always)
+## Constants
 
-Verify `pr-review-toolkit` is available (`pr-review-toolkit:code-reviewer` agent). If missing, stop and tell the user to install and enable it via Claude Code settings → Plugins.
+- `SIGNATURE_PREFIX` = `🤖 *Reviewed by Claude Code*` — never alter; re-review detection depends on it.
+- ADO Writer appends `---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}` to every posted comment.
 
-Verify `git` is available: `git --version`
+### Compact finding schema
 
----
+Every review aspect agent prompt (Step 6, Step D) ends with this exact contract:
+
+```
+Return your findings as a JSON array. Each element must have exactly these six fields:
+- severity: "critical" | "important" | "minor"
+- filePath: string — leading /, forward slashes, matching ADO format (e.g. /src/foo.ts)
+- startLine: integer — first line of the relevant range
+- endLine: integer — last line of the relevant range (same as startLine for single-line findings)
+- title: string — one line, ≤ 80 chars
+- body: string — one paragraph; the exact text to post as the ADO comment or local-interface comment
+
+Keep reasoning and supporting evidence inside your own context. Do not include code quotes, prose reasoning, or any text outside the JSON array in your return value.
+```
+
+### Aspect-filter selection (used in Step 6 and Pre-PR Step D)
+
+Parse `$ARGUMENTS` for an aspect filter (`code` | `errors` | `tests` | `comments` | `types` | `all`); default `all`. Always run `pr-review-toolkit:code-reviewer` and `pr-review-toolkit:silent-failure-hunter`. Also run `pr-review-toolkit:pr-test-analyzer` if test files changed, `pr-review-toolkit:comment-analyzer` if docs/comments were added, and `pr-review-toolkit:type-design-analyzer` if new types were introduced.
+
+## Step 1 — Prerequisites
+
+Verify `pr-review-toolkit` is enabled (e.g. the `pr-review-toolkit:code-reviewer` agent exists). If missing, stop with installation instructions. Verify `git --version` succeeds.
 
 ## Step 2 — Parse arguments and detect mode
 
-Extract a PR URL from `$ARGUMENTS`. Expected format:
-`https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}`
+Extract a PR URL from `$ARGUMENTS`. Expected format: `https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}`. GitHub URLs are not supported.
 
-**GitHub URLs** are not supported — tell the user and stop.
-
-If **no URL** provided → `MODE=pre-pr` → jump to [Pre-PR mode](#pre-pr-mode).
-
-Extract: `ORG_URL=https://dev.azure.com/{org}`, `PROJECT={project}`, `PR_ID={id}`
-
----
+- **No URL** → `MODE=pre-pr` → jump to [Pre-PR mode](#pre-pr-mode).
+- **URL present** → extract `ORG_URL`, `PROJECT`, `PR_ID` and continue.
 
 ## Step 3 — Azure CLI check (PR modes only)
 
-Run `az --version` and check `az extension list` for `azure-devops`. If missing: `az extension add --name azure-devops`
+Run `az --version` and `az extension list | grep azure-devops`. If missing: `az extension add --name azure-devops`.
 
----
+## Step 4 — Re-review detection
 
-## Step 4 — Mode detection
-
-Fetch the full thread list **once** — captured here and passed forward; never re-fetched downstream.
+Fetch the thread list **once**; never re-fetch downstream.
 
 ```bash
 RAW_THREADS_JSON=$(az repos pr thread list \
   --id "$PR_ID" --org "$ORG_URL" --output json 2>/dev/null) || RAW_THREADS_JSON="[]"
-```
 
-Check for a prior Bot Signature:
-
-```bash
-SIGNATURE_PREFIX="🤖 *Reviewed by Claude Code*"
-
-DETECT_JSON=$(
-  RAW_T="$RAW_THREADS_JSON" SIG_P="$SIGNATURE_PREFIX" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
+eval "$(
+  RAW_T="$RAW_THREADS_JSON" SIG_P="🤖 *Reviewed by Claude Code*" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
   node --input-type=module << 'EOJS'
-const { detectPriorReview } = await import('file://' + process.env.PLUGIN_R + '/scripts/re-review/detect-prior-review.mjs')
-const r = detectPriorReview({ threads: JSON.parse(process.env.RAW_T || '[]'), signaturePrefix: process.env.SIG_P })
-process.stdout.write(JSON.stringify({
-  isRereview: r.isRereview,
-  priorIterationId: r.priorIterationId != null ? String(r.priorIterationId) : '',
-  summaryThreadId: r.summaryThread != null ? String(r.summaryThread.threadId) : '',
-}))
+const { detectMode, formatModeEnv } = await import(`file://${process.env.PLUGIN_R}/scripts/mode-detection.mjs`)
+const threads = JSON.parse(process.env.RAW_T || '[]')
+process.stdout.write(formatModeEnv(detectMode({ threads, signaturePrefix: process.env.SIG_P })))
 EOJS
-)
+)"
 
-IS_REREVIEW=$(printf '%s' "$DETECT_JSON" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).isRereview))")
-PRIOR_ITERATION_ID=$(printf '%s' "$DETECT_JSON" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).priorIterationId)")
-SUMMARY_THREAD_ID=$(printf '%s' "$DETECT_JSON" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).summaryThreadId)")
-
-[ "$IS_REREVIEW" = "true" ] && MODE="re-review" || MODE="first-review"
 echo "Mode detected: $MODE"
 ```
 
----
+After this block: `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, and `SUMMARY_THREAD_ID` are set.
 
 ## Step 5 — ADO Fetcher
+
+Launch the ADO Fetcher agent and **wait for its result** before launching anything else (the PRD requires the Fetcher to complete before the Doc Context Orchestrator and review aspect agents run).
 
 ```txt
 Agent(
@@ -88,15 +88,13 @@ Agent(
 )
 ```
 
-Store full output as `ADO_FETCHER_RESULT`. Parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `WORK_ITEM_IDS` from the `ADO_FETCHER_RESULT_START/END` block.
+Store the full output as `ADO_FETCHER_RESULT`. Parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, and `WORK_ITEM_IDS` from the `ADO_FETCHER_RESULT_START`/`ADO_FETCHER_RESULT_END` block.
 
----
+## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 
-## Step 6 — Doc Context Orchestrator + review agents (parallel)
+Launch both groups concurrently in a **single message**.
 
-Launch all of the following in a **single message**:
-
-**Doc Context Orchestrator:**
+**Doc Context Orchestrator** — gathers business context. The returned text is stored as `DOC_CONTEXT` and surfaced in the final user-facing summary; it is **not** prepended to review aspect agent prompts (those run in parallel with the orchestrator and cannot block on its output).
 
 ```txt
 Agent(
@@ -114,52 +112,13 @@ Agent(
 )
 ```
 
-Store output as `DOC_CONTEXT`.
-
-**Review aspect agents** — parse `$ARGUMENTS` for aspect filter (`code`/`errors`/`tests`/`comments`/`types`/`all`); default `all`. Always run `pr-review-toolkit:code-reviewer` and `pr-review-toolkit:silent-failure-hunter`. Also run `pr-review-toolkit:pr-test-analyzer` if test files changed, `pr-review-toolkit:comment-analyzer` if docs/comments added, `pr-review-toolkit:type-design-analyzer` if new types introduced.
-
-For each agent provide: PR title + description, full diff, changed file contents. Prepend `DOC_CONTEXT` as preamble if non-empty.
-
-Each agent prompt **must** end with the following output contract:
-
-```
-Return your findings as a JSON array. Each element must have exactly these six fields:
-- severity: "critical" | "important" | "minor"
-- filePath: string — leading /, forward slashes, matching ADO format (e.g. /src/foo.ts)
-- startLine: integer — first line of the relevant range
-- endLine: integer — last line of the relevant range (same as startLine for single-line findings)
-- title: string — one line, ≤ 80 chars
-- body: string — one paragraph; the exact text to post as the ADO comment or local-interface comment
-
-Keep your reasoning, analysis, and supporting evidence inside your own context.
-Do not include code quotes, prose reasoning, or any text outside the JSON array in your return value.
-```
+**Review aspect agents** — apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) above. For each selected agent, pass: PR title + description, full diff, and changed file contents. Every prompt **must** end with the [compact finding schema](#compact-finding-schema) block verbatim.
 
 Collect the JSON arrays returned by all agents. Deduplicate and sort by severity (`critical` first). Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
 
----
-
 ## Step 7 — Write-back (branch on mode)
 
-### First-review
-
-```txt
-Agent(
-  subagent_type: "pr-review:ado-writer",
-  prompt: "Post all ADO comments for this first-review.
-  ORG_URL: {ORG_URL}
-  PROJECT: {PROJECT}
-  REPO_ID: {REPO_ID}
-  PR_ID: {PR_ID}
-  LATEST_ITERATION_ID: {LATEST_ITERATION_ID}
-  SUMMARY_THREAD_ID:
-  MODE: first-review
-  PLUGIN_ROOT: {CLAUDE_PLUGIN_ROOT}
-  FINDINGS: {FINDINGS_JSON}"
-)
-```
-
-### Re-review
+**Re-review only** — first run the coordinator, parse `RE_REVIEW_COORDINATOR_RESULT_START`/`_END`, extract `earlyExit` and `freshFindings`. If `earlyExit: true`, stop; otherwise reassign `FINDINGS_JSON` to `freshFindings`.
 
 ```txt
 Agent(
@@ -175,106 +134,62 @@ Agent(
 )
 ```
 
-Parse `RE_REVIEW_COORDINATOR_RESULT_START/END`. Extract `earlyExit` and `freshFindings`.
-
-If `earlyExit: true` — stop here; do **not** invoke ADO Writer.
-
-Otherwise:
+**Both modes** — invoke ADO Writer. For first-review, `MODE=first-review` and `SUMMARY_THREAD_ID=""`. For re-review, both come from Step 4.
 
 ```txt
 Agent(
   subagent_type: "pr-review:ado-writer",
-  prompt: "Post all ADO comments for this re-review.
+  prompt: "Post all ADO comments for this {MODE} run.
   ORG_URL: {ORG_URL}
   PROJECT: {PROJECT}
   REPO_ID: {REPO_ID}
   PR_ID: {PR_ID}
   LATEST_ITERATION_ID: {LATEST_ITERATION_ID}
   SUMMARY_THREAD_ID: {SUMMARY_THREAD_ID}
-  MODE: re-review
+  MODE: {MODE}
   PLUGIN_ROOT: {CLAUDE_PLUGIN_ROOT}
-  FINDINGS: {FRESH_FINDINGS_JSON}"
+  FINDINGS: {FINDINGS_JSON}"
 )
 ```
 
----
-
 ## Pre-PR mode
 
-**Pre-PR mode active** — no PR URL provided. Reviewing local branch diff; no ADO calls will be made.
+No PR URL provided — reviewing the local branch diff; no ADO calls are made.
 
-### Step A — Detect default branch and compute diff
+### Step A — Compute diff
 
 ```bash
-# Detect the default remote branch (main or develop)
 DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || echo "main")
-
-RAW_DIFF=$(git diff "origin/${DEFAULT_BRANCH}...HEAD")
+RAW_DIFF=$(git diff "origin/${DEFAULT_BRANCH}...HEAD") || { echo "git diff failed"; exit 1; }
 ```
-
-If `git diff` fails (e.g. no upstream remote), inform the user and stop.
 
 ### Step B — Parse changed files
 
 ```bash
-PRE_PR_CONTEXT=$(
-  RAW_DIFF_STR="$RAW_DIFF" \
-  PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
+FILTERED_FILES=$(
+  RAW_DIFF_STR="$RAW_DIFF" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
   node --input-type=module << 'EOJS'
-const { buildPrePrContext } = await import('file://' + process.env.PLUGIN_R + '/scripts/pre-pr.mjs')
-const ctx = buildPrePrContext(process.env.RAW_DIFF_STR)
-process.stdout.write(JSON.stringify(ctx))
+const { buildPrePrContext } = await import(`file://${process.env.PLUGIN_R}/scripts/pre-pr.mjs`)
+process.stdout.write(buildPrePrContext(process.env.RAW_DIFF_STR).filteredFiles.join('\n'))
 EOJS
 )
-
-FILTERED_FILES=$(printf '%s' "$PRE_PR_CONTEXT" | node -e "
-const chunks = []
-process.stdin.on('data', c => chunks.push(c))
-process.stdin.on('end', () => {
-  const ctx = JSON.parse(Buffer.concat(chunks).toString())
-  process.stdout.write(ctx.filteredFiles.join('\n'))
-})")
 ```
 
-Read the contents of each file in `FILTERED_FILES` (skip any that are deleted or unavailable).
+Read the contents of each file in `FILTERED_FILES`, skipping deleted ones.
 
 ### Step C — Resolve aspect filter
 
-Parse `$ARGUMENTS` for aspect filter (`code`/`errors`/`tests`/`comments`/`types`/`all`); default `all`.
-Use the same selection logic as ADO modes: always run `pr-review-toolkit:code-reviewer` and `pr-review-toolkit:silent-failure-hunter`. Also run `pr-review-toolkit:pr-test-analyzer` if test files changed, `pr-review-toolkit:comment-analyzer` if docs/comments added, `pr-review-toolkit:type-design-analyzer` if new types introduced.
+Apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) defined above.
 
 ### Step D — Run review aspect agents
 
-Doc Context is skipped (no PR URL means no work items to fetch).
+Doc Context is skipped (no work items without a PR). Launch all selected review aspect agents in a **single message**, passing `RAW_DIFF` and changed file contents. Every prompt **must** end with the [compact finding schema](#compact-finding-schema) verbatim; in Pre-PR mode the `body` field reads "exact text to post as the comment" (rendered in the Claude interface, not written back to ADO).
 
-Launch all applicable review aspect agents in a single message, passing:
-
-- The raw diff (`RAW_DIFF`)
-- Changed file contents
-- No preamble (Doc Context is empty in pre-PR mode)
-
-Each agent prompt **must** end with the same output contract used in ADO modes:
-
-```
-Return your findings as a JSON array. Each element must have exactly these six fields:
-- severity: "critical" | "important" | "minor"
-- filePath: string — leading /, forward slashes (e.g. /src/foo.ts)
-- startLine: integer — first line of the relevant range
-- endLine: integer — last line of the relevant range (same as startLine for single-line findings)
-- title: string — one line, ≤ 80 chars
-- body: string — one paragraph; the exact text to post as the comment
-
-Keep your reasoning, analysis, and supporting evidence inside your own context.
-Do not include code quotes, prose reasoning, or any text outside the JSON array in your return value.
-```
-
-Collect the JSON arrays returned by all agents. Deduplicate and sort by severity (`critical` first). Assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
+Collect, dedupe, and sort returned JSON arrays into `FINDINGS` (`critical` first).
 
 ### Step E — Present findings
 
-Present all findings directly in the Claude interface as a structured list — no ADO write-back occurs in pre-PR mode.
-
-For each finding print:
+Print each finding in the Claude interface, grouped by severity (`critical`, `important`, `minor`):
 
 ```
 [{severity}] {filePath} L{startLine}–{endLine}
@@ -282,16 +197,4 @@ For each finding print:
 {body}
 ```
 
-Group by severity: `critical` first, then `important`, then `minor`. Print a summary count at the end.
-
-If no findings, print: `✅ Pre-PR review complete — no issues found.`
-
-Otherwise, print: `✅ Pre-PR review complete — {N} finding(s). Open a PR to post these as inline ADO comments.`
-
----
-
-## Comment signature
-
-Every comment must end with `---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}`.
-
-`SIGNATURE_PREFIX` = `🤖 *Reviewed by Claude Code*` — never alter; re-review detection depends on it.
+End with `✅ Pre-PR review complete — {N} finding(s).` (or `no issues found.` when `N == 0`).
