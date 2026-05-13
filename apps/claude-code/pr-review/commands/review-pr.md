@@ -54,7 +54,7 @@ SIGNATURE_PREFIX="🤖 *Reviewed by Claude Code*"
 DETECT_JSON=$(
   RAW_T="$RAW_THREADS_JSON" SIG_P="$SIGNATURE_PREFIX" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
   node --input-type=module << 'EOJS'
-import { detectPriorReview } from 'file://' + process.env.PLUGIN_R + '/scripts/re-review/detect-prior-review.mjs'
+const { detectPriorReview } = await import('file://' + process.env.PLUGIN_R + '/scripts/re-review/detect-prior-review.mjs')
 const r = detectPriorReview({ threads: JSON.parse(process.env.RAW_T || '[]'), signaturePrefix: process.env.SIG_P })
 process.stdout.write(JSON.stringify({
   isRereview: r.isRereview,
@@ -221,7 +221,7 @@ PRE_PR_CONTEXT=$(
   RAW_DIFF_STR="$RAW_DIFF" \
   PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
   node --input-type=module << 'EOJS'
-import { buildPrePrContext } from 'file://' + process.env.PLUGIN_R + '/scripts/pre-pr.mjs'
+const { buildPrePrContext } = await import('file://' + process.env.PLUGIN_R + '/scripts/pre-pr.mjs')
 const ctx = buildPrePrContext(process.env.RAW_DIFF_STR)
 process.stdout.write(JSON.stringify(ctx))
 EOJS

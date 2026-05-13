@@ -9,7 +9,7 @@
 - (none)
 
 ### Fixed
-- (none)
+- Convert static imports of helper modules to `await import(...)` in agent prompts — static `import` does not accept dynamic specifiers.
 
 ## [1.0.0] — 2026-05-12
 

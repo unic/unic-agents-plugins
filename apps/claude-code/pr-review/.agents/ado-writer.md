@@ -277,7 +277,7 @@ rm -f /tmp/ado_writer_thread_*.json /tmp/ado_writer_thread_*.err /tmp/ado_writer
 
 ## Output
 
-Parse the result using the helper script and return the following structured block as your final output. This block is consumed verbatim by the orchestrator:
+Emit the structured result block as your final output, validating it round-trips through the `parseAdoWriterResult` helper before printing. This block is consumed verbatim by the orchestrator:
 
 ```bash
 RESULT=$(
@@ -285,8 +285,14 @@ RESULT=$(
   FP="${FINDINGS_POSTED}" \
   PLUGIN_R="${PLUGIN_ROOT}" \
   node --input-type=module << 'EOJS'
-import { parseAdoWriterResult } from `file://${process.env.PLUGIN_R}/scripts/ado-writer.mjs`
+const { parseAdoWriterResult } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-writer.mjs`)
 const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: ${process.env.SID}\nFINDINGS_POSTED: ${process.env.FP}\nADO_WRITER_RESULT_END`
+// Round-trip through the helper so any malformed block fails fast here, not downstream.
+const parsed = parseAdoWriterResult(output)
+if (parsed.summaryThreadId === null || parsed.findingsPosted === null) {
+	process.stderr.write('ado-writer: result block failed to parse\n')
+	process.exit(1)
+}
 process.stdout.write(output)
 EOJS
 )

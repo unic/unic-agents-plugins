@@ -62,7 +62,7 @@ ITER_RESULT=$(
   ITERATIONS_JSON_STR="$ITERATIONS_JSON" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
-import { parseIterations } from `file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`
+const { parseIterations } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`)
 const value = JSON.parse(process.env.ITERATIONS_JSON_STR).value ?? []
 const result = parseIterations(value)
 process.stdout.write(JSON.stringify(result))
@@ -197,7 +197,7 @@ WORK_ITEM_IDS=$(
   WI_RESP="$WI_RESPONSE" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
-import { parseWorkItemIds } from `file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`
+const { parseWorkItemIds } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`)
 const response = process.env.WI_RESP ? JSON.parse(process.env.WI_RESP) : null
 const ids = parseWorkItemIds(response)
 process.stdout.write(JSON.stringify(ids))
