@@ -50,6 +50,7 @@ Is this worth for this repo only? Or for `pr-review` app too?
 Closely related to `review-pr-review-command-process.md` — both describe the same loop from different angles. Strong candidate for merging into a single PRD. Should be grilled together.
 
 **What grilling needs to resolve:**
+
 - One feature or two? If merged, what is the slug?
 - Target scope: this repo only (monorepo-specific) or a general skill usable across any repo?
 - Delivery vehicle: a new slash command, an extension to `/pr-review-toolkit:review-pr`, or a CLAUDE.md prompt template?

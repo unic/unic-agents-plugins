@@ -33,6 +33,7 @@ dimension, different axis).
 **Nature:** Multi-source doc client design — additive extension to the doc context enrichment layer.
 
 Blocked on two open design questions that need grilling before a spec can be written:
+
 1. **Dispatch strategy** — URL-pattern auto-detection (simpler UX, fragile for private URLs) vs. explicit config listing active doc sources (more setup, more predictable).
 2. **Credential handling** — each source (Notion, SharePoint, GitHub Wiki) has a different auth model; needs a consistent discovery pattern (env vars? config file? per-source entry?).
 

@@ -17,6 +17,7 @@ pr-review request user confirmation before proceeding to checkout the branch to 
 The plugin currently checks out the PR branch automatically as part of the review flow. If the user has uncommitted work or is on a different branch, this can be disruptive with no warning.
 
 **What grilling needs to resolve:**
+
 - Exact trigger: confirmation before any checkout, or only when the working tree is dirty / a branch switch is needed?
 - UX: a yes/no prompt via `AskUserQuestion`, or a `--no-checkout` flag that reviews from the remote diff only?
 - Should the plugin stash/restore working changes automatically, or just warn and abort?
