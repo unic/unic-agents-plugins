@@ -78,7 +78,13 @@ All shared helpers (`scripts/ado/classify-http-error.mjs`, `scripts/ado/notices.
 
 ### Test-scope choice
 
-The user explicitly chose "NEW deep modules only" in the test-scope question during the grilling session. PRD B writes unit tests for the two new helpers (`parse-write-response`, `detect-default-branch`). The MODIFY helpers (`classify-thread`, `match-finding`, `parseAdoWriterResult`, `pre-pr.mjs`) get no new unit tests in this PRD; their existing test files stay frozen except for whatever fixture updates the new return shapes force. Behaviour change verification on the MODIFY helpers and on the agent prompts goes to the integration smoke test against a real ADO PR, per ADR 0013's stated testing posture.
+The user chose "NEW deep modules only" in the test-scope question during the grilling session. Reconciling that choice with the slice acceptance criteria:
+
+- **New deep helpers** (`parse-write-response`, `detect-default-branch`) receive full unit-test coverage — every documented return-shape branch is asserted.
+- **MODIFY helpers** (`classify-thread`, `match-finding`, `parseAdoWriterResult`, `pre-pr.mjs`) receive **minimal branch-verification** test cases — 2–3 cases per helper, each pinning a single new branch introduced by this PRD (the `diffRange='full'` downgrade, the throw-on-parse-error path, the `{ ok: false, reason }` variants, the suspicious-shape Notice). No full new test suites; the existing fixture conventions in those files are reused.
+- **Agent prompt content** (`.agents/*.md`, `commands/review-pr.md`) gets no new tests of any kind. End-to-end behaviour change is verified by the integration smoke test against a real ADO PR, per ADR 0013's stated testing posture.
+
+The intent of the user's "NEW deep modules only" choice was to avoid writing wholly new test files and full coverage for MODIFY helpers; the minimal branch-verification cases above are necessary to confirm the new behaviour landed and do not constitute new test suites.
 
 ## Testing Decisions
 
@@ -93,15 +99,18 @@ Same as PRD A: tests assert the external behaviour of each helper given controll
 - `scripts/ado/parse-write-response.mjs` — happy path (`{ id: 12345 }` response), 401 → `{ ok: false, tier: 'aborted', kind: 'auth' }`, 5xx → `{ ok: false, tier: 'degraded' }`, 404 → `{ ok: true }` (domain-OK), 409 → `{ ok: true }`, malformed JSON body, network exit-code path, missing `id` field on otherwise-200 response.
 - `scripts/pre-pr/detect-default-branch.mjs` — `git remote show` succeeds → no fallback Notice, `develop` exists → `develop-fallback` with Notice, only `main` exists → `main-fallback` with Notice, only `master` exists → `master-fallback` with Notice, nothing exists → ABORTED (no branch, no Notice — Trailer carries the abort), `branchExists` thrown exception → propagated.
 
+### MODIFY helpers — minimal branch-verification cases
+
+Each of these receives 2–3 new test cases in its existing test file, pinning the new branch introduced by this PRD. No full new coverage.
+
+- `classify-thread.mjs` — `diffRange='full'` downgrade of `addressed`/`obsolete` → `pending`; `disputed` unaffected (3 cases).
+- `match-finding.mjs` — legitimate no-match still returns `null`; malformed input throws (3 cases).
+- `parseAdoWriterResult` — `{ ok: true, ... }` for valid block; `{ ok: false, reason: 'missing-block' }`; `{ ok: false, reason: 'malformed' }` (3 cases).
+- `pre-pr.mjs` — suspicious-shape detection emits a `kind: diff-parse` Notice through `buildPrePrContext` (2 cases).
+
 ### Modules NOT under test in PRD B
 
-Per the user's choice during grilling:
-
-- `classify-thread.mjs` extension (`diffRange` parameter) — verified by integration smoke test.
-- `match-finding.mjs` extension (throw-on-parse-error) — same.
-- `parseAdoWriterResult` discriminated-union refactor — same.
-- `pre-pr.mjs` suspicious-shape Notice — same.
-- All agent prompt content (`.agents/*.md`, `commands/review-pr.md`) — same.
+- All agent prompt content (`.agents/*.md`, `commands/review-pr.md`) — verified end-to-end by the integration smoke test against a real ADO PR, per ADR 0013.
 
 ### Prior art
 
@@ -110,7 +119,7 @@ Same as PRD A: `packages/release-tools/scripts/verify-changelog.test.mjs`, `bump
 ## Out of Scope
 
 - Anything PRD A delivers (helper layer, canonical HTTP mapping, ADRs, Fetcher fixes, orchestrator Notice merging + Trailer).
-- Unit tests for MODIFY-only helpers (`classify-thread`, `match-finding`, `parseAdoWriterResult`, `pre-pr.mjs` suspicious-shape).
+- **Full new test suites** for MODIFY-only helpers — only the minimal 2–3 branch-verification cases listed in Testing Decisions are in scope.
 - Unit tests for agent prompt content.
 - Retries on transient HTTP errors.
 - The integration smoke test (manual, post-merge).
@@ -190,4 +199,4 @@ Same as PRD A: `packages/release-tools/scripts/verify-changelog.test.mjs`, `bump
 - Retries on transient HTTP errors.
 - Integration smoke test (manual, post-merge).
 - Lifting helpers to `pr-review-toolkit`.
-- Unit tests for MODIFY helpers (`classify-thread`, `match-finding`, `parseAdoWriterResult`, `pre-pr.mjs` suspicious-shape).
+- Full new test suites for MODIFY helpers — only minimal branch-verification cases (per PRD Testing Decisions) are in scope.
