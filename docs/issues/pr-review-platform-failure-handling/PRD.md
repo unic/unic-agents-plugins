@@ -120,7 +120,7 @@ Same as PRD A: `packages/release-tools/scripts/verify-changelog.test.mjs`, `bump
 
 ## Further Notes
 
-**Dependency on PRD A:** PRD B cannot land before PRD A. The helper imports (`classify-http-error`, `notices`, `formatTrailer`), the orchestrator's Notice-merge step, the ADO Writer's `## ⚠ Notices` block rendering, and the Trailer line are all PRD A deliverables that PRD B's new consumers and modified call sites rely on. The two PRDs ship together as a coherent "platform-failure handling" feature; PRD A is the foundation, PRD B is the rollout.
+**Dependency on PRD A:** PRD B cannot land before PRD A. The helper imports (`classify-http-error`, `notices`, `formatTrailer`), the orchestrator's Notice-merge step, the ADO Writer's `## Notices` block rendering, and the Trailer line are all PRD A deliverables that PRD B's new consumers and modified call sites rely on. The two PRDs ship together as a coherent "platform-failure handling" feature; PRD A is the foundation, PRD B is the rollout.
 
 **Inbox file removal:** the originating `docs/inbox/pr-review-ado-error-hardening-pass.md` is deleted once PRD A and PRD B are published (per the inbox graduation flow documented in `docs/inbox/README.md`).
 
