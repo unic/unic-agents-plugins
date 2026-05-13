@@ -85,7 +85,7 @@ Agent(
 )
 ```
 
-Store the full output as `ADO_FETCHER_RESULT`. Parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `WORK_ITEM_IDS`, and `NOTICES` from the `ADO_FETCHER_RESULT_START`/`ADO_FETCHER_RESULT_END` block. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs` (in this slice the only source is the Fetcher; subsequent slices add Coordinator/Writer sources).
+Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`.
 
 ## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 

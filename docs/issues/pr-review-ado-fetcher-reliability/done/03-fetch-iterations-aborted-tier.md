@@ -1,6 +1,6 @@
 # A3. `fetch-iterations` refactor → ABORTED tier
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

@@ -3,7 +3,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
-import { parseIterations } from '../scripts/ado-fetcher.mjs'
 
 /** Reads the ado-fetcher agent markdown for content assertions */
 const agentContent = readFileSync(new URL('../.agents/ado-fetcher.md', import.meta.url), 'utf8')
@@ -47,12 +46,16 @@ describe('ado-fetcher agent content', () => {
 		}
 	})
 
-	it('documents graceful handling of zero-iteration PRs', () => {
+	it('aborts on empty iterations (no iterationId=1 default)', () => {
 		assert.ok(
-			agentContent.includes('no iterations returned') ||
-				agentContent.includes('zero-iteration') ||
-				agentContent.includes('defaulting to iteration 1'),
-			'Agent must document zero-iteration fallback behaviour'
+			!agentContent.includes('defaulting to iteration 1') && !agentContent.includes('iterationId=1'),
+			'Agent must not fall back to iterationId=1 — empty iterations must abort the run'
+		)
+		assert.ok(
+			agentContent.includes('empty-iterations') ||
+				agentContent.includes('fetch-iterations') ||
+				agentContent.includes('fetchIterations'),
+			'Agent must delegate iteration parsing to fetchIterations helper'
 		)
 	})
 
@@ -65,10 +68,10 @@ describe('ado-fetcher agent content', () => {
 		)
 	})
 
-	it('invokes the parseIterations helper from ado-fetcher.mjs', () => {
+	it('invokes the fetchIterations helper from scripts/ado/fetch-iterations.mjs', () => {
 		assert.ok(
-			agentContent.includes('parseIterations'),
-			'Agent must delegate iteration parsing to parseIterations helper'
+			agentContent.includes('fetchIterations') || agentContent.includes('fetch-iterations'),
+			'Agent must delegate iteration parsing to fetchIterations helper'
 		)
 	})
 
@@ -77,45 +80,5 @@ describe('ado-fetcher agent content', () => {
 			agentContent.includes('fetchWorkItems') || agentContent.includes('fetch-work-items'),
 			'Agent must delegate work-item fetching to fetchWorkItems helper'
 		)
-	})
-})
-
-describe('parseIterations', () => {
-	it('zero iterations → defaults to id=1, commitSha=""', () => {
-		const result = parseIterations([])
-		assert.equal(result.latestIterationId, 1)
-		assert.equal(result.latestCommitSha, '')
-	})
-
-	it('single iteration → returns its id and commit SHA', () => {
-		const iterations = [{ id: 1, sourceRefCommit: { commitId: 'abc123' } }]
-		const result = parseIterations(iterations)
-		assert.equal(result.latestIterationId, 1)
-		assert.equal(result.latestCommitSha, 'abc123')
-	})
-
-	it('multiple iterations → returns the max id and its commit SHA', () => {
-		const iterations = [
-			{ id: 1, sourceRefCommit: { commitId: 'aaa' } },
-			{ id: 3, sourceRefCommit: { commitId: 'ccc' } },
-			{ id: 2, sourceRefCommit: { commitId: 'bbb' } },
-		]
-		const result = parseIterations(iterations)
-		assert.equal(result.latestIterationId, 3)
-		assert.equal(result.latestCommitSha, 'ccc')
-	})
-
-	it('iteration with null sourceRefCommit → commitSha defaults to ""', () => {
-		const iterations = [{ id: 2, sourceRefCommit: null }]
-		const result = parseIterations(iterations)
-		assert.equal(result.latestIterationId, 2)
-		assert.equal(result.latestCommitSha, '')
-	})
-
-	it('iteration with missing commitId field → commitSha defaults to ""', () => {
-		const iterations = [{ id: 4, sourceRefCommit: {} }]
-		const result = parseIterations(iterations)
-		assert.equal(result.latestIterationId, 4)
-		assert.equal(result.latestCommitSha, '')
 	})
 })

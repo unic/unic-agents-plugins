@@ -11,6 +11,20 @@
 ### Fixed
 - (none)
 
+## [1.2.1] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/fetch-iterations.mjs` — pure function `fetchIterations({ responseText, exitCode })` returning `{ ok: true, latestIterationId, latestCommitSha } | { ok: false, reason, message }`. Subsumes `parseIterations`; uses `classifyHttpError` for HTTP failures; distinguishes empty-iterations ABORTED from auth/transient/malformed. Covered by `tests/fetch-iterations.test.mjs` (8 unit cases spanning all reason branches).
+
+### Changed
+- ADO Fetcher prompt Step 2 (iterations fetch) now delegates to `fetchIterations` via `await import`. On `{ ok: false }`, the Fetcher exits non-zero with a clear stderr message and the orchestrator emits a Trailer aborted line.
+
+### Fixed
+- `parseIterations` and its silent `iterationId=1` fallback for empty-iterations are removed; an empty iterations endpoint response now aborts the run instead of silently signing comments with `Iteration 1`.
+
 ## [1.2.0] — 2026-05-13
 
 ### Breaking

@@ -52,31 +52,42 @@ ITERATIONS_JSON=$(az devops invoke \
   --route-parameters "project=$PROJECT" "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
   --org "$ORG_URL" \
   --api-version "7.1" \
-  --output json)
+  --output json 2>/tmp/ado_fetcher_iter.err)
+ITER_EXIT=$?
 ```
 
-Parse via the helper script — handles the zero-iteration case gracefully:
+Parse via the helper — returns a discriminated union; empty value array → ABORTED (no implicit iteration fallback):
 
 ```bash
 ITER_RESULT=$(
-  ITERATIONS_JSON_STR="$ITERATIONS_JSON" \
+  ITER_RESP="$ITERATIONS_JSON" \
+  ITER_EXIT_CODE="$ITER_EXIT" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
-const { parseIterations } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`)
-const value = JSON.parse(process.env.ITERATIONS_JSON_STR).value ?? []
-const result = parseIterations(value)
+const { fetchIterations } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/fetch-iterations.mjs`)
+const result = fetchIterations({ responseText: process.env.ITER_RESP ?? '', exitCode: Number(process.env.ITER_EXIT_CODE) })
 process.stdout.write(JSON.stringify(result))
 EOJS
 )
 
+ITER_OK=$(echo "$ITER_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).ok))")
+if [ "$ITER_OK" != "true" ]; then
+  ITER_REASON=$(echo "$ITER_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).reason ?? '')")
+  ITER_MSG=$(echo "$ITER_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).message ?? '')")
+  rm -f /tmp/ado_fetcher_iter.err
+  if [ "$ITER_REASON" = "auth" ]; then
+    echo "ERROR: $ITER_MSG. Try \`az devops login\` to re-authenticate." >&2
+  elif [ "$ITER_REASON" = "empty-iterations" ]; then
+    echo "ERROR: iterations endpoint returned empty value array. Cannot sign Review with a valid Iteration ID." >&2
+  else
+    echo "ERROR: $ITER_MSG" >&2
+  fi
+  exit 1
+fi
+rm -f /tmp/ado_fetcher_iter.err
+
 LATEST_ITERATION_ID=$(echo "$ITER_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).latestIterationId))")
 LATEST_COMMIT_SHA=$(echo "$ITER_RESULT"   | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).latestCommitSha)")
-```
-
-If `LATEST_ITERATION_ID` resolves to `1` and iterations were empty, log:
-
-```
-Warning: no iterations returned — defaulting to iteration 1
 ```
 
 ---
