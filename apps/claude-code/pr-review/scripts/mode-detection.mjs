@@ -25,8 +25,7 @@ export function detectMode({ threads, signaturePrefix }) {
 	const r = detectPriorReview({
 		// detect-prior-review accepts the raw ADO thread shape; the orchestrator
 		// passes whatever `az repos pr thread list` returned, untouched.
-		// eslint-disable-next-line
-		// @ts-ignore -- runtime-validated by detectPriorReview's own guards
+		// @ts-expect-error -- runtime-validated by detectPriorReview's own guards
 		threads: Array.isArray(threads) ? threads : [],
 		signaturePrefix,
 	})
