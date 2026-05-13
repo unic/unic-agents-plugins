@@ -188,39 +188,59 @@ WI_RESPONSE=$(az devops invoke \
   --route-parameters "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
   --org "$ORG_URL" \
   --api-version "7.1" \
-  --output json 2>/dev/null) || WI_RESPONSE=""
+  --output json 2>/tmp/ado_fetcher_wi.err)
+WI_EXIT=$?
 ```
 
-Parse with the helper script — returns an empty array on failure:
+Parse with the helper — returns a discriminated union so the Notices step can distinguish EMPTY-BY-DESIGN from a fetch failure:
 
 ```bash
-WORK_ITEM_IDS=$(
+WI_RESULT=$(
   WI_RESP="$WI_RESPONSE" \
+  WI_EXIT_CODE="$WI_EXIT" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
-const { parseWorkItemIds } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`)
-const response = process.env.WI_RESP ? JSON.parse(process.env.WI_RESP) : null
-const ids = parseWorkItemIds(response)
-process.stdout.write(JSON.stringify(ids))
+const { fetchWorkItems } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/fetch-work-items.mjs`)
+const result = fetchWorkItems({ responseText: process.env.WI_RESP ?? '', exitCode: Number(process.env.WI_EXIT_CODE) })
+process.stdout.write(JSON.stringify(result))
 EOJS
 )
+
+WI_OK=$(echo "$WI_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).ok))")
+if [ "$WI_OK" = "true" ]; then
+  WORK_ITEM_IDS=$(echo "$WI_RESULT" | node -e "process.stdout.write(JSON.stringify(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).ids))")
+  WI_FAIL_MESSAGE=""
+else
+  WORK_ITEM_IDS="[]"
+  WI_FAIL_MESSAGE=$(echo "$WI_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).message ?? '')")
+fi
+rm -f /tmp/ado_fetcher_wi.err
 ```
 
 ---
 
 ## Step 6 — Build the Notices array
 
-Initialise the per-agent Notices array. In PRD A's A1 slice the only emission site is the Doc-Context EMPTY-BY-DESIGN `info` Notice fired when `WORK_ITEM_IDS=[]`. Subsequent slices (A2 work-items DEGRADED, A4 diff-range DEGRADED) append additional Notices to the same array via the same helper.
+Initialise the per-agent Notices array. Emission sites:
+
+- **EMPTY-BY-DESIGN info** (`kind: doc-context`) — when `WORK_ITEM_IDS=[]` and the fetch succeeded (no work items linked to the PR).
+- **DEGRADED warning** (`kind: work-items`) — when the fetch failed (`WI_OK=false`); message comes from the helper.
+
+Additional Notices (A4 diff-range DEGRADED) are appended to the same array by their respective steps.
 
 ```bash
 NOTICES=$(
   WI_IDS="$WORK_ITEM_IDS" \
+  WI_OK="$WI_OK" \
+  WI_MSG="$WI_FAIL_MESSAGE" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
 const { createNotice } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
 const ids = JSON.parse(process.env.WI_IDS || '[]')
 const notices = []
-if (ids.length === 0) {
+if (process.env.WI_OK !== 'true') {
+  notices.push(createNotice('warning', 'work-items', process.env.WI_MSG || 'Failed to fetch linked work items. Review proceeded without business context.'))
+} else if (ids.length === 0) {
   notices.push(createNotice('info', 'doc-context', 'Reviewed without business context — no work items linked to this PR.'))
 }
 process.stdout.write(JSON.stringify(notices))

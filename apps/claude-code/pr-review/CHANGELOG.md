@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [1.2.0] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/classify-http-error.mjs` — pure function `classifyHttpError({ status, body, exitCode })` implementing the canonical HTTP-tier mapping (200/201/404/409 → OK; 401/403 → ABORTED; 5xx/other-4xx → DEGRADED; network/exit-code → DEGRADED). Covered by `tests/classify-http-error.test.mjs` (16 unit cases spanning every mapping row, malformed-body paths, and network-exit-code paths).
+- `scripts/ado/fetch-work-items.mjs` — pure function `fetchWorkItems({ responseText, exitCode })` returning `{ ok: true, ids } | { ok: false, reason, message }`. Subsumes `parseWorkItemIds`; distinguishes EMPTY-BY-DESIGN (`{ ok: true, ids: [] }`) from fetch failure (`{ ok: false }`). Covered by `tests/fetch-work-items.test.mjs` (9 unit cases).
+- ADR 0015 (`docs/adr/0015-canonical-http-tier-mapping.md`) recording the HTTP-tier mapping table, the 401/403 abort rule, and the no-retries-in-v1 stance.
+
+### Changed
+- ADO Fetcher prompt Step 5 (`work-item fetch`) now delegates to `fetchWorkItems` via `await import`. On `{ ok: false }`, emits a DEGRADED Notice (`kind: work-items`) into the `NOTICES` array. On `{ ok: true, ids: [] }`, still emits the existing EMPTY-BY-DESIGN `info` Notice (`kind: doc-context`).
+
+### Fixed
+- `parseWorkItemIds` is removed; callers that received an empty array on auth failure can no longer conflate a fetch failure with a legitimately empty work-item list.
+
 ## [1.1.0] — 2026-05-13
 
 ### Breaking

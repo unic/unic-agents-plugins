@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
-import { parseIterations, parseWorkItemIds } from '../scripts/ado-fetcher.mjs'
+import { parseIterations } from '../scripts/ado-fetcher.mjs'
 
 /** Reads the ado-fetcher agent markdown for content assertions */
 const agentContent = readFileSync(new URL('../.agents/ado-fetcher.md', import.meta.url), 'utf8')
@@ -72,10 +72,10 @@ describe('ado-fetcher agent content', () => {
 		)
 	})
 
-	it('invokes the parseWorkItemIds helper from ado-fetcher.mjs', () => {
+	it('invokes the fetchWorkItems helper from scripts/ado/fetch-work-items.mjs', () => {
 		assert.ok(
-			agentContent.includes('parseWorkItemIds'),
-			'Agent must delegate work-item ID parsing to parseWorkItemIds helper'
+			agentContent.includes('fetchWorkItems') || agentContent.includes('fetch-work-items'),
+			'Agent must delegate work-item fetching to fetchWorkItems helper'
 		)
 	})
 })
@@ -117,27 +117,5 @@ describe('parseIterations', () => {
 		const result = parseIterations(iterations)
 		assert.equal(result.latestIterationId, 4)
 		assert.equal(result.latestCommitSha, '')
-	})
-})
-
-describe('parseWorkItemIds', () => {
-	it('no work items linked → returns empty array', () => {
-		const result = parseWorkItemIds({ value: [] })
-		assert.deepEqual(result, [])
-	})
-
-	it('work items present → returns array of numeric IDs', () => {
-		const result = parseWorkItemIds({ value: [{ id: 42 }, { id: 7 }] })
-		assert.deepEqual(result, [42, 7])
-	})
-
-	it('null response (command failed) → returns empty array', () => {
-		const result = parseWorkItemIds(null)
-		assert.deepEqual(result, [])
-	})
-
-	it('response with no value key → returns empty array', () => {
-		const result = parseWorkItemIds({})
-		assert.deepEqual(result, [])
 	})
 })

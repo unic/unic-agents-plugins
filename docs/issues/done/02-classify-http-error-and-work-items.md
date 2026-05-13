@@ -1,6 +1,6 @@
 # A2. `classify-http-error` + `fetch-work-items` refactor → DEGRADED tier + ADR-0015
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

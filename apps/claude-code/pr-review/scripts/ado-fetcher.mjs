@@ -24,14 +24,3 @@ export function parseIterations(iterations) {
 		latestCommitSha: latest.sourceRefCommit?.commitId ?? '',
 	}
 }
-
-/**
- * Parses the ADO pullRequestWorkItems response and returns an array of work item IDs.
- * Returns an empty array when no work items are linked or when the command failed.
- *
- * @param {{ value?: Array<{ id: number }> } | null | undefined} response
- * @returns {number[]}
- */
-export function parseWorkItemIds(response) {
-	return (response?.value ?? []).map((wi) => wi.id)
-}
