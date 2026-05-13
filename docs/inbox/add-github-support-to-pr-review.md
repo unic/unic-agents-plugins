@@ -17,6 +17,7 @@ Add GitHub support to pr-review
 The plugin communicates with ADO via `ado-fetcher` and `ado-writer` sub-agents. Supporting GitHub PRs would require equivalent `github-fetcher` and `github-writer` agents using the GitHub REST API (or `gh` CLI), plus a top-level dispatch in the orchestrator to route based on the detected remote.
 
 **What grilling needs to resolve:**
+
 - Does GitHub support run alongside ADO (auto-detect remote from `git remote`), or is it configured explicitly?
 - Authentication: `gh` CLI token, `GITHUB_TOKEN` env var, or a stored PAT?
 - Thread model mapping: GitHub uses inline review comments and PR-level comments — how does the existing classification logic (`addressed`, `pending`, `disputed`, `obsolete`) map onto GitHub's review state machine?

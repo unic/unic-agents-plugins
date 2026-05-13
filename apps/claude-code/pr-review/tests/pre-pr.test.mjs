@@ -171,31 +171,22 @@ describe('buildPrePrContext', () => {
 
 describe('review-pr command — compact sub-agent output guidance', () => {
 	/** Slice of Step 6 — the review-agent launch step in ADO modes */
-	const step6Section = commandContent.slice(
-		commandContent.indexOf('## Step 6'),
-		commandContent.indexOf('## Step 7'),
-	)
+	const step6Section = commandContent.slice(commandContent.indexOf('## Step 6'), commandContent.indexOf('## Step 7'))
 
 	/** Pre-PR step D — the review-agent launch step in pre-PR mode */
-	const stepDSection = commandContent.slice(
-		commandContent.indexOf('### Step D'),
-		commandContent.indexOf('### Step E'),
-	)
+	const stepDSection = commandContent.slice(commandContent.indexOf('### Step D'), commandContent.indexOf('### Step E'))
 
 	it('Step 6 instructs agents to return a JSON array of findings', () => {
 		assert.ok(
 			step6Section.includes('JSON') && step6Section.includes('array'),
-			'Step 6 must instruct review agents to return a JSON array of findings',
+			'Step 6 must instruct review agents to return a JSON array of findings'
 		)
 	})
 
 	it('Step 6 requires all six finding fields in agent prompt', () => {
 		const requiredFields = ['severity', 'filePath', 'startLine', 'endLine', 'title', 'body']
 		for (const field of requiredFields) {
-			assert.ok(
-				step6Section.includes(field),
-				`Step 6 agent prompt must mention required finding field: ${field}`,
-			)
+			assert.ok(step6Section.includes(field), `Step 6 agent prompt must mention required finding field: ${field}`)
 		}
 	})
 
@@ -208,7 +199,7 @@ describe('review-pr command — compact sub-agent output guidance', () => {
 				step6Section.includes('without code quote') ||
 				step6Section.includes('code quotes') ||
 				step6Section.toLowerCase().includes('code quote'),
-			'Step 6 must instruct agents to omit code quotes from the return value',
+			'Step 6 must instruct agents to omit code quotes from the return value'
 		)
 	})
 
@@ -218,7 +209,7 @@ describe('review-pr command — compact sub-agent output guidance', () => {
 				step6Section.toLowerCase().includes('prose') ||
 				step6Section.toLowerCase().includes('analysis') ||
 				step6Section.toLowerCase().includes('supporting'),
-			'Step 6 must instruct agents to keep reasoning inside their own context, not in return value',
+			'Step 6 must instruct agents to keep reasoning inside their own context, not in return value'
 		)
 	})
 
@@ -231,38 +222,35 @@ describe('review-pr command — compact sub-agent output guidance', () => {
 	it('Step 6 requires filePath to use leading slash and forward slashes', () => {
 		assert.ok(
 			step6Section.includes('leading') || step6Section.includes('forward slash') || step6Section.includes('leading /'),
-			'Step 6 must require filePath with leading slash and forward slashes matching ADO format',
+			'Step 6 must require filePath with leading slash and forward slashes matching ADO format'
 		)
 	})
 
 	it('Step 6 requires title to be one line capped at 80 chars', () => {
 		assert.ok(
 			step6Section.includes('80') || step6Section.includes('one line') || step6Section.includes('≤ 80'),
-			'Step 6 must require title to be one line, at most 80 characters',
+			'Step 6 must require title to be one line, at most 80 characters'
 		)
 	})
 
 	it('Step 6 requires body to be exactly the text to post as comment (no code quotes)', () => {
 		assert.ok(
 			step6Section.includes('body') && (step6Section.includes('post') || step6Section.includes('comment')),
-			'Step 6 must describe body as the exact text to post as the ADO or local-interface comment',
+			'Step 6 must describe body as the exact text to post as the ADO or local-interface comment'
 		)
 	})
 
 	it('Step D instructs agents to return structured JSON findings (same schema as ADO modes)', () => {
 		assert.ok(
 			stepDSection.includes('JSON') || stepDSection.includes('structured'),
-			'Step D must instruct review agents to return structured JSON findings',
+			'Step D must instruct review agents to return structured JSON findings'
 		)
 	})
 
 	it('Step D requires same six finding fields as Step 6', () => {
 		const requiredFields = ['severity', 'filePath', 'startLine', 'endLine', 'title', 'body']
 		for (const field of requiredFields) {
-			assert.ok(
-				stepDSection.includes(field),
-				`Step D agent prompt must mention required finding field: ${field}`,
-			)
+			assert.ok(stepDSection.includes(field), `Step D agent prompt must mention required finding field: ${field}`)
 		}
 	})
 
@@ -272,7 +260,7 @@ describe('review-pr command — compact sub-agent output guidance', () => {
 				stepDSection.toLowerCase().includes('reasoning') ||
 				stepDSection.toLowerCase().includes('prose') ||
 				stepDSection.toLowerCase().includes('analysis'),
-			'Step D must instruct agents to keep reasoning inside their own context, not in return value',
+			'Step D must instruct agents to keep reasoning inside their own context, not in return value'
 		)
 	})
 })

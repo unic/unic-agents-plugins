@@ -6,10 +6,7 @@ import { describe, it } from 'node:test'
 import { parseIterations, parseWorkItemIds } from '../scripts/ado-fetcher.mjs'
 
 /** Reads the ado-fetcher agent markdown for content assertions */
-const agentContent = readFileSync(
-	new URL('../.agents/ado-fetcher.md', import.meta.url),
-	'utf8',
-)
+const agentContent = readFileSync(new URL('../.agents/ado-fetcher.md', import.meta.url), 'utf8')
 
 describe('ado-fetcher agent content', () => {
 	it('contains no ADO write HTTP methods (POST/PATCH/DELETE)', () => {
@@ -25,11 +22,7 @@ describe('ado-fetcher agent content', () => {
 			// Flag --http-method POST/PATCH/DELETE
 			return /--http-method\s+(POST|PATCH|DELETE)/i.test(trimmed)
 		})
-		assert.deepEqual(
-			suspectLines,
-			[],
-			`Agent contains write operations: ${suspectLines.join(' | ')}`,
-		)
+		assert.deepEqual(suspectLines, [], `Agent contains write operations: ${suspectLines.join(' | ')}`)
 	})
 
 	it('declares allowed-tools in frontmatter', () => {
@@ -59,7 +52,7 @@ describe('ado-fetcher agent content', () => {
 			agentContent.includes('no iterations returned') ||
 				agentContent.includes('zero-iteration') ||
 				agentContent.includes('defaulting to iteration 1'),
-			'Agent must document zero-iteration fallback behaviour',
+			'Agent must document zero-iteration fallback behaviour'
 		)
 	})
 
@@ -68,21 +61,21 @@ describe('ado-fetcher agent content', () => {
 			agentContent.includes('already merged') ||
 				agentContent.includes('mergeStatus') ||
 				agentContent.includes('continue without error'),
-			'Agent must document handling of already-merged PRs',
+			'Agent must document handling of already-merged PRs'
 		)
 	})
 
 	it('invokes the parseIterations helper from ado-fetcher.mjs', () => {
 		assert.ok(
 			agentContent.includes('parseIterations'),
-			'Agent must delegate iteration parsing to parseIterations helper',
+			'Agent must delegate iteration parsing to parseIterations helper'
 		)
 	})
 
 	it('invokes the parseWorkItemIds helper from ado-fetcher.mjs', () => {
 		assert.ok(
 			agentContent.includes('parseWorkItemIds'),
-			'Agent must delegate work-item ID parsing to parseWorkItemIds helper',
+			'Agent must delegate work-item ID parsing to parseWorkItemIds helper'
 		)
 	})
 })
@@ -95,9 +88,7 @@ describe('parseIterations', () => {
 	})
 
 	it('single iteration → returns its id and commit SHA', () => {
-		const iterations = [
-			{ id: 1, sourceRefCommit: { commitId: 'abc123' } },
-		]
+		const iterations = [{ id: 1, sourceRefCommit: { commitId: 'abc123' } }]
 		const result = parseIterations(iterations)
 		assert.equal(result.latestIterationId, 1)
 		assert.equal(result.latestCommitSha, 'abc123')

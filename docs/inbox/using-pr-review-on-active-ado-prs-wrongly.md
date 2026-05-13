@@ -17,6 +17,7 @@ using pr-review on active ADO PRs wrongly identified as merged
 Very sparse report; no repro steps or error output provided.
 
 **What we still need to reproduce and fix:**
+
 - What is the ADO PR status at the time of the wrong identification? (Active, Draft, something else?)
 - Which code path reads the PR status — `ado-fetcher`? Which field on the ADO PR object is being checked (`status`, `mergeStatus`, something else)?
 - Does this happen on all PRs or only under specific conditions (e.g. auto-complete enabled, a specific branch naming pattern, a particular reviewer state)?
