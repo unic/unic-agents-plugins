@@ -11,6 +11,24 @@
 ### Fixed
 - (none)
 
+## [1.1.0] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/notices.mjs` — pure helpers (`createNotice`, `mergeNotices`, `formatNoticesAsSummaryBlock`, `formatNoticesAsPrePrPreamble`, `formatTrailer`) implementing the four-tier Notice doctrine (OK / EMPTY-BY-DESIGN / DEGRADED / ABORTED). Covered by `tests/notices.test.mjs` (14 unit cases).
+- ADR 0014 (`docs/adr/0014-notice-tier-doctrine-and-failure-classification-helpers.md`) recording the four-tier doctrine, the no-fifth-ASK-tier rule, the Notice shape (`{ severity, kind, message }`), the canonical `kind` enum, the mandatory end-of-run Trailer convention, and the helper-layer refinement to ADR 0013.
+- ADO Fetcher `ADO_FETCHER_RESULT_START`/`_END` block now carries a `NOTICES` JSON array. When `WORK_ITEM_IDS=[]`, the Fetcher emits an `info` Notice (`kind: doc-context`, message: "Reviewed without business context — no work items linked to this PR.").
+
+### Changed
+- Orchestrator (`commands/review-pr.md`) parses `NOTICES` from the Fetcher result block, sets `NOTICES_JSON` via `mergeNotices`, and threads it into the ADO Writer prompt. New `Step 8 — End-of-run Trailer` prints one mandatory `formatTrailer` line in the Claude interface for every run (success, abort). Pre-PR mode's completion line is now also a `formatTrailer` call (`mode: 'pre-pr'`) so AFK invokers see the same trailer shape across modes.
+- ADO Writer (`.agents/ado-writer.md`) accepts a new `NOTICES_JSON` input and renders a `## Notices` block above severity-grouped findings in the Review Summary content (heading bare; `ℹ️` / `⚠` prefixes per item). Empty `NOTICES_JSON` produces no `## Notices` heading.
+- Orchestrator `## Constants` section removed; the `SIGNATURE_PREFIX` invariant is now expressed inline at every call site that needed it (the constant value was already inlined; the section was documentation only).
+
+### Fixed
+- (none)
+
 ## [1.0.0] — 2026-05-12
 
 ### Breaking

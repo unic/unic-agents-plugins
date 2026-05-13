@@ -8,12 +8,7 @@ description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent a
 
 **Arguments:** "$ARGUMENTS"
 
-Thin orchestrator that detects one of three modes — Pre-PR, First-review, Re-review — and delegates to focused agents.
-
-## Constants
-
-- `SIGNATURE_PREFIX` = `🤖 *Reviewed by Claude Code*` — never alter; re-review detection depends on it.
-- ADO Writer appends `---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}` to every posted comment.
+Thin orchestrator that detects one of three modes — Pre-PR, First-review, Re-review — and delegates to focused agents. The `SIGNATURE_PREFIX` `🤖 *Reviewed by Claude Code*` is sacred (re-review detection depends on it) and appears inline at every call site that needs it.
 
 ### Compact finding schema
 
@@ -90,7 +85,7 @@ Agent(
 )
 ```
 
-Store the full output as `ADO_FETCHER_RESULT`. Parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, and `WORK_ITEM_IDS` from the `ADO_FETCHER_RESULT_START`/`ADO_FETCHER_RESULT_END` block.
+Store the full output as `ADO_FETCHER_RESULT`. Parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `WORK_ITEM_IDS`, and `NOTICES` from the `ADO_FETCHER_RESULT_START`/`ADO_FETCHER_RESULT_END` block. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs` (in this slice the only source is the Fetcher; subsequent slices add Coordinator/Writer sources).
 
 ## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 
@@ -148,9 +143,14 @@ Agent(
   SUMMARY_THREAD_ID: {SUMMARY_THREAD_ID}
   MODE: {MODE}
   PLUGIN_ROOT: {CLAUDE_PLUGIN_ROOT}
-  FINDINGS: {FINDINGS_JSON}"
+  FINDINGS: {FINDINGS_JSON}
+  NOTICES_JSON: {NOTICES_JSON}"
 )
 ```
+
+## Step 8 — End-of-run Trailer
+
+Print one Trailer line via `formatTrailer({ mode, findings, notices, prUrl })` from `scripts/ado/notices.mjs`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts for `findings`; pass `NOTICES_JSON` as `notices`; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. On an aborted run, pass `{ mode: 'aborted', abortKind, abortReason }` instead. Pre-PR mode emits its Trailer in Step E with `mode: 'pre-pr'`.
 
 ## Pre-PR mode
 
@@ -197,4 +197,4 @@ Print each finding in the Claude interface, grouped by severity (`critical`, `im
 {body}
 ```
 
-End with `✅ Pre-PR review complete — {N} finding(s).` (or `no issues found.` when `N == 0`).
+End with one Trailer line via `formatTrailer({ mode: 'pre-pr', findings, notices: [] })` from `scripts/ado/notices.mjs` (reduce `FINDINGS` to `{ critical, important, minor }` counts). The line reads `✅ Pre-PR review complete: <N> findings (...) · 0 warning notices`.

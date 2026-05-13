@@ -24,6 +24,7 @@ You receive:
 - `MODE` — `first-review` or `re-review`
 - `PLUGIN_ROOT` — absolute path to this plugin's directory (for Node.js helper scripts)
 - `FINDINGS` — a JSON array of compact findings: `{ severity, filePath, startLine, endLine, title, body }[]`
+- `NOTICES_JSON` — a JSON array of merged Notices: `{ severity: "info" | "warning", kind, message }[]`. May be `[]`.
 
 ---
 
@@ -185,6 +186,8 @@ echo "Summary thread posted: ${SUMMARY_THREAD_ID}"
 The `{SUMMARY_CONTENT}` must be structured as:
 
 ```markdown
+{NOTICES_BLOCK}
+
 ### 🔴 Critical (X found)
 
 - **[{filePath}:{startLine}]** {title}
@@ -200,6 +203,20 @@ The `{SUMMARY_CONTENT}` must be structured as:
 ### ✅ What's good
 
 - (positive observations if any)
+```
+
+`{NOTICES_BLOCK}` is the output of `formatNoticesAsSummaryBlock` from `scripts/ado/notices.mjs` applied to `NOTICES_JSON`. The block renders a `## Notices` heading with per-item severity emoji prefixes (`ℹ️` for `info`, `⚠` for `warning`) above the severity-grouped findings. When `NOTICES_JSON` is `[]`, the helper returns an empty string and no `## Notices` heading is emitted. Compute it once before composing the Summary content:
+
+```bash
+NOTICES_BLOCK=$(
+  NJ="$NOTICES_JSON" \
+  PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { formatNoticesAsSummaryBlock } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
+const notices = JSON.parse(process.env.NJ || '[]')
+process.stdout.write(formatNoticesAsSummaryBlock(notices))
+EOJS
+)
 ```
 
 ---

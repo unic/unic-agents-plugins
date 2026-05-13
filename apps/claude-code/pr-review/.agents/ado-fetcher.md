@@ -208,6 +208,28 @@ EOJS
 
 ---
 
+## Step 6 — Build the Notices array
+
+Initialise the per-agent Notices array. In PRD A's A1 slice the only emission site is the Doc-Context EMPTY-BY-DESIGN `info` Notice fired when `WORK_ITEM_IDS=[]`. Subsequent slices (A2 work-items DEGRADED, A4 diff-range DEGRADED) append additional Notices to the same array via the same helper.
+
+```bash
+NOTICES=$(
+  WI_IDS="$WORK_ITEM_IDS" \
+  PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { createNotice } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
+const ids = JSON.parse(process.env.WI_IDS || '[]')
+const notices = []
+if (ids.length === 0) {
+  notices.push(createNotice('info', 'doc-context', 'Reviewed without business context — no work items linked to this PR.'))
+}
+process.stdout.write(JSON.stringify(notices))
+EOJS
+)
+```
+
+---
+
 ## Output
 
 Return the following structured context block as your final output. Fill in all values gathered above. This block is consumed verbatim by the orchestrator and downstream agents:
@@ -226,6 +248,7 @@ TARGET_BRANCH: {TARGET_BRANCH}
 LATEST_ITERATION_ID: {LATEST_ITERATION_ID}
 LATEST_COMMIT_SHA: {LATEST_COMMIT_SHA}
 WORK_ITEM_IDS: {WORK_ITEM_IDS}
+NOTICES: {NOTICES}
 
 CHANGED_FILES:
 {CHANGED_FILES}
@@ -238,6 +261,7 @@ ADO_FETCHER_RESULT_END
 Where:
 
 - `WORK_ITEM_IDS` is the JSON array from Step 5, e.g. `[42, 7]` or `[]`
+- `NOTICES` is the JSON array from Step 6, e.g. `[{"severity":"info","kind":"doc-context","message":"..."}]` or `[]`
 - `CHANGED_FILES` is the newline-separated list from Step 3, e.g. `edit: /src/api.ts`
 - `RAW_DIFF` is the full diff text from Step 4 (may be empty if no new commits)
 - `LATEST_COMMIT_SHA` is the latest source-branch commit SHA captured in Step 2; reserved for future diff-range debugging and not consumed by any current downstream agent — the diff-range logic that needed it is now self-contained in Step 4 above.
