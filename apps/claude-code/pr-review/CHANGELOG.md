@@ -6,6 +6,23 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [1.0.0] — 2026-05-12
+
+### Breaking
+- (none)
+
+### Added
+- Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (≤ 200 lines per PRD acceptance criterion) that delegates ADO API calls and coordination logic to three focused agents
+- ADO Fetcher agent: handles all Azure DevOps REST API fetches (diff, threads, iterations) in a single dedicated context window
+- Re-review Coordinator agent: classifies prior bot threads, computes incremental diffs, and decides per-thread reply actions
+- ADO Writer agent: posts all inline thread comments and the summary comment back to ADO, keeping write operations isolated from analysis
+- Pre-PR mode: invoke `/pr-review:review-pr` without an ADO URL to review a local branch diff before the PR is created; findings are printed to the terminal instead of posted to ADO
+- Compact sub-agent output: all review-aspect agent prompts now include an explicit JSON output contract, keeping reasoning inside each agent's context window and returning only structured `{ severity, filePath, startLine, endLine, title, body }[]` arrays to the orchestrator
 - New `scripts/re-review/parse-diff-hunks.mjs` helper module (with 7 unit tests) that parses raw `git diff` text into per-hunk `{ filePath, startLine, endLine }` entries — pure function, no I/O, slash-prefixed file paths.
 - New `scripts/mode-detection.mjs` helper that consolidates `Step 4` re-review detection and exports both `detectMode()` and `formatModeEnv()` used by the orchestrator.
 
@@ -29,19 +46,9 @@
 - ADO Writer Step 2's `MODE=re-review, zero new findings` branch now notes that Step 3 still posts the completion marker on every successful run, resolving the apparent contradiction with the "Do not post anything" line.
 - ADO Fetcher output documentation now flags `LATEST_COMMIT_SHA` as reserved for future diff-range debugging and unused by any current downstream agent (the diff-range logic that needed it is self-contained in Step 4) — prevents future contributors from threading it through new agents under the assumption it is consumed.
 - Orchestrator Step 6 prose no longer claims the review-aspect-agent prompts receive `PR_TITLE` and `PR_DESCRIPTION`. The Fetcher captures them for downstream use, but the orchestrator does not parse them, so the prose now reads "full diff and changed file contents" only — removing the contradiction with Step 5's parse list.
-
-## [1.0.0] — 2026-05-12
-
-### Breaking
-- (none)
-
-### Added
-- Orchestrator split: `review-pr.md` refactored from a monolithic command to a thin orchestrator (≤ 200 lines per PRD acceptance criterion) that delegates ADO API calls and coordination logic to three focused agents
-- ADO Fetcher agent: handles all Azure DevOps REST API fetches (diff, threads, iterations) in a single dedicated context window
-- Re-review Coordinator agent: classifies prior bot threads, computes incremental diffs, and decides per-thread reply actions
-- ADO Writer agent: posts all inline thread comments and the summary comment back to ADO, keeping write operations isolated from analysis
-- Pre-PR mode: invoke `/pr-review:review-pr` without an ADO URL to review a local branch diff before the PR is created; findings are printed to the terminal instead of posted to ADO
-- Compact sub-agent output: all review-aspect agent prompts now include an explicit JSON output contract, keeping reasoning inside each agent's context window and returning only structured `{ severity, filePath, startLine, endLine, title, body }[]` arrays to the orchestrator
+- Pre-PR mode default-branch detection no longer silently leaves `DEFAULT_BRANCH` empty when `git remote show origin` produces no `HEAD branch:` line. The pipeline now filters empty awk output through `grep .` so the `|| echo "main"` fallback fires for real, instead of being short-circuited by a still-zero-exit awk.
+- `shouldSkipFile` now uses the lower-cased path for the `/generated/` directory check too, so capitalised `.NET`-style paths like `/Source/Generated/ApiClient.cs` are skipped consistently with the other rules.
+- `parseChangedFilesFromDiff` now splits the diff text on `/\r?\n/` (matching the sibling `parseDiffHunks` helper), so CRLF-formatted diffs from Windows Git no longer produce paths with a trailing `\r`.
 
 ### Fixed
 - (none)

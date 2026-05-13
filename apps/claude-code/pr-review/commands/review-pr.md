@@ -159,7 +159,7 @@ No PR URL provided — reviewing the local branch diff; no ADO calls are made.
 ### Step A — Compute diff
 
 ```bash
-DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || echo "main")
+DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | awk '/HEAD branch/{print $NF}' | grep . || echo "main")
 RAW_DIFF=$(git diff "origin/${DEFAULT_BRANCH}...HEAD") || { echo "git diff failed"; exit 1; }
 ```
 

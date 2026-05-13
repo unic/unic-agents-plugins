@@ -80,6 +80,13 @@ index 000..111 100644
 		const result = parseChangedFilesFromDiff(diff)
 		assert.deepEqual(result, ['/a/b/c/deep.ts'])
 	})
+
+	it('CRLF-separated diff produces clean paths (no trailing \\r)', () => {
+		const diff =
+			'diff --git a/src/foo.ts b/src/foo.ts\r\nindex 000..111 100644\r\n--- a/src/foo.ts\r\n+++ b/src/foo.ts\r\n'
+		const result = parseChangedFilesFromDiff(diff)
+		assert.deepEqual(result, ['/src/foo.ts'])
+	})
 })
 
 // ---------------------------------------------------------------------------
@@ -121,6 +128,10 @@ describe('shouldSkipFile', () => {
 
 	it('file under a generated/ directory → true (skip)', () => {
 		assert.equal(shouldSkipFile('/src/generated/api-client.ts'), true)
+	})
+
+	it('file under a capitalised Generated/ directory (.NET-style) → true (skip)', () => {
+		assert.equal(shouldSkipFile('/Source/Generated/ApiClient.cs'), true)
 	})
 
 	it('normal source file with no skip pattern → false (keep)', () => {

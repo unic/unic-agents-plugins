@@ -31,8 +31,8 @@ export function shouldSkipFile(filePath) {
 	const basename = filePath.split('/').pop() ?? ''
 	if (basename.toLowerCase().startsWith('generated-types.')) return true
 
-	// files under a generated/ directory segment
-	if (filePath.includes('/generated/')) return true
+	// files under a generated/ directory segment (case-insensitive: e.g. /Generated/ on .NET)
+	if (lower.includes('/generated/')) return true
 
 	return false
 }
@@ -51,7 +51,7 @@ export function parseChangedFilesFromDiff(diffText) {
 	const seen = new Set()
 	const paths = []
 
-	for (const line of diffText.split('\n')) {
+	for (const line of diffText.split(/\r?\n/)) {
 		const m = line.match(/^diff --git a\/.*? b\/(.+)$/)
 		if (m) {
 			const filePath = `/${m[1]}`
