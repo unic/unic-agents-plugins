@@ -361,28 +361,10 @@ az devops invoke \
   --output json | node -e "process.stdout.write('Dispute acknowledgement posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 ```
 
-**`addressed` → post resolution confirmation and PATCH thread status to fixed**
+**`addressed` → PATCH thread status to fixed**
 
 ```bash
-# 1. Post resolution reply
-cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
-{
-  "content": "Resolved as of Iteration ${LATEST_ITERATION_ID} — thanks!\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
-  "commentType": 1
-}
-ENDJSON
-
-az devops invoke \
-  --area git \
-  --resource pullRequestThreadComments \
-  --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
-  --org "${ORG_URL}" \
-  --http-method POST \
-  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
-  --api-version "7.1" \
-  --output json | node -e "process.stdout.write('Resolution reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
-
-# 2. PATCH thread status to fixed (2)
+# PATCH thread status to fixed (2)
 cat > "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" << ENDJSON
 { "status": 2 }
 ENDJSON
@@ -444,7 +426,7 @@ RE_REVIEW_COORDINATOR_RESULT_END
 Where:
 
 - `earlyExit` — `true` only when prior and latest iteration IDs were equal (no-new-revisions path); `false` otherwise
-- `addressed` — count of prior threads classified as addressed (and replied to with resolution confirmation)
+- `addressed` — count of prior threads classified as addressed (and PATCHed to fixed)
 - `disputed` — count of prior threads classified as disputed (and replied to with acknowledgement)
 - `pending` — count of prior threads classified as pending (may include threads that received a new-evidence reply or were skipped)
 - `obsolete` — count of prior threads classified as obsolete

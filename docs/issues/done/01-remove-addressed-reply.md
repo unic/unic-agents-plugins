@@ -1,6 +1,6 @@
 # Remove addressed-thread Reply + revise ADR 0006
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Type:** AFK
 
