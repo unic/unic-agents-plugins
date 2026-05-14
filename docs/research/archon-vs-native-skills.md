@@ -2,7 +2,7 @@
 
 **Research question:** Can the `unic-archon-dlc` workflow be implemented entirely with native Claude Code primitives, dropping Archon as a runtime dependency?
 
-**Scope:** The six-workflow DLC (explore, plan, run, qa, cleanup, triage) as specified in `docs/issues/unic-archon-dlc/PRD.md`.
+**Scope:** The six-workflow DLC (explore, plan, build, qa, cleanup, triage) as specified in `docs/issues/unic-archon-dlc/PRD.md`.
 
 **Date:** 2026-05-14
 
@@ -53,7 +53,7 @@ Skills are loaded by the `Skill tool` inside any Agent call. The following are i
 - `/triage` — 8-state issue lifecycle management
 - `/improve-codebase-architecture` — post-implementation arch review (maps to `arch-review`)
 - `/diagnose` — systematic debugging loop
-- `/implement-feature` — topological issue runner (maps to the `run` workflow)
+- `/implement-feature` — topological issue runner (maps to the `build` workflow)
 - `/verify-spec` — check acceptance criteria against codebase
 
 ### What is NOT a native primitive
@@ -308,19 +308,21 @@ The result is a plugin that:
 
 ## Appendix — Primitive inventory used in this analysis
 
-| File / location                                                                                                                                       | Primitive demonstrated                                                                               |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/.claude/skills/implement-feature/SKILL.md`                                                       | Sequential DAG, topo sort, subagent spawning via Agent tool, worktree creation, LOOP_COMPLETE signal |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/docs/agents/feature-runner.md`                                                                   | Feature runner lifecycle, HITL convention, resumption model                                          |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/ralph/afk.sh`                                                                                    | AFK loop runner, docker sandbox, LOOP_COMPLETE detection                                             |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/ralph/once.sh`                                                                                   | Single-iteration interactive runner                                                                  |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/ralph/PROMPT.md`                                                                                 | Orchestrator prompt: task selection, AFK vs HITL split, topo execution                               |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/.claude/settings.json`                                                                           | PreToolUse / PostToolUse hook configuration                                                          |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/.claude/hooks/test-on-edit.mjs`                                                                  | PostToolUse bash node pattern (run tests on file edit)                                               |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/.claude/hooks/block-lockfile.mjs`                                                                | PreToolUse guard node pattern                                                                        |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/.claude/worktrees/agent-a1096a15cf10bf77b/.agents/skills/diagnose/scripts/hitl-loop.template.sh` | HITL bash script template                                                                            |
-| `/Users/oriol.torrent/.claude/plugins/cache/claude-plugins-official/ralph-loop/1.0.0/README.md`                                                       | ralph-loop plugin: Stop hook loop, completion promise, max-iterations                                |
-| `CronCreate` deferred tool                                                                                                                            | Session-scoped and durable cron scheduling                                                           |
-| `RemoteTrigger` deferred tool                                                                                                                         | Server-side persistent routine scheduling                                                            |
-| `EnterWorktree` / `ExitWorktree` deferred tools                                                                                                       | Worktree session management                                                                          |
-| `/Users/oriol.torrent/Sites/UNIC/unic-agents-plugins/docs/issues/unic-archon-dlc/PRD.md`                                                              | Full plugin specification, Archon concepts, design decisions                                         |
+| File / location                                 | Primitive demonstrated                                                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `.claude/skills/implement-feature/SKILL.md`     | Sequential DAG, topo sort, subagent spawning via Agent tool, worktree creation, LOOP_COMPLETE signal |
+| `docs/agents/feature-runner.md`                 | Feature runner lifecycle, HITL convention, resumption model                                          |
+| `ralph/afk.sh`                                  | AFK loop runner, docker sandbox, LOOP_COMPLETE detection                                             |
+| `ralph/once.sh`                                 | Single-iteration interactive runner                                                                  |
+| `ralph/PROMPT.md`                               | Orchestrator prompt: task selection, AFK vs HITL split, topo execution                               |
+| `.claude/settings.json`                         | PreToolUse / PostToolUse hook configuration                                                          |
+| `.claude/hooks/test-on-edit.mjs`                | PostToolUse bash node pattern (run tests on file edit)                                               |
+| `.claude/hooks/block-lockfile.mjs`              | PreToolUse guard node pattern                                                                        |
+| `CronCreate` deferred tool                      | Session-scoped and durable cron scheduling                                                           |
+| `RemoteTrigger` deferred tool                   | Server-side persistent routine scheduling                                                            |
+| `EnterWorktree` / `ExitWorktree` deferred tools | Worktree session management                                                                          |
+| `docs/issues/unic-archon-dlc/PRD.md`            | Full plugin specification, Archon concepts, design decisions                                         |
+
+---
+
+**Decision note (post-research):** The "native-first" option evaluated above was considered and rejected. The PRD at `docs/issues/unic-archon-dlc/PRD.md` documents the decision to keep Archon as the runtime for the DLC plugin. The Archon YAML DAG, `interactive: true` nodes, and `$ARTIFACTS_DIR` are load-bearing parts of the design.
