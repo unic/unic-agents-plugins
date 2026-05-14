@@ -113,7 +113,7 @@ Agent(
 
 ## Step 7 — Write-back (branch on mode)
 
-**Re-review only** — first run the coordinator, parse `RE_REVIEW_COORDINATOR_RESULT_START`/`_END`, extract `earlyExit`, `freshFindings`, and `NOTICES` (store as `coordinatorNotices`; default `[]` if absent). If `earlyExit: true`, stop; otherwise reassign `FINDINGS_JSON` to `freshFindings`.
+**Re-review only** — first run the coordinator, parse `RE_REVIEW_COORDINATOR_RESULT_START`/`_END`, extract `earlyExit`, `freshFindings`, and `NOTICES` (store as `coordinatorNotices`; default `[]` if absent). If the result block is absent (coordinator exited non-zero), infer `abortKind` from output (contains `az devops login` → `'auth'`; else `'coordinator'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })`, and stop. If `earlyExit: true`, stop; otherwise reassign `FINDINGS_JSON` to `freshFindings`.
 
 ```txt
 Agent(

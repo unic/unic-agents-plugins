@@ -14,6 +14,22 @@
 ### Fixed
 - (none)
 
+## [1.2.8] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- Re-review Coordinator PATCH-to-fixed call site now routes through `parse-write-response.mjs`. On `tier: aborted` (401/403) the Coordinator exits non-zero with a clear stderr message and the orchestrator surfaces a Trailer abort line. On `tier: degraded` (5xx/network/other-4xx) a per-thread DEGRADED Notice (`kind: patch-to-fixed`) is pushed to the Coordinator's `NOTICES` array and iteration continues. 404 and 409 continue silently (canonical OK).
+- Orchestrator Step 7 now handles a missing coordinator result block (coordinator exited non-zero): infers `abortKind` from output and calls `formatTrailer` before stopping.
+
+### Fixed
+- PATCH-to-fixed 401/403 auth failures were previously logged as a "PATCH warning" string on stdout that nothing read — the run continued silently. They now abort the Coordinator with a clear stderr message.
+- PATCH-to-fixed 409 catch-all replaced by the canonical HTTP-tier mapping; 404 is now also treated as OK (deleted thread is a domain success).
+
 ## [1.2.7] — 2026-05-14
 
 ### Breaking

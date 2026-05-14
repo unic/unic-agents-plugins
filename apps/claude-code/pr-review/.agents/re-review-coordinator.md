@@ -381,7 +381,7 @@ cat > "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" << ENDJSON
 { "status": 2 }
 ENDJSON
 
-az devops invoke \
+PATCH_RESP=$(az devops invoke \
   --area git \
   --resource pullRequestThreads \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
@@ -389,20 +389,36 @@ az devops invoke \
   --http-method PATCH \
   --in-file "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" \
   --api-version "7.1" \
-  --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" | \
-  node -e "
-try {
-  const d = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'))
-  process.stdout.write('Thread ' + d.id + ' patched to fixed')
-} catch (e) {
-  const err = require('fs').readFileSync(\`\${process.env.TMPDIR || '/tmp'}/re_review_patch_${THREAD_ID}.err\`, 'utf8')
-  if (err.includes('409') || err.toLowerCase().includes('conflict')) {
-    process.stdout.write('409 Conflict — thread resolved concurrently. Continuing.')
-  } else {
-    process.stdout.write('PATCH warning: ' + err.slice(0, 200))
-  }
-}
-"
+  --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err")
+PATCH_EXIT=$?
+
+PWR_ERR=$(cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" 2>/dev/null)
+PWR_JSON=$(
+  RESP="$PATCH_RESP" EXIT="$PATCH_EXIT" ERR="$PWR_ERR" PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { parseWriteResponse } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/parse-write-response.mjs`)
+const r = parseWriteResponse({ httpExit: Number(process.env.EXIT), responseText: process.env.RESP, errStream: process.env.ERR })
+process.stdout.write(JSON.stringify(r))
+EOJS
+)
+PWR_OK=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(r.ok))")
+PWR_TIER=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.tier||'')")
+PWR_MSG=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.message||'')")
+
+if [ "$PWR_OK" = "true" ]; then
+  echo "Thread ${THREAD_ID} patched to fixed"
+elif [ "$PWR_TIER" = "aborted" ]; then
+  cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
+  echo "ERROR: Could not mark thread ${THREAD_ID} as fixed — ${PWR_MSG}. Try \`az devops login\` to re-authenticate." >&2
+  exit 1
+else
+  cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
+  NOTICES=$(
+    N="$NOTICES" SEV="warning" K="patch-to-fixed" \
+    M="Could not mark thread ${THREAD_ID} as fixed (${PWR_MSG}). Thread remains active and will be re-evaluated on next re-review." \
+    node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
+  )
+fi
 ```
 
 ---

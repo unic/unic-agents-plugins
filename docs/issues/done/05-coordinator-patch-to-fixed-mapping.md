@@ -1,6 +1,6 @@
 # B5. Coordinator PATCH-to-fixed routed through `parse-write-response`
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK
