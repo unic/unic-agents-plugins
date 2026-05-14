@@ -237,11 +237,11 @@ ADO_WRITER_RESULT_END
 		assert.deepEqual(result.notices, [])
 	})
 
-	it('returns empty notices when NOTICES field is malformed JSON', () => {
+	it('returns { ok: false, reason: "malformed" } when NOTICES field is malformed JSON', () => {
 		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nFINDINGS_POSTED: 1\nNOTICES: [broken\nADO_WRITER_RESULT_END`
 		const result = parseAdoWriterResult(output)
-		assert.equal(result.ok, true)
-		assert.deepEqual(result.notices, [])
+		assert.equal(result.ok, false)
+		assert.equal(result.reason, 'malformed')
 	})
 })
 

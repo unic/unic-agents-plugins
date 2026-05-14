@@ -26,7 +26,8 @@ export function parseWriteResponse({ httpExit, responseText, errStream = '' }) {
 	const classified = classifyHttpError({ status: bodyStatus, body: responseText, exitCode: httpExit })
 
 	if (classified.tier !== 'ok') {
-		return { ok: false, tier: classified.tier, kind: classified.kind, message: classified.message }
+		const errDetail = errStream ? ` — ${errStream.slice(0, 200)}` : ''
+		return { ok: false, tier: classified.tier, kind: classified.kind, message: classified.message + errDetail }
 	}
 
 	// tier is 'ok' — try to extract a numeric id from the response body

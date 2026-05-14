@@ -102,10 +102,31 @@ describe('parseWriteResponse — DEGRADED tier', () => {
 		}
 	})
 
-	it('malformed JSON body with non-zero exit → { ok: false, tier: degraded }', () => {
+	it('HTTP 400 response → { ok: false, tier: degraded, kind: malformed-request }', () => {
+		const r = parseWriteResponse({ httpExit: 0, responseText: JSON.stringify({ statusCode: 400 }) })
+		assert.equal(r.ok, false)
+		if (!r.ok) {
+			assert.equal(r.tier, 'degraded')
+			assert.equal(r.kind, 'malformed-request')
+		}
+	})
+
+	it('HTTP 422 response → { ok: false, tier: degraded, kind: malformed-request }', () => {
+		const r = parseWriteResponse({ httpExit: 0, responseText: JSON.stringify({ statusCode: 422 }) })
+		assert.equal(r.ok, false)
+		if (!r.ok) {
+			assert.equal(r.tier, 'degraded')
+			assert.equal(r.kind, 'malformed-request')
+		}
+	})
+
+	it('malformed JSON body with non-zero exit → { ok: false, tier: degraded, kind: network }', () => {
 		const r = parseWriteResponse({ httpExit: 1, responseText: '<<<not json>>>' })
 		assert.equal(r.ok, false)
-		if (!r.ok) assert.equal(r.tier, 'degraded')
+		if (!r.ok) {
+			assert.equal(r.tier, 'degraded')
+			assert.equal(r.kind, 'network')
+		}
 	})
 
 	it('malformed JSON body with zero exit → { ok: false, tier: degraded, kind: malformed-response }', () => {

@@ -3,7 +3,7 @@
 /**
  * @typedef {{ severity: string, kind: string, message: string }} Notice
  * @typedef {{ ok: true, summaryThreadId: number | null, findingsPosted: number, notices: Notice[] }} AdoWriterResultOk
- * @typedef {{ ok: false, reason: 'missing-block' | 'malformed' }} AdoWriterResultErr
+ * @typedef {{ ok: false, reason: 'missing-block' | 'malformed', message?: string }} AdoWriterResultErr
  * @typedef {AdoWriterResultOk | AdoWriterResultErr} AdoWriterResult
  */
 
@@ -32,13 +32,13 @@ export function parseAdoWriterResult(output) {
 	}
 	const findingsPosted = Number(findingsMatch[1])
 
-	const noticesMatch = block.match(/NOTICES:\s*(\[[\s\S]*?\])/)
+	const noticesMatch = block.match(/NOTICES:\s*([\s\S]+?)(?=\n[A-Z_]|\n*$)/)
 	let notices = /** @type {Notice[]} */ ([])
 	if (noticesMatch) {
 		try {
-			notices = JSON.parse(noticesMatch[1])
+			notices = JSON.parse(noticesMatch[1].trim())
 		} catch {
-			notices = []
+			return { ok: false, reason: 'malformed', message: 'Failed to parse NOTICES JSON from ADO Writer output' }
 		}
 	}
 
