@@ -1,6 +1,6 @@
 # Version bump + CHANGELOG
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Type:** AFK
 

@@ -9,6 +9,21 @@
 - (none)
 
 ### Changed
+- (none)
+
+### Fixed
+- (none)
+
+## [1.2.6] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- `addressed` threads are now silently resolved — the Re-review Coordinator PATCHes the thread status to fixed (status 2) without posting a Reply comment. Previously a "Resolved — thanks!" reply was posted, generating an ADO notification for every thread participant.
 - `classifyThread` now accepts a `diffRange: 'full' | 'incremental'` parameter (default `'incremental'`). When `'full'`, outputs `addressed` and `obsolete` are remapped to `pending` (γ-downgrade per ADR-0004) since diff-position evidence is unreliable on a widened range. `disputed` is unaffected.
 - Re-review Coordinator (Step 5) parses `DIFF_RANGE` from `ADO_FETCHER_RESULT` and threads it into every `classify-thread` invocation.
 
