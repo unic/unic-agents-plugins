@@ -31,7 +31,7 @@ Out of scope: changes to `triage` itself (any new behaviour belongs in slice 03'
 - [ ] `/unic-dlc-cleanup <slug>` writes `docs/workflow/<slug>/arch-review.md` covering technical drift, intent drift, and at least one deepening opportunity (or "none identified").
 - [ ] `adr-consolidation` presents each proposed ADR individually; reject/accept choices are recorded; only accepted ADRs land in `docs/adr/`.
 - [ ] Cleanup's final node reuses `.archon/workflows/triage.yaml` (no duplicate triage logic); `HANDOFF.md` is produced exactly once per cleanup run.
-- [ ] `docs/workflow/ROADMAP.md` is updated to reflect the merged feature.
+- [ ] The reused triage node updates `docs/workflow/ROADMAP.md` when invoked as cleanup's final node (no duplicate ROADMAP logic in cleanup itself).
 - [ ] Command file uses the `unic-dlc-` prefix.
 
 ## Blocked by
