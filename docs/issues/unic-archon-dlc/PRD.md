@@ -1,8 +1,8 @@
 # PRD: unic-archon-dlc
 
 **Status:** ready-for-agent
-**Plugin:** unic-archon-dlc
-**Specs:** N/A
+**Plugin:** `apps/claude-code/unic-archon-dlc`
+**Category:** plugin
 
 A Claude Code plugin that ships a complete, Archon-powered AI development lifecycle as an installable DLC pack — taking heavy inspiration from Matt Pocock's skills workflow and GSD, and translating their best patterns into Archon's YAML DAG runtime.
 
