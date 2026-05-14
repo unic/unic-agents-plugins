@@ -22,6 +22,7 @@ You receive:
   - `PR_ID`
   - `LATEST_ITERATION_ID`
   - `RAW_DIFF` — the raw git diff text (may be empty)
+  - `DIFF_RANGE` — `full` or `incremental`; controls the γ-downgrade in Step 5
 - `RAW_THREADS_JSON` — the full unfiltered ADO thread list as a JSON array (fetched by the orchestrator via `az repos pr thread list`; not re-fetched here)
 - `FINDINGS` — a JSON array of new findings: `{ severity, filePath, startLine, endLine, title, body }[]`
 - `SIGNATURE_PREFIX` — always `🤖 *Reviewed by Claude Code*`
@@ -216,13 +217,17 @@ fi
 
 ## Step 5 — Classify all prior threads
 
-Classify each non-summary thread using `classify-thread` and update `PRIOR_THREADS_FILE` in place with the `classification` field. Capture counts.
+Parse `DIFF_RANGE` from `ADO_FETCHER_RESULT` (defaults to `incremental` if absent). Classify each non-summary thread using `classify-thread` — passing `diffRange` so the γ-downgrade fires when `DIFF_RANGE=full` — and update `PRIOR_THREADS_FILE` in place with the `classification` field. Capture counts.
 
 ```bash
+DIFF_RANGE=$(printf '%s' "$ADO_FETCHER_RESULT" | grep '^DIFF_RANGE:' | awk '{print $2}')
+DIFF_RANGE="${DIFF_RANGE:-incremental}"
+
 CLASSIFY_COUNTS=$(
   THREADS_F="$PRIOR_THREADS_FILE" \
   HUNKS_F="$DIFF_HUNKS_FILE" \
   SIG_P="$SIGNATURE_PREFIX" \
+  DIFF_R="$DIFF_RANGE" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -230,10 +235,11 @@ const { classifyThread } = await import('file://' + process.env.PLUGIN_R + '/scr
 const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
 const diffHunks = JSON.parse(readFileSync(process.env.HUNKS_F, 'utf8'))
 const signaturePrefix = process.env.SIG_P
+const diffRange = process.env.DIFF_R === 'full' ? 'full' : 'incremental'
 const counts = { addressed: 0, disputed: 0, pending: 0, obsolete: 0 }
 for (const t of threads) {
   if (t.isSummaryThread) continue
-  const cls = classifyThread({ thread: t, diffHunks, signaturePrefix })
+  const cls = classifyThread({ thread: t, diffHunks, signaturePrefix, diffRange })
   t.classification = cls
   counts[cls]++
 }
@@ -260,6 +266,7 @@ Reset the reply counts before iterating:
 
 ```bash
 FRESH_FINDINGS_JSON='[]'
+NOTICES='[]'
 ```
 
 Process each finding one at a time. For each finding:
@@ -269,6 +276,7 @@ Process each finding one at a time. For each finding:
 Substitute the `{finding.x}` placeholders below with concrete values from the current `FINDINGS` array element — these are prompt-template tokens, not shell variables.
 
 ```bash
+MATCH_EXIT=0
 MATCH=$(
   THREADS_F="$PRIOR_THREADS_FILE" \
   FINDING_FILE="{finding.filePath}" \
@@ -289,10 +297,20 @@ const result = matchFinding({
 })
 process.stdout.write(result != null ? JSON.stringify(result) : '')
 EOJS
-)
+) || MATCH_EXIT=$?
 
-CLASSIFICATION=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(d.classification ?? '')" 2>/dev/null || echo "")
-THREAD_ID=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(String(d.threadId ?? ''))" 2>/dev/null || echo "")
+if [ "$MATCH_EXIT" -ne 0 ]; then
+  NOTICES=$(
+    N="$NOTICES" SEV="warning" K="thread-match" \
+    M="Could not classify finding at {finding.filePath}:{finding.startLine} — falling back to no-match." \
+    node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
+  )
+  CLASSIFICATION=""
+  THREAD_ID=""
+else
+  CLASSIFICATION=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(d.classification ?? '')")
+  THREAD_ID=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(String(d.threadId ?? ''))")
+fi
 ```
 
 ### 6b — Dispatch on classification
@@ -355,33 +373,15 @@ az devops invoke \
   --output json | node -e "process.stdout.write('Dispute acknowledgement posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
 ```
 
-**`addressed` → post resolution confirmation and PATCH thread status to fixed**
+**`addressed` → PATCH thread status to fixed**
 
 ```bash
-# 1. Post resolution reply
-cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
-{
-  "content": "Resolved as of Iteration ${LATEST_ITERATION_ID} — thanks!\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
-  "commentType": 1
-}
-ENDJSON
-
-az devops invoke \
-  --area git \
-  --resource pullRequestThreadComments \
-  --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
-  --org "${ORG_URL}" \
-  --http-method POST \
-  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
-  --api-version "7.1" \
-  --output json | node -e "process.stdout.write('Resolution reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
-
-# 2. PATCH thread status to fixed (2)
+# PATCH thread status to fixed (2)
 cat > "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" << ENDJSON
 { "status": 2 }
 ENDJSON
 
-az devops invoke \
+PATCH_RESP=$(az devops invoke \
   --area git \
   --resource pullRequestThreads \
   --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
@@ -389,20 +389,36 @@ az devops invoke \
   --http-method PATCH \
   --in-file "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" \
   --api-version "7.1" \
-  --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" | \
-  node -e "
-try {
-  const d = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'))
-  process.stdout.write('Thread ' + d.id + ' patched to fixed')
-} catch (e) {
-  const err = require('fs').readFileSync(\`\${process.env.TMPDIR || '/tmp'}/re_review_patch_${THREAD_ID}.err\`, 'utf8')
-  if (err.includes('409') || err.toLowerCase().includes('conflict')) {
-    process.stdout.write('409 Conflict — thread resolved concurrently. Continuing.')
-  } else {
-    process.stdout.write('PATCH warning: ' + err.slice(0, 200))
-  }
-}
-"
+  --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err")
+PATCH_EXIT=$?
+
+PWR_ERR=$(cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" 2>/dev/null)
+PWR_JSON=$(
+  RESP="$PATCH_RESP" EXIT="$PATCH_EXIT" ERR="$PWR_ERR" PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { parseWriteResponse } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/parse-write-response.mjs`)
+const r = parseWriteResponse({ httpExit: Number(process.env.EXIT), responseText: process.env.RESP, errStream: process.env.ERR })
+process.stdout.write(JSON.stringify(r))
+EOJS
+)
+PWR_OK=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(r.ok))")
+PWR_TIER=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.tier||'')")
+PWR_MSG=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.message||'')")
+
+if [ "$PWR_OK" = "true" ]; then
+  echo "Thread ${THREAD_ID} patched to fixed"
+elif [ "$PWR_TIER" = "aborted" ]; then
+  cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
+  echo "ERROR: Could not mark thread ${THREAD_ID} as fixed — ${PWR_MSG}. Try \`az devops login\` to re-authenticate." >&2
+  exit 1
+else
+  cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
+  NOTICES=$(
+    N="$NOTICES" SEV="warning" K="patch-to-fixed" \
+    M="Could not mark thread ${THREAD_ID} as fixed (${PWR_MSG}). Thread remains active and will be re-evaluated on next re-review." \
+    node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
+  )
+fi
 ```
 
 ---
@@ -432,17 +448,19 @@ disputed: {DISPUTED_COUNT}
 pending: {PENDING_COUNT}
 obsolete: {OBSOLETE_COUNT}
 freshFindings: {FRESH_FINDINGS_JSON}
+NOTICES: {NOTICES}
 RE_REVIEW_COORDINATOR_RESULT_END
 ```
 
 Where:
 
 - `earlyExit` — `true` only when prior and latest iteration IDs were equal (no-new-revisions path); `false` otherwise
-- `addressed` — count of prior threads classified as addressed (and replied to with resolution confirmation)
+- `addressed` — count of prior threads classified as addressed (and PATCHed to fixed)
 - `disputed` — count of prior threads classified as disputed (and replied to with acknowledgement)
 - `pending` — count of prior threads classified as pending (may include threads that received a new-evidence reply or were skipped)
 - `obsolete` — count of prior threads classified as obsolete
 - `freshFindings` — JSON array of unmatched findings in the same shape as the input `FINDINGS` array; empty array `[]` if all findings matched prior threads or if `earlyExit` is `true`
+- `NOTICES` — JSON array of DEGRADED Notices emitted during this run (may be `[]`); each entry has `{ severity: "warning", kind: "thread-match", message }`
 
 ---
 

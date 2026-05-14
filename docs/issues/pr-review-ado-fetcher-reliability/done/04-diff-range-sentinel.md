@@ -1,6 +1,6 @@
 # A4. `DIFF_RANGE` sentinel + ADR-0004 amendment
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

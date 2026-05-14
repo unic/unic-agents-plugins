@@ -174,6 +174,27 @@ describe('buildPrePrContext', () => {
 		assert.deepEqual(ctx.filteredFiles, [])
 		assert.equal(ctx.rawDiff, '')
 	})
+
+	it('returns empty notices for a normal diff', () => {
+		const diff = `diff --git a/src/foo.ts b/src/foo.ts\nindex 000..111 100644\n`
+		const ctx = buildPrePrContext(diff)
+		assert.deepEqual(ctx.notices, [])
+	})
+
+	it('suspicious-shape: diff --git header present but zero paths parsed → DEGRADED diff-parse Notice', () => {
+		// A line that looks like a diff header but has an empty b/ path won't match the regex
+		const diff = `diff --git a/foo b/\nindex 000..111 100644\n`
+		const ctx = buildPrePrContext(diff)
+		assert.equal(ctx.changedFiles.length, 0)
+		assert.equal(ctx.notices.length, 1)
+		assert.equal(ctx.notices[0].kind, 'diff-parse')
+		assert.equal(ctx.notices[0].severity, 'warning')
+	})
+
+	it('no suspicious-shape Notice when diff is empty (not malformed)', () => {
+		const ctx = buildPrePrContext('')
+		assert.deepEqual(ctx.notices, [])
+	})
 })
 
 // ---------------------------------------------------------------------------

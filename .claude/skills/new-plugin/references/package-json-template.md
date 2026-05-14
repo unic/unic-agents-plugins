@@ -12,7 +12,7 @@ Use this as the starting shape for a new plugin's `package.json`. Copy `packageM
   "license": "LGPL-3.0-or-later",
   "type": "module",
   "packageManager": "<copy from root package.json>",
-  "engines": { "node": ">=24", "pnpm": ">=10" },
+  "engines": { "node": ">=22", "pnpm": ">=10" },
   "scripts": {
     "test": "node --test",
     "typecheck": "tsc --noEmit --project tsconfig.json",
@@ -32,7 +32,7 @@ Use this as the starting shape for a new plugin's `package.json`. Copy `packageM
 }
 ```
 
-`node --test` with no path argument uses Node's built-in test file discovery. It exits 0 with zero tests in Node >=22 — safe here because this repo requires `node >=24`.
+`node --test` with no path argument uses Node's built-in test file discovery. It exits 0 with zero tests in Node >=22 — safe here because this repo requires `node >=22`.
 
 ## Command-only plugin (no scripts or tests)
 
@@ -46,7 +46,7 @@ Omit `test`, `typecheck`, and the `@types/node`/`@unic/tsconfig`/`typescript` de
   "license": "LGPL-3.0-or-later",
   "type": "module",
   "packageManager": "<copy from root package.json>",
-  "engines": { "node": ">=24", "pnpm": ">=10" },
+  "engines": { "node": ">=22", "pnpm": ">=10" },
   "scripts": {
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",

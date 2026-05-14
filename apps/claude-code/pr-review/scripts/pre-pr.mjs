@@ -1,7 +1,8 @@
 // @ts-check
 
 /**
- * @typedef {{ changedFiles: string[], filteredFiles: string[], rawDiff: string }} PrePrContext
+ * @typedef {{ severity: 'info' | 'warning', kind: string, message: string }} Notice
+ * @typedef {{ changedFiles: string[], filteredFiles: string[], rawDiff: string, notices: Notice[] }} PrePrContext
  */
 
 /**
@@ -68,7 +69,11 @@ export function parseChangedFilesFromDiff(diffText) {
 /**
  * Builds the Pre-PR context object from a raw git diff string.
  * Returns all changed files, the subset that should be reviewed (filtered),
- * and the raw diff text.
+ * the raw diff text, and any structural Notices emitted during parsing.
+ *
+ * Suspicious-shape detection: if diffText is non-empty and contains at least
+ * one `diff --git` header but parseChangedFilesFromDiff yields zero paths,
+ * a DEGRADED Notice (kind: diff-parse) is pushed to the notices array.
  *
  * @param {string} diffText - Raw output of `git diff origin/<branch>...HEAD`
  * @returns {PrePrContext}
@@ -76,5 +81,16 @@ export function parseChangedFilesFromDiff(diffText) {
 export function buildPrePrContext(diffText) {
 	const changedFiles = parseChangedFilesFromDiff(diffText)
 	const filteredFiles = changedFiles.filter((f) => !shouldSkipFile(f))
-	return { changedFiles, filteredFiles, rawDiff: diffText }
+	/** @type {Notice[]} */
+	const notices = []
+
+	if (diffText && changedFiles.length === 0 && /^diff --git /m.test(diffText)) {
+		notices.push({
+			severity: 'warning',
+			kind: 'diff-parse',
+			message: 'Pre-PR diff parsed to zero files but contained diff headers — input may be malformed.',
+		})
+	}
+
+	return { changedFiles, filteredFiles, rawDiff: diffText, notices }
 }

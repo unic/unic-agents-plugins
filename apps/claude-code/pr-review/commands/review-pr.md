@@ -8,12 +8,7 @@ description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent a
 
 **Arguments:** "$ARGUMENTS"
 
-Thin orchestrator that detects one of three modes — Pre-PR, First-review, Re-review — and delegates to focused agents.
-
-## Constants
-
-- `SIGNATURE_PREFIX` = `🤖 *Reviewed by Claude Code*` — never alter; re-review detection depends on it.
-- ADO Writer appends `---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}` to every posted comment.
+Thin orchestrator that detects one of three modes — Pre-PR, First-review, Re-review — and delegates to focused agents. The `SIGNATURE_PREFIX` `🤖 *Reviewed by Claude Code*` is sacred (re-review detection depends on it) and appears inline at every call site that needs it.
 
 ### Compact finding schema
 
@@ -90,7 +85,7 @@ Agent(
 )
 ```
 
-Store the full output as `ADO_FETCHER_RESULT`. Parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, and `WORK_ITEM_IDS` from the `ADO_FETCHER_RESULT_START`/`ADO_FETCHER_RESULT_END` block.
+Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE`; the Re-review Coordinator (Step 7) parses it from `ADO_FETCHER_RESULT` to apply the γ-downgrade when `DIFF_RANGE=full`. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`.
 
 ## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 
@@ -118,7 +113,7 @@ Agent(
 
 ## Step 7 — Write-back (branch on mode)
 
-**Re-review only** — first run the coordinator, parse `RE_REVIEW_COORDINATOR_RESULT_START`/`_END`, extract `earlyExit` and `freshFindings`. If `earlyExit: true`, stop; otherwise reassign `FINDINGS_JSON` to `freshFindings`.
+**Re-review only** — first run the coordinator, parse `RE_REVIEW_COORDINATOR_RESULT_START`/`_END`, extract `earlyExit`, `freshFindings`, and `NOTICES` (store as `coordinatorNotices`; default `[]` if absent). If the result block is absent (coordinator exited non-zero), infer `abortKind` from output (contains `az devops login` → `'auth'`; else `'coordinator'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })`, and stop. If `earlyExit: true`, stop; otherwise reassign `FINDINGS_JSON` to `freshFindings`.
 
 ```txt
 Agent(
@@ -148,34 +143,26 @@ Agent(
   SUMMARY_THREAD_ID: {SUMMARY_THREAD_ID}
   MODE: {MODE}
   PLUGIN_ROOT: {CLAUDE_PLUGIN_ROOT}
-  FINDINGS: {FINDINGS_JSON}"
+  FINDINGS: {FINDINGS_JSON}
+  NOTICES_JSON: {NOTICES_JSON}"
 )
 ```
+
+## Step 8 — Parse Writer result + Trailer
+
+Parse the Writer output via `parseAdoWriterResult` from `scripts/ado-writer.mjs`. On `{ ok: false }`, emit `ERROR: Writer did not return a valid result block (<reason>). The Summary may or may not have been posted; verify on ADO.` to stderr and print the Trailer aborted line, then stop. Otherwise extract `result.notices` and merge with fetcher and coordinator notices into `NOTICES_JSON` via `mergeNotices([...fetcherNotices, ...coordinatorNotices, ...result.notices])` from `scripts/ado/notices.mjs`; print Trailer via `formatTrailer({ mode, findings, notices: NOTICES_JSON, prUrl })`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. Pre-PR: Step E.
 
 ## Pre-PR mode
 
-No PR URL provided — reviewing the local branch diff; no ADO calls are made.
+No PR URL provided — reviewing the local branch diff; no ADO calls are made. Initialize `PRE_PR_NOTICES=[]`.
 
-### Step A — Compute diff
+### Step A — Detect default branch + compute diff
 
-```bash
-DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | awk '/HEAD branch/{print $NF}' | grep . || echo "main")
-RAW_DIFF=$(git diff "origin/${DEFAULT_BRANCH}...HEAD") || { echo "git diff failed"; exit 1; }
-```
+Run `git remote show origin 2>/dev/null` and parse the `HEAD branch:` line as `REMOTE_HEAD` (empty string if absent); define `branchExists(name)` as exits 0 when `git rev-parse --verify --quiet refs/remotes/origin/$name` succeeds. Via `await import`, call `detectDefaultBranch({ remoteHeadBranch: REMOTE_HEAD, branchExists })` from `scripts/pre-pr/detect-default-branch.mjs`. On `{ branch: null }`: emit a clear stderr message, call `formatTrailer({ mode: 'pre-pr', findings: {}, notices: [] })` from `scripts/ado/notices.mjs`, and stop. If `result.notice` exists, push it to `PRE_PR_NOTICES`. Compute `RAW_DIFF=$(git diff "origin/${result.branch}...HEAD") || { echo "git diff failed"; exit 1; }`.
 
 ### Step B — Parse changed files
 
-```bash
-FILTERED_FILES=$(
-  RAW_DIFF_STR="$RAW_DIFF" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
-  node --input-type=module << 'EOJS'
-const { buildPrePrContext } = await import(`file://${process.env.PLUGIN_R}/scripts/pre-pr.mjs`)
-process.stdout.write(buildPrePrContext(process.env.RAW_DIFF_STR).filteredFiles.join('\n'))
-EOJS
-)
-```
-
-Read the contents of each file in `FILTERED_FILES`, skipping deleted ones.
+Via `await import`, call `buildPrePrContext(RAW_DIFF)` from `scripts/pre-pr.mjs`; merge `context.notices` into `PRE_PR_NOTICES` via `mergeNotices` from `scripts/ado/notices.mjs`; set `FILTERED_FILES` from `context.filteredFiles`. Read the contents of each file in `FILTERED_FILES`, skipping deleted ones.
 
 ### Step C — Resolve aspect filter
 
@@ -189,7 +176,7 @@ Collect, dedupe, and sort returned JSON arrays into `FINDINGS` (`critical` first
 
 ### Step E — Present findings
 
-Print each finding in the Claude interface, grouped by severity (`critical`, `important`, `minor`):
+Print Notices from `PRE_PR_NOTICES` via `formatNoticesAsPrePrPreamble(PRE_PR_NOTICES)` from `scripts/ado/notices.mjs`, then print each finding grouped by severity (`critical`, `important`, `minor`):
 
 ```
 [{severity}] {filePath} L{startLine}–{endLine}
@@ -197,4 +184,4 @@ Print each finding in the Claude interface, grouped by severity (`critical`, `im
 {body}
 ```
 
-End with `✅ Pre-PR review complete — {N} finding(s).` (or `no issues found.` when `N == 0`).
+End with one Trailer line via `formatTrailer({ mode: 'pre-pr', findings, notices: PRE_PR_NOTICES })` from `scripts/ado/notices.mjs` (reduce `FINDINGS` to `{ critical, important, minor }` counts). The line reads `✅ Pre-PR review complete: <N> findings (...)  · <M> warning notices`.

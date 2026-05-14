@@ -148,11 +148,14 @@ describe('parseAdoWriterResult', () => {
 ADO_WRITER_RESULT_START
 SUMMARY_THREAD_ID: 42
 FINDINGS_POSTED: 5
+NOTICES: []
 ADO_WRITER_RESULT_END
 `.trim()
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, 42)
 		assert.equal(result.findingsPosted, 5)
+		assert.deepEqual(result.notices, [])
 	})
 
 	it('returns summaryThreadId=null when SUMMARY_THREAD_ID is empty', () => {
@@ -160,22 +163,33 @@ ADO_WRITER_RESULT_END
 ADO_WRITER_RESULT_START
 SUMMARY_THREAD_ID:
 FINDINGS_POSTED: 0
+NOTICES: []
 ADO_WRITER_RESULT_END
 `.trim()
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, null)
 		assert.equal(result.findingsPosted, 0)
+		assert.deepEqual(result.notices, [])
 	})
 
-	it('returns null for both fields when block is missing', () => {
+	it('returns { ok: false, reason: "missing-block" } when no result block is present', () => {
 		const result = parseAdoWriterResult('No result block here')
-		assert.equal(result.summaryThreadId, null)
-		assert.equal(result.findingsPosted, null)
+		assert.equal(result.ok, false)
+		assert.equal(result.reason, 'missing-block')
+	})
+
+	it('returns { ok: false, reason: "malformed" } when block is present but FINDINGS_POSTED is absent', () => {
+		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nNOTICES: []\nADO_WRITER_RESULT_END`
+		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, false)
+		assert.equal(result.reason, 'malformed')
 	})
 
 	it('handles FINDINGS_POSTED=0 explicitly', () => {
-		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 7\nFINDINGS_POSTED: 0\nADO_WRITER_RESULT_END`
+		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 7\nFINDINGS_POSTED: 0\nNOTICES: []\nADO_WRITER_RESULT_END`
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, 7)
 		assert.equal(result.findingsPosted, 0)
 	})
@@ -186,11 +200,70 @@ ADO_WRITER_RESULT_END
 			'ADO_WRITER_RESULT_START',
 			'SUMMARY_THREAD_ID: 99',
 			'FINDINGS_POSTED: 3',
+			'NOTICES: []',
 			'ADO_WRITER_RESULT_END',
 			'Done.',
 		].join('\n')
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, 99)
 		assert.equal(result.findingsPosted, 3)
+	})
+
+	it('parses NOTICES array from result block', () => {
+		const notices = [
+			{
+				severity: 'warning',
+				kind: 'inline-post',
+				message: 'Failed to post inline thread at /src/foo.ts:42 (HTTP 503).',
+			},
+		]
+		const output = [
+			'ADO_WRITER_RESULT_START',
+			'SUMMARY_THREAD_ID: 10',
+			'FINDINGS_POSTED: 2',
+			`NOTICES: ${JSON.stringify(notices)}`,
+			'ADO_WRITER_RESULT_END',
+		].join('\n')
+		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
+		assert.deepEqual(result.notices, notices)
+	})
+
+	it('returns empty notices when NOTICES field is absent (legacy block)', () => {
+		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nFINDINGS_POSTED: 1\nADO_WRITER_RESULT_END`
+		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
+		assert.deepEqual(result.notices, [])
+	})
+
+	it('returns { ok: false, reason: "malformed" } when NOTICES field is malformed JSON', () => {
+		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nFINDINGS_POSTED: 1\nNOTICES: [broken\nADO_WRITER_RESULT_END`
+		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, false)
+		assert.equal(result.reason, 'malformed')
+	})
+})
+
+describe('ado-writer agent uses parse-write-response helper', () => {
+	it('references parse-write-response.mjs in the agent prompt', () => {
+		assert.ok(
+			agentContent.includes('parse-write-response.mjs') || agentContent.includes('parseWriteResponse'),
+			'Agent must delegate write-response parsing to parse-write-response helper'
+		)
+	})
+
+	it('emits a NOTICES array in the result block', () => {
+		assert.ok(agentContent.includes('NOTICES:'), 'Agent result block must include a NOTICES field')
+	})
+
+	it('initialises a NOTICES array before posting begins', () => {
+		assert.ok(
+			agentContent.includes('NOTICES=') ||
+				agentContent.includes('NOTICES =(') ||
+				agentContent.includes("NOTICES='[]'") ||
+				agentContent.includes('NOTICES="[]"'),
+			'Agent must initialise a NOTICES array before writing begins'
+		)
 	})
 })

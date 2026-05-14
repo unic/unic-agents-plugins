@@ -18,7 +18,7 @@ Every plugin must work on **macOS, Windows, and Linux**. Concretely:
 
 ### Runtime
 
-- **Node.js ≥ 24** (Active LTS). Version pinned via `pnpm-workspace.yaml#useNodeVersion` and `.nvmrc`.
+- **Node.js ≥ 22**. The recommended local version lives in `.nvmrc` (read automatically by nvm/fnm/asdf/volta and by `actions/setup-node` in CI). CI also exercises the matrix on Node 22 and 24.
 - **ESM only** — `"type": "module"` in every `package.json`; `.mjs` extension for scripts.
 - **No TypeScript compilation step** — write `.mjs` with `// @ts-check` + JSDoc; `tsc --noEmit` for type-checking only.
 
@@ -56,11 +56,11 @@ LGPL-3.0-or-later for all packages in this monorepo.
 
 ## Prerequisites
 
-| Tool            | Version           | How to get it                                                                    |
-| --------------- | ----------------- | -------------------------------------------------------------------------------- |
-| Node.js         | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org)                                                 |
-| pnpm            | ≥ 10              | `npm install -g pnpm`                                                            |
-| Claude Code CLI | latest            | [claude.ai/code](https://claude.ai/code) — required as the Spec Runner's backend |
+| Tool            | Version                                         | How to get it                                                                    |
+| --------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| Node.js         | ≥ 22 (see `.nvmrc` for the recommended version) | [nodejs.org](https://nodejs.org)                                                 |
+| pnpm            | ≥ 10                                            | `npm install -g pnpm`                                                            |
+| Claude Code CLI | latest                                          | [claude.ai/code](https://claude.ai/code) — required as the Spec Runner's backend |
 
 Everything else (ralph-orchestrator, Biome, Prettier, TypeScript) is a workspace devDependency and installs with:
 

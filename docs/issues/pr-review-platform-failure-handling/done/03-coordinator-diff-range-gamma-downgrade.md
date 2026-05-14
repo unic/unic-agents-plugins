@@ -1,6 +1,6 @@
 # B3. Coordinator consumes `DIFF_RANGE` → γ-downgrade in `classify-thread`
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

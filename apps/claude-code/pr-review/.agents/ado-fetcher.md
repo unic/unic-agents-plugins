@@ -52,31 +52,42 @@ ITERATIONS_JSON=$(az devops invoke \
   --route-parameters "project=$PROJECT" "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
   --org "$ORG_URL" \
   --api-version "7.1" \
-  --output json)
+  --output json 2>/tmp/ado_fetcher_iter.err)
+ITER_EXIT=$?
 ```
 
-Parse via the helper script — handles the zero-iteration case gracefully:
+Parse via the helper — returns a discriminated union; empty value array → ABORTED (no implicit iteration fallback):
 
 ```bash
 ITER_RESULT=$(
-  ITERATIONS_JSON_STR="$ITERATIONS_JSON" \
+  ITER_RESP="$ITERATIONS_JSON" \
+  ITER_EXIT_CODE="$ITER_EXIT" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
-const { parseIterations } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`)
-const value = JSON.parse(process.env.ITERATIONS_JSON_STR).value ?? []
-const result = parseIterations(value)
+const { fetchIterations } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/fetch-iterations.mjs`)
+const result = fetchIterations({ responseText: process.env.ITER_RESP ?? '', exitCode: Number(process.env.ITER_EXIT_CODE) })
 process.stdout.write(JSON.stringify(result))
 EOJS
 )
 
+ITER_OK=$(echo "$ITER_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).ok))")
+if [ "$ITER_OK" != "true" ]; then
+  ITER_REASON=$(echo "$ITER_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).reason ?? '')")
+  ITER_MSG=$(echo "$ITER_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).message ?? '')")
+  rm -f /tmp/ado_fetcher_iter.err
+  if [ "$ITER_REASON" = "auth" ]; then
+    echo "ERROR: $ITER_MSG. Try \`az devops login\` to re-authenticate." >&2
+  elif [ "$ITER_REASON" = "empty-iterations" ]; then
+    echo "ERROR: iterations endpoint returned empty value array. Cannot sign Review with a valid Iteration ID." >&2
+  else
+    echo "ERROR: $ITER_MSG" >&2
+  fi
+  exit 1
+fi
+rm -f /tmp/ado_fetcher_iter.err
+
 LATEST_ITERATION_ID=$(echo "$ITER_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).latestIterationId))")
 LATEST_COMMIT_SHA=$(echo "$ITER_RESULT"   | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).latestCommitSha)")
-```
-
-If `LATEST_ITERATION_ID` resolves to `1` and iterations were empty, log:
-
-```
-Warning: no iterations returned — defaulting to iteration 1
 ```
 
 ---
@@ -157,6 +168,7 @@ Branch on whether `PRIOR_ITERATION_ID` is set and whether commits are available:
 
 ```bash
 RAW_DIFF=$(git diff "origin/${TARGET_BRANCH}...HEAD")
+DIFF_RANGE=full
 ```
 
 **Re-review with resolvable prior commit (`PRIOR_COMMIT_SHA` non-empty, differs from `LATEST_COMMIT_SHA`):**
@@ -164,9 +176,12 @@ RAW_DIFF=$(git diff "origin/${TARGET_BRANCH}...HEAD")
 ```bash
 if git fetch origin "$PRIOR_COMMIT_SHA" 2>/dev/null; then
   RAW_DIFF=$(git diff "${PRIOR_COMMIT_SHA}..${LATEST_COMMIT_SHA}")
+  DIFF_RANGE=incremental
 else
   echo "Warning: prior commit $PRIOR_COMMIT_SHA unreachable — falling back to full diff."
   RAW_DIFF=$(git diff "origin/${TARGET_BRANCH}...HEAD")
+  DIFF_RANGE=full
+  DIFF_RANGE_FALLBACK=true
 fi
 ```
 
@@ -175,6 +190,7 @@ fi
 ```bash
 echo "No new commits since last review."
 RAW_DIFF=""
+DIFF_RANGE=incremental
 ```
 
 ---
@@ -188,20 +204,65 @@ WI_RESPONSE=$(az devops invoke \
   --route-parameters "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
   --org "$ORG_URL" \
   --api-version "7.1" \
-  --output json 2>/dev/null) || WI_RESPONSE=""
+  --output json 2>/tmp/ado_fetcher_wi.err)
+WI_EXIT=$?
 ```
 
-Parse with the helper script — returns an empty array on failure:
+Parse with the helper — returns a discriminated union so the Notices step can distinguish EMPTY-BY-DESIGN from a fetch failure:
 
 ```bash
-WORK_ITEM_IDS=$(
+WI_RESULT=$(
   WI_RESP="$WI_RESPONSE" \
+  WI_EXIT_CODE="$WI_EXIT" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
-const { parseWorkItemIds } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-fetcher.mjs`)
-const response = process.env.WI_RESP ? JSON.parse(process.env.WI_RESP) : null
-const ids = parseWorkItemIds(response)
-process.stdout.write(JSON.stringify(ids))
+const { fetchWorkItems } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/fetch-work-items.mjs`)
+const result = fetchWorkItems({ responseText: process.env.WI_RESP ?? '', exitCode: Number(process.env.WI_EXIT_CODE) })
+process.stdout.write(JSON.stringify(result))
+EOJS
+)
+
+WI_OK=$(echo "$WI_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).ok))")
+if [ "$WI_OK" = "true" ]; then
+  WORK_ITEM_IDS=$(echo "$WI_RESULT" | node -e "process.stdout.write(JSON.stringify(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).ids))")
+  WI_FAIL_MESSAGE=""
+else
+  WORK_ITEM_IDS="[]"
+  WI_FAIL_MESSAGE=$(echo "$WI_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).message ?? '')")
+fi
+rm -f /tmp/ado_fetcher_wi.err
+```
+
+---
+
+## Step 6 — Build the Notices array
+
+Initialise the per-agent Notices array. Emission sites:
+
+- **DEGRADED warning** (`kind: diff-range`) — when `DIFF_RANGE_FALLBACK=true` (prior commit unreachable; fell back to full diff).
+- **DEGRADED warning** (`kind: work-items`) — when the work-item fetch failed (`WI_OK=false`); message comes from the helper.
+- **EMPTY-BY-DESIGN info** (`kind: doc-context`) — when `WORK_ITEM_IDS=[]` and the fetch succeeded (no work items linked to the PR).
+
+```bash
+NOTICES=$(
+  DIFF_RANGE_FB="${DIFF_RANGE_FALLBACK:-false}" \
+  WI_IDS="$WORK_ITEM_IDS" \
+  WI_OK="$WI_OK" \
+  WI_MSG="$WI_FAIL_MESSAGE" \
+  PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { createNotice } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
+const ids = JSON.parse(process.env.WI_IDS || '[]')
+const notices = []
+if (process.env.DIFF_RANGE_FB === 'true') {
+  notices.push(createNotice('warning', 'diff-range', 'Incremental diff unavailable — Coordinator will classify against the full PR diff with conservative downgrades.'))
+}
+if (process.env.WI_OK !== 'true') {
+  notices.push(createNotice('warning', 'work-items', process.env.WI_MSG || 'Failed to fetch linked work items. Review proceeded without business context.'))
+} else if (ids.length === 0) {
+  notices.push(createNotice('info', 'doc-context', 'Reviewed without business context — no work items linked to this PR.'))
+}
+process.stdout.write(JSON.stringify(notices))
 EOJS
 )
 ```
@@ -225,7 +286,9 @@ SOURCE_BRANCH: {SOURCE_BRANCH}
 TARGET_BRANCH: {TARGET_BRANCH}
 LATEST_ITERATION_ID: {LATEST_ITERATION_ID}
 LATEST_COMMIT_SHA: {LATEST_COMMIT_SHA}
+DIFF_RANGE: {DIFF_RANGE}
 WORK_ITEM_IDS: {WORK_ITEM_IDS}
+NOTICES: {NOTICES}
 
 CHANGED_FILES:
 {CHANGED_FILES}
@@ -237,7 +300,9 @@ ADO_FETCHER_RESULT_END
 
 Where:
 
+- `DIFF_RANGE` is `full` when the diff ran against `origin/${TARGET_BRANCH}...HEAD` (first-review or fallback), or `incremental` when it ran against `${PRIOR_COMMIT_SHA}..${LATEST_COMMIT_SHA}`. When `full` due to a fallback, the `NOTICES` array also contains a `warning`-severity `diff-range` entry.
 - `WORK_ITEM_IDS` is the JSON array from Step 5, e.g. `[42, 7]` or `[]`
+- `NOTICES` is the JSON array from Step 6, e.g. `[{"severity":"info","kind":"doc-context","message":"..."}]` or `[]`
 - `CHANGED_FILES` is the newline-separated list from Step 3, e.g. `edit: /src/api.ts`
 - `RAW_DIFF` is the full diff text from Step 4 (may be empty if no new commits)
 - `LATEST_COMMIT_SHA` is the latest source-branch commit SHA captured in Step 2; reserved for future diff-range debugging and not consumed by any current downstream agent — the diff-range logic that needed it is now self-contained in Step 4 above.

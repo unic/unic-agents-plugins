@@ -11,6 +11,188 @@
 ### Fixed
 - (none)
 
+## [1.2.10] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- (none)
+
+### Fixed
+- `ado-writer.mjs` NOTICES block JSON parse failure now returns `{ ok: false, reason: 'malformed' }` instead of silently dropping all Writer-emitted Notices and returning `{ ok: true, notices: [] }`.
+- `parse-write-response.mjs` now appends `errStream` content to the error message for all classified failure tiers (auth/transient), not only the malformed-response path — giving auth failures meaningful context when the response body is empty.
+- `notices.mjs` `formatTrailer` aborted branch no longer emits a stray ` — ` separator when `abortReason` is absent.
+- `fetch-work-items.mjs` now routes non-zero exit codes through `classifyHttpError`, returning `reason: 'auth'` (401/403), `reason: 'malformed'` (4xx malformed-request), or `reason: 'transient'` (5xx / network) instead of the generic `reason: 'fetch-failed'`. `@returns` JSDoc updated to use a literal union.
+- `fetch-work-items.mjs` guards against `null` / non-object elements in the ADO `value` array to prevent `TypeError: Cannot read properties of null (reading 'id')`.
+- `fetch-iterations.mjs` `malformed-request` HTTP kind now maps to `reason: 'malformed'` instead of `reason: 'transient'`, preventing structural ADO API errors from being retried as transient network failures.
+- `fetch-iterations.mjs` guards against `null` / non-object elements in the `value` array before calling `.reduce()`.
+- `detect-default-branch.mjs` `source: 'none'` result now includes a `warning` Notice (`kind: 'default-branch'`) so the caller can surface the abort reason through the Notice pipeline. Previously returned no notice.
+- `detect-default-branch.mjs` trims whitespace from `remoteHeadBranch` before the truthy check, preventing a whitespace-only string from being returned as the detected branch name.
+- `detect-default-branch.mjs` local `Notice` typedef replaced with canonical import from `notices.mjs`, ensuring `kind` is validated against `NoticeKind` rather than `string`.
+- `classify-thread.mjs` JSDoc rule list corrected to 5 rules matching the actual evaluation order (status-check → obsolete-check → intersection-check → disputed-check → pending); previous comment conflated rules 1 and 3.
+
+## [1.2.9] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- New helper `scripts/pre-pr/detect-default-branch.mjs` — pure function `detectDefaultBranch({ branchExists, remoteHeadBranch })` returning `{ branch, source, notice? }`. Fallback chain: `remote-show` → `origin/develop` → `origin/main` → `origin/master` → `none`. Emits a `warning` Notice (`kind: default-branch`) for every fallback level; no notice for `remote-show`. `{ branch: null, source: 'none' }` aborts the Pre-PR run. 7 unit cases covering all branches.
+
+### Changed
+- `buildPrePrContext` return type extended to include `notices: Notice[]`. Suspicious-shape detection: non-empty diff containing ≥ 1 `diff --git` header but yielding zero parsed paths emits a DEGRADED Notice (`kind: diff-parse`). Normal diffs return `notices: []`.
+- Pre-PR mode Step A now calls `detectDefaultBranch` (Gitflow-aware fallback chain) instead of the hardcoded `main` fallback. On `branch: null` the run aborts with a clear stderr message and a Trailer aborted line. Any fallback notice is collected in `PRE_PR_NOTICES`.
+- Pre-PR mode Step B merges `buildPrePrContext().notices` into `PRE_PR_NOTICES` via `mergeNotices`.
+- Pre-PR mode Step E prints all Notices (via `formatNoticesAsPrePrPreamble`) before findings, and passes `PRE_PR_NOTICES` to `formatTrailer` so the Trailer reflects the actual notice count.
+
+### Fixed
+- Pre-PR mode default-branch detection no longer silently falls through to `main` when `git remote show origin` is offline or returns an unexpected format. The fallback chain (`develop` → `main` → `master`) now emits a visible warning Notice naming the actually-used branch, and `none` aborts the run with an actionable error message.
+- Pre-PR mode malformed diffs (non-empty input with `diff --git` headers but zero parsed paths) now surface a DEGRADED Notice instead of silently proceeding with an empty file list.
+
+## [1.2.8] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- Re-review Coordinator PATCH-to-fixed call site now routes through `parse-write-response.mjs`. On `tier: aborted` (401/403) the Coordinator exits non-zero with a clear stderr message and the orchestrator surfaces a Trailer abort line. On `tier: degraded` (5xx/network/other-4xx) a per-thread DEGRADED Notice (`kind: patch-to-fixed`) is pushed to the Coordinator's `NOTICES` array and iteration continues. 404 and 409 continue silently (canonical OK).
+- Orchestrator Step 7 now handles a missing coordinator result block (coordinator exited non-zero): infers `abortKind` from output and calls `formatTrailer` before stopping.
+
+### Fixed
+- PATCH-to-fixed 401/403 auth failures were previously logged as a "PATCH warning" string on stdout that nothing read — the run continued silently. They now abort the Coordinator with a clear stderr message.
+- PATCH-to-fixed 409 catch-all replaced by the canonical HTTP-tier mapping; 404 is now also treated as OK (deleted thread is a domain success).
+
+## [1.2.7] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- `matchFinding` now throws a `TypeError` when `priorThreads` is not an array or when `finding` is missing required typed fields (`filePath: string`, `startLine: number`, `endLine: number`). Previously, malformed input could produce an uncaught exception that was silently swallowed as a no-match.
+- Re-review Coordinator Step 6a wraps the `match-finding` call in a try/catch. On throw, a DEGRADED Notice (`kind: thread-match`) is pushed to the Coordinator's `NOTICES` array and the finding falls through to the unclassified (no-match) path. The Coordinator result block now includes a `NOTICES: [...]` field.
+- Orchestrator Step 7 extracts `NOTICES` from the Coordinator result block; Step 8 includes them in the combined `mergeNotices` call alongside Fetcher and Writer notices.
+
+### Fixed
+- Match-finding parse errors were previously silently swallowed by `2>/dev/null || echo ""` guards in the Coordinator, causing the affected finding to be treated as no-match and re-posted as a duplicate inline thread with no visible signal. The throw contract and DEGRADED Notice surface the cause to the reviewer.
+
+## [1.2.6] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- `addressed` threads are now silently resolved — the Re-review Coordinator PATCHes the thread status to fixed (status 2) without posting a Reply comment. Previously a "Resolved — thanks!" reply was posted, generating an ADO notification for every thread participant.
+- `classifyThread` now accepts a `diffRange: 'full' | 'incremental'` parameter (default `'incremental'`). When `'full'`, outputs `addressed` and `obsolete` are remapped to `pending` (γ-downgrade per ADR-0004) since diff-position evidence is unreliable on a widened range. `disputed` is unaffected.
+- Re-review Coordinator (Step 5) parses `DIFF_RANGE` from `ADO_FETCHER_RESULT` and threads it into every `classify-thread` invocation.
+
+### Fixed
+- Re-reviews that fell back to a full diff (prior commit unreachable) no longer produce false-confidence `addressed` or `obsolete` classifications; all such threads are conservatively downgraded to `pending`.
+
+## [1.2.4] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- `parseAdoWriterResult` now returns a discriminated union `{ ok: true, summaryThreadId, findingsPosted, notices } | { ok: false, reason: 'missing-block' | 'malformed' }` instead of a partial object with null fields. Callers must branch on `result.ok` before accessing result fields.
+
+### Fixed
+- Writer crash no longer silently reported as success: the orchestrator now emits a clear stderr error and an aborted Trailer when the Writer's result block is missing or malformed.
+
+## [1.2.3] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/parse-write-response.mjs` — pure function `parseWriteResponse({ httpExit, responseText, errStream })` returning `{ ok: true, id } | { ok: false, tier, kind, message }`. Composes `classifyHttpError` with response-id parsing; 404/409 map to `{ ok: true, id: null }` (canonical OK with no resource created); 200 without a numeric id maps to `{ ok: false, tier: 'degraded', kind: 'malformed-response' }`. Covered by `tests/parse-write-response.test.mjs` (13 unit cases spanning all branches).
+
+### Changed
+- ADO Writer prompt routes every `az devops invoke` POST/PATCH call site through `parseWriteResponse`. On `tier: 'aborted'` (401/403), the Writer streams the `.err` file to stderr and exits non-zero. On `tier: 'degraded'` (5xx/network/other-4xx), the Writer pushes a typed DEGRADED Notice to its internal `NOTICES` array and continues to the next call site. `ADO_WRITER_RESULT_START/END` block gains a `NOTICES: [...]` field.
+- Orchestrator Step 8 now parses Writer `NOTICES` from the result block and merges them into `NOTICES_JSON` via `mergeNotices` before printing the Trailer, so all Notice counts reflect both Fetcher and Writer sources.
+- `parseAdoWriterResult` return type extended to `{ summaryThreadId, findingsPosted, notices: Notice[] }`. Legacy blocks without a `NOTICES` field return `notices: []`.
+
+### Fixed
+- ADO Writer inline-POST auth failures (HTTP 401/403) now abort the Writer immediately with a clear stderr message. Previously they were silently logged and the run continued, leaving subsequent writes potentially authenticated against stale credentials.
+
+## [1.2.2] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- ADO Fetcher result block (`ADO_FETCHER_RESULT_START/END`) now includes a `DIFF_RANGE: full | incremental` field reflecting which diff strategy was used. Orchestrator parses the field; the Coordinator γ-downgrade that consumes it is deferred to PRD B issue B3.
+
+### Fixed
+- Diff-range fallback in the ADO Fetcher no longer fires silently. When the prior iteration's commit is unreachable and the Fetcher falls back to `origin/${TARGET_BRANCH}...HEAD`, a `warning` Notice (`kind: diff-range`) is now emitted in the Fetcher's `NOTICES` array so the reviewer sees the degraded state in the Summary.
+
+## [1.2.1] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/fetch-iterations.mjs` — pure function `fetchIterations({ responseText, exitCode })` returning `{ ok: true, latestIterationId, latestCommitSha } | { ok: false, reason, message }`. Subsumes `parseIterations`; uses `classifyHttpError` for HTTP failures; distinguishes empty-iterations ABORTED from auth/transient/malformed. Covered by `tests/fetch-iterations.test.mjs` (8 unit cases spanning all reason branches).
+
+### Changed
+- ADO Fetcher prompt Step 2 (iterations fetch) now delegates to `fetchIterations` via `await import`. On `{ ok: false }`, the Fetcher exits non-zero with a clear stderr message and the orchestrator emits a Trailer aborted line.
+
+### Fixed
+- `parseIterations` and its silent `iterationId=1` fallback for empty-iterations are removed; an empty iterations endpoint response now aborts the run instead of silently signing comments with `Iteration 1`.
+
+## [1.2.0] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/classify-http-error.mjs` — pure function `classifyHttpError({ status, body, exitCode })` implementing the canonical HTTP-tier mapping (200/201/404/409 → OK; 401/403 → ABORTED; 5xx/other-4xx → DEGRADED; network/exit-code → DEGRADED). Covered by `tests/classify-http-error.test.mjs` (16 unit cases spanning every mapping row, malformed-body paths, and network-exit-code paths).
+- `scripts/ado/fetch-work-items.mjs` — pure function `fetchWorkItems({ responseText, exitCode })` returning `{ ok: true, ids } | { ok: false, reason, message }`. Subsumes `parseWorkItemIds`; distinguishes EMPTY-BY-DESIGN (`{ ok: true, ids: [] }`) from fetch failure (`{ ok: false }`). Covered by `tests/fetch-work-items.test.mjs` (9 unit cases).
+- ADR 0015 (`docs/adr/0015-canonical-http-tier-mapping.md`) recording the HTTP-tier mapping table, the 401/403 abort rule, and the no-retries-in-v1 stance.
+
+### Changed
+- ADO Fetcher prompt Step 5 (`work-item fetch`) now delegates to `fetchWorkItems` via `await import`. On `{ ok: false }`, emits a DEGRADED Notice (`kind: work-items`) into the `NOTICES` array. On `{ ok: true, ids: [] }`, still emits the existing EMPTY-BY-DESIGN `info` Notice (`kind: doc-context`).
+
+### Fixed
+- `parseWorkItemIds` is removed; callers that received an empty array on auth failure can no longer conflate a fetch failure with a legitimately empty work-item list.
+
+## [1.1.0] — 2026-05-13
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/notices.mjs` — pure helpers (`createNotice`, `mergeNotices`, `formatNoticesAsSummaryBlock`, `formatNoticesAsPrePrPreamble`, `formatTrailer`) implementing the four-tier Notice doctrine (OK / EMPTY-BY-DESIGN / DEGRADED / ABORTED). Covered by `tests/notices.test.mjs` (14 unit cases).
+- ADR 0014 (`docs/adr/0014-notice-tier-doctrine-and-failure-classification-helpers.md`) recording the four-tier doctrine, the no-fifth-ASK-tier rule, the Notice shape (`{ severity, kind, message }`), the canonical `kind` enum, the mandatory end-of-run Trailer convention, and the helper-layer refinement to ADR 0013.
+- ADO Fetcher `ADO_FETCHER_RESULT_START`/`_END` block now carries a `NOTICES` JSON array. When `WORK_ITEM_IDS=[]`, the Fetcher emits an `info` Notice (`kind: doc-context`, message: "Reviewed without business context — no work items linked to this PR.").
+
+### Changed
+- Orchestrator (`commands/review-pr.md`) parses `NOTICES` from the Fetcher result block, sets `NOTICES_JSON` via `mergeNotices`, and threads it into the ADO Writer prompt. New `Step 8 — End-of-run Trailer` prints one mandatory `formatTrailer` line in the Claude interface for every run (success, abort). Pre-PR mode's completion line is now also a `formatTrailer` call (`mode: 'pre-pr'`) so AFK invokers see the same trailer shape across modes.
+- ADO Writer (`.agents/ado-writer.md`) accepts a new `NOTICES_JSON` input and renders a `## Notices` block above severity-grouped findings in the Review Summary content (heading bare; `ℹ️` / `⚠` prefixes per item). Empty `NOTICES_JSON` produces no `## Notices` heading.
+- Orchestrator `## Constants` section removed; the `SIGNATURE_PREFIX` invariant is now expressed inline at every call site that needed it (the constant value was already inlined; the section was documentation only).
+
+### Fixed
+- (none)
+
 ## [1.0.0] — 2026-05-12
 
 ### Breaking

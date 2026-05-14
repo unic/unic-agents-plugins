@@ -18,3 +18,6 @@ See the root `docs/adr/README.md` for format and numbering conventions.
 | 0009 | Re-review summary delta is posted as a reply to the existing summary thread             | Accepted   |
 | 0010 | Inline Confluence client                                                                | Accepted   |
 | 0011 | Additive parallel paths for doc-context extensibility                                   | Accepted   |
+| 0012 | Plain-text Doc-Context agent return                                                     | Accepted   |
+| 0013 | Orchestrator split for review-pr                                                        | Accepted   |
+| 0014 | Notice Tier doctrine and failure-classification helpers                                 | Accepted   |

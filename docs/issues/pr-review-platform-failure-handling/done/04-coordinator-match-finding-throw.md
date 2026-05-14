@@ -1,6 +1,6 @@
 # B4. Coordinator `match-finding` throws + DEGRADED Notice on catch
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

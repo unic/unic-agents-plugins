@@ -28,7 +28,7 @@ Then install individual plugins:
 
 ## Development
 
-**Prerequisites:** Node.js ≥ 24, pnpm ≥ 10, Claude Code CLI (for Ralph).
+**Prerequisites:** Node.js ≥ 22 (see `.nvmrc` for the recommended version), pnpm ≥ 10, Claude Code CLI (for Ralph).
 
 ```sh
 pnpm install                           # install all workspace deps

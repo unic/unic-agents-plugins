@@ -24,6 +24,7 @@ You receive:
 - `MODE` — `first-review` or `re-review`
 - `PLUGIN_ROOT` — absolute path to this plugin's directory (for Node.js helper scripts)
 - `FINDINGS` — a JSON array of compact findings: `{ severity, filePath, startLine, endLine, title, body }[]`
+- `NOTICES_JSON` — a JSON array of merged Notices: `{ severity: "info" | "warning", kind, message }[]`. May be `[]`.
 
 ---
 
@@ -33,6 +34,7 @@ You receive:
 SIGNATURE_PREFIX="🤖 *Reviewed by Claude Code*"
 SIGNATURE="🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}"
 FINDINGS_POSTED=0
+NOTICES='[]'
 ```
 
 Every comment posted — inline or summary — **must** end with this trailer:
@@ -40,6 +42,43 @@ Every comment posted — inline or summary — **must** end with this trailer:
 ```
 ---
 🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}
+```
+
+---
+
+## Helper: parse-write-response
+
+Use this snippet to route any `az devops invoke` outcome through the canonical HTTP-tier mapping. Capture it once per call site into `PWR_JSON`, then branch on `PWR_OK`/`PWR_TIER`/`PWR_ID`/`PWR_MSG`:
+
+```bash
+PWR_ERR=$(cat "${TMPDIR:-/tmp}/ado_writer_<name>.err" 2>/dev/null)
+PWR_JSON=$(
+  RESP="$<RESPONSE_VAR>" EXIT="$<EXIT_VAR>" ERR="$PWR_ERR" PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { parseWriteResponse } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/parse-write-response.mjs`)
+const r = parseWriteResponse({ httpExit: Number(process.env.EXIT), responseText: process.env.RESP, errStream: process.env.ERR })
+process.stdout.write(JSON.stringify(r))
+EOJS
+)
+PWR_OK=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(r.ok))")
+PWR_TIER=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.tier||'')")
+PWR_ID=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.id!=null?String(r.id):'')")
+PWR_MSG=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.message||'')")
+```
+
+**Tier handling at every call site:**
+
+- `PWR_OK=true` → the write succeeded; use `PWR_ID` if you need the created resource's id.
+- `PWR_TIER=aborted` (401/403) → stream the `.err` file to stderr, emit `ERROR: <PWR_MSG>`, and `exit 1`. The orchestrator will surface an abort Trailer.
+- `PWR_TIER=degraded` (5xx / network / other-4xx) → stream the `.err` file to stderr; push a DEGRADED Notice to `NOTICES`; continue to the next write. Do NOT exit.
+
+To push a Notice to the `NOTICES` JSON string:
+
+```bash
+NOTICES=$(
+  N="$NOTICES" SEV="warning" K="<kind>" M="<message>" \
+  node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
+)
 ```
 
 ---
@@ -87,51 +126,55 @@ Map severity to emoji before writing the content:
 - `minor` → `🟡`
 - any other value → use as-is
 
+### Parse primary POST result
+
+Apply the [parse-write-response helper](#helper-parse-write-response) with `<name>=thread_N`, `<RESPONSE_VAR>=THREAD_RESPONSE`, `<EXIT_VAR>=THREAD_EXIT`.
+
+- `PWR_OK=true` → `THREAD_ID=$PWR_ID`; skip the fallback section.
+- `PWR_TIER=aborted` → stream `.err` to stderr, `echo "ERROR: $PWR_MSG" >&2`, `exit 1`.
+- `PWR_TIER=degraded` → try the **threadContext rejection fallback** below.
+
 ### threadContext rejection fallback
 
-Decide whether the primary POST succeeded by parsing the response structurally — exit code zero **and** the response JSON contains a numeric `id`. The old substring `"message"` heuristic produced false positives on any error-shaped response and false negatives when an `id` field appeared alongside a benign `message`. If the structural check fails, **retry without `threadContext`** to post as a general comment:
-
 ```bash
-THREAD_ID=$(printf '%s' "$THREAD_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
-if [ $THREAD_EXIT -ne 0 ] || [ -z "$THREAD_ID" ]; then
-  cat > "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" << 'ENDJSON'
-  {
-    "comments": [
-      {
-        "commentType": 1,
-        "content": "{SEVERITY_EMOJI} **{title}** ({filePath}:{startLine})\n\n{body}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}"
-      }
-    ],
-    "status": 1
-  }
+cat > "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" << 'ENDJSON'
+{
+  "comments": [
+    {
+      "commentType": 1,
+      "content": "{SEVERITY_EMOJI} **{title}** ({filePath}:{startLine})\n\n{body}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration {LATEST_ITERATION_ID}"
+    }
+  ],
+  "status": 1
+}
 ENDJSON
 
-  THREAD_RESPONSE=$(az devops invoke \
-    --area git \
-    --resource pullRequestThreads \
-    --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" \
-    --org "${ORG_URL}" \
-    --http-method POST \
-    --in-file "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" \
-    --api-version "7.1" \
-    --output json 2>"${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err")
-  FALLBACK_EXIT=$?
-  THREAD_ID=$(printf '%s' "$THREAD_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
-fi
+THREAD_RESPONSE=$(az devops invoke \
+  --area git \
+  --resource pullRequestThreads \
+  --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" \
+  --org "${ORG_URL}" \
+  --http-method POST \
+  --in-file "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.json" \
+  --api-version "7.1" \
+  --output json 2>"${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err")
+FALLBACK_EXIT=$?
 ```
 
-**Only increment `FINDINGS_POSTED` after confirming the response contains a numeric `id`.** On confirmed failure (no numeric `id` after the fallback), emit a clear stderr message with the captured `*.err` payload and **continue to the next finding** — losing one comment is recoverable; aborting the writer loses every remaining comment.
+Apply the helper again with `<name>=thread_N_fallback`, `<RESPONSE_VAR>=THREAD_RESPONSE`, `<EXIT_VAR>=FALLBACK_EXIT`.
+
+- `PWR_OK=true` → `THREAD_ID=$PWR_ID`.
+- `PWR_TIER=aborted` → stream `.err` to stderr, `echo "ERROR: $PWR_MSG" >&2`, `exit 1`.
+- `PWR_TIER=degraded` → stream both `.err` files to stderr; push a `warning` Notice to `NOTICES`:
+  - `kind: "inline-post"`, `message: "Failed to post inline thread at {filePath}:{startLine} — {PWR_MSG}."`
+  - Set `THREAD_ID=""`.
+
+### Increment counter
 
 ```bash
 if [ -n "$THREAD_ID" ]; then
   FINDINGS_POSTED=$((FINDINGS_POSTED + 1))
   echo "Thread posted: $THREAD_ID"
-else
-  {
-    echo "WARN: failed to post inline thread for finding N — continuing with remaining findings."
-    [ -s "${TMPDIR:-/tmp}/ado_writer_thread_N.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_thread_N.err"
-    [ -s "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_thread_N_fallback.err"
-  } >&2
 fi
 ```
 
@@ -144,6 +187,20 @@ Branch on `MODE` and the `SUMMARY_THREAD_ID` value.
 ---
 
 ### MODE=first-review — Post full Review Summary
+
+Compute `NOTICES_BLOCK` first:
+
+```bash
+NOTICES_BLOCK=$(
+  NJ="$NOTICES_JSON" \
+  PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { formatNoticesAsSummaryBlock } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
+const notices = JSON.parse(process.env.NJ || '[]')
+process.stdout.write(formatNoticesAsSummaryBlock(notices))
+EOJS
+)
+```
 
 Post one general thread **without** `threadContext`:
 
@@ -170,21 +227,19 @@ SUMMARY_RESPONSE=$(az devops invoke \
   --api-version "7.1" \
   --output json 2>"${TMPDIR:-/tmp}/ado_writer_summary.err")
 SUMMARY_EXIT=$?
-
-SUMMARY_THREAD_ID=$(printf '%s' "$SUMMARY_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
-
-if [ $SUMMARY_EXIT -ne 0 ] || [ -z "$SUMMARY_THREAD_ID" ]; then
-  echo "ERROR: failed to post review summary; aborting writer. The completion marker depends on a valid SUMMARY_THREAD_ID, and the next re-review depends on it being detectable — silently continuing here would corrupt re-review state forever." >&2
-  echo "ADO response: $SUMMARY_RESPONSE" >&2
-  [ -s "${TMPDIR:-/tmp}/ado_writer_summary.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_summary.err" >&2
-  exit 1
-fi
-echo "Summary thread posted: ${SUMMARY_THREAD_ID}"
 ```
+
+Apply the helper with `<name>=summary`, `<RESPONSE_VAR>=SUMMARY_RESPONSE`, `<EXIT_VAR>=SUMMARY_EXIT`.
+
+- `PWR_OK=true` → `SUMMARY_THREAD_ID=$PWR_ID`; echo `"Summary thread posted: ${SUMMARY_THREAD_ID}"`.
+- `PWR_TIER=aborted` → stream `.err` to stderr, `echo "ERROR: $PWR_MSG" >&2`, `exit 1`.
+- `PWR_TIER=degraded` → stream `.err` to stderr; push `warning` Notice (`kind: "summary-post"`, `message: "Failed to post Review Summary (${PWR_MSG}). Review findings were posted as inline threads only."`); set `SUMMARY_THREAD_ID=""`; continue.
 
 The `{SUMMARY_CONTENT}` must be structured as:
 
 ```markdown
+{NOTICES_BLOCK}
+
 ### 🔴 Critical (X found)
 
 - **[{filePath}:{startLine}]** {title}
@@ -201,6 +256,8 @@ The `{SUMMARY_CONTENT}` must be structured as:
 
 - (positive observations if any)
 ```
+
+`{NOTICES_BLOCK}` is computed above. When `NOTICES_JSON` is `[]`, the helper returns an empty string and no `## Notices` heading is emitted.
 
 ---
 
@@ -222,8 +279,6 @@ If `FINDINGS_POSTED > 0`:
 
 #### SUMMARY_THREAD_ID set — post delta reply to existing summary thread
 
-Reply to the existing summary thread via `pullRequestThreadComments`:
-
 ```bash
 cat > "${TMPDIR:-/tmp}/ado_writer_delta.json" << 'ENDJSON'
 {
@@ -242,15 +297,13 @@ DELTA_RESPONSE=$(az devops invoke \
   --api-version "7.1" \
   --output json 2>"${TMPDIR:-/tmp}/ado_writer_delta.err")
 DELTA_EXIT=$?
-DELTA_COMMENT_ID=$(printf '%s' "$DELTA_RESPONSE" | node -e "try { const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(typeof d.id === 'number' ? String(d.id) : '') } catch (e) { process.stdout.write('') }")
-if [ $DELTA_EXIT -ne 0 ] || [ -z "$DELTA_COMMENT_ID" ]; then
-  echo "ERROR: failed to post delta reply to summary thread ${SUMMARY_THREAD_ID}; aborting writer. The completion marker depends on this thread being detectable on the next re-review." >&2
-  echo "ADO response: $DELTA_RESPONSE" >&2
-  [ -s "${TMPDIR:-/tmp}/ado_writer_delta.err" ] && cat "${TMPDIR:-/tmp}/ado_writer_delta.err" >&2
-  exit 1
-fi
-echo "Delta reply posted, comment ${DELTA_COMMENT_ID}"
 ```
+
+Apply the helper with `<name>=delta`, `<RESPONSE_VAR>=DELTA_RESPONSE`, `<EXIT_VAR>=DELTA_EXIT`.
+
+- `PWR_OK=true` → echo `"Delta reply posted, comment ${PWR_ID}"`.
+- `PWR_TIER=aborted` → stream `.err` to stderr, `echo "ERROR: $PWR_MSG" >&2`, `exit 1`.
+- `PWR_TIER=degraded` → stream `.err` to stderr; push `warning` Notice (`kind: "delta-reply"`, `message: "Failed to post re-review delta reply to thread ${SUMMARY_THREAD_ID} (${PWR_MSG}). Inline threads were posted."`); continue.
 
 `{BULLET_LIST_OF_NEW_FINDING_TITLES}` — one bullet per finding posted in Step 1, format:
 
@@ -277,7 +330,7 @@ if [ -n "${SUMMARY_THREAD_ID}" ]; then
   }
 ENDJSON
 
-  az devops invoke \
+  COMPLETION_RESPONSE=$(az devops invoke \
     --area git \
     --resource pullRequestThreadComments \
     --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${SUMMARY_THREAD_ID}" \
@@ -285,7 +338,14 @@ ENDJSON
     --http-method POST \
     --in-file "${TMPDIR:-/tmp}/ado_writer_completion.json" \
     --api-version "7.1" \
-    --output json | node -e "process.stdout.write('Completion marker posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
+    --output json 2>"${TMPDIR:-/tmp}/ado_writer_completion.err")
+  COMPLETION_EXIT=$?
+
+  # Apply the helper with <name>=completion, <RESPONSE_VAR>=COMPLETION_RESPONSE, <EXIT_VAR>=COMPLETION_EXIT.
+  # PWR_OK=true → echo "Completion marker posted, comment ${PWR_ID}".
+  # PWR_TIER=aborted → stream .err to stderr, echo "ERROR: $PWR_MSG" >&2, exit 1.
+  # PWR_TIER=degraded → stream .err to stderr; push warning Notice (kind: "completion-marker",
+  #   message: "Failed to post completion marker to thread ${SUMMARY_THREAD_ID} (${PWR_MSG})."); continue.
 else
   echo "No summary thread — skipping completion marker."
 fi
@@ -298,8 +358,10 @@ The absence of this marker for `LATEST_ITERATION_ID` on the next run signals a p
 ## Step 4 — Clean up
 
 ```bash
-rm -f "${TMPDIR:-/tmp}"/ado_writer_thread_*.json "${TMPDIR:-/tmp}"/ado_writer_thread_*.err "${TMPDIR:-/tmp}/ado_writer_summary.json" "${TMPDIR:-/tmp}/ado_writer_summary.err" "${TMPDIR:-/tmp}/ado_writer_delta.json" "${TMPDIR:-/tmp}/ado_writer_delta.err" "${TMPDIR:-/tmp}/ado_writer_completion.json"
+rm -f "${TMPDIR:-/tmp}"/ado_writer_thread_*.json "${TMPDIR:-/tmp}"/ado_writer_thread_*.err "${TMPDIR:-/tmp}/ado_writer_summary.json" "${TMPDIR:-/tmp}/ado_writer_summary.err" "${TMPDIR:-/tmp}/ado_writer_delta.json" "${TMPDIR:-/tmp}/ado_writer_delta.err" "${TMPDIR:-/tmp}/ado_writer_completion.json" "${TMPDIR:-/tmp}/ado_writer_completion.err"
 ```
+
+Cleanup is unconditional — always remove all temp files, even when notices were emitted.
 
 ---
 
@@ -311,14 +373,15 @@ Emit the structured result block as your final output, validating it round-trips
 RESULT=$(
   SID="${SUMMARY_THREAD_ID}" \
   FP="${FINDINGS_POSTED}" \
+  NJ="${NOTICES}" \
   PLUGIN_R="${PLUGIN_ROOT}" \
   node --input-type=module << 'EOJS'
 const { parseAdoWriterResult } = await import(`file://${process.env.PLUGIN_R}/scripts/ado-writer.mjs`)
-const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: ${process.env.SID}\nFINDINGS_POSTED: ${process.env.FP}\nADO_WRITER_RESULT_END`
+const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: ${process.env.SID}\nFINDINGS_POSTED: ${process.env.FP}\nNOTICES: ${process.env.NJ}\nADO_WRITER_RESULT_END`
 // Round-trip through the helper so any malformed block fails fast here, not downstream.
 const parsed = parseAdoWriterResult(output)
-if (parsed.summaryThreadId === null || parsed.findingsPosted === null) {
-	process.stderr.write('ado-writer: result block failed to parse\n')
+if (!parsed.ok) {
+	process.stderr.write(`ado-writer: result block failed to parse (${parsed.reason})\n`)
 	process.exit(1)
 }
 process.stdout.write(output)
@@ -331,6 +394,7 @@ echo "$RESULT"
 ADO_WRITER_RESULT_START
 SUMMARY_THREAD_ID: {SUMMARY_THREAD_ID}
 FINDINGS_POSTED: {FINDINGS_POSTED}
+NOTICES: {NOTICES}
 ADO_WRITER_RESULT_END
 ```
 
@@ -338,5 +402,6 @@ Where:
 
 - `SUMMARY_THREAD_ID` is the integer ID of the summary thread (updated if a new one was posted), or empty string if none
 - `FINDINGS_POSTED` is the total count of inline comment threads successfully posted
+- `NOTICES` is the JSON-serialised array of DEGRADED Notices emitted during this run (may be `[]`)
 
 **Never add any ADO read operations (GET) to this agent.**

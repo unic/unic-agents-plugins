@@ -22,7 +22,7 @@ pnpm verify:changelog     # Check CHANGELOG structure
 
 ## Tech Stack
 
-- **Runtime**: Node.js >=24 (LTS). Version pinned via `pnpm-workspace.yaml#useNodeVersion`.
+- **Runtime**: Node.js >=22. `.nvmrc` (currently `24.15.0`) is the recommended local version; CI exercises the matrix on Node 22 and 24.
 - **Package manager**: pnpm (workspace mode, catalog pinning).
 - **Module system**: ESM (`"type": "module"`).
 - **Test runner**: `node:test` built-in. No external framework.
