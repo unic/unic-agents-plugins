@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [1.2.3] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/ado/parse-write-response.mjs` — pure function `parseWriteResponse({ httpExit, responseText, errStream })` returning `{ ok: true, id } | { ok: false, tier, kind, message }`. Composes `classifyHttpError` with response-id parsing; 404/409 map to `{ ok: true, id: null }` (canonical OK with no resource created); 200 without a numeric id maps to `{ ok: false, tier: 'degraded', kind: 'malformed-response' }`. Covered by `tests/parse-write-response.test.mjs` (13 unit cases spanning all branches).
+
+### Changed
+- ADO Writer prompt routes every `az devops invoke` POST/PATCH call site through `parseWriteResponse`. On `tier: 'aborted'` (401/403), the Writer streams the `.err` file to stderr and exits non-zero. On `tier: 'degraded'` (5xx/network/other-4xx), the Writer pushes a typed DEGRADED Notice to its internal `NOTICES` array and continues to the next call site. `ADO_WRITER_RESULT_START/END` block gains a `NOTICES: [...]` field.
+- Orchestrator Step 8 now parses Writer `NOTICES` from the result block and merges them into `NOTICES_JSON` via `mergeNotices` before printing the Trailer, so all Notice counts reflect both Fetcher and Writer sources.
+- `parseAdoWriterResult` return type extended to `{ summaryThreadId, findingsPosted, notices: Notice[] }`. Legacy blocks without a `NOTICES` field return `notices: []`.
+
+### Fixed
+- ADO Writer inline-POST auth failures (HTTP 401/403) now abort the Writer immediately with a clear stderr message. Previously they were silently logged and the run continued, leaving subsequent writes potentially authenticated against stale credentials.
+
 ## [1.2.2] — 2026-05-13
 
 ### Breaking

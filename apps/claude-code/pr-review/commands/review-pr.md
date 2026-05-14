@@ -148,9 +148,9 @@ Agent(
 )
 ```
 
-## Step 8 — End-of-run Trailer
+## Step 8 — Merge Writer notices + Trailer
 
-Print one Trailer line via `formatTrailer({ mode, findings, notices, prUrl })` from `scripts/ado/notices.mjs`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts for `findings`; pass `NOTICES_JSON` as `notices`; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. On an aborted run, pass `{ mode: 'aborted', abortKind, abortReason }` instead. Pre-PR mode emits its Trailer in Step E with `mode: 'pre-pr'`.
+Parse `NOTICES` from `ADO_WRITER_RESULT_START/END` and merge into `NOTICES_JSON` via `mergeNotices([...fetcherNotices, ...writerNotices])` from `scripts/ado/notices.mjs`. Then print one Trailer line via `formatTrailer({ mode, findings, notices: NOTICES_JSON, prUrl })`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. On abort, pass `{ mode: 'aborted', abortKind, abortReason }`. Pre-PR: Step E.
 
 ## Pre-PR mode
 
