@@ -12,7 +12,8 @@
 - (none)
 
 ### Fixed
-- (none)
+- `fetch-work-items.mjs` now routes non-zero exit codes through `classifyHttpError`, returning `reason: 'auth'` (401/403), `reason: 'malformed'` (4xx malformed-request), or `reason: 'transient'` (5xx / network) instead of the generic `reason: 'fetch-failed'`.
+- `fetch-work-items.mjs` guards against `null` / non-object elements in the ADO `value` array to prevent `TypeError: Cannot read properties of null (reading 'id')`.
 
 ## [1.2.9] — 2026-05-14
 
