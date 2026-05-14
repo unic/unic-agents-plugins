@@ -10,11 +10,12 @@ const RESOLVED_STATUSES = new Set(['fixed', 'wontFix', 'closed', 'byDesign', 2, 
 
 /**
  * Classifies a prior review thread into one of four states using diff hunk data.
- * Rules evaluated in order (spec 05):
- *   1. addressed — ADO status is resolved OR line range intersects a diff hunk
+ * Rules evaluated in order (ADR-0004):
+ *   1. addressed — ADO thread status is in RESOLVED_STATUSES (fixed / wontFix / closed / byDesign / 2–5)
  *   2. obsolete  — filePath non-null and absent from diff (or file was deleted)
- *   3. disputed  — at least one comment has no bot signature
- *   4. pending   — all comments carry the bot signature
+ *   3. addressed — line range intersects a changed diff hunk
+ *   4. disputed  — at least one comment has no bot signature
+ *   5. pending   — all comments carry the bot signature
  *
  * γ-downgrade (ADR-0004): when diffRange is 'full', outputs 'addressed' and 'obsolete'
  * are remapped to 'pending' since diff-position evidence is unreliable on a widened range.

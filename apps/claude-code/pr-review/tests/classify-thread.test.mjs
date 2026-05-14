@@ -208,4 +208,85 @@ describe('classifyThread', () => {
 			'disputed'
 		)
 	})
+
+	it('γ-downgrade: diffRange=full, status=fixed → pending (status-based addressed downgraded)', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 202,
+			filePath: '/src/feature.ts',
+			start: { line: 10 },
+			end: { line: 10 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'fixed',
+		}
+		assert.equal(
+			classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX, diffRange: 'full' }),
+			'pending'
+		)
+	})
+
+	it('string status wontFix → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 106,
+			filePath: '/src/api.ts',
+			start: { line: 1 },
+			end: { line: 1 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'wontFix',
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
+
+	it('string status closed → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 107,
+			filePath: '/src/api.ts',
+			start: { line: 1 },
+			end: { line: 1 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'closed',
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
+
+	it('string status byDesign → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 108,
+			filePath: '/src/api.ts',
+			start: { line: 1 },
+			end: { line: 1 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'byDesign',
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
+
+	it('numeric status 3 → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 109,
+			filePath: '/src/api.ts',
+			start: { line: 1 },
+			end: { line: 1 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 3,
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
+
+	it('numeric status 4 → addressed', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 110,
+			filePath: '/src/api.ts',
+			start: { line: 1 },
+			end: { line: 1 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 4,
+		}
+		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
+	})
 })

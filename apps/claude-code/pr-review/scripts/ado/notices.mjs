@@ -79,6 +79,8 @@ export function formatNoticesAsPrePrPreamble(notices) {
  * Renders the mandatory end-of-run Trailer line for the Claude interface.
  * Carries findings counts (with severity breakdown), notice counts by severity,
  * and (for ADO modes) the PR URL.
+ * Minor findings are excluded from the parenthetical breakdown to keep the
+ * trailer concise; only critical and important counts are surfaced inline.
  *
  * @param {object} input
  * @param {TrailerMode} input.mode

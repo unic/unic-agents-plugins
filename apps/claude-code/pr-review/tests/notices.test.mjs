@@ -115,4 +115,25 @@ describe('formatTrailer', () => {
 	it('aborted with no abortReason omits separator', () => {
 		assert.equal(formatTrailer({ mode: 'aborted', abortKind: 'auth' }), '❌ Review aborted: auth')
 	})
+
+	it('re-review mode produces same trailer format as first-review', () => {
+		const out = formatTrailer({
+			mode: 're-review',
+			findings: { critical: 1, important: 0, minor: 0 },
+			notices: [],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/42',
+		})
+		assert.ok(out.startsWith('✅ Review posted:'))
+		assert.ok(out.includes('https://dev.azure.com'))
+	})
+})
+
+describe('mergeNotices', () => {
+	it('mergeNotices tolerates null and undefined sources', () => {
+		const n = createNotice('info', 'doc-context', 'test')
+		// @ts-ignore — intentional test of runtime tolerance for null/undefined
+		const result = mergeNotices(null, [n], undefined)
+		assert.equal(result.length, 1)
+		assert.equal(result[0].kind, 'doc-context')
+	})
 })
