@@ -109,6 +109,10 @@ describe('formatTrailer', () => {
 	})
 
 	it('aborted mode with missing fields produces a still-readable line', () => {
-		assert.equal(formatTrailer({ mode: 'aborted' }), '❌ Review aborted: unknown — ')
+		assert.equal(formatTrailer({ mode: 'aborted' }), '❌ Review aborted: unknown')
+	})
+
+	it('aborted with no abortReason omits separator', () => {
+		assert.equal(formatTrailer({ mode: 'aborted', abortKind: 'auth' }), '❌ Review aborted: auth')
 	})
 })

@@ -108,6 +108,15 @@ describe('parseWriteResponse — DEGRADED tier', () => {
 		if (!r.ok) assert.equal(r.tier, 'degraded')
 	})
 
+	it('malformed JSON body with zero exit → { ok: false, tier: degraded, kind: malformed-response }', () => {
+		const r = parseWriteResponse({ httpExit: 0, responseText: '<<<not json>>>' })
+		assert.equal(r.ok, false)
+		if (!r.ok) {
+			assert.equal(r.tier, 'degraded')
+			assert.equal(r.kind, 'malformed-response')
+		}
+	})
+
 	it('missing id field on 200 response → { ok: false, tier: degraded, kind: malformed-response }', () => {
 		const r = parseWriteResponse({
 			httpExit: 0,

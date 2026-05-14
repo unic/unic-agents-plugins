@@ -34,7 +34,7 @@ Notice shape:
 { severity: 'info' | 'warning', kind: NoticeKind, message: string }
 ```
 
-`kind` is a small enum: `doc-context`, `diff-range`, `work-items`, `iterations`, `default-branch`, `partial-run-check`, `thread-match`, `thread-classify`, `inline-post`, `summary-post`, `patch-to-fixed`, `diff-parse`. Free-form strings and severity-coded numerics were rejected — the enum lets the merge step dedup by `kind` without parsing message text.
+`kind` is a small enum: `doc-context`, `diff-range`, `work-items`, `iterations`, `default-branch`, `partial-run-check`, `thread-match`, `thread-classify`, `inline-post`, `summary-post`, `patch-to-fixed`, `diff-parse`, `delta-reply`, `completion-marker`. Free-form strings and severity-coded numerics were rejected — the enum lets the merge step dedup by `kind` without parsing message text. Each `kind` value has exactly one source agent — this is the invariant that makes first-wins dedup safe.
 
 A mandatory single-line **Trailer** is printed to the Claude interface at end-of-run, regardless of mode or outcome:
 

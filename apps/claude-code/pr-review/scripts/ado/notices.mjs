@@ -2,7 +2,7 @@
 
 /**
  * @typedef {'info' | 'warning'} NoticeSeverity
- * @typedef {'doc-context' | 'diff-range' | 'work-items' | 'iterations' | 'default-branch' | 'partial-run-check' | 'thread-match' | 'thread-classify' | 'inline-post' | 'summary-post' | 'patch-to-fixed' | 'diff-parse'} NoticeKind
+ * @typedef {'doc-context' | 'diff-range' | 'work-items' | 'iterations' | 'default-branch' | 'partial-run-check' | 'thread-match' | 'thread-classify' | 'inline-post' | 'summary-post' | 'patch-to-fixed' | 'diff-parse' | 'delta-reply' | 'completion-marker'} NoticeKind
  * @typedef {{ severity: NoticeSeverity, kind: NoticeKind, message: string }} Notice
  * @typedef {'first-review' | 're-review' | 'pre-pr' | 'aborted'} TrailerMode
  * @typedef {{ critical: number, important: number, minor: number }} FindingCounts
@@ -91,7 +91,8 @@ export function formatNoticesAsPrePrPreamble(notices) {
  */
 export function formatTrailer(input) {
 	if (input.mode === 'aborted') {
-		return `❌ Review aborted: ${input.abortKind ?? 'unknown'} — ${input.abortReason ?? ''}`
+		const kind = input.abortKind ?? 'unknown'
+		return input.abortReason ? `❌ Review aborted: ${kind} — ${input.abortReason}` : `❌ Review aborted: ${kind}`
 	}
 	const findings = input.findings ?? { critical: 0, important: 0, minor: 0 }
 	const notices = input.notices ?? []
