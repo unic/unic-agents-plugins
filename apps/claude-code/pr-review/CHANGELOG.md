@@ -14,6 +14,22 @@
 ### Fixed
 - (none)
 
+## [1.2.7] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- `matchFinding` now throws a `TypeError` when `priorThreads` is not an array or when `finding` is missing required typed fields (`filePath: string`, `startLine: number`, `endLine: number`). Previously, malformed input could produce an uncaught exception that was silently swallowed as a no-match.
+- Re-review Coordinator Step 6a wraps the `match-finding` call in a try/catch. On throw, a DEGRADED Notice (`kind: thread-match`) is pushed to the Coordinator's `NOTICES` array and the finding falls through to the unclassified (no-match) path. The Coordinator result block now includes a `NOTICES: [...]` field.
+- Orchestrator Step 7 extracts `NOTICES` from the Coordinator result block; Step 8 includes them in the combined `mergeNotices` call alongside Fetcher and Writer notices.
+
+### Fixed
+- Match-finding parse errors were previously silently swallowed by `2>/dev/null || echo ""` guards in the Coordinator, causing the affected finding to be treated as no-match and re-posted as a duplicate inline thread with no visible signal. The throw contract and DEGRADED Notice surface the cause to the reviewer.
+
 ## [1.2.6] — 2026-05-14
 
 ### Breaking

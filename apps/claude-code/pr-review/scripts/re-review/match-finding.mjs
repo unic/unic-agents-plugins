@@ -11,11 +11,24 @@
  * and line-range overlap with ±driftLines tolerance (default 3).
  * Summary threads are always skipped.
  *
+ * Returns `null` for a legitimate no-match. Throws a TypeError when the inputs
+ * are structurally invalid (distinguishable from a legitimate no-match so callers
+ * can surface a DEGRADED Notice instead of silently treating it as no-match).
+ *
  * @param {{ finding: Finding, priorThreads: PriorThread[], driftLines?: number }} input
  * @returns {PriorThread | null}
  */
 export function matchFinding({ finding, priorThreads, driftLines = 3 }) {
+	if (!Array.isArray(priorThreads)) {
+		throw new TypeError('priorThreads must be an array')
+	}
+	if (finding == null || typeof finding !== 'object') {
+		throw new TypeError('finding must be an object with filePath, startLine, and endLine')
+	}
 	const { filePath, startLine, endLine } = finding
+	if (typeof filePath !== 'string' || typeof startLine !== 'number' || typeof endLine !== 'number') {
+		throw new TypeError('finding must have filePath (string), startLine (number), and endLine (number)')
+	}
 	const fs = startLine - driftLines
 	const fe = endLine + driftLines
 

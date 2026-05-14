@@ -266,6 +266,7 @@ Reset the reply counts before iterating:
 
 ```bash
 FRESH_FINDINGS_JSON='[]'
+NOTICES='[]'
 ```
 
 Process each finding one at a time. For each finding:
@@ -275,6 +276,7 @@ Process each finding one at a time. For each finding:
 Substitute the `{finding.x}` placeholders below with concrete values from the current `FINDINGS` array element — these are prompt-template tokens, not shell variables.
 
 ```bash
+MATCH_EXIT=0
 MATCH=$(
   THREADS_F="$PRIOR_THREADS_FILE" \
   FINDING_FILE="{finding.filePath}" \
@@ -295,10 +297,20 @@ const result = matchFinding({
 })
 process.stdout.write(result != null ? JSON.stringify(result) : '')
 EOJS
-)
+) || MATCH_EXIT=$?
 
-CLASSIFICATION=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(d.classification ?? '')" 2>/dev/null || echo "")
-THREAD_ID=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(String(d.threadId ?? ''))" 2>/dev/null || echo "")
+if [ "$MATCH_EXIT" -ne 0 ]; then
+  NOTICES=$(
+    N="$NOTICES" SEV="warning" K="thread-match" \
+    M="Could not classify finding at {finding.filePath}:{finding.startLine} — falling back to no-match." \
+    node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
+  )
+  CLASSIFICATION=""
+  THREAD_ID=""
+else
+  CLASSIFICATION=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(d.classification ?? '')")
+  THREAD_ID=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(String(d.threadId ?? ''))")
+fi
 ```
 
 ### 6b — Dispatch on classification
@@ -420,6 +432,7 @@ disputed: {DISPUTED_COUNT}
 pending: {PENDING_COUNT}
 obsolete: {OBSOLETE_COUNT}
 freshFindings: {FRESH_FINDINGS_JSON}
+NOTICES: {NOTICES}
 RE_REVIEW_COORDINATOR_RESULT_END
 ```
 
@@ -431,6 +444,7 @@ Where:
 - `pending` — count of prior threads classified as pending (may include threads that received a new-evidence reply or were skipped)
 - `obsolete` — count of prior threads classified as obsolete
 - `freshFindings` — JSON array of unmatched findings in the same shape as the input `FINDINGS` array; empty array `[]` if all findings matched prior threads or if `earlyExit` is `true`
+- `NOTICES` — JSON array of DEGRADED Notices emitted during this run (may be `[]`); each entry has `{ severity: "warning", kind: "thread-match", message }`
 
 ---
 
