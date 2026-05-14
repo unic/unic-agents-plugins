@@ -41,4 +41,6 @@ Out of scope: per-workflow deep-dive docs (those live in `.archon/commands/*.md`
 
 ## Blocked by
 
+- `docs/issues/unic-archon-dlc/05-explore-prototype-and-spike-gate.md`
+- `docs/issues/unic-archon-dlc/11-build-self-contained-review-command.md`
 - `docs/issues/unic-archon-dlc/13-cleanup-workflow.md`

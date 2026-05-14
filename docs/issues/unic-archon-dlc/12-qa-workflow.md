@@ -33,4 +33,5 @@ Out of scope: post-merge cleanup (slice 13).
 
 ## Blocked by
 
+- `docs/issues/unic-archon-dlc/03-triage-workflow-and-tracker-adapter.md`
 - `docs/issues/unic-archon-dlc/10-build-verification-goals-check-and-report.md`

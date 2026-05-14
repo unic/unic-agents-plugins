@@ -32,4 +32,5 @@ Out of scope: feeding spike code into `plan` automatically — `plan` reads `fin
 
 ## Blocked by
 
+- `docs/issues/unic-archon-dlc/03-triage-workflow-and-tracker-adapter.md`
 - `docs/issues/unic-archon-dlc/04-explore-parallel-research-and-synthesize.md`

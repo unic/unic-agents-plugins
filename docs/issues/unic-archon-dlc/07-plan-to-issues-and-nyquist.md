@@ -34,4 +34,5 @@ Out of scope: `plan-checker` loop, `yaml-gen`, second PR gate (all in slice 08).
 
 ## Blocked by
 
+- `docs/issues/unic-archon-dlc/03-triage-workflow-and-tracker-adapter.md`
 - `docs/issues/unic-archon-dlc/06-plan-specs-and-to-prd.md`

@@ -38,4 +38,5 @@ Out of scope: integrating the review with the `qa` workflow's gates (slice 12 re
 
 ## Blocked by
 
+- `docs/issues/unic-archon-dlc/03-triage-workflow-and-tracker-adapter.md`
 - `docs/issues/unic-archon-dlc/10-build-verification-goals-check-and-report.md`
