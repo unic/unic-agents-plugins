@@ -115,7 +115,7 @@ Development teams using AI coding agents lack a structured, repeatable lifecycle
 ### Distribution model
 
 - Archon itself has no marketplace, registry, hub, or community gallery for sharing workflows. Distribution is filesystem-based: workflows are YAML files under `.archon/workflows/` committed to each project. Archon ships starter templates under `.archon/workflows/defaults/` bundled with the runtime, but there is no central channel for publishing or discovering third-party workflows.
-- `unic-archon-dlc` fills this gap by riding the **Claude Code plugin marketplace** as its distribution channel. The plugin's `.claude-plugin/marketplace.json` is what makes the six bundled workflows installable; the plugin's install hook then scaffolds them into the target project's `.archon/workflows/` and `.archon/commands/` directories. Archon contributes the *runtime*; this plugin contributes the *delivery*.
+- `unic-archon-dlc` fills this gap by riding the **Claude Code plugin marketplace** as its distribution channel. The plugin's `.claude-plugin/marketplace.json` is what makes the six bundled workflows installable; the plugin's install hook then scaffolds them into the target project's `.archon/workflows/` and `.archon/commands/` directories. Archon contributes the _runtime_; this plugin contributes the _delivery_.
 - Because Archon's YAML schema can evolve independently of the workflows shipped here, the install hook verifies the installed Archon binary version and warns on known schema-incompatible versions — version drift is the plugin's responsibility, not Archon's.
 
 ### State separation (three layers)
