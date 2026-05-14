@@ -1,0 +1,240 @@
+{
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Plugin scaffold and tracer install hook",
+      "description": "Scaffold the `unic-archon-dlc` plugin at `apps/claude-code/unic-archon-dlc/` with a working install hook that runs end-to-end from `claude /plugin install` and proves the wiring. This is the tracer slice: minimal but complete path through manifest → install hook → on-disk artifacts.\n\nIn scope:\n\n- Plugin directory under `apps/claude-code/unic-archon-dlc/` following the same shape as `auto-format`, `pr-review`, `unic-confluence`.\n- Manifests: `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. Plugin name is `unic-archon-dlc`. Marketplace entry follows the monorepo convention (no hand edits; subsequent slices use `pnpm --filter ... bump`).\n- `.archon/workflows/` and `.archon/commands/` directories shipped inside the plugin (empty placeholders accepted — populated by later slices).\n- Install hook as an idempotent Node.js script (`.mjs`, ESM, zero external runtime deps) triggered by the Claude Code plugin install mechanism.\n- **Setup explorer** module: reads `git remote`, `CLAUDE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/`, existing `.archon/` and returns a structured snapshot of what is already configured. Missing files are reported as absent, not errored.\n- **Archon binary check**: install hook verifies `archon` is on `PATH`. If missing, exits with a clear error referencing the README dependency note. Also reads `archon --version` and warns if the version is on the known-incompatible list (start with an empty list shipped as a JSON constant — populated as drift is observed).\n- **Mandatory question tier only** in this slice: issue tracker (auto-detected from `git remote`; falls back to a prompt), PR strategy (deduced from tracker), branching strategy (Gitflow default, GitHub Flow alternative).\n- Already-configured values are shown back to the user and skippable — re-running the hook never overwrites without consent.\n- **Outputs:**\n  - `.archon/unic-dlc.config.json` (machine-readable) populated with the mandatory tier only.\n  - `docs/agents/issue-tracker.md` (human-readable) describing the chosen tracker, its CLI, and the create/update conventions.\n- Config loader/validator module: `loadConfig(path)` returns a typed config object or a structured error. Mandatory fields validated; unknown keys ignored.\n- Tests (`node:test`, `.mjs`) for config loader (valid parse, missing mandatory fields, unknown keys) and setup explorer (mock project directory snapshot, absent-vs-errored handling).\n\nOut of scope for this slice: label tiers (state/type/priority), e2e command prompt, multi-context detection, remaining `docs/agents/*` files, `CLAUDE.md` block, any workflow YAML or command file contents.",
+      "acceptanceCriteria": [
+        "`apps/claude-code/unic-archon-dlc/` exists with valid `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (`pnpm check` and `pnpm typecheck` pass at repo root).",
+        "Running the install hook against a fresh project writes `.archon/unic-dlc.config.json` with at minimum `{ tracker, pr_strategy, branching }` populated.",
+        "Running the install hook against a fresh project writes `docs/agents/issue-tracker.md` describing the chosen tracker.",
+        "Re-running the install hook is idempotent: no overwrites, already-configured values shown and skipped.",
+        "Missing `archon` binary produces a clear, actionable error and a non-zero exit.",
+        "Setup explorer returns a structured snapshot for a mock project directory; missing files are reported as absent rather than throwing.",
+        "`node:test` suite covers config loader (3 cases) and setup explorer (1 case) and passes on macOS, Windows, and Linux paths (use `node:path`).",
+        "No external runtime deps added to the plugin (`auto-format`-style bar)."
+      ],
+      "dependsOn": [],
+      "status": "pending"
+    },
+    {
+      "id": "US-002",
+      "title": "Full install hook with all config tiers and agent docs",
+      "description": "Expand the install hook from the tracer slice to cover every configuration tier and write the full `docs/agents/` set. The hook remains idempotent and additive: re-running it fills in only what is missing.\n\nIn scope:\n\n- **Skippable tier:** e2e test command. If the user defers, the config records `e2e_command: null` and the hook can fill it in on a later run.\n- **Defaulted tier (no prompt unless `--reconfigure`):** model profile (`balanced`), TDD mode (`on`), Nyquist validation (`on`), slopsquatting gate (`on`).\n- **Label configuration tier (canonical → tracker string mapping):**\n  - **State labels:** `needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed` (or `rejected`). Canonical role names match `docs/agents/triage-labels.md` from this repo.\n  - **Type labels:** `feature`, `bug`, `spike`, `tech-debt`, `docs`.\n  - **Priority labels:** `p0`, `p1`, `p2`, `p3`.\n  - Each canonical name is mapped to the actual string used in the project's tracker.\n- **Multi-context detection:** if `CONTEXT-MAP.md` exists at repo root, the hook records `repo_layout: \"multi-context\"` and discovers per-context `CONTEXT.md` paths; otherwise `\"single-context\"` with the root `CONTEXT.md` path.\n- **`docs/agents/` outputs** (write or update — never clobber unrelated content):\n  - `issue-tracker.md` — already written in slice 1; expand with backend-specific create/update conventions.\n  - `labels.md` — three-tier taxonomy with canonical-to-string mappings for the chosen tracker.\n  - `branching.md` — chosen strategy, default branch names, PR target conventions.\n  - `domain.md` — single-context vs multi-context layout, CONTEXT.md and ADR locations.\n  - `workflow.md` — maps each of the six workflow phases to its artifact outputs and `docs/workflow/` paths.\n- **`CLAUDE.md` update:** append (or update in place) an `## Agent skills` block listing each `docs/agents/*.md` file with a one-line hook. If the block already exists, refresh its contents idempotently.\n- Reasonable defaults applied automatically when the tracker is local markdown (canonical strings == tracker strings).\n\nOut of scope: workflow YAML or command file contents (later slices).",
+      "acceptanceCriteria": [
+        "Fresh install writes all six `docs/agents/*.md` files plus the `## Agent skills` block in `CLAUDE.md`.",
+        "`.archon/unic-dlc.config.json` includes all label tiers, e2e command (or `null`), defaulted fields, and `repo_layout`.",
+        "Multi-context repo (with `CONTEXT-MAP.md`) is detected and recorded; single-context repo records the root `CONTEXT.md` path.",
+        "Re-running the hook after the tracer install adds only missing fields; existing fields are preserved unless `--reconfigure` is passed.",
+        "If `CLAUDE.md` already has an `## Agent skills` block, it is refreshed without duplicating sections or destroying neighbouring content.",
+        "Each `docs/agents/*.md` matches the canonical-to-tracker mapping in `.archon/unic-dlc.config.json` (no drift between machine and human readable).",
+        "Tests cover the canonical-to-tracker mapping for at least the local-markdown and GitHub backends."
+      ],
+      "dependsOn": [
+        "US-001"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-003",
+      "title": "Triage workflow and tracker adapter",
+      "description": "The simplest of the six workflows — `triage` — paired with the tracker adapter module that every later workflow will depend on. Builds the foundation for issue I/O across all backends.\n\nIn scope:\n\n- **Tracker adapter module:** translates canonical label names to tracker-specific strings and produces create/update CLI command strings for each configured backend. Backends covered in v1: GitHub Issues, Azure DevOps, Jira, local markdown (per the `docs/agents/issue-tracker.md` convention in this repo: file under `docs/issues/<slug>/`, `Status:` line records triage state, comments append to a `## Comments` heading). Deep module — all tracker-specific knowledge encapsulated.\n- **`/unic-dlc-triage` command** (note the `unic-dlc-` prefix — avoids collision with existing `/triage` skills) plus `.archon/workflows/triage.yaml`.\n- **Workflow behaviour:** reads current issue states from the configured tracker, reconciles them against `docs/workflow/ROADMAP.md` (creates it if absent), and produces `HANDOFF.md` capturing:\n  - Current phase (which workflow last ran, when, on which feature slug)\n  - Open issues grouped by triage state\n  - Blockers (issues whose `blocked_by` references are still open)\n  - Recent decisions (latest ADR file IDs)\n- **Standalone invocation:** runnable at any point in the lifecycle without prerequisites.\n- **Reused as final node of `cleanup`:** the same workflow file is referenced from the cleanup DAG in slice 13. Both invocations produce the same `HANDOFF.md`.\n- Tests covering the tracker adapter: for each backend, canonical label input produces the expected CLI command string. Tests also assert that absent state files are treated as \"no data\" rather than errors.\n\nOut of scope: any auto-promotion of issues across states (PRD explicitly excludes this).",
+      "acceptanceCriteria": [
+        "`/unic-dlc-triage` runs end-to-end against a project with the local-markdown tracker and produces a valid `HANDOFF.md`.",
+        "Tracker adapter handles all four backends. Each emits a syntactically valid CLI command (or the local-markdown file write) for a canonical-label input.",
+        "`docs/workflow/ROADMAP.md` is created on first run and updated on subsequent runs; updates do not clobber human-edited sections (use marker-delimited regions for the auto-generated parts).",
+        "`HANDOFF.md` includes all four sections: phase, open issues by state, blockers, recent decisions.",
+        "`node:test` covers the tracker adapter (one case per backend) and the HANDOFF generator (golden-file-style assertion on a mock project state).",
+        "Command file uses the `unic-dlc-` prefix consistently."
+      ],
+      "dependsOn": [
+        "US-002"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-004",
+      "title": "Explore workflow — parallel research and synthesize",
+      "description": "First half of the `explore` workflow: four parallel research agents converging on a `synthesize` node that produces a coherent brief, written to `docs/workflow/<slug>/findings.md`.\n\nIn scope:\n\n- `.archon/workflows/explore.yaml` (will be extended in slice 05 with the prototype phase).\n- `/unic-dlc-explore` command file.\n- **Four parallel research nodes** running simultaneously, each scoped to a single concern:\n  - `research-stack` — current and emerging stack relevant to the feature\n  - `research-features` — comparable existing features in the codebase and prior art\n  - `research-architecture` — how the change fits the existing architecture and ADRs\n  - `research-pitfalls` — known traps, deprecations, security/privacy considerations\n- **`synthesize` node** combining the four research outputs with the user's stated intent into a coherent brief. Pulls in CONTEXT.md and (if multi-context) CONTEXT-MAP.md so the brief uses the project glossary.\n- **`docs/workflow/<slug>/findings.md`** is committed to the repo. The slug is taken from the user-supplied feature name; the hook creates the directory if absent.\n- **Optional input from `explore` is honoured by `plan`:** `plan` works without findings, but consumes them when present (the contract is \"findings.md may or may not exist\" — slice 06's `specs` node handles both cases).\n\nOut of scope (covered in slice 05): prototype node, VALIDATED/INVALIDATED/PARTIAL verdicts, spike-branch gate, spike ticket creation.",
+      "acceptanceCriteria": [
+        "`/unic-dlc-explore <slug>` runs all four research nodes in parallel (verifiable from the Archon execution log or YAML structure).",
+        "`synthesize` produces `docs/workflow/<slug>/findings.md` containing sections for each research dimension plus the integrated brief.",
+        "`findings.md` references CONTEXT.md vocabulary and at least one existing ADR by ID when one is relevant.",
+        "Running `explore` without an existing `docs/workflow/<slug>/` directory creates it; running with an existing directory does not destroy prior contents.",
+        "Command file uses the `unic-dlc-` prefix."
+      ],
+      "dependsOn": [
+        "US-002"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-005",
+      "title": "Explore workflow — prototype, spike verdicts, and spike-branch gate",
+      "description": "Second half of the `explore` workflow: a prototype node that runs structured experiments, an optional human gate for preserving valuable spike code, and a spike ticket in the configured tracker.\n\nIn scope:\n\n- **`prototype` node** appended to `.archon/workflows/explore.yaml`. Reads `findings.md` and produces one or more experiments, each emitting a structured verdict — exactly one of:\n  - `VALIDATED` — approach works as expected, evidence captured.\n  - `INVALIDATED` — approach failed, reason captured.\n  - `PARTIAL` — partially works, gaps documented.\n  - Verdicts and per-experiment notes are written into a `## Spike verdicts` section of `findings.md` (single source of truth — no separate spike file).\n- **Optional interactive gate** after `prototype`: asks the user whether the spike produced code worth preserving on a branch. If yes, the workflow creates a `spike/<slug>` branch with the prototype code committed; if no, the worktree is left clean.\n- **Spike ticket creation** via the tracker adapter (slice 03): a ticket of type `spike`, labelled with the configured priority default, linking to `docs/workflow/<slug>/findings.md`. The ticket records VALIDATED/INVALIDATED/PARTIAL summary in its body so the tracker view is informative.\n\nOut of scope: feeding spike code into `plan` automatically — `plan` reads `findings.md` only, not the branch.",
+      "acceptanceCriteria": [
+        "`prototype` node runs after `synthesize` and writes a `## Spike verdicts` section to `findings.md` with at least one experiment carrying exactly one verdict from {VALIDATED, INVALIDATED, PARTIAL}.",
+        "Spike-branch gate is interactive: answering \"yes\" creates a `spike/<slug>` branch with a commit; answering \"no\" leaves no branch behind.",
+        "A spike ticket is created in the configured tracker via the tracker adapter, with type label `spike`, body linking to `findings.md`, and a one-line verdict summary.",
+        "Re-running `/unic-dlc-explore <slug>` on an existing slug does not duplicate the spike ticket; the existing ticket is updated."
+      ],
+      "dependsOn": [
+        "US-004"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-006",
+      "title": "Plan workflow — specs, to-prd, and first PR gate",
+      "description": "First half of the `plan` workflow: a grill-with-docs interview, live ADR writes for non-obvious decisions, a structured PRD output, and the first human approval gate.\n\nIn scope:\n\n- `.archon/workflows/plan.yaml` (extended by slice 07).\n- `/unic-dlc-plan` command file.\n- **`specs` node — grill-with-docs style:**\n  - Loads `CONTEXT.md`, `CONTEXT-MAP.md` (if present), all existing ADRs from `docs/adr/`, and `docs/workflow/<slug>/findings.md` if present.\n  - Conducts an adversarial interview, **one question at a time**, challenging terminology against the domain glossary.\n  - Proposes ADR entries for non-obvious decisions as they crystallise — not for every answer. Written live into `docs/adr/NNNN-<slug>.md` at the moment the decision is made.\n  - Configurable assumptions-first mode via `workflow.discuss_mode: assumptions` in `.archon/unic-dlc.config.json` (defaults to `interview`). Assumptions mode is for experienced developers in established codebases — surfaces a set of assumptions for the user to correct rather than asking from scratch.\n- **`to-prd` node:** synthesises the interview transcript and live-written ADRs into `docs/workflow/<slug>/PRD.md` with the agreed structure: Problem Statement, Solution, User Stories, Implementation Decisions, Testing Decisions, Out of Scope, Further Notes.\n- **First human PR gate (`interactive: true`):** opens a PR against the working branch with `PRD.md` and any new ADRs staged for review. Workflow pauses until the gate is approved.\n\nOut of scope (slice 07 and 08): `to-issues`, `nyquist-map`, `plan-checker`, `yaml-gen`, second PR gate.",
+      "acceptanceCriteria": [
+        "`specs` loads CONTEXT.md and existing ADRs before the first interview question.",
+        "Interview asks one question at a time (no multi-question batches) and rephrases when the user pushes back on terminology.",
+        "At least one ADR is written into `docs/adr/` during a representative session that contains a non-obvious decision; sessions with only obvious answers produce zero ADRs.",
+        "`to-prd` writes `docs/workflow/<slug>/PRD.md` with all seven structural sections present.",
+        "`workflow.discuss_mode: assumptions` flips the interview into assumptions mode; the default mode runs full interviews.",
+        "First human PR gate blocks the workflow until approved; rejected approvals return control to `specs` for another iteration.",
+        "Command file uses the `unic-dlc-` prefix."
+      ],
+      "dependsOn": [
+        "US-002"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-007",
+      "title": "Plan workflow — to-issues, nyquist-map, and validation gate",
+      "description": "Decomposes the approved PRD into vertically-sliced issues with explicit dependencies and a test command for each issue, then asks the user to validate the breakdown before publication.\n\nIn scope:\n\n- **`to-issues` node** extending `plan.yaml`:\n  - Reads `docs/workflow/<slug>/PRD.md` and emits `docs/workflow/<slug>/issues.json` with a list of issues; each issue carries `title`, `type` (canonical type label), `priority` (canonical priority label), `blocked_by: []` (array of issue IDs in this same file), `acceptance_criteria: []`, and `summary`.\n  - Slices are vertical tracer bullets — each slice cuts through every integration layer end-to-end, not horizontally by layer.\n  - Before writing the issues to the tracker, presents the breakdown to the user (numbered list with type/priority/blocked-by/summary) and asks the user to validate, split, merge, or relabel. Iterates until approved.\n  - After approval, publishes each issue to the configured tracker via the tracker adapter, in dependency order so blocker IDs are real.\n- **`nyquist-map` node:** for each issue, attaches a `test_command` field (the exact shell command that proves the issue's acceptance criteria). For issues whose test command does not yet exist, attaches a `test_command_planned` flag so `plan-checker` (slice 08) can flag them.\n- This slice publishes the issues to the tracker so the user can see them — but does **not** generate the build YAML (slice 08) and does **not** invoke the `plan-checker` loop (slice 08). It is acceptable for a user to stop here.\n\nOut of scope: `plan-checker` loop, `yaml-gen`, second PR gate (all in slice 08).",
+      "acceptanceCriteria": [
+        "`to-issues` reads PRD.md and writes `issues.json` whose structure matches the field set above.",
+        "Issues are vertical slices — each entry's acceptance criteria can be demonstrated independently (verified by a representative example in tests).",
+        "Validation gate is interactive and supports split/merge/relabel before publication.",
+        "After approval, each issue exists in the configured tracker with correct type and priority labels (verified for the local-markdown backend at minimum).",
+        "`nyquist-map` attaches a `test_command` (or `test_command_planned: true`) to every issue.",
+        "Tracker publication is dependency-ordered: every `blocked_by` reference points to an issue that already exists in the tracker."
+      ],
+      "dependsOn": [
+        "US-006"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-008",
+      "title": "Plan workflow — plan-checker loop, yaml-gen, and second PR gate",
+      "description": "Closes out the `plan` workflow with a validating loop that hardens the issue plan, a runtime YAML generator that turns the dependency tree into a build DAG, and the second human PR gate.\n\nIn scope:\n\n- **`plan-checker` loop node:**\n  - Max 3 iterations before escalation to a human gate.\n  - **Stall detection:** if the issue count does not decrease between consecutive iterations, escalate immediately to the human gate rather than burning the remaining retries.\n  - Validates four dimensions:\n    - **Consistency** — no orphaned `blocked_by` references, all PRD acceptance criteria are covered by at least one issue.\n    - **Completeness** — every mandatory field is present on every issue.\n    - **Decision coverage** — every trackable decision in `CONTEXT.md` (and any decisions captured during `specs`) appears in at least one issue.\n    - **Nyquist compliance** — every issue maps to a concrete test command (no lingering `test_command_planned: true` unless explicitly accepted at the gate).\n- **`yaml-gen` bash node:** reads `issues.json`, builds the dependency DAG, detects parallel groups (issues with no shared `blocked_by`), and writes `.archon/workflows/build-<slug>.yaml`. Both `code-red` and `code-green` for independent issues are emitted as parallel-capable nodes. Linear chains produce serial nodes; circular dependencies are detected, reported, and abort the generation. Output YAML must be valid Archon syntax.\n- **Dependency tree builder + YAML generator module:** pure data transformation, separately unit-tested. Test cases: linear chain → serial; independents → parallel; circular → reported; output round-trips through Archon's YAML parser.\n- **Second human PR gate (`interactive: true`):** opens a PR containing `issues.json`, the generated `build-<slug>.yaml`, and the `plan-checker` report. Workflow pauses until approved. Rejected approvals return control to `to-issues` for another iteration.\n\nOut of scope: executing the generated build YAML (slice 09).",
+      "acceptanceCriteria": [
+        "`plan-checker` runs at most 3 iterations and escalates on stall (issue count stays equal between consecutive iterations).",
+        "`plan-checker` reports failures across all four validation dimensions in a single structured report.",
+        "`yaml-gen` produces a syntactically valid Archon YAML; circular dependencies abort with a clear error.",
+        "Independent issues appear as parallel nodes; chained issues appear as serial nodes; both `code-red` and `code-green` carry parallel grouping when applicable.",
+        "Dependency tree builder unit tests cover linear, parallel-fan, diamond, and circular cases.",
+        "Second human PR gate stages `issues.json` + `build-<slug>.yaml` + `plan-checker` report in a PR and blocks until approved."
+      ],
+      "dependsOn": [
+        "US-007"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-009",
+      "title": "Build workflow — TDD core and slopcheck",
+      "description": "The TDD execution core of `build`: the generated `build-<slug>.yaml` is executed by Archon, enforcing `code-red` before `code-green` per issue, with both phases parallelisable across independent issues. A `slopcheck` gate sits in front of any package install to guard against AI-hallucinated dependencies.\n\nIn scope:\n\n- **`/unic-dlc-build <slug>` command** that executes the runtime-generated `.archon/workflows/build-<slug>.yaml` produced in slice 08.\n- **Per-issue TDD discipline enforced by the DAG:**\n  - `code-red` writes failing acceptance tests for the issue.\n  - `code-green` writes the minimum implementation to pass those tests.\n  - `depends_on` edges in the generated YAML force red → green within an issue.\n- **Cross-issue parallelism:** both `code-red` and `code-green` may run in parallel across issues whose `blocked_by` is empty (or whose blockers are already complete). The `yaml-gen` output from slice 08 must already encode this; this slice verifies the runtime honours it.\n- **`slopcheck` bash node** placed before any `package install` step:\n  - Detects newly introduced package names by diffing manifest files (`package.json`, `pyproject.toml`, `Cargo.toml`, etc. depending on the project — start with the JS/TS ecosystem and document how to extend).\n  - For each new package, checks registry existence (npm registry HEAD request for JS; equivalent for the other ecosystems already in scope).\n  - Packages that fail the registry check are flagged `[ASSUMED]`.\n  - For each `[ASSUMED]` package, creates a `checkpoint:human-verify` task inline so the user explicitly approves before installation continues.\n  - If the optional `slopcheck` Python tool (GSD's slopsquatting gate) is on `PATH`, defer to it for the registry check; otherwise use the fallback registry HEAD checks.\n  - If neither path is available, default to marking every new package `[ASSUMED]` — stricter, not silently permissive.\n\nOut of scope: verification, goals-check, report, `/unic-dlc-review` (slices 10 and 11).",
+      "acceptanceCriteria": [
+        "Executing `/unic-dlc-build <slug>` runs the runtime-generated YAML and produces commits in the order: failing test → passing implementation, per issue.",
+        "Independent issues are observed to run `code-red` (and `code-green`) in parallel for at least one representative `issues.json` test case.",
+        "`slopcheck` runs before any package install and creates a `checkpoint:human-verify` task for every `[ASSUMED]` package.",
+        "Approving the checkpoint allows the install to proceed; rejecting it aborts the install for that package and surfaces a clear message.",
+        "When neither the Python `slopcheck` tool nor the fallback registry check is available, every new package is treated as `[ASSUMED]`.",
+        "Command file uses the `unic-dlc-` prefix."
+      ],
+      "dependsOn": [
+        "US-008"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-010",
+      "title": "Build workflow — verification, goals-check, report, and PR gate",
+      "description": "Quality and consolidation phase of `build`: a verification node that catches low-quality implementations, a goals-check coverage matrix that ties code back to the PRD, a consolidated report, and the human PR gate that follows.\n\nIn scope:\n\n- **`verification` node:**\n  - Runs the full test suite for the slug's touched packages.\n  - Checks coverage thresholds (from `.archon/unic-dlc.config.json`).\n  - Detects stub patterns: `TODO` / `FIXME` / empty function bodies that only `return` or `pass` / hardcoded sentinel values returned where logic was expected.\n  - Audits wiring across layers: component → API → DB; form → handler. Mismatches are reported with file:line references so the report is actionable.\n- **`goals-check` node:** reads `docs/workflow/<slug>/PRD.md` and produces a **coverage matrix** mapping each acceptance criterion (from every user story / issue) to implementation evidence (file paths, test names, or \"MISSING\"). The matrix is the artifact reviewers look at before merging.\n- **`report` node:** writes `docs/workflow/<slug>/report.md` consolidating:\n  - What was built (high-level summary of merged issues)\n  - Goals-check matrix (verbatim from the previous node)\n  - Test outcomes (pass/fail counts, coverage numbers)\n  - Decisions made during implementation (links to any new ADRs)\n  - Tech debt flagged for cleanup (consumed by slice 13)\n- **Human PR gate (`interactive: true`)** after `report`: opens a PR with the implementation plus `report.md`. Workflow pauses until approved. Rejected approvals return control to `verification` for another pass.\n\nOut of scope: the `/unic-dlc-review` command itself (slice 11) — this slice's PR gate is the human review; slice 11 adds the automated AFK review.",
+      "acceptanceCriteria": [
+        "`verification` fails when coverage is below threshold, when stub patterns are present, or when a wiring mismatch is detected.",
+        "`goals-check` produces a coverage matrix where each row maps an acceptance criterion to evidence or \"MISSING\"; matrices with any \"MISSING\" rows fail the node.",
+        "`report.md` contains all five sections and is committed to `docs/workflow/<slug>/`.",
+        "Human PR gate blocks until approved; rejection returns control to `verification`.",
+        "Tests cover the stub-pattern detector with at least three positive and three negative cases."
+      ],
+      "dependsOn": [
+        "US-009"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-011",
+      "title": "Build workflow — self-contained /unic-dlc-review command",
+      "description": "A self-contained `/unic-dlc-review` command that performs a multi-aspect PR review as an AFK Archon node. It is independent of any external review plugin so users can run the full DLC without installing `pr-review-toolkit`.\n\nIn scope:\n\n- **`/unic-dlc-review` command + workflow node** invoked after the human PR gate from slice 10 (the human gate approves the PR; the review runs automatically on the diff).\n- **Four review aspects, each emitting a structured finding list:**\n  1. **Code quality** — readability, naming, function length, project-convention adherence (reads `CLAUDE.md`/`AGENTS.md`).\n  2. **Test coverage adequacy** — exercises through public interfaces, asserts on outputs not internals, no mocks of internal collaborators.\n  3. **Silent failure patterns** — swallowed exceptions, empty `catch` blocks, fallbacks that hide bugs.\n  4. **Type design quality** — encapsulation, invariants expressed in types, illegal-state-unrepresentable patterns.\n- **Inspiration references** documented in the command file:\n  - This monorepo's `apps/claude-code/pr-review/` (patterns, not runtime dependency).\n  - Matt Pocock's `review` skill (https://github.com/mattpocock/skills/blob/main/skills/in-progress/review/SKILL.md).\n  - Note in the command file that this is a base review intended to evolve; later slices may deepen each aspect.\n- **Output:** a structured review comment posted via the tracker adapter against the PR opened by slice 10. Findings are grouped by aspect with file:line references.\n- **No runtime dependency** on `pr-review-toolkit` or any other plugin — verified by running the review in a project where `pr-review-toolkit` is not installed.\n\nOut of scope: integrating the review with the `qa` workflow's gates (slice 12 reads but does not depend on the review output).",
+      "acceptanceCriteria": [
+        "`/unic-dlc-review` runs to completion on a project that does not have `pr-review-toolkit` installed.",
+        "The review posts a single structured comment grouped by the four aspects, each with at least one finding or an explicit \"no findings\" line.",
+        "Findings include file:line references where applicable.",
+        "Command file uses the `unic-dlc-` prefix and includes the inspiration references in its prologue.",
+        "Re-running the review on the same PR updates the prior comment rather than appending a duplicate."
+      ],
+      "dependsOn": [
+        "US-010"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-012",
+      "title": "QA workflow — e2e, coverage gate, UAT, merge",
+      "description": "A `qa` workflow that runs the e2e suite first, fails fast on insufficient coverage, presents an informed UAT checklist, and merges the PR via the tracker's CLI after sign-off.\n\nIn scope:\n\n- `/unic-dlc-qa <slug>` command and `.archon/workflows/qa.yaml`.\n- **E2e suite runs first.** Uses the `e2e_command` configured during install (slice 02). If unset, the workflow halts with a clear message asking the user to run install with `--reconfigure` and set the command.\n- **`coverage-gate` bash node** enforces the coverage thresholds configured in `.archon/unic-dlc.config.json`. Fails fast — the human UAT gate never opens unless automated coverage already passes.\n- **`uat-gate` interactive node:** presents e2e results alongside the UAT checklist extracted from the PRD's acceptance criteria. Approval continues to merge; rejection returns control to whoever owns the failing checklist item.\n- **Merge step via tracker adapter:** after `uat-gate` approves, the workflow merges the PR using the configured tracker's CLI (no manual terminal commands required). Branch deletion follows the configured branching strategy (Gitflow vs GitHub Flow).\n- All workflow YAML uses canonical label names; the adapter translates at write time.\n\nOut of scope: post-merge cleanup (slice 13).",
+      "acceptanceCriteria": [
+        "`/unic-dlc-qa <slug>` runs the configured `e2e_command` before any human gate opens.",
+        "If `e2e_command` is unset, the workflow halts with a clear, actionable message and a non-zero exit.",
+        "`coverage-gate` blocks `uat-gate` when coverage is below threshold.",
+        "`uat-gate` shows the PRD's acceptance criteria as a checklist alongside the e2e summary.",
+        "After `uat-gate` approves, the PR is merged via the tracker adapter; branch handling matches the configured branching strategy.",
+        "Command file uses the `unic-dlc-` prefix."
+      ],
+      "dependsOn": [
+        "US-010"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-013",
+      "title": "Cleanup workflow — arch-review, ADR consolidation, triage",
+      "description": "Post-merge cleanup that catches drift, locks in architectural decisions, and refreshes project state. Ends by reusing the triage workflow from slice 03.\n\nIn scope:\n\n- `/unic-dlc-cleanup <slug>` command and `.archon/workflows/cleanup.yaml`.\n- **`arch-review` node:**\n  - Reads both `docs/workflow/<slug>/PRD.md` (intent) and `docs/workflow/<slug>/report.md` (technical outcome) alongside the changed code.\n  - Catches **technical drift** (modules that became too shallow, tight coupling, leaky abstractions) and **intent drift** (delivered behaviour diverges from the PRD).\n  - Proposes **deepening opportunities** for modules that grew thin during implementation.\n  - Writes `docs/workflow/<slug>/arch-review.md`.\n- **`adr-consolidation` interactive node:**\n  - Reviews decisions logged during `build` (the \"Decisions made during implementation\" section of `report.md`) plus any ADR drafts proposed during `arch-review`.\n  - **Per-ADR approval gate**: each proposed ADR is presented individually for accept / reject / edit. Only accepted ADRs are written to `docs/adr/`.\n- **Final node reuses slice 03's `triage` workflow** — the same `.archon/workflows/triage.yaml` is referenced via Archon's workflow-include mechanism. Both invocations (standalone vs as cleanup's final node) produce the same `HANDOFF.md` and the same `ROADMAP.md` update.\n\nOut of scope: changes to `triage` itself (any new behaviour belongs in slice 03's file).",
+      "acceptanceCriteria": [
+        "`/unic-dlc-cleanup <slug>` writes `docs/workflow/<slug>/arch-review.md` covering technical drift, intent drift, and at least one deepening opportunity (or \"none identified\").",
+        "`adr-consolidation` presents each proposed ADR individually; reject/accept choices are recorded; only accepted ADRs land in `docs/adr/`.",
+        "Cleanup's final node reuses `.archon/workflows/triage.yaml` (no duplicate triage logic); `HANDOFF.md` is produced exactly once per cleanup run.",
+        "`docs/workflow/ROADMAP.md` is updated to reflect the merged feature.",
+        "Command file uses the `unic-dlc-` prefix."
+      ],
+      "dependsOn": [
+        "US-012",
+        "US-003"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "US-014",
+      "title": "README and complete documentation",
+      "description": "The plugin README — the only user-facing entry point for adopters. Final slice because it documents the shipped behaviour, not the intended behaviour.\n\nIn scope (`apps/claude-code/unic-archon-dlc/README.md`):\n\n1. **Mermaid flowchart** showing all six workflows (`explore`, `plan`, `build`, `qa`, `cleanup`, `triage`), every node, and human gate markers (✓ on interactive nodes).\n2. **Node reference table** — one row per node:\n   - Workflow · Node · Type (`prompt` / `loop` / `bash` / `interactive`) · Human gate (✓ / —)\n3. **Quick-start** — install + first run in three steps. Example commands use the `unic-dlc-` prefix.\n4. **Configuration reference** — every key in `.archon/unic-dlc.config.json` with default and valid values: `tracker`, `pr_strategy`, `branching`, `e2e_command`, `model_profile`, `tdd_mode`, `nyquist_validation`, `slopsquatting_gate`, label tier mappings, `repo_layout`, `workflow.discuss_mode`, coverage thresholds.\n5. **`docs/workflow/` layout diagram** — visual of what gets created where and who owns each artifact. State the three-layer separation explicitly: transient (`$ARTIFACTS_DIR`) vs persistent (`docs/workflow/<slug>/`) vs tracker.\n6. **Dependency map:** Archon version requirement, no required peer plugins, optional `slopcheck` Python tool.\n7. **Distribution note:** Archon has no marketplace; this plugin fills the gap by riding the Claude Code plugin marketplace and scaffolding workflows into the target project.\n\nAlso in scope:\n\n- The plugin's `CHANGELOG.md` carries a dated `0.1.0` entry summarising the lifecycle (CI's `verify:changelog` will fail without it).\n- The marketplace listing description matches the README's one-line summary.\n\nOut of scope: per-workflow deep-dive docs (those live in `.archon/commands/*.md` shipped by each workflow slice).",
+      "acceptanceCriteria": [
+        "README renders correctly (Mermaid block parses; tables render).",
+        "Mermaid flowchart shows all 6 workflows, every node from slices 03–13, and human gates marked with ✓.",
+        "Node reference table includes every node in the shipped workflows.",
+        "Quick-start gets a developer from zero to a successful `/unic-dlc-triage` run in three steps.",
+        "Every key written by the install hook (slices 01 and 02) appears in the configuration reference with default and valid values.",
+        "`docs/workflow/` layout diagram names the three persistence layers explicitly.",
+        "`CHANGELOG.md` has a dated `0.1.0` entry and `pnpm --filter unic-archon-dlc verify:changelog` passes."
+      ],
+      "dependsOn": [
+        "US-013"
+      ],
+      "status": "pending"
+    }
+  ]
+}
