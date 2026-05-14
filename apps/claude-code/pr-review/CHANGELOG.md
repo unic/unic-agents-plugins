@@ -8,8 +8,12 @@
 ### Added
 - (none)
 
+### Changed
+- `classifyThread` now accepts a `diffRange: 'full' | 'incremental'` parameter (default `'incremental'`). When `'full'`, outputs `addressed` and `obsolete` are remapped to `pending` (γ-downgrade per ADR-0004) since diff-position evidence is unreliable on a widened range. `disputed` is unaffected.
+- Re-review Coordinator (Step 5) parses `DIFF_RANGE` from `ADO_FETCHER_RESULT` and threads it into every `classify-thread` invocation.
+
 ### Fixed
-- (none)
+- Re-reviews that fell back to a full diff (prior commit unreachable) no longer produce false-confidence `addressed` or `obsolete` classifications; all such threads are conservatively downgraded to `pending`.
 
 ## [1.2.4] — 2026-05-14
 

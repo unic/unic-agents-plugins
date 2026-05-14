@@ -166,4 +166,46 @@ describe('classifyThread', () => {
 		}
 		assert.equal(classifyThread({ thread, diffHunks: noChangeDiff, signaturePrefix: SIGNATURE_PREFIX }), 'addressed')
 	})
+
+	it('γ-downgrade: diffRange=full, line intersects hunk → pending (not addressed)', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 200,
+			filePath: '/src/utils.ts',
+			start: { line: 10 },
+			end: { line: 15 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'active',
+		}
+		/** @type {import('../scripts/re-review/classify-thread.mjs').DiffHunk[]} */
+		const hunks = [{ filePath: '/src/utils.ts', startLine: 12, endLine: 13 }]
+		assert.equal(
+			classifyThread({ thread, diffHunks: hunks, signaturePrefix: SIGNATURE_PREFIX, diffRange: 'full' }),
+			'pending'
+		)
+	})
+
+	it('γ-downgrade: diffRange=full, file absent from diff → pending (not obsolete)', () => {
+		/** @type {import('../scripts/re-review/classify-thread.mjs').PriorThread} */
+		const thread = {
+			threadId: 201,
+			filePath: '/src/legacy.ts',
+			start: { line: 5 },
+			end: { line: 5 },
+			comments: [{ content: `Finding.\n---\n${SIGNATURE_PREFIX} — Iteration 1` }],
+			status: 'active',
+		}
+		assert.equal(
+			classifyThread({ thread, diffHunks: withChangesDiff, signaturePrefix: SIGNATURE_PREFIX, diffRange: 'full' }),
+			'pending'
+		)
+	})
+
+	it('γ-downgrade: diffRange=full, disputed thread → still disputed (unaffected)', () => {
+		const thread = toThread(loadFixture('threads-disputed').value[0])
+		assert.equal(
+			classifyThread({ thread, diffHunks: withChangesDiff, signaturePrefix: SIGNATURE_PREFIX, diffRange: 'full' }),
+			'disputed'
+		)
+	})
 })

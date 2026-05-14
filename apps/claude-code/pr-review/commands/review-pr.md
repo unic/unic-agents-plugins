@@ -85,7 +85,7 @@ Agent(
 )
 ```
 
-Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE` (not yet consumed — PRD B issue B3 will use it for the γ-downgrade). Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`.
+Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE`; the Re-review Coordinator (Step 7) parses it from `ADO_FETCHER_RESULT` to apply the γ-downgrade when `DIFF_RANGE=full`. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`.
 
 ## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 

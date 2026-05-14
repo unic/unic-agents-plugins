@@ -22,6 +22,7 @@ You receive:
   - `PR_ID`
   - `LATEST_ITERATION_ID`
   - `RAW_DIFF` — the raw git diff text (may be empty)
+  - `DIFF_RANGE` — `full` or `incremental`; controls the γ-downgrade in Step 5
 - `RAW_THREADS_JSON` — the full unfiltered ADO thread list as a JSON array (fetched by the orchestrator via `az repos pr thread list`; not re-fetched here)
 - `FINDINGS` — a JSON array of new findings: `{ severity, filePath, startLine, endLine, title, body }[]`
 - `SIGNATURE_PREFIX` — always `🤖 *Reviewed by Claude Code*`
@@ -216,13 +217,17 @@ fi
 
 ## Step 5 — Classify all prior threads
 
-Classify each non-summary thread using `classify-thread` and update `PRIOR_THREADS_FILE` in place with the `classification` field. Capture counts.
+Parse `DIFF_RANGE` from `ADO_FETCHER_RESULT` (defaults to `incremental` if absent). Classify each non-summary thread using `classify-thread` — passing `diffRange` so the γ-downgrade fires when `DIFF_RANGE=full` — and update `PRIOR_THREADS_FILE` in place with the `classification` field. Capture counts.
 
 ```bash
+DIFF_RANGE=$(printf '%s' "$ADO_FETCHER_RESULT" | grep '^DIFF_RANGE:' | awk '{print $2}')
+DIFF_RANGE="${DIFF_RANGE:-incremental}"
+
 CLASSIFY_COUNTS=$(
   THREADS_F="$PRIOR_THREADS_FILE" \
   HUNKS_F="$DIFF_HUNKS_FILE" \
   SIG_P="$SIGNATURE_PREFIX" \
+  DIFF_R="$DIFF_RANGE" \
   PLUGIN_R="$PLUGIN_ROOT" \
   node --input-type=module << 'EOJS'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -230,10 +235,11 @@ const { classifyThread } = await import('file://' + process.env.PLUGIN_R + '/scr
 const threads = JSON.parse(readFileSync(process.env.THREADS_F, 'utf8'))
 const diffHunks = JSON.parse(readFileSync(process.env.HUNKS_F, 'utf8'))
 const signaturePrefix = process.env.SIG_P
+const diffRange = process.env.DIFF_R === 'full' ? 'full' : 'incremental'
 const counts = { addressed: 0, disputed: 0, pending: 0, obsolete: 0 }
 for (const t of threads) {
   if (t.isSummaryThread) continue
-  const cls = classifyThread({ thread: t, diffHunks, signaturePrefix })
+  const cls = classifyThread({ thread: t, diffHunks, signaturePrefix, diffRange })
   t.classification = cls
   counts[cls]++
 }
