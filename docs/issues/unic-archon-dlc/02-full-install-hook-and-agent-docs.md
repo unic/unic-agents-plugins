@@ -34,7 +34,7 @@ Out of scope: workflow YAML or command file contents (later slices).
 
 ## Acceptance criteria
 
-- [ ] Fresh install writes all six `docs/agents/*.md` files plus the `## Agent skills` block in `CLAUDE.md`.
+- [ ] Fresh install writes all five `docs/agents/*.md` files plus the `## Agent skills` block in `CLAUDE.md`.
 - [ ] `.archon/unic-dlc.config.json` includes all label tiers, e2e command (or `null`), defaulted fields, and `repo_layout`.
 - [ ] Multi-context repo (with `CONTEXT-MAP.md`) is detected and recorded; single-context repo records the root `CONTEXT.md` path.
 - [ ] Re-running the hook after the tracer install adds only missing fields; existing fields are preserved unless `--reconfigure` is passed.

@@ -157,7 +157,7 @@ docs/workflow/
 
 ### Configuration files written to `docs/agents/`
 
-Six files are written or updated by the install hook:
+Five files are written or updated by the install hook:
 
 - `issue-tracker.md` — tracker backend, CLI commands, create/update conventions
 - `labels.md` — three-tier label taxonomy: state (needs-triage → closed), type (feature/bug/spike/tech-debt/docs), priority (p0–p3), all mapped to actual tracker strings

@@ -1,5 +1,7 @@
 # Archon Native Workflows — Mapping to `to-issues` Behavior
 
+> **Scope note:** This document explored mapping the `to-issues` behaviour onto native Claude Code workflows (no Archon dependency). The PRD at `docs/issues/unic-archon-dlc/PRD.md` chose the Archon-workflow path instead — `to-issues` is implemented as a node inside `plan.yaml`. Read this doc for historical context; do not use it as implementation guidance for issue 07.
+
 **Research date**: 2026-05-14
 **Archon repo**: https://github.com/coleam00/Archon
 **Workflows live at**: `.archon/workflows/defaults/` (not `workflows/` at root)

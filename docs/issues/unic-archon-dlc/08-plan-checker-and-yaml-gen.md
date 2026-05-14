@@ -23,7 +23,7 @@ In scope:
     - **Nyquist compliance** — every issue maps to a concrete test command (no lingering `test_command_planned: true` unless explicitly accepted at the gate).
 - **`yaml-gen` bash node:** reads `issues.json`, builds the dependency DAG, detects parallel groups (issues with no shared `blocked_by`), and writes `.archon/workflows/build-<slug>.yaml`. Both `code-red` and `code-green` for independent issues are emitted as parallel-capable nodes. Linear chains produce serial nodes; circular dependencies are detected, reported, and abort the generation. Output YAML must be valid Archon syntax.
 - **Dependency tree builder + YAML generator module:** pure data transformation, separately unit-tested. Test cases: linear chain → serial; independents → parallel; circular → reported; output round-trips through Archon's YAML parser.
-- **Second human PR gate (`interactive: true`):** opens a PR containing `issues.json`, the generated `build-<slug>.yaml`, and the `plan-checker` report. Workflow pauses until approved. Rejected approvals return control to `to-issues` for another iteration.
+- **Second human PR gate (`interactive: true`):** opens a PR containing `issues.json`, the generated `build-<slug>.yaml`, and the `plan-checker` report. Workflow pauses until approved. Rejected approvals return control to `plan-checker` for another validation pass (not a full re-decomposition).
 
 Out of scope: executing the generated build YAML (slice 09).
 
