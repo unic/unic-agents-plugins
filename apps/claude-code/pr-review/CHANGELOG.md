@@ -14,6 +14,24 @@
 ### Fixed
 - (none)
 
+## [1.2.9] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- New helper `scripts/pre-pr/detect-default-branch.mjs` — pure function `detectDefaultBranch({ branchExists, remoteHeadBranch })` returning `{ branch, source, notice? }`. Fallback chain: `remote-show` → `origin/develop` → `origin/main` → `origin/master` → `none`. Emits a `warning` Notice (`kind: default-branch`) for every fallback level; no notice for `remote-show`. `{ branch: null, source: 'none' }` aborts the Pre-PR run. 7 unit cases covering all branches.
+
+### Changed
+- `buildPrePrContext` return type extended to include `notices: Notice[]`. Suspicious-shape detection: non-empty diff containing ≥ 1 `diff --git` header but yielding zero parsed paths emits a DEGRADED Notice (`kind: diff-parse`). Normal diffs return `notices: []`.
+- Pre-PR mode Step A now calls `detectDefaultBranch` (Gitflow-aware fallback chain) instead of the hardcoded `main` fallback. On `branch: null` the run aborts with a clear stderr message and a Trailer aborted line. Any fallback notice is collected in `PRE_PR_NOTICES`.
+- Pre-PR mode Step B merges `buildPrePrContext().notices` into `PRE_PR_NOTICES` via `mergeNotices`.
+- Pre-PR mode Step E prints all Notices (via `formatNoticesAsPrePrPreamble`) before findings, and passes `PRE_PR_NOTICES` to `formatTrailer` so the Trailer reflects the actual notice count.
+
+### Fixed
+- Pre-PR mode default-branch detection no longer silently falls through to `main` when `git remote show origin` is offline or returns an unexpected format. The fallback chain (`develop` → `main` → `master`) now emits a visible warning Notice naming the actually-used branch, and `none` aborts the run with an actionable error message.
+- Pre-PR mode malformed diffs (non-empty input with `diff --git` headers but zero parsed paths) now surface a DEGRADED Notice instead of silently proceeding with an empty file list.
+
 ## [1.2.8] — 2026-05-14
 
 ### Breaking

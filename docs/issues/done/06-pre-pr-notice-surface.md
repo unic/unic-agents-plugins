@@ -1,6 +1,6 @@
 # B6. Pre-PR Notice surface: suspicious-shape Notice + Gitflow-aware default-branch fallback
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

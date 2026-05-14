@@ -154,28 +154,15 @@ Parse the Writer output via `parseAdoWriterResult` from `scripts/ado-writer.mjs`
 
 ## Pre-PR mode
 
-No PR URL provided — reviewing the local branch diff; no ADO calls are made.
+No PR URL provided — reviewing the local branch diff; no ADO calls are made. Initialize `PRE_PR_NOTICES=[]`.
 
-### Step A — Compute diff
+### Step A — Detect default branch + compute diff
 
-```bash
-DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | awk '/HEAD branch/{print $NF}' | grep . || echo "main")
-RAW_DIFF=$(git diff "origin/${DEFAULT_BRANCH}...HEAD") || { echo "git diff failed"; exit 1; }
-```
+Run `git remote show origin 2>/dev/null` and parse the `HEAD branch:` line as `REMOTE_HEAD` (empty string if absent); define `branchExists(name)` as exits 0 when `git rev-parse --verify --quiet refs/remotes/origin/$name` succeeds. Via `await import`, call `detectDefaultBranch({ remoteHeadBranch: REMOTE_HEAD, branchExists })` from `scripts/pre-pr/detect-default-branch.mjs`. On `{ branch: null }`: emit a clear stderr message, call `formatTrailer({ mode: 'pre-pr', findings: {}, notices: [] })` from `scripts/ado/notices.mjs`, and stop. If `result.notice` exists, push it to `PRE_PR_NOTICES`. Compute `RAW_DIFF=$(git diff "origin/${result.branch}...HEAD") || { echo "git diff failed"; exit 1; }`.
 
 ### Step B — Parse changed files
 
-```bash
-FILTERED_FILES=$(
-  RAW_DIFF_STR="$RAW_DIFF" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
-  node --input-type=module << 'EOJS'
-const { buildPrePrContext } = await import(`file://${process.env.PLUGIN_R}/scripts/pre-pr.mjs`)
-process.stdout.write(buildPrePrContext(process.env.RAW_DIFF_STR).filteredFiles.join('\n'))
-EOJS
-)
-```
-
-Read the contents of each file in `FILTERED_FILES`, skipping deleted ones.
+Via `await import`, call `buildPrePrContext(RAW_DIFF)` from `scripts/pre-pr.mjs`; merge `context.notices` into `PRE_PR_NOTICES` via `mergeNotices` from `scripts/ado/notices.mjs`; set `FILTERED_FILES` from `context.filteredFiles`. Read the contents of each file in `FILTERED_FILES`, skipping deleted ones.
 
 ### Step C — Resolve aspect filter
 
@@ -189,7 +176,7 @@ Collect, dedupe, and sort returned JSON arrays into `FINDINGS` (`critical` first
 
 ### Step E — Present findings
 
-Print each finding in the Claude interface, grouped by severity (`critical`, `important`, `minor`):
+Print Notices from `PRE_PR_NOTICES` via `formatNoticesAsPrePrPreamble(PRE_PR_NOTICES)` from `scripts/ado/notices.mjs`, then print each finding grouped by severity (`critical`, `important`, `minor`):
 
 ```
 [{severity}] {filePath} L{startLine}–{endLine}
@@ -197,4 +184,4 @@ Print each finding in the Claude interface, grouped by severity (`critical`, `im
 {body}
 ```
 
-End with one Trailer line via `formatTrailer({ mode: 'pre-pr', findings, notices: [] })` from `scripts/ado/notices.mjs` (reduce `FINDINGS` to `{ critical, important, minor }` counts). The line reads `✅ Pre-PR review complete: <N> findings (...) · 0 warning notices`.
+End with one Trailer line via `formatTrailer({ mode: 'pre-pr', findings, notices: PRE_PR_NOTICES })` from `scripts/ado/notices.mjs` (reduce `FINDINGS` to `{ critical, important, minor }` counts). The line reads `✅ Pre-PR review complete: <N> findings (...)  · <M> warning notices`.
