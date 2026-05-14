@@ -1,9 +1,7 @@
 // @ts-check
 
-/**
- * @typedef {{ severity: 'info' | 'warning', kind: string, message: string }} Notice
- * @typedef {{ branch: string | null, source: 'remote-show' | 'develop-fallback' | 'main-fallback' | 'master-fallback' | 'none', notice?: Notice }} DetectResult
- */
+/** @typedef {import('../ado/notices.mjs').Notice} Notice */
+/** @typedef {{ branch: string | null, source: 'remote-show' | 'develop-fallback' | 'main-fallback' | 'master-fallback' | 'none', notice?: Notice }} DetectResult */
 
 /**
  * Detects the default branch via a prioritized fallback chain.
@@ -15,16 +13,16 @@
  * 4. 'master' checked via branchExists
  * 5. none — returns { branch: null, source: 'none' }
  *
- * Emits a warning Notice for every fallback level (levels 2–4). Level 1 is
- * considered authoritative so no notice is emitted. Level 5 returns no notice;
- * the caller is expected to abort.
+ * Emits a warning Notice for every fallback level (levels 2–5). Level 1 is
+ * considered authoritative so no notice is emitted. Level 5 also emits a
+ * warning notice; the caller is expected to abort on branch: null.
  *
  * @param {{ branchExists: (name: string) => boolean, remoteHeadBranch: string }} input
  * @returns {DetectResult}
  */
 export function detectDefaultBranch({ branchExists, remoteHeadBranch }) {
-	if (remoteHeadBranch) {
-		return { branch: remoteHeadBranch, source: 'remote-show' }
+	if (remoteHeadBranch?.trim()) {
+		return { branch: remoteHeadBranch.trim(), source: 'remote-show' }
 	}
 
 	/** @type {Array<[string, 'develop-fallback' | 'main-fallback' | 'master-fallback']>} */
@@ -48,5 +46,14 @@ export function detectDefaultBranch({ branchExists, remoteHeadBranch }) {
 		}
 	}
 
-	return { branch: null, source: 'none' }
+	return {
+		branch: null,
+		source: 'none',
+		notice: {
+			severity: 'warning',
+			kind: 'default-branch',
+			message:
+				'Could not detect a default branch: remote-show failed and no develop/main/master branch found locally. Pre-PR run aborted.',
+		},
+	}
 }
