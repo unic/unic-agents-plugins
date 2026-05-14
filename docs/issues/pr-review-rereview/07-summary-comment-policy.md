@@ -1,6 +1,6 @@
 # Summary comment policy on re-review
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

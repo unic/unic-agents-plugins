@@ -11,3 +11,15 @@ created: 2026-05-03
 Adapt release package to gitflow
 
 If I'm using Git-flow, shouldn't the release process be adapted? And CI? Now I need to remember to merge main into develop before starting a new feature branch.
+
+## Triage Notes
+
+**Nature:** Release tooling + CI changes for Gitflow hygiene.
+
+The pain point is that after a hotfix or release merges to `main`, `develop` falls behind and the developer must remember to backfill it manually. Both `packages/release-tools/` and the CI workflows in `.github/workflows/` may need adjusting.
+
+**What grilling needs to resolve:**
+
+- Which scenarios create the drift? Hotfix merges? Release PRs from `develop` → `main`?
+- Should the fix be a GitHub Actions workflow step (auto-merge `main` back into `develop` after a release merges), a documented manual step, or a `release-tools` script?
+- Are there edge cases where auto-backfill would be dangerous (e.g. `main` has a hotfix that conflicts with in-flight feature work on `develop`)?

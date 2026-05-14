@@ -10,6 +10,12 @@ created: 2026-05-03
 
 review pr-review command process. This idea is very related to `./automate-qa-in-github.md`
 
+## Triage Notes
+
+**Nature:** Improvement to the pr-review command UX and process — formalise the maintainer's manual prompt into a proper skill/command with sub-agent support to prevent context-rot.
+
+Closely related to `automate-qa-in-github.md`; both describe the same end-to-end QA loop from slightly different angles. Should be grilled together — likely merges into a single PRD covering the full automated QA workflow.
+
 Check Prompt I use for GitHub PRs:
 
 ```prompt

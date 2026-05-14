@@ -1,6 +1,6 @@
 # Version bump + CHANGELOG + docs
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

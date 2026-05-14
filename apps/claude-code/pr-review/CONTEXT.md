@@ -77,6 +77,34 @@ _Avoid_: merger, aggregator, deduplicator
 A self-contained plugin agent that orchestrates the entire Doc Context gathering phase — fetching work item details, running the Confluence credential check once, spawning Work Item Summarizer and Confluence Fetcher agents in parallel, and delegating final synthesis to the Doc Context Synthesizer. Returns the Synthesizer's output verbatim as a plain markdown string.
 _Avoid_: context orchestrator, doc orchestrator, gathering agent
 
+### Operating modes
+
+**Pre-PR mode**:
+A Review run without a PR URL, targeting a local branch diff. No ADO write-back occurs; findings are presented in the Claude interface only.
+_Avoid_: local review, offline review, draft review
+
+**First-review mode**:
+A Review run against an ADO PR where no prior Bot Signature is found. Produces a full set of Inline Comments and a Review Summary posted to ADO.
+_Avoid_: initial review, fresh review
+
+**Re-review mode**:
+A Review run against an ADO PR where a prior **Bot Signature** is found in the PR's threads. Focuses on commits since the last Review, performs Thread Classification, and replies to or resolves existing Review Threads rather than duplicating them.
+_Avoid_: incremental review, follow-up review, second pass
+
+### Orchestration agents
+
+**ADO Fetcher**:
+A plugin agent that retrieves PR metadata, iterations, changed files, and the raw diff from Azure DevOps. Used by first-review and re-review modes; not invoked in pre-PR mode.
+_Avoid_: fetcher, data agent, ADO client
+
+**Re-review Coordinator**:
+A plugin agent that owns the full re-review state machine — prior thread detection, partial-run check, Thread Classification, finding matching, and reply posting to classified threads. Invoked only in re-review mode.
+_Avoid_: re-review agent, rereview handler
+
+**ADO Writer**:
+A plugin agent responsible for all ADO write-back operations — posting Inline Comments, patching thread status, and posting the Review Summary or delta reply. Used by first-review and re-review modes.
+_Avoid_: writer agent, comment poster, ADO publisher
+
 ### Re-review classification
 
 **Thread Classification**:
@@ -95,6 +123,30 @@ A Thread Classification state. No action taken; the issue still exists in the ne
 **obsolete**:
 A Thread Classification state. The relevant code was deleted or moved; the comment no longer applies.
 
+### Platform-failure handling
+
+**Notice**:
+A user-facing message emitted by an orchestration agent when a Review operation completed in a non-OK Notice Tier. Carries `severity` (`info` or `warning`), `kind` (a small enum identifying the failed operation), and a one-line `message`. Notices are merged across agents by the orchestrator, rendered in the Review Summary, included in the end-of-run Trailer, and (for Pre-PR mode) printed in the Claude interface before findings.
+_Avoid_: warning, error, log line
+
+**Notice Tier**:
+A four-state classification of every Review operation outcome: **OK**, **EMPTY-BY-DESIGN**, **DEGRADED**, **ABORTED**. The tier choice IS the gating decision — there is no fifth "ask the user" tier. Failure modes that tempt one are reclassified as ABORTED.
+
+**OK**:
+A Notice Tier. The operation completed with a non-empty result. No Notice emitted.
+
+**EMPTY-BY-DESIGN**:
+A Notice Tier. The operation completed with an empty result that is a legitimate domain state (no work-items linked, no Confluence pages, no prior threads). Currently emits an `info` Notice only for the Doc Context family; other empty states are inherent to the Review type and stay silent.
+
+**DEGRADED**:
+A Notice Tier. The operation failed but the Review can still complete with reduced coverage. Emits a `warning` Notice; the Review still posts.
+
+**ABORTED**:
+A Notice Tier. The operation failed and continuing would corrupt cross-run state (Bot Signature drift, Summary thread desync, mode misdetection). The run stops before the Review Summary is composed; the failure goes to stderr plus the end-of-run Trailer.
+
+**Trailer**:
+A single end-of-run line printed by the orchestrator to the Claude interface, regardless of mode or success state. Carries findings count by severity, Notice counts by severity, and (for ADO modes) the PR URL. Designed for AFK skim: the invoker sees outcome status without opening the PR.
+
 ## Relationships
 
 - A **Review** produces one **Review Summary**, zero or more **Inline Comments**, and zero or more **General Comments**
@@ -106,6 +158,10 @@ A Thread Classification state. The relevant code was deleted or moved; the comme
 - A **Doc Context** is assembled via a three-tier pipeline: the **Doc Context Orchestrator** spawns **Work Item Summarizer** and **Confluence Fetcher** agents (Doc Context Sub-agents) in parallel, then delegates their outputs to the **Doc Context Synthesizer**, which produces the final `DOC_CONTEXT` narrative injected into every Review Aspect agent
 - A **Doc Context Sub-agent** operates on a single source (work item or Confluence page) and receives the changed files list and the local diff when available
 - The **Doc Context Orchestrator** returns the **Doc Context Synthesizer**'s output verbatim; it does not rewrite or reformat the narrative
+- The **ADO Fetcher** is invoked by first-review and re-review modes; **Pre-PR mode** skips it entirely and goes directly to Review Aspect agents
+- The **Re-review Coordinator** is invoked only when the mode is re-review; first-review and pre-PR modes never load it
+- The **ADO Writer** is invoked by first-review and re-review modes; **Pre-PR mode** does not write back to ADO
+- Every operation in an orchestration agent terminates in one of the four **Notice Tiers**. **DEGRADED** and **EMPTY-BY-DESIGN**-with-message operations emit a **Notice** that flows from the agent's structured result block, through the orchestrator's merge step, into the **Review Summary** (for ADO modes) or the printed pre-findings block (for **Pre-PR mode**). The end-of-run **Trailer** carries Notice counts so the invoker sees them without opening the PR.
 
 ## Example dialogue
 

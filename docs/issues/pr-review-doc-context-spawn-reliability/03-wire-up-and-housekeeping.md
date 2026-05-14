@@ -1,6 +1,6 @@
 # Wire-up: step 4a rewrite + README + CHANGELOG
 
-**Status:** resolved
+**Status:** closed
 **Category:** bug
 **Type:** AFK
 

@@ -1,6 +1,6 @@
 # Version bump and CHANGELOG entry
 
-**Status:** resolved
+**Status:** closed
 **Category:** release
 
 ## Parent

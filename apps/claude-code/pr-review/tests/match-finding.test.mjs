@@ -74,4 +74,18 @@ describe('matchFinding', () => {
 		const result = matchFinding({ finding, priorThreads })
 		assert.equal(result, null)
 	})
+
+	it('throws TypeError when priorThreads is not an array', () => {
+		const finding = { filePath: '/src/api.ts', startLine: 42, endLine: 42 }
+		assert.throws(() => matchFinding({ finding, priorThreads: 'not-an-array' }), TypeError)
+	})
+
+	it('throws TypeError when finding is null', () => {
+		assert.throws(() => matchFinding({ finding: null, priorThreads: [] }), TypeError)
+	})
+
+	it('throws TypeError when finding has wrong field types', () => {
+		const finding = { filePath: '/src/api.ts', startLine: '42', endLine: 42 }
+		assert.throws(() => matchFinding({ finding, priorThreads: [] }), TypeError)
+	})
 })

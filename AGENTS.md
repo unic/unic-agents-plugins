@@ -51,7 +51,7 @@ pnpm --filter <name> ralph              # run that plugin's own Spec Runner loop
 
 ## Tech stack
 
-- **Runtime**: Node.js ≥ 24 LTS (pinned `24.15.0` via `.nvmrc` + `pnpm-workspace.yaml`)
+- **Runtime**: Node.js ≥ 22. `.nvmrc` is the source of truth for local dev (currently `24.15.0`) and is consumed by `actions/setup-node` in CI.
 - **Package manager**: pnpm 10 (workspace mode, catalog pinning)
 - **Module system**: ESM (`"type": "module"`) throughout
 - **Linter/formatter**: Biome 2 for code/JSON; Prettier for Markdown only

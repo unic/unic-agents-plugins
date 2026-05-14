@@ -26,3 +26,15 @@ each configured source — no rewrite of the ADO path needed, purely additive.
 Architecture note: if the number of supported sources grows, consider a config file
 (similar to `setup-matt-pocock-skills/issue-tracker-*.md`) that declares which work
 item trackers are active for a given install. Needs grilling before implementation.
+
+## Triage Notes
+
+**Nature:** Multi-source work item client design — additive extension to the doc context enrichment layer.
+
+Blocked on design decisions that need grilling:
+
+1. **Source discovery** — how does the plugin know which tracker a linked URL belongs to? URL pattern matching, or explicit config?
+2. **Credential handling** — Jira uses API tokens + Basic auth; GitHub Issues uses `gh` CLI or a PAT. Needs a consistent abstraction across clients.
+3. **Config file shape** — the architecture note suggests a declarative config; grilling should nail down the exact format before implementation.
+
+Should be grilled together with `alternative-doc-sources-for-doc-context.md` — both involve the same extensibility pattern, different axes.

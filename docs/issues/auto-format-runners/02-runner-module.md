@@ -1,6 +1,6 @@
 # Extract `lib/runners.mjs` with `runFormatter` and tests
 
-**Status:** resolved
+**Status:** closed
 **Category:** refactor
 
 ## Parent

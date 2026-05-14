@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repo follows an adapted 8-phase version of Matt Pocock's 7-phase workflow. version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
+This repo follows an adapted 8-phase version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
 
 Not every phase is required for every piece of work. A typo fix can go straight to execution. A major feature will touch every phase.
 
@@ -68,26 +68,45 @@ Turn the PRD into independently-executable tickets:
 
 This creates `docs/issues/<slug>/<NN>-<ticket>.md` files — vertical slices that cut through all integration layers. Each ticket should be small enough to fit in a single agent context window.
 
-Use the triage labels (`needs-triage` → `ready-for-agent` / `ready-for-human`) to track state. See `docs/agents/triage-labels.md`.
+Use the triage labels to track state — see `docs/agents/triage-labels.md` for the full 8-state vocabulary (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed` / `rejected`).
 
 ## Phase 7 — Execute
 
-Work through the tickets. For agent-ready tickets:
+There are two execution paths depending on the type of work. Choose based on where the work item lives, not on personal preference — the two runners are not interchangeable.
+
+### Spec Runner — for `docs/plans/` specs
+
+Use the Spec Runner when implementing infrastructure, tooling, or repo-level changes captured as Specs in `docs/plans/`:
 
 ```
-pnpm ralph          # runs the Spec Runner (currently ralph-orchestrator)
+pnpm ralph                        # root specs
+pnpm --filter <plugin> ralph      # plugin-specific specs
 ```
 
-Or for plugin-specific work:
+Specs follow a prescriptive format (before/after snapshots, shell verification commands, acceptance criteria). The Spec Runner implements one Spec per iteration, commits, and stops. See `docs/process/ralph-loop-guide.md`.
+
+### Feature Runner — for `docs/issues/` features
+
+Use the Feature Runner when implementing product features tracked as Issues in `docs/issues/<slug>/`. Once a feature has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`):
 
 ```
-cd apps/claude-code/<plugin>
-pnpm ralph
+/implement-feature <slug>         # target a specific feature
+/implement-feature                # auto-select next ready feature
 ```
 
-For test-driven work, use the `/tdd` skill to enforce a red-green-refactor loop.
+The Feature Runner builds a dependency graph from `## Blocked by` references, invokes `/tdd` non-interactively for each issue in topological order, marks each issue `resolved` on completion, and opens a PR targeting `develop` when all issues are done.
 
-Tickets that require human judgment (`ready-for-human`) are done by hand following the same steps.
+Compose with `/loop` for overnight queue draining:
+
+```
+/loop /implement-feature
+```
+
+The runner outputs `LOOP_COMPLETE` when the queue is empty, which terminates the loop cleanly.
+
+### Human execution
+
+Tickets marked `ready-for-human` require judgment that cannot be delegated to an agent. Work through them by hand, following the same red-green-refactor discipline as `/tdd`. Mark the issue `resolved` when done.
 
 ## Phase 8 — QA
 
@@ -99,16 +118,17 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                             | Tool                                          |
-| ------------ | -------------------------------- | --------------------------------------------- |
-| 1. Capture   | Idea surfaces mid-task           | `/inbox <one-liner>`                          |
-| 2. Grill     | Before any PRD or spec           | `/grill-with-docs` or `/grill-me`             |
-| 3. Research  | Unfamiliar external dependencies | `research.md` (ad hoc)                        |
-| 4. Prototype | Uncertain design or UX           | Ad hoc throwaway route                        |
-| 5. PRD       | After grilling                   | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
-| 6. Issues    | After PRD                        | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
-| 7. Execute   | Tickets are `ready-for-agent`    | `pnpm ralph` or `/tdd`                        |
-| 8. QA        | After execution                  | QA plan (agent-generated, human-verified)     |
+| Phase                 | When                                           | Tool                                          |
+| --------------------- | ---------------------------------------------- | --------------------------------------------- |
+| 1. Capture            | Idea surfaces mid-task                         | `/inbox <one-liner>`                          |
+| 2. Grill              | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`             |
+| 3. Research           | Unfamiliar external dependencies               | `research.md` (ad hoc)                        |
+| 4. Prototype          | Uncertain design or UX                         | Ad hoc throwaway route                        |
+| 5. PRD                | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
+| 6. Issues             | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
+| 7a. Execute (Spec)    | Specs in `docs/plans/` are ready               | `pnpm ralph` (Spec Runner)                    |
+| 7b. Execute (Feature) | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner)         |
+| 8. QA                 | After execution                                | QA plan (agent-generated, human-verified)     |
 
 ## Related
 
@@ -117,3 +137,4 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
 - `docs/process/ralph-loop-guide.md` — Spec Runner detail
 - `docs/process/spec-template.md` — spec file format
+- `docs/process/ai-development.md` — deep guide: mental model, context quality, AFK trust chain, key decisions

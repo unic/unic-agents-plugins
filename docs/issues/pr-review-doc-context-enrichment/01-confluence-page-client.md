@@ -1,6 +1,6 @@
 # Confluence page client script + tests
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

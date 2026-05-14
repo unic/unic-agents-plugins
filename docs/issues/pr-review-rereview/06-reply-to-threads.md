@@ -1,6 +1,6 @@
 # Reply to threads + extract match-finding module + completion marker
 
-**Status:** resolved
+**Status:** closed
 **Category:** enhancement
 
 ## Parent

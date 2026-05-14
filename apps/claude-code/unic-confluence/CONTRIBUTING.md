@@ -4,11 +4,11 @@ This project uses a spec-driven development workflow. New features and fixes are
 
 ## Prerequisites
 
-| Tool            | Version           | How to get it                                                          |
-| --------------- | ----------------- | ---------------------------------------------------------------------- |
-| Node.js         | ≥ 24 (Active LTS) | [nodejs.org](https://nodejs.org)                                       |
-| pnpm            | ≥ 10              | `npm install -g pnpm`                                                  |
-| Claude Code CLI | latest            | [claude.ai/code](https://claude.ai/code) — required as Ralph's backend |
+| Tool            | Version                                         | How to get it                                                          |
+| --------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| Node.js         | ≥ 22 (see `.nvmrc` for the recommended version) | [nodejs.org](https://nodejs.org)                                       |
+| pnpm            | ≥ 10                                            | `npm install -g pnpm`                                                  |
+| Claude Code CLI | latest                                          | [claude.ai/code](https://claude.ai/code) — required as Ralph's backend |
 
 Everything else (Ralph Orchestrator, Biome, TypeScript) is a project devDependency and installs with:
 
