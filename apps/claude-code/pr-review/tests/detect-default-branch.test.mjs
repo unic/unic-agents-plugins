@@ -47,11 +47,22 @@ describe('detectDefaultBranch', () => {
 		assert.ok(result.notice?.message.includes('master'))
 	})
 
-	it('remoteHeadBranch empty, no branches → source none, branch null, no notice', () => {
+	it('remoteHeadBranch is whitespace-only → falls through to develop fallback', () => {
+		const result = detectDefaultBranch({
+			branchExists: (name) => name === 'develop',
+			remoteHeadBranch: '   ',
+		})
+		assert.equal(result.branch, 'develop')
+		assert.equal(result.source, 'develop-fallback')
+	})
+
+	it('remoteHeadBranch empty, no branches → source none, branch null, notice present', () => {
 		const result = detectDefaultBranch({ branchExists: noBranch, remoteHeadBranch: '' })
 		assert.equal(result.branch, null)
 		assert.equal(result.source, 'none')
-		assert.equal(result.notice, undefined)
+		assert.equal(result.notice?.severity, 'warning')
+		assert.equal(result.notice?.kind, 'default-branch')
+		assert.ok(result.notice?.message.length > 0)
 	})
 
 	it('fallback chain prioritises develop over main over master', () => {
