@@ -65,4 +65,19 @@ describe('fetchIterations', () => {
 		assert.equal(result.ok, false)
 		assert.equal(result.reason, 'malformed')
 	})
+
+	it('exitCode=0 but value key absent → { ok: false, reason: malformed }', () => {
+		const r = fetchIterations({ responseText: JSON.stringify({ count: 0 }), exitCode: 0 })
+		assert.equal(r.ok, false)
+		if (!r.ok) assert.equal(r.reason, 'malformed')
+	})
+
+	it('HTTP 400 response → { ok: false, reason: malformed }', () => {
+		const r = fetchIterations({
+			responseText: JSON.stringify({ statusCode: 400, message: 'Bad Request' }),
+			exitCode: 0,
+		})
+		assert.equal(r.ok, false)
+		if (!r.ok) assert.equal(r.reason, 'malformed')
+	})
 })

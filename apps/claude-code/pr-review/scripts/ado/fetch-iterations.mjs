@@ -34,7 +34,12 @@ export function fetchIterations({ responseText, exitCode = 0 }) {
 	if (exitCode !== 0 || status >= 400) {
 		const classification = classifyHttpError({ status, body: responseText, exitCode })
 		if (classification.tier !== 'ok') {
-			const reason = classification.tier === 'aborted' ? 'auth' : 'transient'
+			const reason =
+				classification.tier === 'aborted'
+					? 'auth'
+					: classification.kind === 'malformed-request'
+						? 'malformed'
+						: 'transient'
 			return { ok: false, reason, message: classification.message }
 		}
 	}
@@ -67,12 +72,20 @@ export function fetchIterations({ responseText, exitCode = 0 }) {
 		}
 	}
 
-	// Find the latest iteration by id
-	const iterations = /** @type {ADOIteration[]} */ (parsed.value)
+	// Find the latest iteration by id; guard against null elements that ADO may return
+	const iterations = /** @type {ADOIteration[]} */ (parsed.value.filter((it) => it != null && typeof it === 'object'))
+	if (iterations.length === 0) {
+		return {
+			ok: false,
+			reason: 'empty-iterations',
+			message: 'Iterations endpoint returned empty value array. Cannot sign Review with a valid Iteration ID.',
+		}
+	}
 	const latest = iterations.reduce((max, it) => (it.id > max.id ? it : max), iterations[0])
 	return {
 		ok: true,
 		latestIterationId: latest.id,
+		// '' when the iteration has no sourceRefCommit (pre-commit PR or detached HEAD)
 		latestCommitSha: latest.sourceRefCommit?.commitId ?? '',
 	}
 }
