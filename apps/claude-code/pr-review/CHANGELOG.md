@@ -8,12 +8,32 @@
 ### Added
 - (none)
 
+### Fixed
+- (none)
+
+## [1.2.10] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
 ### Changed
 - (none)
 
 ### Fixed
-- `fetch-work-items.mjs` now routes non-zero exit codes through `classifyHttpError`, returning `reason: 'auth'` (401/403), `reason: 'malformed'` (4xx malformed-request), or `reason: 'transient'` (5xx / network) instead of the generic `reason: 'fetch-failed'`.
+- `ado-writer.mjs` NOTICES block JSON parse failure now returns `{ ok: false, reason: 'malformed' }` instead of silently dropping all Writer-emitted Notices and returning `{ ok: true, notices: [] }`.
+- `parse-write-response.mjs` now appends `errStream` content to the error message for all classified failure tiers (auth/transient), not only the malformed-response path — giving auth failures meaningful context when the response body is empty.
+- `notices.mjs` `formatTrailer` aborted branch no longer emits a stray ` — ` separator when `abortReason` is absent.
+- `fetch-work-items.mjs` now routes non-zero exit codes through `classifyHttpError`, returning `reason: 'auth'` (401/403), `reason: 'malformed'` (4xx malformed-request), or `reason: 'transient'` (5xx / network) instead of the generic `reason: 'fetch-failed'`. `@returns` JSDoc updated to use a literal union.
 - `fetch-work-items.mjs` guards against `null` / non-object elements in the ADO `value` array to prevent `TypeError: Cannot read properties of null (reading 'id')`.
+- `fetch-iterations.mjs` `malformed-request` HTTP kind now maps to `reason: 'malformed'` instead of `reason: 'transient'`, preventing structural ADO API errors from being retried as transient network failures.
+- `fetch-iterations.mjs` guards against `null` / non-object elements in the `value` array before calling `.reduce()`.
+- `detect-default-branch.mjs` `source: 'none'` result now includes a `warning` Notice (`kind: 'default-branch'`) so the caller can surface the abort reason through the Notice pipeline. Previously returned no notice.
+- `detect-default-branch.mjs` trims whitespace from `remoteHeadBranch` before the truthy check, preventing a whitespace-only string from being returned as the detected branch name.
+- `detect-default-branch.mjs` local `Notice` typedef replaced with canonical import from `notices.mjs`, ensuring `kind` is validated against `NoticeKind` rather than `string`.
+- `classify-thread.mjs` JSDoc rule list corrected to 5 rules matching the actual evaluation order (status-check → obsolete-check → intersection-check → disputed-check → pending); previous comment conflated rules 1 and 3.
 
 ## [1.2.9] — 2026-05-14
 
