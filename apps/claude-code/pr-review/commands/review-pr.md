@@ -148,9 +148,9 @@ Agent(
 )
 ```
 
-## Step 8 — Merge Writer notices + Trailer
+## Step 8 — Parse Writer result + Trailer
 
-Parse `NOTICES` from `ADO_WRITER_RESULT_START/END` and merge into `NOTICES_JSON` via `mergeNotices([...fetcherNotices, ...writerNotices])` from `scripts/ado/notices.mjs`. Then print one Trailer line via `formatTrailer({ mode, findings, notices: NOTICES_JSON, prUrl })`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. On abort, pass `{ mode: 'aborted', abortKind, abortReason }`. Pre-PR: Step E.
+Parse the Writer output via `parseAdoWriterResult` from `scripts/ado-writer.mjs`. On `{ ok: false }`, emit `ERROR: Writer did not return a valid result block (<reason>). The Summary may or may not have been posted; verify on ADO.` to stderr and print the Trailer aborted line, then stop. Otherwise extract `result.notices` and merge with fetcher notices into `NOTICES_JSON` via `mergeNotices([...fetcherNotices, ...result.notices])` from `scripts/ado/notices.mjs`; print Trailer via `formatTrailer({ mode, findings, notices: NOTICES_JSON, prUrl })`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. Pre-PR: Step E.
 
 ## Pre-PR mode
 

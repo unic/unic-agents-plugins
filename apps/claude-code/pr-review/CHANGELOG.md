@@ -11,6 +11,20 @@
 ### Fixed
 - (none)
 
+## [1.2.4] — 2026-05-14
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- `parseAdoWriterResult` now returns a discriminated union `{ ok: true, summaryThreadId, findingsPosted, notices } | { ok: false, reason: 'missing-block' | 'malformed' }` instead of a partial object with null fields. Callers must branch on `result.ok` before accessing result fields.
+
+### Fixed
+- Writer crash no longer silently reported as success: the orchestrator now emits a clear stderr error and an aborted Trailer when the Writer's result block is missing or malformed.
+
 ## [1.2.3] — 2026-05-14
 
 ### Breaking

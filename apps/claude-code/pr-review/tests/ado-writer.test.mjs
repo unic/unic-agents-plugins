@@ -152,6 +152,7 @@ NOTICES: []
 ADO_WRITER_RESULT_END
 `.trim()
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, 42)
 		assert.equal(result.findingsPosted, 5)
 		assert.deepEqual(result.notices, [])
@@ -166,21 +167,29 @@ NOTICES: []
 ADO_WRITER_RESULT_END
 `.trim()
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, null)
 		assert.equal(result.findingsPosted, 0)
 		assert.deepEqual(result.notices, [])
 	})
 
-	it('returns null for both numeric fields and empty notices when block is missing', () => {
+	it('returns { ok: false, reason: "missing-block" } when no result block is present', () => {
 		const result = parseAdoWriterResult('No result block here')
-		assert.equal(result.summaryThreadId, null)
-		assert.equal(result.findingsPosted, null)
-		assert.deepEqual(result.notices, [])
+		assert.equal(result.ok, false)
+		assert.equal(result.reason, 'missing-block')
+	})
+
+	it('returns { ok: false, reason: "malformed" } when block is present but FINDINGS_POSTED is absent', () => {
+		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nNOTICES: []\nADO_WRITER_RESULT_END`
+		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, false)
+		assert.equal(result.reason, 'malformed')
 	})
 
 	it('handles FINDINGS_POSTED=0 explicitly', () => {
 		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 7\nFINDINGS_POSTED: 0\nNOTICES: []\nADO_WRITER_RESULT_END`
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, 7)
 		assert.equal(result.findingsPosted, 0)
 	})
@@ -196,6 +205,7 @@ ADO_WRITER_RESULT_END
 			'Done.',
 		].join('\n')
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.equal(result.summaryThreadId, 99)
 		assert.equal(result.findingsPosted, 3)
 	})
@@ -216,18 +226,21 @@ ADO_WRITER_RESULT_END
 			'ADO_WRITER_RESULT_END',
 		].join('\n')
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.deepEqual(result.notices, notices)
 	})
 
 	it('returns empty notices when NOTICES field is absent (legacy block)', () => {
 		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nFINDINGS_POSTED: 1\nADO_WRITER_RESULT_END`
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.deepEqual(result.notices, [])
 	})
 
 	it('returns empty notices when NOTICES field is malformed JSON', () => {
 		const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: 5\nFINDINGS_POSTED: 1\nNOTICES: [broken\nADO_WRITER_RESULT_END`
 		const result = parseAdoWriterResult(output)
+		assert.equal(result.ok, true)
 		assert.deepEqual(result.notices, [])
 	})
 })

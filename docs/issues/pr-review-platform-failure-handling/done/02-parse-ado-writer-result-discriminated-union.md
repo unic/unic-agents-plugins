@@ -1,6 +1,6 @@
 # B2. `parseAdoWriterResult` discriminated-union refactor
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
 **Type:** AFK

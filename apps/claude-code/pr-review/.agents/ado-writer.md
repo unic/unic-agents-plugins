@@ -380,8 +380,8 @@ const { parseAdoWriterResult } = await import(`file://${process.env.PLUGIN_R}/sc
 const output = `ADO_WRITER_RESULT_START\nSUMMARY_THREAD_ID: ${process.env.SID}\nFINDINGS_POSTED: ${process.env.FP}\nNOTICES: ${process.env.NJ}\nADO_WRITER_RESULT_END`
 // Round-trip through the helper so any malformed block fails fast here, not downstream.
 const parsed = parseAdoWriterResult(output)
-if (parsed.summaryThreadId === null || parsed.findingsPosted === null) {
-	process.stderr.write('ado-writer: result block failed to parse\n')
+if (!parsed.ok) {
+	process.stderr.write(`ado-writer: result block failed to parse (${parsed.reason})\n`)
 	process.exit(1)
 }
 process.stdout.write(output)
