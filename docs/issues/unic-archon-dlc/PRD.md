@@ -112,6 +112,12 @@ Development teams using AI coding agents lack a structured, repeatable lifecycle
 - Archon is a hard runtime dependency. The README and install hook make this explicit. Target projects must have Archon installed before running any workflow.
 - The install hook verifies `archon` is available on `PATH` and surfaces a clear error if not.
 
+### Distribution model
+
+- Archon itself has no marketplace, registry, hub, or community gallery for sharing workflows. Distribution is filesystem-based: workflows are YAML files under `.archon/workflows/` committed to each project. Archon ships starter templates under `.archon/workflows/defaults/` bundled with the runtime, but there is no central channel for publishing or discovering third-party workflows.
+- `unic-archon-dlc` fills this gap by riding the **Claude Code plugin marketplace** as its distribution channel. The plugin's `.claude-plugin/marketplace.json` is what makes the six bundled workflows installable; the plugin's install hook then scaffolds them into the target project's `.archon/workflows/` and `.archon/commands/` directories. Archon contributes the *runtime*; this plugin contributes the *delivery*.
+- Because Archon's YAML schema can evolve independently of the workflows shipped here, the install hook verifies the installed Archon binary version and warns on known schema-incompatible versions — version drift is the plugin's responsibility, not Archon's.
+
 ### State separation (three layers)
 
 - **Transient workflow state** (current node, loop iteration, last node output) → `$ARTIFACTS_DIR` (Archon native, not committed).
