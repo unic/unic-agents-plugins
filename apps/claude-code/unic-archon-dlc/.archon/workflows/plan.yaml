@@ -242,3 +242,178 @@ nodes:
         …
 
       Print: "nyquist-map complete. issues.json updated with test commands."
+
+  - id: plan-checker
+    name: Plan Checker — Validate Issue Plan
+    type: loop
+    depends_on: [nyquist-map]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — plan-checker node.
+
+      Goal: validate the issue plan across four dimensions before generating the build YAML.
+      Max 3 iterations. Escalate immediately to the human gate if the issue count does not
+      decrease between consecutive iterations (stall detection).
+
+      ## Step 1 — Load issues
+
+      Read docs/workflow/{{ inputs.slug }}/issues.json and parse the issues array.
+      Track: iteration number (start at 1), previous issue count (start at -1).
+
+      ## Step 2 — Stall detection
+
+      If iteration > 1 AND current issue count >= previous issue count:
+        Print: "plan-checker: stall detected (issue count did not decrease). Escalating to human gate."
+        Exit the loop and proceed to yaml-gen.
+
+      If iteration > 3:
+        Print: "plan-checker: max iterations reached. Escalating to human gate."
+        Exit the loop and proceed to yaml-gen.
+
+      ## Step 3 — Validate four dimensions
+
+      ### 3.1 Consistency
+        - Collect all `blocked_by` values across all issues.
+        - Check that every referenced ID exists in the issue list.
+        - Orphaned references: IDs in `blocked_by` that don't exist in the list.
+        - Check that every acceptance criterion from every PRD user story is covered by
+          at least one issue's acceptance_criteria.
+        - Report: list of orphaned references; list of uncovered PRD criteria.
+
+      ### 3.2 Completeness
+        - For every issue, verify all mandatory fields are present and non-empty:
+          id, title, type, priority, blocked_by, acceptance_criteria, summary.
+        - acceptance_criteria must be a non-empty array.
+        - Report: list of issues with missing or empty mandatory fields.
+
+      ### 3.3 Decision coverage
+        - Read CONTEXT.md at the project root (if present). Extract trackable decisions
+          (sentences or bullet points that describe a binding technical or process choice).
+        - Read the interview transcript summary produced by the specs node (look for
+          "## Interview Summary" in the workflow session's notes or the specs node output).
+        - For each trackable decision, check whether at least one issue references or
+          addresses it (in title, summary, or acceptance_criteria).
+        - Report: list of unaddressed decisions.
+
+      ### 3.4 Nyquist compliance
+        - Check each issue for either `test_command` (string) or `test_command_planned: true`.
+        - Issues missing both fields fail this check.
+        - Report: list of issues without test coverage mapping.
+
+      ## Step 4 — Build the validation report
+
+      Produce a structured report:
+
+        ## plan-checker Report (iteration {{ loop.iteration }})
+
+        ### Consistency
+        <orphaned references or "✓ No orphaned references">
+        <uncovered PRD criteria or "✓ All PRD criteria covered">
+
+        ### Completeness
+        <missing fields per issue or "✓ All issues have required fields">
+
+        ### Decision Coverage
+        <unaddressed decisions or "✓ All trackable decisions addressed">
+
+        ### Nyquist Compliance
+        <issues missing test mapping or "✓ All issues have test_command or test_command_planned">
+
+        ### Summary
+        <overall PASS or FAIL with counts>
+
+      Write the report to docs/workflow/{{ inputs.slug }}/plan-checker-report.md
+      (overwrite on each iteration).
+
+      ## Step 5 — Act on the report
+
+      If all four dimensions PASS:
+        Print: "plan-checker: all checks passed. Proceeding to yaml-gen."
+        Exit the loop.
+
+      Otherwise:
+        Present the report to the user.
+        Ask: "Which issues should I fix? (Or type 'accept' to proceed despite failures.)"
+        If the user types 'accept':
+          Print: "plan-checker: user accepted failures. Proceeding."
+          Exit the loop.
+        Otherwise:
+          Apply the requested fixes to issues.json.
+          Increment iteration counter and loop again.
+
+  - id: yaml-gen
+    name: YAML Gen — Build Workflow Generator
+    type: bash
+    depends_on: [plan-checker]
+    script: |
+      #!/usr/bin/env node
+      // @ts-check
+      import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+      import { join } from 'node:path'
+      import { buildYaml } from './lib/dag-builder.mjs'
+
+      const slug = process.env.ARCHON_INPUT_SLUG
+      if (!slug) {
+        console.error('yaml-gen: ARCHON_INPUT_SLUG is not set')
+        process.exit(1)
+      }
+
+      const issuesPath = join('docs', 'workflow', slug, 'issues.json')
+      let issues
+      try {
+        issues = JSON.parse(readFileSync(issuesPath, 'utf8'))
+      } catch (err) {
+        console.error(`yaml-gen: cannot read ${issuesPath}: ${err.message}`)
+        process.exit(1)
+      }
+
+      let yaml
+      try {
+        yaml = buildYaml(slug, issues)
+      } catch (err) {
+        console.error(`yaml-gen: ${err.message}`)
+        process.exit(1)
+      }
+
+      const outDir = join('.archon', 'workflows')
+      mkdirSync(outDir, { recursive: true })
+      const outPath = join(outDir, `build-${slug}.yaml`)
+      writeFileSync(outPath, yaml)
+      console.log(`yaml-gen: build workflow written to ${outPath}`)
+
+  - id: plan-pr-gate
+    name: Plan PR Gate — Human Review
+    type: interactive
+    fresh_context: true
+    depends_on: [yaml-gen]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — plan-pr-gate (second human PR gate) node.
+
+      The issue plan and build workflow are ready for human review.
+
+      Actions:
+      1. Stage the following files for a new PR:
+         - docs/workflow/{{ inputs.slug }}/issues.json
+         - docs/workflow/{{ inputs.slug }}/plan-checker-report.md
+         - .archon/workflows/build-{{ inputs.slug }}.yaml
+      2. Open a PR targeting the develop branch with:
+         - Title: "plan({{ inputs.slug }}): issue plan and build workflow"
+         - Body:
+           ## Summary
+           - Issue plan for `{{ inputs.slug }}` ({{ issues | length }} issues)
+           - plan-checker validation report attached
+           - Auto-generated `build-{{ inputs.slug }}.yaml` Archon workflow
+
+           ## Review Checklist
+           - [ ] All issues are independently deliverable vertical slices
+           - [ ] Dependency order is correct (no orphaned blocked_by references)
+           - [ ] Every issue has a test command or is marked test_command_planned
+           - [ ] build-{{ inputs.slug }}.yaml parallel/serial structure looks correct
+           - [ ] plan-checker report shows no critical failures (or failures are intentional)
+      3. Pause and wait for human review.
+         - If the PR is **approved** and merged:
+           Print: "Plan PR gate passed. Build workflow ready at .archon/workflows/build-{{ inputs.slug }}.yaml"
+           Exit.
+         - If the PR is **rejected** or changes are requested:
+           Print: "Plan PR gate: changes requested. Returning to plan-checker for another validation pass."
+           Return control to the plan-checker node so validation can be re-run on the updated plan.
+           Do NOT return to to-issues (no full re-decomposition).
