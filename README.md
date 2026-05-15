@@ -4,11 +4,12 @@ A monorepo of AI agent plugins developed at Unic. Currently hosts Claude Code pl
 
 ## Plugins
 
-| Plugin                                                 | Agent       | Description                            |
-| ------------------------------------------------------ | ----------- | -------------------------------------- |
-| [`pr-review`](apps/claude-code/pr-review/)             | Claude Code | Review Azure DevOps pull requests      |
-| [`auto-format`](apps/claude-code/auto-format/)         | Claude Code | Auto-format and lint files after edits |
-| [`unic-confluence`](apps/claude-code/unic-confluence/) | Claude Code | Publish Markdown files to Confluence   |
+| Plugin                                                 | Agent       | Description                                                                              |
+| ------------------------------------------------------ | ----------- | ---------------------------------------------------------------------------------------- |
+| [`pr-review`](apps/claude-code/pr-review/)             | Claude Code | Review Azure DevOps pull requests                                                        |
+| [`auto-format`](apps/claude-code/auto-format/)         | Claude Code | Auto-format and lint files after edits                                                   |
+| [`unic-confluence`](apps/claude-code/unic-confluence/) | Claude Code | Publish Markdown files to Confluence                                                     |
+| [`unic-archon-dlc`](apps/claude-code/unic-archon-dlc/) | Claude Code | Archon-powered AI development lifecycle (explore → plan → build → qa → cleanup → triage) |
 
 ## Installing plugins (Claude Code)
 
@@ -24,6 +25,7 @@ Then install individual plugins:
 /plugin install pr-review@unic-agent-plugins
 /plugin install auto-format@unic-agent-plugins
 /plugin install unic-confluence@unic-agent-plugins
+/plugin install unic-archon-dlc@unic-agent-plugins
 ```
 
 ## Development

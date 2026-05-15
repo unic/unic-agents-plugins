@@ -47,7 +47,7 @@ export function writeAgentDocs(projectDir, config) {
 /**
  * Append or refresh the ## Agent skills block in CLAUDE.md using marker-delimited regions.
  * Does not destroy any content outside the marked block.
- * No-ops if CLAUDE.md does not exist.
+ * Creates CLAUDE.md with only the skills block if the file does not yet exist.
  * @param {string} projectDir
  */
 export function updateAgentSkillsBlock(projectDir) {
@@ -174,7 +174,8 @@ ${priorityRows}
 /** @param {AgentDocsConfig} c */
 function buildBranchingDoc(c) {
 	const isGitflow = c.branching === 'gitflow'
-	const mainBranch = isGitflow ? 'main' : 'main'
+	// Both Gitflow and GitHub Flow use 'main' as the production branch by convention
+	const mainBranch = 'main'
 	const devBranch = isGitflow ? 'develop' : 'main'
 	const featurePrefix = 'feature/'
 	const prTarget = isGitflow ? 'develop' : 'main'

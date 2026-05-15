@@ -53,3 +53,28 @@ test('github: buildUpdateCommand produces a valid gh CLI string', () => {
 	assert.ok(cmd.startsWith('gh issue edit'), `expected gh issue edit, got: ${cmd}`)
 	assert.ok(cmd.includes('42'), 'should include the issue number')
 })
+
+test('ado: buildUpdateCommand produces a valid az boards CLI string', () => {
+	const adoLabels = getDefaultLabels('ado')
+	const cmd = buildUpdateCommand('ado', '99', 'resolved', adoLabels)
+	assert.ok(cmd.startsWith('az boards work-item update'), `expected az boards work-item update, got: ${cmd}`)
+	assert.ok(cmd.includes('99'), 'should include the issue id')
+})
+
+test('jira: buildUpdateCommand produces a valid jira CLI string', () => {
+	const jiraLabels = getDefaultLabels('jira')
+	const cmd = buildUpdateCommand('jira', 'PROJ-42', 'ready-for-agent', jiraLabels)
+	assert.ok(cmd.startsWith('jira issue edit'), `expected jira issue edit, got: ${cmd}`)
+	assert.ok(cmd.includes('PROJ-42'), 'should include the issue key')
+})
+
+test('local-markdown: buildUpdateCommand produces a human-readable instruction', () => {
+	const lmLabels = getDefaultLabels('local-markdown')
+	const cmd = buildUpdateCommand('local-markdown', 'fix-login', 'resolved', lmLabels)
+	assert.ok(cmd.includes('Status:'), `expected Status: instruction, got: ${cmd}`)
+})
+
+test('default tracker: buildUpdateCommand falls back to gh issue edit', () => {
+	const cmd = buildUpdateCommand('unknown-tracker', '7', 'closed', labels)
+	assert.ok(cmd.startsWith('gh issue edit'), `expected gh fallback, got: ${cmd}`)
+})
