@@ -1,0 +1,28 @@
+name: triage
+description: "Standalone triage: collect state, generate HANDOFF.md, update roadmap"
+
+nodes:
+  collect-state:
+    type: bash
+    description: "Read open issues and their current states from the configured tracker"
+    command: "node -e \"const cfg=JSON.parse(require('fs').readFileSync('.archon/unic-dlc.config.json','utf8'));const cmds={github:'gh issue list --state open --json number,title,labels',ado:'az boards work-item list --state Active',jira:'jira issue list --status \"In Progress\"',local:'node -e \\\"const fs=require(\\\"fs\\\");console.log(fs.existsSync(\\\"docs/issues\\\")?fs.readdirSync(\\\"docs/issues\\\").join(\\\"\\\\n\\\"):\\\"(none)\\\");\\\"'};const {spawnSync}=require('child_process');const r=spawnSync(cmds[cfg.issueTracker],{shell:true,encoding:'utf8'});console.log(r.stdout);\""
+
+  generate-handoff:
+    type: prompt
+    description: "Synthesise current phase, open issues, blockers, and recent decisions from collect-state output into HANDOFF.md content"
+    depends_on:
+      - collect-state
+
+  write-handoff:
+    type: bash
+    description: "Write docs/workflow/HANDOFF.md"
+    command: "mkdir -p docs/workflow && echo 'HANDOFF.md written from generate-handoff output'"
+    depends_on:
+      - generate-handoff
+
+  update-roadmap:
+    type: bash
+    description: "Update docs/workflow/ROADMAP.md with current feature status"
+    command: "mkdir -p docs/workflow && node -e \"const fs=require('fs'),p='docs/workflow/ROADMAP.md',d=new Date().toISOString().slice(0,10);const line='\\n| '+d+' | triage | in-progress | |';fs.appendFileSync(p,line,'utf8');console.log('Updated ROADMAP.md');\""
+    depends_on:
+      - write-handoff

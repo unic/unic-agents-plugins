@@ -1,0 +1,75 @@
+name: plan
+description: "Plan a feature from grilling through to dependency-mapped issues and build YAML"
+
+nodes:
+  load-context:
+    type: bash
+    description: "Read CONTEXT.md, CONTEXT-MAP.md (if present), and docs/adr/ and export as context"
+    command: "node -e \"const fs=require('fs'),p=require('path');const files=['CONTEXT.md','CONTEXT-MAP.md'].filter(f=>fs.existsSync(f)).map(f=>fs.readFileSync(f,'utf8'));const adrs=fs.existsSync('docs/adr')?fs.readdirSync('docs/adr').filter(f=>f.endsWith('.md')).map(f=>fs.readFileSync(p.join('docs/adr',f),'utf8')):[];console.log([...files,...adrs].join('\\n---\\n'));\""
+
+  specs:
+    type: prompt
+    interactive: true
+    description: "Adversarial grill-with-docs interview — one question at a time. Challenge assumptions, surface edge cases, resolve ambiguities. Use load-context output as background."
+    depends_on:
+      - load-context
+
+  write-adrs:
+    type: bash
+    description: "Write proposed ADR entries to docs/adr/<slug>-<n>.md based on key decisions surfaced during grilling"
+    command: "mkdir -p docs/adr && echo 'ADR entries will be written by the plan prompt output'"
+    depends_on:
+      - specs
+
+  to-prd:
+    type: prompt
+    description: "Synthesise the grilling session into a structured PRD with acceptance criteria, success metrics, non-goals, and user stories"
+    depends_on:
+      - write-adrs
+
+  prd-gate:
+    type: prompt
+    interactive: true
+    description: "Human gate 1: Review the PRD. Approve to continue to issue decomposition, or request changes."
+    depends_on:
+      - to-prd
+
+  to-issues:
+    type: prompt
+    description: "Decompose the PRD into vertically-sliced issues with blocked_by dependency arrays and testCommand for each"
+    depends_on:
+      - prd-gate
+
+  nyquist-map:
+    type: prompt
+    description: "Map every issue to a specific testCommand that verifies the acceptance criterion (Nyquist validation)"
+    depends_on:
+      - to-issues
+
+  plan-checker:
+    type: loop
+    max_iterations: 3
+    description: "Validate consistency, completeness, decision coverage, and Nyquist compliance. If issue count does not decrease between iterations, escalate to stall-gate."
+    depends_on:
+      - nyquist-map
+
+  stall-gate:
+    type: prompt
+    interactive: true
+    description: "Human gate: Plan checker is stalled — issue count has not decreased. Review the plan manually and decide how to proceed."
+    depends_on:
+      - plan-checker
+
+  yaml-gen:
+    type: bash
+    description: "Generate .archon/workflows/build-$SLUG.yaml from the issues.json dep-tree"
+    command: "node ${CLAUDE_PLUGIN_ROOT}/scripts/yaml-gen-cli.mjs --slug $SLUG --issues docs/workflow/$SLUG/issues.json"
+    depends_on:
+      - stall-gate
+
+  plan-gate:
+    type: prompt
+    interactive: true
+    description: "Human gate 2: Review the generated build workflow and final plan. Approve to begin implementation."
+    depends_on:
+      - yaml-gen

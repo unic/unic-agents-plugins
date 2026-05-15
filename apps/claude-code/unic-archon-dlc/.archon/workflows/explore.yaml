@@ -1,0 +1,55 @@
+name: explore
+description: "Explore technical feasibility before planning begins"
+
+nodes:
+  research-stack:
+    type: prompt
+    description: "Research the technology stack, libraries, and tools relevant to the feature"
+
+  research-features:
+    type: prompt
+    description: "Research existing features and patterns in the codebase related to the request"
+
+  research-architecture:
+    type: prompt
+    description: "Research architectural patterns, constraints, and integration points"
+
+  research-pitfalls:
+    type: prompt
+    description: "Research known pitfalls, anti-patterns, and edge cases for this type of feature"
+
+  synthesize:
+    type: prompt
+    description: "Synthesise all research outputs and the user's stated intent into a structured feasibility summary"
+    depends_on:
+      - research-stack
+      - research-features
+      - research-architecture
+      - research-pitfalls
+
+  prototype:
+    type: prompt
+    description: "Design and evaluate prototype experiments; produce VALIDATED / INVALIDATED / PARTIAL verdicts per experiment"
+    depends_on:
+      - synthesize
+
+  code-preserve-gate:
+    type: prompt
+    interactive: true
+    description: "Human gate: Is any spike code worth preserving on a branch? Approve to branch, skip to discard."
+    depends_on:
+      - prototype
+
+  save-findings:
+    type: bash
+    description: "Write findings.md to docs/workflow/$SLUG/"
+    command: "mkdir -p docs/workflow/$SLUG && node -e \"const fs=require('fs');fs.writeFileSync('docs/workflow/'+process.env.SLUG+'/findings.md',process.env.FINDINGS||'# Findings\\n');\" "
+    depends_on:
+      - code-preserve-gate
+
+  create-ticket:
+    type: bash
+    description: "Create a spike ticket in the configured issue tracker"
+    command: "node ${CLAUDE_PLUGIN_ROOT}/scripts/yaml-gen-cli.mjs --action create-ticket --slug $SLUG"
+    depends_on:
+      - save-findings

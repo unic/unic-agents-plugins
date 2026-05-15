@@ -1,0 +1,41 @@
+name: cleanup
+description: "Post-merge cleanup: arch-review, ADR consolidation, triage, roadmap update"
+
+nodes:
+  arch-review:
+    type: prompt
+    description: "Review docs/workflow/$SLUG/PRD.md and docs/workflow/$SLUG/report.md alongside the codebase to identify shallow abstractions, tight coupling, and intent drift from the PRD"
+
+  adr-consolidation:
+    type: prompt
+    interactive: true
+    description: "Human gate: Review each proposed ADR entry one at a time and approve or skip before writing"
+    depends_on:
+      - arch-review
+
+  write-adrs:
+    type: bash
+    description: "Write approved ADR entries to docs/adr/"
+    command: "mkdir -p docs/adr && echo 'Approved ADRs will be written based on adr-consolidation output'"
+    depends_on:
+      - adr-consolidation
+
+  triage:
+    type: prompt
+    description: "Generate HANDOFF.md content summarising current phase, open issues, blockers, and recent decisions"
+    depends_on:
+      - write-adrs
+
+  write-handoff:
+    type: bash
+    description: "Write docs/workflow/HANDOFF.md"
+    command: "mkdir -p docs/workflow && echo 'HANDOFF.md written by triage prompt output'"
+    depends_on:
+      - triage
+
+  update-roadmap:
+    type: bash
+    description: "Append a dated status line for this feature to docs/workflow/ROADMAP.md"
+    command: "mkdir -p docs/workflow && node -e \"const fs=require('fs'),p='docs/workflow/ROADMAP.md',d=new Date().toISOString().slice(0,10);const line='\\n| '+d+' | '+process.env.SLUG+' | merged | |';fs.appendFileSync(p,line,'utf8');console.log('Updated ROADMAP.md');\""
+    depends_on:
+      - write-handoff

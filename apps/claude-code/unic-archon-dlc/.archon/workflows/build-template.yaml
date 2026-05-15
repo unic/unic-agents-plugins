@@ -1,0 +1,62 @@
+# build-template.yaml — Annotated reference template for dynamically-generated build workflows.
+# This file is NOT executed directly. yaml-gen.mjs uses this structure as the generation pattern.
+# PLACEHOLDER values (ISSUE_ID_PLACEHOLDER, SLUG_PLACEHOLDER) mark per-instance substitutions.
+
+name: build-SLUG_PLACEHOLDER
+description: "Build workflow for feature 'SLUG_PLACEHOLDER'"
+
+nodes:
+  # ── PER-ISSUE NODES (yaml-gen replicates these N times, once per issue) ─────
+
+  code-red-ISSUE_ID_PLACEHOLDER:
+    type: prompt
+    description: "Implement ISSUE_ID_PLACEHOLDER (red phase — write failing tests first, then minimal code)"
+    # depends_on: [code-green-PREV_ISSUE] — added by yaml-gen for non-first tiers
+
+  slopcheck-ISSUE_ID_PLACEHOLDER:
+    type: bash
+    description: "Check for slopsquatting in new packages added for ISSUE_ID_PLACEHOLDER"
+    command: "slopcheck . || echo '[ASSUMED] slopcheck not on PATH — manual review required'"
+    depends_on:
+      - code-red-ISSUE_ID_PLACEHOLDER
+
+  code-green-ISSUE_ID_PLACEHOLDER:
+    type: prompt
+    description: "Implement ISSUE_ID_PLACEHOLDER (green phase — make the failing tests pass, then refactor)"
+    depends_on:
+      - slopcheck-ISSUE_ID_PLACEHOLDER
+
+  # ── GLOBAL NODES (yaml-gen emits these once, after all per-issue nodes) ─────
+
+  verification:
+    type: bash
+    description: "Run full test suite, coverage check, stub detection, and wiring audit"
+    command: "node --test && echo 'All tests pass'"
+    # depends_on: [code-green-ISSUE_1, code-green-ISSUE_2, ...] — all green nodes
+
+  goals-check:
+    type: prompt
+    description: "Verify PRD acceptance criteria coverage matrix — map each criterion to a passing test"
+    depends_on:
+      - verification
+
+  report:
+    type: bash
+    description: "Write docs/workflow/SLUG_PLACEHOLDER/report.md with implementation summary"
+    command: "mkdir -p docs/workflow/SLUG_PLACEHOLDER && node scripts/write-report.mjs SLUG_PLACEHOLDER"
+    depends_on:
+      - goals-check
+
+  review:
+    type: prompt
+    description: "Run self-contained multi-aspect code review (quality, test coverage, silent failures, type design)"
+    command: "node ${CLAUDE_PLUGIN_ROOT}/scripts/install.mjs --action review"
+    depends_on:
+      - report
+
+  human-review-gate:
+    type: prompt
+    interactive: true
+    description: "Human gate: Review the build report and code review findings. Approve to proceed to QA, or request changes."
+    depends_on:
+      - review

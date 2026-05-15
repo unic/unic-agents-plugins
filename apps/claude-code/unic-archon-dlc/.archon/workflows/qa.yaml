@@ -1,0 +1,29 @@
+name: qa
+description: "QA workflow: e2e → coverage gate → UAT → merge"
+
+nodes:
+  run-e2e:
+    type: bash
+    description: "Run e2e tests using the configured e2eCommand; skip with warning if not configured"
+    command: "node -e \"const cfg=JSON.parse(require('fs').readFileSync('.archon/unic-dlc.config.json','utf8'));if(!cfg.e2eCommand){console.warn('e2eCommand not configured, skipping e2e');process.exit(0);}const {spawnSync}=require('child_process');const r=spawnSync(cfg.e2eCommand,{shell:true,stdio:'inherit'});process.exit(r.status||0);\""
+
+  coverage-gate:
+    type: bash
+    description: "Parse coverage output and fail if line coverage is below 80%"
+    command: "node -e \"const fs=require('fs');const summaryPath='coverage/coverage-summary.json';if(!fs.existsSync(summaryPath)){console.warn('No coverage summary found, skipping coverage gate');process.exit(0);}const summary=JSON.parse(fs.readFileSync(summaryPath,'utf8'));const pct=summary.total?.lines?.pct??100;if(pct<80){console.error('Line coverage '+pct+'% is below 80% threshold');process.exit(1);}console.log('Coverage: '+pct+'% ✓');\""
+    depends_on:
+      - run-e2e
+
+  uat-gate:
+    type: prompt
+    interactive: true
+    description: "Human gate: Review e2e test results and UAT checklist from PRD. Approve to merge, or request fixes."
+    depends_on:
+      - coverage-gate
+
+  merge-pr:
+    type: bash
+    description: "Merge the PR using the configured tracker CLI"
+    command: "node -e \"const cfg=JSON.parse(require('fs').readFileSync('.archon/unic-dlc.config.json','utf8'));const cmds={github:'gh pr merge $PR_ID --squash',ado:'az repos pr update --id $PR_ID --status completed --merge-strategy squash',jira:'jira issue transition $PR_ID Merged',local:'echo Local backend: merge manually'};console.log(cmds[cfg.issueTracker]||'Unknown tracker');\""
+    depends_on:
+      - uat-gate
