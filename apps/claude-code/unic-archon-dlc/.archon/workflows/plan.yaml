@@ -1,0 +1,127 @@
+name: unic-dlc-plan
+description: >
+  Adversarial spec interview → PRD synthesis → human PR gate.
+  Produces docs/workflow/<slug>/PRD.md and optional ADR entries.
+
+inputs:
+  slug:
+    description: Short identifier for this planning session (used as the workflow directory name under docs/workflow/).
+    required: true
+
+nodes:
+  - id: load-context
+    name: Load Context
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — load-context node.
+
+      Goal: build a rich shared context before the adversarial interview begins.
+
+      1. Read CONTEXT.md at the project root if it exists. Note the domain vocabulary, key entities, and any established conventions.
+      2. Read CONTEXT-MAP.md at the repo root if it exists (present in monorepos). Note which sub-project this workflow targets.
+      3. Read all ADR files in docs/adr/ (sorted by filename). For each, note the decision title and outcome.
+      4. If docs/workflow/{{ inputs.slug }}/findings.md exists, read it. Note the Integrated Brief and any surfaced pitfalls.
+      5. Output a structured context summary with the following headings:
+         ## Domain Model
+         (key entities and vocabulary from CONTEXT.md)
+         ## Established Decisions
+         (list of ADRs: filename → one-line summary)
+         ## Prior Research
+         (Integrated Brief from findings.md, or "No findings.md for this slug." if absent)
+
+  - id: specs
+    name: Adversarial Spec Interview
+    type: loop
+    depends_on: [load-context]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — specs (adversarial interview) node.
+
+      Context already loaded in load-context:
+        - Domain vocabulary and entities
+        - Established ADR decisions
+        - Prior research findings (if any)
+
+      Discuss mode: {{ workflow.discuss_mode | default('interview') }}
+        - "interview"    → ask one open-ended question at a time; probe deeply; challenge assumptions
+        - "assumptions"  → surface all implicit assumptions upfront, then confirm or refute each
+
+      Interview guidelines:
+      1. If discuss_mode is "assumptions": enumerate every assumption you can identify about the
+         problem space, proposed solution, constraints, and acceptance criteria before asking questions.
+         For each assumption, ask the user to confirm, refute, or refine it.
+         If discuss_mode is "interview": ask one focused, adversarial question at a time.
+         Do not ask multiple questions in a single turn.
+      2. For every non-obvious architectural or process decision that emerges, propose an ADR entry:
+         - Suggest a filename following the pattern docs/adr/NNNN-<short-slug>.md
+         - Draft the ADR inline (Status, Context, Decision, Consequences)
+         - Write it live to docs/adr/NNNN-<short-slug>.md if the user confirms
+         - Use the next available NNNN by checking existing files in docs/adr/
+      3. Continue until the user signals they are done (e.g. "done", "that's enough", "proceed").
+      4. Before exiting, produce a structured interview transcript summary:
+         ## Interview Summary
+         (3-5 bullet points capturing the key decisions and constraints surfaced)
+         ## ADRs Produced
+         (list of any ADR files written during this session, or "None.")
+
+  - id: to-prd
+    name: Synthesise PRD
+    type: prompt
+    depends_on: [specs]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — to-prd node.
+
+      You have:
+        - The context summary from load-context (domain model, ADRs, prior research)
+        - The interview transcript summary and ADRs produced from the specs node
+        - The workflow slug: {{ inputs.slug }}
+
+      Your job: synthesise all of the above into a structured PRD.
+
+      1. Call writePrd(projectDir, slug, sections) where sections has exactly these keys:
+         - problemStatement: 2-4 sentences describing the pain or gap being addressed
+         - solution: 2-4 sentences describing the proposed approach at a high level
+         - userStories: a bulleted list of "As a <role>, I want <capability>, so that <benefit>." stories (at least 3)
+         - implementationDecisions: bullet list of key technical choices; reference ADR filenames where applicable
+         - testingDecisions: bullet list of testing strategy choices (framework, coverage targets, edge cases to cover)
+         - outOfScope: bullet list of explicitly excluded items to prevent scope creep
+         - furtherNotes: any open questions, dependencies, or items to revisit after v1
+
+      2. The resulting file must be docs/workflow/{{ inputs.slug }}/PRD.md.
+      3. Print: "PRD written to docs/workflow/{{ inputs.slug }}/PRD.md"
+
+  - id: prd-gate
+    name: PRD Human Gate
+    type: interactive
+    depends_on: [to-prd]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — prd-gate (first human PR gate) node.
+
+      The PRD and any new ADRs are ready for human review.
+
+      Actions:
+      1. Run validatePrdSections(content) on the PRD.md content to confirm all 7 sections are present.
+         If any sections are missing, list them and offer to fix them before opening the PR.
+      2. Stage the following files for a new PR:
+         - docs/workflow/{{ inputs.slug }}/PRD.md
+         - Any ADR files written during the specs node (docs/adr/NNNN-*.md that are new or modified)
+      3. Open a PR targeting the develop branch with:
+         - Title: "plan({{ inputs.slug }}): PRD and ADRs"
+         - Body:
+           ## Summary
+           - PRD for `{{ inputs.slug }}` workflow session
+           - Lists any new or updated ADR files
+           - Includes all 7 required PRD sections
+
+           ## Review Checklist
+           - [ ] Problem Statement clearly describes the pain or gap
+           - [ ] Solution is specific and implementable
+           - [ ] User Stories cover the primary use cases
+           - [ ] Implementation Decisions reference relevant ADRs
+           - [ ] Testing Decisions are concrete and actionable
+           - [ ] Out of Scope prevents scope creep
+           - [ ] Further Notes captures open questions
+      4. Pause and wait for human review.
+         - If the PR is **approved** and merged: print "PRD gate passed. Proceeding." and exit.
+         - If the PR is **rejected** or changes are requested: print "PRD gate: changes requested. Returning to specs."
+           Then return control to the specs node so the interview can be resumed or refined.
