@@ -56,13 +56,13 @@ e2e  ──▶  coverage-gate  ──▶  uat-gate (interactive)  ──▶  mer
 
 All settings are read from `.archon/unic-dlc.config.json`:
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `e2e_command` | string | — | Shell command to run e2e tests (e.g. `"pnpm test:e2e"`) |
-| `coverage_threshold` | number | — | Minimum coverage % required (e.g. `80`). Omit to skip the gate. |
-| `tracker` | string | `"github"` | Issue tracker: `github`, `ado`, `jira`, `local-markdown` |
-| `branching` | string | `"gitflow"` | Branch strategy: `gitflow` (delete feature branch) or `github-flow` |
-| `pr_strategy` | string | `"squash"` | GitHub merge style: `squash` or `merge` (used for `github` tracker only) |
+| Field                | Type   | Default     | Description                                                              |
+| -------------------- | ------ | ----------- | ------------------------------------------------------------------------ |
+| `e2e_command`        | string | —           | Shell command to run e2e tests (e.g. `"pnpm test:e2e"`)                  |
+| `coverage_threshold` | number | —           | Minimum coverage % required (e.g. `80`). Omit to skip the gate.          |
+| `tracker`            | string | `"github"`  | Issue tracker: `github`, `ado`, `jira`, `local-markdown`                 |
+| `branching`          | string | `"gitflow"` | Branch strategy: `gitflow` (delete feature branch) or `github-flow`      |
+| `pr_strategy`        | string | `"squash"`  | GitHub merge style: `squash` or `merge` (used for `github` tracker only) |
 
 ## UAT interaction
 

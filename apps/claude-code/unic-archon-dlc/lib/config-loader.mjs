@@ -32,7 +32,7 @@ const KNOWN_FIELDS = [
 	'context_paths',
 	'labels',
 	'workflow',
-	'coverage_thresholds',
+	'coverage_threshold',
 ]
 
 /**
@@ -46,6 +46,7 @@ const KNOWN_FIELDS = [
  * @property {boolean} [nyquist_validation]
  * @property {boolean} [slopsquatting_gate]
  * @property {string} [repo_layout]
+ * @property {number} [coverage_threshold]
  */
 
 /**

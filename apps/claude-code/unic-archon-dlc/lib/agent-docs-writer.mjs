@@ -1,6 +1,6 @@
 // @ts-check
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 const AGENT_SKILLS_BEGIN = '<!-- unic-archon-dlc:begin -->'
 const AGENT_SKILLS_END = '<!-- unic-archon-dlc:end -->'
@@ -220,7 +220,7 @@ ${
 	isMulti
 		? `This repository uses **multi-context** layout. Each package/app has its own \`CONTEXT.md\` file. A \`CONTEXT-MAP.md\` at the repo root maps each context to its location.
 
-- **Context map:** \`${join(projectDir, 'CONTEXT-MAP.md').replace(`${projectDir}/`, '')}\`
+- **Context map:** \`${relative(projectDir, join(projectDir, 'CONTEXT-MAP.md'))}\`
 - **ADRs:** \`docs/adr/\` (repo-level decisions)`
 		: `This repository uses **single-context** layout. One \`CONTEXT.md\` file lives at the repo root.
 

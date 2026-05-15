@@ -87,42 +87,42 @@ flowchart TD
 
 ## Node reference
 
-| Workflow | Node | Type | Human gate |
-|----------|------|------|-----------|
-| triage | read-state | prompt | — |
-| triage | produce-handoff | prompt | — |
-| explore | research-stack | prompt | — |
-| explore | research-features | prompt | — |
-| explore | research-architecture | prompt | — |
-| explore | research-pitfalls | prompt | — |
-| explore | synthesize | prompt | — |
-| explore | prototype | prompt | — |
-| explore | code-preserve-gate | interactive | ✓ |
-| explore | create-spike-ticket | prompt | — |
-| plan | load-context | prompt | — |
-| plan | specs | loop | — |
-| plan | to-prd | prompt | — |
-| plan | prd-gate | interactive | ✓ |
-| plan | to-issues | prompt | — |
-| plan | nyquist-map | prompt | — |
-| plan | plan-checker | loop | — |
-| plan | yaml-gen | bash | — |
-| plan | plan-pr-gate | interactive | ✓ |
-| build | slopcheck | bash | — |
-| build | run-build | prompt | — |
-| build | verification | bash | — |
-| build | goals-check | prompt | — |
-| build | report | prompt | — |
-| build | build-pr-gate | interactive | ✓ |
-| review | code-review | prompt | — |
-| qa | e2e | bash | — |
-| qa | coverage-gate | bash | — |
-| qa | uat-gate | interactive | ✓ |
-| qa | verify-pr-base | bash | — |
-| qa | merge | bash | — |
-| cleanup | arch-review | prompt | — |
-| cleanup | adr-consolidation | interactive | ✓ |
-| cleanup | run-triage | bash | — |
+| Workflow | Node                  | Type        | Human gate |
+| -------- | --------------------- | ----------- | ---------- |
+| triage   | read-state            | prompt      | —          |
+| triage   | produce-handoff       | prompt      | —          |
+| explore  | research-stack        | prompt      | —          |
+| explore  | research-features     | prompt      | —          |
+| explore  | research-architecture | prompt      | —          |
+| explore  | research-pitfalls     | prompt      | —          |
+| explore  | synthesize            | prompt      | —          |
+| explore  | prototype             | prompt      | —          |
+| explore  | code-preserve-gate    | interactive | ✓          |
+| explore  | create-spike-ticket   | prompt      | —          |
+| plan     | load-context          | prompt      | —          |
+| plan     | specs                 | loop        | —          |
+| plan     | to-prd                | prompt      | —          |
+| plan     | prd-gate              | interactive | ✓          |
+| plan     | to-issues             | prompt      | —          |
+| plan     | nyquist-map           | prompt      | —          |
+| plan     | plan-checker          | loop        | —          |
+| plan     | yaml-gen              | bash        | —          |
+| plan     | plan-pr-gate          | interactive | ✓          |
+| build    | slopcheck             | bash        | —          |
+| build    | run-build             | prompt      | —          |
+| build    | verification          | bash        | —          |
+| build    | goals-check           | prompt      | —          |
+| build    | report                | prompt      | —          |
+| build    | build-pr-gate         | interactive | ✓          |
+| review   | code-review           | prompt      | —          |
+| qa       | e2e                   | bash        | —          |
+| qa       | coverage-gate         | bash        | —          |
+| qa       | uat-gate              | interactive | ✓          |
+| qa       | verify-pr-base        | bash        | —          |
+| qa       | merge                 | bash        | —          |
+| cleanup  | arch-review           | prompt      | —          |
+| cleanup  | adr-consolidation     | interactive | ✓          |
+| cleanup  | run-triage            | bash        | —          |
 
 ---
 
@@ -163,22 +163,22 @@ From here, the full lifecycle is: explore → plan → build → qa → cleanup 
 
 The install hook writes `.archon/unic-dlc.config.json` with these keys:
 
-| Key | Default | Valid values | Description |
-|-----|---------|-------------|-------------|
-| `tracker` | auto-detected | `github` · `ado` · `jira` · `local-markdown` | Issue tracker backend |
-| `pr_strategy` | `squash` | `squash` · `merge` · `rebase` | Merge strategy for PRs |
-| `branching` | `gitflow` | `gitflow` · `github-flow` | Branching model in use |
-| `e2e_command` | `""` | any shell command string | Command that runs the full e2e test suite |
-| `model_profile` | `balanced` | `fast` · `balanced` · `max` | Archon model tier for workflow nodes |
-| `tdd_mode` | `true` | `true` · `false` | Enforce red→green discipline in build workflow |
-| `nyquist_validation` | `true` | `true` · `false` | Require test_command on every issue before yaml-gen |
-| `slopsquatting_gate` | `true` | `true` · `false` | Enable slopcheck package verification |
-| `coverage_threshold` | `null` | number (0–100) or `null` | Minimum % coverage; `null` skips the check |
-| `workflow.discuss_mode` | `interview` | `interview` · `assumptions` | Specs node dialogue style |
-| `repo_layout` | `single` | `single` · `multi-context` | Whether CONTEXT-MAP.md is present |
-| `labels.state.*` | canonical | any string | Override tracker state label strings |
-| `labels.type.*` | canonical | any string | Override tracker type label strings |
-| `labels.priority.*` | canonical | any string | Override tracker priority label strings |
+| Key                     | Default       | Valid values                                 | Description                                         |
+| ----------------------- | ------------- | -------------------------------------------- | --------------------------------------------------- |
+| `tracker`               | auto-detected | `github` · `ado` · `jira` · `local-markdown` | Issue tracker backend                               |
+| `pr_strategy`           | `squash`      | `squash` · `merge` · `rebase`                | Merge strategy for PRs                              |
+| `branching`             | `gitflow`     | `gitflow` · `github-flow`                    | Branching model in use                              |
+| `e2e_command`           | `""`          | any shell command string                     | Command that runs the full e2e test suite           |
+| `model_profile`         | `balanced`    | `fast` · `balanced` · `max`                  | Archon model tier for workflow nodes                |
+| `tdd_mode`              | `true`        | `true` · `false`                             | Enforce red→green discipline in build workflow      |
+| `nyquist_validation`    | `true`        | `true` · `false`                             | Require test_command on every issue before yaml-gen |
+| `slopsquatting_gate`    | `true`        | `true` · `false`                             | Enable slopcheck package verification               |
+| `coverage_threshold`    | `null`        | number (0–100) or `null`                     | Minimum % coverage; `null` skips the check          |
+| `workflow.discuss_mode` | `interview`   | `interview` · `assumptions`                  | Specs node dialogue style                           |
+| `repo_layout`           | `single`      | `single` · `multi-context`                   | Whether CONTEXT-MAP.md is present                   |
+| `labels.state.*`        | canonical     | any string                                   | Override tracker state label strings                |
+| `labels.type.*`         | canonical     | any string                                   | Override tracker type label strings                 |
+| `labels.priority.*`     | canonical     | any string                                   | Override tracker priority label strings             |
 
 Label canonical names: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
@@ -210,11 +210,11 @@ docs/
 
 **Three-layer separation:**
 
-| Layer | Location | Owner | Lifecycle |
-|-------|----------|-------|-----------|
-| 1️⃣ Transient | `.archon/workflows/build-*.yaml` | yaml-gen | Re-generated each plan cycle; safe to delete |
-| 2️⃣ Session | `docs/workflow/<slug>/` | DLC nodes | Scoped to one planning session; accumulates artifacts |
-| 3️⃣ Persistent | `docs/workflow/ROADMAP.md`, `HANDOFF.md` | triage | Lives for the life of the project; human-editable |
+| Layer         | Location                                 | Owner     | Lifecycle                                             |
+| ------------- | ---------------------------------------- | --------- | ----------------------------------------------------- |
+| 1️⃣ Transient  | `.archon/workflows/build-*.yaml`         | yaml-gen  | Re-generated each plan cycle; safe to delete          |
+| 2️⃣ Session    | `docs/workflow/<slug>/`                  | DLC nodes | Scoped to one planning session; accumulates artifacts |
+| 3️⃣ Persistent | `docs/workflow/ROADMAP.md`, `HANDOFF.md` | triage    | Lives for the life of the project; human-editable     |
 
 Human-written content in `ROADMAP.md` outside the `<!-- unic-archon-dlc:begin/end -->` markers is
 never overwritten.

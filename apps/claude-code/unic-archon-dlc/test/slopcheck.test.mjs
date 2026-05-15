@@ -21,7 +21,7 @@ test('parseNewPackages: returns only packages not in prev', () => {
 })
 
 test('parseNewPackages: treats null/undefined prev as empty', () => {
-	// @ts-ignore — testing runtime null handling
+	// @ts-expect-error — testing runtime null handling
 	const result = parseNewPackages(null, { express: '^4.0.0' })
 	assert.deepEqual(result, ['express'])
 })

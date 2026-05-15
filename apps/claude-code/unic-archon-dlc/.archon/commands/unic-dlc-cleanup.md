@@ -27,6 +27,7 @@ Where `<slug>` is the session identifier used throughout the plan → build → 
 
 2. **`adr-consolidation` interactive node** — presents each proposed ADR individually for
    human approval. Sources:
+
    - "Decisions Made" section of `report.md`
    - "Accept as ADR" items from `arch-review.md`
 
@@ -45,12 +46,12 @@ Where `<slug>` is the session identifier used throughout the plan → build → 
 
 ## Outputs
 
-| File | Description |
-|------|-------------|
-| `docs/workflow/<slug>/arch-review.md` | Architecture review with drift findings |
-| `docs/adr/NNNN-*.md` | Accepted ADRs (one file per accepted candidate) |
-| `HANDOFF.md` | Updated handoff snapshot (from triage) |
-| `docs/workflow/ROADMAP.md` | Updated project phase (from triage) |
+| File                                  | Description                                     |
+| ------------------------------------- | ----------------------------------------------- |
+| `docs/workflow/<slug>/arch-review.md` | Architecture review with drift findings         |
+| `docs/adr/NNNN-*.md`                  | Accepted ADRs (one file per accepted candidate) |
+| `HANDOFF.md`                          | Updated handoff snapshot (from triage)          |
+| `docs/workflow/ROADMAP.md`            | Updated project phase (from triage)             |
 
 ## Runs
 

@@ -19,6 +19,7 @@ Where `<slug>` is the session identifier used when you ran `/unic-dlc-plan`. The
    explicit human approval before the build can continue.
 
    Registry check strategy (in order of preference):
+
    - Python `slopcheck` tool (GSD's slopsquatting gate) if available on `PATH`
    - npm registry HEAD request fallback
    - If neither is available: all new packages are treated as `[ASSUMED]` (strict default)

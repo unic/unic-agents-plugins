@@ -36,10 +36,10 @@ Replace `<slug>` with a short identifier for this planning session (e.g. `auth-r
 
 Set `workflow.discuss_mode` in `.archon/unic-dlc.config.json` to control the interview style:
 
-| Value | Behaviour |
-|---|---|
-| `interview` (default) | One focused, adversarial question per turn; probes deeply |
-| `assumptions` | Surfaces all implicit assumptions upfront, then confirms or refutes each |
+| Value                 | Behaviour                                                                |
+| --------------------- | ------------------------------------------------------------------------ |
+| `interview` (default) | One focused, adversarial question per turn; probes deeply                |
+| `assumptions`         | Surfaces all implicit assumptions upfront, then confirms or refutes each |
 
 ## Workflow structure
 
