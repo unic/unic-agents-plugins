@@ -1,0 +1,239 @@
+name: unic-dlc-review
+description: >
+  Self-contained code review across four aspects — code quality, test coverage adequacy,
+  silent failure patterns, and type design quality. Posts (or updates) a single structured
+  comment on the current PR via the configured tracker adapter.
+  No runtime dependency on pr-review-toolkit or any other plugin.
+
+nodes:
+  - id: code-review
+    name: Code Review — Four Aspects
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc review workflow — code-review node.
+
+      ## Setup
+
+      1. Read `.archon/unic-dlc.config.json` to determine:
+         - `tracker` (github | ado | jira | local-markdown; default: github)
+         - `branching` strategy if present
+
+      2. Read project conventions from whichever file exists (in order):
+         - `CLAUDE.md`
+         - `AGENTS.md`
+         - `.claude/CLAUDE.md`
+         Note all style rules, naming conventions, tab/space preferences, and
+         explicit "do not" rules.
+
+      3. Identify the current open PR:
+         - github: `gh pr view --json number,title,body,headRefName`
+         - ado:    `az repos pr list --status active --output json | head -1`
+         - local-markdown: use the most recent `docs/workflow/*/report.md` as the review target
+         Store `PR_ID` (issue/PR number or identifier) and `PR_TITLE`.
+
+      4. Compute the diff to review:
+         - github / ado / local-markdown:
+           `git diff origin/$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null | sed 's|.*/||' || echo main)...HEAD`
+         - If the above fails, fall back to: `git diff HEAD~1...HEAD`
+         Store the result as `DIFF_TEXT`.
+
+      5. List all source files touched in the diff:
+         `git diff --name-only origin/$(git symbolic-ref --short HEAD 2>/dev/null)...HEAD 2>/dev/null || git diff --name-only HEAD~1`
+         Store as `CHANGED_FILES` (newline-separated list).
+
+      6. Read each file in `CHANGED_FILES` in full (skip deleted files).
+
+      ---
+
+      ## Aspect 1 — Code Quality
+
+      Analyse the diff and changed file contents for:
+      - **Readability**: Is each function easy to understand in isolation?
+      - **Naming**: Do variable, function, and module names communicate intent without
+        needing comments?
+      - **Function length**: Are any functions longer than ~40 lines? Could they be split?
+      - **Project-convention adherence**: Check against the rules you read from CLAUDE.md /
+        AGENTS.md. Examples include tab vs. space indentation, quote style, semicolons,
+        trailing commas, explicit returns, early returns over nested conditionals.
+
+      For each problem found, record a finding in this exact format:
+        - `file:line — [code-quality] <one-line description>`
+
+      If no problems are found, record:
+        - `No findings.`
+
+      Store all findings under the heading `### Code Quality`.
+
+      ---
+
+      ## Aspect 2 — Test Coverage Adequacy
+
+      Locate test files in `CHANGED_FILES` or in `test/`, `tests/`, `__tests__/`,
+      `*.test.*`, `*.spec.*` directories. For each changed source module, check whether:
+
+      - Tests exercise the module through its **public interface** (exported functions),
+        not internal helpers.
+      - Assertions verify **outputs and side-effects**, not internal state or call counts
+        on internal collaborators.
+      - No internal collaborators are mocked — only true external boundaries (network,
+        disk, third-party CLIs) should be mocked.
+      - Every exported function has at least one happy-path test and at least one
+        edge-case or error-path test.
+
+      For each gap found, record a finding:
+        - `file:line — [test-coverage] <one-line description>`
+
+      If no gaps are found, record:
+        - `No findings.`
+
+      Store all findings under the heading `### Test Coverage Adequacy`.
+
+      ---
+
+      ## Aspect 3 — Silent Failure Patterns
+
+      Scan the diff for patterns that swallow errors and hide bugs:
+
+      - **Empty catch blocks**: `catch { }` or `catch (e) { /* ignored */ }`
+      - **Swallowed exceptions**: `catch` that logs but does not rethrow, return a default,
+        or propagate the error to the caller.
+      - **Silent fallbacks**: `?? defaultValue` or `|| fallback` on values that should
+        never be absent — where the fallback masks a missing configuration or corrupt state.
+      - **Unhandled promise rejections**: `.then(…)` without `.catch(…)` or `await` outside
+        try/catch in async functions.
+      - **Ignored return values**: calling a function whose return value signals an error
+        or state change, then discarding it.
+
+      For each pattern found, record a finding:
+        - `file:line — [silent-failure] <one-line description>`
+
+      If no patterns are found, record:
+        - `No findings.`
+
+      Store all findings under the heading `### Silent Failure Patterns`.
+
+      ---
+
+      ## Aspect 4 — Type Design Quality
+
+      Analyse type annotations, JSDoc types, or TypeScript types introduced or changed
+      in the diff:
+
+      - **Encapsulation**: Are types narrow enough to prevent invalid usage? Or are they
+        overly broad (e.g. `string` where a union literal would be more precise)?
+      - **Invariants in types**: Do types encode business rules? E.g. a `NonEmptyArray<T>`
+        instead of `T[]` where empty is invalid.
+      - **Illegal-state-unrepresentable**: Are there mutually exclusive fields that could
+        be unified into a discriminated union? Are there optional fields that should be
+        required, or vice-versa?
+      - **JSDoc completeness** (for `.mjs` / `// @ts-check` files): Are all exported
+        function parameters and return types annotated?
+
+      For each weakness found, record a finding:
+        - `file:line — [type-design] <one-line description>`
+
+      If no weaknesses are found, record:
+        - `No findings.`
+
+      Store all findings under the heading `### Type Design Quality`.
+
+      ---
+
+      ## Compose the review comment
+
+      Assemble a Markdown comment with this exact structure:
+
+      ```
+      <!-- unic-dlc-review -->
+      ## unic-dlc-review
+
+      > PR: <PR_TITLE>
+
+      ### Code Quality
+      <findings or "No findings.">
+
+      ### Test Coverage Adequacy
+      <findings or "No findings.">
+
+      ### Silent Failure Patterns
+      <findings or "No findings.">
+
+      ### Type Design Quality
+      <findings or "No findings.">
+
+      ---
+      *Generated by unic-archon-dlc · re-run `/unic-dlc-review` to update this comment.*
+      ```
+
+      The `<!-- unic-dlc-review -->` HTML comment at the very first line is the sentinel
+      used for update detection. Do not remove or alter it.
+
+      Store the assembled Markdown as `REVIEW_BODY`.
+
+      ---
+
+      ## Post or update the comment
+
+      Search for an existing review comment on this PR:
+
+      **github:**
+      ```
+      gh pr view "$PR_ID" --json comments --jq '.comments[] | select(.body | startswith("<!-- unic-dlc-review -->")) | .databaseId'
+      ```
+      If a comment ID is found (call it `EXISTING_ID`):
+        Update: `gh api repos/{owner}/{repo}/issues/comments/$EXISTING_ID -X PATCH -f body="$REVIEW_BODY"`
+        Print:  "review: updated existing comment $EXISTING_ID on PR #$PR_ID"
+      If no comment exists:
+        Create: `gh pr comment "$PR_ID" --body "$REVIEW_BODY"`
+        Print:  "review: posted new comment on PR #$PR_ID"
+
+      **ado:**
+      Fetch threads: `az repos pr thread list --id "$PR_ID" --output json`
+      Search for a thread whose first comment starts with `<!-- unic-dlc-review -->`.
+      If found (`THREAD_ID`, `COMMENT_ID`):
+        Update: `az repos pr thread comment update --id "$PR_ID" --thread-id "$THREAD_ID" --comment-id "$COMMENT_ID" --content "$REVIEW_BODY"`
+        Print:  "review: updated existing thread $THREAD_ID on PR $PR_ID"
+      If not found:
+        Create: `az repos pr thread create --id "$PR_ID" --comment "$REVIEW_BODY"`
+        Print:  "review: posted new thread on PR $PR_ID"
+
+      **local-markdown:**
+      Look for `docs/workflow/<slug>/review-comment.md` (where slug is the most recent
+      workflow directory under docs/workflow/).
+      If it exists:
+        Overwrite the file with `REVIEW_BODY`.
+        Print: "review: updated docs/workflow/<slug>/review-comment.md"
+      If it does not exist:
+        Write `REVIEW_BODY` to `docs/workflow/<slug>/review-comment.md`.
+        Print: "review: created docs/workflow/<slug>/review-comment.md"
+
+      **jira:**
+      Search for a comment whose body starts with `<!-- unic-dlc-review -->`:
+        `jira issue comment list "$PR_ID" --output json`
+      If found (`COMMENT_ID`):
+        `jira issue comment update "$PR_ID" "$COMMENT_ID" --body "$REVIEW_BODY"`
+        Print: "review: updated existing comment $COMMENT_ID on issue $PR_ID"
+      If not found:
+        `jira issue comment add "$PR_ID" --body "$REVIEW_BODY"`
+        Print: "review: posted new comment on issue $PR_ID"
+
+      ---
+
+      ## Summary
+
+      After posting or updating, print a human-readable summary:
+
+      ```
+      unic-dlc-review complete.
+
+      Aspects reviewed: Code Quality · Test Coverage Adequacy · Silent Failure Patterns · Type Design Quality
+      PR: <PR_TITLE> (<PR_ID>)
+      Action: <created | updated> review comment
+
+      Findings:
+        Code Quality:           <N finding(s) | No findings>
+        Test Coverage Adequacy: <N finding(s) | No findings>
+        Silent Failure Patterns: <N finding(s) | No findings>
+        Type Design Quality:    <N finding(s) | No findings>
+      ```
