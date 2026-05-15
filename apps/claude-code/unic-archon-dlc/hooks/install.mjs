@@ -106,7 +106,7 @@ async function main() {
 	}
 	const trackerRaw =
 		trackerDetected ?? (await rl.question('\nIssue tracker (github / ado / jira / local-markdown): ')).trim()
-	const tracker = trackerRaw || 'local-markdown'
+	const tracker = /** @type {import('../lib/tracker-adapter.mjs').TrackerBackend} */ (trackerRaw || 'local-markdown')
 
 	const prStrategy = deducePrStrategy(tracker)
 	console.log(`PR strategy: ${prStrategy}  (deduced from tracker)`)
@@ -153,22 +153,39 @@ async function main() {
 	writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
 	console.log('\nWrote .archon/unic-dlc.config.json')
 
-	writeAgentDocs(projectDir, {
-		tracker,
-		pr_strategy: prStrategy,
-		branching,
-		repo_layout: repoLayout,
-		labels,
-	})
-	console.log('Wrote docs/agents/ (5 files)')
+	try {
+		writeAgentDocs(projectDir, {
+			tracker,
+			pr_strategy: prStrategy,
+			branching,
+			repo_layout: repoLayout,
+			labels,
+		})
+		console.log('Wrote docs/agents/ (5 files)')
+	} catch (err) {
+		console.error(
+			`\nError: Failed to write docs/agents/ files: ${/** @type {Error} */ (err).message}` +
+				'\nThe config has been saved. Re-run the install hook once the permission issue is resolved.\n'
+		)
+		process.exit(1)
+	}
 
-	updateAgentSkillsBlock(projectDir)
-	console.log('Updated CLAUDE.md ## Agent skills block')
+	try {
+		updateAgentSkillsBlock(projectDir)
+		console.log('Updated CLAUDE.md ## Agent skills block')
+	} catch (err) {
+		console.error(
+			`\nError: Failed to update CLAUDE.md: ${/** @type {Error} */ (err).message}` +
+				'\nThe config and docs/agents/ files have been saved. Re-run the install hook to retry.\n'
+		)
+		process.exit(1)
+	}
 
 	console.log('\nunic-archon-dlc install complete.\n')
 }
 
 main().catch((err) => {
-	console.error(/** @type {Error} */ (err).message)
+	// Print the full stack so install failures are debuggable, not just a bare message.
+	console.error(err instanceof Error ? err.stack ?? err.message : String(err))
 	process.exit(1)
 })

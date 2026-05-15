@@ -28,8 +28,12 @@ function readOptional(filePath) {
 	if (!existsSync(filePath)) return { present: false, content: null }
 	try {
 		return { present: true, content: readFileSync(filePath, 'utf8') }
-	} catch {
-		return { present: false, content: null }
+	} catch (err) {
+		// Re-throw unexpected errors (e.g. EACCES, EISDIR) so callers are not
+		// silently misled into thinking the file is merely absent.
+		const code = /** @type {NodeJS.ErrnoException} */ (err).code
+		if (code === 'ENOENT') return { present: false, content: null }
+		throw err
 	}
 }
 
@@ -49,8 +53,22 @@ export async function exploreProject(projectDir) {
 			.toString()
 			.trim()
 		gitRemote = raw || null
-	} catch {
-		// not a git repo, no remote, or git not on PATH
+	} catch (err) {
+		// Expected: not a git repo, no 'origin' remote, or git not on PATH.
+		// These all produce a non-zero exit code / ENOENT and are non-fatal.
+		// Re-throw genuinely unexpected errors (timeouts surface as ETIMEDOUT,
+		// but execFileSync wraps them in a plain Error — we rely on the timeout
+		// option to keep the window short and accept those as non-fatal too).
+		const code = /** @type {NodeJS.ErrnoException} */ (err).code
+		// ENOENT = git binary absent; status != 0 = no remote / not a git repo
+		// Anything else (e.g. ENOMEM, EPERM) is truly unexpected — log and continue
+		// rather than silently swallowing, so operators see the warning.
+		if (code !== undefined && code !== 'ENOENT') {
+			process.stderr.write(
+				`[unic-archon-dlc] Warning: unexpected error reading git remote (${code}): ${/** @type {Error} */ (err).message}\n`
+			)
+		}
+		// gitRemote stays null — callers handle this gracefully
 	}
 
 	const claudeMd = readOptional(join(projectDir, 'CLAUDE.md'))
@@ -60,8 +78,11 @@ export async function exploreProject(projectDir) {
 	let adrFiles = /** @type {string[]} */ ([])
 	try {
 		adrFiles = readdirSync(join(projectDir, 'docs', 'adr')).filter((f) => f.endsWith('.md'))
-	} catch {
-		// docs/adr absent or unreadable — treat as empty
+	} catch (err) {
+		// Only tolerate a missing docs/adr directory; re-throw permission or other I/O errors.
+		const code = /** @type {NodeJS.ErrnoException} */ (err).code
+		if (code !== 'ENOENT' && code !== 'ENOTDIR') throw err
+		// docs/adr absent — treat as empty
 	}
 
 	const archonConfig = readOptional(join(projectDir, '.archon', 'unic-dlc.config.json'))

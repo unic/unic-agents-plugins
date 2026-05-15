@@ -1,5 +1,5 @@
 // @ts-check
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -35,6 +35,9 @@ function buildSpikeVerdictsBlock(verdicts) {
  */
 export function appendSpikeVerdicts(findingsDir, verdicts) {
 	const filePath = join(findingsDir, 'findings.md')
+	if (!existsSync(filePath)) {
+		throw new Error(`appendSpikeVerdicts: findings.md not found at ${filePath}. Call writeFindingsMd() first.`)
+	}
 	const existing = readFileSync(filePath, 'utf8')
 
 	const block = buildSpikeVerdictsBlock(verdicts)

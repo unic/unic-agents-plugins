@@ -15,7 +15,7 @@ function tempDir() {
 }
 
 test('buildHandoff produces string with all four required sections', () => {
-	const snapshot = {
+	const snapshot = /** @type {import('../lib/handoff-generator.mjs').HandoffSnapshot} */ ({
 		phase: 'build',
 		openIssues: {
 			'needs-triage': ['feat: add login'],
@@ -23,7 +23,7 @@ test('buildHandoff produces string with all four required sections', () => {
 		},
 		blockers: ['fix: null pointer in handler (blocked by feat: add login)'],
 		recentDecisions: ['ADR-0001-use-gitflow.md', 'ADR-0002-local-markdown.md'],
-	}
+	})
 
 	const handoff = buildHandoff(snapshot)
 

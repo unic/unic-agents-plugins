@@ -6,8 +6,13 @@ const ROADMAP_BEGIN = '<!-- unic-archon-dlc:begin -->'
 const ROADMAP_END = '<!-- unic-archon-dlc:end -->'
 
 /**
+ * Archon DLC lifecycle phases.
+ * @typedef {'triage' | 'explore' | 'plan' | 'build' | 'qa' | 'cleanup'} WorkflowPhase
+ */
+
+/**
  * @typedef {Object} HandoffSnapshot
- * @property {string} phase - current lifecycle phase (e.g. 'build', 'plan')
+ * @property {WorkflowPhase} phase - current lifecycle phase
  * @property {Record<string, string[]>} openIssues - state label → issue titles
  * @property {string[]} blockers - blocker descriptions
  * @property {string[]} recentDecisions - ADR file basenames
@@ -57,7 +62,7 @@ ${decisionLines}
  * Idempotent ROADMAP.md update using marker-delimited auto-generated region.
  * Human-written content outside the markers is preserved.
  * @param {string} projectDir
- * @param {string} phase - current lifecycle phase
+ * @param {WorkflowPhase} phase - current lifecycle phase
  */
 export function updateRoadmap(projectDir, phase) {
 	const roadmapDir = join(projectDir, 'docs', 'workflow')

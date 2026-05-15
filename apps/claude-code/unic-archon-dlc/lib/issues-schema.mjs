@@ -6,11 +6,21 @@
  */
 
 /**
+ * Canonical issue type values.
+ * @typedef {'feature' | 'bug' | 'spike' | 'tech-debt' | 'docs'} IssueType
+ */
+
+/**
+ * Canonical issue priority values.
+ * @typedef {'p0' | 'p1' | 'p2' | 'p3'} IssuePriority
+ */
+
+/**
  * @typedef {Object} Issue
  * @property {string} id - Unique identifier for this issue within the file
  * @property {string} title - Short, descriptive title
- * @property {string} type - Canonical type label (e.g. 'feature', 'bug', 'spike', 'tech-debt', 'docs')
- * @property {string} priority - Canonical priority label (e.g. 'p0', 'p1', 'p2', 'p3')
+ * @property {IssueType} type - Canonical type label
+ * @property {IssuePriority} priority - Canonical priority label
  * @property {string[]} blocked_by - Array of issue IDs this issue depends on
  * @property {string[]} acceptance_criteria - Non-empty array of independently demonstrable criteria
  * @property {string} summary - One-paragraph description of the work

@@ -1,8 +1,21 @@
 // @ts-check
 
 /**
+ * A flat map of package name → version specifier (e.g. from package.json dependencies).
  * @typedef {{ [name: string]: string }} DepsMap
- * @typedef {{ name: string, assumed: boolean }} PackageVerdict
+ */
+
+/**
+ * Result of classifying a single package name against a registry.
+ * @typedef {Object} PackageVerdict
+ * @property {string} name - npm package name
+ * @property {boolean} assumed - true when existence could not be confirmed via registry
+ */
+
+/**
+ * Optional async registry lookup function.
+ * Returns true when the package is confirmed to exist in the registry.
+ * Pass null or undefined to skip registry checks (all packages are assumed).
  * @typedef {((name: string) => Promise<boolean>) | null | undefined} RegistryFn
  */
 
@@ -36,7 +49,13 @@ export async function classifyPackages(names, registryFn) {
 			try {
 				const exists = await registryFn(name)
 				return { name, assumed: !exists }
-			} catch {
+			} catch (err) {
+				// Registry check failed (network error, timeout, etc.).
+				// Log the reason so operators can distinguish transient failures
+				// from legitimate "unknown package" verdicts.
+				process.stderr.write(
+					`[unic-archon-dlc] Warning: registry check failed for '${name}' — marking as [ASSUMED]. Reason: ${/** @type {Error} */ (err).message}\n`
+				)
 				return { name, assumed: true }
 			}
 		})

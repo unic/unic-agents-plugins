@@ -1,5 +1,5 @@
 // @ts-check
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const AGENT_SKILLS_BEGIN = '<!-- unic-archon-dlc:begin -->'
@@ -13,13 +13,16 @@ const AGENT_SKILLS_LINKS = `- [issue-tracker.md](docs/agents/issue-tracker.md) â
 
 /**
  * @typedef {import('./labels-config.mjs').LabelMapping} LabelMapping
+ * @typedef {import('./tracker-adapter.mjs').TrackerBackend} TrackerBackend
+ * @typedef {import('./config-loader.mjs').PrStrategy} PrStrategy
+ * @typedef {import('./config-loader.mjs').BranchingStrategy} BranchingStrategy
  */
 
 /**
  * @typedef {Object} AgentDocsConfig
- * @property {string} tracker
- * @property {string} pr_strategy
- * @property {string} branching
+ * @property {TrackerBackend} tracker
+ * @property {PrStrategy} pr_strategy
+ * @property {BranchingStrategy} branching
  * @property {string} [repo_layout]
  * @property {LabelMapping} labels
  */
@@ -52,12 +55,17 @@ export function updateAgentSkillsBlock(projectDir) {
 
 	const block = `## Agent skills\n\n${AGENT_SKILLS_BEGIN}\n${AGENT_SKILLS_LINKS}\n${AGENT_SKILLS_END}`
 
-	if (!existsSync(claudePath)) {
-		writeFileSync(claudePath, `${block}\n`)
-		return
+	let content
+	try {
+		content = readFileSync(claudePath, 'utf8')
+	} catch (err) {
+		// File absent â€” create it from scratch.
+		if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
+			writeFileSync(claudePath, `${block}\n`)
+			return
+		}
+		throw err
 	}
-
-	let content = readFileSync(claudePath, 'utf8')
 	const beginIdx = content.indexOf(AGENT_SKILLS_BEGIN)
 	const endIdx = content.indexOf(AGENT_SKILLS_END)
 

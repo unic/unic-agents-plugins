@@ -1,6 +1,20 @@
 // @ts-check
 import { readFileSync } from 'node:fs'
 
+/**
+ * @typedef {import('./tracker-adapter.mjs').TrackerBackend} TrackerBackend
+ */
+
+/**
+ * Supported PR merge strategies.
+ * @typedef {'merge' | 'squash' | 'rebase'} PrStrategy
+ */
+
+/**
+ * Supported branching strategies.
+ * @typedef {'gitflow' | 'github-flow'} BranchingStrategy
+ */
+
 /** @type {readonly string[]} */
 const MANDATORY_FIELDS = ['tracker', 'pr_strategy', 'branching']
 
@@ -23,9 +37,9 @@ const KNOWN_FIELDS = [
 
 /**
  * @typedef {Object} DlcConfig
- * @property {string} tracker
- * @property {string} pr_strategy
- * @property {string} branching
+ * @property {TrackerBackend} tracker
+ * @property {PrStrategy} pr_strategy
+ * @property {BranchingStrategy} branching
  * @property {string | null} [e2e_command]
  * @property {string} [model_profile]
  * @property {boolean} [tdd_mode]
@@ -42,8 +56,18 @@ const KNOWN_FIELDS = [
  */
 
 /**
+ * Type guard — narrows a `DlcConfig | ConfigError` to `ConfigError`.
+ * @param {DlcConfig | ConfigError} result
+ * @returns {result is ConfigError}
+ */
+export function isConfigError(result) {
+	return /** @type {ConfigError} */ (result).error === true
+}
+
+/**
  * Reads and validates .archon/unic-dlc.config.json.
  * Returns a typed config object or a structured error.
+ * Use `isConfigError(result)` to discriminate the union.
  * Unknown keys in the file are silently ignored.
  * @param {string} path - absolute path to the config file
  * @returns {DlcConfig | ConfigError}

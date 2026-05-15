@@ -1,16 +1,7 @@
 // @ts-check
 
 /**
- * @typedef {Object} Issue
- * @property {string} id
- * @property {string} title
- * @property {string} type
- * @property {string} priority
- * @property {string[]} blocked_by
- * @property {string[]} acceptance_criteria
- * @property {string} summary
- * @property {string} [test_command]
- * @property {boolean} [test_command_planned]
+ * @typedef {import('./issues-schema.mjs').Issue} Issue
  */
 
 /**

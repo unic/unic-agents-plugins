@@ -7,6 +7,7 @@ import { buildYaml, detectCircular } from '../lib/dag-builder.mjs'
 /**
  * @param {string} id
  * @param {string[]} blocked_by
+ * @returns {import('../lib/issues-schema.mjs').Issue}
  */
 function issue(id, blocked_by = []) {
 	return {

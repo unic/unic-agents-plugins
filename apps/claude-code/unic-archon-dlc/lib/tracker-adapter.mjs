@@ -9,6 +9,13 @@
 
 /**
  * @typedef {import('./labels-config.mjs').LabelMapping} LabelMapping
+ * @typedef {import('./issues-schema.mjs').IssueType} IssueType
+ * @typedef {import('./issues-schema.mjs').IssuePriority} IssuePriority
+ */
+
+/**
+ * Supported tracker backend identifiers.
+ * @typedef {'github' | 'ado' | 'jira' | 'local-markdown'} TrackerBackend
  */
 
 /**
@@ -24,10 +31,10 @@ export function translateLabel(canonical, labels) {
 
 /**
  * Generate a CLI command string to create a new issue in the configured tracker.
- * @param {string} tracker
+ * @param {TrackerBackend | string} tracker
  * @param {string} title
- * @param {string} type  - canonical type label (e.g. 'bug', 'feature')
- * @param {string} priority  - canonical priority label (e.g. 'p1')
+ * @param {IssueType | string} type - canonical type label
+ * @param {IssuePriority | string} priority - canonical priority label
  * @param {LabelMapping} labels
  * @returns {string}
  */
@@ -60,9 +67,9 @@ export function buildCreateCommand(tracker, title, type, priority, labels) {
 
 /**
  * Generate a CLI command string to update an issue's state label.
- * @param {string} tracker
- * @param {string} issueId  - issue number or key
- * @param {string} newState  - canonical state label (e.g. 'resolved')
+ * @param {TrackerBackend | string} tracker
+ * @param {string} issueId - issue number or key
+ * @param {string} newState - canonical state label (e.g. 'resolved')
  * @param {LabelMapping} labels
  * @returns {string}
  */
