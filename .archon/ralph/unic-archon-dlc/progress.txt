@@ -1,0 +1,65 @@
+## Codebase Patterns
+
+### Plugin package.json shape
+- **Where**: `apps/claude-code/auto-format/package.json`
+- **Pattern**: type module, private true, engines node>=22 pnpm>=10, scripts: test/typecheck/bump/sync-version/tag/verify:changelog/ralph, devDeps all use catalog: pinning except @unic/* which use workspace:*
+- **Example**: `"@ralph-orchestrator/ralph-cli": "catalog:", "@unic/release-tools": "workspace:*"`
+
+### plugin.json shape
+- **Where**: `apps/claude-code/auto-format/.claude-plugin/plugin.json`
+- **Pattern**: name, version, description, author {name, url}, homepage, license LGPL-3.0-or-later, keywords
+
+### marketplace.json shape
+- **Where**: `apps/claude-code/auto-format/.claude-plugin/marketplace.json`
+- **Pattern**: metadata (description, homepage), name, owner {name}, plugins array with: author, category, description, displayName, homepage, keywords, license, name, source "./", tags, version
+
+### CHANGELOG format required by verify:changelog
+- **Where**: `packages/release-tools/scripts/verify-changelog.mjs`
+- **Pattern**: Must have `## [Unreleased]` with subsections `### Breaking`, `### Added`, `### Fixed`. Versioned releases must use em-dash: `## [0.1.0] — YYYY-MM-DD`
+
+### tsconfig.json
+- **Where**: `apps/claude-code/auto-format/tsconfig.json`
+- **Pattern**: extends `@unic/tsconfig/tsconfig.base.json`, include `scripts/**/*.mjs` and `tests/**/*.mjs`. Will fail TS18003 if no files exist — acceptable until first source file is created.
+
+### pnpm catalog entries
+- **Where**: `pnpm-workspace.yaml`
+- **Pattern**: `@ralph-orchestrator/ralph-cli`, `@types/node`, `typescript`, `prettier`, `@biomejs/biome` are in catalog. Use `catalog:` for devDeps.
+
+---
+
+## 2026-05-15 — US-001: Plugin scaffold
+
+**Status**: PASSED
+**Files changed**:
+- apps/claude-code/unic-archon-dlc/.claude-plugin/plugin.json — plugin manifest with name, version 0.1.0, author Unic AG
+- apps/claude-code/unic-archon-dlc/.claude-plugin/marketplace.json — marketplace entry with displayName, category, tags, source
+- apps/claude-code/unic-archon-dlc/package.json — type module, private true, all scripts, catalog:/workspace:* devDeps
+- apps/claude-code/unic-archon-dlc/CHANGELOG.md — [Unreleased] + [0.1.0] sections
+- apps/claude-code/unic-archon-dlc/CLAUDE.md — project overview, commands, tech stack, code conventions, scope guard
+- apps/claude-code/unic-archon-dlc/CONTEXT.md — DlcConfig, IssueTracker, BranchingStrategy, Workflow, WorkflowNode, Gate, Artifact, Slug vocabulary
+- apps/claude-code/unic-archon-dlc/PROMPT.md — Ralph orchestrator loop prompt
+- apps/claude-code/unic-archon-dlc/ralph.yml — backend claude, LOOP_COMPLETE, max_iterations 100
+- apps/claude-code/unic-archon-dlc/tsconfig.json — @unic/tsconfig base, scripts+tests include
+- apps/claude-code/unic-archon-dlc/README.md — title-only skeleton
+- pnpm-lock.yaml — updated after pnpm install
+
+**Acceptance criteria verified**:
+- [x] plugin.json exists with name 'unic-archon-dlc', version '0.1.0', author Unic AG, license LGPL-3.0-or-later
+- [x] marketplace.json exists with displayName, category, tags, source fields
+- [x] package.json exists with type 'module', private true, and all scripts
+- [x] devDependencies use catalog: pinning for @ralph-orchestrator/ralph-cli, @types/node, typescript and workspace:* for @unic/release-tools, @unic/tsconfig
+- [x] CHANGELOG.md exists with [Unreleased] and [0.1.0] sections
+- [x] CLAUDE.md exists with project overview, commands, tech stack, code conventions, scope guard
+- [x] CONTEXT.md exists with DlcConfig, IssueTracker, BranchingStrategy, Workflow, WorkflowNode, Gate, Artifact, Slug
+- [x] PROMPT.md exists referencing docs/plans/
+- [x] ralph.yml exists with backend claude, LOOP_COMPLETE, max_iterations 100
+- [x] tsconfig.json exists extending @unic/tsconfig base
+- [x] README.md exists as skeleton
+- [x] pnpm install succeeds from workspace root
+
+**Learnings**:
+- typecheck fails with TS18003 when no .mjs files exist yet — expected, will pass once US-002 creates scripts/lib/config.mjs
+- pnpm check shows a pre-existing Biome warning in pr-review and a Prettier issue in .archon/ralph/unic-archon-dlc/prd.md — neither are from my changes
+- The verify:changelog script requires [Unreleased] section; versioned sections need em-dash date format `— YYYY-MM-DD`
+
+---

@@ -25,8 +25,8 @@
       "technicalNotes": "Mirror apps/claude-code/auto-format/ and apps/claude-code/pr-review/ exactly for directory layout. Copy package.json shape from apps/claude-code/auto-format/package.json — same scripts, same engine requirements (node >=22, pnpm >=10). Use catalog: pinning for devDeps (see pnpm-workspace.yaml catalog section). No src/ or dist/ — scripts/ and tests/ at plugin root. Do not create a LICENSE file — maintainer adds these manually.",
       "dependsOn": [],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: .claude-plugin/plugin.json, .claude-plugin/marketplace.json, package.json, CHANGELOG.md, CLAUDE.md, CONTEXT.md, PROMPT.md, ralph.yml, tsconfig.json, README.md. pnpm install passes."
     },
     {
       "id": "US-002",
