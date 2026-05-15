@@ -2,7 +2,7 @@
   "project": "unic-archon-dlc",
   "branchName": "ralph/unic-archon-dlc",
   "prdFile": "prd.md",
-  "description": "Claude Code plugin shipping six Archon YAML workflows covering the full AI development lifecycle (explore → plan → build → qa → cleanup → triage) with human approval gates, an idempotent install hook, and four tested Node.js modules.",
+  "description": "Claude Code plugin shipping six Archon YAML workflows covering the full AI development lifecycle (explore \u2192 plan \u2192 build \u2192 qa \u2192 cleanup \u2192 triage) with human approval gates, an idempotent install hook, and four tested Node.js modules.",
   "userStories": [
     {
       "id": "US-001",
@@ -22,7 +22,7 @@
         "apps/claude-code/unic-archon-dlc/README.md exists as a skeleton (can be a placeholder with title only)",
         "pnpm install succeeds from workspace root after adding the new package"
       ],
-      "technicalNotes": "Mirror apps/claude-code/auto-format/ and apps/claude-code/pr-review/ exactly for directory layout. Copy package.json shape from apps/claude-code/auto-format/package.json — same scripts, same engine requirements (node >=22, pnpm >=10). Use catalog: pinning for devDeps (see pnpm-workspace.yaml catalog section). No src/ or dist/ — scripts/ and tests/ at plugin root. Do not create a LICENSE file — maintainer adds these manually.",
+      "technicalNotes": "Mirror apps/claude-code/auto-format/ and apps/claude-code/pr-review/ exactly for directory layout. Copy package.json shape from apps/claude-code/auto-format/package.json \u2014 same scripts, same engine requirements (node >=22, pnpm >=10). Use catalog: pinning for devDeps (see pnpm-workspace.yaml catalog section). No src/ or dist/ \u2014 scripts/ and tests/ at plugin root. Do not create a LICENSE file \u2014 maintainer adds these manually.",
       "dependsOn": [],
       "priority": 1,
       "passes": true,
@@ -43,11 +43,13 @@
         "pnpm --filter unic-archon-dlc typecheck passes with zero errors",
         "pnpm --filter unic-archon-dlc test passes"
       ],
-      "technicalNotes": "Use @ts-check + JSDoc throughout. Read file with node:fs/promises readFile. Return discriminated union { ok: true, config } | { ok: false, errors: string[] } — same pattern as packages/release-tools/scripts/lib/errors.mjs. Test pattern: node:test + node:assert/strict as in apps/claude-code/pr-review/tests/parse-signature.test.mjs. No external deps.",
-      "dependsOn": ["US-001"],
+      "technicalNotes": "Use @ts-check + JSDoc throughout. Read file with node:fs/promises readFile. Return discriminated union { ok: true, config } | { ok: false, errors: string[] } \u2014 same pattern as packages/release-tools/scripts/lib/errors.mjs. Test pattern: node:test + node:assert/strict as in apps/claude-code/pr-review/tests/parse-signature.test.mjs. No external deps.",
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: scripts/lib/config.mjs, tests/config.test.mjs. 8 tests pass, typecheck passes."
     },
     {
       "id": "US-003",
@@ -66,11 +68,13 @@
         "pnpm --filter unic-archon-dlc typecheck passes",
         "pnpm --filter unic-archon-dlc test passes"
       ],
-      "technicalNotes": "Use node:fs, node:path, node:os, node:child_process (spawnSync) only — no external deps. Import loadConfig from scripts/lib/config.mjs for existingConfig. Cross-platform: avoid shell=true in spawnSync. Test using real temp directories (mkdtempSync) rather than mocks.",
-      "dependsOn": ["US-001"],
+      "technicalNotes": "Use node:fs, node:path, node:os, node:child_process (spawnSync) only \u2014 no external deps. Import loadConfig from scripts/lib/config.mjs for existingConfig. Cross-platform: avoid shell=true in spawnSync. Test using real temp directories (mkdtempSync) rather than mocks.",
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: scripts/lib/explorer.mjs, tests/explorer.test.mjs. 7 tests pass, typecheck passes."
     },
     {
       "id": "US-004",
@@ -89,11 +93,13 @@
         "pnpm --filter unic-archon-dlc typecheck passes",
         "pnpm --filter unic-archon-dlc test passes"
       ],
-      "technicalNotes": "Implement Kahn's algorithm (BFS topological sort). Pure data transformation — no I/O, no side effects. Groups within a tier can be in any order. The cycle array should list the IDs forming the cycle for clear error messages. No external deps.",
-      "dependsOn": ["US-001"],
+      "technicalNotes": "Implement Kahn's algorithm (BFS topological sort). Pure data transformation \u2014 no I/O, no side effects. Groups within a tier can be in any order. The cycle array should list the IDs forming the cycle for clear error messages. No external deps.",
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: scripts/lib/dep-tree.mjs, tests/dep-tree.test.mjs. 8 tests pass, typecheck passes."
     },
     {
       "id": "US-005",
@@ -112,11 +118,13 @@
         "pnpm --filter unic-archon-dlc typecheck passes",
         "pnpm --filter unic-archon-dlc test passes"
       ],
-      "technicalNotes": "Pure string generation — no I/O, no shell execution. Accepts DlcConfig (from config.mjs types). Canonical label map uses config.labels.state, config.labels.type, config.labels.priority. Test with a fixture config object per backend — no file I/O needed in tests.",
-      "dependsOn": ["US-002"],
+      "technicalNotes": "Pure string generation \u2014 no I/O, no shell execution. Accepts DlcConfig (from config.mjs types). Canonical label map uses config.labels.state, config.labels.type, config.labels.priority. Test with a fixture config object per backend \u2014 no file I/O needed in tests.",
+      "dependsOn": [
+        "US-002"
+      ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: scripts/lib/tracker.mjs, tests/tracker.test.mjs. 19 tests pass, typecheck passes."
     },
     {
       "id": "US-006",
@@ -126,7 +134,7 @@
         "apps/claude-code/unic-archon-dlc/scripts/lib/yaml-gen.mjs exists and exports generateBuildYaml(slug: string, groups: string[][]): string",
         "Output is a valid YAML string parseable without error",
         "Single group [[A, B]] generates code-red-A and code-red-B as sibling nodes (no depends_on between them), followed by code-green-A and code-green-B as siblings",
-        "Two groups [[A], [B]] generates code-red-A → code-green-A → code-red-B → code-green-B as sequential nodes via depends_on",
+        "Two groups [[A], [B]] generates code-red-A \u2192 code-green-A \u2192 code-red-B \u2192 code-green-B as sequential nodes via depends_on",
         "Output YAML has workflow name derived from slug ('build-<slug>')",
         "Each issue gets a slopcheck node before its code-green node",
         "Output has a global verification node depending on all code-green nodes",
@@ -137,11 +145,13 @@
         "pnpm --filter unic-archon-dlc typecheck passes",
         "pnpm --filter unic-archon-dlc test passes"
       ],
-      "technicalNotes": "Use string template literals for YAML generation — no external yaml library. 2-space indentation for YAML output (Archon convention). Import buildDepTree from dep-tree.mjs in the yaml-gen bash node script (scripts/yaml-gen-cli.mjs) which is the actual executable called by the plan workflow; the lib function is the pure generator. YAML validation in tests: check no leading tabs, check key presence with regex.",
-      "dependsOn": ["US-004"],
+      "technicalNotes": "Use string template literals for YAML generation \u2014 no external yaml library. 2-space indentation for YAML output (Archon convention). Import buildDepTree from dep-tree.mjs in the yaml-gen bash node script (scripts/yaml-gen-cli.mjs) which is the actual executable called by the plan workflow; the lib function is the pure generator. YAML validation in tests: check no leading tabs, check key presence with regex.",
+      "dependsOn": [
+        "US-004"
+      ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: scripts/lib/yaml-gen.mjs, scripts/yaml-gen-cli.mjs, tests/yaml-gen.test.mjs. 11 tests pass, typecheck passes."
     },
     {
       "id": "US-007",
@@ -151,7 +161,7 @@
         "apps/claude-code/unic-archon-dlc/scripts/install.mjs exists with shebang #!/usr/bin/env node and is ESM",
         "Hook calls exploreProject() before presenting any prompts; pre-existing values are shown as defaults and skippable with Enter",
         "Hook verifies archon is on PATH first; exits with a clear error message if not found",
-        "Mandatory tier (always prompted on fresh install): issueTracker (auto-detected from git remote URL patterns: github.com → github, dev.azure.com → ado, atlassian.net → jira, else local), branchingStrategy (default: gitflow)",
+        "Mandatory tier (always prompted on fresh install): issueTracker (auto-detected from git remote URL patterns: github.com \u2192 github, dev.azure.com \u2192 ado, atlassian.net \u2192 jira, else local), branchingStrategy (default: gitflow)",
         "Skippable: e2eCommand (user can press Enter to leave null)",
         "Auto-defaulted without prompting: tddMode true, nyquistValidation true, slopsquattingGate true, modelProfile balanced",
         "Writes .archon/unic-dlc.config.json with all settings",
@@ -164,11 +174,15 @@
         "Running hook a second time with existing config shows current values and skips re-writing unchanged files",
         "Uses only node:fs, node:path, node:os, node:child_process, node:readline (no external deps)"
       ],
-      "technicalNotes": "Use node:readline/promises for async prompts. Import exploreProject from scripts/lib/explorer.mjs and createTrackerAdapter from scripts/lib/tracker.mjs. The docs/agents/ file content is inline template strings in the hook — no separate template files. Idempotency: compare current file content before overwriting. Git remote auto-detection: spawnSync('git', ['remote', 'get-url', 'origin']), then URL pattern match.",
-      "dependsOn": ["US-002", "US-003", "US-005"],
+      "technicalNotes": "Use node:readline/promises for async prompts. Import exploreProject from scripts/lib/explorer.mjs and createTrackerAdapter from scripts/lib/tracker.mjs. The docs/agents/ file content is inline template strings in the hook \u2014 no separate template files. Idempotency: compare current file content before overwriting. Git remote auto-detection: spawnSync('git', ['remote', 'get-url', 'origin']), then URL pattern match.",
+      "dependsOn": [
+        "US-002",
+        "US-003",
+        "US-005"
+      ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: scripts/install.mjs. Typecheck passes."
     },
     {
       "id": "US-008",
@@ -185,11 +199,13 @@
         "Workflow reads slug and intent from input parameters or env vars",
         "File is valid YAML (no syntax errors)"
       ],
-      "technicalNotes": "Follow Archon YAML conventions. Interactive nodes: interactive: true. Bash nodes: type: bash, command: node <script>. The parallel node groups sub-agents using Archon's parallel primitive. create-ticket bash node runs: node scripts/yaml-gen-cli.mjs or similar — check Archon docs for bash node invocation pattern.",
-      "dependsOn": ["US-001"],
+      "technicalNotes": "Follow Archon YAML conventions. Interactive nodes: interactive: true. Bash nodes: type: bash, command: node <script>. The parallel node groups sub-agents using Archon's parallel primitive. create-ticket bash node runs: node scripts/yaml-gen-cli.mjs or similar \u2014 check Archon docs for bash node invocation pattern.",
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-009",
@@ -198,7 +214,7 @@
       "acceptanceCriteria": [
         "apps/claude-code/unic-archon-dlc/.archon/workflows/plan.yaml exists",
         "Has load-context bash node that reads CONTEXT.md, CONTEXT-MAP.md (if present), docs/adr/ and passes content as context",
-        "Has specs node (type: prompt, interactive: true) for adversarial grill-with-docs interview — one question at a time",
+        "Has specs node (type: prompt, interactive: true) for adversarial grill-with-docs interview \u2014 one question at a time",
         "Has write-adrs bash node that writes proposed ADR entries to docs/adr/<slug>-<n>.md",
         "Has to-prd node (type: prompt) that synthesises the grilling session into a structured PRD",
         "Has prd-gate (interactive: true) as the first human approval gate",
@@ -211,10 +227,12 @@
         "File is valid YAML"
       ],
       "technicalNotes": "Plan workflow depends on yaml-gen-cli.mjs (from US-006). Loop node uses Archon loop primitive. Stall detection can be implemented as a bash node that reads previous iteration's issue count from $ARTIFACTS_DIR and compares. The yaml-gen bash node must run: node ${CLAUDE_PLUGIN_ROOT}/scripts/yaml-gen-cli.mjs.",
-      "dependsOn": ["US-006"],
+      "dependsOn": [
+        "US-006"
+      ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-010",
@@ -229,29 +247,33 @@
         "File is valid YAML (placeholder values do not break YAML parsing)"
       ],
       "technicalNotes": "This is a reference template and documentation artifact, not an executed workflow. yaml-gen.mjs uses this structure as the pattern. Keep it self-documenting with comments. The per-issue nodes are the ones yaml-gen replicates N times; global nodes are emitted once.",
-      "dependsOn": ["US-006"],
+      "dependsOn": [
+        "US-006"
+      ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-011",
       "title": "QA workflow YAML",
-      "description": "As a developer, I want a qa.yaml Archon workflow that enforces e2e pass → coverage gate → human UAT → merge so that human sign-off is always preceded by automated evidence.",
+      "description": "As a developer, I want a qa.yaml Archon workflow that enforces e2e pass \u2192 coverage gate \u2192 human UAT \u2192 merge so that human sign-off is always preceded by automated evidence.",
       "acceptanceCriteria": [
         "apps/claude-code/unic-archon-dlc/.archon/workflows/qa.yaml exists",
         "Has run-e2e bash node that reads e2eCommand from config; if null, emits a warning and skips (does not fail)",
         "Has coverage-gate bash node that parses coverage output (lcov/istanbul summary) and fails if line coverage < threshold (default 80%)",
         "Has uat-gate node (interactive: true) that presents e2e results and UAT checklist from PRD to the human reviewer",
         "Has merge-pr bash node that runs the tracker adapter's mergePr command using the configured tracker CLI",
-        "Node order enforced by depends_on: run-e2e → coverage-gate → uat-gate → merge-pr",
+        "Node order enforced by depends_on: run-e2e \u2192 coverage-gate \u2192 uat-gate \u2192 merge-pr",
         "File is valid YAML"
       ],
-      "technicalNotes": "run-e2e bash node: node -e 'const cfg = require(\".archon/unic-dlc.config.json\"); if (!cfg.e2eCommand) { console.warn(\"e2eCommand not configured, skipping\"); process.exit(0); } ...' (or equivalent). coverage-gate reads from coverage/lcov.info or coverage-summary.json. merge-pr node content varies per tracker — use the adapter's mergePr output.",
-      "dependsOn": ["US-001"],
+      "technicalNotes": "run-e2e bash node: node -e 'const cfg = require(\".archon/unic-dlc.config.json\"); if (!cfg.e2eCommand) { console.warn(\"e2eCommand not configured, skipping\"); process.exit(0); } ...' (or equivalent). coverage-gate reads from coverage/lcov.info or coverage-summary.json. merge-pr node content varies per tracker \u2014 use the adapter's mergePr output.",
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-012",
@@ -267,10 +289,12 @@
         "File is valid YAML"
       ],
       "technicalNotes": "arch-review prompt should explicitly reference PRD.md acceptance criteria vs. what was actually built (intent drift detection). adr-consolidation interactive node presents one ADR at a time for approval. update-roadmap bash node appends a dated status line to ROADMAP.md.",
-      "dependsOn": ["US-001"],
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-013",
@@ -282,14 +306,16 @@
         "Has generate-handoff node (type: prompt) that synthesises current phase, open issues, blockers, and recent decisions into HANDOFF.md content",
         "Has write-handoff bash node that writes docs/workflow/HANDOFF.md",
         "Has update-roadmap bash node that updates docs/workflow/ROADMAP.md",
-        "Workflow is self-contained — callable without any prior workflow having run",
+        "Workflow is self-contained \u2014 callable without any prior workflow having run",
         "File is valid YAML"
       ],
-      "technicalNotes": "This workflow doubles as both standalone on-demand status check and the final node of cleanup.yaml. Keep it independent — no $ARTIFACTS_DIR references from other workflows. collect-state can use 'gh issue list', 'az boards work-item list', 'jira issue list', or scan docs/issues/ depending on config.",
-      "dependsOn": ["US-001"],
+      "technicalNotes": "This workflow doubles as both standalone on-demand status check and the final node of cleanup.yaml. Keep it independent \u2014 no $ARTIFACTS_DIR references from other workflows. collect-state can use 'gh issue list', 'az boards work-item list', 'jira issue list', or scan docs/issues/ depending on config.",
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-014",
@@ -302,14 +328,16 @@
         "Each section is a distinct agent prompt or instruction block with specific review criteria",
         "Command accepts a target (branch name or PR URL) as $ARGUMENTS",
         "Produces a structured review report with section headers per aspect and Pass / Needs Work / Fail verdicts",
-        "Has no runtime dependency on pr-review-toolkit — all review logic is self-contained in the markdown",
+        "Has no runtime dependency on pr-review-toolkit \u2014 all review logic is self-contained in the markdown",
         "File is valid markdown with valid YAML frontmatter"
       ],
       "technicalNotes": "Follow the command structure of apps/claude-code/pr-review/commands/review-pr.md. Inspired by pr-review-toolkit patterns (code-reviewer, silent-failure-hunter, pr-test-analyzer, type-design-analyzer) but self-contained. Allowed-tools should include Read, Grep, Glob, Bash, Agent.",
-      "dependsOn": ["US-001"],
+      "dependsOn": [
+        "US-001"
+      ],
       "priority": 14,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. YAML file written. Valid YAML structure with no tabs."
     },
     {
       "id": "US-015",
@@ -317,8 +345,8 @@
       "description": "As a developer reading the plugin README, I want a comprehensive README with Mermaid architecture diagram, node reference table, quick-start, configuration reference, and docs/workflow/ layout so that I can understand and adopt the plugin without reading YAML files.",
       "acceptanceCriteria": [
         "apps/claude-code/unic-archon-dlc/README.md has a Mermaid flowchart (flowchart TD or graph TD) showing all 6 workflows, their key nodes, and human gate positions (marked with a distinct label)",
-        "README has a node reference table with columns: Workflow | Node | Type | Human Gate (✓ / —) covering every node in every workflow",
-        "README has a Quick Start section covering install → run install hook → run first workflow in exactly 3 numbered steps",
+        "README has a node reference table with columns: Workflow | Node | Type | Human Gate (\u2713 / \u2014) covering every node in every workflow",
+        "README has a Quick Start section covering install \u2192 run install hook \u2192 run first workflow in exactly 3 numbered steps",
         "README has a Configuration Reference section documenting every key in .archon/unic-dlc.config.json with: key name, type, default value, valid values, description",
         "README has a docs/workflow/ Layout section with a directory tree showing what files are created where and who owns each artifact (Archon vs. plugin vs. developer)",
         "README has a Dependencies section: minimum Archon version requirement, statement that no peer Claude Code plugins are required",
@@ -326,10 +354,18 @@
         "Mermaid diagram is valid GitHub-renderable syntax"
       ],
       "technicalNotes": "Reference the 6 workflows as implemented in US-008 through US-013 and the review command from US-014. Configuration keys come from the DlcConfig typedef in config.mjs (US-002). Use Prettier-formatted markdown (2-space indentation for lists). Mermaid syntax: nodes in parentheses are prompt nodes, nodes in brackets are bash nodes, nodes in double brackets are interactive gates.",
-      "dependsOn": ["US-008", "US-009", "US-010", "US-011", "US-012", "US-013", "US-014"],
+      "dependsOn": [
+        "US-008",
+        "US-009",
+        "US-010",
+        "US-011",
+        "US-012",
+        "US-013",
+        "US-014"
+      ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. README.md: Mermaid diagram, node table, quick start, config reference, layout section, dependencies."
     },
     {
       "id": "US-016",
@@ -345,10 +381,13 @@
         "pnpm check passes (Biome + Prettier)"
       ],
       "technicalNotes": "CHANGELOG format follows apps/claude-code/auto-format/CHANGELOG.md exactly. Run pnpm --filter unic-archon-dlc sync-version if versions get out of sync between files. The verify:changelog script is from packages/release-tools/scripts/verify-changelog.mjs.",
-      "dependsOn": ["US-015", "US-007"],
+      "dependsOn": [
+        "US-015",
+        "US-007"
+      ],
       "priority": 16,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. CHANGELOG.md [0.1.0] section complete. verify:changelog passes."
     }
   ]
 }
