@@ -192,7 +192,7 @@ async function main() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	main().catch((err) => {
 		// Print the full stack so install failures are debuggable, not just a bare message.
-		console.error(err instanceof Error ? err.stack ?? err.message : String(err))
+		console.error(err instanceof Error ? (err.stack ?? err.message) : String(err))
 		process.exit(1)
 	})
 }
