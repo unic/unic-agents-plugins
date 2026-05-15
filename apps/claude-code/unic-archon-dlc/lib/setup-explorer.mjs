@@ -40,9 +40,9 @@ function readOptional(filePath) {
 /**
  * Reads project state without throwing on missing files.
  * @param {string} projectDir - absolute path to the target project root
- * @returns {Promise<ProjectSnapshot>}
+ * @returns {ProjectSnapshot}
  */
-export async function exploreProject(projectDir) {
+export function exploreProject(projectDir) {
 	let gitRemote = null
 	try {
 		const raw = execFileSync('git', ['remote', 'get-url', 'origin'], {

@@ -13,7 +13,7 @@ test('returns structured snapshot; missing files are absent not throwing', async
 	// Only create CLAUDE.md — leave CONTEXT.md, CONTEXT-MAP.md, docs/adr/, .archon/ absent
 	writeFileSync(join(dir, 'CLAUDE.md'), '# test project')
 
-	const snapshot = await exploreProject(dir)
+	const snapshot = exploreProject(dir)
 
 	// gitRemote: no git repo in tmpdir — should be null, not throw
 	assert.equal(snapshot.gitRemote, null)

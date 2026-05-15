@@ -54,7 +54,7 @@ export function validateIssue(issue) {
 	const errors = []
 
 	for (const field of MANDATORY_FIELDS) {
-		if (issue[field] === undefined || issue[field] === null) {
+		if (issue[field] === undefined || issue[field] === null || issue[field] === '') {
 			errors.push(`Missing mandatory field: '${field}'`)
 		}
 	}

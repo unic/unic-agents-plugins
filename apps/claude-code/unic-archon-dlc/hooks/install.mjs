@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline/promises'
+import { fileURLToPath } from 'node:url'
 import { updateAgentSkillsBlock, writeAgentDocs } from '../lib/agent-docs-writer.mjs'
 import { loadConfig } from '../lib/config-loader.mjs'
 import { getDefaultLabels } from '../lib/labels-config.mjs'
@@ -26,7 +27,7 @@ const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {string[]} */ ([])
  * @param {string | null} remoteUrl
  * @returns {'github' | 'ado' | 'jira' | 'local-markdown' | null}
  */
-function detectTracker(remoteUrl) {
+export function detectTracker(remoteUrl) {
 	if (!remoteUrl) return null
 	if (remoteUrl.includes('github.com')) return 'github'
 	if (remoteUrl.includes('dev.azure.com') || remoteUrl.includes('visualstudio.com')) return 'ado'
@@ -34,7 +35,7 @@ function detectTracker(remoteUrl) {
 }
 
 /** @param {string} tracker */
-function deducePrStrategy(tracker) {
+export function deducePrStrategy(tracker) {
 	if (tracker === 'github' || tracker === 'ado') return 'squash'
 	return 'merge'
 }
@@ -54,9 +55,13 @@ function checkArchon() {
 			)
 		}
 		return version
-	} catch {
-		console.error('\nError: archon binary not found on PATH.')
-		console.error('Install Archon before using this plugin. See the README for instructions.\n')
+	} catch (err) {
+		if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
+			console.error('\nError: archon binary not found on PATH.')
+			console.error('Install Archon before using this plugin. See the README for instructions.\n')
+		} else {
+			console.error(`\nError: failed to run archon: ${/** @type {Error} */ (err).message}\n`)
+		}
 		process.exit(1)
 	}
 }
@@ -65,7 +70,7 @@ function checkArchon() {
  * @param {string} projectDir
  * @returns {string}
  */
-function detectRepoLayout(projectDir) {
+export function detectRepoLayout(projectDir) {
 	return existsSync(join(projectDir, 'CONTEXT-MAP.md')) ? 'multi-context' : 'single-context'
 }
 
@@ -75,7 +80,7 @@ async function main() {
 
 	checkArchon()
 
-	const snapshot = await exploreProject(projectDir)
+	const snapshot = exploreProject(projectDir)
 	const configPath = join(projectDir, '.archon', 'unic-dlc.config.json')
 
 	let existing = /** @type {Record<string, unknown>} */ ({})
@@ -184,8 +189,10 @@ async function main() {
 	console.log('\nunic-archon-dlc install complete.\n')
 }
 
-main().catch((err) => {
-	// Print the full stack so install failures are debuggable, not just a bare message.
-	console.error(err instanceof Error ? err.stack ?? err.message : String(err))
-	process.exit(1)
-})
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+	main().catch((err) => {
+		// Print the full stack so install failures are debuggable, not just a bare message.
+		console.error(err instanceof Error ? err.stack ?? err.message : String(err))
+		process.exit(1)
+	})
+}
