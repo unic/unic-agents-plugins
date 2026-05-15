@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "description": "Six Archon YAML workflows covering the full AI development lifecycle",
+    "homepage": "https://github.com/unic/unic-agents-plugins"
+  },
+  "name": "unic-archon-dlc",
+  "owner": {
+    "name": "Unic AG"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "Unic AG"
+      },
+      "category": "productivity",
+      "description": "Six Archon YAML workflows covering the full AI development lifecycle: explore, plan, build, qa, cleanup, and triage — with human approval gates at every phase boundary.",
+      "displayName": "Unic Archon DLC",
+      "homepage": "https://github.com/unic/unic-agents-plugins",
+      "keywords": ["archon", "workflow", "dlc", "ai-lifecycle", "unic"],
+      "license": "LGPL-3.0-or-later",
+      "name": "unic-archon-dlc",
+      "source": "./",
+      "tags": ["productivity", "workflow"],
+      "version": "0.1.0"
+    }
+  ]
+}

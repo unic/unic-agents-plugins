@@ -1,0 +1,11 @@
+# Ralph Orchestrator Configuration
+# Project: unic-archon-dlc
+
+cli:
+  backend: 'claude'
+
+event_loop:
+  prompt_file: 'PROMPT.md'
+  completion_promise: 'LOOP_COMPLETE'
+  max_iterations: 100
+  max_runtime_seconds: 28800

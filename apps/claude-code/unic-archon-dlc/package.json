@@ -1,0 +1,28 @@
+{
+  "name": "unic-archon-dlc",
+  "version": "0.1.0",
+  "private": true,
+  "license": "LGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "test": "node --test tests/config.test.mjs tests/explorer.test.mjs tests/dep-tree.test.mjs tests/tracker.test.mjs tests/yaml-gen.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "verify:changelog": "unic-verify-changelog",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
+  },
+  "devDependencies": {
+    "@ralph-orchestrator/ralph-cli": "catalog:",
+    "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
