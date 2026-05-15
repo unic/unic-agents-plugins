@@ -63,3 +63,40 @@
 - The verify:changelog script requires [Unreleased] section; versioned sections need em-dash date format `— YYYY-MM-DD`
 
 ---
+
+## 2026-05-15 — US-002 through US-016: All Stories Complete
+
+**Status**: ALL PASSED
+**Stories completed in this session**: US-001 through US-016 (all 16 stories)
+
+**Files changed summary**:
+- scripts/lib/config.mjs — loadConfig with ConfigResult discriminated union
+- tests/config.test.mjs — 8 tests
+- scripts/lib/explorer.mjs — exploreProject returning ProjectSnapshot
+- tests/explorer.test.mjs — 7 tests
+- scripts/lib/dep-tree.mjs — buildDepTree with Kahn's algorithm
+- tests/dep-tree.test.mjs — 8 tests
+- scripts/lib/tracker.mjs — createTrackerAdapter for 4 backends
+- tests/tracker.test.mjs — 19 tests
+- scripts/lib/yaml-gen.mjs — generateBuildYaml
+- scripts/yaml-gen-cli.mjs — CLI wrapper
+- tests/yaml-gen.test.mjs — 11 tests
+- scripts/install.mjs — idempotent install hook
+- .archon/workflows/{explore,plan,build-template,qa,cleanup,triage}.yaml
+- .archon/commands/review.md
+- README.md — full documentation with Mermaid diagram
+- CHANGELOG.md — complete [0.1.0] section
+
+**Final validation**:
+- 53 tests pass (node:test)
+- typecheck: 0 errors
+- verify:changelog: passes
+- Branch pushed: archon/task-archon-ralph-dag-1778803509692
+
+**Learnings**:
+- Worktree-isolated agent (isolation: "worktree") writes to main worktree — files appear in git status of the main worktree
+- PR creation requires write:pull_request permission — gh CLI may fail with personal access token limitations
+- node:test with top-level await in test files works fine with node --test
+- Slice logic for checking YAML blocks must be careful not to include dependent nodes (slopcheck has depends_on that would falsely trigger assertions about code-red nodes)
+
+---
