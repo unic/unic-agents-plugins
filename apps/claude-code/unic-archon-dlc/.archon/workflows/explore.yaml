@@ -112,3 +112,99 @@ nodes:
            into a single coherent narrative, highlighting the most important insight from each,
            surfacing any cross-cutting concerns, and recommending the single highest-impact next step.
       3. Print: "Explore complete. Findings written to docs/workflow/<slug>/findings.md"
+
+  - id: prototype
+    name: Prototype Experiments
+    type: prompt
+    depends_on: [synthesize]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — prototype node.
+
+      Goal: design and evaluate one or more experiments that test the key unknowns
+      identified in the findings, then record a verdict for each.
+
+      Inputs available:
+        - `slug` workflow input (the exploration identifier)
+        - docs/workflow/<slug>/findings.md (written by the synthesize node)
+
+      Steps:
+      1. Read docs/workflow/<slug>/findings.md.
+      2. From the Integrated Brief and Pitfalls section identify 1-3 concrete unknowns
+         worth spiking. For each unknown, design a minimal experiment:
+           - Give it a short descriptive title.
+           - Describe what you would build or measure.
+           - Reason through what outcome is most likely given the existing evidence.
+           - Assign exactly ONE verdict: VALIDATED, INVALIDATED, or PARTIAL.
+             · VALIDATED  — the approach is confirmed viable; evidence is sufficient.
+             · INVALIDATED — the approach is ruled out; a blocker was found.
+             · PARTIAL    — the approach shows promise but requires follow-up work.
+           - Write 2-4 sentences of supporting evidence or reasoning.
+      3. Call appendSpikeVerdicts(findingsDir, verdicts) from lib/spike-verdicts.mjs,
+         passing an array of { title, verdict, notes } objects.
+         This appends a "## Spike verdicts" section to findings.md.
+      4. Print: "Prototype complete. <N> verdict(s) written to docs/workflow/<slug>/findings.md"
+
+  - id: code-preserve-gate
+    name: Spike Branch Gate
+    type: interactive
+    fresh_context: true
+    depends_on: [prototype]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — code-preserve-gate node.
+
+      Goal: decide whether to preserve any spike code on a dedicated branch.
+
+      Ask the user exactly this question:
+        "Should I preserve this spike code on a branch? (yes/no)"
+
+      If the user answers YES (or y):
+        1. Derive a branch name: spike/<slug>  (e.g. spike/auth-refresh).
+        2. Run: git checkout -b spike/<slug>
+        3. Stage and commit any unstaged files related to this spike:
+             git add -A
+             git commit -m "spike(<slug>): preserve prototype code from explore workflow"
+        4. Print: "Spike code committed on branch spike/<slug>."
+
+      If the user answers NO (or n):
+        1. Leave the worktree unchanged — do NOT stage or commit anything.
+        2. Print: "Spike code discarded. Worktree left clean."
+
+  - id: create-spike-ticket
+    name: Create Spike Ticket
+    type: prompt
+    depends_on: [code-preserve-gate]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — create-spike-ticket node.
+
+      Goal: create (or update) a spike ticket in the configured tracker.
+
+      Inputs available:
+        - `slug` workflow input
+        - docs/workflow/<slug>/findings.md (contains the ## Spike verdicts section)
+
+      Steps:
+      1. Read docs/workflow/<slug>/findings.md.
+      2. Call parseSpikeVerdicts(content) from lib/spike-verdicts.mjs to extract verdicts.
+      3. Build a one-line verdict summary, e.g.:
+           "1 VALIDATED, 1 INVALIDATED, 1 PARTIAL"
+      4. Load the tracker configuration with loadConfig(projectDir) from lib/config-loader.mjs.
+         Use config.tracker (defaults to 'github' if absent).
+      5. Load labels with getDefaultLabels(tracker) from lib/labels-config.mjs.
+      6. Check whether a spike ticket for this slug already exists:
+           - GitHub:         gh issue list --label spike --search "<slug>" --json number,title
+           - local-markdown: check for docs/issues/<slug>-spike/index.md
+           - Other trackers: search by title containing slug.
+      7a. If NO existing ticket:
+           Call buildCreateCommand(tracker, title, 'spike', 'p2', labels) where
+           title = "Spike: <slug> — <one-line verdict summary>".
+           The body should include:
+             - Link to docs/workflow/<slug>/findings.md
+             - The full ## Spike verdicts section text
+           Execute or print the generated command.
+      7b. If ticket EXISTS:
+           Call buildUpdateCommand(tracker, issueId, 'needs-triage', labels)
+           and additionally update the body to append the new verdict summary.
+           Execute or print the generated command.
+      8. Print one of:
+           "Spike ticket created: <title>"
+           "Spike ticket updated: <issueId>"

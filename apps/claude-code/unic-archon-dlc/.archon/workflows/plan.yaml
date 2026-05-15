@@ -125,3 +125,120 @@ nodes:
          - If the PR is **approved** and merged: print "PRD gate passed. Proceeding." and exit.
          - If the PR is **rejected** or changes are requested: print "PRD gate: changes requested. Returning to specs."
            Then return control to the specs node so the interview can be resumed or refined.
+
+  - id: to-issues
+    name: Decompose PRD into Issues
+    type: prompt
+    depends_on: [prd-gate]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — to-issues node.
+
+      Goal: decompose the approved PRD into independently-deliverable, vertically-sliced issues and
+      publish them to the tracker in dependency order.
+
+      ## Step 1 — Read the PRD
+
+      Read docs/workflow/{{ inputs.slug }}/PRD.md in full.
+
+      ## Step 2 — Decompose into vertical slices
+
+      Produce a draft list of issues. Each issue MUST have all of the following fields:
+
+        - id          : short kebab-case identifier unique within this file (e.g. "issue-01")
+        - title       : one-line description of the deliverable
+        - type        : one of: feature | bug | spike | tech-debt | docs
+        - priority    : one of: p0 | p1 | p2 | p3
+        - blocked_by  : array of IDs in *this* file that must ship first (empty array if independent)
+        - acceptance_criteria : non-empty array of statements that can each be demonstrated independently
+        - summary     : one short paragraph describing the work
+
+      Rules for good vertical slices:
+        - Each slice delivers observable user value on its own (or unblocks a slice that does).
+        - Slices are as small as possible while still being independently deployable/demonstrable.
+        - No slice should duplicate work covered by another slice.
+        - blocked_by must form a DAG — no cycles.
+
+      ## Step 3 — Validation loop (iterate until approved)
+
+      Present the breakdown to the user as a numbered list in this format:
+        <number>. [<type>/<priority>] <title>
+           blocked_by: <comma-separated IDs, or "none">
+           summary: <summary>
+           acceptance_criteria:
+             - <criterion 1>
+             - …
+
+      Then ask: "Validate this breakdown, or tell me which issues to split, merge, or relabel."
+
+      Iterate — apply requested changes and re-present — until the user approves explicitly
+      (e.g. replies "approved", "looks good", "proceed").
+
+      ## Step 4 — Validate schema before publishing
+
+      Before publishing, call validateIssue(issue) on every issue in the list.
+      If any issue fails validation, list the errors and fix them before proceeding.
+      Call sortByDependency(issues) to obtain the publication order.
+      If a circular dependency is detected, surface it to the user and ask them to resolve it.
+
+      ## Step 5 — Publish to tracker in dependency order
+
+      Load the tracker configuration from .archon/unic-dlc.config.json (field: tracker).
+      For each issue in sorted order:
+        1. Call buildCreateCommand(tracker, issue.title, issue.type, issue.priority, labels) to generate
+           the CLI command.
+        2. Print the command.
+        3. Execute the command (or, if in dry-run mode, skip execution and print "[dry-run]").
+
+      ## Step 6 — Write issues.json
+
+      Call buildIssuesJson(issues) and write the result to docs/workflow/{{ inputs.slug }}/issues.json.
+      Print: "issues.json written to docs/workflow/{{ inputs.slug }}/issues.json"
+
+  - id: nyquist-map
+    name: Nyquist Map — Attach Test Commands
+    type: prompt
+    depends_on: [to-issues]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — nyquist-map node.
+
+      Goal: for every issue in the just-published list, decide the exact shell command (or flag as
+      planned) that will verify the issue is done. This ensures every issue is testable before
+      implementation begins.
+
+      ## Step 1 — Load issues
+
+      Read docs/workflow/{{ inputs.slug }}/issues.json and parse the issues array.
+
+      ## Step 2 — Attach test commands
+
+      For each issue, determine the most appropriate verification command:
+
+        - If a concrete, runnable test command exists (e.g. `pnpm test`, `pnpm --filter <name> test`,
+          a specific test file path, or an integration check script), set:
+            test_command: "<exact shell command>"
+
+        - If no test exists yet (e.g. the issue creates new untested functionality, or the test itself
+          is the deliverable of another issue), set:
+            test_command_planned: true
+
+      Guidelines:
+        - Prefer the most specific command that exercises only the acceptance criteria of that issue.
+        - A `test_command_planned: true` is not a failure — it signals that a test must be written as
+          part of implementing that issue.
+        - Do NOT set both test_command and test_command_planned on the same issue.
+        - If the issue's type is 'docs' or 'spike', set test_command_planned: true unless a linting
+          or build check is meaningful.
+
+      ## Step 3 — Update issues.json
+
+      Merge the test_command / test_command_planned fields into each issue object.
+      Call buildIssuesJson(updatedIssues) and overwrite docs/workflow/{{ inputs.slug }}/issues.json.
+      Print a summary table:
+
+        Issue ID     | Test command / planned
+        -------------|--------------------------------------
+        issue-01     | pnpm --filter my-plugin test
+        issue-02     | [planned]
+        …
+
+      Print: "nyquist-map complete. issues.json updated with test commands."
