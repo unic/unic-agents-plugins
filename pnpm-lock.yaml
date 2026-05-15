@@ -79,6 +79,21 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/release-tools
 
+  apps/claude-code/unic-archon-dlc:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+      '@unic/release-tools':
+        specifier: workspace:*
+        version: link:../../../packages/release-tools
+      '@unic/tsconfig':
+        specifier: workspace:*
+        version: link:../../../packages/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+
   apps/claude-code/unic-confluence:
     dependencies:
       marked:
