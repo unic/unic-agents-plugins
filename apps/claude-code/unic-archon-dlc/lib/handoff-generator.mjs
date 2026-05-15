@@ -78,7 +78,7 @@ export function updateRoadmap(projectDir, phase) {
 	const endIdx = content.indexOf(ROADMAP_END)
 
 	if (beginIdx !== -1 && endIdx !== -1) {
-		content = content.slice(0, beginIdx) + ROADMAP_BEGIN + '\n' + statusBlock + '\n' + content.slice(endIdx)
+		content = `${content.slice(0, beginIdx) + ROADMAP_BEGIN}\n${statusBlock}\n${content.slice(endIdx)}`
 		writeFileSync(roadmapPath, content)
 		return
 	}
