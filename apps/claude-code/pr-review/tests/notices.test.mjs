@@ -131,7 +131,7 @@ describe('formatTrailer', () => {
 describe('mergeNotices', () => {
 	it('mergeNotices tolerates null and undefined sources', () => {
 		const n = createNotice('info', 'doc-context', 'test')
-		// @ts-ignore — intentional test of runtime tolerance for null/undefined
+		// @ts-expect-error — intentional test of runtime tolerance for null/undefined
 		const result = mergeNotices(null, [n], undefined)
 		assert.equal(result.length, 1)
 		assert.equal(result[0].kind, 'doc-context')
