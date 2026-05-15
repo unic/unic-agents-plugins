@@ -148,3 +148,216 @@ nodes:
         - No speculative features, no extra abstractions.
         - If a code-green node fails (tests still failing after implementation), pause and
           ask the user whether to retry or flag the issue for human review.
+
+  - id: verification
+    name: Verification — Test Suite, Stubs, Wiring
+    type: bash
+    depends_on: [run-build]
+    script: |
+      #!/usr/bin/env node
+      // @ts-check
+      import { readFileSync, readdirSync, statSync } from 'node:fs'
+      import { join, extname } from 'node:path'
+      import { execFileSync } from 'node:child_process'
+      import { detectStubs } from './lib/stub-detector.mjs'
+
+      const slug = process.env.ARCHON_INPUT_SLUG
+      if (!slug) {
+        console.error('verification: ARCHON_INPUT_SLUG is not set')
+        process.exit(1)
+      }
+
+      let exitCode = 0
+
+      // 1. Run the test suite
+      console.log('\n=== verification: running test suite ===')
+      try {
+        execFileSync('pnpm', ['test'], { stdio: 'inherit' })
+        console.log('verification: tests PASSED ✓')
+      } catch {
+        console.error('verification: tests FAILED ✗')
+        exitCode = 1
+      }
+
+      // 2. Detect stub patterns in changed source files
+      console.log('\n=== verification: checking for stub patterns ===')
+      let changedFiles = []
+      try {
+        const diff = execFileSync('git', ['diff', '--name-only', 'HEAD'], { encoding: 'utf8' })
+        changedFiles = diff.split('\n').filter(Boolean).filter(f => /\.(mjs|js|ts|py|rb|go|rs)$/.test(f))
+      } catch {
+        console.log('verification: cannot read git diff, skipping stub check.')
+      }
+
+      const stubFindings = []
+      for (const file of changedFiles) {
+        try {
+          const src = readFileSync(file, 'utf8')
+          const stubs = detectStubs(src)
+          for (const s of stubs) stubFindings.push({ file, ...s })
+        } catch { /* file deleted or unreadable */ }
+      }
+
+      if (stubFindings.length > 0) {
+        console.error(`verification: found ${stubFindings.length} stub pattern(s):`)
+        for (const f of stubFindings) {
+          console.error(`  ${f.file}:${f.line}  [${f.pattern}]  ${f.text}`)
+        }
+        exitCode = 1
+      } else {
+        console.log('verification: no stub patterns detected ✓')
+      }
+
+      // 3. Check coverage threshold
+      const configPath = '.archon/unic-dlc.config.json'
+      let coverageThreshold = null
+      try {
+        const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
+        coverageThreshold = cfg.coverage_threshold ?? null
+      } catch { /* config absent */ }
+
+      if (coverageThreshold !== null) {
+        console.log(`\n=== verification: checking coverage threshold (${coverageThreshold}%) ===`)
+        try {
+          execFileSync('pnpm', ['test', '--coverage'], { stdio: 'inherit' })
+        } catch {
+          console.error(`verification: coverage check failed (threshold: ${coverageThreshold}%)`)
+          exitCode = 1
+        }
+      }
+
+      process.exit(exitCode)
+
+  - id: goals-check
+    name: Goals-Check — PRD Coverage Matrix
+    type: prompt
+    depends_on: [verification]
+    prompt: |
+      You are running the unic-archon-dlc build workflow — goals-check node.
+
+      Goal: produce a coverage matrix that maps every acceptance criterion from the PRD
+      to implementation evidence (file paths and test names). Any criterion without evidence
+      is "MISSING" and fails this node.
+
+      ## Step 1 — Load the PRD and issues
+
+      Read docs/workflow/{{ inputs.slug }}/PRD.md in full.
+      Read docs/workflow/{{ inputs.slug }}/issues.json and parse the issues array.
+
+      Extract every acceptance criterion from:
+        - Each user story in the PRD's "User Stories" section (format: "As a ... I want ...")
+        - Each issue's `acceptance_criteria` array in issues.json
+
+      Deduplicate criteria that appear in both (match by meaning, not exact text).
+
+      ## Step 2 — Find implementation evidence
+
+      For each criterion, search the codebase for:
+        - Source files that implement the described behaviour (file paths with function/class names)
+        - Test files that assert this criterion passes (test names, file:line references)
+
+      Use your knowledge of the changed files from the just-completed build to focus the search.
+
+      ## Step 3 — Build the coverage matrix
+
+      Format the matrix as a Markdown table:
+
+        | Criterion | Evidence | Status |
+        |-----------|----------|--------|
+        | <criterion text> | <file:line or test name> | ✓ COVERED / ✗ MISSING |
+
+      Rules:
+        - A criterion is COVERED if at least one test asserts it AND at least one source file
+          implements it.
+        - A criterion is MISSING if either the test or the implementation is absent.
+
+      ## Step 4 — Report and fail if any MISSING
+
+      If any rows are MISSING:
+        Print: "goals-check: FAILED — N criterion/criteria without coverage."
+        List the missing criteria.
+        The workflow will return control to `verification` after the report step.
+
+      If all criteria are COVERED:
+        Print: "goals-check: PASSED — all acceptance criteria covered. ✓"
+
+      Store the matrix as `{{ matrix }}` for use in the report node.
+
+  - id: report
+    name: Report — Consolidate Build Outcomes
+    type: prompt
+    depends_on: [goals-check]
+    prompt: |
+      You are running the unic-archon-dlc build workflow — report node.
+
+      Goal: write docs/workflow/{{ inputs.slug }}/report.md consolidating all build outcomes.
+
+      ## Required sections (exactly five)
+
+      ### 1. What Was Built
+      A high-level summary (3-5 bullets) of the issues that were implemented in this build cycle.
+      Reference each issue id and title.
+
+      ### 2. Goals-Check Coverage Matrix
+      Paste the coverage matrix produced by the goals-check node verbatim.
+
+      ### 3. Test Outcomes
+      - Pass/fail counts from the test run.
+      - Coverage numbers if available.
+      - Any flaky or skipped tests.
+
+      ### 4. Decisions Made
+      Bullet list of technical decisions made during implementation that should be recorded.
+      For each decision, propose an ADR filename (docs/adr/NNNN-<slug>.md) if the decision
+      is significant enough to warrant one. Write the ADR inline for review.
+
+      ### 5. Tech Debt Flagged
+      Bullet list of items deferred during this build (stub patterns that were accepted,
+      known limitations, shortcuts taken under time pressure). These items feed into
+      the cleanup workflow (slice 13).
+
+      ## Output
+
+      Write the report to docs/workflow/{{ inputs.slug }}/report.md.
+      Print: "report written to docs/workflow/{{ inputs.slug }}/report.md"
+
+      If goals-check returned any MISSING criteria, include a note in the "What Was Built"
+      section: "⚠ goals-check found N uncovered criteria — see matrix below."
+
+  - id: build-pr-gate
+    name: Build PR Gate — Human Review
+    type: interactive
+    fresh_context: true
+    depends_on: [report]
+    prompt: |
+      You are running the unic-archon-dlc build workflow — build-pr-gate node.
+
+      The implementation, goals-check matrix, and report are ready for human review.
+
+      Actions:
+      1. Stage all changed source and test files plus the report:
+         - All files changed during the build (git status --short)
+         - docs/workflow/{{ inputs.slug }}/report.md
+         - Any ADR files proposed in the report (docs/adr/NNNN-*.md that are new)
+      2. Open a PR targeting the develop branch with:
+         - Title: "build({{ inputs.slug }}): implementation"
+         - Body:
+           ## Summary
+           - TDD implementation for `{{ inputs.slug }}` session
+           - Goals-check matrix: all criteria covered (or: N criteria missing — see report)
+           - report.md attached
+
+           ## Review Checklist
+           - [ ] All acceptance criteria have implementation evidence
+           - [ ] No TODO / FIXME stubs left in implementation code
+           - [ ] Test coverage meets configured threshold
+           - [ ] Tech debt section in report.md is accurate
+           - [ ] Proposed ADRs (if any) are ready to record
+      3. Pause and wait for human review.
+         - If the PR is **approved** and merged:
+           Print: "Build PR gate passed."
+           Exit.
+         - If the PR is **rejected** or changes are requested:
+           Print: "Build PR gate: changes requested. Returning to verification."
+           Return control to the verification node for another pass.
+           Do NOT restart the full build (only re-verify and re-report).
