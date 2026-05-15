@@ -1,0 +1,47 @@
+name: unic-dlc-triage
+description: Read current issue states and produce a HANDOFF.md status snapshot.
+
+nodes:
+  - id: read-state
+    name: Read Issue States
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc triage workflow.
+
+      1. Read .archon/unic-dlc.config.json to determine the configured tracker and branching strategy.
+      2. Read docs/workflow/ROADMAP.md if it exists; note the last-updated phase.
+      3. List all issues from the configured tracker using the appropriate CLI:
+         - github: `gh issue list --json number,title,labels,state`
+         - ado:    `az boards work-item list --query "[*].{id:id,title:fields.\"System.Title\",state:fields.\"System.State\"}"`
+         - jira:   `jira issue list --output json`
+         - local-markdown: Read docs/issues/**/index.md and parse Status: lines
+      4. Group issues by their canonical state label.
+      5. Identify blockers: issues whose blocked_by references are still open.
+      6. List the five most recent ADR files in docs/adr/ (by filename order).
+      7. Determine the current lifecycle phase from ROADMAP.md or "unknown" if absent.
+      8. Output a JSON object with shape:
+         {
+           "phase": "<phase>",
+           "openIssues": { "<state>": ["<title>", ...] },
+           "blockers": ["<blocker description>", ...],
+           "recentDecisions": ["<adr-filename>", ...]
+         }
+
+  - id: produce-handoff
+    name: Produce HANDOFF.md
+    type: prompt
+    depends_on: [read-state]
+    prompt: |
+      Using the JSON snapshot from read-state:
+
+      1. Write HANDOFF.md at the repo root with exactly four sections:
+         ## Current Phase — the phase value
+         ## Open Issues by State — issues grouped by state label
+         ## Blockers — open issues whose blockers are still unresolved
+         ## Recent Decisions — ADR filenames from docs/adr/
+
+      2. Call updateRoadmap() to refresh docs/workflow/ROADMAP.md with the current phase.
+         The ROADMAP.md uses marker-delimited auto-generated regions — do not overwrite human content.
+
+      3. Print a short summary: "Triage complete. HANDOFF.md written. ROADMAP.md updated."

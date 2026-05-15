@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test test/config-loader.test.mjs test/setup-explorer.test.mjs test/labels-config.test.mjs test/install-agent-docs.test.mjs test/install-claude-md.test.mjs",
+    "test": "node --test test/config-loader.test.mjs test/setup-explorer.test.mjs test/labels-config.test.mjs test/install-agent-docs.test.mjs test/install-claude-md.test.mjs test/tracker-adapter.test.mjs test/handoff-generator.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
