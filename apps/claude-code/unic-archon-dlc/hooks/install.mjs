@@ -1,21 +1,22 @@
 #!/usr/bin/env node
-
 // @ts-check
 /**
  * unic-archon-dlc install hook
  *
  * Run in target project: node ${CLAUDE_PLUGIN_ROOT}/hooks/install.mjs
- * Re-run to fill in missing config: same command
+ * Re-run to fill in missing config: same command (additive — only fills missing fields)
  * Force reconfiguration:           node ${CLAUDE_PLUGIN_ROOT}/hooks/install.mjs --reconfigure
  *
  * Requires: archon on PATH. See README for installation.
  */
 
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline/promises'
+import { updateAgentSkillsBlock, writeAgentDocs } from '../lib/agent-docs-writer.mjs'
 import { loadConfig } from '../lib/config-loader.mjs'
+import { getDefaultLabels } from '../lib/labels-config.mjs'
 import { exploreProject } from '../lib/setup-explorer.mjs'
 
 // Populated as schema-incompatible Archon versions are observed
@@ -32,10 +33,7 @@ function detectTracker(remoteUrl) {
 	return null
 }
 
-/**
- * @param {string} tracker
- * @returns {string}
- */
+/** @param {string} tracker */
 function deducePrStrategy(tracker) {
 	if (tracker === 'github' || tracker === 'ado') return 'squash'
 	return 'merge'
@@ -63,64 +61,12 @@ function checkArchon() {
 	}
 }
 
-/** @type {Record<string, { create: string; update: string }>} */
-const CLI_MAP = {
-	github: {
-		create: 'gh issue create --title "<title>" --label "<label>"',
-		update: 'gh issue edit <number> --add-label "<label>"',
-	},
-	ado: {
-		create: 'az boards work-item create --title "<title>" --type Bug',
-		update: 'az boards work-item update --id <id> --fields "System.Tags=<label>"',
-	},
-	jira: {
-		create: 'jira issue create --project <KEY> --summary "<title>"',
-		update: 'jira issue edit <KEY>-<number> --custom label:"<label>"',
-	},
-	'local-markdown': {
-		create: 'Create docs/issues/<slug>/index.md with Status: needs-triage',
-		update: 'Edit Status: line in docs/issues/<slug>/index.md',
-	},
-}
-
 /**
  * @param {string} projectDir
- * @param {{ tracker: string; pr_strategy: string; branching: string }} config
+ * @returns {string}
  */
-function writeIssueTrackerDoc(projectDir, config) {
-	mkdirSync(join(projectDir, 'docs', 'agents'), { recursive: true })
-
-	const cli = CLI_MAP[config.tracker] ?? CLI_MAP['local-markdown']
-
-	const content = `# Issue Tracker: ${config.tracker}
-
-Configured by unic-archon-dlc install hook.
-
-## Backend
-
-**Tracker:** \`${config.tracker}\`
-**PR strategy:** \`${config.pr_strategy}\`
-
-## Create a new issue
-
-\`\`\`sh
-${cli.create}
-\`\`\`
-
-## Update issue state
-
-\`\`\`sh
-${cli.update}
-\`\`\`
-
-## Conventions
-
-- Issue state is tracked via labels matching the canonical triage vocabulary (see \`docs/agents/labels.md\`).
-- Dependency links use the tracker's native "blocked by" field where available; for local-markdown, use a \`## Blocked by\` heading.
-- The tracker adapter module (\`lib/tracker-adapter.mjs\`) translates canonical label names to tracker strings at write time.
-`
-
-	writeFileSync(join(projectDir, 'docs', 'agents', 'issue-tracker.md'), content)
+function detectRepoLayout(projectDir) {
+	return existsSync(join(projectDir, 'CONTEXT-MAP.md')) ? 'multi-context' : 'single-context'
 }
 
 async function main() {
@@ -132,7 +78,6 @@ async function main() {
 	const snapshot = await exploreProject(projectDir)
 	const configPath = join(projectDir, '.archon', 'unic-dlc.config.json')
 
-	// Load existing config
 	let existing = /** @type {Record<string, unknown>} */ ({})
 	if (snapshot.archonConfigPresent) {
 		const loaded = loadConfig(configPath)
@@ -152,7 +97,7 @@ async function main() {
 
 	const rl = createInterface({ input: process.stdin, output: process.stdout })
 
-	// --- tracker ---
+	// --- mandatory tier ---
 	let trackerDetected = detectTracker(snapshot.gitRemote)
 	if (trackerDetected) {
 		console.log(`\nAuto-detected tracker: ${trackerDetected}  (from ${snapshot.gitRemote})`)
@@ -163,25 +108,62 @@ async function main() {
 		trackerDetected ?? (await rl.question('\nIssue tracker (github / ado / jira / local-markdown): ')).trim()
 	const tracker = trackerRaw || 'local-markdown'
 
-	// --- pr_strategy (deduced) ---
 	const prStrategy = deducePrStrategy(tracker)
 	console.log(`PR strategy: ${prStrategy}  (deduced from tracker)`)
 
-	// --- branching ---
 	const branchRaw = await rl.question('\nBranching strategy [gitflow / github-flow]  (default: gitflow): ')
 	const branching = branchRaw.trim() === 'github-flow' ? 'github-flow' : 'gitflow'
 
+	// --- skippable tier: e2e_command ---
+	const e2eRaw = await rl.question('\nE2E test command (leave blank to configure later): ')
+	const e2eCommand = e2eRaw.trim() || null
+
 	rl.close()
 
-	// Merge with existing; mandatory tier always wins
-	const config = { ...existing, tracker, pr_strategy: prStrategy, branching }
+	// --- multi-context detection ---
+	const repoLayout = detectRepoLayout(projectDir)
+	if (repoLayout === 'multi-context') {
+		console.log('Multi-context repo detected (CONTEXT-MAP.md found).')
+	}
+
+	// --- defaulted tier (never prompted unless --reconfigure) ---
+	const defaults = {
+		model_profile: 'balanced',
+		tdd_mode: true,
+		nyquist_validation: true,
+		slopsquatting_gate: true,
+	}
+
+	// --- label tier ---
+	const labels = getDefaultLabels(tracker)
+
+	// Merge: defaults < existing < mandatory tier
+	const config = {
+		...defaults,
+		...existing,
+		tracker,
+		pr_strategy: prStrategy,
+		branching,
+		e2e_command: e2eCommand,
+		repo_layout: repoLayout,
+		labels,
+	}
 
 	mkdirSync(join(projectDir, '.archon'), { recursive: true })
 	writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
 	console.log('\nWrote .archon/unic-dlc.config.json')
 
-	writeIssueTrackerDoc(projectDir, { tracker, pr_strategy: prStrategy, branching })
-	console.log('Wrote docs/agents/issue-tracker.md')
+	writeAgentDocs(projectDir, {
+		tracker,
+		pr_strategy: prStrategy,
+		branching,
+		repo_layout: repoLayout,
+		labels,
+	})
+	console.log('Wrote docs/agents/ (5 files)')
+
+	updateAgentSkillsBlock(projectDir)
+	console.log('Updated CLAUDE.md ## Agent skills block')
 
 	console.log('\nunic-archon-dlc install complete.\n')
 }
