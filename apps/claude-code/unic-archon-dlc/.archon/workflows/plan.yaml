@@ -93,6 +93,7 @@ nodes:
   - id: prd-gate
     name: PRD Human Gate
     type: interactive
+    fresh_context: true
     depends_on: [to-prd]
     prompt: |
       You are running the unic-archon-dlc plan workflow — prd-gate (first human PR gate) node.

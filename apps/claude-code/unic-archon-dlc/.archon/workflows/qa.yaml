@@ -188,10 +188,72 @@ nodes:
         Print: "Returning control. Address the failing criterion and re-run /unic-dlc-qa {{ inputs.slug }} to retry."
         Halt the workflow (do not proceed to the merge node).
 
+  - id: verify-pr-base
+    name: Verify PR Base Branch
+    type: bash
+    depends_on: [uat-gate]
+    script: |
+      #!/usr/bin/env node
+      // @ts-check
+      import { readFileSync } from 'node:fs'
+      import { execFileSync } from 'node:child_process'
+
+      let config = {}
+      try {
+        config = JSON.parse(readFileSync('.archon/unic-dlc.config.json', 'utf8'))
+      } catch {
+        console.error('verify-pr-base: cannot read .archon/unic-dlc.config.json')
+        process.exit(1)
+      }
+
+      const tracker = config.tracker ?? 'github'
+      const branching = config.branching ?? 'gitflow'
+      const expectedBase = branching === 'gitflow' ? 'develop' : 'main'
+
+      if (tracker === 'github') {
+        let actualBase
+        try {
+          const out = execFileSync('gh', ['pr', 'view', '--json', 'baseRefName'], { encoding: 'utf8' })
+          actualBase = JSON.parse(out).baseRefName
+        } catch (err) {
+          console.error(`verify-pr-base: cannot query PR base — ${err.message}`)
+          process.exit(1)
+        }
+        if (actualBase !== expectedBase) {
+          console.error(
+            `verify-pr-base: PR targets "${actualBase}" but expected "${expectedBase}" (branching: ${branching}).`,
+          )
+          console.error('  Retarget the PR before merging.')
+          process.exit(1)
+        }
+        console.log(`verify-pr-base: PR base is "${actualBase}" ✓`)
+      } else if (tracker === 'ado') {
+        let actualBase
+        try {
+          const out = execFileSync('az', ['repos', 'pr', 'show', '--output', 'json'], { encoding: 'utf8' })
+          actualBase = JSON.parse(out).targetRefName?.replace('refs/heads/', '')
+        } catch (err) {
+          console.error(`verify-pr-base: cannot query ADO PR — ${err.message}`)
+          process.exit(1)
+        }
+        if (actualBase !== expectedBase) {
+          console.error(
+            `verify-pr-base: PR targets "${actualBase}" but expected "${expectedBase}" (branching: ${branching}).`,
+          )
+          process.exit(1)
+        }
+        console.log(`verify-pr-base: PR base is "${actualBase}" ✓`)
+      } else {
+        // Jira / local-markdown — no CLI to query PR base
+        console.log(
+          `verify-pr-base: tracker "${tracker}" does not support PR base verification. Skipping (warning only).`,
+        )
+      }
+
   - id: merge
     name: Merge PR
     type: bash
-    depends_on: [uat-gate]
+    depends_on: [verify-pr-base]
     script: |
       #!/usr/bin/env node
       // @ts-check
