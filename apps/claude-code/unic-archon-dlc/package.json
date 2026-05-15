@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test test/config-loader.test.mjs test/setup-explorer.test.mjs test/labels-config.test.mjs test/install-agent-docs.test.mjs test/install-claude-md.test.mjs test/tracker-adapter.test.mjs test/handoff-generator.test.mjs test/findings-writer.test.mjs test/prd-writer.test.mjs test/spike-verdicts.test.mjs test/issues-schema.test.mjs test/dag-builder.test.mjs",
+    "test": "node --test test/config-loader.test.mjs test/setup-explorer.test.mjs test/labels-config.test.mjs test/install-agent-docs.test.mjs test/install-claude-md.test.mjs test/tracker-adapter.test.mjs test/handoff-generator.test.mjs test/findings-writer.test.mjs test/prd-writer.test.mjs test/spike-verdicts.test.mjs test/issues-schema.test.mjs test/dag-builder.test.mjs test/slopcheck.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
