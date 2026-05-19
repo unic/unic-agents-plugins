@@ -11,6 +11,20 @@
 ### Fixed
 - (none)
 
+## [1.2.11] — 2026-05-19
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- (none)
+
+### Fixed
+- Renamed `agents/` directory (was `.agents/`) so Claude Code's agent auto-discovery can find plugin agents. Added `name:` frontmatter field to all five agent files to match the working convention used by `pr-review-toolkit`.
+
 ## [1.2.10] — 2026-05-14
 
 ### Breaking

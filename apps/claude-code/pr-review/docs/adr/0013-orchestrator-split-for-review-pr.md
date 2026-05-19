@@ -22,7 +22,7 @@ Refactor `review-pr.md` into a **thin orchestrator** of ~200 lines that:
 2. Detects the operating mode: **pre-PR**, **first-review**, or **re-review**.
 3. Delegates immediately to a focused agent per mode.
 
-Three focused agents live in the plugin's `.agents/` directory (not in `pr-review-toolkit`, which is a read-only dependency):
+Three focused agents live in the plugin's `agents/` directory (not in `pr-review-toolkit`, which is a read-only dependency):
 
 - **`pr-review:ado-fetcher`** — fetches PR metadata, iterations, changed files, and raw diff from ADO. Used by first-review and re-review modes.
 - **`pr-review:re-review-coordinator`** — owns prior thread detection, partial-run check, thread classification, finding matching, and reply posting to classified threads. Used only in re-review mode.

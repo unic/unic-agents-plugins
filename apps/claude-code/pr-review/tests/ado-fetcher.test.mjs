@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
 /** Reads the ado-fetcher agent markdown for content assertions */
-const agentContent = readFileSync(new URL('../.agents/ado-fetcher.md', import.meta.url), 'utf8')
+const agentContent = readFileSync(new URL('../agents/ado-fetcher.md', import.meta.url), 'utf8')
 
 describe('ado-fetcher agent content', () => {
 	it('contains no ADO write HTTP methods (POST/PATCH/DELETE)', () => {

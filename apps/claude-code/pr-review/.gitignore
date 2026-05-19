@@ -6,7 +6,7 @@ pnpm-debug.log*
 
 # Ralph
 .ralph/
-.agents/scratchpad/
+agents/scratchpad/
 
 # Visual Studio Code
 .vscode/*

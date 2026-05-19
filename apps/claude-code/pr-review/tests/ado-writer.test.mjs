@@ -6,7 +6,7 @@ import { describe, it } from 'node:test'
 import { parseAdoWriterResult } from '../scripts/ado-writer.mjs'
 
 /** Reads the ado-writer agent markdown for content assertions */
-const agentContent = readFileSync(new URL('../.agents/ado-writer.md', import.meta.url), 'utf8')
+const agentContent = readFileSync(new URL('../agents/ado-writer.md', import.meta.url), 'utf8')
 
 describe('ado-writer agent content', () => {
 	it('declares allowed-tools in frontmatter', () => {
