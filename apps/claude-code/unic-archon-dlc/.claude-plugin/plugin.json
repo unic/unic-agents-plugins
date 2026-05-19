@@ -1,0 +1,12 @@
+{
+  "name": "unic-archon-dlc",
+  "version": "0.1.0",
+  "description": "A complete Archon-powered AI development lifecycle as an installable DLC pack — explore, plan, build, qa, cleanup, and triage workflows.",
+  "author": {
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
+  },
+  "homepage": "https://github.com/unic/unic-agents-plugins",
+  "license": "LGPL-3.0-or-later",
+  "keywords": ["archon", "workflow", "lifecycle", "tdd", "unic"]
+}
