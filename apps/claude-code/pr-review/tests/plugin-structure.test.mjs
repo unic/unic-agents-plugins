@@ -45,7 +45,10 @@ describe('plugin structure', () => {
 			const match = content.match(/^---\n([\s\S]*?)\n---/)
 			assert.ok(match, `${agent}.md: missing YAML frontmatter`)
 			const frontmatter = match[1]
-			assert.ok(frontmatter.includes(`name: ${agent}`), `${agent}.md: frontmatter missing "name: ${agent}"`)
+			assert.ok(
+				new RegExp(`^name: ${agent}$`, 'm').test(frontmatter),
+				`${agent}.md: frontmatter missing exact line "name: ${agent}"`
+			)
 		}
 	})
 })

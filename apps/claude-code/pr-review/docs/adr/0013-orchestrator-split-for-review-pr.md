@@ -1,6 +1,6 @@
 # 0013. Split review-pr.md into a thin orchestrator and focused agents
 
-**Status:** Accepted (2026-05), amended by 0016
+**Status:** Accepted (2026-05)
 
 ## Context
 
@@ -13,8 +13,6 @@
 The root cause is architectural: `review-pr.md` conflates orchestration (which mode are we in? what agents to launch?) with platform integration (fetch ADO threads, post inline comments) and re-review state management (classify threads, match findings, reply).
 
 The right model for `review-pr.md` is a thin coordinator: prerequisites block, mode detection block, and one delegation block per mode. The three focused agents own all data-fetch and write-back ADO operations. The one allowed inline ADO call is the mode-detection `az repos pr thread list` in the mode detection block — an orchestration concern, not a data-fetch or write-back operation; no `az devops invoke` commands remain in the orchestrator.
-
-**Update (2026-05-14):** the "one allowed inline ADO call" carve-out is removed by ADR 0016 — thread fetching and mode detection move into the ADO Fetcher, which returns `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`, and `RAW_THREADS_JSON` in its result block. See ADR 0016 for rationale.
 
 ## Decision
 
