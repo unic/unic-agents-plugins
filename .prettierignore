@@ -9,21 +9,18 @@
 *.css
 
 # Generated / lock files
-pnpm-lock.yaml
-skills-lock.json
+**/pnpm-lock.yaml
+**/skills-lock.json
 
 # Dev artifacts
 node_modules/
-.ralph/
-.history/
+**/.ralph/
+**/.history/
 
 # AI agent spec files — not for human review
-docs/plans/
-apps/claude-code/pr-review/docs/plans/
-apps/claude-code/auto-format/docs/plans/
-apps/claude-code/unic-confluence/docs/plans/
-.agents/skills/
-.agents/scratchpad/
+**/docs/plans/
+**/docs/conversations/
+**/.agents/skills/
 **/.agents/scratchpad/
 
 # Plugin changelogs — em-dash dates must not be reflowed
