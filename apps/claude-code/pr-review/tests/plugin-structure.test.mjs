@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 const PLUGIN_ROOT = resolve(fileURLToPath(import.meta.url), '..', '..')
 const AGENTS_DIR = join(PLUGIN_ROOT, 'agents')
@@ -24,11 +24,16 @@ describe('plugin structure', () => {
 	})
 
 	it('.agents/ hidden directory does not exist', () => {
-		assert.ok(!existsSync(HIDDEN_AGENTS_DIR), `.agents/ must be renamed to agents/ — found stale dir at ${HIDDEN_AGENTS_DIR}`)
+		assert.ok(
+			!existsSync(HIDDEN_AGENTS_DIR),
+			`.agents/ must be renamed to agents/ — found stale dir at ${HIDDEN_AGENTS_DIR}`
+		)
 	})
 
 	it('all expected agent files are present in agents/', () => {
-		const files = readdirSync(AGENTS_DIR).filter(f => f.endsWith('.md')).map(f => f.replace(/\.md$/, ''))
+		const files = readdirSync(AGENTS_DIR)
+			.filter((f) => f.endsWith('.md'))
+			.map((f) => f.replace(/\.md$/, ''))
 		for (const agent of EXPECTED_AGENTS) {
 			assert.ok(files.includes(agent), `missing agent file: agents/${agent}.md`)
 		}
@@ -40,10 +45,7 @@ describe('plugin structure', () => {
 			const match = content.match(/^---\n([\s\S]*?)\n---/)
 			assert.ok(match, `${agent}.md: missing YAML frontmatter`)
 			const frontmatter = match[1]
-			assert.ok(
-				frontmatter.includes(`name: ${agent}`),
-				`${agent}.md: frontmatter missing "name: ${agent}"`,
-			)
+			assert.ok(frontmatter.includes(`name: ${agent}`), `${agent}.md: frontmatter missing "name: ${agent}"`)
 		}
 	})
 })
