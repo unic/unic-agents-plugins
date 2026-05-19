@@ -3,7 +3,7 @@ title: "pr-review: rename .agents/ → agents/ and add name: field to agent fron
 created: 2026-05-19
 ---
 
-**Status:** ready-for-agent
+**Status:** resolved
 **Category:** bug
 **Plugin:** `apps/claude-code/pr-review`
 **Depends on:** —
