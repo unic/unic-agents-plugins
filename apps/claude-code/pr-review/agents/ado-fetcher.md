@@ -1,4 +1,5 @@
 ---
+name: ado-fetcher
 allowed-tools: ['Bash']
 description: 'Fetch all Azure DevOps read data required for a PR review: PR metadata, latest iteration, changed files, raw diff, and linked work-item IDs. Read-only — no write operations.'
 ---

@@ -1,4 +1,5 @@
 ---
+name: doc-context-orchestrator
 allowed-tools: ['Agent', 'Bash']
 description: 'Orchestrate Doc Context gathering: fetch work item details, run Confluence credential check once, spawn Work Item Summarizer and Confluence Fetcher agents in parallel, and delegate synthesis to the Doc Context Synthesizer.'
 ---

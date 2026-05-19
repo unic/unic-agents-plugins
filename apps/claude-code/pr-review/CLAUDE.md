@@ -19,7 +19,7 @@ A Claude Code plugin (`pr-review`) that adds a `/pr-review:review-pr` command. W
   marketplace.json     # Marketplace listing metadata
 commands/
   review-pr.md        # The slash command definition — thin orchestrator
-.agents/
+agents/
   ado-fetcher.md          # ADO Fetcher — all Azure DevOps REST API fetches
   re-review-coordinator.md # Re-review Coordinator — thread classification + incremental diff
   ado-writer.md           # ADO Writer — posts inline threads and summary comment to ADO
@@ -27,7 +27,7 @@ commands/
   doc-context-synthesizer.md   # Doc Context Synthesizer — produces business-context narrative
 ```
 
-`commands/review-pr.md` is a thin orchestrator (≤ 200 lines per PRD acceptance criterion). It delegates ADO API calls and coordination logic to the focused agents in `.agents/`. Pure helpers used by both the orchestrator and the agents live under `scripts/` (`ado-fetcher.mjs`, `ado-writer.mjs`, `pre-pr.mjs`, `mode-detection.mjs`, `confluence-client.mjs`, `re-review/*.mjs`) with tests under `tests/`. There are no build steps, no transpilation, no dependencies to install.
+`commands/review-pr.md` is a thin orchestrator (≤ 200 lines per PRD acceptance criterion). It delegates ADO API calls and coordination logic to the focused agents in `agents/`. Pure helpers used by both the orchestrator and the agents live under `scripts/` (`ado-fetcher.mjs`, `ado-writer.mjs`, `pre-pr.mjs`, `mode-detection.mjs`, `confluence-client.mjs`, `re-review/*.mjs`) with tests under `tests/`. There are no build steps, no transpilation, no dependencies to install.
 
 ## Plugin metadata
 

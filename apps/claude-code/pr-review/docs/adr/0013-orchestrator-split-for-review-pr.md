@@ -1,6 +1,6 @@
 # 0013. Split review-pr.md into a thin orchestrator and focused agents
 
-**Status:** Accepted (2026-05)
+**Status:** Accepted (2026-05), amended by 0016
 
 ## Context
 
@@ -14,6 +14,8 @@ The root cause is architectural: `review-pr.md` conflates orchestration (which m
 
 The right model for `review-pr.md` is a thin coordinator: prerequisites block, mode detection block, and one delegation block per mode. The three focused agents own all data-fetch and write-back ADO operations. The one allowed inline ADO call is the mode-detection `az repos pr thread list` in the mode detection block — an orchestration concern, not a data-fetch or write-back operation; no `az devops invoke` commands remain in the orchestrator.
 
+**Update (2026-05-14):** the "one allowed inline ADO call" carve-out is removed by ADR 0016 — thread fetching and mode detection move into the ADO Fetcher, which returns `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`, and `RAW_THREADS_JSON` in its result block. See ADR 0016 for rationale.
+
 ## Decision
 
 Refactor `review-pr.md` into a **thin orchestrator** of ~200 lines that:
@@ -22,7 +24,7 @@ Refactor `review-pr.md` into a **thin orchestrator** of ~200 lines that:
 2. Detects the operating mode: **pre-PR**, **first-review**, or **re-review**.
 3. Delegates immediately to a focused agent per mode.
 
-Three focused agents live in the plugin's `.agents/` directory (not in `pr-review-toolkit`, which is a read-only dependency):
+Three focused agents live in the plugin's `agents/` directory (not in `pr-review-toolkit`, which is a read-only dependency):
 
 - **`pr-review:ado-fetcher`** — fetches PR metadata, iterations, changed files, and raw diff from ADO. Used by first-review and re-review modes.
 - **`pr-review:re-review-coordinator`** — owns prior thread detection, partial-run check, thread classification, finding matching, and reply posting to classified threads. Used only in re-review mode.
