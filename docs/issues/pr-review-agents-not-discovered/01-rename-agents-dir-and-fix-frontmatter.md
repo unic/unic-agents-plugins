@@ -1,5 +1,5 @@
 ---
-title: "pr-review: rename .agents/ → agents/ and add name: field to agent frontmatter"
+title: 'pr-review: rename .agents/ → agents/ and add name: field to agent frontmatter'
 created: 2026-05-19
 ---
 
@@ -21,23 +21,24 @@ Error: Agent type 'pr-review:ado-fetcher' not found.
 **Secondary issue:** The `pr-review-toolkit` agent files declare a `name:` field in their YAML frontmatter (e.g. `name: code-reviewer`). The `pr-review` agent files only have `allowed-tools` and `description`. Whether the missing `name:` field is independently load-bearing is uncertain; it is added here defensively to match the working convention.
 
 **Evidence:**
+
 - Working: `~/.claude/plugins/cache/claude-plugins-official/pr-review-toolkit/unknown/agents/code-reviewer.md`
 - Broken: `~/.claude/plugins/cache/unic-agent-plugins/pr-review/1.2.10/.agents/ado-fetcher.md`
 
 ## Affected files
 
-| File | Change |
-|------|--------|
-| `apps/claude-code/pr-review/.agents/` (directory) | Rename to `agents/` |
-| `apps/claude-code/pr-review/.agents/ado-fetcher.md` | Add `name: ado-fetcher` to frontmatter |
-| `apps/claude-code/pr-review/.agents/ado-writer.md` | Add `name: ado-writer` to frontmatter |
-| `apps/claude-code/pr-review/.agents/re-review-coordinator.md` | Add `name: re-review-coordinator` to frontmatter |
-| `apps/claude-code/pr-review/.agents/doc-context-orchestrator.md` | Add `name: doc-context-orchestrator` to frontmatter |
-| `apps/claude-code/pr-review/.agents/doc-context-synthesizer.md` | Add `name: doc-context-synthesizer` to frontmatter |
-| `apps/claude-code/pr-review/CLAUDE.md` | Update repository layout section: `.agents/` → `agents/` |
+| File                                                                           | Change                                                                                      |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `apps/claude-code/pr-review/.agents/` (directory)                              | Rename to `agents/`                                                                         |
+| `apps/claude-code/pr-review/.agents/ado-fetcher.md`                            | Add `name: ado-fetcher` to frontmatter                                                      |
+| `apps/claude-code/pr-review/.agents/ado-writer.md`                             | Add `name: ado-writer` to frontmatter                                                       |
+| `apps/claude-code/pr-review/.agents/re-review-coordinator.md`                  | Add `name: re-review-coordinator` to frontmatter                                            |
+| `apps/claude-code/pr-review/.agents/doc-context-orchestrator.md`               | Add `name: doc-context-orchestrator` to frontmatter                                         |
+| `apps/claude-code/pr-review/.agents/doc-context-synthesizer.md`                | Add `name: doc-context-synthesizer` to frontmatter                                          |
+| `apps/claude-code/pr-review/CLAUDE.md`                                         | Update repository layout section: `.agents/` → `agents/`                                    |
 | `apps/claude-code/pr-review/docs/adr/0013-orchestrator-split-for-review-pr.md` | Amend in place: fix `.agents/` → `agents/` in the "Three focused agents live in…" paragraph |
-| `CHANGELOG.md` | Add patch entry |
-| `.claude-plugin/plugin.json` + `marketplace.json` | Bump patch version |
+| `CHANGELOG.md`                                                                 | Add patch entry                                                                             |
+| `.claude-plugin/plugin.json` + `marketplace.json`                              | Bump patch version                                                                          |
 
 Do **not** update historical plan files (`docs/plans/`) — those are already-executed specs and are left as written.
 
@@ -46,7 +47,7 @@ Do **not** update historical plan files (`docs/plans/`) — those are already-ex
 1. Rename the directory: `git mv apps/claude-code/pr-review/.agents apps/claude-code/pr-review/agents`
 2. Add `name: <slug>` as the first frontmatter key in each of the five agent files (use the filename stem as the value, e.g. `name: ado-fetcher`).
 3. Update the repository layout table in `CLAUDE.md`: change `.agents/` → `agents/` in the directory tree and in any prose that names the directory.
-4. Amend ADR 0013 in place: change the one occurrence of `the plugin's \`.agents/\` directory` to `the plugin's \`agents/\` directory`. No status or consequence lines need changing.
+4. Amend ADR 0013 in place: change the one occurrence of `the plugin's \`.agents/\` directory`to`the plugin's \`agents/\` directory`. No status or consequence lines need changing.
 5. Add a `CHANGELOG.md` entry and bump the patch version in `plugin.json` + `marketplace.json`.
 
 ## Verification
