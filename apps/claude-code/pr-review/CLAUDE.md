@@ -19,7 +19,7 @@ A Claude Code plugin (`pr-review`) that adds a `/pr-review:review-pr` command. W
   marketplace.json     # Marketplace listing metadata
 commands/
   review-pr.md        # The slash command definition — thin orchestrator
-.agents/
+agents/
   ado-fetcher.md          # ADO Fetcher — all Azure DevOps REST API fetches
   re-review-coordinator.md # Re-review Coordinator — thread classification + incremental diff
   ado-writer.md           # ADO Writer — posts inline threads and summary comment to ADO
@@ -27,7 +27,7 @@ commands/
   doc-context-synthesizer.md   # Doc Context Synthesizer — produces business-context narrative
 ```
 
-`commands/review-pr.md` is a thin orchestrator (≤ 200 lines per PRD acceptance criterion). It delegates ADO API calls and coordination logic to the focused agents in `.agents/`. Pure helpers used by both the orchestrator and the agents live under `scripts/` (`ado-fetcher.mjs`, `ado-writer.mjs`, `pre-pr.mjs`, `mode-detection.mjs`, `confluence-client.mjs`, `re-review/*.mjs`) with tests under `tests/`. There are no build steps, no transpilation, no dependencies to install.
+`commands/review-pr.md` is a thin orchestrator (≤ 200 lines per PRD acceptance criterion). It delegates ADO API calls and coordination logic to the focused agents in `agents/`. Pure helpers used by both the orchestrator and the agents live under `scripts/` (`ado-fetcher.mjs`, `ado-writer.mjs`, `pre-pr.mjs`, `mode-detection.mjs`, `confluence-client.mjs`, `re-review/*.mjs`) with tests under `tests/`. There are no build steps, no transpilation, no dependencies to install.
 
 ## Plugin metadata
 
@@ -41,7 +41,7 @@ When bumping the version, update it in **both** files:
 - YAML frontmatter declares `allowed-tools` — add any new tools the command needs there
 - Auto-generated files are skipped during file-content reading by the `shouldSkipFile` helper in `scripts/pre-pr.mjs` (serialization YAMLs, `*.g.cs`, generated types output, `swagger.md`)
 - All comments posted to ADO **must** end with the exact signature: `---\n🤖 *Reviewed by Claude Code* — Iteration N` (where N = LATEST_ITERATION_ID)
-- ADO REST calls (`pullRequestThreads`, thread replies, iteration fetches) are handled by the focused agents in `.agents/`, not inline in the orchestrator command
+- ADO REST calls (`pullRequestThreads`, thread replies, iteration fetches) are handled by the focused agents in `agents/`, not inline in the orchestrator command
 - ADO Fetcher (`ado-fetcher.md`) owns all read operations; ADO Writer (`ado-writer.md`) owns all write operations; Re-review Coordinator (`re-review-coordinator.md`) owns thread classification and incremental diff logic
 - Inline threads use ADO REST `pullRequestThreads` via `az devops invoke`; file paths must match ADO format (leading `/`, forward slashes)
 - Always use the latest iteration of the PR. `iterationId=1` is never used. Re-reviews additionally compute `PRIOR_ITERATION_ID` from the prior review's signature — see spec 02.

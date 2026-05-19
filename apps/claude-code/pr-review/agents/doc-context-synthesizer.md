@@ -1,4 +1,5 @@
 ---
+name: doc-context-synthesizer
 allowed-tools: []
 description: 'Synthesise work item summaries and Confluence page summaries into a single flat Doc Context narrative for injection into PR review agent prompts.'
 ---

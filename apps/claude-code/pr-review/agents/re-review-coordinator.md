@@ -1,4 +1,5 @@
 ---
+name: re-review-coordinator
 allowed-tools: ['Bash']
 description: 'Own the full re-review state machine: prior-thread detection, partial-run check, thread classification, finding matching, and reply posting to classified threads. Returns classification counts, fresh findings, and an earlyExit flag.'
 ---

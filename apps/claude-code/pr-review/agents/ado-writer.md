@@ -1,4 +1,5 @@
 ---
+name: ado-writer
 allowed-tools: ['Bash']
 description: 'Post all Azure DevOps write-back operations for a PR review: inline comment threads per finding, Review Summary or delta reply, and completion marker. Write-only — no read operations.'
 ---
