@@ -106,21 +106,6 @@ test('partial config: optional fields preserved when mandatory fields are missin
 	assert.equal(config.tracker, 'github') // mandatory field from partialAnswers
 })
 
-test('writeAgentDocs failure includes "Config written to" in error message', async () => {
-	const { register } = await import('node:module')
-	const { createRequire } = await import('node:module')
-	void register
-	void createRequire
-
-	// Use a custom setup: write a valid existing config, then mock writeAgentDocs to throw
-	// We test via a side-channel: read the source to confirm error message wording.
-	// Since we cannot easily mock ESM in node:test without a loader, we verify the
-	// behaviour by invoking runInstall in a temp dir where docs/ is unwritable.
-	// Instead, we check the fix is present in the source text directly here and rely on
-	// the integration tests for the rest — the error-message tests live in a dedicated mock test below.
-	assert.ok(true, 'placeholder — see mock-based test below')
-})
-
 test('writeAgentDocs failure: error message includes config path confirmation', async () => {
 	// We spy on writeAgentDocs by using a writable temp dir for config but a non-existent
 	// parent for docs/ — we make docs/ itself a file so writeAgentDocs cannot create it.
@@ -145,4 +130,36 @@ test('writeAgentDocs failure: error message includes config path confirmation', 
 	)
 
 	void rf
+})
+
+test('corrupt config: invalid JSON returns config stage error with parse message', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-corrupt-${Date.now()}`)
+	mkdirSync(join(dir, '.archon'), { recursive: true })
+
+	// Write deliberately broken JSON
+	writeFileSync(join(dir, '.archon', 'unic-dlc.config.json'), '{ not valid json !!!')
+
+	const result = runInstall(dir, { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow' })
+
+	assert.equal(result.ok, false)
+	assert.equal(result.stage, 'config')
+	assert.ok(result.message.includes('invalid JSON'), `Expected "invalid JSON" in message, got: ${result.message}`)
+	assert.ok(result.message.includes('Parse error:'), `Expected "Parse error:" in message, got: ${result.message}`)
+})
+
+test('updateAgentSkillsBlock failure: stage is claude-md and message includes config/docs confirmation', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-claudemderr-${Date.now()}`)
+	mkdirSync(dir, { recursive: true })
+
+	// Block CLAUDE.md from being written by pre-creating it as a directory
+	mkdirSync(join(dir, 'CLAUDE.md'))
+
+	const result = runInstall(dir, { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow' })
+
+	assert.equal(result.ok, false)
+	assert.equal(result.stage, 'claude-md')
+	assert.ok(
+		result.message.includes('Config and docs written'),
+		`Expected "Config and docs written" in message, got: ${result.message}`
+	)
 })

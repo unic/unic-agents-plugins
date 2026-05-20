@@ -64,10 +64,24 @@ export function runInstall(projectDir, partialAnswers = {}) {
 
 	let existing = /** @type {Record<string, unknown>} */ ({})
 	if (existsSync(configPath)) {
+		let raw
 		try {
-			existing = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(configPath, 'utf8')))
-		} catch {
-			existing = {}
+			raw = readFileSync(configPath, 'utf8')
+		} catch (err) {
+			return {
+				ok: false,
+				stage: 'config',
+				message: `Cannot read existing config at ${configPath}: ${/** @type {Error} */ (err).message}`,
+			}
+		}
+		try {
+			existing = /** @type {Record<string, unknown>} */ (JSON.parse(raw))
+		} catch (err) {
+			return {
+				ok: false,
+				stage: 'config',
+				message: `Existing config at ${configPath} contains invalid JSON. Fix or delete the file and re-run setup. Parse error: ${/** @type {Error} */ (err).message}`,
+			}
 		}
 	}
 
