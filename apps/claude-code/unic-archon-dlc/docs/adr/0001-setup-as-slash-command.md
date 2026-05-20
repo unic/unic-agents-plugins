@@ -1,8 +1,6 @@
----
-status: accepted
----
-
 # Setup is a slash command delegating to `lib/install-runner.mjs`
+
+**Status:** Accepted (2025-05)
 
 The user-facing entry point for configuring unic-archon-dlc in a target project is the
 `/unic-archon-dlc:setup` slash command (`commands/setup.md`), not a Node CLI hook. The
