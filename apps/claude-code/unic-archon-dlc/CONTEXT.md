@@ -1,7 +1,8 @@
 # unic-archon-dlc
 
 An Archon-powered AI development lifecycle DLC that scaffolds six workflow DAGs (explore, plan,
-build, qa, cleanup, triage) plus agent-skill docs into any target project via an install hook.
+build, qa, cleanup, triage) plus agent-skill docs into any target project. Configuration is
+performed once via the `/unic-archon-dlc:setup` slash command.
 
 Requires the Archon workflow engine (version ≥ 0.10) in the target project.
 

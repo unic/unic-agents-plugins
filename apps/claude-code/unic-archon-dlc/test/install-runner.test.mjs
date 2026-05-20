@@ -105,8 +105,8 @@ test('partial config: optional fields preserved when mandatory fields are missin
 })
 
 test('writeAgentDocs failure: error message includes config path confirmation', async () => {
-	// We spy on writeAgentDocs by using a writable temp dir for config but a non-existent
-	// parent for docs/ — we make docs/ itself a file so writeAgentDocs cannot create it.
+	// Block writeAgentDocs by pre-creating docs/ as a file — mkdirSync inside
+	// writeAgentDocs will throw ENOTDIR, exercising the docs-stage error path.
 	const { mkdirSync: mkdir, writeFileSync: wf, readFileSync: rf, existsSync: ef } = await import('node:fs')
 	const dir = join(tmpdir(), `unic-dlc-runner-docserr-${Date.now()}`)
 	mkdir(dir, { recursive: true })

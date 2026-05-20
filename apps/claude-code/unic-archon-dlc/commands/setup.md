@@ -12,6 +12,8 @@ description: 'Configure unic-archon-dlc for this project: tracker, branching str
 
 Follow these steps in order. Do not skip any step. Do not write any files except through Step 5.
 
+> **Shell requirement**: Steps 1, 2, and 5 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs.
+
 ## Step 1 — Archon preflight
 
 Run:
@@ -49,10 +51,18 @@ try {
   let config = null
   const configPath = join(cwd, '.archon', 'unic-dlc.config.json')
   if (snap.archonConfigPresent && existsSync(configPath)) {
+    let rawConfig
     try {
-      config = JSON.parse(readFileSync(configPath, 'utf8'))
-    } catch (parseErr) {
-      output = { error: `Config file contains invalid JSON and cannot be read: ${parseErr?.message ?? String(parseErr)}. Fix or delete ${configPath} and re-run setup.`, gitRemote: snap.gitRemote, config: null }
+      rawConfig = readFileSync(configPath, 'utf8')
+    } catch (readErr) {
+      output = { error: `Cannot read config file at ${configPath}: ${readErr?.message ?? String(readErr)}. Check file permissions or delete the file and re-run setup.`, gitRemote: snap.gitRemote, config: null }
+    }
+    if (!output) {
+      try {
+        config = JSON.parse(rawConfig)
+      } catch (parseErr) {
+        output = { error: `Config file at ${configPath} contains invalid JSON. Fix or delete the file and re-run setup. Parse error: ${parseErr?.message ?? String(parseErr)}`, gitRemote: snap.gitRemote, config: null }
+      }
     }
   }
   if (!output) {
