@@ -6,7 +6,10 @@
 - (none)
 
 ### Added
-- (none)
+- Added `/unic-archon-dlc:setup` slash command for conversational plugin configuration
+
+### Removed
+- Removed `hooks/install.mjs` and `hooks` field from `plugin.json`
 
 ### Fixed
 - (none)

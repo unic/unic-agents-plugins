@@ -128,15 +128,15 @@ flowchart TD
 
 ## Quick start
 
-**Step 1 — Install**
+**Step 1 — Configure**
 
 Open Claude Code in any project and run:
 
 ```
-/unic-dlc-install
+/unic-archon-dlc:setup
 ```
 
-The install hook auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
+The setup command auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
 PR strategy, and writes all agent docs and workflow files into your project.
 
 **Step 2 — Explore**
@@ -161,7 +161,7 @@ From here, the full lifecycle is: explore → plan → build → qa → cleanup 
 
 ## Configuration reference
 
-The install hook writes `.archon/unic-dlc.config.json` with these keys:
+The `/unic-archon-dlc:setup` command writes `.archon/unic-dlc.config.json` with these keys:
 
 | Key                     | Default       | Valid values                                 | Description                                         |
 | ----------------------- | ------------- | -------------------------------------------- | --------------------------------------------------- |
