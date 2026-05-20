@@ -8,7 +8,7 @@ For plugin-specific changelogs see each plugin's `CHANGELOG.md` under `apps/clau
 
 ### Added
 
-- (none)
+- CI: add `unic-archon-dlc` to the change-detection filter and test matrix so its tests run on every PR that touches the plugin
 
 ## [2026-04-29]
 
