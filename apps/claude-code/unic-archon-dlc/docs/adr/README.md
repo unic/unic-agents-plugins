@@ -4,6 +4,6 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 
 ## Index
 
-| ID   | Title                                                       | Status   |
-| ---- | ----------------------------------------------------------- | -------- |
+| ID   | Title                                                           | Status   |
+| ---- | --------------------------------------------------------------- | -------- |
 | 0001 | Setup is a slash command delegating to `lib/install-runner.mjs` | Accepted |

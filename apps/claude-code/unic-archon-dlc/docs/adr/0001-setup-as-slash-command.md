@@ -39,7 +39,7 @@ from the deleted `hooks/install.mjs`. This keeps one source of truth for the mer
   plugins copying this manifest as a template should not reinstate the field unless they
   have a hook that Claude Code actually executes.
 
-- `lib/install-runner.mjs` accepts a *partial* answers object and merges with existing
+- `lib/install-runner.mjs` accepts a _partial_ answers object and merges with existing
   config. It enforces the mandatory-fields invariant after merge, not at the call site.
   The slash command is responsible for collecting answers before calling.
 
