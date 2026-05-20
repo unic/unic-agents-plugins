@@ -22,8 +22,8 @@
       "technicalNotes": "Extract from hooks/install.mjs:44–67. Replace process.exit(1) with return { ok: false, code: ..., message: ... }. For incompatible version, return { ok: false, code: 'incompatible', message: ... } rather than warn-and-continue (warning becomes the slash command's responsibility). Follow lib/config-loader.mjs discriminated union pattern. Test isolation: pass execFileSync as a parameter or use module mocking via node:test mock.module().",
       "dependsOn": [],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: lib/archon-check.mjs, test/archon-check.test.mjs, package.json (test script)."
     },
     {
       "id": "US-002",
@@ -46,8 +46,8 @@
       "technicalNotes": "Extract hooks/install.mjs:128–187 into runInstall(). The function signature is runInstall(projectDir: string, partialAnswers: Partial<Config>): RunInstallResult. Move detectRepoLayout from hooks/install.mjs:73–75 to this module. Import loadConfig from lib/config-loader.mjs, getDefaultLabels from lib/labels-config.mjs, writeAgentDocs + updateAgentSkillsBlock from lib/agent-docs-writer.mjs, exploreProject from lib/setup-explorer.mjs. For tests: write a real tmpdir project with a fake CLAUDE.md to satisfy writeAgentDocs/updateAgentSkillsBlock — or pass stubs for the write helpers if using dependency injection.",
       "dependsOn": [],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 2. Files: lib/install-runner.mjs, test/install-runner.test.mjs, package.json (test script)."
     },
     {
       "id": "US-003",
@@ -69,8 +69,8 @@
       "technicalNotes": "commands/setup.md is a Claude Code slash command markdown file — it contains the prompt/instructions that Claude executes. It is not a Node.js script. Reference the hybrid idempotency table from the spec. Import path for lib modules: the slash command runs in the Claude Code agent context; it calls the lib modules via JS imports using the plugin root path. Check how other Claude Code plugins wire commands to lib (look at pr-review plugin for command patterns). The `plugin.json` may need a `commands` field added — check current schema against `.claude-plugin/plugin.json`.",
       "dependsOn": ["US-001", "US-002"],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 3. Files: commands/setup.md."
     },
     {
       "id": "US-004",
@@ -86,8 +86,8 @@
       "technicalNotes": "Delete hooks/install.mjs. Edit .claude-plugin/plugin.json to remove the `\"hooks\": { \"install\": \"hooks/install.mjs\" }` field. Verify that detectTracker() and deducePrStrategy() exported from hooks/install.mjs are either not imported anywhere else or have been copied into install-runner.mjs (US-002). Check test/ for any test importing from '../hooks/install.mjs' — there are existing hook tests (test/install-helpers.test.mjs, test/install-agent-docs.test.mjs, test/install-claude-md.test.mjs) that must be reviewed.",
       "dependsOn": ["US-003"],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 4. Files: lib/install-runner.mjs (added detectTracker/deducePrStrategy), test/install-helpers.test.mjs (updated import), .claude-plugin/plugin.json (removed hooks field), deleted hooks/install.mjs."
     },
     {
       "id": "US-005",
@@ -104,8 +104,8 @@
       "technicalNotes": "README.md quick-start is at lines 129–158. The Step 1 block (lines 129–136) advertises /unic-dlc-install — replace with /unic-archon-dlc:setup and rewrite the surrounding paragraph to describe the slash command flow. Also check lines 162–185 (configuration reference) for any install hook references. CHANGELOG.md should follow the existing format — check the current entries to match the style. The verify:changelog script checks for a properly dated [Unreleased] section.",
       "dependsOn": ["US-003"],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 5. Files: README.md (quick-start updated), CHANGELOG.md (Added and Removed entries under [Unreleased])."
     }
   ]
 }
