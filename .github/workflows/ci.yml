@@ -27,6 +27,7 @@ jobs:
       auto-format: ${{ steps.filter.outputs.auto-format }}
       confluence-publish: ${{ steps.filter.outputs.confluence-publish }}
       release-tools: ${{ steps.filter.outputs.release-tools }}
+      unic-archon-dlc: ${{ steps.filter.outputs.unic-archon-dlc }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -41,6 +42,8 @@ jobs:
               - 'apps/claude-code/unic-confluence/**'
             release-tools:
               - 'packages/release-tools/**'
+            unic-archon-dlc:
+              - 'apps/claude-code/unic-archon-dlc/**'
 
   test:
     name: Test ${{ matrix.package }} / ${{ matrix.os }} / Node ${{ matrix.node }}
@@ -48,7 +51,8 @@ jobs:
     if: |
       needs.changes.outputs.auto-format == 'true' ||
       needs.changes.outputs.unic-confluence == 'true' ||
-      needs.changes.outputs.release-tools == 'true'
+      needs.changes.outputs.release-tools == 'true' ||
+      needs.changes.outputs.unic-archon-dlc == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -61,6 +65,8 @@ jobs:
             changed: ${{ needs.changes.outputs.unic-confluence }}
           - name: release-tools
             changed: ${{ needs.changes.outputs.release-tools }}
+          - name: unic-archon-dlc
+            changed: ${{ needs.changes.outputs.unic-archon-dlc }}
         exclude:
           - package:
               changed: 'false'

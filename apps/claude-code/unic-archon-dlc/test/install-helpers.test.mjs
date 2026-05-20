@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { deducePrStrategy, detectRepoLayout, detectTracker } from '../hooks/install.mjs'
+import { deducePrStrategy, detectRepoLayout, detectTracker } from '../lib/install-runner.mjs'
 
 // --- detectTracker ---
 
