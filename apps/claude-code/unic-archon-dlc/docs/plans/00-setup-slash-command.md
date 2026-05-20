@@ -1,5 +1,7 @@
 # 00. Setup slash command
 
+**Status: done**
+
 - Priority: P1
 - Effort: M
 - Version impact: minor (replaces the manual install path with a first-class slash command)
@@ -80,7 +82,7 @@ This spec ships the first real slash command for unic-archon-dlc and the precede
 - `plugin.json` has no `hooks` field.
 - `lib/install-runner.mjs` and `lib/archon-check.mjs` exist with tests, both pass.
 - The merge precedence in `runInstall` is `defaults < existing < partialAnswers`, matching the deleted hook byte-for-byte for that block.
-- `runInstall` throws a typed error (not `process.exit`) when mandatory fields are missing after merge.
+- `runInstall` returns `{ ok: false, stage: 'validate', message }` (not `process.exit`) when mandatory fields are missing after merge.
 - `checkArchon` returns a result object (not `process.exit`) for every branch.
 - README quick-start references `/unic-archon-dlc:setup`.
 - CHANGELOG has `Added` and `Removed` entries.

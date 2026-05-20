@@ -6,4 +6,4 @@ Plugin-scoped specs for unic-archon-dlc. The monorepo-level Spec Runner roadmap 
 
 | #  | Spec                                          | Status | Depends on |
 | -- | --------------------------------------------- | ------ | ---------- |
-| 00 | Setup slash command (`/unic-archon-dlc:setup`) | todo   | —          |
+| 00 | Setup slash command (`/unic-archon-dlc:setup`) | done   | —          |
