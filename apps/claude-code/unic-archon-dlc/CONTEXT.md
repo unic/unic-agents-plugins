@@ -73,6 +73,28 @@ of `code-red` and `code-green` nodes for every issue, with correct `depends_on` 
 from the `blocked_by` fields in Issues JSON.
 _Avoid_: build generator, workflow generator
 
+### Plugin entry points
+
+**Setup**:
+The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
+`/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.json`, generates `docs/agents/*.md`,
+and refreshes the marker-delimited `## Agent skills` block in `CLAUDE.md`. Idempotent: re-running
+with no arguments prints the current config when fully populated, asks only for missing fields
+when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
+re-prompt; pass free-form intent (e.g. "change branching to github-flow") for targeted tweaks.
+_Avoid_: install, init, install hook
+
+**Claude Code slash command**:
+A markdown file under `commands/` at the plugin root, invoked as `/<plugin-name>:<command>`.
+Rendered by Claude at user-invocation time. `commands/setup.md` becomes `/unic-archon-dlc:setup`.
+_Avoid_: command, command template (which means something else here)
+
+**Archon workflow command template**:
+A markdown file under `.archon/commands/` (e.g. `unic-dlc-plan.md`). Rendered by the Archon
+workflow engine inside a workflow node, not by Claude directly. Same file extension as a slash
+command, completely different runtime.
+_Avoid_: slash command, workflow command (ambiguous)
+
 ### Cleanup artifacts
 
 **arch-review**:
