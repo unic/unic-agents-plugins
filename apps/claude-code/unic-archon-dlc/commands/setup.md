@@ -32,14 +32,14 @@ Run:
 ```bash
 node --input-type=module <<'EOJS'
 const { exploreProject } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/setup-explorer.mjs`)
-const { loadConfig, isConfigError } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-loader.mjs`)
+const { readFileSync, existsSync } = await import('node:fs')
 const { join } = await import('node:path')
 const cwd = process.cwd()
 const snap = exploreProject(cwd)
 let config = null
-if (snap.archonConfigPresent) {
-  const loaded = loadConfig(join(cwd, '.archon', 'unic-dlc.config.json'))
-  if (!isConfigError(loaded)) config = loaded
+const configPath = join(cwd, '.archon', 'unic-dlc.config.json')
+if (snap.archonConfigPresent && existsSync(configPath)) {
+  try { config = JSON.parse(readFileSync(configPath, 'utf8')) } catch { config = null }
 }
 process.stdout.write(JSON.stringify({ gitRemote: snap.gitRemote, config }) + '\n')
 EOJS
@@ -106,13 +106,12 @@ Build `partialAnswers` containing only the fields you collected. Fields with an 
 
 ## Step 5 — Write config
 
-Substitute `{ANSWERS_JSON}` with the JSON-serialised `partialAnswers` object, then run:
+Substitute `{ANSWERS_JSON}` with the JSON-serialised `partialAnswers` object (the literal JSON text is placed directly inside the heredoc), then run:
 
 ```bash
-ANSWERS_JSON='{ANSWERS_JSON}' \
 node --input-type=module <<'EOJS'
 const { runInstall } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/install-runner.mjs`)
-const result = runInstall(process.cwd(), JSON.parse(process.env.ANSWERS_JSON))
+const result = runInstall(process.cwd(), {ANSWERS_JSON})
 process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```

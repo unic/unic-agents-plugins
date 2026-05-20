@@ -1,8 +1,7 @@
 // @ts-check
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { updateAgentSkillsBlock, writeAgentDocs } from './agent-docs-writer.mjs'
-import { loadConfig } from './config-loader.mjs'
 import { getDefaultLabels } from './labels-config.mjs'
 
 /**
@@ -65,8 +64,11 @@ export function runInstall(projectDir, partialAnswers = {}) {
 
 	let existing = /** @type {Record<string, unknown>} */ ({})
 	if (existsSync(configPath)) {
-		const loaded = loadConfig(configPath)
-		if (!('error' in loaded)) existing = /** @type {Record<string, unknown>} */ (loaded)
+		try {
+			existing = /** @type {Record<string, unknown>} */ (JSON.parse(readFileSync(configPath, 'utf8')))
+		} catch {
+			existing = {}
+		}
 	}
 
 	const merged = /** @type {Record<string, unknown>} */ ({
@@ -101,7 +103,11 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		})
 		wroteDocs = true
 	} catch (err) {
-		return { ok: false, stage: 'docs', message: `Failed to write docs/agents/: ${/** @type {Error} */ (err).message}` }
+		return {
+			ok: false,
+			stage: 'docs',
+			message: `Config written to ${configPath}. Failed to write docs/agents/: ${/** @type {Error} */ (err).message}`,
+		}
 	}
 
 	let wroteClaudeMd = false
@@ -112,7 +118,7 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		return {
 			ok: false,
 			stage: 'claude-md',
-			message: `Failed to update CLAUDE.md: ${/** @type {Error} */ (err).message}`,
+			message: `Config and docs written. Failed to update CLAUDE.md: ${/** @type {Error} */ (err).message}`,
 		}
 	}
 
