@@ -116,4 +116,4 @@ _Avoid_: decision doc, architecture note
 - **code-green** depends on **code-red** within the same issue; independent issues run in parallel
 - **adr-consolidation** sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - **HANDOFF.md** and **ROADMAP.md** are written exclusively by the **triage** workflow
-- The install hook writes `.archon/unic-dlc.config.json` and `docs/agents/*.md` into the target project
+- The **Setup** slash command writes `.archon/unic-dlc.config.json`, `docs/agents/*.md`, and the `## Agent skills` block in `CLAUDE.md` into the target project

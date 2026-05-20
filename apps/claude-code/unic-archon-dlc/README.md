@@ -163,22 +163,22 @@ From here, the full lifecycle is: explore → plan → build → qa → cleanup 
 
 The `/unic-archon-dlc:setup` command writes `.archon/unic-dlc.config.json` with these keys:
 
-| Key                     | Default       | Valid values                                 | Description                                         |
-| ----------------------- | ------------- | -------------------------------------------- | --------------------------------------------------- |
-| `tracker`               | auto-detected | `github` · `ado` · `jira` · `local-markdown` | Issue tracker backend                               |
-| `pr_strategy`           | `squash`      | `squash` · `merge` · `rebase`                | Merge strategy for PRs                              |
-| `branching`             | `gitflow`     | `gitflow` · `github-flow`                    | Branching model in use                              |
-| `e2e_command`           | `""`          | any shell command string                     | Command that runs the full e2e test suite           |
-| `model_profile`         | `balanced`    | `fast` · `balanced` · `max`                  | Archon model tier for workflow nodes                |
-| `tdd_mode`              | `true`        | `true` · `false`                             | Enforce red→green discipline in build workflow      |
-| `nyquist_validation`    | `true`        | `true` · `false`                             | Require test_command on every issue before yaml-gen |
-| `slopsquatting_gate`    | `true`        | `true` · `false`                             | Enable slopcheck package verification               |
-| `coverage_threshold`    | `null`        | number (0–100) or `null`                     | Minimum % coverage; `null` skips the check          |
-| `workflow.discuss_mode` | `interview`   | `interview` · `assumptions`                  | Specs node dialogue style                           |
-| `repo_layout`           | `single`      | `single` · `multi-context`                   | Whether CONTEXT-MAP.md is present                   |
-| `labels.state.*`        | canonical     | any string                                   | Override tracker state label strings                |
-| `labels.type.*`         | canonical     | any string                                   | Override tracker type label strings                 |
-| `labels.priority.*`     | canonical     | any string                                   | Override tracker priority label strings             |
+| Key                     | Default                          | Valid values                                 | Description                                         |
+| ----------------------- | -------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| `tracker`               | auto-detected                    | `github` · `ado` · `jira` · `local-markdown` | Issue tracker backend                               |
+| `pr_strategy`           | `squash`                         | `squash` · `merge` · `rebase`                | Merge strategy for PRs                              |
+| `branching`             | `gitflow`                        | `gitflow` · `github-flow`                    | Branching model in use                              |
+| `e2e_command`           | `""`                             | any shell command string                     | Command that runs the full e2e test suite           |
+| `model_profile`         | `balanced`                       | `fast` · `balanced` · `max`                  | Archon model tier for workflow nodes                |
+| `tdd_mode`              | `true`                           | `true` · `false`                             | Enforce red→green discipline in build workflow      |
+| `nyquist_validation`    | `true`                           | `true` · `false`                             | Require test_command on every issue before yaml-gen |
+| `slopsquatting_gate`    | `true`                           | `true` · `false`                             | Enable slopcheck package verification               |
+| `coverage_threshold`    | `null`                           | number (0–100) or `null`                     | Minimum % coverage; `null` skips the check          |
+| `workflow.discuss_mode` | `interview`                      | `interview` · `assumptions`                  | Specs node dialogue style                           |
+| `repo_layout`           | `single-context (auto-detected)` | `single-context` · `multi-context`           | Whether CONTEXT-MAP.md is present                   |
+| `labels.state.*`        | canonical                        | any string                                   | Override tracker state label strings                |
+| `labels.type.*`         | canonical                        | any string                                   | Override tracker type label strings                 |
+| `labels.priority.*`     | canonical                        | any string                                   | Override tracker priority label strings             |
 
 Label canonical names: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
