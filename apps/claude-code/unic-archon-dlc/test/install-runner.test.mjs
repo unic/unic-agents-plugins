@@ -15,8 +15,6 @@ test('fresh install: partialAnswers provides all mandatory fields, defaults appl
 
 	assert.ok(result.ok, `expected ok:true but got ${result.ok === false ? result.message : ''}`)
 	assert.equal(result.configPath, join(dir, '.archon', 'unic-dlc.config.json'))
-	assert.equal(result.wroteDocs, true)
-	assert.equal(result.wroteClaudeMd, true)
 
 	const config = JSON.parse(readFileSync(result.configPath, 'utf8'))
 	assert.equal(config.tracker, 'github')
@@ -162,4 +160,33 @@ test('updateAgentSkillsBlock failure: stage is claude-md and message includes co
 		result.message.includes('Config and docs written'),
 		`Expected "Config and docs written" in message, got: ${result.message}`
 	)
+})
+
+test('custom labels in existing config are preserved on reconfigure', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-labels-${Date.now()}`)
+	mkdirSync(join(dir, '.archon'), { recursive: true })
+
+	// Valid LabelMapping shape with custom tracker strings (different from defaults)
+	const customLabels = {
+		state: {
+			'needs-triage': 'triage',
+			'needs-info': 'info',
+			'needs-specs': 'spec',
+			'ready-for-agent': 'agent',
+			'ready-for-human': 'human',
+			resolved: 'done',
+			closed: 'closed',
+			rejected: 'wont-fix',
+		},
+		type: { feature: 'enhancement', bug: 'defect', spike: 'spike', 'tech-debt': 'debt', docs: 'docs' },
+		priority: { p0: 'critical', p1: 'high', p2: 'medium', p3: 'low' },
+	}
+	const existing = { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow', labels: customLabels }
+	writeFileSync(join(dir, '.archon', 'unic-dlc.config.json'), `${JSON.stringify(existing, null, 2)}\n`)
+
+	const result = runInstall(dir, {})
+
+	assert.ok(result.ok, `expected ok:true but got ${result.ok === false ? result.message : ''}`)
+	const config = JSON.parse(readFileSync(result.configPath, 'utf8'))
+	assert.deepEqual(config.labels, customLabels, 'custom labels should be preserved')
 })

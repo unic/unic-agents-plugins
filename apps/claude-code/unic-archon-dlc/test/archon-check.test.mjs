@@ -28,18 +28,13 @@ test('returns enoent failure when archon is not on PATH', () => {
 })
 
 test('returns incompatible failure for known bad version', () => {
-	INCOMPATIBLE_ARCHON_VERSIONS.push('0.0.1-bad')
-	try {
-		/** @type {ExecFn} */
-		const execFn = () => '0.0.1-bad'
-		const result = checkArchon(execFn)
-		assert.ok(!result.ok, 'should not be ok')
-		if (result.ok) return
-		assert.equal(result.code, 'incompatible')
-		assert.ok(result.message.includes('0.0.1-bad'), `message should include version: ${result.message}`)
-	} finally {
-		INCOMPATIBLE_ARCHON_VERSIONS.splice(INCOMPATIBLE_ARCHON_VERSIONS.indexOf('0.0.1-bad'), 1)
-	}
+	/** @type {ExecFn} */
+	const execFn = () => '0.0.1-bad'
+	const result = checkArchon(execFn, ['0.0.1-bad'])
+	assert.ok(!result.ok, 'should not be ok')
+	if (result.ok) return
+	assert.equal(result.code, 'incompatible')
+	assert.ok(result.message.includes('0.0.1-bad'), `message should include version: ${result.message}`)
 })
 
 test('returns other failure for unexpected errors', () => {
@@ -54,6 +49,20 @@ test('returns other failure for unexpected errors', () => {
 	assert.ok(result.message.includes('permission denied'), `message should include original error: ${result.message}`)
 })
 
-test('INCOMPATIBLE_ARCHON_VERSIONS is exported and starts empty', () => {
+test('returns other failure with stderr when process fails', () => {
+	/** @type {ExecFn} */
+	const execFn = () => {
+		throw Object.assign(new Error('Command failed'), { stderr: Buffer.from('archon: illegal option --v') })
+	}
+	const result = checkArchon(execFn)
+	assert.ok(!result.ok, 'should not be ok')
+	if (result.ok) return
+	assert.equal(result.code, 'other')
+	assert.ok(result.message.includes('stderr:'), `message should include stderr label: ${result.message}`)
+	assert.ok(result.message.includes('illegal option'), `message should include stderr content: ${result.message}`)
+})
+
+test('INCOMPATIBLE_ARCHON_VERSIONS is frozen and starts empty', () => {
 	assert.ok(Array.isArray(INCOMPATIBLE_ARCHON_VERSIONS), 'should be an array')
+	assert.ok(Object.isFrozen(INCOMPATIBLE_ARCHON_VERSIONS), 'should be frozen')
 })

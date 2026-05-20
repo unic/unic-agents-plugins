@@ -20,7 +20,8 @@ Run:
 node --input-type=module <<'EOJS'
 let result
 try {
-  const { checkArchon } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/archon-check.mjs`)
+  const { pathToFileURL } = await import('node:url')
+  const { checkArchon } = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/archon-check.mjs`).href)
   result = checkArchon()
 } catch (err) {
   result = { ok: false, code: 'other', message: `Plugin load error: ${err?.message ?? String(err)}` }
@@ -39,7 +40,8 @@ Run:
 node --input-type=module <<'EOJS'
 let output
 try {
-  const { exploreProject } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/setup-explorer.mjs`)
+  const { pathToFileURL } = await import('node:url')
+  const { exploreProject } = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/setup-explorer.mjs`).href)
   const { readFileSync, existsSync } = await import('node:fs')
   const { join } = await import('node:path')
   const cwd = process.cwd()
@@ -53,7 +55,16 @@ try {
       output = { error: `Config file contains invalid JSON and cannot be read: ${parseErr?.message ?? String(parseErr)}. Fix or delete ${configPath} and re-run setup.`, gitRemote: snap.gitRemote, config: null }
     }
   }
-  if (!output) output = { gitRemote: snap.gitRemote, config }
+  if (!output) {
+    const agentDocsPath = join(cwd, 'docs', 'agents', 'issue-tracker.md')
+    const claudeMdPath = join(cwd, 'CLAUDE.md')
+    const docsPresent = existsSync(agentDocsPath)
+    let claudeMdPresent = false
+    if (existsSync(claudeMdPath)) {
+      claudeMdPresent = readFileSync(claudeMdPath, 'utf8').includes('<!-- unic-archon-dlc:begin -->')
+    }
+    output = { gitRemote: snap.gitRemote, config, docsPresent, claudeMdPresent }
+  }
 } catch (err) {
   output = { error: `Plugin load error: ${err?.message ?? String(err)}`, gitRemote: null, config: null }
 }
@@ -61,7 +72,7 @@ process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the output. If `error` is present, print `error` verbatim and stop. Otherwise set `CONFIG` from `config`, `GIT_REMOTE` from `gitRemote`.
+Parse the output. If `error` is present, print `error` verbatim and stop. Otherwise set `CONFIG` from `config`, `GIT_REMOTE` from `gitRemote`, `DOCS_PRESENT` from `docsPresent`, `CLAUDE_MD_PRESENT` from `claudeMdPresent`.
 
 Determine `STATE`:
 
@@ -79,9 +90,9 @@ Arguments: `$ARGUMENTS`
 
 ## Step 4 — Act on STATE × MODE
 
-### Full + default: print summary and exit
+### Full + default: print summary and exit (or repair)
 
-If `STATE = 'full'` and `MODE = 'default'`, print the current configuration and **stop** (do not call `runInstall`):
+If `STATE = 'full'` and `MODE = 'default'` and `DOCS_PRESENT` is `true` and `CLAUDE_MD_PRESENT` is `true`, print the current configuration and **stop** (do not call `runInstall`):
 
 ```
 unic-archon-dlc is already configured:
@@ -94,10 +105,17 @@ unic-archon-dlc is already configured:
 Run `/unic-archon-dlc:setup reconfigure` to update settings.
 ```
 
+If `STATE = 'full'` and `MODE = 'default'` but `DOCS_PRESENT` is `false` or `CLAUDE_MD_PRESENT` is `false`, print a repair notice and proceed to Step 5 with `partialAnswers = {}`:
+
+```
+Config is complete but setup did not finish — rerunning to repair docs/CLAUDE.md.
+```
+
 ### Determine which fields to collect
 
 - `STATE = 'fresh'` → collect all three mandatory fields + optional e2e_command
-- `STATE = 'partial'` → collect only the fields missing from `CONFIG` (skip any already present)
+- `STATE = 'partial'` and `MODE = 'default'` → collect only the fields missing from `CONFIG` (skip any already present)
+- `STATE = 'partial'` and `MODE = 'intent'` → collect missing mandatory fields first (to ensure completeness), then interpret `INTENT` to determine if any already-present field should also be updated
 - `MODE = 'reconfigure'` → collect all three mandatory fields + optional e2e_command
 - `STATE = 'full'` and `MODE = 'intent'` → interpret `INTENT` to decide which field(s) to update; ask only about those fields
 
@@ -128,7 +146,8 @@ Substitute `{ANSWERS_JSON}` with the JSON-serialised `partialAnswers` object (th
 node --input-type=module <<'EOJS'
 let result
 try {
-  const { runInstall } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/install-runner.mjs`)
+  const { pathToFileURL } = await import('node:url')
+  const { runInstall } = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/install-runner.mjs`).href)
   result = runInstall(process.cwd(), {ANSWERS_JSON})
 } catch (err) {
   result = { ok: false, stage: 'unexpected', message: `Unexpected error: ${err?.message ?? String(err)}` }
@@ -144,8 +163,8 @@ Parse the JSON output:
   ```
   unic-archon-dlc configured.
     config:    {result.configPath}
-    docs:      {result.wroteDocs ? 'written' : 'skipped'}
-    CLAUDE.md: {result.wroteClaudeMd ? 'updated' : 'skipped'}
+    docs:      written
+    CLAUDE.md: updated
   ```
 
 - If `ok` is `false`, print `result.message` and stop.
