@@ -18,8 +18,14 @@ Run:
 
 ```bash
 node --input-type=module <<'EOJS'
-const { checkArchon } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/archon-check.mjs`)
-process.stdout.write(JSON.stringify(checkArchon()) + '\n')
+let result
+try {
+  const { checkArchon } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/archon-check.mjs`)
+  result = checkArchon()
+} catch (err) {
+  result = { ok: false, code: 'other', message: `Plugin load error: ${err?.message ?? String(err)}` }
+}
+process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
@@ -31,21 +37,31 @@ Run:
 
 ```bash
 node --input-type=module <<'EOJS'
-const { exploreProject } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/setup-explorer.mjs`)
-const { readFileSync, existsSync } = await import('node:fs')
-const { join } = await import('node:path')
-const cwd = process.cwd()
-const snap = exploreProject(cwd)
-let config = null
-const configPath = join(cwd, '.archon', 'unic-dlc.config.json')
-if (snap.archonConfigPresent && existsSync(configPath)) {
-  try { config = JSON.parse(readFileSync(configPath, 'utf8')) } catch { config = null }
+let output
+try {
+  const { exploreProject } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/setup-explorer.mjs`)
+  const { readFileSync, existsSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const cwd = process.cwd()
+  const snap = exploreProject(cwd)
+  let config = null
+  const configPath = join(cwd, '.archon', 'unic-dlc.config.json')
+  if (snap.archonConfigPresent && existsSync(configPath)) {
+    try {
+      config = JSON.parse(readFileSync(configPath, 'utf8'))
+    } catch (parseErr) {
+      output = { error: `Config file contains invalid JSON and cannot be read: ${parseErr?.message ?? String(parseErr)}. Fix or delete ${configPath} and re-run setup.`, gitRemote: snap.gitRemote, config: null }
+    }
+  }
+  if (!output) output = { gitRemote: snap.gitRemote, config }
+} catch (err) {
+  output = { error: `Plugin load error: ${err?.message ?? String(err)}`, gitRemote: null, config: null }
 }
-process.stdout.write(JSON.stringify({ gitRemote: snap.gitRemote, config }) + '\n')
+process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the output. Set `CONFIG` from the `config` field (null if absent or parse error), `GIT_REMOTE` from `gitRemote`.
+Parse the output. If `error` is present, print `error` verbatim and stop. Otherwise set `CONFIG` from `config`, `GIT_REMOTE` from `gitRemote`.
 
 Determine `STATE`:
 
@@ -110,8 +126,13 @@ Substitute `{ANSWERS_JSON}` with the JSON-serialised `partialAnswers` object (th
 
 ```bash
 node --input-type=module <<'EOJS'
-const { runInstall } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/install-runner.mjs`)
-const result = runInstall(process.cwd(), {ANSWERS_JSON})
+let result
+try {
+  const { runInstall } = await import(`file://${process.env.CLAUDE_PLUGIN_ROOT}/lib/install-runner.mjs`)
+  result = runInstall(process.cwd(), {ANSWERS_JSON})
+} catch (err) {
+  result = { ok: false, stage: 'unexpected', message: `Unexpected error: ${err?.message ?? String(err)}` }
+}
 process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
