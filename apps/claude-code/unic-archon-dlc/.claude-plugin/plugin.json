@@ -8,5 +8,8 @@
   },
   "homepage": "https://github.com/unic/unic-agents-plugins",
   "license": "LGPL-3.0-or-later",
-  "keywords": ["archon", "workflow", "lifecycle", "tdd", "unic"]
+  "keywords": ["archon", "workflow", "lifecycle", "tdd", "unic"],
+  "hooks": {
+    "install": "hooks/install.mjs"
+  }
 }
