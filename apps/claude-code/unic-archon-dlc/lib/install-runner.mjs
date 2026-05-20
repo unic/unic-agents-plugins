@@ -18,6 +18,23 @@ import { getDefaultLabels } from './labels-config.mjs'
  * @typedef {RunInstallOk | RunInstallFail} RunInstallResult
  */
 
+/**
+ * @param {string | null} remoteUrl
+ * @returns {'github' | 'ado' | 'jira' | 'local-markdown' | null}
+ */
+export function detectTracker(remoteUrl) {
+	if (!remoteUrl) return null
+	if (remoteUrl.includes('github.com')) return 'github'
+	if (remoteUrl.includes('dev.azure.com') || remoteUrl.includes('visualstudio.com')) return 'ado'
+	return null
+}
+
+/** @param {string} tracker */
+export function deducePrStrategy(tracker) {
+	if (tracker === 'github' || tracker === 'ado') return 'squash'
+	return 'merge'
+}
+
 /** @type {Record<string, unknown>} */
 const DEFAULTS = {
 	model_profile: 'balanced',
