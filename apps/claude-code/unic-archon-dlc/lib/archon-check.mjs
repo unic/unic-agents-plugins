@@ -1,8 +1,9 @@
 // @ts-check
 import { execFileSync } from 'node:child_process'
 
-// Populated as schema-incompatible Archon versions are observed
-export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {string[]} */ ([])
+// Intentionally immutable; update this list in code as schema-incompatible Archon versions are identified.
+// Tests and callers can pass overrides via checkArchon(..., incompatibleVersions).
+export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {readonly string[]} */ (Object.freeze([]))
 
 /**
  * @typedef {{ ok: true, version: string }} ArchonOk
@@ -19,9 +20,13 @@ export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {string[]} */ ([])
  * Pass a custom execFn in tests to avoid requiring archon on PATH.
  *
  * @param {ExecFn} [execFn]
+ * @param {readonly string[]} [incompatibleVersions]
  * @returns {ArchonCheckResult}
  */
-export function checkArchon(execFn = /** @type {ExecFn} */ (/** @type {unknown} */ (execFileSync))) {
+export function checkArchon(
+	execFn = /** @type {ExecFn} */ (/** @type {unknown} */ (execFileSync)),
+	incompatibleVersions = INCOMPATIBLE_ARCHON_VERSIONS
+) {
 	try {
 		const version = execFn('archon', ['--version'], {
 			stdio: ['pipe', 'pipe', 'pipe'],
@@ -30,7 +35,7 @@ export function checkArchon(execFn = /** @type {ExecFn} */ (/** @type {unknown} 
 			.toString()
 			.trim()
 
-		if (INCOMPATIBLE_ARCHON_VERSIONS.includes(version)) {
+		if (incompatibleVersions.includes(version)) {
 			return {
 				ok: false,
 				code: 'incompatible',
@@ -48,10 +53,12 @@ export function checkArchon(execFn = /** @type {ExecFn} */ (/** @type {unknown} 
 					'archon binary not found on PATH. Install Archon before using this plugin. See the README for instructions.',
 			}
 		}
+		const spawnErr = /** @type {Error & { stderr?: Buffer }} */ (err)
+		const stderrText = spawnErr.stderr ? spawnErr.stderr.toString().trim() : ''
 		return {
 			ok: false,
 			code: 'other',
-			message: `Failed to run archon: ${/** @type {Error} */ (err).message}`,
+			message: `Failed to run archon: ${spawnErr.message}${stderrText ? ` (stderr: ${stderrText})` : ''}`,
 		}
 	}
 }

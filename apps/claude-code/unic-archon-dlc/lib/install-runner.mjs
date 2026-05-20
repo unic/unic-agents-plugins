@@ -12,7 +12,7 @@ import { getDefaultLabels } from './labels-config.mjs'
  */
 
 /**
- * @typedef {{ ok: true, configPath: string, wroteDocs: boolean, wroteClaudeMd: boolean }} RunInstallOk
+ * @typedef {{ ok: true, configPath: string }} RunInstallOk
  * @typedef {{ ok: false, stage: 'validate' | 'config' | 'docs' | 'claude-md', message: string }} RunInstallFail
  * @typedef {RunInstallOk | RunInstallFail} RunInstallResult
  */
@@ -97,7 +97,7 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		return { ok: false, stage: 'validate', message: `Missing mandatory fields: ${missing.join(', ')}` }
 	}
 
-	merged.labels = getDefaultLabels(/** @type {string} */ (merged.tracker))
+	if (!merged.labels) merged.labels = getDefaultLabels(/** @type {string} */ (merged.tracker))
 
 	try {
 		mkdirSync(join(projectDir, '.archon'), { recursive: true })
@@ -106,7 +106,6 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		return { ok: false, stage: 'config', message: `Failed to write config: ${/** @type {Error} */ (err).message}` }
 	}
 
-	let wroteDocs = false
 	try {
 		writeAgentDocs(projectDir, {
 			tracker: /** @type {TrackerBackend} */ (merged.tracker),
@@ -115,7 +114,6 @@ export function runInstall(projectDir, partialAnswers = {}) {
 			repo_layout: /** @type {string | undefined} */ (merged.repo_layout),
 			labels: /** @type {import('./labels-config.mjs').LabelMapping} */ (merged.labels),
 		})
-		wroteDocs = true
 	} catch (err) {
 		return {
 			ok: false,
@@ -124,10 +122,8 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		}
 	}
 
-	let wroteClaudeMd = false
 	try {
 		updateAgentSkillsBlock(projectDir)
-		wroteClaudeMd = true
 	} catch (err) {
 		return {
 			ok: false,
@@ -136,5 +132,5 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		}
 	}
 
-	return { ok: true, configPath, wroteDocs, wroteClaudeMd }
+	return { ok: true, configPath }
 }
