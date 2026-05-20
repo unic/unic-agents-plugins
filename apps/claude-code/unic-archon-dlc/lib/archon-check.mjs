@@ -1,7 +1,8 @@
 // @ts-check
 import { execFileSync } from 'node:child_process'
 
-// Populated as schema-incompatible Archon versions are observed
+// Intentionally immutable; update this list in code as schema-incompatible Archon versions are identified.
+// Tests and callers can pass overrides via checkArchon(..., incompatibleVersions).
 export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {readonly string[]} */ (Object.freeze([]))
 
 /**
