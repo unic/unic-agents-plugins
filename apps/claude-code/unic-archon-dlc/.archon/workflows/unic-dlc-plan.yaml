@@ -344,6 +344,7 @@ nodes:
   - id: yaml-gen
     name: YAML Gen — Build Workflow Generator
     type: bash
+    runtime: bun
     depends_on: [plan-checker]
     script: |
       #!/usr/bin/env node

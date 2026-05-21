@@ -13,6 +13,7 @@ nodes:
   - id: slopcheck
     name: Slopcheck — Verify New Packages
     type: bash
+    runtime: bun
     depends_on: []
     script: |
       #!/usr/bin/env node
@@ -152,6 +153,7 @@ nodes:
   - id: verification
     name: Verification — Test Suite, Stubs, Wiring
     type: bash
+    runtime: bun
     depends_on: [run-build]
     script: |
       #!/usr/bin/env node
