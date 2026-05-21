@@ -1,5 +1,5 @@
 // @ts-check
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { updateAgentSkillsBlock, writeAgentDocs } from './agent-docs-writer.mjs'
 import { getDefaultLabels } from './labels-config.mjs'
@@ -12,8 +12,8 @@ import { getDefaultLabels } from './labels-config.mjs'
  */
 
 /**
- * @typedef {{ ok: true, configPath: string }} RunInstallOk
- * @typedef {{ ok: false, stage: 'validate' | 'config' | 'docs' | 'claude-md', message: string }} RunInstallFail
+ * @typedef {{ ok: true, configPath: string, workflowsCopied: number, commandsCopied: number }} RunInstallOk
+ * @typedef {{ ok: false, stage: 'validate' | 'config' | 'workflows' | 'commands' | 'docs' | 'claude-md', message: string }} RunInstallFail
  * @typedef {RunInstallOk | RunInstallFail} RunInstallResult
  */
 
@@ -51,15 +51,17 @@ export function detectRepoLayout(projectDir) {
 }
 
 /**
- * Writes .archon/unic-dlc.config.json, docs/agents/, and the CLAUDE.md Agent skills block.
+ * Writes .archon/unic-dlc.config.json, copies bundled workflows, writes docs/agents/,
+ * and updates the CLAUDE.md Agent skills block.
  * Merge precedence: defaults < existing < partialAnswers.
  * Does not call checkArchon() or prompt — the slash command owns both.
  *
  * @param {string} projectDir
  * @param {Partial<DlcConfig>} [partialAnswers]
+ * @param {string | null} [pluginRoot] - plugin installation directory; defaults to CLAUDE_PLUGIN_ROOT env var
  * @returns {RunInstallResult}
  */
-export function runInstall(projectDir, partialAnswers = {}) {
+export function runInstall(projectDir, partialAnswers = {}, pluginRoot = process.env['CLAUDE_PLUGIN_ROOT'] ?? null) {
 	const configPath = join(projectDir, '.archon', 'unic-dlc.config.json')
 
 	let existing = /** @type {Record<string, unknown>} */ ({})
@@ -106,6 +108,50 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		return { ok: false, stage: 'config', message: `Failed to write config: ${/** @type {Error} */ (err).message}` }
 	}
 
+	let workflowsCopied = 0
+	let commandsCopied = 0
+	if (pluginRoot) {
+		const archonAssets =
+			/** @type {Array<{ subdir: string, ext: string, stageName: 'workflows' | 'commands', counter: (n: number) => void }>} */ ([
+				{
+					subdir: 'workflows',
+					ext: '.yaml',
+					stageName: 'workflows',
+					counter: (n) => {
+						workflowsCopied = n
+					},
+				},
+				{
+					subdir: 'commands',
+					ext: '.md',
+					stageName: 'commands',
+					counter: (n) => {
+						commandsCopied = n
+					},
+				},
+			])
+		for (const { subdir, ext, stageName, counter } of archonAssets) {
+			const srcDir = join(pluginRoot, '.archon', subdir)
+			const destDir = join(projectDir, '.archon', subdir)
+			try {
+				if (existsSync(srcDir)) {
+					mkdirSync(destDir, { recursive: true })
+					const files = readdirSync(srcDir).filter((f) => f.endsWith(ext))
+					for (const file of files) {
+						copyFileSync(join(srcDir, file), join(destDir, file))
+					}
+					counter(files.length)
+				}
+			} catch (err) {
+				return {
+					ok: false,
+					stage: stageName,
+					message: `Config written to ${configPath}. Failed to copy ${subdir}: ${/** @type {Error} */ (err).message}`,
+				}
+			}
+		}
+	}
+
 	try {
 		writeAgentDocs(projectDir, {
 			tracker: /** @type {TrackerBackend} */ (merged.tracker),
@@ -132,5 +178,5 @@ export function runInstall(projectDir, partialAnswers = {}) {
 		}
 	}
 
-	return { ok: true, configPath }
+	return { ok: true, configPath, workflowsCopied, commandsCopied }
 }
