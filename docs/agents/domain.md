@@ -1,42 +1,14 @@
-# Domain Docs
+# Domain
 
-How the engineering skills should consume this repo's domain documentation.
+Configured by unic-archon-dlc.
 
-## Before exploring, read these
+## Repository layout: multi-context
 
-- **`CONTEXT-MAP.md`** at the repo root — it points at one `CONTEXT.md` per plugin context. Read each one relevant to the topic.
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in.
-- Per-plugin ADRs live at `apps/claude-code/<plugin>/docs/adr/`.
+This repository uses **multi-context** layout. Each package/app has its own `CONTEXT.md` file. A `CONTEXT-MAP.md` at the repo root maps each context to its location.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+- **Context map:** `CONTEXT-MAP.md`
+- **ADRs:** `docs/adr/` (repo-level decisions)
 
-## File structure
+## How agents use this
 
-```
-/
-├── CONTEXT-MAP.md                          ← points to per-plugin contexts
-├── docs/adr/                               ← monorepo-wide decisions
-└── apps/
-    └── claude-code/
-        ├── pr-review/
-        │   ├── CONTEXT.md
-        │   └── docs/adr/
-        ├── auto-format/
-        │   ├── CONTEXT.md
-        │   └── docs/adr/
-        └── unic-confluence/
-            ├── CONTEXT.md
-            └── docs/adr/
-```
-
-## Use the glossary's vocabulary
-
-When your output names a domain concept, use the term as defined in the relevant `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
-
-If the concept isn't in the glossary yet, note it for `/grill-with-docs` rather than inventing new language.
-
-## Flag ADR conflicts
-
-If your output contradicts an existing ADR, surface it explicitly:
-
-> _Contradicts ADR-0007 (…) — but worth reopening because…_
+Every agent working in this repo should read `CONTEXT.md` (and the ADRs in `docs/adr/`) before proposing terminology changes or architectural decisions.
