@@ -9,7 +9,7 @@ Runs the `review` workflow: analyses the current PR diff across four review aspe
 single structured comment on the PR.
 
 **No runtime dependency on pr-review-toolkit or any other plugin.**
-All review logic is self-contained in `.archon/workflows/review.yaml`.
+All review logic is self-contained in `.archon/workflows/unic-dlc-review.yaml`.
 
 ## When to use
 
@@ -36,7 +36,7 @@ Each section lists specific findings with `file:line` references, or an explicit
 ## Usage
 
 ```sh
-archon run .archon/workflows/review.yaml
+archon workflow run unic-dlc-review
 ```
 
 Or invoke from Claude Code:

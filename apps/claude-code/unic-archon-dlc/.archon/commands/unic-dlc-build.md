@@ -55,5 +55,5 @@ giving the fastest possible end-to-end build time.
 ## Runs
 
 ```
-archon run .archon/workflows/build.yaml --input slug=<slug>
+archon workflow run unic-dlc-build --input slug=<slug>
 ```

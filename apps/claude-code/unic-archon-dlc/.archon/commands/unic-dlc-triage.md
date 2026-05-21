@@ -20,7 +20,7 @@ Runs the `triage` workflow: reads current issue states from the configured track
 ## Usage
 
 ```sh
-archon run .archon/workflows/triage.yaml
+archon workflow run unic-dlc-triage
 ```
 
 Or invoke from Claude Code:

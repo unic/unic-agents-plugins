@@ -34,7 +34,7 @@ Where `<slug>` is the session identifier used throughout the plan → build → 
    Each ADR is shown with Context, Decision, and Consequences. The user accepts (A),
    rejects (R), or edits (E) each candidate. Only accepted ADRs are written to `docs/adr/`.
 
-3. **`run-triage` node** — invokes the shared `.archon/workflows/triage.yaml` directly via
+3. **`run-triage` node** — invokes the shared `.archon/workflows/unic-dlc-triage.yaml` directly via
    `archon run`. No triage logic is duplicated in the cleanup workflow. This produces
    `HANDOFF.md` and updates `docs/workflow/ROADMAP.md` exactly once per cleanup run.
 
@@ -56,5 +56,5 @@ Where `<slug>` is the session identifier used throughout the plan → build → 
 ## Runs
 
 ```
-archon run .archon/workflows/cleanup.yaml --input slug=<slug>
+archon workflow run unic-dlc-cleanup --input slug=<slug>
 ```

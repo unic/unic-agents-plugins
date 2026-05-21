@@ -23,7 +23,7 @@ a UAT checklist derived from the PRD's acceptance criteria, and merges the PR on
 ## Usage
 
 ```sh
-archon run .archon/workflows/qa.yaml --input slug=<slug>
+archon workflow run unic-dlc-qa --input slug=<slug>
 ```
 
 Or invoke from Claude Code:
@@ -74,5 +74,5 @@ The `uat-gate` node pauses and asks for your decision:
 ## Runs
 
 ```
-archon run .archon/workflows/qa.yaml --input slug=<slug>
+archon workflow run unic-dlc-qa --input slug=<slug>
 ```

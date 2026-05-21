@@ -21,7 +21,7 @@ Runs the `plan` workflow: loads project context and prior research, runs an adve
 ## Usage
 
 ```sh
-archon run .archon/workflows/plan.yaml --input slug=<slug>
+archon workflow run unic-dlc-plan --input slug=<slug>
 ```
 
 Or invoke from Claude Code:

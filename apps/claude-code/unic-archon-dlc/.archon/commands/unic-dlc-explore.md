@@ -25,7 +25,7 @@ Runs the `explore` workflow: four parallel research agents investigate the proje
 ## Usage
 
 ```sh
-archon run .archon/workflows/explore.yaml --input slug=<slug>
+archon workflow run unic-dlc-explore --input slug=<slug>
 ```
 
 Or invoke from Claude Code:
