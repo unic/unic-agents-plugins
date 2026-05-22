@@ -88,16 +88,16 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                                           | Tool                                                              |
-| ------------ | ---------------------------------------------- | ----------------------------------------------------------------- |
-| 1. Capture   | Idea surfaces mid-task                         | GitHub Issue (or `/triage`)                                       |
-| 2. Grill     | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`                                 |
-| 3. Research  | Unfamiliar external dependencies               | `research.md` (ad hoc)                                            |
-| 4. Prototype | Uncertain design or UX                         | Ad hoc throwaway route                                            |
-| 5. PRD       | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`                           |
-| 6. Issues    | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md`                     |
-| 7. Execute   | Issues in `docs/issues/` are `ready-for-agent` | `/tdd` per issue (Feature Runner via `unic-dlc-build` later)      |
-| 8. QA        | After execution                                | QA plan (agent-generated, human-verified)                         |
+| Phase        | When                                           | Tool                                                         |
+| ------------ | ---------------------------------------------- | ------------------------------------------------------------ |
+| 1. Capture   | Idea surfaces mid-task                         | GitHub Issue (or `/triage`)                                  |
+| 2. Grill     | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`                            |
+| 3. Research  | Unfamiliar external dependencies               | `research.md` (ad hoc)                                       |
+| 4. Prototype | Uncertain design or UX                         | Ad hoc throwaway route                                       |
+| 5. PRD       | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`                      |
+| 6. Issues    | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md`                |
+| 7. Execute   | Issues in `docs/issues/` are `ready-for-agent` | `/tdd` per issue (Feature Runner via `unic-dlc-build` later) |
+| 8. QA        | After execution                                | QA plan (agent-generated, human-verified)                    |
 
 ## Related
 
