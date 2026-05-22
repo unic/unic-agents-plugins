@@ -2,7 +2,7 @@
 
 This monorepo uses a Feature-driven development workflow. For the full lifecycle — from idea capture through grilling, PRD, issues, execution, and QA — see **[`docs/process/development-workflow.md`](docs/process/development-workflow.md)**.
 
-New features and fixes are tracked as Features in the issue tracker under `docs/issues/<slug>/`. Implementation is driven by the **Feature Runner** (`/implement-feature`) or done manually using `/tdd` for individual issues.
+New features and fixes are tracked as Features in the issue tracker under `docs/issues/<slug>/`. Implementation is done manually using `/tdd` for individual issues; the **Feature Runner** (`unic-dlc-build`, shipped by `unic-archon-dlc`) is the long-term AFK runner once it is wired into this repo (see [ADR-0030](docs/adr/0030-retire-ralph-adopt-archon-runner.md)).
 
 ## Cross-cutting standards
 
@@ -72,10 +72,10 @@ pnpm install
 
 All work enters through the issue tracker as a Feature. The recommended flow:
 
-1. Capture the idea with `/inbox <one-liner>` or open a GitHub Issue directly.
+1. Capture the idea — open a GitHub Issue directly, or run `/triage` to walk it through the state machine.
 2. Grill the design with `/grill-me` or `/grill-with-docs` until the problem and solution are clear.
 3. Create a PRD and issues with `/to-prd` → `/to-issues`.
-4. Implement: `/implement-feature <slug>` for automated AFK execution, or `/tdd` manually for individual issues.
+4. Implement each issue manually with `/tdd`. (AFK execution via `unic-dlc-build` will replace this step once the harness is wired in — see [ADR-0030](docs/adr/0030-retire-ralph-adopt-archon-runner.md) and [ADR-0031](docs/adr/0031-retire-implement-feature-skill.md).)
 5. Open a PR targeting `develop`.
 
 See [`docs/process/development-workflow.md`](docs/process/development-workflow.md) for the full 8-phase lifecycle.

@@ -23,7 +23,7 @@ packages/
 docs/
 ├── adr/                      # Architectural Decision Records
 ├── agents/                   # Agent skill documentation
-├── inbox/                    # Raw ideas pending triage
+├── inbox/                    # Retired idea-capture notes (historical)
 ├── issues/                   # Grilled and scoped feature issues
 ├── plans/                    # Retired spec files (historical)
 ├── process/                  # Process and workflow guides
@@ -139,10 +139,6 @@ Issues live in GitHub Issues at `unic/unic-agents-plugins` (planned migration to
 ### Domain docs
 
 Multi-context repo: Per-plugin `CONTEXT.md` files live under `apps/claude-code/<plugin>/`. Root `CONTEXT-MAP.md` at repo root. See `docs/agents/domain.md`.
-
-### Inbox
-
-Raw ideas, bugs, and stray thoughts that haven't been grilled or scoped yet live in `docs/inbox/`. Use `/inbox <one-liner>` to capture without interrupting the current flow. Items graduate to `docs/issues/<slug>/` after grilling. See `docs/inbox/README.md`.
 
 ## Agent skills
 

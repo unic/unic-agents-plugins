@@ -1,6 +1,6 @@
 # 0027. Feature Runner injects a scoped context bundle into every `/tdd` sub-agent invocation
 
-**Status:** Accepted (2026-05)
+**Status:** Superseded by [ADR-0031](0031-retire-implement-feature-skill.md) (2026-05)
 
 ## Context
 

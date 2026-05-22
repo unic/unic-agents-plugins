@@ -1,6 +1,6 @@
 # Development Workflow
 
-This repo follows an adapted 8-phase version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through AFK execution to QA, using the tools already available here.
+This repo follows an adapted 8-phase version of Matt Pocock's 7-phase AI development workflow. The phases move from raw idea capture through execution to QA, using the tools already available here.
 
 Not every phase is required for every piece of work. A typo fix can go straight to execution. A major feature will touch every phase.
 
@@ -8,15 +8,11 @@ Not every phase is required for every piece of work. A typo fix can go straight 
 
 ## Phase 1 — Capture the idea
 
-When an idea surfaces mid-conversation or mid-task, capture it without breaking flow:
+When an idea surfaces mid-conversation or mid-task, capture it without breaking flow by opening a GitHub Issue directly (or running `/triage` and letting it walk the idea through the state machine).
 
-```
-/inbox <one-liner>
-```
+GitHub Issues are the canonical tracker (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)) — they hold raw ideas, bug reports, and triage state. Features that get grilled additionally pick up a `docs/issues/<slug>/` directory in Phase 5, where `/to-prd` and `/to-issues` write the PRD and ticket files the Feature Runner consumes. Not every GitHub Issue grows into a Feature directory — small fixes stay as plain GitHub Issues.
 
-This drops a file into `docs/inbox/<slug>.md`. No follow-up needed. Come back to it during triage.
-
-If you already have enough context to start grilling immediately, skip the inbox and go straight to Phase 2.
+If you already have enough context to start grilling immediately, skip capture and go straight to Phase 2.
 
 ## Phase 2 — Grill the idea
 
@@ -29,8 +25,6 @@ Before writing a PRD or spec, reach shared understanding with the agent:
 Use `/grill-with-docs` when the topic involves domain concepts — it is designed to update `CONTEXT.md` and ADRs alongside the grilling. Use `/grill-me` for everything else.
 
 The grilling session walks down every branch of the design tree until the idea is concrete: edge cases surfaced, ambiguities resolved, out-of-scope items named.
-
-**Inbox → grilling transition:** open the inbox file, pass it to `/grill-with-docs` as context, then delete the inbox file once the session completes.
 
 ## Phase 3 — Research (optional)
 
@@ -72,24 +66,15 @@ Use the triage labels to track state — see `docs/agents/triage-labels.md` for 
 
 ## Phase 7 — Execute
 
-### Feature Runner — for `docs/issues/` features
+### Manual execution with `/tdd` — current default
 
-Use the Feature Runner when implementing product features tracked as Issues in `docs/issues/<slug>/`. Once a feature has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`):
+Work through `ready-for-agent` issues one at a time with `/tdd`. For each issue, the `## Acceptance criteria` block stands in for the planning conversation. Mark the issue `resolved` when the implementation lands. Open a PR targeting `develop` once the feature's issues are done.
 
-```
-/implement-feature <slug>         # target a specific feature
-/implement-feature                # auto-select next ready feature
-```
+Respect the issue ordering signalled by `## Blocked by` (see [ADR-0028](../adr/0028-blocked-by-canonical-sequencing.md)) — a downstream issue inherits a broken foundation if a blocker has not landed.
 
-The Feature Runner builds a dependency graph from `## Blocked by` references, invokes `/tdd` non-interactively for each issue in topological order, marks each issue `resolved` on completion, and opens a PR targeting `develop` when all issues are done.
+### Feature Runner — long-term AFK execution
 
-Compose with `/loop` for overnight queue draining:
-
-```
-/loop /implement-feature
-```
-
-The runner outputs `LOOP_COMPLETE` when the queue is empty, which terminates the loop cleanly.
+The Feature Runner (`unic-dlc-build`, shipped by `unic-archon-dlc`) is the AFK path going forward; see [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md) and [ADR-0031](../adr/0031-retire-implement-feature-skill.md). Until it is wired into this repo, AFK runs are not available — implement manually with `/tdd`.
 
 ### Human execution
 
@@ -105,20 +90,19 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase                | When                                           | Tool                                          |
-| -------------------- | ---------------------------------------------- | --------------------------------------------- |
-| 1. Capture           | Idea surfaces mid-task                         | `/inbox <one-liner>`                          |
-| 2. Grill             | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`             |
-| 3. Research          | Unfamiliar external dependencies               | `research.md` (ad hoc)                        |
-| 4. Prototype         | Uncertain design or UX                         | Ad hoc throwaway route                        |
-| 5. PRD               | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
-| 6. Issues            | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
-| 7. Execute (Feature) | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner)         |
-| 8. QA                | After execution                                | QA plan (agent-generated, human-verified)     |
+| Phase        | When                                           | Tool                                                         |
+| ------------ | ---------------------------------------------- | ------------------------------------------------------------ |
+| 1. Capture   | Idea surfaces mid-task                         | GitHub Issue (or `/triage`)                                  |
+| 2. Grill     | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`                            |
+| 3. Research  | Unfamiliar external dependencies               | `research.md` (ad hoc)                                       |
+| 4. Prototype | Uncertain design or UX                         | Ad hoc throwaway route                                       |
+| 5. PRD       | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`                      |
+| 6. Issues    | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md`                |
+| 7. Execute   | Issues in `docs/issues/` are `ready-for-agent` | `/tdd` per issue (Feature Runner via `unic-dlc-build` later) |
+| 8. QA        | After execution                                | QA plan (agent-generated, human-verified)                    |
 
 ## Related
 
-- `docs/inbox/README.md` — inbox conventions
 - `docs/agents/issue-tracker.md` — issue file conventions
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
 - `docs/process/ai-development.md` — deep guide: mental model, context quality, AFK trust chain, key decisions

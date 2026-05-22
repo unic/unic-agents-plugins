@@ -1,6 +1,6 @@
 # 0029. Feature Runner invokes `/tdd` non-interactively; issue acceptance criteria replace the planning phase
 
-**Status:** Accepted (2026-05)
+**Status:** Superseded by [ADR-0031](0031-retire-implement-feature-skill.md) (2026-05)
 
 ## Context
 
