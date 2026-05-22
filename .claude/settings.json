@@ -1,16 +1,17 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter * test)",
+      "Bash(pnpm bump *)",
+      "Bash(pnpm check *)",
+      "Bash(pnpm ci:check)",
+      "Bash(pnpm format *)",
+      "Bash(pnpm typecheck *)",
+      "Skill(archon)",
+      "Skill(commit-commands:commit)"
+    ]
+  },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/block-lockfile.mjs"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit",
@@ -18,6 +19,17 @@
           {
             "type": "command",
             "command": "node .claude/hooks/test-on-edit.mjs"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/block-lockfile.mjs"
           }
         ]
       }
