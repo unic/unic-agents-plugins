@@ -21,8 +21,8 @@ Verify that all acceptance criteria in a spec file are satisfied by the current 
 
 Search in order:
 
-1. `docs/plans/` at the repo root
-2. `apps/claude-code/<any-plugin>/docs/plans/`
+1. `docs/issues/` at the repo root
+2. `apps/claude-code/<any-plugin>/docs/issues/`
 
 Matching rules:
 

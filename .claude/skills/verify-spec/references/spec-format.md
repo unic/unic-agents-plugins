@@ -1,6 +1,6 @@
 # Spec File Format Reference
 
-All spec files under `docs/plans/` (root or plugin-level) follow this template.
+All spec files under `docs/issues/` (root or plugin-level) follow this template.
 
 ## File naming
 

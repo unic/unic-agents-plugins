@@ -42,4 +42,4 @@ caller-side conditional.
 
 **See also:**
 
-- `docs/plans/11-doc-context-spawn-reliability.md`
+- `docs/plans/11-doc-context-spawn-reliability.md` (retired — see git history for content)
