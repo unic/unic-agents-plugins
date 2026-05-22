@@ -1,24 +1,23 @@
 {
-  "name": "pr-review",
-  "version": "1.2.10",
-  "private": true,
-  "license": "LGPL-3.0-or-later",
-  "type": "module",
-  "packageManager": "pnpm@10.33.0",
+  "devDependencies": {
+    "@unic/release-tools": "workspace:*"
+  },
   "engines": {
     "node": ">=22",
     "pnpm": ">=10"
   },
+  "license": "LGPL-3.0-or-later",
+  "name": "pr-review",
+  "packageManager": "pnpm@10.33.0",
+  "private": true,
   "scripts": {
-    "test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs tests/confluence-client.test.mjs tests/ado-fetcher.test.mjs tests/ado-writer.test.mjs tests/pre-pr.test.mjs tests/parse-diff-hunks.test.mjs tests/mode-detection.test.mjs tests/notices.test.mjs tests/classify-http-error.test.mjs tests/fetch-work-items.test.mjs tests/fetch-iterations.test.mjs tests/parse-write-response.test.mjs tests/detect-default-branch.test.mjs tests/plugin-structure.test.mjs",
     "bump": "unic-bump",
+    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
-    "verify:changelog": "unic-verify-changelog",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
+    "test": "node --test tests/parse-signature.test.mjs tests/classify-thread.test.mjs tests/match-finding.test.mjs tests/detect-prior-review.test.mjs tests/confluence-client.test.mjs tests/ado-fetcher.test.mjs tests/ado-writer.test.mjs tests/pre-pr.test.mjs tests/parse-diff-hunks.test.mjs tests/mode-detection.test.mjs tests/notices.test.mjs tests/classify-http-error.test.mjs tests/fetch-work-items.test.mjs tests/fetch-iterations.test.mjs tests/parse-write-response.test.mjs tests/detect-default-branch.test.mjs tests/plugin-structure.test.mjs",
+    "verify:changelog": "unic-verify-changelog"
   },
-  "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:",
-    "@unic/release-tools": "workspace:*"
-  }
+  "type": "module",
+  "version": "1.2.10"
 }

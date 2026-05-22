@@ -3,7 +3,6 @@
     "marked": "17.0.5"
   },
   "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
     "@unic/release-tools": "workspace:*",
     "@unic/tsconfig": "workspace:*",

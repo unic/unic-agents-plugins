@@ -23,7 +23,6 @@ Use this as the starting shape for a new plugin's `package.json`. Copy `packageM
     "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
   },
   "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
     "@unic/release-tools": "workspace:*",
     "@unic/tsconfig": "workspace:*",
@@ -55,7 +54,6 @@ Omit `test`, `typecheck`, and the `@types/node`/`@unic/tsconfig`/`typescript` de
     "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
   },
   "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:",
     "@unic/release-tools": "workspace:*"
   }
 }
