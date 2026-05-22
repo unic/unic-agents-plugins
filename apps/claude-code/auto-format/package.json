@@ -15,7 +15,6 @@
   "private": true,
   "scripts": {
     "bump": "unic-bump",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
     "test": "node --test tests/format-hook.test.mjs scripts/lib/runners.test.mjs scripts/lib/config.test.mjs",

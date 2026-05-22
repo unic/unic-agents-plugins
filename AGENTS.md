@@ -21,7 +21,12 @@ packages/
 ├── tsconfig/                 # @unic/tsconfig
 └── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
 docs/
-└── adr/                      # Architectural Decision Records
+├── adr/                      # Architectural Decision Records
+├── agents/                   # Agent skill documentation
+├── inbox/                    # Raw ideas pending triage
+├── issues/                   # Grilled and scoped feature issues
+├── plans/                    # Retired spec files (historical)
+└── process/                  # Process and workflow guides
 ```
 
 ## Navigation

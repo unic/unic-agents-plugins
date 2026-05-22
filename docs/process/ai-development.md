@@ -160,7 +160,7 @@ The commits from your grilling sessions carry this context forward. The Feature 
 - `docs/process/development-workflow.md` — the 8-phase quick reference
 - `docs/agents/issue-tracker.md` — issue file conventions
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
-- `docs/adr/0026-tdd-dispatch-by-version-impact.md` — when the Feature Runner uses /tdd
+- `docs/adr/0026-tdd-dispatch-by-version-impact.md` — when to use /tdd vs direct implementation (dispatch by version impact)
 - `docs/adr/0027-feature-runner-context-bundle.md` — what /tdd receives per invocation
 - `docs/adr/0028-blocked-by-canonical-sequencing.md` — why ## Blocked by beats filename order
 - `docs/adr/0029-feature-runner-afk-invocation.md` — how AFK invocation works

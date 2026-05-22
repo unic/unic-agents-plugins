@@ -1,4 +1,4 @@
-# 0030. Retire ralph-orchestrator; adopt unic-archon-dlc as the Spec Runner
+# 0030. Retire ralph-orchestrator; adopt unic-archon-dlc as the Feature Runner
 
 **Status:** Accepted (2026-05)
 
