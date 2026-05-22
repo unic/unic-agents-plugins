@@ -6,19 +6,22 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { writeAgentDocs } from '../lib/agent-docs-writer.mjs'
+import { AGENT_DOC_BANNER } from '../lib/dogfood-banner.mjs'
 import { getDefaultLabels } from '../lib/labels-config.mjs'
+
+const TEST_CONFIG = {
+	tracker: /** @type {const} */ ('local-markdown'),
+	pr_strategy: /** @type {const} */ ('merge'),
+	branching: /** @type {const} */ ('gitflow'),
+	repo_layout: 'single-context',
+	labels: getDefaultLabels('local-markdown'),
+}
 
 test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content', () => {
 	const dir = join(tmpdir(), `unic-dlc-docs-${Date.now()}`)
 	mkdirSync(dir, { recursive: true })
 
-	writeAgentDocs(dir, {
-		tracker: 'local-markdown',
-		pr_strategy: 'merge',
-		branching: 'gitflow',
-		repo_layout: 'single-context',
-		labels: getDefaultLabels('local-markdown'),
-	})
+	writeAgentDocs(dir, TEST_CONFIG)
 
 	// All 5 files exist
 	for (const name of ['issue-tracker.md', 'labels.md', 'branching.md', 'domain.md', 'workflow.md']) {
@@ -47,4 +50,31 @@ test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content',
 	// 'review' is also a substring of 'arch-review' and appears in surrounding prose — anchor on the
 	// unique command string to make sure the review *row* is present, not just the word.
 	assert.ok(workflow.includes('/unic-dlc-review'), 'workflow.md should list the /unic-dlc-review command')
+})
+
+test('each generated docs/agents/*.md file begins with AGENT_DOC_BANNER', () => {
+	const dir = join(tmpdir(), `unic-dlc-docs-banner-${Date.now()}`)
+	mkdirSync(dir, { recursive: true })
+
+	writeAgentDocs(dir, TEST_CONFIG)
+
+	for (const name of ['issue-tracker.md', 'labels.md', 'branching.md', 'domain.md', 'workflow.md']) {
+		const content = readFileSync(join(dir, 'docs', 'agents', name), 'utf8')
+		assert.ok(content.startsWith(AGENT_DOC_BANNER), `${name} should begin with AGENT_DOC_BANNER`)
+	}
+})
+
+test('AGENT_DOC_BANNER appears exactly once per file on repeated writeAgentDocs calls', () => {
+	const dir = join(tmpdir(), `unic-dlc-docs-dedup-${Date.now()}`)
+	mkdirSync(dir, { recursive: true })
+
+	writeAgentDocs(dir, TEST_CONFIG)
+	writeAgentDocs(dir, TEST_CONFIG)
+	writeAgentDocs(dir, TEST_CONFIG)
+
+	for (const name of ['issue-tracker.md', 'labels.md', 'branching.md', 'domain.md', 'workflow.md']) {
+		const content = readFileSync(join(dir, 'docs', 'agents', name), 'utf8')
+		const occurrences = content.split('AUTO-GENERATED').length - 1
+		assert.equal(occurrences, 1, `${name}: AGENT_DOC_BANNER should appear exactly once`)
+	}
 })

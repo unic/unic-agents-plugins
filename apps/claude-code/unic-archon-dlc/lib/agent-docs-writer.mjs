@@ -1,6 +1,7 @@
 // @ts-check
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { AGENT_DOC_BANNER, prependBanner, SKILLS_BLOCK_BANNER } from './dogfood-banner.mjs'
 
 const AGENT_SKILLS_BEGIN = '<!-- unic-archon-dlc:begin -->'
 const AGENT_SKILLS_END = '<!-- unic-archon-dlc:end -->'
@@ -37,11 +38,11 @@ export function writeAgentDocs(projectDir, config) {
 	const dir = join(projectDir, 'docs', 'agents')
 	mkdirSync(dir, { recursive: true })
 
-	writeFileSync(join(dir, 'issue-tracker.md'), buildIssueTrackerDoc(config))
-	writeFileSync(join(dir, 'labels.md'), buildLabelsDoc(config))
-	writeFileSync(join(dir, 'branching.md'), buildBranchingDoc(config))
-	writeFileSync(join(dir, 'domain.md'), buildDomainDoc(config, projectDir))
-	writeFileSync(join(dir, 'workflow.md'), buildWorkflowDoc())
+	writeFileSync(join(dir, 'issue-tracker.md'), prependBanner(AGENT_DOC_BANNER, buildIssueTrackerDoc(config)))
+	writeFileSync(join(dir, 'labels.md'), prependBanner(AGENT_DOC_BANNER, buildLabelsDoc(config)))
+	writeFileSync(join(dir, 'branching.md'), prependBanner(AGENT_DOC_BANNER, buildBranchingDoc(config)))
+	writeFileSync(join(dir, 'domain.md'), prependBanner(AGENT_DOC_BANNER, buildDomainDoc(config, projectDir)))
+	writeFileSync(join(dir, 'workflow.md'), prependBanner(AGENT_DOC_BANNER, buildWorkflowDoc()))
 }
 
 /**
@@ -53,7 +54,8 @@ export function writeAgentDocs(projectDir, config) {
 export function updateAgentSkillsBlock(projectDir) {
 	const claudePath = join(projectDir, 'CLAUDE.md')
 
-	const block = `## Agent skills\n\n${AGENT_SKILLS_BEGIN}\n${AGENT_SKILLS_LINKS}\n${AGENT_SKILLS_END}`
+	const innerBlock = `${SKILLS_BLOCK_BANNER}\n\n${AGENT_SKILLS_LINKS}`
+	const block = `## Agent skills\n\n${AGENT_SKILLS_BEGIN}\n${innerBlock}\n${AGENT_SKILLS_END}`
 
 	let content
 	try {
@@ -71,7 +73,7 @@ export function updateAgentSkillsBlock(projectDir) {
 
 	if (beginIdx !== -1 && endIdx !== -1) {
 		// Replace only the content between markers (inclusive)
-		content = `${content.slice(0, beginIdx) + AGENT_SKILLS_BEGIN}\n${AGENT_SKILLS_LINKS}\n${content.slice(endIdx)}`
+		content = `${content.slice(0, beginIdx) + AGENT_SKILLS_BEGIN}\n${innerBlock}\n${content.slice(endIdx)}`
 		writeFileSync(claudePath, content)
 		return
 	}

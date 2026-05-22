@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { updateAgentSkillsBlock } from '../lib/agent-docs-writer.mjs'
+import { SKILLS_BLOCK_BANNER } from '../lib/dogfood-banner.mjs'
 
 let _seq = 0
 function tempDir() {
@@ -41,4 +42,36 @@ test('## Agent skills block is refreshed idempotently — never duplicated', () 
 	assert.equal(headingMatches, 1, 'heading should appear exactly once even after multiple runs')
 	// Original content preserved
 	assert.ok(content.includes('Content.'), 'original content must not be destroyed')
+})
+
+test('SKILLS_BLOCK_BANNER appears inside the marker block after updateAgentSkillsBlock', () => {
+	const dir = tempDir()
+	writeFileSync(join(dir, 'CLAUDE.md'), '# Project\n\nSome content.\n')
+
+	updateAgentSkillsBlock(dir)
+
+	const content = readFileSync(join(dir, 'CLAUDE.md'), 'utf8')
+	const begin = content.indexOf('<!-- unic-archon-dlc:begin -->')
+	const end = content.indexOf('<!-- unic-archon-dlc:end -->')
+	assert.ok(begin !== -1 && end !== -1, 'markers must be present')
+	const block = content.slice(begin, end)
+	assert.ok(block.includes(SKILLS_BLOCK_BANNER), 'SKILLS_BLOCK_BANNER must appear inside the marker block')
+	// Surrounding content preserved
+	assert.ok(content.includes('Some content.'), 'original content must not be destroyed')
+})
+
+test('SKILLS_BLOCK_BANNER appears exactly once inside the block after multiple updateAgentSkillsBlock runs', () => {
+	const dir = tempDir()
+	writeFileSync(join(dir, 'CLAUDE.md'), '# Project\n\nContent.\n')
+
+	updateAgentSkillsBlock(dir)
+	updateAgentSkillsBlock(dir)
+	updateAgentSkillsBlock(dir)
+
+	const content = readFileSync(join(dir, 'CLAUDE.md'), 'utf8')
+	const begin = content.indexOf('<!-- unic-archon-dlc:begin -->')
+	const end = content.indexOf('<!-- unic-archon-dlc:end -->')
+	const block = content.slice(begin, end)
+	const bannerCount = (block.match(/AUTO-GENERATED/g) ?? []).length
+	assert.equal(bannerCount, 1, 'SKILLS_BLOCK_BANNER must appear exactly once inside the block')
 })
