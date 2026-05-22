@@ -18,3 +18,8 @@ Goal: when `/unic-pr-review:review-pr <url>` runs against a PR that already has 
 | 09 | Test harness — node:test + modules    | done    | 02, 05, 06 |
 | 10 | Doc Context enrichment — work items + Confluence pages | done | — |
 | 11 | Doc Context spawn reliability — fix silently skipped phase | done | 10 |
+| 12 | Fix Step 4 — fold thread fetch into ADO Fetcher | todo | — |
+| 13 | Formal dry-run mode | todo | 12 |
+| 14 | ADO CLI preflight hardening + smoke test | todo | — |
+| 15 | Fan-out resilience — agent-spawn Notice | todo | 12 |
+| 16 | Aspect-selection observability + extract to pure JS | todo | 12 |
