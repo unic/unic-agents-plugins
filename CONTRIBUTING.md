@@ -1,8 +1,8 @@
 # Contributing
 
-This monorepo uses a spec-driven development workflow. For the full lifecycle — from idea capture through grilling, PRD, issues, execution, and QA — see **[`docs/process/development-workflow.md`](docs/process/development-workflow.md)**.
+This monorepo uses a Feature-driven development workflow. For the full lifecycle — from idea capture through grilling, PRD, issues, execution, and QA — see **[`docs/process/development-workflow.md`](docs/process/development-workflow.md)**.
 
-New features and fixes are described in self-contained spec files under `docs/plans/`. Implementation is automated with the **Spec Runner** (`pnpm ralph`, currently backed by `ralph-orchestrator`) or done by hand following the same steps.
+New features and fixes are tracked as Features in the issue tracker under `docs/issues/<slug>/`. Implementation is driven by the **Feature Runner** (`/implement-feature`) or done manually using `/tdd` for individual issues.
 
 ## Cross-cutting standards
 
@@ -48,7 +48,7 @@ Enforced by Biome (`pnpm ci:check`) for `.mjs`/`.js`/`.ts`/`.json`/`.css` and Pr
 
 - Zero external runtime deps unless essential (`auto-format` ships zero; `unic-confluence` has `marked` — that's the bar).
 - Zero-config from the user's perspective: no configuration files users must create beyond credentials.
-- Every plugin uses the spec-driven workflow: `docs/plans/` + `ralph.yml` + `PROMPT.md` per the template in `docs/process/`.
+- New plugin work enters through the issue tracker as Features — open a Feature before starting implementation.
 
 ### License
 
@@ -56,87 +56,29 @@ LGPL-3.0-or-later for all packages in this monorepo.
 
 ## Prerequisites
 
-| Tool            | Version                                         | How to get it                                                                    |
-| --------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
-| Node.js         | ≥ 22 (see `.nvmrc` for the recommended version) | [nodejs.org](https://nodejs.org)                                                 |
-| pnpm            | ≥ 10                                            | `npm install -g pnpm`                                                            |
-| Claude Code CLI | latest                                          | [claude.ai/code](https://claude.ai/code) — required as the Spec Runner's backend |
+| Tool            | Version                                         | How to get it                            |
+| --------------- | ----------------------------------------------- | ---------------------------------------- |
+| Node.js         | ≥ 22 (see `.nvmrc` for the recommended version) | [nodejs.org](https://nodejs.org)         |
+| pnpm            | ≥ 10                                            | `npm install -g pnpm`                    |
+| Claude Code CLI | latest                                          | [claude.ai/code](https://claude.ai/code) |
 
-Everything else (ralph-orchestrator, Biome, Prettier, TypeScript) is a workspace devDependency and installs with:
+Everything else (Biome, Prettier, TypeScript) is a workspace devDependency and installs with:
 
 ```sh
 pnpm install
 ```
 
-**ralph-loop** is a Claude Code plugin and must be installed once globally:
+## Starting new work
 
-```sh
-claude plugins install anthropics/claude-plugins-official/plugins/ralph-loop
-```
+All work enters through the issue tracker as a Feature. The recommended flow:
 
-## Writing a spec
+1. Capture the idea with `/inbox <one-liner>` or open a GitHub Issue directly.
+2. Grill the design with `/grill-me` or `/grill-with-docs` until the problem and solution are clear.
+3. Create a PRD and issues with `/to-prd` → `/to-issues`.
+4. Implement: `/implement-feature <slug>` for automated AFK execution, or `/tdd` manually for individual issues.
+5. Open a PR targeting `develop`.
 
-All work starts with a spec file. See the existing specs under `docs/plans/` for examples.
-
-### 1. Pick a number
-
-Check `docs/plans/README.md` for the current highest spec number. Create `docs/plans/NN-short-slug.md`.
-
-### 2. Required metadata
-
-```markdown
-# NN. Title
-
-**Priority:** P0 | P1 | P2
-**Effort:** XS | S | M | L
-**Version impact:** none | patch (plugin: <name>) | minor (plugin: <name>) | major (plugin: <name>)
-**Depends on:** (spec numbers, or "none")
-**Touches:** (comma-separated files/dirs)
-```
-
-### 3. Required sections
-
-| Section                   | What to write                            |
-| ------------------------- | ---------------------------------------- |
-| `## Context`              | Why this change is needed                |
-| `## Current behaviour`    | Exact code/behaviour _before_ the change |
-| `## Target behaviour`     | What it should look like _after_         |
-| `## Affected files`       | Table: path → Create / Modify / Delete   |
-| `## Implementation steps` | Numbered steps with before → after diffs |
-| `## Verification`         | Shell commands + expected output         |
-| `## Acceptance criteria`  | Checkbox list                            |
-| `## Out of scope`         | Explicit list of things NOT to change    |
-
-Good specs are **self-contained** — the Spec Runner has no memory of prior runs. Include actual code snapshots.
-
-### 4. Register the spec
-
-Add a row to the execution order table in `docs/plans/README.md`.
-
-## Running the Spec Runner
-
-```sh
-pnpm ralph
-```
-
-The Spec Runner reads `ralph.yml`, which points to `PROMPT.md`. Each iteration implements one spec, commits, and stops. Run `pnpm ralph` again for the next spec.
-
-- **Stop early**: `Ctrl+C`
-- **Resume**: `pnpm ralph` again — it finds the first unfinished spec
-- **Paused for review**: a `## Questions` section in a spec means the Spec Runner emitted `LOOP_COMPLETE` — answer the question, remove the section, re-run
-
-## Running manually (without the Spec Runner)
-
-Follow the steps in `PROMPT.md` yourself, replacing the Spec Runner's role.
-
-## Running per-plugin Spec Runner loops
-
-Each plugin also has its own `ralph.yml` + `PROMPT.md` for plugin-specific development. Run from inside the plugin directory:
-
-```sh
-cd apps/claude-code/pr-review
-pnpm ralph
-```
+See [`docs/process/development-workflow.md`](docs/process/development-workflow.md) for the full 8-phase lifecycle.
 
 ## Verification commands
 

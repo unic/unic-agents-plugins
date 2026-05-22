@@ -19,8 +19,7 @@ Use this as the starting shape for a new plugin's `package.json`. Copy `packageM
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
-    "verify:changelog": "unic-verify-changelog",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
+    "verify:changelog": "unic-verify-changelog"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -50,8 +49,7 @@ Omit `test`, `typecheck`, and the `@types/node`/`@unic/tsconfig`/`typescript` de
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
-    "verify:changelog": "unic-verify-changelog",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
+    "verify:changelog": "unic-verify-changelog"
   },
   "devDependencies": {
     "@unic/release-tools": "workspace:*"

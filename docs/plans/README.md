@@ -27,7 +27,7 @@ This directory contains the historical spec set for the `unic-agents-plugins` mo
 
 ## Backlog
 
-Ideas that need a spec before Ralph can run them. When you're ready to act on one, ask Claude to write the spec (`NN-name.md`), review it, then hand it to Ralph.
+> **Historical.** These ideas were never spec'd before `docs/plans/` was retired. If still relevant, triage them into the issue tracker (`docs/issues/`) via `/triage`.
 
 | Idea | Priority | Notes |
 |---|---|---|
@@ -35,7 +35,7 @@ Ideas that need a spec before Ralph can run them. When you're ready to act on on
 | Bake `pnpm format` into `bump-version.mjs` | P2 | Every bump leaves CHANGELOG.md in a state Prettier disagrees with, requiring a manual `pnpm format` step; discovered during spec 14 |
 | GitHub Release notes automation | P3 | Auto-generate release notes from CHANGELOG.md when the release workflow fires a tag |
 
-**Manual actions pending (not Ralph specs):**
+**Pending manual actions:**
 
 - Execute smoke test checklist (`docs/process/smoke-test-checklist.md`) — requires a scratch Claude Code environment, an Azure DevOps PR URL, and Confluence credentials
 

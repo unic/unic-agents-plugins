@@ -82,17 +82,11 @@ Only include if the plugin registers hooks.
 }
 ```
 
-**`ralph.yml`** — copy from `apps/claude-code/auto-format/ralph.yml`, replace the comment header plugin name.
-
-**`PROMPT.md`** — minimal stub: `# <Plugin Name> — Ralph Prompt\n\nDescribe the task here.`
-
 **`CHANGELOG.md`** — use the exact format from `apps/claude-code/auto-format/CHANGELOG.md` as template. Include only `## [Unreleased]` with empty Breaking/Added/Fixed subsections — no historical version entry yet.
 
 **`README.md`** — one-paragraph description of what the plugin does.
 
 **`CLAUDE.md`** — plugin-specific guidance (not a symlink at the plugin level; see `auto-format/CLAUDE.md` for structure).
-
-**`docs/plans/README.md`** — stub with: `# Spec Roadmap\n\nSpec files for this plugin go here.`
 
 **`scripts/`** and **`tests/`** — empty directories, only if the plugin has scripts or tests.
 

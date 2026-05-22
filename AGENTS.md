@@ -26,7 +26,8 @@ docs/
 ├── inbox/                    # Raw ideas pending triage
 ├── issues/                   # Grilled and scoped feature issues
 ├── plans/                    # Retired spec files (historical)
-└── process/                  # Process and workflow guides
+├── process/                  # Process and workflow guides
+└── research/                 # Research notes and explorations
 ```
 
 ## Navigation
@@ -80,7 +81,7 @@ Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
 
 ## Conventional commits
 
-Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(spec-NN): …`.
+Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(unic-archon-dlc): …`.
 
 ## Git branching (Gitflow)
 
@@ -123,7 +124,7 @@ New work enters through the issue tracker as Features. Use `/tdd` to implement i
 
 ## LICENSE files
 
-**Never create, copy, or delete `LICENSE` files.** The maintainer manages these manually in every package and plugin directory. If a spec step or acceptance criterion requires a `LICENSE` file to exist, warn the maintainer to add it themselves before continuing.
+**Never create, copy, or delete `LICENSE` files.** The maintainer manages these manually in every package and plugin directory. If an acceptance criterion requires a `LICENSE` file to exist, warn the maintainer to add it themselves before continuing.
 
 ## Skill summary
 
