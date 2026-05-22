@@ -238,7 +238,7 @@ Every agent working in this repo should read \`CONTEXT.md\` (and the ADRs in \`d
 function buildWorkflowDoc() {
 	return `# Workflow Phases
 
-unic-archon-dlc ships seven Archon workflow YAML DAGs. The six lifecycle phases below produce persistent artifacts committed to \`docs/workflow/<slug>/\`; the \`review\` workflow is on-demand and posts a single comment on the current PR.
+unic-archon-dlc ships seven Archon workflow YAML DAGs. Six are lifecycle phases (explore → plan → build → qa → cleanup → triage) that produce persistent artifacts committed to \`docs/workflow/<slug>/\`. The \`review\` workflow is on-demand and posts (or updates) a structured review on the current PR via the configured tracker backend.
 
 | Phase | Command | Artifact outputs |
 |-------|---------|-----------------|
@@ -248,7 +248,7 @@ unic-archon-dlc ships seven Archon workflow YAML DAGs. The six lifecycle phases 
 | qa | \`/unic-dlc-qa <slug>\` | merged PR |
 | cleanup | \`/unic-dlc-cleanup <slug>\` | \`docs/workflow/<slug>/arch-review.md\` |
 | triage | \`/unic-dlc-triage\` | \`HANDOFF.md\`, \`docs/workflow/ROADMAP.md\` |
-| review | \`/unic-dlc-review\` | structured comment on the current PR (idempotent re-runs) |
+| review | \`/unic-dlc-review\` | PR comment (github/ado/jira) or \`docs/workflow/<slug>/review-comment.md\` (local-markdown); idempotent re-runs |
 
 ## State separation
 
