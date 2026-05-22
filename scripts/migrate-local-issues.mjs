@@ -51,8 +51,7 @@ function ghTry(args) {
 		return { ok: true, out: gh(args), err: '' }
 	} catch (e) {
 		const err = /** @type {{stderr?: Buffer | string, message: string}} */ (e)
-		const stderr =
-			typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString('utf8') ?? err.message
+		const stderr = typeof err.stderr === 'string' ? err.stderr : (err.stderr?.toString('utf8') ?? err.message)
 		return { ok: false, out: '', err: stderr }
 	}
 }
@@ -86,7 +85,12 @@ const prsByCommitCache = new Map()
 /** @param {string} sha @returns {number[]} */
 function mergedPrsForCommit(sha) {
 	if (prsByCommitCache.has(sha)) return /** @type {number[]} */ (prsByCommitCache.get(sha))
-	const r = ghTry(['api', `repos/unic/unic-agents-plugins/commits/${sha}/pulls`, '--jq', '.[] | select(.merged_at != null) | .number'])
+	const r = ghTry([
+		'api',
+		`repos/unic/unic-agents-plugins/commits/${sha}/pulls`,
+		'--jq',
+		'.[] | select(.merged_at != null) | .number',
+	])
 	const nums = r.ok ? r.out.trim().split('\n').filter(Boolean).map(Number) : []
 	prsByCommitCache.set(sha, nums)
 	return nums
@@ -97,7 +101,9 @@ function mergedPrsForFile(file) {
 	const shas = commitsTouchingFile(file)
 	const set = new Set()
 	for (const sha of shas) for (const n of mergedPrsForCommit(sha)) set.add(n)
-	return [...set].sort((a, b) => /** @type {number} */ (a) - /** @type {number} */ (b)).map((n) => /** @type {number} */ (n))
+	return [...set]
+		.sort((a, b) => /** @type {number} */ (a) - /** @type {number} */ (b))
+		.map((n) => /** @type {number} */ (n))
 }
 
 /** @param {string} file */
@@ -107,9 +113,7 @@ function parseIssue(file) {
 	const status = content.match(/^\*\*Status:\*\*\s*(.+)$/m)?.[1]?.trim() ?? ''
 	const category = content.match(/^\*\*Category:\*\*\s*(.+)$/m)?.[1]?.trim() ?? ''
 	const blockedSection = content.match(/##\s+Blocked by\s*\n([\s\S]*?)(?=\n##\s|\n#\s|$)/)
-	const blockedBy = blockedSection
-		? [...blockedSection[1].matchAll(/`([^`]+\.md)`/g)].map((m) => m[1])
-		: []
+	const blockedBy = blockedSection ? [...blockedSection[1].matchAll(/`([^`]+\.md)`/g)].map((m) => m[1]) : []
 	return { title, status, category, blockedBy, content }
 }
 
@@ -186,9 +190,7 @@ function plan() {
 		const stateLabel = STATE_LABEL[it.status] ?? `❓${it.status}`
 		const catLabel = CATEGORY_LABEL[it.category] ?? `❓${it.category}`
 		const blocked = it.blockedByPositions.length
-			? it.blockedByPositions
-					.map((p, i) => (p ? `#${p}` : `❓\`${it.blockedBy[i]}\``))
-					.join(', ')
+			? it.blockedByPositions.map((p, i) => (p ? `#${p}` : `❓\`${it.blockedBy[i]}\``)).join(', ')
 			: '—'
 		const title = it.title.replace(/\|/g, '\\|')
 		md += `| ${it.position} | ${it.date.slice(0, 10)} | \`${it.slug}\` | \`${it.filename}\` | ${title} | \`${stateLabel}\` | \`${catLabel}\` | ${blocked} |\n`
@@ -270,12 +272,11 @@ function createLabels(state) {
 	}
 	console.log('Phase 1: creating labels')
 	const existing = new Set(
-		gh(['label', 'list', '--limit', '200', '--json', 'name'])
-			.trim()
+		gh(['label', 'list', '--limit', '200', '--json', 'name']).trim()
 			? JSON.parse(gh(['label', 'list', '--limit', '200', '--json', 'name'])).map(
-					(/** @type {{name:string}} */ l) => l.name,
+					(/** @type {{name:string}} */ l) => l.name
 				)
-			: [],
+			: []
 	)
 
 	for (const c of CATEGORIES_TO_CREATE) {
@@ -333,13 +334,17 @@ function createIssues(state) {
 
 		const r = ghTry(['issue', 'create', '--title', title, '--body-file', tmpBody, '--label', labels])
 		if (!r.ok) {
-			console.error(`  ✗ [${it.position}/${items.length}] ${it.path}: ${r.err.trim().split('\n').slice(0, 3).join(' | ')}`)
+			console.error(
+				`  ✗ [${it.position}/${items.length}] ${it.path}: ${r.err.trim().split('\n').slice(0, 3).join(' | ')}`
+			)
 			throw new Error(`Issue creation failed at ${it.path}`)
 		}
 		const m = r.out.match(/\/issues\/(\d+)/)
 		const num = m ? Number(m[1]) : null
 		if (!num) {
-			console.error(`  ✗ [${it.position}/${items.length}] ${it.path}: could not parse issue number from output: ${r.out.trim()}`)
+			console.error(
+				`  ✗ [${it.position}/${items.length}] ${it.path}: could not parse issue number from output: ${r.out.trim()}`
+			)
 			throw new Error('Could not parse issue number')
 		}
 		state.issuesCreated[it.path] = num
