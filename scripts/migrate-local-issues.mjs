@@ -113,7 +113,26 @@ function parseIssue(file) {
 	const status = content.match(/^\*\*Status:\*\*\s*(.+)$/m)?.[1]?.trim() ?? ''
 	const category = content.match(/^\*\*Category:\*\*\s*(.+)$/m)?.[1]?.trim() ?? ''
 	const blockedSection = content.match(/##\s+Blocked by\s*\n([\s\S]*?)(?=\n##\s|\n#\s|$)/)
-	const blockedBy = blockedSection ? [...blockedSection[1].matchAll(/`([^`]+\.md)`/g)].map((m) => m[1]) : []
+	/** @type {string[]} */
+	const blockedBy = []
+	if (blockedSection) {
+		// Match every bullet-list item under "## Blocked by", whether the
+		// reference is wrapped in backticks or not, and whether it ends in
+		// `.md` or not. Free prose lines (e.g. "None — can start immediately.")
+		// are skipped because they don't start with "- ".
+		for (const line of blockedSection[1].split('\n')) {
+			const m = line.match(/^\s*-\s+(.+?)\s*$/)
+			if (!m) continue
+			let ref = m[1].trim()
+			// Strip surrounding backticks if present.
+			ref = ref.replace(/^`(.+)`$/, '$1').trim()
+			// Skip empty refs and obvious non-references (sentences with spaces,
+			// e.g. "None — can start immediately." after backtick stripping).
+			if (!ref) continue
+			if (/\s/.test(ref)) continue
+			blockedBy.push(ref)
+		}
+	}
 	return { title, status, category, blockedBy, content }
 }
 
@@ -155,11 +174,17 @@ function collect() {
 	for (const it of items) {
 		it.blockedByPositions = it.blockedBy.map((ref) => {
 			const norm = ref.replace(/^docs\/issues\//, '')
+			const withMd = ref.endsWith('.md') ? ref : `${ref}.md`
+			const normWithMd = withMd.replace(/^docs\/issues\//, '')
 			return (
 				byKey.get(ref) ??
 				byKey.get(norm) ??
 				byKey.get(`${it.slug}/${basename(ref)}`) ??
 				byKey.get(basename(ref)) ??
+				byKey.get(withMd) ??
+				byKey.get(normWithMd) ??
+				byKey.get(`${it.slug}/${basename(withMd)}`) ??
+				byKey.get(basename(withMd)) ??
 				null
 			)
 		})
@@ -227,14 +252,24 @@ function buildBody(item, resolvedNumbers) {
 	if (item.blockedBy.length && Object.keys(resolvedNumbers).length) {
 		for (const ref of item.blockedBy) {
 			const norm = ref.replace(/^docs\/issues\//, '')
+			const withMd = ref.endsWith('.md') ? ref : `${ref}.md`
+			const normWithMd = withMd.replace(/^docs\/issues\//, '')
 			const num =
 				resolvedNumbers[ref] ??
 				resolvedNumbers[norm] ??
 				resolvedNumbers[`${item.slug}/${basename(ref)}`] ??
-				resolvedNumbers[basename(ref)]
+				resolvedNumbers[basename(ref)] ??
+				resolvedNumbers[withMd] ??
+				resolvedNumbers[normWithMd] ??
+				resolvedNumbers[`${item.slug}/${basename(withMd)}`] ??
+				resolvedNumbers[basename(withMd)]
 			if (num) {
-				const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-				body = body.replace(new RegExp(`\`${escaped}\``, 'g'), `#${num}`)
+				// Replace both the bare form and the `.md`-suffixed form, each
+				// optionally wrapped in backticks, with the GitHub issue number.
+				for (const variant of new Set([ref, withMd])) {
+					const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+					body = body.replace(new RegExp(`\`${escaped}\``, 'g'), `#${num}`)
+				}
 			}
 		}
 	}
@@ -271,13 +306,8 @@ function createLabels(state) {
 		return
 	}
 	console.log('Phase 1: creating labels')
-	const existing = new Set(
-		gh(['label', 'list', '--limit', '200', '--json', 'name']).trim()
-			? JSON.parse(gh(['label', 'list', '--limit', '200', '--json', 'name'])).map(
-					(/** @type {{name:string}} */ l) => l.name
-				)
-			: []
-	)
+	const labelListOut = gh(['label', 'list', '--limit', '200', '--json', 'name']).trim()
+	const existing = new Set(labelListOut ? JSON.parse(labelListOut).map((/** @type {{name:string}} */ l) => l.name) : [])
 
 	for (const c of CATEGORIES_TO_CREATE) {
 		if (existing.has(c.name)) {
