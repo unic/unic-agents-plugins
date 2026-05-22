@@ -91,10 +91,14 @@ _Avoid_: initial review, fresh review
 A Review run against an ADO PR where a prior **Bot Signature** is found in the PR's threads. Focuses on commits since the last Review, performs Thread Classification, and replies to or resolves existing Review Threads rather than duplicating them.
 _Avoid_: incremental review, follow-up review, second pass
 
+**Dry-run mode**:
+A Review run against an ADO PR with the `--dry-run` flag. Identical to first-review / re-review for every read-side step — **ADO Fetcher**, **Doc Context Orchestrator**, all Review Aspect agents, and (when prior signature is found) the **Re-review Coordinator's** Thread Classification — but the **ADO Writer** is never invoked. Findings are rendered in the Claude interface using the same severity-grouped format as Pre-PR mode. Used to preview what a Review or Re-review would post before committing to write-back.
+_Avoid_: preview review, simulated review, no-post review
+
 ### Orchestration agents
 
 **ADO Fetcher**:
-A plugin agent that retrieves PR metadata, iterations, changed files, and the raw diff from Azure DevOps. Used by first-review and re-review modes; not invoked in pre-PR mode.
+A plugin agent that retrieves PR metadata, iterations, PR threads, changed files, and the raw diff from Azure DevOps — and determines the Review mode from the thread data. All ADO read operations for a PR review are owned here; the orchestrator makes no inline ADO read calls.
 _Avoid_: fetcher, data agent, ADO client
 
 **Re-review Coordinator**:
@@ -158,9 +162,9 @@ A single end-of-run line printed by the orchestrator to the Claude interface, re
 - A **Doc Context** is assembled via a three-tier pipeline: the **Doc Context Orchestrator** spawns **Work Item Summarizer** and **Confluence Fetcher** agents (Doc Context Sub-agents) in parallel, then delegates their outputs to the **Doc Context Synthesizer**, which produces the final `DOC_CONTEXT` narrative injected into every Review Aspect agent
 - A **Doc Context Sub-agent** operates on a single source (work item or Confluence page) and receives the changed files list and the local diff when available
 - The **Doc Context Orchestrator** returns the **Doc Context Synthesizer**'s output verbatim; it does not rewrite or reformat the narrative
-- The **ADO Fetcher** is invoked by first-review and re-review modes; **Pre-PR mode** skips it entirely and goes directly to Review Aspect agents
-- The **Re-review Coordinator** is invoked only when the mode is re-review; first-review and pre-PR modes never load it
-- The **ADO Writer** is invoked by first-review and re-review modes; **Pre-PR mode** does not write back to ADO
+- The **ADO Fetcher** is invoked by first-review, re-review, and dry-run modes; **Pre-PR mode** skips it entirely and goes directly to Review Aspect agents
+- The **Re-review Coordinator** is invoked when the mode is re-review or a dry-run that detected a prior **Bot Signature**; first-review, pre-PR, and dry-run-on-fresh-PR modes never load it. In dry-run mode the Coordinator performs Thread Classification but its results feed only the rendered output — no Replies are posted
+- The **ADO Writer** is invoked by first-review and re-review modes; **Pre-PR mode** and **Dry-run mode** do not write back to ADO
 - Every operation in an orchestration agent terminates in one of the four **Notice Tiers**. **DEGRADED** and **EMPTY-BY-DESIGN**-with-message operations emit a **Notice** that flows from the agent's structured result block, through the orchestrator's merge step, into the **Review Summary** (for ADO modes) or the printed pre-findings block (for **Pre-PR mode**). The end-of-run **Trailer** carries Notice counts so the invoker sees them without opening the PR.
 
 ## Example dialogue

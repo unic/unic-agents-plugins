@@ -1,6 +1,6 @@
 # ADR 0015 — Canonical HTTP-Tier Mapping
 
-**Status:** Accepted
+**Status:** Accepted, amended by 0018
 **Date:** 2026-05-13
 **Deciders:** Oriol Torrent Florensa
 **Context:** ADR 0014 (failure-classification helper layer)
@@ -54,6 +54,9 @@ Retries are not implemented. Reasons:
 
 Re-evaluate if 5xx Notices prove painful in practice; retries can be added behind the same Notice
 surface without changing the doctrine.
+
+**Update (2026-05-14):** this no-retry policy is extended to agent-spawn failures during orchestrator
+fan-out by ADR 0018. The reasoning is identical (AFK latency, retry-storm risk, accurate Notice).
 
 ### Implementation
 
