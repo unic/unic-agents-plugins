@@ -4,25 +4,17 @@ Contributions start as GitHub Issues in the [unic/unic-agents-plugins](https://g
 
 ## Prerequisites
 
-| Tool            | Version                                         | How to get it                                                          |
-| --------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| Node.js         | ≥ 22 (see `.nvmrc` for the recommended version) | [nodejs.org](https://nodejs.org)                                       |
-| pnpm            | ≥ 10                                            | `npm install -g pnpm`                                                  |
-| Claude Code CLI | latest                                          | [claude.ai/code](https://claude.ai/code) — required as Ralph's backend |
+| Tool            | Version                                         | How to get it                            |
+| --------------- | ----------------------------------------------- | ---------------------------------------- |
+| Node.js         | ≥ 22 (see `.nvmrc` for the recommended version) | [nodejs.org](https://nodejs.org)         |
+| pnpm            | ≥ 10                                            | `npm install -g pnpm`                    |
+| Claude Code CLI | latest                                          | [claude.ai/code](https://claude.ai/code) |
 
-Everything else (Ralph Orchestrator, Biome, TypeScript) is a project devDependency and installs with:
+Everything else (Biome, TypeScript) is a project devDependency and installs with:
 
 ```sh
 pnpm install
 ```
-
-**ralph-loop** is a Claude Code plugin and must be installed once globally:
-
-```sh
-claude plugins install anthropics/claude-plugins-official/plugins/ralph-loop
-```
-
-This registers the `/ralph-loop` skill and the session loop hook in Claude Code.
 
 ## Planning
 
@@ -41,8 +33,8 @@ All work starts as a GitHub Issue in [unic/unic-agents-plugins](https://github.c
 
 1. Verify everything is clean
 
-   - `pnpm format`: Ensure formatting is correct
-   - `pnpm check`: biome lint + format check
+   - `pnpm -w format`: format all files (run from repo root)
+   - `pnpm -w check`: Biome lint + format check (run from repo root)
    - `pnpm test`: run tests
    - `pnpm typecheck`: type check
 
@@ -54,7 +46,7 @@ All work starts as a GitHub Issue in [unic/unic-agents-plugins](https://github.c
    - `git add -A`
    - `git commit -m "<Convention Commit>"`
 
-The `pnpm bump <patch|minor|major>` step is mandatory — `pnpm verify:changelog` (enforced in CI and the pre-push hook) will reject the commit if source files changed without a version bump and dated CHANGELOG entry.
+The `pnpm bump <patch|minor|major>` step is mandatory — `pnpm verify:changelog` (enforced in CI) will reject a PR if source files changed without a version bump and dated CHANGELOG entry.
 
 ## Code standards
 
@@ -73,7 +65,7 @@ PRs must pass:
 ```sh
 pnpm ci:check        # Biome lint + format
 pnpm test            # Node built-in test runner
-pnpm verify:changelog  # version bumped + CHANGELOG entry present (available after spec 20)
+pnpm verify:changelog  # version bumped + CHANGELOG entry present
 ```
 
 A PR that modifies source or user-facing docs without bumping the version will fail CI.

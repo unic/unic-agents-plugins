@@ -1,7 +1,7 @@
 ---
 name: verify-spec
-description: This skill should be used when the user asks to "verify spec 15", "check acceptance criteria for spec N", "is spec 14 ready to merge", "run verify-spec on 08", "check if spec 15 is done", or invokes /verify-spec with a spec number or filename. Locates the matching spec file and checks every acceptance criterion against the current codebase.
-argument-hint: '<spec-number-or-filename> (e.g. 15 or 15-release-tools-tests.md)'
+description: This skill should be used when the user asks to "verify spec auto-format-config", "check acceptance criteria for pr-review-rereview", "is pr-review-ado-fetcher-reliability ready to merge", "run verify-spec on unic-archon-dlc", or invokes /verify-spec with an issue slug or partial name. Locates the matching PRD file in docs/issues/ and checks every acceptance criterion against the current codebase.
+argument-hint: '<issue-slug-or-partial> (e.g. auto-format-config or pr-review-rereview)'
 user-invocable: true
 ---
 
@@ -13,24 +13,26 @@ Verify that all acceptance criteria in a spec file are satisfied by the current 
 
 `$ARGUMENTS` is one of:
 
-- A bare spec number: `15`
-- A full filename: `15-release-tools-tests.md`
-- A partial name: `release-tools`
+- A full issue slug: `auto-format-config`
+- A partial slug: `auto-format` (substring match)
+- A done sub-task filename: `01-end-to-end-notice-pipeline.md`
 
 ## Locating the spec file
 
+Spec files live in `docs/issues/` as `<slug>/PRD.md`. Completed vertical-slice sub-tasks live under `docs/issues/<slug>/done/NN-title.md`.
+
 Search in order:
 
-1. `docs/issues/` at the repo root
-2. `apps/claude-code/<any-plugin>/docs/issues/`
+1. `docs/issues/` at the repo root — match `<slug>/PRD.md`
+2. `apps/claude-code/<any-plugin>/docs/issues/` — same structure
 
 Matching rules:
 
-- **Bare number** (`15`, `1`): interpret as an exact numeric prefix. `15` matches `15-*` only; `1` matches `01-*` only (left-zero-pad to two digits). It does NOT substring-match `10-`, `11-`, etc.
-- **Partial name** (`release-tools`): substring match against the filename.
-- **Full filename** (`15-release-tools-tests.md`): exact match.
+- **Full slug** (`auto-format-config`): look for `docs/issues/auto-format-config/PRD.md`.
+- **Partial slug** (`auto-format`): substring match against slug directory names; list all matches and ask which to use if more than one.
+- **Done sub-task filename** (`01-end-to-end-notice-pipeline.md` or bare `01`): search `done/` sub-directories under matching slugs.
 
-If more than one file matches, list the candidates and ask which to use. If no file matches, report that clearly and stop.
+If no file matches, report that clearly and stop.
 
 ## Spec file format
 
