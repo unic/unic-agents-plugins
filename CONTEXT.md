@@ -47,4 +47,3 @@ _Avoid_: client, user repo, target repo, host repo
 
 > **Dev:** "A Consumer reported the auto-format Plugin failing on Windows."
 > **Domain expert:** "That's a cross-platform gap. Plugins must use Node.js APIs — no shell commands or POSIX paths."
-
