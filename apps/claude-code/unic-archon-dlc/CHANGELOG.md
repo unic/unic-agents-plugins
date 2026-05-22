@@ -12,6 +12,9 @@
 - Removed `hooks/install.mjs` and `hooks` field from `plugin.json`
 
 ### Fixed
+- Build `run-build` node prompt now invokes the generated per-slug workflow by name (`archon workflow run unic-dlc-build-<slug>`) instead of the no-longer-supported `archon run <path>`
+- Cleanup workflow `run-triage` error message now says `archon workflow run failed` (matches the actual command); cleanup command doc references the by-name invocation instead of `archon run`
+- `docs/agents/workflow.md` (and the `agent-docs-writer.mjs` generator) now list all seven workflow DAGs — the missing `review` phase has been added alongside the six lifecycle phases
 - Fixed stale reference in `CONTEXT.md`: Relationships section now credits the **Setup** slash command (not the deleted install hook) for writing config/docs into the target project
 - Fixed `repo_layout` default and valid-values columns in `README.md` configuration reference table to use `single-context` (as produced by `detectRepoLayout()`) instead of `single`
 - Fixed shell injection in `setup` command Step 5: `{ANSWERS_JSON}` is now substituted directly inside the `<<'EOJS'` heredoc instead of being assigned to a shell variable, so single quotes in e2e commands (e.g. `pnpm test --grep 'smoke'`) no longer break the assignment
