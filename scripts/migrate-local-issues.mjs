@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
@@ -234,7 +234,7 @@ function buildBody(item, resolvedNumbers) {
 				resolvedNumbers[basename(ref)]
 			if (num) {
 				const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-				body = body.replace(new RegExp('`' + escaped + '`', 'g'), `#${num}`)
+				body = body.replace(new RegExp(`\`${escaped}\``, 'g'), `#${num}`)
 			}
 		}
 	}
@@ -249,7 +249,7 @@ function buildBody(item, resolvedNumbers) {
 		`**Migrated from:** \`docs/issues/${item.slug}/${item.filename}\` (source removed after migration)`,
 		...(prLine ? [prLine] : []),
 	].join('\n')
-	return body + '\n' + footer + '\n'
+	return `${body}\n${footer}\n`
 }
 
 /** @returns {{labelsCreated:boolean,issuesCreated:Record<string,number>,backfilled:string[],closed:string[],deleted:string[]}} */
@@ -261,7 +261,7 @@ function loadState() {
 
 /** @param {ReturnType<typeof loadState>} state */
 function saveState(state) {
-	writeFileSync(STATE_FILE, JSON.stringify(state, null, 2) + '\n')
+	writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`)
 }
 
 /** @param {ReturnType<typeof loadState>} state */
