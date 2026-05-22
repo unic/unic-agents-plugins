@@ -1,0 +1,21 @@
+# Workflow Phases
+
+unic-archon-dlc ships seven Archon workflow YAML DAGs. Six are lifecycle phases (explore → plan → build → qa → cleanup → triage) that produce persistent artifacts committed to `docs/workflow/<slug>/`. The `review` workflow is on-demand and posts (or updates) a structured review on the current PR via the configured tracker backend.
+
+| Phase   | Command                    | Artifact outputs                                                                                              |
+| ------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| explore | `/unic-dlc-explore <slug>` | `docs/workflow/<slug>/findings.md`                                                                            |
+| plan    | `/unic-dlc-plan <slug>`    | `docs/workflow/<slug>/PRD.md`, `issues.json`, `build-<slug>.yaml`                                             |
+| build   | `/unic-dlc-build <slug>`   | `docs/workflow/<slug>/report.md`                                                                              |
+| qa      | `/unic-dlc-qa <slug>`      | merged PR                                                                                                     |
+| cleanup | `/unic-dlc-cleanup <slug>` | `docs/workflow/<slug>/arch-review.md`                                                                         |
+| triage  | `/unic-dlc-triage`         | `HANDOFF.md`, `docs/workflow/ROADMAP.md`                                                                      |
+| review  | `/unic-dlc-review`         | PR comment (github/ado/jira) or `docs/workflow/<slug>/review-comment.md` (local-markdown); idempotent re-runs |
+
+## State separation
+
+| Layer                        | Storage                          | Who owns it       |
+| ---------------------------- | -------------------------------- | ----------------- |
+| Transient workflow state     | `$ARTIFACTS_DIR` (Archon native) | Archon runtime    |
+| Persistent project artifacts | `docs/workflow/<slug>/`          | Committed to repo |
+| Issue / ticket tracking      | Configured tracker               | Tracker backend   |

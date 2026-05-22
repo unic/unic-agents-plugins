@@ -156,3 +156,14 @@ Multi-context repo: Per-plugin `CONTEXT.md` files live under `apps/claude-code/<
 ### Inbox
 
 Raw ideas, bugs, and stray thoughts that haven't been grilled or scoped yet live in `docs/inbox/`. Use `/inbox <one-liner>` to capture without interrupting the current flow. Items graduate to `docs/issues/<slug>/` after grilling. See `docs/inbox/README.md`.
+
+## Agent skills
+
+<!-- unic-archon-dlc:begin -->
+
+- [issue-tracker.md](docs/agents/issue-tracker.md) — issue tracker backend, CLI, create/update conventions
+- [labels.md](docs/agents/labels.md) — three-tier label taxonomy: state, type, priority
+- [branching.md](docs/agents/branching.md) — branching strategy, branch names, PR targets
+- [domain.md](docs/agents/domain.md) — single-context vs multi-context, CONTEXT.md and ADR locations
+- [workflow.md](docs/agents/workflow.md) — seven workflow phases, artifact outputs, docs/workflow/ paths
+<!-- unic-archon-dlc:end -->

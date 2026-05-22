@@ -13,6 +13,7 @@ nodes:
   - id: slopcheck
     name: Slopcheck — Verify New Packages
     type: bash
+    runtime: bun
     depends_on: []
     script: |
       #!/usr/bin/env node
@@ -130,8 +131,8 @@ nodes:
            "build-{{ inputs.slug }}.yaml not found. Run /unic-dlc-plan {{ inputs.slug }} first to generate it."
          and halt.
 
-      2. Invoke the generated workflow via Archon:
-         Run: archon run .archon/workflows/build-{{ inputs.slug }}.yaml --input slug={{ inputs.slug }}
+      2. Invoke the generated workflow via Archon by name:
+         Run: archon workflow run unic-dlc-build-{{ inputs.slug }} --input slug={{ inputs.slug }}
 
          The generated workflow contains:
            - code-red-<id> nodes: write FAILING acceptance tests per issue
@@ -152,6 +153,7 @@ nodes:
   - id: verification
     name: Verification — Test Suite, Stubs, Wiring
     type: bash
+    runtime: bun
     depends_on: [run-build]
     script: |
       #!/usr/bin/env node

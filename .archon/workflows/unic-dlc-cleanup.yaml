@@ -139,6 +139,7 @@ nodes:
   - id: run-triage
     name: Run Triage — Refresh Project State
     type: bash
+    runtime: bun
     depends_on: [adr-consolidation]
     script: |
       #!/usr/bin/env node
@@ -147,11 +148,11 @@ nodes:
       import { execFileSync } from 'node:child_process'
 
       try {
-        execFileSync('archon', ['run', '.archon/workflows/triage.yaml'], {
+        execFileSync('archon', ['workflow', 'run', 'unic-dlc-triage'], {
           stdio: 'inherit',
           env: { ...process.env },
         })
       } catch (err) {
-        console.error('run-triage: archon run failed:', err.message)
+        console.error('run-triage: archon workflow run failed:', err.message)
         process.exit(1)
       }

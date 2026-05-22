@@ -1,0 +1,210 @@
+name: unic-dlc-explore
+description: Parallel research across four dimensions, then synthesize findings into docs/workflow/<slug>/findings.md.
+
+inputs:
+  slug:
+    description: Short identifier for this exploration (used as the findings directory name under docs/workflow/).
+    required: true
+
+nodes:
+  - id: research-stack
+    name: Research Stack
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — research-stack node.
+
+      Goal: understand the technology stack of this project.
+
+      1. Read package.json (root and any workspace members listed in pnpm-workspace.yaml).
+      2. Note the runtime, package manager, module system, and key devDependencies.
+      3. Check .nvmrc or .node-version for the pinned Node.js version.
+      4. Look for any framework, test runner, linter, or build tool references.
+      5. Output a concise Markdown summary under the heading "## Stack Findings" covering:
+         - Runtime version
+         - Package manager
+         - Module system (CJS/ESM)
+         - Key frameworks / libraries
+         - Toolchain (lint, format, type-check, test)
+
+  - id: research-features
+    name: Research Features
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — research-features node.
+
+      Goal: identify the key features and capabilities of this project.
+
+      1. Read README.md (if present) for a high-level feature list.
+      2. Scan docs/plans/ and docs/issues/ for feature specs and issue slugs.
+      3. Inspect any CHANGELOG.md files for shipped feature entries.
+      4. Look at exported function names in lib/*.mjs to infer capabilities.
+      5. Output a concise Markdown summary under the heading "## Features Findings" covering:
+         - Core capabilities already shipped
+         - In-progress or planned features (from specs/issues)
+         - Any notable user-facing commands or workflows
+
+  - id: research-architecture
+    name: Research Architecture
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — research-architecture node.
+
+      Goal: understand the structural and architectural decisions of this project.
+
+      1. Read CONTEXT.md (if present) for the domain model and layering decisions.
+      2. Read docs/adr/ entries (newest five by filename) for recorded decisions.
+      3. Examine the directory tree: lib/, test/, hooks/, .archon/, and any packages/.
+      4. Identify patterns: pure functions vs. stateful modules, DAG/workflow orchestration, plugin conventions.
+      5. Note any cross-platform constraints (Windows, macOS, Linux) visible in the code.
+      6. Output a concise Markdown summary under the heading "## Architecture Findings" covering:
+         - Directory structure and module responsibilities
+         - Key design patterns and conventions
+         - Recorded decisions from ADRs
+         - Cross-platform or portability constraints
+
+  - id: research-pitfalls
+    name: Research Pitfalls
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — research-pitfalls node.
+
+      Goal: surface known pitfalls, edge cases, and areas of technical debt.
+
+      1. Search for TODO, FIXME, HACK, and XXX comments across all source files.
+      2. Look for error-handling gaps: try/catch blocks that swallow errors, unhandled promise rejections.
+      3. Check CI configuration (.github/workflows/ or .gitlab-ci.yml) for flaky or skipped jobs.
+      4. Inspect test coverage: are there lib modules with no corresponding test file?
+      5. Read the most recent HANDOFF.md (if present) for documented blockers.
+      6. Output a concise Markdown summary under the heading "## Pitfalls Findings" covering:
+         - Known bugs or TODOs in the code
+         - Untested modules or coverage gaps
+         - CI issues or flaky behaviours
+         - Blockers from the latest HANDOFF.md
+
+  - id: synthesize
+    name: Synthesize Findings
+    type: prompt
+    depends_on: [research-stack, research-features, research-architecture, research-pitfalls]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — synthesize node.
+
+      You have four research outputs from the parallel nodes:
+        - research-stack    → "## Stack Findings"
+        - research-features → "## Features Findings"
+        - research-architecture → "## Architecture Findings"
+        - research-pitfalls → "## Pitfalls Findings"
+
+      Additionally:
+        - The user's stated intent for this exploration is captured in the `slug` workflow input.
+        - Read CONTEXT.md at the project root if it exists — it contains the canonical domain vocabulary.
+        - If this is a monorepo, also read CONTEXT-MAP.md at the repo root.
+
+      Your job:
+      1. Call initFindingsDir(projectDir, slug) to create docs/workflow/<slug>/ (idempotent).
+      2. Call writeFindingsMd(findingsDir, { stack, features, architecture, pitfalls, brief }) where:
+         - `stack`, `features`, `architecture`, `pitfalls` are the respective findings summaries
+           (strip the "## … Findings" heading and keep only the body text).
+         - `brief` is a new 3-5 sentence "Integrated Brief" that synthesises all four dimensions
+           into a single coherent narrative, highlighting the most important insight from each,
+           surfacing any cross-cutting concerns, and recommending the single highest-impact next step.
+      3. Print: "Explore complete. Findings written to docs/workflow/<slug>/findings.md"
+
+  - id: prototype
+    name: Prototype Experiments
+    type: prompt
+    depends_on: [synthesize]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — prototype node.
+
+      Goal: design and evaluate one or more experiments that test the key unknowns
+      identified in the findings, then record a verdict for each.
+
+      Inputs available:
+        - `slug` workflow input (the exploration identifier)
+        - docs/workflow/<slug>/findings.md (written by the synthesize node)
+
+      Steps:
+      1. Read docs/workflow/<slug>/findings.md.
+      2. From the Integrated Brief and Pitfalls section identify 1-3 concrete unknowns
+         worth spiking. For each unknown, design a minimal experiment:
+           - Give it a short descriptive title.
+           - Describe what you would build or measure.
+           - Reason through what outcome is most likely given the existing evidence.
+           - Assign exactly ONE verdict: VALIDATED, INVALIDATED, or PARTIAL.
+             · VALIDATED  — the approach is confirmed viable; evidence is sufficient.
+             · INVALIDATED — the approach is ruled out; a blocker was found.
+             · PARTIAL    — the approach shows promise but requires follow-up work.
+           - Write 2-4 sentences of supporting evidence or reasoning.
+      3. Call appendSpikeVerdicts(findingsDir, verdicts) from lib/spike-verdicts.mjs,
+         passing an array of { title, verdict, notes } objects.
+         This appends a "## Spike verdicts" section to findings.md.
+      4. Print: "Prototype complete. <N> verdict(s) written to docs/workflow/<slug>/findings.md"
+
+  - id: code-preserve-gate
+    name: Spike Branch Gate
+    type: interactive
+    fresh_context: true
+    depends_on: [prototype]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — code-preserve-gate node.
+
+      Goal: decide whether to preserve any spike code on a dedicated branch.
+
+      Ask the user exactly this question:
+        "Should I preserve this spike code on a branch? (yes/no)"
+
+      If the user answers YES (or y):
+        1. Derive a branch name: spike/<slug>  (e.g. spike/auth-refresh).
+        2. Run: git checkout -b spike/<slug>
+        3. Stage and commit any unstaged files related to this spike:
+             git add -A
+             git commit -m "spike(<slug>): preserve prototype code from explore workflow"
+        4. Print: "Spike code committed on branch spike/<slug>."
+
+      If the user answers NO (or n):
+        1. Leave the worktree unchanged — do NOT stage or commit anything.
+        2. Print: "Spike code discarded. Worktree left clean."
+
+  - id: create-spike-ticket
+    name: Create Spike Ticket
+    type: prompt
+    depends_on: [code-preserve-gate]
+    prompt: |
+      You are running the unic-archon-dlc explore workflow — create-spike-ticket node.
+
+      Goal: create (or update) a spike ticket in the configured tracker.
+
+      Inputs available:
+        - `slug` workflow input
+        - docs/workflow/<slug>/findings.md (contains the ## Spike verdicts section)
+
+      Steps:
+      1. Read docs/workflow/<slug>/findings.md.
+      2. Call parseSpikeVerdicts(content) from lib/spike-verdicts.mjs to extract verdicts.
+      3. Build a one-line verdict summary, e.g.:
+           "1 VALIDATED, 1 INVALIDATED, 1 PARTIAL"
+      4. Load the tracker configuration with loadConfig(projectDir) from lib/config-loader.mjs.
+         Use config.tracker (defaults to 'github' if absent).
+      5. Load labels with getDefaultLabels(tracker) from lib/labels-config.mjs.
+      6. Check whether a spike ticket for this slug already exists:
+           - GitHub:         gh issue list --label spike --search "<slug>" --json number,title
+           - local-markdown: check for docs/issues/<slug>-spike/index.md
+           - Other trackers: search by title containing slug.
+      7a. If NO existing ticket:
+           Call buildCreateCommand(tracker, title, 'spike', 'p2', labels) where
+           title = "Spike: <slug> — <one-line verdict summary>".
+           The body should include:
+             - Link to docs/workflow/<slug>/findings.md
+             - The full ## Spike verdicts section text
+           Execute or print the generated command.
+      7b. If ticket EXISTS:
+           Call buildUpdateCommand(tracker, issueId, 'needs-triage', labels)
+           and additionally update the body to append the new verdict summary.
+           Execute or print the generated command.
+      8. Print one of:
+           "Spike ticket created: <title>"
+           "Spike ticket updated: <issueId>"

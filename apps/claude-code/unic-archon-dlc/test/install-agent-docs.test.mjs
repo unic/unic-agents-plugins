@@ -39,9 +39,12 @@ test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content',
 	const domain = readFileSync(join(dir, 'docs', 'agents', 'domain.md'), 'utf8')
 	assert.ok(domain.includes('single-context') || domain.includes('single'), 'domain.md should mention single-context')
 
-	// workflow.md mentions all 6 workflow phases
+	// workflow.md mentions all 7 workflow phases
 	const workflow = readFileSync(join(dir, 'docs', 'agents', 'workflow.md'), 'utf8')
-	for (const phase of ['explore', 'plan', 'build', 'qa', 'cleanup', 'triage']) {
+	for (const phase of ['explore', 'plan', 'build', 'qa', 'cleanup', 'triage', 'review']) {
 		assert.ok(workflow.toLowerCase().includes(phase), `workflow.md should mention ${phase}`)
 	}
+	// 'review' is also a substring of 'arch-review' and appears in surrounding prose — anchor on the
+	// unique command string to make sure the review *row* is present, not just the word.
+	assert.ok(workflow.includes('/unic-dlc-review'), 'workflow.md should list the /unic-dlc-review command')
 })

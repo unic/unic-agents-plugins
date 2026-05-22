@@ -12,6 +12,7 @@ nodes:
   - id: e2e
     name: End-to-End Tests
     type: bash
+    runtime: bun
     depends_on: []
     script: |
       #!/usr/bin/env node
@@ -61,6 +62,7 @@ nodes:
   - id: coverage-gate
     name: Coverage Gate
     type: bash
+    runtime: bun
     depends_on: [e2e]
     script: |
       #!/usr/bin/env node
@@ -191,6 +193,7 @@ nodes:
   - id: verify-pr-base
     name: Verify PR Base Branch
     type: bash
+    runtime: bun
     depends_on: [uat-gate]
     script: |
       #!/usr/bin/env node
@@ -253,6 +256,7 @@ nodes:
   - id: merge
     name: Merge PR
     type: bash
+    runtime: bun
     depends_on: [verify-pr-base]
     script: |
       #!/usr/bin/env node
