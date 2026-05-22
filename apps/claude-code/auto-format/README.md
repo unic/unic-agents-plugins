@@ -155,7 +155,7 @@ To disable permanently for a repo: remove the plugin from `.claude/settings.json
 
 ## Contributing
 
-See `docs/plans/README.md` for the ralph-orchestrated implementation roadmap and ground rules.
+See the [project issue tracker](https://github.com/unic/unic-agents-plugins/issues) for the implementation roadmap. Open an issue to propose a change before starting implementation.
 
 ### Developer commands
 

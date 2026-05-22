@@ -1,15 +1,24 @@
 # Spec File Format Reference
 
-All spec files under `docs/plans/` (root or plugin-level) follow this template.
+Spec files live under `docs/issues/` (root or plugin-level) and follow this structure.
 
-## File naming
+## File layout
+
+### Top-level PRD (primary intake format)
 
 ```
-NN-kebab-case-title.md
+docs/issues/<slug>/PRD.md
 ```
 
-`NN` is a zero-padded two-digit or three-digit number (e.g. `00`, `09`, `15`). The title slug is
-kebab-case and matches the spec title. Example: `15-release-tools-tests.md`.
+`<slug>` is a kebab-case identifier matching the GitHub Issue title. Example: `auto-format-config/PRD.md`.
+
+### Done sub-tasks (vertical slices completed within a PRD)
+
+```
+docs/issues/<slug>/done/NN-kebab-case-title.md
+```
+
+`NN` is a zero-padded two-digit number. Example: `done/01-end-to-end-notice-pipeline.md`.
 
 ## Full template
 

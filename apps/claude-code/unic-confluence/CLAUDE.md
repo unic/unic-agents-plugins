@@ -86,4 +86,4 @@ The following are explicitly out of scope for this plugin. Do not implement them
 
 - **Watch mode / file-watcher** — a flag like `--watch` that re-publishes on file change is not appropriate for a Confluence publishing tool. Confluence is not a live preview target; each publish increments the page version and creates a revision in Confluence's history. Accidental rapid publishes would pollute the revision history.
 
-When in doubt: if the feature is not in the existing `scripts/push-to-confluence.mjs` command set and is not listed in an open `docs/plans/` spec, it is out of scope. Open a GitHub issue before starting implementation.
+When in doubt: if the feature is not in the existing `scripts/push-to-confluence.mjs` command set and is not tracked in an open GitHub issue, it is out of scope. Open a GitHub issue before starting implementation.
