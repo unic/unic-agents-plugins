@@ -9,7 +9,7 @@ const AGENT_SKILLS_LINKS = `- [issue-tracker.md](docs/agents/issue-tracker.md) �
 - [labels.md](docs/agents/labels.md) — three-tier label taxonomy: state, type, priority
 - [branching.md](docs/agents/branching.md) — branching strategy, branch names, PR targets
 - [domain.md](docs/agents/domain.md) — single-context vs multi-context, CONTEXT.md and ADR locations
-- [workflow.md](docs/agents/workflow.md) — six workflow phases, artifact outputs, docs/workflow/ paths`
+- [workflow.md](docs/agents/workflow.md) — seven workflow phases, artifact outputs, docs/workflow/ paths`
 
 /**
  * @typedef {import('./labels-config.mjs').LabelMapping} LabelMapping
@@ -238,7 +238,7 @@ Every agent working in this repo should read \`CONTEXT.md\` (and the ADRs in \`d
 function buildWorkflowDoc() {
 	return `# Workflow Phases
 
-unic-archon-dlc ships six Archon workflow YAML DAGs. Each phase produces persistent artifacts committed to \`docs/workflow/<slug>/\`.
+unic-archon-dlc ships seven Archon workflow YAML DAGs. The six lifecycle phases below produce persistent artifacts committed to \`docs/workflow/<slug>/\`; the \`review\` workflow is on-demand and posts a single comment on the current PR.
 
 | Phase | Command | Artifact outputs |
 |-------|---------|-----------------|
@@ -248,6 +248,7 @@ unic-archon-dlc ships six Archon workflow YAML DAGs. Each phase produces persist
 | qa | \`/unic-dlc-qa <slug>\` | merged PR |
 | cleanup | \`/unic-dlc-cleanup <slug>\` | \`docs/workflow/<slug>/arch-review.md\` |
 | triage | \`/unic-dlc-triage\` | \`HANDOFF.md\`, \`docs/workflow/ROADMAP.md\` |
+| review | \`/unic-dlc-review\` | structured comment on the current PR (idempotent re-runs) |
 
 ## State separation
 

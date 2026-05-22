@@ -1,6 +1,6 @@
 # Workflow Phases
 
-unic-archon-dlc ships six Archon workflow YAML DAGs. Each phase produces persistent artifacts committed to `docs/workflow/<slug>/`.
+unic-archon-dlc ships seven Archon workflow YAML DAGs. The six lifecycle phases below produce persistent artifacts committed to `docs/workflow/<slug>/`; the `review` workflow is on-demand and posts a single comment on the current PR.
 
 | Phase   | Command                    | Artifact outputs                                                  |
 | ------- | -------------------------- | ----------------------------------------------------------------- |
@@ -10,6 +10,7 @@ unic-archon-dlc ships six Archon workflow YAML DAGs. Each phase produces persist
 | qa      | `/unic-dlc-qa <slug>`      | merged PR                                                         |
 | cleanup | `/unic-dlc-cleanup <slug>` | `docs/workflow/<slug>/arch-review.md`                             |
 | triage  | `/unic-dlc-triage`         | `HANDOFF.md`, `docs/workflow/ROADMAP.md`                          |
+| review  | `/unic-dlc-review`         | structured comment on the current PR (idempotent re-runs)         |
 
 ## State separation
 

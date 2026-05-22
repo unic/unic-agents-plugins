@@ -165,5 +165,5 @@ Raw ideas, bugs, and stray thoughts that haven't been grilled or scoped yet live
 - [labels.md](docs/agents/labels.md) — three-tier label taxonomy: state, type, priority
 - [branching.md](docs/agents/branching.md) — branching strategy, branch names, PR targets
 - [domain.md](docs/agents/domain.md) — single-context vs multi-context, CONTEXT.md and ADR locations
-- [workflow.md](docs/agents/workflow.md) — six workflow phases, artifact outputs, docs/workflow/ paths
+- [workflow.md](docs/agents/workflow.md) — seven workflow phases, artifact outputs, docs/workflow/ paths
 <!-- unic-archon-dlc:end -->
