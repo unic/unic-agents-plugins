@@ -41,7 +41,3 @@ pnpm verify:changelog     # Check CHANGELOG structure
 - External npm runtime dependencies to the hook script.
 - Prettier or ESLint bundled inside the plugin — consumers bring their own.
 - Support for tools outside the Claude Code hook contract (e.g. bash hooks, pre-commit hooks — those belong in consumer repos).
-
-## Ralph Orchestrator
-
-This repo uses ralph-orchestrator for iterative development. See `docs/plans/README.md` for the spec roadmap and `PROMPT.md` for the orchestrator loop prompt.

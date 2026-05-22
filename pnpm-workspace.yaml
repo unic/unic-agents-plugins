@@ -2,12 +2,8 @@ packages:
   - "apps/*/*"
   - "packages/*"
 
-allowBuilds:
-  "@ralph-orchestrator/ralph-cli": true
-
 catalog:
   "@biomejs/biome": 2.4.0
-  "@ralph-orchestrator/ralph-cli": 2.9.2
   "@types/node": 24.12.2
   prettier: 3.4.2
   typescript: 5.8.3

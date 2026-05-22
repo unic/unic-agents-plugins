@@ -1,6 +1,6 @@
 # Feature Runner
 
-The Feature Runner is the `/implement-feature` skill. It automates the implementation side of the AI-development cycle: given a Feature slug, it creates an isolated branch, works through all `ready-for-agent` issues in dependency order using `/tdd`, opens a pull request, and marks each issue `resolved`. It is the issue-tracker-driven counterpart to the Spec Runner.
+The Feature Runner is the `/implement-feature` skill. It automates the implementation side of the AI-development cycle: given a Feature slug, it creates an isolated branch, works through all `ready-for-agent` issues in dependency order using `/tdd`, opens a pull request, and marks each issue `resolved`.
 
 Invoke it with `/implement-feature <slug>` (named Feature) or `/implement-feature` (auto-select). Compose it with `/loop` for overnight queue draining.
 
@@ -109,7 +109,9 @@ Re-running `/implement-feature <slug>` after a manual fix resumes from the first
 
 ## Historical cleanup convention
 
-When a Spec in `docs/plans/` is marked `done` and a corresponding `docs/issues/<slug>/` directory exists, the issues in that directory were implemented via the Spec Runner, not the Feature Runner. They will never be processed by `/implement-feature` and should not remain at `ready-for-agent`.
+> **Historical note:** This section describes a one-time cleanup task from the `ralph-orchestrator` retirement (see [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md)). It does not apply to Features created after 2026-05.
+
+When a spec in `docs/plans/` was marked `done` and a corresponding `docs/issues/<slug>/` directory exists, those issues were implemented via the retired Spec Runner, not the Feature Runner. They will never be processed by `/implement-feature` and should not remain at `ready-for-agent`.
 
 **Convention**: manually mark all `NN-*.md` files in `docs/issues/<slug>/` as `closed` and append a note:
 

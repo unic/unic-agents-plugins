@@ -4,22 +4,20 @@ This guide explains the mental model behind the AI-development workflow, the arc
 
 ---
 
-## 1. Two runners, not one
+## 1. The Feature Runner
 
-The most important thing to understand is that this repo has two distinct execution loops, and they are not interchangeable.
+All AFK execution flows through the Feature Runner. New work enters as Features in the issue tracker (`docs/issues/<slug>/`).
 
-|                       | Spec Runner                                                                       | Feature Runner                                             |
-| --------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Input**             | `docs/plans/NN-*.md` Spec                                                         | `docs/issues/<slug>/NN-*.md` Issue                         |
-| **Invocation**        | `pnpm ralph`                                                                      | `/implement-feature`                                       |
-| **Format**            | Prescriptive: before/after snapshots, shell verification commands, explicit steps | Descriptive: `## What to build` + `## Acceptance criteria` |
-| **Worker**            | Agent follows spec as recipe (or `/tdd` for behavioral specs)                     | `/tdd` in non-interactive AFK mode                         |
-| **Completion marker** | `**Status: done**` in spec file                                                   | `Status: resolved` in issue file                           |
-| **Branch**            | Current branch                                                                    | `feature/afk/<slug>` worktree                              |
+|                       | Feature Runner                                             |
+| --------------------- | ---------------------------------------------------------- |
+| **Input**             | `docs/issues/<slug>/NN-*.md` Issue                         |
+| **Invocation**        | `/implement-feature`                                       |
+| **Format**            | Descriptive: `## What to build` + `## Acceptance criteria` |
+| **Worker**            | `/tdd` in non-interactive AFK mode                         |
+| **Completion marker** | `Status: resolved` in issue file                           |
+| **Branch**            | `feature/afk/<slug>` worktree                              |
 
-**When to use which:** The Spec Runner is for building and evolving the repo itself — release tooling, CI configuration, monorepo infrastructure. The Feature Runner is for product work on top of a stable system — new plugin capabilities, improvements to existing features. A rough heuristic: if the work would change something under `packages/` or `.github/`, it belongs in a Spec. If it changes something under `apps/claude-code/<plugin>/`, it belongs in a Feature.
-
-Both runners are backed by the same agent; the difference is in what inputs they receive and how much the agent is expected to figure out on its own.
+The Feature Runner is the sole execution path. Infrastructure work (CI, tooling, packages) and product work (plugin features) both enter through the issue tracker — the split is in the issue content, not in which runner handles it.
 
 ---
 
@@ -129,7 +127,7 @@ The Feature Runner is designed to be composable with `/loop` for unattended over
 /loop /implement-feature
 ```
 
-When the queue empties (no qualifying feature exists — see `.claude/skills/implement-feature/SKILL.md` step 0 for the full qualification rule), the runner outputs `LOOP_COMPLETE` and the loop terminates cleanly. This mirrors the Spec Runner's `completion_promise: LOOP_COMPLETE` in `ralph.yml`.
+When the queue empties (no qualifying feature exists — see `.claude/skills/implement-feature/SKILL.md` step 0 for the full qualification rule), the runner outputs `LOOP_COMPLETE` and the loop terminates cleanly.
 
 For overnight runs to succeed, the queue must be in good shape before you start: each target feature must qualify (see SKILL.md step 0) — every issue in `{ready-for-agent, resolved, closed, rejected, ready-for-human}`, no `needs-*` states, no conflicts between `## Blocked by` and numerical order, acceptance criteria specific enough to verify without judgment. A single malformed issue will halt the runner and leave the remainder of the queue unexecuted.
 
@@ -151,31 +149,19 @@ The commits from your grilling sessions carry this context forward. The Feature 
 
 ---
 
-## 9. Keeping docs/plans/ and docs/issues/ in sync
+## 9. Historical: docs/plans/
 
-The Spec Runner and Feature Runner evolved independently. Work that was implemented via the Spec Runner (i.e. a Spec in `docs/plans/` was marked `done`) may have a corresponding directory in `docs/issues/<slug>/` that was never updated. The Feature Runner will attempt to implement those stale issues if they have `ready-for-agent` status.
-
-The convention: when a Spec is marked `**Status: done**`, check for a corresponding `docs/issues/<slug>/` directory. If it exists, mark all issue files in it `closed` and append a note:
-
-```markdown
-## Comments
-
-> _Closed 2026-05-09 — implemented via Spec Runner (docs/plans/NN-<slug>.md marked done)._
-```
-
-This is a manual step. There is no automation for it. The `docs/agents/feature-runner.md` reference document records this convention for agents that need to be briefed on it.
+`docs/plans/` was the intake path for monorepo infrastructure specs (00–17), implemented by `ralph-orchestrator`. All specs are complete and the format is retired as of 2026-05. If you encounter `docs/issues/<slug>/` directories whose issues were never closed because they were implemented via a spec, mark them `closed` with a note referencing the spec that covered them. See [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md) for the full retirement decision.
 
 ---
 
 ## Related
 
 - `docs/process/development-workflow.md` — the 8-phase quick reference
-- `docs/process/ralph-loop-guide.md` — Spec Runner invocation and resumption detail
-- `docs/process/spec-template.md` — spec file format
 - `docs/agents/issue-tracker.md` — issue file conventions
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
-- `docs/adr/0023-spec-template-format.md` — why specs are prescriptive
-- `docs/adr/0026-tdd-dispatch-by-version-impact.md` — when the Spec Runner uses /tdd
+- `docs/adr/0026-tdd-dispatch-by-version-impact.md` — when to use /tdd vs direct implementation (dispatch by version impact)
 - `docs/adr/0027-feature-runner-context-bundle.md` — what /tdd receives per invocation
 - `docs/adr/0028-blocked-by-canonical-sequencing.md` — why ## Blocked by beats filename order
 - `docs/adr/0029-feature-runner-afk-invocation.md` — how AFK invocation works
+- `docs/adr/0030-retire-ralph-adopt-archon-runner.md` — retirement of ralph and docs/plans/
