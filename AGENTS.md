@@ -139,11 +139,11 @@ All work starts with a spec file under `docs/plans/`. Specs follow this format:
 
 **Never create, copy, or delete `LICENSE` files.** The maintainer manages these manually in every package and plugin directory. If a spec step or acceptance criterion requires a `LICENSE` file to exist, warn the maintainer to add it themselves before continuing.
 
-## Agent skills
+## Skill summary
 
 ### Issue tracker
 
-Issues live as local markdown files under `docs/issues/`. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues at `unic/unic-agents-plugins` (planned migration to Azure DevOps). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
