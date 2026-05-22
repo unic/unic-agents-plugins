@@ -21,16 +21,14 @@ packages/
 ├── tsconfig/                 # @unic/tsconfig
 └── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
 docs/
-└── plans/                    # Monorepo-level Spec Runner roadmap (specs 00–14)
+└── adr/                      # Architectural Decision Records
 ```
-
-Each plugin under `apps/<agent>/` also has its own `docs/plans/` for plugin-specific future work.
 
 ## Navigation
 
 - Plugin manifests: `apps/<agent>/<plugin>/.claude-plugin/plugin.json` and `marketplace.json`
 - Shared release scripts: `packages/release-tools/scripts/`
-- Monorepo roadmap: `docs/plans/`
+- Architectural decisions: `docs/adr/`
 - Process templates: `docs/process/`
 
 ## Commands
@@ -42,12 +40,10 @@ pnpm format                             # Biome + Prettier fix (whole tree)
 pnpm ci:check                           # same as check, non-interactive (for CI)
 pnpm test                               # run tests across all packages
 pnpm typecheck                          # type-check across all packages
-pnpm ralph                              # run the monorepo Spec Runner loop (specs 00–14)
 
-# Per-plugin operations (after spec 03 sets up release-tools)
+# Per-plugin operations
 pnpm --filter <name> bump patch         # bump plugin version
 pnpm --filter <name> verify:changelog   # check changelog
-pnpm --filter <name> ralph              # run that plugin's own Spec Runner loop
 ```
 
 ## Tech stack
@@ -110,30 +106,15 @@ To ship a new plugin version:
 | Push to `develop` | ✓           | ✓ (changed packages) | —                  |
 | Push to `main`    | ✓           | ✓ (changed packages) | —                  |
 
-## Spec-driven development
+## Feature-driven development
 
-All work starts with a spec file under `docs/plans/`. Specs follow this format:
-
-```
-# NN. Title
-**Priority:** / **Effort:** / **Version impact:** / **Depends on:** / **Touches:**
-## Context
-## Current behaviour
-## Target behaviour
-## Affected files
-## Implementation steps
-## Verification
-## Acceptance criteria
-## Out of scope
-```
-
-`pnpm ralph` runs the Spec Runner (currently `ralph-orchestrator`), which implements specs one at a time in a loop.
+New work enters through the issue tracker as Features. Use `/tdd` to implement individual issues, or `unic-dlc-build` (via `unic-archon-dlc`) once the harness is set up in this repo.
 
 ## Do not add
 
 - External runtime deps to plugins unless truly essential (`auto-format` has zero; that's the bar)
 - Turborepo or other build orchestrators — plain pnpm workspaces is the current choice
-- Features not described in an open spec file — open a spec first
+- Features not tracked in the issue tracker — open a Feature first
 
 ## LICENSE files
 

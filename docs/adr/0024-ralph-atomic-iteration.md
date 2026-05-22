@@ -1,6 +1,6 @@
 # 0024. Ralph implements one spec per iteration, then commits and stops
 
-**Status:** Accepted (2025-04)
+**Status:** Superseded by [ADR-0030](0030-retire-ralph-adopt-archon-runner.md)
 
 ## Context
 

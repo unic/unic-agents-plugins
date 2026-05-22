@@ -72,19 +72,6 @@ Use the triage labels to track state — see `docs/agents/triage-labels.md` for 
 
 ## Phase 7 — Execute
 
-There are two execution paths depending on the type of work. Choose based on where the work item lives, not on personal preference — the two runners are not interchangeable.
-
-### Spec Runner — for `docs/plans/` specs
-
-Use the Spec Runner when implementing infrastructure, tooling, or repo-level changes captured as Specs in `docs/plans/`:
-
-```
-pnpm ralph                        # root specs
-pnpm --filter <plugin> ralph      # plugin-specific specs
-```
-
-Specs follow a prescriptive format (before/after snapshots, shell verification commands, acceptance criteria). The Spec Runner implements one Spec per iteration, commits, and stops. See `docs/process/ralph-loop-guide.md`.
-
 ### Feature Runner — for `docs/issues/` features
 
 Use the Feature Runner when implementing product features tracked as Issues in `docs/issues/<slug>/`. Once a feature has at least one `ready-for-agent` issue and no unprepped issues (`needs-triage`, `needs-info`, `needs-specs`):
@@ -126,8 +113,7 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 | 4. Prototype          | Uncertain design or UX                         | Ad hoc throwaway route                        |
 | 5. PRD                | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`       |
 | 6. Issues             | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md` |
-| 7a. Execute (Spec)    | Specs in `docs/plans/` are ready               | `pnpm ralph` (Spec Runner)                    |
-| 7b. Execute (Feature) | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner)         |
+| 7. Execute (Feature)  | Issues in `docs/issues/` are `ready-for-agent` | `/implement-feature` (Feature Runner)         |
 | 8. QA                 | After execution                                | QA plan (agent-generated, human-verified)     |
 
 ## Related
@@ -135,6 +121,4 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 - `docs/inbox/README.md` — inbox conventions
 - `docs/agents/issue-tracker.md` — issue file conventions
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
-- `docs/process/ralph-loop-guide.md` — Spec Runner detail
-- `docs/process/spec-template.md` — spec file format
 - `docs/process/ai-development.md` — deep guide: mental model, context quality, AFK trust chain, key decisions

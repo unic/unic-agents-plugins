@@ -13,8 +13,7 @@
     "check": "biome check . && prettier --check \"**/*.md\"",
     "ci:check": "biome ci . && prettier --check \"**/*.md\"",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
+    "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
@@ -25,7 +24,4 @@
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "optionalDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:"
-  }
 }

@@ -1,8 +1,8 @@
 # Monorepo Spec Roadmap
 
-This directory contains the Ralph-iterable spec set for the `unic-agents-plugins` monorepo migration and bootstrapping. Each spec is implemented by Ralph in one iteration.
+> **Retired.** All specs (00–17) are complete. `docs/plans/` is no longer the intake path for new work — use the issue tracker instead. See [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md).
 
-Individual plugins have their own `docs/plans/` for plugin-specific development.
+This directory contains the historical spec set for the `unic-agents-plugins` monorepo migration and bootstrapping.
 
 ## Execution order
 

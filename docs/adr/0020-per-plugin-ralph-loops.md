@@ -1,6 +1,6 @@
 # 0020. Each plugin has its own Ralph loop with its own ralph.yml and PROMPT.md
 
-**Status:** Accepted (2025-04)
+**Status:** Superseded by [ADR-0030](0030-retire-ralph-adopt-archon-runner.md)
 
 ## Context
 
