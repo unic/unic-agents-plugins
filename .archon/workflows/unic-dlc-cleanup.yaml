@@ -153,6 +153,6 @@ nodes:
           env: { ...process.env },
         })
       } catch (err) {
-        console.error('run-triage: archon run failed:', err.message)
+        console.error('run-triage: archon workflow run failed:', err.message)
         process.exit(1)
       }
