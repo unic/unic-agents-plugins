@@ -6,7 +6,9 @@ This guide explains the mental model behind the AI-development workflow, the arc
 
 ## 1. The Feature Runner
 
-A **Feature Runner** is the skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request (see root `CONTEXT.md`). New work enters as Features in the issue tracker (`docs/issues/<slug>/`).
+A **Feature Runner** is the skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request (see root `CONTEXT.md`).
+
+New work enters as a GitHub Issue — the canonical tracker for state and ownership (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)). Once an idea is grilled into a Feature, `/to-prd` and `/to-issues` materialise a `docs/issues/<slug>/` directory with the PRD and the numbered ticket files the Feature Runner reads. GitHub Issues remain the source of truth for triage state; `docs/issues/<slug>/` is the markdown artifact set that captures the grilled scope. Not every GitHub Issue becomes a Feature directory (small fixes never need one).
 
 |                       | Feature Runner                                             |
 | --------------------- | ---------------------------------------------------------- |

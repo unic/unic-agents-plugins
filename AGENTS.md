@@ -23,6 +23,7 @@ packages/
 docs/
 ├── adr/                      # Architectural Decision Records
 ├── agents/                   # Agent skill documentation
+├── inbox/                    # Retired idea-capture notes (historical)
 ├── issues/                   # Grilled and scoped feature issues
 ├── plans/                    # Retired spec files (historical)
 ├── process/                  # Process and workflow guides
