@@ -14,8 +14,8 @@ test('AGENT_DOC_BANNER references the source module', () => {
 
 test('AGENT_DOC_BANNER contains the regenerate hint', () => {
 	assert.ok(
-		AGENT_DOC_BANNER.includes('/unic-archon-dlc-setup') || AGENT_DOC_BANNER.includes('setup'),
-		'AGENT_DOC_BANNER must mention how to regenerate'
+		AGENT_DOC_BANNER.includes('/unic-archon-dlc:setup'),
+		'AGENT_DOC_BANNER must mention how to regenerate via /unic-archon-dlc:setup'
 	)
 })
 

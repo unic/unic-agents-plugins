@@ -37,6 +37,7 @@
 - Fixed silent discard of corrupt config in Step 2: an invalid-JSON config file now surfaces an `error` field in the output and stops setup with an actionable message, instead of silently mapping the `SyntaxError` to `STATE = 'fresh'` and overwriting the user's config
 - `runInstall`: corrupt config files (invalid JSON) now return a `stage: 'config'` error with an actionable message instead of silently discarding the existing config and overwriting it; file read errors (e.g. `EACCES`) are also surfaced as early returns
 - Added missing test for `stage: 'claude-md'` failure branch, test for corrupt-config parse error; removed always-passing placeholder test
+- Corrected dogfood banner regenerate hint from `/unic-archon-dlc-setup` to `/unic-archon-dlc:setup` (the actual slash-command name uses a colon, not a dash). Tightened `dogfood-banner.test.mjs` to assert the exact command string. Regenerated `docs/agents/*.md` carry the corrected banner.
 
 ## [0.1.0] — 2026-05-15
 
