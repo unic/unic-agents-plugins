@@ -46,3 +46,13 @@ test('prependBanner with empty body returns just the banner', () => {
 	const result = prependBanner('<!-- banner -->', '')
 	assert.equal(result.trim(), '<!-- banner -->', 'empty body should return just the banner')
 })
+
+test('prependBanner strips leading whitespace from body for consistent spacing', () => {
+	const result = prependBanner('<!-- banner -->', '\n\n# Title\n')
+	// Exactly one blank line between banner and first line of body
+	assert.match(
+		result,
+		/^<!-- banner -->\n\n# Title/,
+		'banner + single blank line + body, regardless of leading whitespace in body'
+	)
+})

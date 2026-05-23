@@ -72,6 +72,46 @@ test('SKILLS_BLOCK_BANNER appears exactly once inside the block after multiple u
 	const begin = content.indexOf('<!-- unic-archon-dlc:begin -->')
 	const end = content.indexOf('<!-- unic-archon-dlc:end -->')
 	const block = content.slice(begin, end)
-	const bannerCount = (block.match(/AUTO-GENERATED/g) ?? []).length
+	const bannerCount = block.split(SKILLS_BLOCK_BANNER).length - 1
 	assert.equal(bannerCount, 1, 'SKILLS_BLOCK_BANNER must appear exactly once inside the block')
+})
+
+test('updateAgentSkillsBlock replaces stale content inside markers (does not append)', () => {
+	const dir = tempDir()
+	const seeded = [
+		'# Project',
+		'',
+		'Pre-content.',
+		'',
+		'## Agent skills',
+		'',
+		'<!-- unic-archon-dlc:begin -->',
+		'OLD STUFF THAT MUST BE REPLACED',
+		'ANOTHER LINE',
+		'<!-- unic-archon-dlc:end -->',
+		'',
+		'Post-content.',
+		'',
+	].join('\n')
+	writeFileSync(join(dir, 'CLAUDE.md'), seeded)
+
+	updateAgentSkillsBlock(dir)
+
+	const content = readFileSync(join(dir, 'CLAUDE.md'), 'utf8')
+	assert.ok(!content.includes('OLD STUFF THAT MUST BE REPLACED'), 'stale content must be removed')
+	assert.ok(!content.includes('ANOTHER LINE'), 'stale content must be removed')
+
+	const begin = content.indexOf('<!-- unic-archon-dlc:begin -->')
+	const end = content.indexOf('<!-- unic-archon-dlc:end -->')
+	assert.ok(begin !== -1 && end !== -1, 'markers must still be present')
+	const block = content.slice(begin, end)
+	const bannerCount = block.split(SKILLS_BLOCK_BANNER).length - 1
+	assert.equal(bannerCount, 1, 'SKILLS_BLOCK_BANNER must appear exactly once between markers')
+
+	for (const link of ['issue-tracker.md', 'labels.md', 'branching.md', 'domain.md', 'workflow.md']) {
+		assert.ok(content.includes(link), `${link} link must be present after refresh`)
+	}
+
+	assert.ok(content.includes('Pre-content.'), 'surrounding pre-content must be preserved')
+	assert.ok(content.includes('Post-content.'), 'surrounding post-content must be preserved')
 })

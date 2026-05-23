@@ -74,7 +74,7 @@ test('AGENT_DOC_BANNER appears exactly once per file on repeated writeAgentDocs 
 
 	for (const name of ['issue-tracker.md', 'labels.md', 'branching.md', 'domain.md', 'workflow.md']) {
 		const content = readFileSync(join(dir, 'docs', 'agents', name), 'utf8')
-		const occurrences = content.split('AUTO-GENERATED').length - 1
+		const occurrences = content.split(AGENT_DOC_BANNER).length - 1
 		assert.equal(occurrences, 1, `${name}: AGENT_DOC_BANNER should appear exactly once`)
 	}
 })
