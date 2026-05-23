@@ -29,7 +29,7 @@ pnpm test                 # run node:test smoke tests
 pnpm typecheck            # tsc --checkJs over the hook source
 pnpm bump <patch|minor|major>   # bump plugin.json version + promote CHANGELOG
 pnpm sync-version         # mirror plugin.json version into marketplace.json + package.json
-pnpm tag                  # create the v<version> git tag locally
+pnpm tag                  # create the auto-format@<version> git tag locally
 pnpm verify:changelog     # check CHANGELOG entry for the current version
 ```
 

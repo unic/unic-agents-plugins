@@ -29,7 +29,7 @@ pnpm test                 # run node:test suite for this Plugin
 pnpm typecheck            # tsc --checkJs over this Plugin's .mjs sources
 pnpm bump <patch|minor|major>   # bump plugin.json version + promote CHANGELOG
 pnpm sync-version         # mirror plugin.json version into marketplace.json + package.json
-pnpm tag                  # create the v<version> git tag locally
+pnpm tag                  # create the unic-archon-dlc@<version> git tag locally
 pnpm verify:changelog     # check CHANGELOG entry for the current version
 ```
 

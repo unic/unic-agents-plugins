@@ -25,15 +25,16 @@ This Plugin's own decisions:
 Plugin-specific pnpm scripts (run from this directory or with `pnpm --filter unic-confluence <script>` from the repo root):
 
 ```sh
+pnpm test                 # run node:test suite over the pure-function library
+pnpm typecheck            # tsc --noEmit over the Plugin's .mjs sources
+pnpm confluence           # run the Publish CLI (node scripts/push-to-confluence.mjs)
 pnpm bump <patch|minor|major>   # bump plugin.json version + promote CHANGELOG
 pnpm sync-version         # mirror plugin.json version into marketplace.json + package.json
-pnpm tag                  # create the v<version> git tag locally
+pnpm tag                  # create the unic-confluence@<version> git tag locally
 pnpm verify:changelog     # check CHANGELOG entry for the current version
 ```
 
-The CLI itself is invoked with `node scripts/push-to-confluence.mjs` — there is no `pnpm` wrapper for the Publish command because Consumers typically alias it in their own `package.json` scripts.
-
-Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:check`, `pnpm test`, `pnpm typecheck`) are documented in the [root AGENTS.md](../../../AGENTS.md).
+Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:check`) are documented in the [root AGENTS.md](../../../AGENTS.md).
 
 ## Layout
 

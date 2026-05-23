@@ -26,10 +26,9 @@ Plugin-specific pnpm scripts (run from this directory or with `pnpm --filter pr-
 
 ```sh
 pnpm test                 # run node:test suite (scripts/ + agents/ coverage)
-pnpm typecheck            # tsc --checkJs over the Plugin's .mjs sources
 pnpm bump <patch|minor|major>   # bump plugin.json version + promote CHANGELOG
 pnpm sync-version         # mirror plugin.json version into marketplace.json + package.json
-pnpm tag                  # create the v<version> git tag locally
+pnpm tag                  # create the pr-review@<version> git tag locally
 pnpm verify:changelog     # check CHANGELOG entry for the current version
 ```
 
