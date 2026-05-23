@@ -70,11 +70,11 @@ Use the triage labels to track state — see `docs/agents/triage-labels.md` for 
 
 Work through `ready-for-agent` issues one at a time with `/tdd`. For each issue, the `## Acceptance criteria` block stands in for the planning conversation. Mark the issue `resolved` when the implementation lands. Open a PR targeting `develop` once the feature's issues are done.
 
-Respect the issue ordering signalled by `## Blocked by` (see [ADR-0028](../adr/0028-blocked-by-canonical-sequencing.md)) — a downstream issue inherits a broken foundation if a blocker has not landed.
+Respect the issue ordering signalled by `## Blocked by` (see [ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md)) — a downstream issue inherits a broken foundation if a blocker has not landed.
 
 ### Feature Runner — long-term AFK execution
 
-The Feature Runner (`unic-dlc-build`, shipped by `unic-archon-dlc`) is the AFK path going forward; see [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md) and [ADR-0031](../adr/0031-retire-implement-feature-skill.md). Until it is wired into this repo, AFK runs are not available — implement manually with `/tdd`.
+The Feature Runner (`unic-dlc-build`, shipped by `unic-archon-dlc`) is the AFK path going forward; see [ADR-0009](../../apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md) and [ADR-0010](../../apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md). Until it is wired into this repo, AFK runs are not available — implement manually with `/tdd`.
 
 ### Human execution
 

@@ -18,7 +18,7 @@ New work enters as a GitHub Issue — the canonical tracker for state and owners
 | **Completion marker** | `Status: resolved` in issue file                           |
 | **Branch**            | `feature/<name>` (or `feature/afk/<slug>` when AFK)        |
 
-`unic-dlc-build` (shipped by `unic-archon-dlc`) is the long-term Feature Runner — see [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md) and [ADR-0031](../adr/0031-retire-implement-feature-skill.md). Until it is wired into this repo, the runner is **the developer driving `/tdd` manually**, one issue at a time. Infrastructure work (CI, tooling, packages) and product work (plugin features) both enter through the issue tracker — the split is in the issue content, not in which runner handles it.
+`unic-dlc-build` (shipped by `unic-archon-dlc`) is the long-term Feature Runner — see [ADR-0009](../../apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md) and [ADR-0010](../../apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md). Until it is wired into this repo, the runner is **the developer driving `/tdd` manually**, one issue at a time. Infrastructure work (CI, tooling, packages) and product work (plugin features) both enter through the issue tracker — the split is in the issue content, not in which runner handles it.
 
 ---
 
@@ -89,7 +89,7 @@ If an issue's acceptance criteria are too vague to verify without judgment, the 
 
 Issues produced by `to-issues` are named with a numeric prefix (`01-`, `02-`, etc.) for human readability. The numbers usually reflect dependency order because `to-issues` publishes blockers first. But **numerical order is not the execution contract**.
 
-The `## Blocked by` field in each issue is the canonical dependency signal — see [ADR-0028](../adr/0028-blocked-by-canonical-sequencing.md). Any Feature Runner (manual or AFK) must respect `## Blocked by` over filename order. If they conflict, the runner halts rather than proceeding silently in the wrong order — because a wrong execution order means downstream issues inherit a broken foundation.
+The `## Blocked by` field in each issue is the canonical dependency signal — see [ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md). Any Feature Runner (manual or AFK) must respect `## Blocked by` over filename order. If they conflict, the runner halts rather than proceeding silently in the wrong order — because a wrong execution order means downstream issues inherit a broken foundation.
 
 When writing or reviewing issues: always fill in `## Blocked by` accurately. "None — can start immediately" is a valid and important signal. A missing or incorrect `## Blocked by` is more dangerous than a missing acceptance criterion, because the sequencing error compounds silently across every subsequent issue.
 
@@ -115,8 +115,8 @@ The commits from your grilling sessions carry this context forward. When `unic-d
 
 Two earlier execution paths have been retired:
 
-- **`docs/plans/`** was the intake path for monorepo infrastructure specs (00–17), implemented by `ralph-orchestrator`. All specs are complete and the format is retired as of 2026-05. See [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md).
-- **`/implement-feature`** was an interim Claude Code skill that wrapped `/tdd` in a non-interactive sub-agent loop. It was retired in favour of converging on a single Feature Runner (`unic-dlc-build`). See [ADR-0031](../adr/0031-retire-implement-feature-skill.md). [ADRs 0027](../adr/0027-feature-runner-context-bundle.md) and [0029](../adr/0029-feature-runner-afk-invocation.md) describe its internals and are superseded.
+- **`docs/plans/`** was the intake path for monorepo infrastructure specs (00–17), implemented by `ralph-orchestrator`. All specs are complete and the format is retired as of 2026-05. See [ADR-0009](../../apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md).
+- **`/implement-feature`** was an interim Claude Code skill that wrapped `/tdd` in a non-interactive sub-agent loop. It was retired in favour of converging on a single Feature Runner (`unic-dlc-build`). See [ADR-0010](../../apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md). [ADRs 0006](../../apps/claude-code/unic-archon-dlc/docs/adr/0006-feature-runner-context-bundle.md) and [0008](../../apps/claude-code/unic-archon-dlc/docs/adr/0008-feature-runner-afk-invocation.md) describe its internals and are superseded.
 
 If you encounter `docs/issues/<slug>/` directories whose issues were never closed because they were implemented via a spec or by the retired skill, mark them `closed` with a note referencing the work that covered them.
 
@@ -127,7 +127,7 @@ If you encounter `docs/issues/<slug>/` directories whose issues were never close
 - `docs/process/development-workflow.md` — the 8-phase quick reference
 - `docs/agents/issue-tracker.md` — issue file conventions
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
-- `docs/adr/0026-tdd-dispatch-by-version-impact.md` — when to use /tdd vs direct implementation (dispatch by version impact)
-- `docs/adr/0028-blocked-by-canonical-sequencing.md` — why ## Blocked by beats filename order
-- `docs/adr/0030-retire-ralph-adopt-archon-runner.md` — retirement of ralph and docs/plans/
-- `docs/adr/0031-retire-implement-feature-skill.md` — retirement of /implement-feature and /inbox
+- `apps/claude-code/unic-archon-dlc/docs/adr/0005-tdd-dispatch-by-version-impact.md` — when to use /tdd vs direct implementation (dispatch by version impact)
+- `apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md` — why ## Blocked by beats filename order
+- `apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md` — retirement of ralph and docs/plans/
+- `apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md` — retirement of /implement-feature and /inbox

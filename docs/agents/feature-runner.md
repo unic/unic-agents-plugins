@@ -4,15 +4,15 @@ The **Feature Runner** is the concept of a runner that implements a Feature's is
 
 ## Current state
 
-- **Current default — manual `/tdd` per issue.** Until the AFK runner is wired into this repo, the developer drives `/tdd` against each `ready-for-agent` issue, respects `## Blocked by` order ([ADR-0028](../adr/0028-blocked-by-canonical-sequencing.md)), marks the issue `resolved`, and opens a PR targeting `develop` once the feature's issues are done.
-- **Long-term AFK runner — `unic-dlc-build`.** Shipped by `unic-archon-dlc` (also developed in this monorepo). See [ADR-0030](../adr/0030-retire-ralph-adopt-archon-runner.md) for the retirement of `ralph-orchestrator` and [ADR-0031](../adr/0031-retire-implement-feature-skill.md) for the retirement of the interim `/implement-feature` skill that briefly filled this role.
+- **Current default — manual `/tdd` per issue.** Until the AFK runner is wired into this repo, the developer drives `/tdd` against each `ready-for-agent` issue, respects `## Blocked by` order ([ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md)), marks the issue `resolved`, and opens a PR targeting `develop` once the feature's issues are done.
+- **Long-term AFK runner — `unic-dlc-build`.** Shipped by `unic-archon-dlc` (also developed in this monorepo). See [ADR-0009](../../apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md) for the retirement of `ralph-orchestrator` and [ADR-0010](../../apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md) for the retirement of the interim `/implement-feature` skill that briefly filled this role.
 
 ## What survives across runners
 
 Regardless of which runner executes a Feature, these conventions hold:
 
 - Issues live at `docs/issues/<slug>/NN-*.md` with the `## What to build` / `## Acceptance criteria` format.
-- `## Blocked by` is the canonical execution-order signal ([ADR-0028](../adr/0028-blocked-by-canonical-sequencing.md)). Numeric filename prefixes are a UX convenience, not a contract.
+- `## Blocked by` is the canonical execution-order signal ([ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md)). Numeric filename prefixes are a UX convenience, not a contract.
 - Each Feature ships as a single PR targeting `develop`. Issues are marked `resolved` on implementation and `closed` after the PR merges.
 
 ## Related
