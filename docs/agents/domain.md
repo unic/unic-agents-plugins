@@ -15,7 +15,7 @@ Configured by unic-archon-dlc.
 This repository uses **multi-context** layout. Each package/app has its own `CONTEXT.md` file. A `CONTEXT-MAP.md` at the repo root maps each context to its location.
 
 - **Context map:** `CONTEXT-MAP.md`
-- **ADRs:** `docs/adr/` (repo-level decisions)
+- **ADRs:** monorepo-wide decisions live in root `docs/adr/`; each context may also keep its own `docs/adr/` for decisions scoped to that context.
 
 ## How agents use this
 
