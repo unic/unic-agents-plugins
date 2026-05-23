@@ -67,6 +67,7 @@ Load-bearing invariants. These either originate in a Plugin ADR or are policy de
 
 - **Confluence v2 REST API** at the Consumer's Confluence instance (default `https://uniccom.atlassian.net`).
 - **Credentials file** at `~/.unic-confluence.json` (chmod 600), with fields `url`, `username`, `token`. Overridable per-run via `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN` env vars.
+- **`marked`** (runtime npm dep, pinned in this Plugin's `package.json` — see [ADR-0010](docs/adr/0010-no-catalog-for-runtime-deps.md)). Used to render Markdown to HTML before injection.
 
 ## Do not add
 

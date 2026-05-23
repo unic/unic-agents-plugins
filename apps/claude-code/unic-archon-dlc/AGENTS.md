@@ -38,10 +38,12 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 ## Layout
 
 ```tree
+.archon/                  # Archon assets installed into Consumer projects — workflow YAMLs and command stubs
 .claude-plugin/           # Plugin manifest (plugin.json) and marketplace listing
 commands/                 # Claude Code slash command definitions — only setup.md today
 lib/                      # Pure helper modules consumed by the setup command (ESM, // @ts-check)
 test/                     # node:test suites covering lib/ and command behaviour
+CONTEXT.md                # Domain vocabulary for the Archon-powered AI development lifecycle
 docs/                     # Plugin-specific documentation
   adr/                    # Plugin Architecture Decision Records
 ```
