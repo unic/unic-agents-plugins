@@ -38,6 +38,7 @@
 - `runInstall`: corrupt config files (invalid JSON) now return a `stage: 'config'` error with an actionable message instead of silently discarding the existing config and overwriting it; file read errors (e.g. `EACCES`) are also surfaced as early returns
 - Added missing test for `stage: 'claude-md'` failure branch, test for corrupt-config parse error; removed always-passing placeholder test
 - Corrected dogfood banner regenerate hint from `/unic-archon-dlc-setup` to `/unic-archon-dlc:setup` (the actual slash-command name uses a colon, not a dash). Tightened `dogfood-banner.test.mjs` to assert the exact command string. Regenerated `docs/agents/*.md` carry the corrected banner.
+- `AGENT_DOC_BANNER` no longer references a non-existent "setup-runner"; it now points to the real entry point `runInstall()` in `lib/install-runner.mjs`. `SKILLS_BLOCK_BANNER` now names the slash command (`/unic-archon-dlc:setup`) explicitly so readers who land inside the marker block via search have unambiguous regenerate instructions. Regenerated `docs/agents/*.md` and the `AGENTS.md` block carry the updated wording; PRD canonical wording updated to match.
 
 ## [0.1.0] — 2026-05-15
 
