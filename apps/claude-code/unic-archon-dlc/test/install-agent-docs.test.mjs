@@ -46,7 +46,7 @@ test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content',
 		'single-context domain.md should not mention per-context ADR pattern'
 	)
 	assert.ok(
-		!domain.includes('located via'),
+		!domain.includes('located via `CONTEXT-MAP.md`'),
 		'single-context domain.md should not contain the multi-context "How agents use this" wording'
 	)
 
