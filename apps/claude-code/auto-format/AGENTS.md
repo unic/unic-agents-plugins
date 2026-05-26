@@ -72,5 +72,3 @@ None. The hook script is pure `node:*`. Formatters themselves are Consumer-provi
 ## Plugin ADRs
 
 Plugin-specific architecture decisions live in [docs/adr/](docs/adr/).
-
-The per-plugin `docs/plans/` directory (where present) is historical — it captured pre-migration specs and is not the intake path for new work. New work enters through the [issue tracker](../../../docs/agents/issue-tracker.md).
