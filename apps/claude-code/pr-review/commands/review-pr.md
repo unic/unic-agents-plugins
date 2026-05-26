@@ -45,33 +45,27 @@ Extract a PR URL from `$ARGUMENTS`. Expected format: `https://dev.azure.com/{org
 
 Run `az --version` and `az extension list | grep azure-devops`. If missing: `az extension add --name azure-devops`.
 
-## Step 4 — Re-review detection
+## Step 4 — Fetch PR metadata
 
-Fetch the thread list **once**; never re-fetch downstream.
+Gather the PR's repository, branches, title, and description from the Azure CLI so the Fetcher can be launched with full context. This is the only Azure CLI call the orchestrator makes — thread fetching and mode detection live inside the Fetcher (see ADR 0016). Branch refs are stripped of the `refs/heads/` prefix.
 
 ```bash
-PR_THREADS_ERR="${TMPDIR:-/tmp}/pr_threads.err"
-RAW_THREADS_JSON=$(az repos pr thread list --id "$PR_ID" --org "$ORG_URL" --output json 2>"$PR_THREADS_ERR") || {
-  echo "ERROR: failed to fetch PR threads via Azure CLI. Try \`az devops login\` to re-authenticate." >&2
-  cat "$PR_THREADS_ERR" >&2; exit 1; }
+PR_META_JSON=$(az repos pr show --id "$PR_ID" --org "$ORG_URL" --output json) || {
+  echo "ERROR: failed to fetch PR metadata. Try \`az devops login\` to re-authenticate." >&2; exit 1; }
 
-eval "$(
-  RAW_T="$RAW_THREADS_JSON" SIG_P="🤖 *Reviewed by Claude Code*" PLUGIN_R="${CLAUDE_PLUGIN_ROOT}" \
-  node --input-type=module << 'EOJS'
-const { detectMode, formatModeEnv } = await import(`file://${process.env.PLUGIN_R}/scripts/mode-detection.mjs`)
-const threads = JSON.parse(process.env.RAW_T || '[]')
-process.stdout.write(formatModeEnv(detectMode({ threads, signaturePrefix: process.env.SIG_P })))
-EOJS
-)"
-
-echo "Mode detected: $MODE"
+eval "$(printf '%s' "$PR_META_JSON" | node -e "
+const m=JSON.parse(require('fs').readFileSync(0,'utf8'))
+const q=s=>String(s||'').replace(/'/g,\"'\\\\''\")
+const strip=r=>String(r||'').replace(/^refs\/heads\//,'')
+for(const[k,v]of[['REPO_ID',m.repository?.id],['PROJECT',m.repository?.project?.name],['SOURCE_BRANCH',strip(m.sourceRefName)],['TARGET_BRANCH',strip(m.targetRefName)],['PR_TITLE',m.title],['PR_DESCRIPTION',m.description]])process.stdout.write(\`\${k}='\${q(v)}'\\n\`)
+")"
 ```
 
-Sets `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`.
+Sets `REPO_ID`, `PROJECT`, `SOURCE_BRANCH`, `TARGET_BRANCH`, `PR_TITLE`, `PR_DESCRIPTION`. The Fetcher (Step 5) detects mode and emits `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID` in its result block.
 
 ## Step 5 — ADO Fetcher
 
-Launch the ADO Fetcher agent and **wait for its result** before anything else (the PRD requires the Fetcher to complete before downstream agents run).
+Launch the ADO Fetcher agent and **wait for its result** before anything else (the PRD requires the Fetcher to complete before downstream agents run). The Fetcher fetches threads and runs mode detection internally.
 
 ```txt
 Agent(
@@ -80,12 +74,16 @@ Agent(
   ORG_URL: {ORG_URL}
   PROJECT: {PROJECT}
   PR_ID: {PR_ID}
-  PRIOR_ITERATION_ID: {PRIOR_ITERATION_ID}
+  REPO_ID: {REPO_ID}
+  SOURCE_BRANCH: {SOURCE_BRANCH}
+  TARGET_BRANCH: {TARGET_BRANCH}
+  PR_TITLE: {PR_TITLE}
+  PR_DESCRIPTION: {PR_DESCRIPTION}
   PLUGIN_ROOT: {CLAUDE_PLUGIN_ROOT}"
 )
 ```
 
-Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `REPO_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE`; the Re-review Coordinator (Step 7) parses it from `ADO_FETCHER_RESULT` to apply the γ-downgrade when `DIFF_RANGE=full`. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`.
+Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`, `RAW_THREADS_JSON`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE`; the Re-review Coordinator (Step 7) parses it from `ADO_FETCHER_RESULT` to apply the γ-downgrade when `DIFF_RANGE=full`. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`. Echo `Mode detected: $MODE`.
 
 ## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 

@@ -27,7 +27,7 @@ Implementation cuts through every layer:
 
 - **ADR 0013 status line** — already not yet amended; update to `Accepted (2026-05), amended by 0016`.
 
-- **CHANGELOG** — `[Unreleased]` `### Fixed` entry: *Step 4 mode detection was calling a non-existent `az repos pr thread list` subcommand and failing fatally on every ADO PR review. Thread fetching now lives in the ADO Fetcher and uses `az devops invoke --resource pullRequestThreads`.*
+- **CHANGELOG** — `[Unreleased]` `### Fixed` entry: _Step 4 mode detection was calling a non-existent `az repos pr thread list` subcommand and failing fatally on every ADO PR review. Thread fetching now lives in the ADO Fetcher and uses `az devops invoke --resource pullRequestThreads`._
 
 End-to-end demoable: `/pr-review:review-pr <fresh PR URL>` runs cleanly with `MODE: first-review` in the Fetcher output. `/pr-review:review-pr <PR with prior bot signature>` runs cleanly with `MODE: re-review`, `IS_REREVIEW: true`, and a non-empty `PRIOR_ITERATION_ID`. No `az repos pr thread list` anywhere in the source tree outside `docs/conversations/`.
 

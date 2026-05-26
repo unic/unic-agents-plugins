@@ -1,7 +1,7 @@
 ---
 name: ado-fetcher
 allowed-tools: ['Bash']
-description: 'Fetch all Azure DevOps read data required for a PR review: PR metadata, latest iteration, changed files, raw diff, and linked work-item IDs. Read-only — no write operations.'
+description: 'Fetch all Azure DevOps read data required for a PR review: latest iteration, PR threads, mode detection, changed files, raw diff, and linked work-item IDs. Read-only — no write operations.'
 ---
 
 # ADO Fetcher
@@ -14,37 +14,23 @@ You receive all required context in this prompt as literal strings. Do not read 
 
 ## Inputs
 
-You receive:
+You receive (all as literal strings — agents do not inherit environment variables):
 
 - `ORG_URL` — the Azure DevOps organisation URL (e.g. `https://dev.azure.com/myorg`)
 - `PROJECT` — the ADO project name
 - `PR_ID` — the pull request ID (integer as string)
-- `PRIOR_ITERATION_ID` — the iteration ID from the prior review (integer as string, or empty string for first-review)
+- `REPO_ID` — the ADO repository ID (GUID), captured by the orchestrator from PR metadata
+- `SOURCE_BRANCH` — the PR source branch name (no `refs/heads/` prefix)
+- `TARGET_BRANCH` — the PR target branch name (no `refs/heads/` prefix)
+- `PR_TITLE` — the PR title (for downstream agents; not used internally)
+- `PR_DESCRIPTION` — the PR description text (for downstream agents; not used internally)
 - `PLUGIN_ROOT` — absolute path to this plugin's directory (for Node.js helper scripts)
 
----
-
-## Step 1 — Fetch PR metadata
-
-```bash
-az repos pr show --id {PR_ID} --org {ORG_URL} --output json
-```
-
-Capture and remember:
-
-- `repository.id` → `REPO_ID`
-- `repository.project.name` → `PROJECT` (update if it differs from the input)
-- `sourceRefName` → `SOURCE_REF` (e.g. `refs/heads/feature/my-branch`)
-- `targetRefName` → `TARGET_REF` (e.g. `refs/heads/develop`)
-- `title` → `PR_TITLE`
-- `description` → `PR_DESCRIPTION`
-- `status` — note if already merged (`mergeStatus: succeeded`); continue without error — comments are still useful as a review record
-
-Strip `refs/heads/` prefix from `SOURCE_REF` and `TARGET_REF` to get plain branch names (`SOURCE_BRANCH`, `TARGET_BRANCH`).
+PR metadata (`REPO_ID`, branches, title, description) is gathered by the orchestrator's PR-metadata call and passed in — this agent never re-fetches it. If the upstream PR was already merged at fetch time (`mergeStatus: succeeded`), the orchestrator continues without error and that detail does not need to flow into this agent — comments are still useful as a review record.
 
 ---
 
-## Step 2 — Fetch PR iterations and resolve latest
+## Step 1 — Fetch PR iterations and resolve latest
 
 ```bash
 ITERATIONS_JSON=$(az devops invoke \
@@ -90,6 +76,89 @@ rm -f /tmp/ado_fetcher_iter.err
 LATEST_ITERATION_ID=$(echo "$ITER_RESULT" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).latestIterationId))")
 LATEST_COMMIT_SHA=$(echo "$ITER_RESULT"   | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).latestCommitSha)")
 ```
+
+---
+
+## Step 2 — Fetch PR threads and detect mode
+
+Fetch the full thread list once via `az devops invoke` against the `pullRequestThreads` resource — the `azure-devops` CLI extension has no `az repos pr thread` subcommand, so the raw REST resource is the only option. Apply the HTTP-tier classification from ADR 0015: `401/403` → ABORTED with an `az devops login` hint; `404` → OK, treat as empty threads (`{"value":[]}`); `5xx` and network errors → DEGRADED warning Notice with `kind: thread-fetch`, proceed with empty threads.
+
+```bash
+THREADS_RESPONSE=$(az devops invoke \
+  --area git \
+  --resource pullRequestThreads \
+  --route-parameters "project=$PROJECT" "repositoryId=$REPO_ID" "pullRequestId=$PR_ID" \
+  --org "$ORG_URL" \
+  --api-version "7.1" \
+  --output json 2>/tmp/ado_fetcher_threads.err)
+THREADS_EXIT=$?
+THREADS_ERR_BODY=$(cat /tmp/ado_fetcher_threads.err 2>/dev/null || true)
+
+# Parse HTTP status from the CLI's error body (best-effort — falls back to exit-code-only classification).
+THREADS_STATUS=$(printf '%s' "$THREADS_ERR_BODY" | node -e "
+const txt = require('fs').readFileSync('/dev/stdin','utf8')
+const m = txt.match(/HTTP\\s+(?:status\\s+)?(\\d{3})/i) || txt.match(/\\b(4\\d{2}|5\\d{2})\\b/)
+process.stdout.write(m ? m[1] : '')
+")
+
+THREADS_TIER=$(
+  TH_STATUS="$THREADS_STATUS" \
+  TH_EXIT="$THREADS_EXIT" \
+  TH_BODY="$THREADS_ERR_BODY" \
+  PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { classifyHttpError } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/classify-http-error.mjs`)
+const result = classifyHttpError({
+  status: process.env.TH_STATUS ? Number(process.env.TH_STATUS) : 0,
+  body: process.env.TH_BODY ?? '',
+  exitCode: Number(process.env.TH_EXIT),
+})
+process.stdout.write(JSON.stringify(result))
+EOJS
+)
+
+THREADS_FETCH_FAILED=false
+THREADS_FETCH_FAIL_MESSAGE=""
+
+if [ "$THREADS_EXIT" != "0" ]; then
+  TIER=$(echo "$THREADS_TIER" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).tier)")
+  TMSG=$(echo "$THREADS_TIER" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).message)")
+  if [ "$THREADS_STATUS" = "404" ]; then
+    # 404 on the threads endpoint is treated as OK with an empty thread list.
+    RAW_THREADS_JSON='{"value":[]}'
+  elif [ "$TIER" = "aborted" ]; then
+    # 401/403 — surface the az devops login hint and abort.
+    echo "ERROR: $TMSG" >&2
+    rm -f /tmp/ado_fetcher_threads.err
+    exit 1
+  else
+    # 5xx / network — DEGRADED. Proceed with empty threads and emit a thread-fetch Notice in Step 6.
+    RAW_THREADS_JSON='{"value":[]}'
+    THREADS_FETCH_FAILED=true
+    THREADS_FETCH_FAIL_MESSAGE="$TMSG"
+  fi
+else
+  RAW_THREADS_JSON="$THREADS_RESPONSE"
+fi
+rm -f /tmp/ado_fetcher_threads.err
+```
+
+Run `detectMode` against `.value` of `RAW_THREADS_JSON` to classify the run and capture the prior-iteration / summary-thread IDs:
+
+```bash
+eval "$(
+  RAW_T="$RAW_THREADS_JSON" \
+  PLUGIN_R="$PLUGIN_ROOT" \
+  node --input-type=module << 'EOJS'
+const { detectMode, formatModeEnv, SIGNATURE_PREFIX } = await import(`file://${process.env.PLUGIN_R}/scripts/mode-detection.mjs`)
+const parsed = JSON.parse(process.env.RAW_T || '{"value":[]}')
+const threads = Array.isArray(parsed) ? parsed : (parsed.value ?? [])
+process.stdout.write(formatModeEnv(detectMode({ threads, signaturePrefix: SIGNATURE_PREFIX })))
+EOJS
+)"
+```
+
+Sets `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`. `PRIOR_ITERATION_ID` is consumed by Step 4 (diff strategy); the other three flow through the result block to the orchestrator and downstream agents.
 
 ---
 
@@ -240,12 +309,15 @@ rm -f /tmp/ado_fetcher_wi.err
 
 Initialise the per-agent Notices array. Emission sites:
 
+- **DEGRADED warning** (`kind: thread-fetch`) — when the threads endpoint returned 5xx or a network error (`THREADS_FETCH_FAILED=true`); the run proceeds with `MODE: first-review` and an empty thread list, but downstream re-review detection is unavailable for this run.
 - **DEGRADED warning** (`kind: diff-range`) — when `DIFF_RANGE_FALLBACK=true` (prior commit unreachable; fell back to full diff).
 - **DEGRADED warning** (`kind: work-items`) — when the work-item fetch failed (`WI_OK=false`); message comes from the helper.
 - **EMPTY-BY-DESIGN info** (`kind: doc-context`) — when `WORK_ITEM_IDS=[]` and the fetch succeeded (no work items linked to the PR).
 
 ```bash
 NOTICES=$(
+  THREADS_FAIL="${THREADS_FETCH_FAILED:-false}" \
+  THREADS_MSG="$THREADS_FETCH_FAIL_MESSAGE" \
   DIFF_RANGE_FB="${DIFF_RANGE_FALLBACK:-false}" \
   WI_IDS="$WORK_ITEM_IDS" \
   WI_OK="$WI_OK" \
@@ -255,6 +327,9 @@ NOTICES=$(
 const { createNotice } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/notices.mjs`)
 const ids = JSON.parse(process.env.WI_IDS || '[]')
 const notices = []
+if (process.env.THREADS_FAIL === 'true') {
+  notices.push(createNotice('warning', 'thread-fetch', process.env.THREADS_MSG || 'Failed to fetch PR threads. Proceeded with empty thread list; re-review detection is unavailable for this run.'))
+}
 if (process.env.DIFF_RANGE_FB === 'true') {
   notices.push(createNotice('warning', 'diff-range', 'Incremental diff unavailable — Coordinator will classify against the full PR diff with conservative downgrades.'))
 }
@@ -288,8 +363,15 @@ TARGET_BRANCH: {TARGET_BRANCH}
 LATEST_ITERATION_ID: {LATEST_ITERATION_ID}
 LATEST_COMMIT_SHA: {LATEST_COMMIT_SHA}
 DIFF_RANGE: {DIFF_RANGE}
+MODE: {MODE}
+IS_REREVIEW: {IS_REREVIEW}
+PRIOR_ITERATION_ID: {PRIOR_ITERATION_ID}
+SUMMARY_THREAD_ID: {SUMMARY_THREAD_ID}
 WORK_ITEM_IDS: {WORK_ITEM_IDS}
 NOTICES: {NOTICES}
+
+RAW_THREADS_JSON:
+{RAW_THREADS_JSON}
 
 CHANGED_FILES:
 {CHANGED_FILES}
@@ -301,11 +383,16 @@ ADO_FETCHER_RESULT_END
 
 Where:
 
+- `MODE` is `first-review` or `re-review` as classified by `detectMode` in Step 2.
+- `IS_REREVIEW` is `true` or `false` (the boolean form of `MODE === 're-review'`).
+- `PRIOR_ITERATION_ID` is the iteration ID of the prior signed Review, or empty string for first-review.
+- `SUMMARY_THREAD_ID` is the thread ID of the prior Review Summary, or empty string for first-review.
+- `RAW_THREADS_JSON` is the unfiltered ADO `pullRequestThreads` response (a JSON object with a `.value` array). When the threads endpoint failed with 5xx / network, this is `{"value":[]}` and `NOTICES` contains a `warning`-severity `thread-fetch` entry.
 - `DIFF_RANGE` is `full` when the diff ran against `origin/${TARGET_BRANCH}...HEAD` (first-review or fallback), or `incremental` when it ran against `${PRIOR_COMMIT_SHA}..${LATEST_COMMIT_SHA}`. When `full` due to a fallback, the `NOTICES` array also contains a `warning`-severity `diff-range` entry.
 - `WORK_ITEM_IDS` is the JSON array from Step 5, e.g. `[42, 7]` or `[]`
 - `NOTICES` is the JSON array from Step 6, e.g. `[{"severity":"info","kind":"doc-context","message":"..."}]` or `[]`
 - `CHANGED_FILES` is the newline-separated list from Step 3, e.g. `edit: /src/api.ts`
 - `RAW_DIFF` is the full diff text from Step 4 (may be empty if no new commits)
-- `LATEST_COMMIT_SHA` is the latest source-branch commit SHA captured in Step 2; reserved for future diff-range debugging and not consumed by any current downstream agent — the diff-range logic that needed it is now self-contained in Step 4 above.
+- `LATEST_COMMIT_SHA` is the latest source-branch commit SHA captured in Step 1; reserved for future diff-range debugging and not consumed by any current downstream agent — the diff-range logic that needed it is now self-contained in Step 4 above.
 
 **Never add any ADO write operations (POST, PATCH, DELETE) to this agent.**

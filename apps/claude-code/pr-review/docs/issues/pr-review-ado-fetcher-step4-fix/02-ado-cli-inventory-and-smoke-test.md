@@ -24,6 +24,7 @@ Implementation cuts through every layer:
 - **`tests/ado-cli-completeness.test.mjs`** (new) — fixture-style unit tests for `findUninventoriedCommands`: empty source, single inline command, multi-line bash with backslash continuation, `--area`/`--resource` split across lines, allowlist filtering, mixed allowlisted + inventoried + uninventoried. Mirrors the `tests/parse-diff-hunks.test.mjs` style.
 
 - **`tests/ado-cli-smoke.test.mjs`** (new) — two test cases:
+
   1. **Inventory completeness** — reads `agents/`, `commands/`, `scripts/` source files via `fs.readFileSync`; calls `findUninventoriedCommands` with the real inventory + allowlist; asserts the returned array is empty. Pure-JS; runs everywhere.
   2. **CLI smoke** — iterates `adoCliInventory`; runs each entry's `--help` via `child_process.spawnSync` with a 5s timeout; asserts exit 0 and that every `helpKeywordsRequired` substring appears in stdout. On `ENOENT` (i.e. `az` not on PATH): `t.skip('az CLI not installed')`.
 
@@ -31,9 +32,9 @@ Implementation cuts through every layer:
 
 - **CI workflow (`.github/workflows/ci.yml`)** — add a single conditional step (`if: matrix.os == 'ubuntu-latest' && matrix.node == 24`) that installs `azure-cli` via `apt` and adds the `azure-devops` extension. Other matrix cells skip the CLI smoke test cleanly via the `t.skip` path; the completeness test runs everywhere.
 
-- **`apps/claude-code/pr-review/AGENTS.md`** — append a single pointer paragraph to the "External dependencies" section: *"All `az` commands the plugin uses are enumerated in `tests/fixtures/ado-cli-inventory.mjs`. The smoke test (`tests/ado-cli-smoke.test.mjs`) asserts every `az ` invocation in `agents/`/`commands/`/`scripts/` has a matching inventory entry — modulo the allowlist in `tests/fixtures/ado-cli-allowlist.mjs`. Register a new ADO call in the inventory before invoking it."* No mirrored command table.
+- **`apps/claude-code/pr-review/AGENTS.md`** — append a single pointer paragraph to the "External dependencies" section: _"All `az` commands the plugin uses are enumerated in `tests/fixtures/ado-cli-inventory.mjs`. The smoke test (`tests/ado-cli-smoke.test.mjs`) asserts every `az ` invocation in `agents/`/`commands/`/`scripts/` has a matching inventory entry — modulo the allowlist in `tests/fixtures/ado-cli-allowlist.mjs`. Register a new ADO call in the inventory before invoking it."_ No mirrored command table.
 
-- **CHANGELOG** — `[Unreleased]` `### Changed` entry: *Preflight now verifies `az devops invoke` is callable; CI smoke test asserts every ADO subcommand the plugin uses exists.*
+- **CHANGELOG** — `[Unreleased]` `### Changed` entry: _Preflight now verifies `az devops invoke` is callable; CI smoke test asserts every ADO subcommand the plugin uses exists._
 
 End-to-end demoable: `pnpm --filter pr-review test` passes locally with `az` installed (smoke test runs) and without `az` (smoke test skips, completeness test still runs). Deliberately adding an unregistered `az` call to any agent → completeness test fails. Adding a known-bad inventory entry (e.g. `az repos pr thread list`) → CLI smoke test fails with the `az` rename / removal as the surfaced reason.
 

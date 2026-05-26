@@ -9,7 +9,7 @@
 - (none)
 
 ### Fixed
-- (none)
+- Step 4 mode detection was calling a non-existent `az repos pr thread list` subcommand and failing fatally on every ADO PR review. Thread fetching now lives in the ADO Fetcher and uses `az devops invoke --resource pullRequestThreads`; the orchestrator's Step 4 captures PR metadata via `az repos pr show` and the Fetcher's result block now emits `RAW_THREADS_JSON`, `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, and `SUMMARY_THREAD_ID`. Per ADR 0016.
 
 ## [1.2.11] — 2026-05-19
 

@@ -2,7 +2,7 @@
 
 /**
  * @typedef {'info' | 'warning'} NoticeSeverity
- * @typedef {'doc-context' | 'diff-range' | 'work-items' | 'iterations' | 'default-branch' | 'partial-run-check' | 'thread-match' | 'thread-classify' | 'inline-post' | 'summary-post' | 'patch-to-fixed' | 'diff-parse' | 'delta-reply' | 'completion-marker'} NoticeKind
+ * @typedef {'doc-context' | 'diff-range' | 'work-items' | 'iterations' | 'default-branch' | 'partial-run-check' | 'thread-match' | 'thread-classify' | 'thread-fetch' | 'inline-post' | 'summary-post' | 'patch-to-fixed' | 'diff-parse' | 'delta-reply' | 'completion-marker'} NoticeKind
  * @typedef {{ severity: NoticeSeverity, kind: NoticeKind, message: string }} Notice
  * @typedef {'first-review' | 're-review' | 'pre-pr' | 'aborted'} TrailerMode
  * @typedef {{ critical: number, important: number, minor: number }} FindingCounts
