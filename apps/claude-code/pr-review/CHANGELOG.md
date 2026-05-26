@@ -8,6 +8,9 @@
 ### Added
 - (none)
 
+### Changed
+- Preflight now verifies `az devops invoke` is callable in addition to the existing `az --version` and `azure-devops` extension checks; failures surface a re-install hint. CI smoke test (`tests/ado-cli-smoke.test.mjs`) asserts every ADO subcommand the plugin actually invokes still exists, sourced from a single inventory at `tests/fixtures/ado-cli-inventory.mjs`. Same failure class as the Step 4 bug — guarded offline now.
+
 ### Fixed
 - Step 4 mode detection was calling a non-existent `az repos pr thread list` subcommand and failing fatally on every ADO PR review. Thread fetching now lives in the ADO Fetcher and uses `az devops invoke --resource pullRequestThreads`; the orchestrator's Step 4 captures PR metadata via `az repos pr show` and the Fetcher's result block now emits `RAW_THREADS_JSON`, `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, and `SUMMARY_THREAD_ID`. Per ADR 0016.
 

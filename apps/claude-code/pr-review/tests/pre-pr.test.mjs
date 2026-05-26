@@ -405,10 +405,23 @@ describe('review-pr command — Step 4 (PR metadata only) + Fetcher delegation',
 		)
 	})
 
-	it('contains no `az devops invoke` lines (Fetcher owns all REST calls)', () => {
-		const offending = commandContent
-			.split('\n')
-			.filter((line) => /az devops invoke/.test(line) && !line.trim().startsWith('-'))
+	it('contains no `az devops invoke` REST calls (Fetcher owns all REST calls — `--help` probe is allowed)', () => {
+		// Strip markdown inline code (`...`) and quoted strings ("...", '...') before
+		// scanning each line — prose references and echoed error messages don't
+		// execute the command, only document or surface it.
+		const stripPassive = (line) =>
+			line
+				.replace(/`[^`]*`/g, '')
+				.replace(/"[^"]*"/g, '')
+				.replace(/'[^']*'/g, '')
+		const offending = commandContent.split('\n').filter(
+			(line) =>
+				/az devops invoke/.test(stripPassive(line)) &&
+				!line.trim().startsWith('-') &&
+				// The Step 3 preflight uses `az devops invoke --help` purely as a CLI capability
+				// probe — it makes no REST call, so ADR-0016 permits it.
+				!/az devops invoke --help/.test(line)
+		)
 		assert.deepEqual(offending, [], `Orchestrator must not call az devops invoke directly: ${offending.join(' | ')}`)
 	})
 

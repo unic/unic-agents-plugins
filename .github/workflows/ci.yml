@@ -52,7 +52,8 @@ jobs:
       needs.changes.outputs.auto-format == 'true' ||
       needs.changes.outputs.unic-confluence == 'true' ||
       needs.changes.outputs.release-tools == 'true' ||
-      needs.changes.outputs.unic-archon-dlc == 'true'
+      needs.changes.outputs.unic-archon-dlc == 'true' ||
+      needs.changes.outputs.pr-review == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +68,8 @@ jobs:
             changed: ${{ needs.changes.outputs.release-tools }}
           - name: unic-archon-dlc
             changed: ${{ needs.changes.outputs.unic-archon-dlc }}
+          - name: pr-review
+            changed: ${{ needs.changes.outputs.pr-review }}
         exclude:
           - package:
               changed: 'false'
@@ -84,6 +87,14 @@ jobs:
         run: pnpm install --frozen-lockfile
       - if: runner.os == 'Windows'
         run: pnpm install --frozen-lockfile --ignore-scripts
+      # Install Azure CLI + azure-devops extension only on Linux/Node 24 so the
+      # pr-review ADO CLI smoke test (tests/ado-cli-smoke.test.mjs) actually
+      # invokes `--help` against each inventory entry on at least one matrix
+      # cell. Other cells fall through the t.skip path cleanly.
+      - if: matrix.package.name == 'pr-review' && matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name azure-devops
       - run: pnpm --filter ${{ matrix.package.name }} --if-present test
       - run: pnpm --filter ${{ matrix.package.name }} --if-present typecheck
       - if: github.event_name == 'pull_request'

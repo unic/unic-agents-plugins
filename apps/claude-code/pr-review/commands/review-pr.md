@@ -43,7 +43,14 @@ Extract a PR URL from `$ARGUMENTS`. Expected format: `https://dev.azure.com/{org
 
 ## Step 3 — Azure CLI check (PR modes only)
 
-Run `az --version` and `az extension list | grep azure-devops`. If missing: `az extension add --name azure-devops`.
+Run `az --version` and `az extension list | grep azure-devops`. If missing: `az extension add --name azure-devops`. Then verify `az devops invoke` itself is callable — the extension is sometimes installed but broken after partial upgrades (this is the failure class the smoke test in `tests/ado-cli-smoke.test.mjs` guards offline):
+
+```bash
+if ! az devops invoke --help >/dev/null 2>&1; then
+  echo "ERROR: az devops invoke unavailable. Re-install: az extension remove --name azure-devops && az extension add --name azure-devops" >&2
+  exit 1
+fi
+```
 
 ## Step 4 — Fetch PR metadata
 
