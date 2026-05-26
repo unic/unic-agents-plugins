@@ -11,6 +11,17 @@
 ### Fixed
 - (none)
 
+## [0.1.2] — 2026-05-23
+
+### Breaking
+- (none)
+
+### Added
+- Updated `buildDomainDoc` multi-context branch in `lib/agent-docs-writer.mjs` so the generated `docs/agents/domain.md` notes that each context may keep its own `docs/adr/` for context-scoped decisions, and branches the trailing "How agents use this" paragraph by `isMulti` so the multi-context form points readers via `CONTEXT-MAP.md` and acknowledges both root and context-scoped `docs/adr/`. The wording is portable — no hardcoded path leaks into Consumer output. A node:test assertion in `test/install-agent-docs.test.mjs` guards the phrases in multi-context mode and confirms they are absent in single-context mode.
+
+### Fixed
+- (none)
+
 ## [0.1.1] — 2026-05-23
 
 ### Added

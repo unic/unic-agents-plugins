@@ -224,7 +224,7 @@ ${
 		? `This repository uses **multi-context** layout. Each package/app has its own \`CONTEXT.md\` file. A \`CONTEXT-MAP.md\` at the repo root maps each context to its location.
 
 - **Context map:** \`${relative(projectDir, join(projectDir, 'CONTEXT-MAP.md'))}\`
-- **ADRs:** \`docs/adr/\` (repo-level decisions)`
+- **ADRs:** monorepo-wide decisions live in root \`docs/adr/\`; each context may also keep its own \`docs/adr/\` for decisions scoped to that context.`
 		: `This repository uses **single-context** layout. One \`CONTEXT.md\` file lives at the repo root.
 
 - **Domain context:** \`CONTEXT.md\`
@@ -233,7 +233,11 @@ ${
 
 ## How agents use this
 
-Every agent working in this repo should read \`CONTEXT.md\` (and the ADRs in \`docs/adr/\`) before proposing terminology changes or architectural decisions.
+${
+	isMulti
+		? `Every agent working in this repo should read the relevant \`CONTEXT.md\` (located via \`CONTEXT-MAP.md\`) and the ADRs in root \`docs/adr/\` plus any context-scoped \`docs/adr/\` before proposing terminology changes or architectural decisions.`
+		: `Every agent working in this repo should read \`CONTEXT.md\` (and the ADRs in \`docs/adr/\`) before proposing terminology changes or architectural decisions.`
+}
 `
 }
 

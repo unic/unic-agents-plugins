@@ -41,6 +41,14 @@ test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content',
 	// domain.md reflects single-context
 	const domain = readFileSync(join(dir, 'docs', 'agents', 'domain.md'), 'utf8')
 	assert.ok(domain.includes('single-context') || domain.includes('single'), 'domain.md should mention single-context')
+	assert.ok(
+		!domain.includes('each context may also keep its own'),
+		'single-context domain.md should not mention per-context ADR pattern'
+	)
+	assert.ok(
+		!domain.includes('located via `CONTEXT-MAP.md`'),
+		'single-context domain.md should not contain the multi-context "How agents use this" wording'
+	)
 
 	// workflow.md mentions all 7 workflow phases
 	const workflow = readFileSync(join(dir, 'docs', 'agents', 'workflow.md'), 'utf8')
@@ -50,6 +58,25 @@ test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content',
 	// 'review' is also a substring of 'arch-review' and appears in surrounding prose — anchor on the
 	// unique command string to make sure the review *row* is present, not just the word.
 	assert.ok(workflow.includes('/unic-dlc-review'), 'workflow.md should list the /unic-dlc-review command')
+})
+
+test('multi-context domain.md mentions per-context ADR pattern', () => {
+	const dir = join(tmpdir(), `unic-dlc-docs-multi-${Date.now()}`)
+	mkdirSync(dir, { recursive: true })
+
+	writeAgentDocs(dir, { ...TEST_CONFIG, repo_layout: 'multi-context' })
+
+	const domain = readFileSync(join(dir, 'docs', 'agents', 'domain.md'), 'utf8')
+	assert.ok(domain.includes('multi-context'), 'multi-context domain.md should mention multi-context')
+	assert.ok(
+		domain.includes('each context may also keep its own'),
+		'multi-context domain.md should mention per-context docs/adr/ pattern'
+	)
+	assert.ok(
+		domain.includes('located via `CONTEXT-MAP.md`'),
+		'multi-context domain.md "How agents use this" should branch on multi-context wording'
+	)
+	assert.ok(domain.startsWith(AGENT_DOC_BANNER), 'multi-context domain.md should still begin with AGENT_DOC_BANNER')
 })
 
 test('each generated docs/agents/*.md file begins with AGENT_DOC_BANNER', () => {
