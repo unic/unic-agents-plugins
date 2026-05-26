@@ -118,6 +118,15 @@ describe('findUninventoriedCommands', () => {
 		assert.deepEqual(result, [])
 	})
 
+	it('emits `az --version` shape for root-flag invocations so the allowlist still applies', () => {
+		const result = findUninventoriedCommands({
+			sources: [{ path: 'commands/review-pr.md', content: 'az --version || exit 1' }],
+			inventory: [],
+			allowlist: [],
+		})
+		assert.deepEqual(result, ['az --version (commands/review-pr.md)'])
+	})
+
 	it('matches an az devops invoke entry against split --area/--resource flags', () => {
 		const block = ['az devops invoke \\', '  --area git \\', '  --resource pullRequestThreads'].join('\n')
 		const result = findUninventoriedCommands({

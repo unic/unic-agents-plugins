@@ -59,7 +59,13 @@ function extractAzShapes(content) {
 		const tokens = tokenize(text, start)
 		if (tokens.length === 0) continue
 		const head = leadingNonFlagTokens(tokens)
-		if (head.length < 2) continue
+		if (head.length < 2) {
+			// Root-flag forms like `az --version` — emit `az <first-flag>` so the
+			// allowlist / inventory check still covers them.
+			const firstFlag = tokens.find((t) => t.startsWith('--'))
+			if (firstFlag) shapes.push(`az ${firstFlag}`)
+			continue
+		}
 		const shape = head[1] === 'devops' && head[2] === 'invoke' ? withAreaResource(tokens, head) : head.join(' ')
 		shapes.push(shape)
 	}

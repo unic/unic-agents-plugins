@@ -25,7 +25,9 @@ function loadPluginSources() {
 		const root = join(PLUGIN_ROOT, dir)
 		for (const file of walk(root)) {
 			if (!SCANNABLE_EXT.test(file)) continue
-			if (SKIP_FRAGMENTS.some((f) => file.includes(f))) continue
+			// Normalise so the POSIX-style SKIP_FRAGMENTS also match on Windows paths.
+			const normalised = file.replaceAll('\\', '/')
+			if (SKIP_FRAGMENTS.some((f) => normalised.includes(f))) continue
 			out.push({ path: relative(PLUGIN_ROOT, file), content: readFileSync(file, 'utf8') })
 		}
 	}
