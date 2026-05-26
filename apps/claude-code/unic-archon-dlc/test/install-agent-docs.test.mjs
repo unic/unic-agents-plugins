@@ -45,6 +45,10 @@ test('writeAgentDocs writes all 5 docs/agents/*.md files with expected content',
 		!domain.includes('each context may also keep its own'),
 		'single-context domain.md should not mention per-context ADR pattern'
 	)
+	assert.ok(
+		!domain.includes('located via'),
+		'single-context domain.md should not contain the multi-context "How agents use this" wording'
+	)
 
 	// workflow.md mentions all 7 workflow phases
 	const workflow = readFileSync(join(dir, 'docs', 'agents', 'workflow.md'), 'utf8')
@@ -67,6 +71,10 @@ test('multi-context domain.md mentions per-context ADR pattern', () => {
 	assert.ok(
 		domain.includes('each context may also keep its own'),
 		'multi-context domain.md should mention per-context docs/adr/ pattern'
+	)
+	assert.ok(
+		domain.includes('located via `CONTEXT-MAP.md`'),
+		'multi-context domain.md "How agents use this" should branch on multi-context wording'
 	)
 	assert.ok(domain.startsWith(AGENT_DOC_BANNER), 'multi-context domain.md should still begin with AGENT_DOC_BANNER')
 })

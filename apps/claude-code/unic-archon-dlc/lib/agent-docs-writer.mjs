@@ -233,7 +233,11 @@ ${
 
 ## How agents use this
 
-Every agent working in this repo should read \`CONTEXT.md\` (and the ADRs in \`docs/adr/\`) before proposing terminology changes or architectural decisions.
+${
+	isMulti
+		? `Every agent working in this repo should read the relevant \`CONTEXT.md\` (located via \`CONTEXT-MAP.md\`) and the ADRs in root \`docs/adr/\` plus any context-scoped \`docs/adr/\` before proposing terminology changes or architectural decisions.`
+		: `Every agent working in this repo should read \`CONTEXT.md\` (and the ADRs in \`docs/adr/\`) before proposing terminology changes or architectural decisions.`
+}
 `
 }
 
