@@ -43,6 +43,24 @@ SIGNATURE="🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}"
 
 ---
 
+## Step 0 — Validate MODE
+
+Before any other work, validate that `MODE` is one of the two recognized values. The Step 6 writes are gated on `[ "$MODE" = "re-review" ]`; if the orchestrator ever passes an empty, unset, or mistyped `MODE`, all three posting blocks would silently evaluate false and the user would see a normal trailer while no replies were posted. Refuse to run in that case so the bug surfaces.
+
+```bash
+case "$MODE" in
+  re-review|dry-run-rereview) ;;
+  *)
+    echo "ERROR: Re-review Coordinator received MODE=\"$MODE\" (expected re-review or dry-run-rereview). Refusing to run — silent skip of ADO writes would mask the bug." >&2
+    exit 4
+    ;;
+esac
+```
+
+The orchestrator's Step 7 handles a non-zero Coordinator exit by emitting a Trailer abort line, so this propagates to the user as a fatal failure (the correct outcome when the dispatch contract is broken).
+
+---
+
 ## Step 1 — Parse RAW_DIFF into diff hunks
 
 Parse the raw diff text into a JSON array of `{ filePath, startLine, endLine }` objects. Store in a temp file.
@@ -104,7 +122,7 @@ SUMMARY_THREAD_ID=$(printf '%s' "$DETECT_JSON" | node -e "process.stdout.write(S
 PRIOR_ITERATION_ID=$(printf '%s' "$DETECT_JSON" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.priorIterationId != null ? String(d.priorIterationId) : 'null')")
 ```
 
-If `IS_REREVIEW=false`: no prior bot threads found — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `plannedActions: []`, `earlyExit: false`. (The coordinator does not switch modes; the orchestrator does not change agent dispatch based on this branch.)
+If `IS_REREVIEW=false`: no prior bot threads found — return all findings as fresh and exit without classification or replies. (The coordinator does not switch modes; the orchestrator does not change agent dispatch based on this branch.)
 
 Log:
 
@@ -113,6 +131,27 @@ if [ "$IS_REREVIEW" = "true" ]; then
   echo "Detected $BOT_THREAD_COUNT prior bot threads — re-review mode."
 else
   echo "No prior bot threads detected — returning all findings as fresh; no classification or replies."
+fi
+```
+
+Emit the result block (matching Step 8's schema — same fields as Step 4's early-exit template, except `earlyExit: false`, all counts zero, `freshFindings` is the original `FINDINGS` input verbatim, `plannedActions: []`), clean up temp files, and exit with code `0`:
+
+```bash
+if [ "$IS_REREVIEW" = "false" ]; then
+  rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
+  cat << RESULT_EOF
+RE_REVIEW_COORDINATOR_RESULT_START
+earlyExit: false
+addressed: 0
+disputed: 0
+pending: 0
+obsolete: 0
+freshFindings: ${FINDINGS}
+plannedActions: []
+NOTICES: []
+RE_REVIEW_COORDINATOR_RESULT_END
+RESULT_EOF
+  exit 0
 fi
 ```
 
@@ -166,7 +205,26 @@ EOJS
 fi
 ```
 
-If `IS_REREVIEW` is now `false` after the partial-run check: no prior bot threads remain valid — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `plannedActions: []`, `earlyExit: false`.
+If `IS_REREVIEW` is now `false` after the partial-run check: no prior bot threads remain valid — return all findings as fresh and exit without classification or replies. Emit the result block (matching Step 8's schema — same fields as Step 4's early-exit template, except `earlyExit: false`, all counts zero, `freshFindings` is the original `FINDINGS` input verbatim, `plannedActions: []`), clean up temp files, and exit with code `0`:
+
+```bash
+if [ "$IS_REREVIEW" = "false" ]; then
+  rm -f "$PRIOR_THREADS_FILE" "$DIFF_HUNKS_FILE"
+  cat << RESULT_EOF
+RE_REVIEW_COORDINATOR_RESULT_START
+earlyExit: false
+addressed: 0
+disputed: 0
+pending: 0
+obsolete: 0
+freshFindings: ${FINDINGS}
+plannedActions: []
+NOTICES: []
+RE_REVIEW_COORDINATOR_RESULT_END
+RESULT_EOF
+  exit 0
+fi
+```
 
 ---
 
@@ -314,13 +372,39 @@ if [ "$MATCH_EXIT" -ne 0 ]; then
   )
   CLASSIFICATION=""
   THREAD_ID=""
+  # Match crashed: the finding has no usable classification. Treat it as a
+  # fresh finding (so the orchestrator surfaces it) AND record an explicit
+  # `skip` plannedAction with reason "match crashed" so the dry-run-rereview
+  # preview reflects the affected finding rather than silently dropping it.
+  # `threadId: 0` is a sentinel meaning "no thread"; see Step 8 schema.
+  FRESH_FINDINGS_JSON=$(
+    F="$FRESH_FINDINGS_JSON" \
+    FILE="{finding.filePath}" SL="{finding.startLine}" EL="{finding.endLine}" \
+    SEV="{finding.severity}" TITLE="{finding.title}" BODY="{finding.body}" \
+    node -e "const a=JSON.parse(process.env.F); a.push({severity:process.env.SEV,filePath:process.env.FILE,startLine:Number(process.env.SL),endLine:Number(process.env.EL),title:process.env.TITLE,body:process.env.BODY}); process.stdout.write(JSON.stringify(a))"
+  )
+  PLANNED_ACTIONS_JSON=$(
+    A="$PLANNED_ACTIONS_JSON" \
+    node -e "const a=JSON.parse(process.env.A); a.push({threadId:0,action:'skip',reason:'match crashed'}); process.stdout.write(JSON.stringify(a))"
+  )
+  # MATCH_CRASHED is consumed by Step 6b's prose dispatch: when set to "true",
+  # the agent must skip Step 6b entirely for this finding and proceed to the
+  # next finding in the per-finding iteration.
+  MATCH_CRASHED="true"
 else
+  MATCH_CRASHED="false"
   CLASSIFICATION=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(d.classification ?? '')")
   THREAD_ID=$(printf '%s' "$MATCH" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')||'{}'); process.stdout.write(String(d.threadId ?? ''))")
 fi
 ```
 
+When `MATCH_EXIT` is non-zero, the prose flow is now unambiguous: the finding is appended to `FRESH_FINDINGS_JSON` (so it surfaces as a fresh finding to the orchestrator, the same way a true no-match would), and a `skip` plannedAction with `threadId: 0` and `reason: "match crashed"` is appended to `PLANNED_ACTIONS_JSON` (so the dry-run-rereview preview shows the affected finding). `MATCH_CRASHED="true"` signals Step 6b's prose dispatch to skip this finding entirely and move on to the next one — the finding has already been accounted for in both `FRESH_FINDINGS_JSON` and `PLANNED_ACTIONS_JSON`, so falling through to Step 6b's "No match" branch would double-count it.
+
 ### 6b — Dispatch on classification
+
+**If `MATCH_CRASHED = "true"` → skip dispatch for this finding**
+
+Step 6a already added the finding to `FRESH_FINDINGS_JSON` and recorded a `skip` plannedAction. Do not evaluate any of the branches below for this finding; proceed to the next finding in the iteration.
 
 **No match (`MATCH` is empty) → add to freshFindings**
 
@@ -509,7 +593,7 @@ Where:
 - `pending` — count of prior threads classified as pending (may include threads that received a new-evidence reply or were skipped)
 - `obsolete` — count of prior threads classified as obsolete
 - `freshFindings` — JSON array of unmatched findings in the same shape as the input `FINDINGS` array; empty array `[]` if all findings matched prior threads or if `earlyExit` is `true`
-- `plannedActions` — JSON array of per-thread planned actions: `[{ threadId: number, action: 'patch-to-fixed' | 'reply-new-evidence' | 'reply-dispute-ack' | 'skip', reason: string }]`. Emitted in **both** `re-review` and `dry-run-rereview` modes (symmetric contract; the orchestrator consumes it only in `dry-run-rereview`). Obsolete-classified threads do not appear here. Empty array `[]` when no prior threads were processed (early-skip paths or `earlyExit: true`).
+- `plannedActions` — JSON array of per-thread planned actions: `[{ threadId: number, action: 'patch-to-fixed' | 'reply-new-evidence' | 'reply-dispute-ack' | 'skip', reason: string }]`. Emitted in **both** `re-review` and `dry-run-rereview` modes (symmetric contract; the orchestrator consumes it only in `dry-run-rereview`). Obsolete-classified threads do not appear here. Empty array `[]` when no prior threads were processed (early-skip paths or `earlyExit: true`). `threadId: 0` is a sentinel meaning "no thread"; it appears for `skip` entries recorded when the `match-finding` helper crashed (see Step 6a) — the affected finding is also added to `freshFindings` in that case so it still surfaces.
 - `NOTICES` — JSON array of DEGRADED Notices emitted during this run (may be `[]`); each entry has `{ severity: "warning", kind: "thread-match", message }`
 
 ---
