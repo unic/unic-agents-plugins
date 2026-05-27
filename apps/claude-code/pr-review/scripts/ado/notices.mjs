@@ -78,7 +78,8 @@ export function formatNoticesAsPrePrPreamble(notices) {
 /**
  * Renders the mandatory end-of-run Trailer line for the Claude interface.
  * Carries findings counts (with severity breakdown), notice counts by severity,
- * and (for ADO modes) the PR URL.
+ * and the PR URL (for first-review, re-review, dry-run-first, and
+ * dry-run-rereview modes — omitted for pre-pr and aborted).
  * Minor findings are excluded from the parenthetical breakdown to keep the
  * trailer concise; only critical and important counts are surfaced inline.
  *
@@ -87,7 +88,7 @@ export function formatNoticesAsPrePrPreamble(notices) {
  * @param {FindingCounts} [input.findings]
  * @param {Notice[]} [input.notices]
  * @param {string} [input.prUrl]
- * @param {number} [input.plannedActions]
+ * @param {number} [input.plannedActionsCount] - Count of planned thread actions (dry-run modes only); a scalar number, not an array. Named to disambiguate from the Coordinator's `plannedActions` array.
  * @param {string} [input.abortKind]
  * @param {string} [input.abortReason]
  * @returns {string}
@@ -109,7 +110,7 @@ export function formatTrailer(input) {
 		return `✅ Pre-PR review complete: ${findingsPart} · ${warnPart}`
 	}
 	if (input.mode === 'dry-run-first' || input.mode === 'dry-run-rereview') {
-		const planned = input.plannedActions ?? 0
+		const planned = input.plannedActionsCount ?? 0
 		const plannedPart = `${planned} ${plural(planned, 'planned thread action')}`
 		const url = input.prUrl ?? ''
 		return `🔍 Dry-run complete: ${findingsPart} · ${plannedPart} · ${warnPart} · would have posted to ${url}`

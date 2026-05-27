@@ -176,13 +176,13 @@ describe('formatTrailer', () => {
 		)
 	})
 
-	it('dry-run-rereview mode with mixed findings, non-zero plannedActions, and warnings', () => {
+	it('dry-run-rereview mode with mixed findings, non-zero plannedActionsCount, and warnings', () => {
 		const out = formatTrailer({
 			mode: 'dry-run-rereview',
 			findings: { critical: 1, important: 2, minor: 1 },
 			notices: [createNotice('warning', 'thread-fetch', 'degraded')],
 			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/6',
-			plannedActions: 4,
+			plannedActionsCount: 4,
 		})
 		assert.equal(
 			out,
@@ -196,7 +196,7 @@ describe('formatTrailer', () => {
 			findings: { critical: 0, important: 0, minor: 0 },
 			notices: [],
 			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/7',
-			plannedActions: 0,
+			plannedActionsCount: 0,
 		})
 		assert.equal(
 			out,
@@ -204,13 +204,13 @@ describe('formatTrailer', () => {
 		)
 	})
 
-	it('dry-run-rereview mode with zero fresh findings but non-zero plannedActions', () => {
+	it('dry-run-rereview mode with zero fresh findings but non-zero plannedActionsCount', () => {
 		const out = formatTrailer({
 			mode: 'dry-run-rereview',
 			findings: { critical: 0, important: 0, minor: 0 },
 			notices: [],
 			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/8',
-			plannedActions: 3,
+			plannedActionsCount: 3,
 		})
 		assert.equal(
 			out,
