@@ -2,7 +2,7 @@
 
 ## Shared vocabulary
 
-- [Monorepo](./CONTEXT.md) — Plugin, Workspace Package, Release, Spec, Spec Runner, Consumer
+- [Monorepo](./CONTEXT.md) — Plugin, Workspace Package, Release, Feature, Feature Runner, Consumer
 
 ## Plugin contexts
 
@@ -18,3 +18,4 @@
 - **unic-confluence** can be installed as a git dependency for use outside Claude Code.
 - **pr-review** has a soft dependency on the `pr-review-toolkit` plugin from `anthropics/claude-plugins-official`
 - **unic-archon-dlc** requires the Archon workflow engine (version ≥ 0.10) in the target project; it has no runtime dependencies on any other plugin in this repo
+- Architectural decisions are split by scope: monorepo-wide decisions live in root `docs/adr/`; decisions scoped to a single context live in that context's own `docs/adr/`.

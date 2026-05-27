@@ -3,6 +3,13 @@
 import { detectPriorReview } from './re-review/detect-prior-review.mjs'
 
 /**
+ * Canonical bot-signature prefix used to detect prior Reviews via signature
+ * matching (ADR 0001 + ADR 0002). Load-bearing — the exact wording is part of
+ * the re-review detection contract.
+ */
+export const SIGNATURE_PREFIX = '🤖 *Reviewed by Claude Code*'
+
+/**
  * @typedef {{
  *   mode: 'first-review' | 're-review',
  *   isRereview: boolean,
@@ -23,8 +30,8 @@ import { detectPriorReview } from './re-review/detect-prior-review.mjs'
  */
 export function detectMode({ threads, signaturePrefix }) {
 	const r = detectPriorReview({
-		// detect-prior-review accepts the raw ADO thread shape; the orchestrator
-		// passes whatever `az repos pr thread list` returned, untouched.
+		// detect-prior-review accepts the raw ADO thread shape; callers pass the
+		// `.value` array from the `pullRequestThreads` endpoint, untouched.
 		// @ts-expect-error -- runtime-validated by detectPriorReview's own guards
 		threads: Array.isArray(threads) ? threads : [],
 		signaturePrefix,

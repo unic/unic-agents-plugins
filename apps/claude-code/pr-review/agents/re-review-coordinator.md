@@ -24,7 +24,7 @@ You receive:
   - `LATEST_ITERATION_ID`
   - `RAW_DIFF` — the raw git diff text (may be empty)
   - `DIFF_RANGE` — `full` or `incremental`; controls the γ-downgrade in Step 5
-- `RAW_THREADS_JSON` — the full unfiltered ADO thread list as a JSON array (fetched by the orchestrator via `az repos pr thread list`; not re-fetched here)
+- `RAW_THREADS_JSON` — the full unfiltered ADO thread list (the raw `pullRequestThreads` response, an object with a `.value` array of threads). Fetched by the ADO Fetcher agent and forwarded to this agent verbatim by the orchestrator; not re-fetched here.
 - `FINDINGS` — a JSON array of new findings: `{ severity, filePath, startLine, endLine, title, body }[]`
 - `SIGNATURE_PREFIX` — always `🤖 *Reviewed by Claude Code*`
 - `PLUGIN_ROOT` — absolute path to this plugin's directory (for Node.js helper scripts)
@@ -84,7 +84,8 @@ DETECT_JSON=$(
   node --input-type=module << 'EOJS'
 import { writeFileSync } from 'node:fs'
 const { detectPriorReview } = await import('file://' + process.env.PLUGIN_R + '/scripts/re-review/detect-prior-review.mjs')
-const threads = JSON.parse(process.env.RAW_THREADS)
+const parsed = JSON.parse(process.env.RAW_THREADS || '{"value":[]}')
+const threads = Array.isArray(parsed) ? parsed : (parsed.value ?? [])
 const r = detectPriorReview({ threads, signaturePrefix: process.env.SIG_P })
 writeFileSync(process.env.THREADS_OUT_F, JSON.stringify(r.priorThreads))
 process.stdout.write(JSON.stringify({
@@ -468,7 +469,7 @@ Where:
 ## Important invariants
 
 - **No ADO reads**: do not call `az devops invoke` for GET operations. All data is passed as inputs.
-- **No re-fetch of threads**: the orchestrator already captured `RAW_THREADS_JSON` during mode detection — do not call `az repos pr thread list` again.
+- **No re-fetch of threads**: the ADO Fetcher already captured `RAW_THREADS_JSON` via `az devops invoke --resource pullRequestThreads` and the orchestrator forwarded it here — do not re-issue that call.
 - **Early exit has no ADO writes**: the no-new-revisions path (Step 4) only prints to console and returns the result block — it never posts replies or PATCHes threads.
 - **All four count fields are always present** in the result block, even when zero.
 - **Matched findings are consumed**: a finding matched to any classified prior thread is excluded from `freshFindings`, regardless of whether a reply was posted.

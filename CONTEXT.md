@@ -20,20 +20,12 @@ _Avoid_: package (too generic), library, module
 A versioned, tagged snapshot of a single Plugin published to `main`. A per-Plugin event — there is no monorepo-wide release.
 _Avoid_: deploy, publish, version bump
 
-**Spec**:
-A structured markdown file under `docs/plans/` that defines a unit of work with context, target behaviour, and acceptance criteria. The atomic input to the Spec Runner.
-_Avoid_: ticket, task, issue, story
-
-**Spec Runner**:
-The agent automation that reads Specs and implements them one at a time. Currently backed by `ralph-orchestrator` but the concept is tool-agnostic.
-_Avoid_: Ralph, Ralph Orchestrator (tool-specific, not domain terms)
-
 **Feature**:
 A self-contained unit of work tracked as a directory under `docs/issues/<slug>/`, containing a PRD and numbered implementation issues. The atomic input to the Feature Runner.
 _Avoid_: ticket, epic, story
 
 **Feature Runner**:
-The skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request. Parallel concept to Spec Runner, but driven by the issue tracker rather than `docs/plans/`.
+The skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request. Backed by `unic-dlc-build`.
 _Avoid_: issue runner, queue runner
 
 **Consumer**:
@@ -45,8 +37,7 @@ _Avoid_: client, user repo, target repo, host repo
 - A **Plugin** belongs to one agent ecosystem (e.g., Claude Code) and has zero or more **Releases**
 - A **Claude Code Plugin** is a **Plugin** — the inverse is not always true
 - A **Workspace Package** supports **Plugin** development but is not itself a **Plugin**
-- A **Spec** drives exactly one **Spec Runner** iteration
-- A **Feature** drives one **Feature Runner** execution — a Feature is to the Feature Runner what a Spec is to the Spec Runner
+- A **Feature** drives one **Feature Runner** execution
 - A **Consumer** installs one or more **Plugins**
 
 ## Example dialogue
@@ -56,6 +47,3 @@ _Avoid_: client, user repo, target repo, host repo
 
 > **Dev:** "A Consumer reported the auto-format Plugin failing on Windows."
 > **Domain expert:** "That's a cross-platform gap. Plugins must use Node.js APIs — no shell commands or POSIX paths."
-
-> **Dev:** "Can I use Ralph to implement this Spec?"
-> **Domain expert:** "You mean the Spec Runner — Ralph is just the current tool backing it."

@@ -1,0 +1,421 @@
+name: unic-dlc-plan
+description: >
+  Adversarial spec interview → PRD synthesis → human PR gate.
+  Produces docs/workflow/<slug>/PRD.md and optional ADR entries.
+
+inputs:
+  slug:
+    description: Short identifier for this planning session (used as the workflow directory name under docs/workflow/).
+    required: true
+
+nodes:
+  - id: load-context
+    name: Load Context
+    type: prompt
+    depends_on: []
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — load-context node.
+
+      Goal: build a rich shared context before the adversarial interview begins.
+
+      1. Read CONTEXT.md at the project root if it exists. Note the domain vocabulary, key entities, and any established conventions.
+      2. Read CONTEXT-MAP.md at the repo root if it exists (present in monorepos). Note which sub-project this workflow targets.
+      3. Read all ADR files in docs/adr/ (sorted by filename). For each, note the decision title and outcome.
+      4. If docs/workflow/{{ inputs.slug }}/findings.md exists, read it. Note the Integrated Brief and any surfaced pitfalls.
+      5. Output a structured context summary with the following headings:
+         ## Domain Model
+         (key entities and vocabulary from CONTEXT.md)
+         ## Established Decisions
+         (list of ADRs: filename → one-line summary)
+         ## Prior Research
+         (Integrated Brief from findings.md, or "No findings.md for this slug." if absent)
+
+  - id: specs
+    name: Adversarial Spec Interview
+    type: loop
+    depends_on: [load-context]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — specs (adversarial interview) node.
+
+      Context already loaded in load-context:
+        - Domain vocabulary and entities
+        - Established ADR decisions
+        - Prior research findings (if any)
+
+      Discuss mode: {{ workflow.discuss_mode | default('interview') }}
+        - "interview"    → ask one open-ended question at a time; probe deeply; challenge assumptions
+        - "assumptions"  → surface all implicit assumptions upfront, then confirm or refute each
+
+      Interview guidelines:
+      1. If discuss_mode is "assumptions": enumerate every assumption you can identify about the
+         problem space, proposed solution, constraints, and acceptance criteria before asking questions.
+         For each assumption, ask the user to confirm, refute, or refine it.
+         If discuss_mode is "interview": ask one focused, adversarial question at a time.
+         Do not ask multiple questions in a single turn.
+      2. For every non-obvious architectural or process decision that emerges, propose an ADR entry:
+         - Suggest a filename following the pattern docs/adr/NNNN-<short-slug>.md
+         - Draft the ADR inline (Status, Context, Decision, Consequences)
+         - Write it live to docs/adr/NNNN-<short-slug>.md if the user confirms
+         - Use the next available NNNN by checking existing files in docs/adr/
+      3. Continue until the user signals they are done (e.g. "done", "that's enough", "proceed").
+      4. Before exiting, produce a structured interview transcript summary:
+         ## Interview Summary
+         (3-5 bullet points capturing the key decisions and constraints surfaced)
+         ## ADRs Produced
+         (list of any ADR files written during this session, or "None.")
+
+  - id: to-prd
+    name: Synthesise PRD
+    type: prompt
+    depends_on: [specs]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — to-prd node.
+
+      You have:
+        - The context summary from load-context (domain model, ADRs, prior research)
+        - The interview transcript summary and ADRs produced from the specs node
+        - The workflow slug: {{ inputs.slug }}
+
+      Your job: synthesise all of the above into a structured PRD.
+
+      1. Call writePrd(projectDir, slug, sections) where sections has exactly these keys:
+         - problemStatement: 2-4 sentences describing the pain or gap being addressed
+         - solution: 2-4 sentences describing the proposed approach at a high level
+         - userStories: a bulleted list of "As a <role>, I want <capability>, so that <benefit>." stories (at least 3)
+         - implementationDecisions: bullet list of key technical choices; reference ADR filenames where applicable
+         - testingDecisions: bullet list of testing strategy choices (framework, coverage targets, edge cases to cover)
+         - outOfScope: bullet list of explicitly excluded items to prevent scope creep
+         - furtherNotes: any open questions, dependencies, or items to revisit after v1
+
+      2. The resulting file must be docs/workflow/{{ inputs.slug }}/PRD.md.
+      3. Print: "PRD written to docs/workflow/{{ inputs.slug }}/PRD.md"
+
+  - id: prd-gate
+    name: PRD Human Gate
+    type: interactive
+    fresh_context: true
+    depends_on: [to-prd]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — prd-gate (first human PR gate) node.
+
+      The PRD and any new ADRs are ready for human review.
+
+      Actions:
+      1. Run validatePrdSections(content) on the PRD.md content to confirm all 7 sections are present.
+         If any sections are missing, list them and offer to fix them before opening the PR.
+      2. Stage the following files for a new PR:
+         - docs/workflow/{{ inputs.slug }}/PRD.md
+         - Any ADR files written during the specs node (docs/adr/NNNN-*.md that are new or modified)
+      3. Open a PR targeting the develop branch with:
+         - Title: "plan({{ inputs.slug }}): PRD and ADRs"
+         - Body:
+           ## Summary
+           - PRD for `{{ inputs.slug }}` workflow session
+           - Lists any new or updated ADR files
+           - Includes all 7 required PRD sections
+
+           ## Review Checklist
+           - [ ] Problem Statement clearly describes the pain or gap
+           - [ ] Solution is specific and implementable
+           - [ ] User Stories cover the primary use cases
+           - [ ] Implementation Decisions reference relevant ADRs
+           - [ ] Testing Decisions are concrete and actionable
+           - [ ] Out of Scope prevents scope creep
+           - [ ] Further Notes captures open questions
+      4. Pause and wait for human review.
+         - If the PR is **approved** and merged: print "PRD gate passed. Proceeding." and exit.
+         - If the PR is **rejected** or changes are requested: print "PRD gate: changes requested. Returning to specs."
+           Then return control to the specs node so the interview can be resumed or refined.
+
+  - id: to-issues
+    name: Decompose PRD into Issues
+    type: prompt
+    depends_on: [prd-gate]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — to-issues node.
+
+      Goal: decompose the approved PRD into independently-deliverable, vertically-sliced issues and
+      publish them to the tracker in dependency order.
+
+      ## Step 1 — Read the PRD
+
+      Read docs/workflow/{{ inputs.slug }}/PRD.md in full.
+
+      ## Step 2 — Decompose into vertical slices
+
+      Produce a draft list of issues. Each issue MUST have all of the following fields:
+
+        - id          : short kebab-case identifier unique within this file (e.g. "issue-01")
+        - title       : one-line description of the deliverable
+        - type        : one of: feature | bug | spike | tech-debt | docs
+        - priority    : one of: p0 | p1 | p2 | p3
+        - blocked_by  : array of IDs in *this* file that must ship first (empty array if independent)
+        - acceptance_criteria : non-empty array of statements that can each be demonstrated independently
+        - summary     : one short paragraph describing the work
+
+      Rules for good vertical slices:
+        - Each slice delivers observable user value on its own (or unblocks a slice that does).
+        - Slices are as small as possible while still being independently deployable/demonstrable.
+        - No slice should duplicate work covered by another slice.
+        - blocked_by must form a DAG — no cycles.
+
+      ## Step 3 — Validation loop (iterate until approved)
+
+      Present the breakdown to the user as a numbered list in this format:
+        <number>. [<type>/<priority>] <title>
+           blocked_by: <comma-separated IDs, or "none">
+           summary: <summary>
+           acceptance_criteria:
+             - <criterion 1>
+             - …
+
+      Then ask: "Validate this breakdown, or tell me which issues to split, merge, or relabel."
+
+      Iterate — apply requested changes and re-present — until the user approves explicitly
+      (e.g. replies "approved", "looks good", "proceed").
+
+      ## Step 4 — Validate schema before publishing
+
+      Before publishing, call validateIssue(issue) on every issue in the list.
+      If any issue fails validation, list the errors and fix them before proceeding.
+      Call sortByDependency(issues) to obtain the publication order.
+      If a circular dependency is detected, surface it to the user and ask them to resolve it.
+
+      ## Step 5 — Publish to tracker in dependency order
+
+      Load the tracker configuration from .archon/unic-dlc.config.json (field: tracker).
+      For each issue in sorted order:
+        1. Call buildCreateCommand(tracker, issue.title, issue.type, issue.priority, labels) to generate
+           the CLI command.
+        2. Print the command.
+        3. Execute the command (or, if in dry-run mode, skip execution and print "[dry-run]").
+
+      ## Step 6 — Write issues.json
+
+      Call buildIssuesJson(issues) and write the result to docs/workflow/{{ inputs.slug }}/issues.json.
+      Print: "issues.json written to docs/workflow/{{ inputs.slug }}/issues.json"
+
+  - id: nyquist-map
+    name: Nyquist Map — Attach Test Commands
+    type: prompt
+    depends_on: [to-issues]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — nyquist-map node.
+
+      Goal: for every issue in the just-published list, decide the exact shell command (or flag as
+      planned) that will verify the issue is done. This ensures every issue is testable before
+      implementation begins.
+
+      ## Step 1 — Load issues
+
+      Read docs/workflow/{{ inputs.slug }}/issues.json and parse the issues array.
+
+      ## Step 2 — Attach test commands
+
+      For each issue, determine the most appropriate verification command:
+
+        - If a concrete, runnable test command exists (e.g. `pnpm test`, `pnpm --filter <name> test`,
+          a specific test file path, or an integration check script), set:
+            test_command: "<exact shell command>"
+
+        - If no test exists yet (e.g. the issue creates new untested functionality, or the test itself
+          is the deliverable of another issue), set:
+            test_command_planned: true
+
+      Guidelines:
+        - Prefer the most specific command that exercises only the acceptance criteria of that issue.
+        - A `test_command_planned: true` is not a failure — it signals that a test must be written as
+          part of implementing that issue.
+        - Do NOT set both test_command and test_command_planned on the same issue.
+        - If the issue's type is 'docs' or 'spike', set test_command_planned: true unless a linting
+          or build check is meaningful.
+
+      ## Step 3 — Update issues.json
+
+      Merge the test_command / test_command_planned fields into each issue object.
+      Call buildIssuesJson(updatedIssues) and overwrite docs/workflow/{{ inputs.slug }}/issues.json.
+      Print a summary table:
+
+        Issue ID     | Test command / planned
+        -------------|--------------------------------------
+        issue-01     | pnpm --filter my-plugin test
+        issue-02     | [planned]
+        …
+
+      Print: "nyquist-map complete. issues.json updated with test commands."
+
+  - id: plan-checker
+    name: Plan Checker — Validate Issue Plan
+    type: loop
+    depends_on: [nyquist-map]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — plan-checker node.
+
+      Goal: validate the issue plan across four dimensions before generating the build YAML.
+      Max 3 iterations. Escalate immediately to the human gate if the issue count does not
+      decrease between consecutive iterations (stall detection).
+
+      ## Step 1 — Load issues
+
+      Read docs/workflow/{{ inputs.slug }}/issues.json and parse the issues array.
+      Track: iteration number (start at 1), previous issue count (start at -1).
+
+      ## Step 2 — Stall detection
+
+      If iteration > 1 AND current issue count >= previous issue count:
+        Print: "plan-checker: stall detected (issue count did not decrease). Escalating to human gate."
+        Exit the loop and proceed to yaml-gen.
+
+      If iteration > 3:
+        Print: "plan-checker: max iterations reached. Escalating to human gate."
+        Exit the loop and proceed to yaml-gen.
+
+      ## Step 3 — Validate four dimensions
+
+      ### 3.1 Consistency
+        - Collect all `blocked_by` values across all issues.
+        - Check that every referenced ID exists in the issue list.
+        - Orphaned references: IDs in `blocked_by` that don't exist in the list.
+        - Check that every acceptance criterion from every PRD user story is covered by
+          at least one issue's acceptance_criteria.
+        - Report: list of orphaned references; list of uncovered PRD criteria.
+
+      ### 3.2 Completeness
+        - For every issue, verify all mandatory fields are present and non-empty:
+          id, title, type, priority, blocked_by, acceptance_criteria, summary.
+        - acceptance_criteria must be a non-empty array.
+        - Report: list of issues with missing or empty mandatory fields.
+
+      ### 3.3 Decision coverage
+        - Read CONTEXT.md at the project root (if present). Extract trackable decisions
+          (sentences or bullet points that describe a binding technical or process choice).
+        - Read the interview transcript summary produced by the specs node (look for
+          "## Interview Summary" in the workflow session's notes or the specs node output).
+        - For each trackable decision, check whether at least one issue references or
+          addresses it (in title, summary, or acceptance_criteria).
+        - Report: list of unaddressed decisions.
+
+      ### 3.4 Nyquist compliance
+        - Check each issue for either `test_command` (string) or `test_command_planned: true`.
+        - Issues missing both fields fail this check.
+        - Report: list of issues without test coverage mapping.
+
+      ## Step 4 — Build the validation report
+
+      Produce a structured report:
+
+        ## plan-checker Report (iteration {{ loop.iteration }})
+
+        ### Consistency
+        <orphaned references or "✓ No orphaned references">
+        <uncovered PRD criteria or "✓ All PRD criteria covered">
+
+        ### Completeness
+        <missing fields per issue or "✓ All issues have required fields">
+
+        ### Decision Coverage
+        <unaddressed decisions or "✓ All trackable decisions addressed">
+
+        ### Nyquist Compliance
+        <issues missing test mapping or "✓ All issues have test_command or test_command_planned">
+
+        ### Summary
+        <overall PASS or FAIL with counts>
+
+      Write the report to docs/workflow/{{ inputs.slug }}/plan-checker-report.md
+      (overwrite on each iteration).
+
+      ## Step 5 — Act on the report
+
+      If all four dimensions PASS:
+        Print: "plan-checker: all checks passed. Proceeding to yaml-gen."
+        Exit the loop.
+
+      Otherwise:
+        Present the report to the user.
+        Ask: "Which issues should I fix? (Or type 'accept' to proceed despite failures.)"
+        If the user types 'accept':
+          Print: "plan-checker: user accepted failures. Proceeding."
+          Exit the loop.
+        Otherwise:
+          Apply the requested fixes to issues.json.
+          Increment iteration counter and loop again.
+
+  - id: yaml-gen
+    name: YAML Gen — Build Workflow Generator
+    type: bash
+    runtime: bun
+    depends_on: [plan-checker]
+    script: |
+      #!/usr/bin/env node
+      // @ts-check
+      import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+      import { join } from 'node:path'
+      import { buildYaml } from './lib/dag-builder.mjs'
+
+      const slug = process.env.ARCHON_INPUT_SLUG
+      if (!slug) {
+        console.error('yaml-gen: ARCHON_INPUT_SLUG is not set')
+        process.exit(1)
+      }
+
+      const issuesPath = join('docs', 'workflow', slug, 'issues.json')
+      let issues
+      try {
+        issues = JSON.parse(readFileSync(issuesPath, 'utf8'))
+      } catch (err) {
+        console.error(`yaml-gen: cannot read ${issuesPath}: ${err.message}`)
+        process.exit(1)
+      }
+
+      let yaml
+      try {
+        yaml = buildYaml(slug, issues)
+      } catch (err) {
+        console.error(`yaml-gen: ${err.message}`)
+        process.exit(1)
+      }
+
+      const outDir = join('.archon', 'workflows')
+      mkdirSync(outDir, { recursive: true })
+      const outPath = join(outDir, `build-${slug}.yaml`)
+      writeFileSync(outPath, yaml)
+      console.log(`yaml-gen: build workflow written to ${outPath}`)
+
+  - id: plan-pr-gate
+    name: Plan PR Gate — Human Review
+    type: interactive
+    fresh_context: true
+    depends_on: [yaml-gen]
+    prompt: |
+      You are running the unic-archon-dlc plan workflow — plan-pr-gate (second human PR gate) node.
+
+      The issue plan and build workflow are ready for human review.
+
+      Actions:
+      1. Stage the following files for a new PR:
+         - docs/workflow/{{ inputs.slug }}/issues.json
+         - docs/workflow/{{ inputs.slug }}/plan-checker-report.md
+         - .archon/workflows/build-{{ inputs.slug }}.yaml
+      2. Open a PR targeting the develop branch with:
+         - Title: "plan({{ inputs.slug }}): issue plan and build workflow"
+         - Body:
+           ## Summary
+           - Issue plan for `{{ inputs.slug }}` ({{ issues | length }} issues)
+           - plan-checker validation report attached
+           - Auto-generated `build-{{ inputs.slug }}.yaml` Archon workflow
+
+           ## Review Checklist
+           - [ ] All issues are independently deliverable vertical slices
+           - [ ] Dependency order is correct (no orphaned blocked_by references)
+           - [ ] Every issue has a test command or is marked test_command_planned
+           - [ ] build-{{ inputs.slug }}.yaml parallel/serial structure looks correct
+           - [ ] plan-checker report shows no critical failures (or failures are intentional)
+      3. Pause and wait for human review.
+         - If the PR is **approved** and merged:
+           Print: "Plan PR gate passed. Build workflow ready at .archon/workflows/build-{{ inputs.slug }}.yaml"
+           Exit.
+         - If the PR is **rejected** or changes are requested:
+           Print: "Plan PR gate: changes requested. Returning to plan-checker for another validation pass."
+           Return control to the plan-checker node so validation can be re-run on the updated plan.
+           Do NOT return to to-issues (no full re-decomposition).

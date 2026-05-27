@@ -173,6 +173,8 @@ Parse the JSON output:
   ```
   unic-archon-dlc configured.
     config:    {result.configPath}
+    workflows: {result.workflowsCopied} workflow(s) copied
+    commands:  {result.commandsCopied} command(s) copied
     docs:      written
     CLAUDE.md: updated
   ```

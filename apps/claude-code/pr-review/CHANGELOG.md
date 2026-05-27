@@ -8,8 +8,18 @@
 ### Added
 - (none)
 
+### Changed
+- Preflight now verifies `az devops invoke` is callable in addition to the existing `az --version` and `azure-devops` extension checks; failures surface a re-install hint. CI smoke test (`tests/ado-cli-smoke.test.mjs`) asserts every ADO subcommand the plugin actually invokes still exists, sourced from a single inventory at `tests/fixtures/ado-cli-inventory.mjs`. Same failure class as the Step 4 bug — guarded offline now.
+
 ### Fixed
-- (none)
+- Step 4 mode detection was calling a non-existent `az repos pr thread list` subcommand and failing fatally on every ADO PR review. Thread fetching now lives in the ADO Fetcher and uses `az devops invoke --resource pullRequestThreads`; the orchestrator's Step 4 captures PR metadata via `az repos pr show` and the Fetcher's result block now emits `RAW_THREADS_JSON`, `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, and `SUMMARY_THREAD_ID`. Per ADR 0016.
+- `tests/plugin-structure.test.mjs` frontmatter regex now tolerates CRLF line endings, fixing a Windows-only failure that surfaced when `pr-review` was added to the CI test matrix.
+- `scripts/ado/cli-completeness.mjs` now emits an `az <flag>` shape for root-flag invocations (e.g. `az --version`) so the allowlist actually covers them; previously the scanner silently dropped these.
+- `tests/ado-cli-smoke.test.mjs` normalises path separators before checking `SKIP_FRAGMENTS`, so `scratchpad/` and `node_modules/` are also skipped on Windows.
+- `tests/ado-cli-smoke.test.mjs` `walk()` now only swallows `ENOENT`; other read errors (permissions, FD exhaustion) propagate so a broken scan can't silently report "no uninventoried commands".
+- `tests/ado-cli-smoke.test.mjs` pre-warms the `azure-devops` CLI extension in a `before()` hook so the per-entry 5s timeout measures the actual subcommand rather than the one-time extension bootstrap. Fixes a flaky `az repos pr show --help` failure on cold Ubuntu CI runners.
+- `agents/ado-fetcher.md` Step 2 now logs a `WARN` when the HTTP status parser comes up empty on a non-zero `az` exit, so a real 404 with an unparseable error body isn't silently routed to the DEGRADED branch.
+- `tests/ado-fetcher.test.mjs` now asserts `MODE`/`IS_REREVIEW`/`PRIOR_ITERATION_ID`/`SUMMARY_THREAD_ID`/`RAW_THREADS_JSON` appear specifically inside the `ADO_FETCHER_RESULT_START`/`_END` block, not just anywhere in the markdown.
 
 ## [1.2.11] — 2026-05-19
 

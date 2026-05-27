@@ -1,6 +1,6 @@
 # 0013. Split review-pr.md into a thin orchestrator and focused agents
 
-**Status:** Accepted (2026-05)
+**Status:** Accepted (2026-05), amended by 0016
 
 ## Context
 

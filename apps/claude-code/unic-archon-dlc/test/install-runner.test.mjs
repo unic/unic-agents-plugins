@@ -162,6 +162,81 @@ test('updateAgentSkillsBlock failure: stage is claude-md and message includes co
 	)
 })
 
+test('asset copy: workflows and commands are copied from pluginRoot', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-assets-${Date.now()}`)
+	const pluginRoot = join(tmpdir(), `unic-dlc-plugin-${Date.now()}`)
+	mkdirSync(join(pluginRoot, '.archon', 'workflows'), { recursive: true })
+	mkdirSync(join(pluginRoot, '.archon', 'commands'), { recursive: true })
+	writeFileSync(join(pluginRoot, '.archon', 'workflows', 'build.yaml'), 'name: unic-dlc-build\n')
+	writeFileSync(join(pluginRoot, '.archon', 'workflows', 'plan.yaml'), 'name: unic-dlc-plan\n')
+	writeFileSync(join(pluginRoot, '.archon', 'workflows', 'README.md'), '# ignored')
+	writeFileSync(join(pluginRoot, '.archon', 'commands', 'unic-dlc-build.md'), '# build command\n')
+	writeFileSync(join(pluginRoot, '.archon', 'commands', 'unic-dlc-plan.md'), '# plan command\n')
+	writeFileSync(join(pluginRoot, '.archon', 'commands', '.gitkeep'), '')
+	mkdirSync(dir, { recursive: true })
+
+	const result = runInstall(dir, { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow' }, pluginRoot)
+
+	assert.ok(result.ok)
+	assert.equal(result.workflowsCopied, 2)
+	assert.equal(result.commandsCopied, 2)
+	assert.ok(existsSync(join(dir, '.archon', 'workflows', 'build.yaml')))
+	assert.ok(existsSync(join(dir, '.archon', 'workflows', 'plan.yaml')))
+	assert.ok(!existsSync(join(dir, '.archon', 'workflows', 'README.md')))
+	assert.ok(existsSync(join(dir, '.archon', 'commands', 'unic-dlc-build.md')))
+	assert.ok(existsSync(join(dir, '.archon', 'commands', 'unic-dlc-plan.md')))
+	assert.ok(!existsSync(join(dir, '.archon', 'commands', '.gitkeep')))
+})
+
+test('asset copy: skipped gracefully when pluginRoot is null', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-noassets-${Date.now()}`)
+	mkdirSync(dir, { recursive: true })
+
+	const result = runInstall(dir, { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow' }, null)
+
+	assert.ok(result.ok)
+	assert.equal(result.workflowsCopied, 0)
+	assert.equal(result.commandsCopied, 0)
+	assert.ok(!existsSync(join(dir, '.archon', 'workflows')))
+	assert.ok(!existsSync(join(dir, '.archon', 'commands')))
+})
+
+test('asset copy: skipped gracefully when pluginRoot has no .archon subdirs', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-noarchon-${Date.now()}`)
+	const pluginRoot = join(tmpdir(), `unic-dlc-plugin-empty-${Date.now()}`)
+	mkdirSync(pluginRoot, { recursive: true })
+	mkdirSync(dir, { recursive: true })
+
+	const result = runInstall(dir, { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow' }, pluginRoot)
+
+	assert.ok(result.ok)
+	assert.equal(result.workflowsCopied, 0)
+	assert.equal(result.commandsCopied, 0)
+})
+
+test('asset copy: overwrites existing files on re-run', () => {
+	const dir = join(tmpdir(), `unic-dlc-runner-overwrite-${Date.now()}`)
+	const pluginRoot = join(tmpdir(), `unic-dlc-plugin-ow-${Date.now()}`)
+	mkdirSync(join(pluginRoot, '.archon', 'workflows'), { recursive: true })
+	mkdirSync(join(pluginRoot, '.archon', 'commands'), { recursive: true })
+	writeFileSync(join(pluginRoot, '.archon', 'workflows', 'build.yaml'), 'name: unic-dlc-build\nruntime: bun\n')
+	writeFileSync(join(pluginRoot, '.archon', 'commands', 'unic-dlc-build.md'), '# updated command\n')
+	mkdirSync(join(dir, '.archon', 'workflows'), { recursive: true })
+	mkdirSync(join(dir, '.archon', 'commands'), { recursive: true })
+	writeFileSync(join(dir, '.archon', 'workflows', 'build.yaml'), 'name: unic-dlc-build\n')
+	writeFileSync(join(dir, '.archon', 'commands', 'unic-dlc-build.md'), '# old command\n')
+
+	const result = runInstall(dir, { tracker: 'github', pr_strategy: 'squash', branching: 'gitflow' }, pluginRoot)
+
+	assert.ok(result.ok)
+	assert.equal(result.workflowsCopied, 1)
+	assert.equal(result.commandsCopied, 1)
+	const workflow = readFileSync(join(dir, '.archon', 'workflows', 'build.yaml'), 'utf8')
+	assert.ok(workflow.includes('runtime: bun'), 'stale workflow should be overwritten')
+	const command = readFileSync(join(dir, '.archon', 'commands', 'unic-dlc-build.md'), 'utf8')
+	assert.ok(command.includes('# updated command'), 'stale command should be overwritten')
+})
+
 test('custom labels in existing config are preserved on reconfigure', () => {
 	const dir = join(tmpdir(), `unic-dlc-runner-labels-${Date.now()}`)
 	mkdirSync(join(dir, '.archon'), { recursive: true })

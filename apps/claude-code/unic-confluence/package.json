@@ -3,7 +3,6 @@
     "marked": "17.0.5"
   },
   "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
     "@unic/release-tools": "workspace:*",
     "@unic/tsconfig": "workspace:*",
@@ -20,7 +19,6 @@
   "scripts": {
     "bump": "unic-bump",
     "confluence": "node scripts/push-to-confluence.mjs",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
     "test": "node --test scripts/lib/frontmatter.test.mjs scripts/lib/inject.test.mjs scripts/lib/resolve.test.mjs scripts/lib/slug.test.mjs scripts/lib/pages-file.test.mjs",

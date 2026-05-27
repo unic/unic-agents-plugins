@@ -1,28 +1,26 @@
 {
-  "name": "auto-format",
-  "version": "0.5.15",
-  "private": true,
-  "license": "LGPL-3.0-or-later",
-  "type": "module",
-  "packageManager": "pnpm@10.33.0",
-  "engines": {
-    "node": ">=22",
-    "pnpm": ">=10"
-  },
-  "scripts": {
-    "test": "node --test tests/format-hook.test.mjs scripts/lib/runners.test.mjs scripts/lib/config.test.mjs",
-    "typecheck": "tsc --noEmit --project tsconfig.json",
-    "bump": "unic-bump",
-    "sync-version": "unic-sync-version",
-    "tag": "unic-tag",
-    "verify:changelog": "unic-verify-changelog",
-    "ralph": "ralph run -c ralph.yml -H builtin:code-assist"
-  },
   "devDependencies": {
-    "@ralph-orchestrator/ralph-cli": "catalog:",
     "@types/node": "catalog:",
     "@unic/release-tools": "workspace:*",
     "@unic/tsconfig": "workspace:*",
     "typescript": "catalog:"
-  }
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "license": "LGPL-3.0-or-later",
+  "name": "auto-format",
+  "packageManager": "pnpm@10.33.0",
+  "private": true,
+  "scripts": {
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "test": "node --test tests/format-hook.test.mjs scripts/lib/runners.test.mjs scripts/lib/config.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "verify:changelog": "unic-verify-changelog"
+  },
+  "type": "module",
+  "version": "0.5.15"
 }

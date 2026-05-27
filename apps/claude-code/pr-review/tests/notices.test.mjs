@@ -15,6 +15,16 @@ describe('createNotice', () => {
 		const n = createNotice('info', 'doc-context', 'hello')
 		assert.deepEqual(n, { severity: 'info', kind: 'doc-context', message: 'hello' })
 	})
+
+	it('accepts the thread-fetch kind (Fetcher emits this on 5xx/network)', () => {
+		const n = createNotice(
+			'warning',
+			'thread-fetch',
+			'Threads endpoint degraded — proceeding without prior-review context.'
+		)
+		assert.equal(n.kind, 'thread-fetch')
+		assert.equal(n.severity, 'warning')
+	})
 })
 
 describe('mergeNotices', () => {

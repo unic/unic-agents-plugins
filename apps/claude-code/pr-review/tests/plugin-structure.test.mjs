@@ -42,9 +42,9 @@ describe('plugin structure', () => {
 	it('each agent file has a name: field in frontmatter matching its filename stem', () => {
 		for (const agent of EXPECTED_AGENTS) {
 			const content = readFileSync(join(AGENTS_DIR, `${agent}.md`), 'utf8')
-			const match = content.match(/^---\n([\s\S]*?)\n---/)
+			const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/)
 			assert.ok(match, `${agent}.md: missing YAML frontmatter`)
-			const frontmatter = match[1]
+			const frontmatter = match[1].replace(/\r\n/g, '\n')
 			assert.ok(
 				new RegExp(`^name: ${agent}$`, 'm').test(frontmatter),
 				`${agent}.md: frontmatter missing exact line "name: ${agent}"`
