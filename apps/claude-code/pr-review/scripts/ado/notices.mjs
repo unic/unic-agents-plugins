@@ -4,7 +4,7 @@
  * @typedef {'info' | 'warning'} NoticeSeverity
  * @typedef {'doc-context' | 'diff-range' | 'work-items' | 'iterations' | 'default-branch' | 'partial-run-check' | 'thread-match' | 'thread-classify' | 'thread-fetch' | 'inline-post' | 'summary-post' | 'patch-to-fixed' | 'diff-parse' | 'delta-reply' | 'completion-marker'} NoticeKind
  * @typedef {{ severity: NoticeSeverity, kind: NoticeKind, message: string }} Notice
- * @typedef {'first-review' | 're-review' | 'pre-pr' | 'aborted'} TrailerMode
+ * @typedef {'first-review' | 're-review' | 'pre-pr' | 'dry-run-first' | 'aborted'} TrailerMode
  * @typedef {{ critical: number, important: number, minor: number }} FindingCounts
  */
 
@@ -87,6 +87,7 @@ export function formatNoticesAsPrePrPreamble(notices) {
  * @param {FindingCounts} [input.findings]
  * @param {Notice[]} [input.notices]
  * @param {string} [input.prUrl]
+ * @param {number} [input.plannedActions]
  * @param {string} [input.abortKind]
  * @param {string} [input.abortReason]
  * @returns {string}
@@ -106,6 +107,12 @@ export function formatTrailer(input) {
 	const infoPart = `${infos} ${plural(infos, 'info notice')}`
 	if (input.mode === 'pre-pr') {
 		return `✅ Pre-PR review complete: ${findingsPart} · ${warnPart}`
+	}
+	if (input.mode === 'dry-run-first') {
+		const planned = input.plannedActions ?? 0
+		const plannedPart = `${planned} ${plural(planned, 'planned thread action')}`
+		const url = input.prUrl ?? ''
+		return `🔍 Dry-run complete: ${findingsPart} · ${plannedPart} · ${warnPart} · would have posted to ${url}`
 	}
 	const url = input.prUrl ?? ''
 	return `✅ Review posted: ${findingsPart} · ${warnPart} · ${infoPart} → ${url}`

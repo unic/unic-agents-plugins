@@ -64,12 +64,12 @@ Slice 1 ships dry-run for fresh PRs (`dry-run-first`). Slice 2 ships dry-run for
 
 After parsing the Fetcher's `IS_REREVIEW`:
 
-| `IS_DRY_RUN` | `IS_REREVIEW` | `MODE`            |
-| ------------ | ------------- | ----------------- |
-| `false`      | `false`       | `first-review`    |
-| `false`      | `true`        | `re-review`       |
-| `true`       | `false`       | `dry-run-first`   |
-| `true`       | `true`        | `dry-run-rereview`|
+| `IS_DRY_RUN` | `IS_REREVIEW` | `MODE`             |
+| ------------ | ------------- | ------------------ |
+| `false`      | `false`       | `first-review`     |
+| `false`      | `true`        | `re-review`        |
+| `true`       | `false`       | `dry-run-first`    |
+| `true`       | `true`        | `dry-run-rereview` |
 
 The orchestrator's Step 7 branch becomes a five-case switch on `MODE`. `pre-pr` and `dry-run-first` skip the Coordinator entirely. `re-review` and `dry-run-rereview` invoke the Coordinator. The Writer is invoked only for `first-review` and `re-review`.
 

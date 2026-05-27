@@ -1,14 +1,14 @@
 ---
 allowed-tools: ['Agent', 'Bash', 'Read', 'Write', 'Grep', 'Glob']
-argument-hint: '<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all]'
-description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR'
+argument-hint: '<ADO-PR-URL> [aspects: code|errors|tests|comments|types|all] [--dry-run]'
+description: 'Review an Azure DevOps pull request: fetch diff, run multi-agent analysis, post inline + summary comments back to the PR. Pass --dry-run to preview without writing to ADO.'
 ---
 
 # Azure DevOps PR Review
 
 **Arguments:** "$ARGUMENTS"
 
-Thin orchestrator that detects one of three modes — Pre-PR, First-review, Re-review — and delegates to focused agents. The `SIGNATURE_PREFIX` `🤖 *Reviewed by Claude Code*` is sacred (re-review detection depends on it) and appears inline at every call site that needs it.
+Thin orchestrator that detects one of four peer modes — Pre-PR, First-review, Re-review, Dry-run — and delegates to focused agents. Dry-run resolves internally to `dry-run-first` (fresh PR) or `dry-run-rereview` (re-review-eligible, Slice 02). The `SIGNATURE_PREFIX` `🤖 *Reviewed by Claude Code*` is sacred (re-review detection depends on it) and appears inline at every call site that needs it.
 
 ### Compact finding schema
 
@@ -36,9 +36,9 @@ Verify `pr-review-toolkit` is enabled (e.g. the `pr-review-toolkit:code-reviewer
 
 ## Step 2 — Parse arguments and detect mode
 
-Extract a PR URL from `$ARGUMENTS`. Expected format: `https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}`. GitHub URLs are not supported.
+Extract a PR URL from `$ARGUMENTS`. Expected format: `https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{id}`. GitHub URLs are not supported. Also set `IS_DRY_RUN=true|false` deterministically from the optional `--dry-run` token: `case " $ARGUMENTS " in *" --dry-run "*) IS_DRY_RUN=true ;; *) IS_DRY_RUN=false ;; esac`.
 
-- **No URL** → `MODE=pre-pr` → jump to [Pre-PR mode](#pre-pr-mode).
+- **No URL** → `MODE=pre-pr` → jump to [Pre-PR mode](#pre-pr-mode) (`--dry-run` is a silent no-op in this combination).
 - **URL present** → extract `ORG_URL`, `PROJECT`, `PR_ID` and continue.
 
 ## Step 3 — Azure CLI check (PR modes only)
@@ -90,7 +90,9 @@ Agent(
 )
 ```
 
-Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`, `RAW_THREADS_JSON`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE`; the Re-review Coordinator (Step 7) parses it from `ADO_FETCHER_RESULT` to apply the γ-downgrade when `DIFF_RANGE=full`. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`. Echo `Mode detected: $MODE`.
+Store the full output as `ADO_FETCHER_RESULT`. If the `ADO_FETCHER_RESULT_START`/`_END` block is absent (Fetcher exited non-zero), determine the abort kind from the output (output contains `az devops login` → `abortKind: 'auth'`; otherwise `abortKind: 'fetcher'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })` from `scripts/ado/notices.mjs`, and stop. Otherwise parse `LATEST_ITERATION_ID`, `CHANGED_FILES`, `RAW_DIFF`, `DIFF_RANGE`, `MODE`, `IS_REREVIEW`, `PRIOR_ITERATION_ID`, `SUMMARY_THREAD_ID`, `RAW_THREADS_JSON`, `WORK_ITEM_IDS`, and `NOTICES` from the block. Store `DIFF_RANGE`; the Re-review Coordinator (Step 7) parses it from `ADO_FETCHER_RESULT` to apply the γ-downgrade when `DIFF_RANGE=full`. Set `NOTICES_JSON` to `mergeNotices(NOTICES)` via `scripts/ado/notices.mjs`.
+
+Resolve final `MODE` from `IS_DRY_RUN × IS_REREVIEW`: `false × false → first-review` (keep Fetcher value), `false × true → re-review` (keep Fetcher value), `true × false → dry-run-first` (override), `true × true →` see Slice 02. Echo `Mode detected: $MODE`.
 
 ## Step 6 — Doc Context Orchestrator + review aspect agents (parallel)
 
@@ -117,6 +119,8 @@ Agent(
 **Review aspect agents** — apply the [aspect-filter selection](#aspect-filter-selection-used-in-step-6-and-pre-pr-step-d) above. For each selected agent, pass the full diff and changed file contents (the Fetcher captures PR title and description for downstream use only; they are not parsed by the orchestrator). Every prompt **must** end with the [compact finding schema](#compact-finding-schema) block verbatim. Collect returned JSON arrays, deduplicate, sort by severity (`critical` first); assemble `FINDINGS` as `{ severity, filePath, startLine, endLine, title, body }[]`.
 
 ## Step 7 — Write-back (branch on mode)
+
+**Dry-run-first** — skip the Coordinator and the Writer entirely; jump to Step 8 dry-run rendering.
 
 **Re-review only** — first run the coordinator, parse `RE_REVIEW_COORDINATOR_RESULT_START`/`_END`, extract `earlyExit`, `freshFindings`, and `NOTICES` (store as `coordinatorNotices`; default `[]` if absent). If the result block is absent (coordinator exited non-zero), infer `abortKind` from output (contains `az devops login` → `'auth'`; else `'coordinator'`), call `formatTrailer({ mode: 'aborted', abortKind, abortReason: <first ERROR: line from output> })`, and stop. If `earlyExit: true`, stop; otherwise reassign `FINDINGS_JSON` to `freshFindings`.
 
@@ -155,7 +159,9 @@ Agent(
 
 ## Step 8 — Parse Writer result + Trailer
 
-Parse the Writer output via `parseAdoWriterResult` from `scripts/ado-writer.mjs`. On `{ ok: false }`, emit `ERROR: Writer did not return a valid result block (<reason>). The Summary may or may not have been posted; verify on ADO.` to stderr and print the Trailer aborted line, then stop. Otherwise extract `result.notices` and merge with fetcher and coordinator notices into `NOTICES_JSON` via `mergeNotices([...fetcherNotices, ...coordinatorNotices, ...result.notices])` from `scripts/ado/notices.mjs`; print Trailer via `formatTrailer({ mode, findings, notices: NOTICES_JSON, prUrl })`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. Pre-PR: Step E.
+**Dry-run-first** — no Writer ran. Render `formatNoticesAsPrePrPreamble(NOTICES_JSON)` above the severity-grouped findings (Pre-PR Step E format), then print Trailer via `formatTrailer({ mode: 'dry-run-first', findings, notices: NOTICES_JSON, prUrl })` where `prUrl` is built from `ORG_URL`/`PROJECT`/`PR_ID` identically to the ADO trailer.
+
+**First-review / Re-review** — parse the Writer output via `parseAdoWriterResult` from `scripts/ado-writer.mjs`. On `{ ok: false }`, emit `ERROR: Writer did not return a valid result block (<reason>). The Summary may or may not have been posted; verify on ADO.` to stderr and print the Trailer aborted line, then stop. Otherwise extract `result.notices` and merge with fetcher and coordinator notices into `NOTICES_JSON` via `mergeNotices([...fetcherNotices, ...coordinatorNotices, ...result.notices])` from `scripts/ado/notices.mjs`; print Trailer via `formatTrailer({ mode, findings, notices: NOTICES_JSON, prUrl })`: reduce `FINDINGS_JSON` to `{ critical, important, minor }` counts; build `prUrl` from `ORG_URL`/`PROJECT`/`PR_ID`. Pre-PR: Step E.
 
 ## Pre-PR mode
 

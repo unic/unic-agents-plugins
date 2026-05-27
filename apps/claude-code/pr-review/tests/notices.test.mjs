@@ -136,6 +136,45 @@ describe('formatTrailer', () => {
 		assert.ok(out.startsWith('✅ Review posted:'))
 		assert.ok(out.includes('https://dev.azure.com'))
 	})
+
+	it('dry-run-first mode with mixed findings and warnings', () => {
+		const out = formatTrailer({
+			mode: 'dry-run-first',
+			findings: { critical: 1, important: 2, minor: 1 },
+			notices: [createNotice('warning', 'thread-fetch', 'degraded')],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/3',
+		})
+		assert.equal(
+			out,
+			'🔍 Dry-run complete: 4 findings (1 critical, 2 important) · 0 planned thread actions · 1 warning notice · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/3'
+		)
+	})
+
+	it('dry-run-first mode with zero findings and zero notices still includes PR URL', () => {
+		const out = formatTrailer({
+			mode: 'dry-run-first',
+			findings: { critical: 0, important: 0, minor: 0 },
+			notices: [],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/4',
+		})
+		assert.equal(
+			out,
+			'🔍 Dry-run complete: 0 findings (0 critical, 0 important) · 0 planned thread actions · 0 warning notices · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/4'
+		)
+	})
+
+	it('dry-run-first mode with minor-only findings excludes minor from parenthetical', () => {
+		const out = formatTrailer({
+			mode: 'dry-run-first',
+			findings: { critical: 0, important: 0, minor: 3 },
+			notices: [],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/5',
+		})
+		assert.equal(
+			out,
+			'🔍 Dry-run complete: 3 findings (0 critical, 0 important) · 0 planned thread actions · 0 warning notices · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/5'
+		)
+	})
 })
 
 describe('mergeNotices', () => {

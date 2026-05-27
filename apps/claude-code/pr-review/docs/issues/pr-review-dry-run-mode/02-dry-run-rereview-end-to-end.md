@@ -17,10 +17,10 @@ Slice 01's parser, MODE matrix scaffolding, and `formatTrailer` branching are re
 
 - **Orchestrator MODE resolution (`commands/review-pr.md`, Step 5).** Extend the `IS_DRY_RUN × IS_REREVIEW` matrix to cover the remaining rows:
 
-  | `IS_DRY_RUN` | `IS_REREVIEW` | `MODE`              |
-  | ------------ | ------------- | ------------------- |
-  | `false`      | `true`        | `re-review`         |
-  | `true`       | `true`        | `dry-run-rereview`  |
+  | `IS_DRY_RUN` | `IS_REREVIEW` | `MODE`             |
+  | ------------ | ------------- | ------------------ |
+  | `false`      | `true`        | `re-review`        |
+  | `true`       | `true`        | `dry-run-rereview` |
 
   Combined with Slice 01, all four cells are now wired. `pre-pr` continues to short-circuit at Step 2 when no URL is provided.
 

@@ -6,7 +6,7 @@
 - (none)
 
 ### Added
-- (none)
+- Dry-run mode for fresh PRs. `/pr-review:review-pr <ADO-PR-URL> --dry-run` runs every read-side step (preflight, metadata fetch, ADO Fetcher, Doc Context, review aspect agents) but never invokes the ADO Writer; findings render in the Claude interface and the new `🔍 Dry-run complete: …` Trailer carries findings counts plus the PR URL the run would have posted to. Per [ADR-0017](docs/adr/0017-dry-run-as-fourth-peer-mode.md); fresh-PR slice of [#136](https://github.com/unic/unic-agents-plugins/issues/136).
 
 ### Fixed
 - (none)
