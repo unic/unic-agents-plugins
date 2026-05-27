@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { describe, it } from 'node:test'
+import { before, describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { findUninventoriedCommands } from '../scripts/ado/cli-completeness.mjs'
 import { ADO_CLI_ALLOWLIST } from './fixtures/ado-cli-allowlist.mjs'
@@ -58,6 +58,17 @@ function* walk(dir) {
 }
 
 describe('ADO CLI smoke', () => {
+	// The first `az repos|devops|boards` invocation on a runner without the azure-devops extension
+	// cached pays a one-time lazy-load cost that exceeds the per-test 5s budget. Warm it up here
+	// so each per-entry assertion measures the actual subcommand, not the extension bootstrap.
+	before(() => {
+		const result = spawnSync('az', ['repos', '--help'], { timeout: 30000, encoding: 'utf8' })
+		if (result.error && /** @type {NodeJS.ErrnoException} */ (result.error).code === 'ENOENT') {
+			// az not installed — per-entry tests will self-skip.
+			return
+		}
+	})
+
 	it('every `az` invocation in agents/, commands/, scripts/ is in the inventory', () => {
 		const uninventoried = findUninventoriedCommands({
 			sources: loadPluginSources(),

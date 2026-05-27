@@ -17,6 +17,7 @@
 - `scripts/ado/cli-completeness.mjs` now emits an `az <flag>` shape for root-flag invocations (e.g. `az --version`) so the allowlist actually covers them; previously the scanner silently dropped these.
 - `tests/ado-cli-smoke.test.mjs` normalises path separators before checking `SKIP_FRAGMENTS`, so `scratchpad/` and `node_modules/` are also skipped on Windows.
 - `tests/ado-cli-smoke.test.mjs` `walk()` now only swallows `ENOENT`; other read errors (permissions, FD exhaustion) propagate so a broken scan can't silently report "no uninventoried commands".
+- `tests/ado-cli-smoke.test.mjs` pre-warms the `azure-devops` CLI extension in a `before()` hook so the per-entry 5s timeout measures the actual subcommand rather than the one-time extension bootstrap. Fixes a flaky `az repos pr show --help` failure on cold Ubuntu CI runners.
 - `agents/ado-fetcher.md` Step 2 now logs a `WARN` when the HTTP status parser comes up empty on a non-zero `az` exit, so a real 404 with an unparseable error body isn't silently routed to the DEGRADED branch.
 - `tests/ado-fetcher.test.mjs` now asserts `MODE`/`IS_REREVIEW`/`PRIOR_ITERATION_ID`/`SUMMARY_THREAD_ID`/`RAW_THREADS_JSON` appear specifically inside the `ADO_FETCHER_RESULT_START`/`_END` block, not just anywhere in the markdown.
 
