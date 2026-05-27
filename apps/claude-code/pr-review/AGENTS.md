@@ -60,7 +60,7 @@ Load-bearing invariants. These either originate in a Plugin ADR or are policy de
 - **Soft dependency on `pr-review-toolkit`.** The command checks for the toolkit Plugin at startup and aborts with installation instructions if missing — there is no bundled copy. See [ADR-0008](docs/adr/0008-soft-dependency-pr-review-toolkit.md).
 - **Orchestrator stays thin (≤ 200 lines).** `commands/review-pr.md` delegates all Platform interaction and coordination logic to the agents in `agents/`. See [ADR-0013](docs/adr/0013-orchestrator-split-for-review-pr.md).
 - **ADO read/write split.** All read operations go through the ADO Fetcher agent; all write operations go through the ADO Writer agent. The orchestrator never calls `az devops invoke` directly. See [ADR-0016](docs/adr/0016-fold-thread-fetch-into-ado-fetcher.md).
-- **Dry-run is a fourth peer mode.** Dry-run sits alongside `review`, `re-review`, and `summary-delta` as a peer Review mode, not a flag on another mode. See [ADR-0017](docs/adr/0017-dry-run-as-fourth-peer-mode.md).
+- **Dry-run is a fourth peer operating mode.** Dry-run sits alongside `pre-pr`, `first-review`, and `re-review` as a peer mode, not a flag on another mode. Internally it resolves to one of two `MODE` literals (`dry-run-first` / `dry-run-rereview`) based on whether a prior Bot Signature is found. See [ADR-0017](docs/adr/0017-dry-run-as-fourth-peer-mode.md).
 
 ## External dependencies
 
