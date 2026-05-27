@@ -6,7 +6,8 @@ import { describe, it } from 'node:test'
 import { detectMode, formatModeEnv, SIGNATURE_PREFIX } from '../scripts/mode-detection.mjs'
 
 const orchestratorPath = new URL('../commands/review-pr.md', import.meta.url)
-const orchestrator = readFileSync(orchestratorPath, 'utf8')
+// Normalise CRLF → LF so the line-anchored regexes below match on Windows checkouts.
+const orchestrator = readFileSync(orchestratorPath, 'utf8').replace(/\r\n/g, '\n')
 
 describe('SIGNATURE_PREFIX', () => {
 	it('exports the canonical bot-signature prefix verbatim', () => {

@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
 const coordinatorPath = new URL('../agents/re-review-coordinator.md', import.meta.url)
-const coordinator = readFileSync(coordinatorPath, 'utf8')
+// Normalise CRLF → LF so the line-anchored regexes below match on Windows checkouts.
+const coordinator = readFileSync(coordinatorPath, 'utf8').replace(/\r\n/g, '\n')
 
 /**
  * Returns the line indices (0-based) of every line that begins (after optional
