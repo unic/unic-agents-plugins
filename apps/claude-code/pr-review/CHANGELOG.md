@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [1.4.0] — 2026-05-27
+
+### Breaking
+- (none)
+
+### Added
 - Dry-run mode for both fresh and re-review-eligible PRs. `/pr-review:review-pr <ADO-PR-URL> --dry-run` runs every read-side step (preflight, metadata fetch, ADO Fetcher, Doc Context, review aspect agents, and — when a prior Bot Signature is found — the Re-review Coordinator's Thread Classification) but never writes to Azure DevOps: the ADO Writer is never invoked and the Coordinator's three posting blocks (new-evidence reply, dispute acknowledgement, PATCH-to-fixed) are gated behind a `MODE = re-review` guard. On re-review-eligible PRs, a per-thread "Planned thread actions" preview renders above the severity-grouped fresh findings so each write the real Re-review would perform is visible before it lands. The new `🔍 Dry-run complete: …` Trailer carries findings counts, planned-thread-action count, warning notices, and the PR URL the run would have posted to. Per [ADR-0017](docs/adr/0017-dry-run-as-fourth-peer-mode.md); resolves [#136](https://github.com/unic/unic-agents-plugins/issues/136).
 
 ### Fixed
