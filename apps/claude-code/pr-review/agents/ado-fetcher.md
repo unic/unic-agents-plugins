@@ -121,6 +121,11 @@ THREADS_FETCH_FAILED=false
 THREADS_FETCH_FAIL_MESSAGE=""
 
 if [ "$THREADS_EXIT" != "0" ]; then
+  # Surface the parser miss so a real 404 with an unparseable error body isn't silently routed
+  # to the DEGRADED branch (which would proceed with empty threads + a thread-fetch Notice).
+  if [ -z "$THREADS_STATUS" ]; then
+    echo "WARN: could not parse HTTP status from az stderr; falling back to exit-code classification." >&2
+  fi
   TIER=$(echo "$THREADS_TIER" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).tier)")
   TMSG=$(echo "$THREADS_TIER" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).message)")
   if [ "$THREADS_STATUS" = "404" ]; then

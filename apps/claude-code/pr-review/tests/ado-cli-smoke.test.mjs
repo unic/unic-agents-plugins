@@ -42,8 +42,12 @@ function* walk(dir) {
 	let entries
 	try {
 		entries = readdirSync(dir)
-	} catch {
-		return
+	} catch (err) {
+		// Only swallow "directory not present" — every other read failure (permissions, FD
+		// exhaustion, IO error) must surface, otherwise the smoke test reports a green
+		// "no uninventoried commands" even when the scan never ran.
+		if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return
+		throw err
 	}
 	for (const name of entries) {
 		const full = join(dir, name)
