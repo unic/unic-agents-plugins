@@ -137,7 +137,7 @@ describe('ado-fetcher agent content', () => {
 
 	it('emits RAW_THREADS_JSON, MODE, IS_REREVIEW, PRIOR_ITERATION_ID, SUMMARY_THREAD_ID in the result block', () => {
 		const required = ['RAW_THREADS_JSON', 'MODE', 'IS_REREVIEW', 'PRIOR_ITERATION_ID', 'SUMMARY_THREAD_ID']
-		const blockMatch = agentContent.match(/ADO_FETCHER_RESULT_START\n([\s\S]*?)\nADO_FETCHER_RESULT_END/)
+		const blockMatch = agentContent.match(/ADO_FETCHER_RESULT_START\r?\n([\s\S]*?)\r?\nADO_FETCHER_RESULT_END/)
 		assert.ok(blockMatch, 'Fetcher must contain an ADO_FETCHER_RESULT_START/END block')
 		const block = blockMatch[1]
 		for (const field of required) {
