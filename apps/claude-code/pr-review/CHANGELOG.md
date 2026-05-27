@@ -8,6 +8,17 @@
 ### Added
 - (none)
 
+### Fixed
+- (none)
+
+## [1.3.0] — 2026-05-27
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
 ### Changed
 - Preflight now verifies `az devops invoke` is callable in addition to the existing `az --version` and `azure-devops` extension checks; failures surface a re-install hint. CI smoke test (`tests/ado-cli-smoke.test.mjs`) asserts every ADO subcommand the plugin actually invokes still exists, sourced from a single inventory at `tests/fixtures/ado-cli-inventory.mjs`. Same failure class as the Step 4 bug — guarded offline now.
 
