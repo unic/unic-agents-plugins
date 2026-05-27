@@ -175,6 +175,48 @@ describe('formatTrailer', () => {
 			'🔍 Dry-run complete: 3 findings (0 critical, 0 important) · 0 planned thread actions · 0 warning notices · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/5'
 		)
 	})
+
+	it('dry-run-rereview mode with mixed findings, non-zero plannedActions, and warnings', () => {
+		const out = formatTrailer({
+			mode: 'dry-run-rereview',
+			findings: { critical: 1, important: 2, minor: 1 },
+			notices: [createNotice('warning', 'thread-fetch', 'degraded')],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/6',
+			plannedActions: 4,
+		})
+		assert.equal(
+			out,
+			'🔍 Dry-run complete: 4 findings (1 critical, 2 important) · 4 planned thread actions · 1 warning notice · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/6'
+		)
+	})
+
+	it('dry-run-rereview mode with zero everything (earlyExit shape) still includes PR URL', () => {
+		const out = formatTrailer({
+			mode: 'dry-run-rereview',
+			findings: { critical: 0, important: 0, minor: 0 },
+			notices: [],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/7',
+			plannedActions: 0,
+		})
+		assert.equal(
+			out,
+			'🔍 Dry-run complete: 0 findings (0 critical, 0 important) · 0 planned thread actions · 0 warning notices · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/7'
+		)
+	})
+
+	it('dry-run-rereview mode with zero fresh findings but non-zero plannedActions', () => {
+		const out = formatTrailer({
+			mode: 'dry-run-rereview',
+			findings: { critical: 0, important: 0, minor: 0 },
+			notices: [],
+			prUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/8',
+			plannedActions: 3,
+		})
+		assert.equal(
+			out,
+			'🔍 Dry-run complete: 0 findings (0 critical, 0 important) · 3 planned thread actions · 0 warning notices · would have posted to https://dev.azure.com/org/proj/_git/repo/pullrequest/8'
+		)
+	})
 })
 
 describe('mergeNotices', () => {

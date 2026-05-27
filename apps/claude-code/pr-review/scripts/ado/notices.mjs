@@ -4,7 +4,7 @@
  * @typedef {'info' | 'warning'} NoticeSeverity
  * @typedef {'doc-context' | 'diff-range' | 'work-items' | 'iterations' | 'default-branch' | 'partial-run-check' | 'thread-match' | 'thread-classify' | 'thread-fetch' | 'inline-post' | 'summary-post' | 'patch-to-fixed' | 'diff-parse' | 'delta-reply' | 'completion-marker'} NoticeKind
  * @typedef {{ severity: NoticeSeverity, kind: NoticeKind, message: string }} Notice
- * @typedef {'first-review' | 're-review' | 'pre-pr' | 'dry-run-first' | 'aborted'} TrailerMode
+ * @typedef {'first-review' | 're-review' | 'pre-pr' | 'dry-run-first' | 'dry-run-rereview' | 'aborted'} TrailerMode
  * @typedef {{ critical: number, important: number, minor: number }} FindingCounts
  */
 
@@ -108,7 +108,7 @@ export function formatTrailer(input) {
 	if (input.mode === 'pre-pr') {
 		return `✅ Pre-PR review complete: ${findingsPart} · ${warnPart}`
 	}
-	if (input.mode === 'dry-run-first') {
+	if (input.mode === 'dry-run-first' || input.mode === 'dry-run-rereview') {
 		const planned = input.plannedActions ?? 0
 		const plannedPart = `${planned} ${plural(planned, 'planned thread action')}`
 		const url = input.prUrl ?? ''

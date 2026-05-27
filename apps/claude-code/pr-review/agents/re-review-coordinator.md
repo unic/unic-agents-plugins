@@ -16,6 +16,7 @@ You receive all required context in this prompt as literal strings. Do not read 
 
 You receive:
 
+- `MODE` — one of `re-review` or `dry-run-rereview`. Controls whether the three posting blocks in Step 6 (new-evidence reply, dispute acknowledgement, PATCH-to-fixed) actually invoke `az devops invoke`. In `dry-run-rereview`, Thread Classification still runs and `freshFindings` still populates exactly as in `re-review`; only the writes are suppressed. `plannedActions` (see Step 8) is emitted in both modes — the orchestrator consumes it only in `dry-run-rereview`.
 - `ADO_FETCHER_RESULT` — the structured context block from the ADO Fetcher agent (between `ADO_FETCHER_RESULT_START` and `ADO_FETCHER_RESULT_END`). Parse fields from it:
   - `ORG_URL`
   - `PROJECT`
@@ -103,7 +104,7 @@ SUMMARY_THREAD_ID=$(printf '%s' "$DETECT_JSON" | node -e "process.stdout.write(S
 PRIOR_ITERATION_ID=$(printf '%s' "$DETECT_JSON" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(d.priorIterationId != null ? String(d.priorIterationId) : 'null')")
 ```
 
-If `IS_REREVIEW=false`: no prior bot threads found — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `earlyExit: false`. (The coordinator does not switch modes; the orchestrator does not change agent dispatch based on this branch.)
+If `IS_REREVIEW=false`: no prior bot threads found — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `plannedActions: []`, `earlyExit: false`. (The coordinator does not switch modes; the orchestrator does not change agent dispatch based on this branch.)
 
 Log:
 
@@ -165,7 +166,7 @@ EOJS
 fi
 ```
 
-If `IS_REREVIEW` is now `false` after the partial-run check: no prior bot threads remain valid — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `earlyExit: false`.
+If `IS_REREVIEW` is now `false` after the partial-run check: no prior bot threads remain valid — return all findings as fresh and exit without classification or replies. Skip to [Step 8 — Return result](#step-8--return-result) with all counts zero, `freshFindings` = `FINDINGS`, `plannedActions: []`, `earlyExit: false`.
 
 ---
 
@@ -209,6 +210,7 @@ disputed: 0
 pending: ${PENDING_COUNT}
 obsolete: 0
 freshFindings: []
+plannedActions: []
 RE_REVIEW_COORDINATOR_RESULT_END
 RESULT_EOF
   exit 0
@@ -269,7 +271,10 @@ Reset the reply counts before iterating:
 ```bash
 FRESH_FINDINGS_JSON='[]'
 NOTICES='[]'
+PLANNED_ACTIONS_JSON='[]'
 ```
+
+`PLANNED_ACTIONS_JSON` accumulates one entry per prior thread whose dispatch branch decides on an action (`patch-to-fixed`, `reply-new-evidence`, `reply-dispute-ack`, or `skip`). Append in every dispatch branch below — even when `MODE = re-review` and the write does fire — so the contract is symmetric across both modes. Obsolete-classified threads do not emit a plannedAction entry; they are silent skips.
 
 Process each finding one at a time. For each finding:
 
@@ -329,97 +334,138 @@ No action. Do not post.
 
 Read the most recent bot comment from the matched thread (last comment whose content contains `SIGNATURE_PREFIX`). Compare its text against the current finding's body text.
 
-- If **no new evidence** (same issue, same analysis): skip. Do not post.
-- If the matched thread has `filePath = null` (general pending thread): always skip.
-- If **new evidence** (additional analysis, different suggested fix, new code examples): post a new-evidence reply:
+- If **no new evidence** (same issue, same analysis): record a `skip` plannedAction (reason: `no new evidence`) and do not post.
+- If the matched thread has `filePath = null` (general pending thread): always skip — record a `skip` plannedAction (reason: `general pending thread`) and do not post.
+- If **new evidence** (additional analysis, different suggested fix, new code examples): record a `reply-new-evidence` plannedAction and, when `MODE = re-review`, post a new-evidence reply.
+
+Record the plannedAction (always, both modes):
 
 ```bash
-cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
+PLANNED_ACTIONS_JSON=$(
+  A="$PLANNED_ACTIONS_JSON" TID="$THREAD_ID" ACT="{ACTION}" REASON="{REASON}" \
+  node -e "const a=JSON.parse(process.env.A); a.push({threadId:Number(process.env.TID),action:process.env.ACT,reason:process.env.REASON}); process.stdout.write(JSON.stringify(a))"
+)
+```
+
+Substitute `{ACTION}` with `reply-new-evidence` / `skip` and `{REASON}` with a short human-readable string (e.g. `new evidence: <one-line summary>`, `no new evidence`, `general pending thread`).
+
+Then, on the new-evidence path only, gate the write on `MODE`:
+
+```bash
+if [ "$MODE" = "re-review" ]; then
+  cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
 {
   "content": "{NEW_EVIDENCE_CONTENT}\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
   "commentType": 1
 }
 ENDJSON
 
-az devops invoke \
-  --area git \
-  --resource pullRequestThreadComments \
-  --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
-  --org "${ORG_URL}" \
-  --http-method POST \
-  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
-  --api-version "7.1" \
-  --output json | node -e "process.stdout.write('New-evidence reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
+  az devops invoke \
+    --area git \
+    --resource pullRequestThreadComments \
+    --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
+    --org "${ORG_URL}" \
+    --http-method POST \
+    --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
+    --api-version "7.1" \
+    --output json | node -e "process.stdout.write('New-evidence reply posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
+fi
 ```
 
 **`disputed` → post dispute acknowledgement**
 
-Briefly acknowledge the reviewer's perspective without re-asserting the finding. Always include the ADO nudge before the signature:
+Briefly acknowledge the reviewer's perspective without re-asserting the finding. Always include the ADO nudge before the signature.
+
+Record the plannedAction (always, both modes):
 
 ```bash
-cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
+PLANNED_ACTIONS_JSON=$(
+  A="$PLANNED_ACTIONS_JSON" TID="$THREAD_ID" REASON="{REASON}" \
+  node -e "const a=JSON.parse(process.env.A); a.push({threadId:Number(process.env.TID),action:'reply-dispute-ack',reason:process.env.REASON}); process.stdout.write(JSON.stringify(a))"
+)
+```
+
+Then gate the write on `MODE`:
+
+```bash
+if [ "$MODE" = "re-review" ]; then
+  cat > "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" << ENDJSON
 {
   "content": "{BRIEF_ACKNOWLEDGEMENT}\n\nIf you consider this resolved, please mark the thread as fixed in Azure DevOps.\n\n---\n🤖 *Reviewed by Claude Code* — Iteration ${LATEST_ITERATION_ID}",
   "commentType": 1
 }
 ENDJSON
 
-az devops invoke \
-  --area git \
-  --resource pullRequestThreadComments \
-  --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
-  --org "${ORG_URL}" \
-  --http-method POST \
-  --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
-  --api-version "7.1" \
-  --output json | node -e "process.stdout.write('Dispute acknowledgement posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
+  az devops invoke \
+    --area git \
+    --resource pullRequestThreadComments \
+    --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
+    --org "${ORG_URL}" \
+    --http-method POST \
+    --in-file "${TMPDIR:-/tmp}/re_review_reply_${THREAD_ID}.json" \
+    --api-version "7.1" \
+    --output json | node -e "process.stdout.write('Dispute acknowledgement posted, comment ' + String(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).id ?? ''))"
+fi
 ```
 
 **`addressed` → PATCH thread status to fixed**
 
+Record the plannedAction (always, both modes):
+
 ```bash
-# PATCH thread status to fixed (2)
-cat > "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" << ENDJSON
+PLANNED_ACTIONS_JSON=$(
+  A="$PLANNED_ACTIONS_JSON" TID="$THREAD_ID" REASON="{REASON}" \
+  node -e "const a=JSON.parse(process.env.A); a.push({threadId:Number(process.env.TID),action:'patch-to-fixed',reason:process.env.REASON}); process.stdout.write(JSON.stringify(a))"
+)
+```
+
+Then gate the PATCH on `MODE`:
+
+```bash
+if [ "$MODE" = "re-review" ]; then
+  # PATCH thread status to fixed (2)
+  cat > "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" << ENDJSON
 { "status": 2 }
 ENDJSON
 
-PATCH_RESP=$(az devops invoke \
-  --area git \
-  --resource pullRequestThreads \
-  --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
-  --org "${ORG_URL}" \
-  --http-method PATCH \
-  --in-file "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" \
-  --api-version "7.1" \
-  --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err")
-PATCH_EXIT=$?
+  PATCH_RESP=$(az devops invoke \
+    --area git \
+    --resource pullRequestThreads \
+    --route-parameters "project=${PROJECT}" "repositoryId=${REPO_ID}" "pullRequestId=${PR_ID}" "threadId=${THREAD_ID}" \
+    --org "${ORG_URL}" \
+    --http-method PATCH \
+    --in-file "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.json" \
+    --api-version "7.1" \
+    --output json 2>"${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err")
+  PATCH_EXIT=$?
 
-PWR_ERR=$(cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" 2>/dev/null)
-PWR_JSON=$(
-  RESP="$PATCH_RESP" EXIT="$PATCH_EXIT" ERR="$PWR_ERR" PLUGIN_R="$PLUGIN_ROOT" \
-  node --input-type=module << 'EOJS'
+  PWR_ERR=$(cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" 2>/dev/null)
+  PWR_JSON=$(
+    RESP="$PATCH_RESP" EXIT="$PATCH_EXIT" ERR="$PWR_ERR" PLUGIN_R="$PLUGIN_ROOT" \
+    node --input-type=module << 'EOJS'
 const { parseWriteResponse } = await import(`file://${process.env.PLUGIN_R}/scripts/ado/parse-write-response.mjs`)
 const r = parseWriteResponse({ httpExit: Number(process.env.EXIT), responseText: process.env.RESP, errStream: process.env.ERR })
 process.stdout.write(JSON.stringify(r))
 EOJS
-)
-PWR_OK=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(r.ok))")
-PWR_TIER=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.tier||'')")
-PWR_MSG=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.message||'')")
-
-if [ "$PWR_OK" = "true" ]; then
-  echo "Thread ${THREAD_ID} patched to fixed"
-elif [ "$PWR_TIER" = "aborted" ]; then
-  cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
-  echo "ERROR: Could not mark thread ${THREAD_ID} as fixed — ${PWR_MSG}. Try \`az devops login\` to re-authenticate." >&2
-  exit 1
-else
-  cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
-  NOTICES=$(
-    N="$NOTICES" SEV="warning" K="patch-to-fixed" \
-    M="Could not mark thread ${THREAD_ID} as fixed (${PWR_MSG}). Thread remains active and will be re-evaluated on next re-review." \
-    node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
   )
+  PWR_OK=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(String(r.ok))")
+  PWR_TIER=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.tier||'')")
+  PWR_MSG=$(printf '%s' "$PWR_JSON" | node -e "const r=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); process.stdout.write(r.message||'')")
+
+  if [ "$PWR_OK" = "true" ]; then
+    echo "Thread ${THREAD_ID} patched to fixed"
+  elif [ "$PWR_TIER" = "aborted" ]; then
+    cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
+    echo "ERROR: Could not mark thread ${THREAD_ID} as fixed — ${PWR_MSG}. Try \`az devops login\` to re-authenticate." >&2
+    exit 1
+  else
+    cat "${TMPDIR:-/tmp}/re_review_patch_${THREAD_ID}.err" >&2
+    NOTICES=$(
+      N="$NOTICES" SEV="warning" K="patch-to-fixed" \
+      M="Could not mark thread ${THREAD_ID} as fixed (${PWR_MSG}). Thread remains active and will be re-evaluated on next re-review." \
+      node -e "const a=JSON.parse(process.env.N); a.push({severity:process.env.SEV,kind:process.env.K,message:process.env.M}); process.stdout.write(JSON.stringify(a))"
+    )
+  fi
 fi
 ```
 
@@ -450,6 +496,7 @@ disputed: {DISPUTED_COUNT}
 pending: {PENDING_COUNT}
 obsolete: {OBSOLETE_COUNT}
 freshFindings: {FRESH_FINDINGS_JSON}
+plannedActions: {PLANNED_ACTIONS_JSON}
 NOTICES: {NOTICES}
 RE_REVIEW_COORDINATOR_RESULT_END
 ```
@@ -462,6 +509,7 @@ Where:
 - `pending` — count of prior threads classified as pending (may include threads that received a new-evidence reply or were skipped)
 - `obsolete` — count of prior threads classified as obsolete
 - `freshFindings` — JSON array of unmatched findings in the same shape as the input `FINDINGS` array; empty array `[]` if all findings matched prior threads or if `earlyExit` is `true`
+- `plannedActions` — JSON array of per-thread planned actions: `[{ threadId: number, action: 'patch-to-fixed' | 'reply-new-evidence' | 'reply-dispute-ack' | 'skip', reason: string }]`. Emitted in **both** `re-review` and `dry-run-rereview` modes (symmetric contract; the orchestrator consumes it only in `dry-run-rereview`). Obsolete-classified threads do not appear here. Empty array `[]` when no prior threads were processed (early-skip paths or `earlyExit: true`).
 - `NOTICES` — JSON array of DEGRADED Notices emitted during this run (may be `[]`); each entry has `{ severity: "warning", kind: "thread-match", message }`
 
 ---
@@ -470,7 +518,9 @@ Where:
 
 - **No ADO reads**: do not call `az devops invoke` for GET operations. All data is passed as inputs.
 - **No re-fetch of threads**: the ADO Fetcher already captured `RAW_THREADS_JSON` via `az devops invoke --resource pullRequestThreads` and the orchestrator forwarded it here — do not re-issue that call.
+- **`MODE` gates writes only**: the three posting blocks in Step 6 (new-evidence reply, dispute acknowledgement, PATCH-to-fixed) execute `az devops invoke` only when `MODE = re-review`. Classification, finding matching, and `plannedActions` emission happen identically in both modes. No `az devops invoke` write fires anywhere when `MODE = dry-run-rereview`.
 - **Early exit has no ADO writes**: the no-new-revisions path (Step 4) only prints to console and returns the result block — it never posts replies or PATCHes threads.
 - **All four count fields are always present** in the result block, even when zero.
 - **Matched findings are consumed**: a finding matched to any classified prior thread is excluded from `freshFindings`, regardless of whether a reply was posted.
+- **`plannedActions` is emitted symmetrically**: same shape and content in both `re-review` and `dry-run-rereview`; the orchestrator consumes it only in `dry-run-rereview`.
 - The completion marker is posted by the ADO Writer, not by this coordinator.
