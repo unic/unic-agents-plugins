@@ -67,6 +67,8 @@ Load-bearing invariants. These either originate in a Plugin ADR or are policy de
 - **Azure CLI** with the `azure-devops` extension (`az extension add --name azure-devops`), authenticated against the target ADO organisation (`az devops login`). The Plugin shells out via `az devops invoke` for all Platform interaction.
 - **`pr-review-toolkit`** Plugin from `anthropics/claude-plugins-official`. Soft dependency — the command checks at startup and aborts with instructions if absent.
 
+All `az` commands the plugin uses are enumerated in `tests/fixtures/ado-cli-inventory.mjs`. The smoke test (`tests/ado-cli-smoke.test.mjs`) asserts every `az ` invocation in `agents/`/`commands/`/`scripts/` has a matching inventory entry — modulo the allowlist in `tests/fixtures/ado-cli-allowlist.mjs`. Register a new ADO call in the inventory before invoking it.
+
 ## Do not add
 
 - **GitHub or GitLab Platform support before an ADR locks the abstraction.** The vocabulary in [`CONTEXT.md`](CONTEXT.md) is Platform-agnostic, but the implementation today is ADO-only; broadening it without an ADR will leak ADO assumptions into shared code.

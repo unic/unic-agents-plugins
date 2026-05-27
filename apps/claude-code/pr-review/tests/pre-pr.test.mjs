@@ -389,3 +389,74 @@ describe('review-pr command — Pre-PR mode', () => {
 		)
 	})
 })
+
+// ---------------------------------------------------------------------------
+// review-pr.md command content — Step 4 / Step 5 (post-fold-in of thread fetch)
+// ---------------------------------------------------------------------------
+
+describe('review-pr command — Step 4 (PR metadata only) + Fetcher delegation', () => {
+	it('no longer calls the non-existent `az repos pr thread` subcommand', () => {
+		// Built via concatenation so the test file itself does not contain the
+		// forbidden phrase (the spec's grep sweep treats any occurrence as a fail).
+		const forbidden = ['az', 'repos', 'pr', 'thread', 'list'].join(' ')
+		assert.ok(
+			!commandContent.includes(forbidden),
+			`Orchestrator must not call the non-existent ${forbidden} subcommand`
+		)
+	})
+
+	it('contains no `az devops invoke` REST calls (Fetcher owns all REST calls — `--help` probe is allowed)', () => {
+		// Strip markdown inline code (`...`) and quoted strings ("...", '...') before
+		// scanning each line — prose references and echoed error messages don't
+		// execute the command, only document or surface it.
+		const stripPassive = (line) =>
+			line
+				.replace(/`[^`]*`/g, '')
+				.replace(/"[^"]*"/g, '')
+				.replace(/'[^']*'/g, '')
+		const offending = commandContent.split('\n').filter(
+			(line) =>
+				/az devops invoke/.test(stripPassive(line)) &&
+				!line.trim().startsWith('-') &&
+				// The Step 3 preflight uses `az devops invoke --help` purely as a CLI capability
+				// probe — it makes no REST call, so ADR-0016 permits it.
+				!/az devops invoke --help/.test(line)
+		)
+		assert.deepEqual(offending, [], `Orchestrator must not call az devops invoke directly: ${offending.join(' | ')}`)
+	})
+
+	it('Step 4 captures REPO_ID, PROJECT, SOURCE_BRANCH, TARGET_BRANCH, PR_TITLE, PR_DESCRIPTION from `az repos pr show`', () => {
+		const step4 = commandContent.slice(commandContent.indexOf('## Step 4'), commandContent.indexOf('## Step 5'))
+		assert.ok(/az repos pr show/.test(step4), 'Step 4 must call az repos pr show to gather PR metadata')
+		for (const field of ['REPO_ID', 'PROJECT', 'SOURCE_BRANCH', 'TARGET_BRANCH', 'PR_TITLE', 'PR_DESCRIPTION']) {
+			assert.ok(step4.includes(field), `Step 4 must capture ${field} from the PR metadata response`)
+		}
+	})
+
+	it('Step 4 strips `refs/heads/` from branch refs', () => {
+		const step4 = commandContent.slice(commandContent.indexOf('## Step 4'), commandContent.indexOf('## Step 5'))
+		assert.ok(
+			step4.includes('refs/heads/') || step4.toLowerCase().includes('strip'),
+			'Step 4 must strip the refs/heads/ prefix when deriving SOURCE_BRANCH / TARGET_BRANCH'
+		)
+	})
+
+	it('passes the new metadata into the Fetcher prompt (Step 5)', () => {
+		const step5 = commandContent.slice(commandContent.indexOf('## Step 5'), commandContent.indexOf('## Step 6'))
+		for (const field of ['REPO_ID', 'SOURCE_BRANCH', 'TARGET_BRANCH', 'PR_TITLE', 'PR_DESCRIPTION']) {
+			assert.ok(step5.includes(field), `Step 5 Fetcher prompt must forward ${field} to the ADO Fetcher agent`)
+		}
+	})
+
+	it('Step 5 parses MODE, IS_REREVIEW, PRIOR_ITERATION_ID, SUMMARY_THREAD_ID, RAW_THREADS_JSON from the Fetcher result block', () => {
+		const step5 = commandContent.slice(commandContent.indexOf('## Step 5'), commandContent.indexOf('## Step 6'))
+		for (const field of ['MODE', 'IS_REREVIEW', 'PRIOR_ITERATION_ID', 'SUMMARY_THREAD_ID', 'RAW_THREADS_JSON']) {
+			assert.ok(step5.includes(field), `Step 5 must parse ${field} from the Fetcher's ADO_FETCHER_RESULT block`)
+		}
+	})
+
+	it('orchestrator file stays ≤ 200 lines (ADR 0013 thin-orchestrator invariant)', () => {
+		const lineCount = commandContent.split('\n').length
+		assert.ok(lineCount <= 200, `Orchestrator is ${lineCount} lines; ADR 0013 caps it at ≤ 200`)
+	})
+})

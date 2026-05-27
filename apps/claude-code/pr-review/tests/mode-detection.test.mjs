@@ -2,9 +2,13 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { detectMode, formatModeEnv } from '../scripts/mode-detection.mjs'
+import { detectMode, formatModeEnv, SIGNATURE_PREFIX } from '../scripts/mode-detection.mjs'
 
-const SIGNATURE_PREFIX = '🤖 *Reviewed by Claude Code*'
+describe('SIGNATURE_PREFIX', () => {
+	it('exports the canonical bot-signature prefix verbatim', () => {
+		assert.equal(SIGNATURE_PREFIX, '🤖 *Reviewed by Claude Code*')
+	})
+})
 
 describe('detectMode', () => {
 	it('no threads → first-review with empty fields', () => {
