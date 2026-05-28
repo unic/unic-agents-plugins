@@ -49,6 +49,14 @@ describe('decideSpawnSet', () => {
 		it('is NOT spawned when only markdown files changed', () => {
 			assert.ok(!decideSpawnSet(['docs/guide.md']).has('silent-failure-hunter'))
 		})
+
+		it('is NOT spawned when only a .d.ts declaration file changed', () => {
+			assert.ok(!decideSpawnSet(['src/types/user.d.ts']).has('silent-failure-hunter'))
+		})
+
+		it('is spawned for a literal d.ts file (no dot before d — not a declaration file)', () => {
+			assert.ok(decideSpawnSet(['src/d.ts']).has('silent-failure-hunter'))
+		})
 	})
 
 	describe('type-design-analyzer', () => {
@@ -142,6 +150,13 @@ describe('decideSpawnSet', () => {
 		it('test files do not count toward the source-file threshold', () => {
 			const files = ['src/a.mjs', 'tests/a.test.mjs', 'tests/b.test.mjs']
 			assert.ok(!decideSpawnSet(files).has('code-simplifier'))
+		})
+
+		it('.d.ts declaration files do not count toward the source-file threshold', () => {
+			const files = ['src/types/a.d.ts', 'src/types/b.d.ts', 'src/types/c.d.ts']
+			const result = decideSpawnSet(files)
+			assert.ok(!result.has('code-simplifier'), 'code-simplifier not spawned')
+			assert.ok(result.has('type-design-analyzer'), 'type-design-analyzer still spawned')
 		})
 	})
 
