@@ -1,11 +1,19 @@
-# Re-review uses a delta diff, not a full PR diff
+# 0007. Re-review uses a delta diff, not a full PR diff
 
-A First Review analyses the diff from the PR's base branch to its current Revision. A Re-review analyses only the diff between the prior reviewed Revision and the current Revision. Prior Findings from earlier Reviews are passed as context so each Review Aspect agent can verify whether they're fixed, still pending, or obsolete — without re-raising them as new Findings.
+**Status:** Accepted (2026-05)
 
-## Considered options
+## Context
+
+When an author pushes new commits to a PR that has already been reviewed, the Plugin needs to decide what scope of code to re-analyse and how to handle Findings raised in the previous Review. The naive option (re-run the full PR diff) is expensive and produces duplicate Findings; the right option needs to preserve cross-iteration context so the Plugin can reply to prior Threads rather than re-raise them.
+
+Two alternatives were considered:
 
 - **Always review the full base diff.** Rejected — invokers Re-review primarily to check that author changes since the last pass are correct. A full re-analysis would re-surface every prior Finding as a duplicate candidate and inflate token cost on every iteration.
 - **Delta diff with no prior-Finding context.** Rejected — without prior Findings the Re-review Coordinator cannot do Thread Classification or auto-resolve `addressed` threads. The context is what enables the Reply-not-duplicate doctrine.
+
+## Decision
+
+A First Review analyses the diff from the PR's base branch to its current Revision. A Re-review analyses only the diff between the prior reviewed Revision and the current Revision. Prior Findings from earlier Reviews are passed as context so each Review Aspect agent can verify whether they're fixed, still pending, or obsolete — without re-raising them as new Findings.
 
 ## Consequences
 

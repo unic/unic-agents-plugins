@@ -1,11 +1,19 @@
-# Interactive Approval Loop as the default write path
+# 0003. Interactive Approval Loop as the default write path
 
-The Plugin previews a Review in the terminal by default and writes nothing to ADO. `--post` enters the Approval Loop — each Finding shown one at a time with accept / edit / skip choices. `--post --yes` bulk-accepts and posts every Finding without prompting.
+**Status:** Accepted (2026-05)
 
-## Considered options
+## Context
+
+The Plugin produces Findings that may or may not be worth posting to a shared PR thread in ADO. We needed a default behaviour for the write path that balanced developer trust (don't dump unfiltered LLM output) against ergonomics (don't make the common case painful).
+
+Two alternatives were considered:
 
 - **Bulk-post by default, like a CI bot.** Rejected — this Plugin runs from a developer's terminal, not a CI pipeline. Posting unfiltered LLM output to a shared PR thread is a noise-and-trust hazard the invoker hasn't opted into.
 - **Preview-then-confirm-once (single y/N for the whole batch).** Rejected — invokers consistently want to drop the one weak Finding without re-running the whole Review. Per-Finding choice costs a few seconds and earns trust.
+
+## Decision
+
+The Plugin previews a Review in the terminal by default and writes nothing to ADO. `--post` enters the Approval Loop — each Finding shown one at a time with accept / edit / skip choices. `--post --yes` bulk-accepts and posts every Finding without prompting, for CI use.
 
 ## Consequences
 

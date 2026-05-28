@@ -1,6 +1,6 @@
 # unic-pr-review — Architecture Decision Records
 
-Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../docs/adr/`.
+Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 
 - [0001](0001-multi-source-intent-with-shared-atlassian-credentials.md) — Multi-source intent gathering with shared Atlassian credentials
 - [0002](0002-confidence-scored-findings.md) — Confidence-scored Findings with explicit Severity thresholds
