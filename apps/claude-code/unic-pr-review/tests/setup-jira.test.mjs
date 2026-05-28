@@ -87,6 +87,15 @@ describe('writeJiraUrl', () => {
 			/not found|setup-confluence/
 		)
 	})
+
+	it('throws a descriptive error when the existing file contains invalid JSON', () => {
+		const home = tempDir()
+		writeFileSync(join(home, '.unic-confluence.json'), 'not-valid-json')
+		assert.throws(
+			() => writeJiraUrl('https://jira.atlassian.net', { homedir: home, platform: 'linux' }),
+			/invalid JSON/
+		)
+	})
 })
 
 describe('isJiraEnvConfigured', () => {

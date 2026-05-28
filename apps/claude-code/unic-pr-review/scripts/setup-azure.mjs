@@ -13,6 +13,7 @@ import { chmodSync as realChmod, writeFileSync as realWriteFile } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parseArgs } from './lib/args.mjs'
 
 /**
  * @typedef {Object} WriteDeps
@@ -57,24 +58,6 @@ export function writeAzureCreds(orgUrl, pat, deps = {}) {
  */
 export function isAzureEnvConfigured(env) {
 	return Boolean(env.AZURE_DEVOPS_ORG_URL && env.AZURE_DEVOPS_PAT)
-}
-
-/**
- * @param {string[]} args
- * @returns {Record<string, string>}
- */
-function parseArgs(args) {
-	/** @type {Record<string, string>} */
-	const result = {}
-	for (let i = 0; i < args.length; i++) {
-		const m = args[i].match(/^--([^=]+)=(.*)$/)
-		if (m) {
-			result[m[1]] = m[2]
-		} else if (args[i].startsWith('--') && i + 1 < args.length && !args[i + 1].startsWith('--')) {
-			result[args[i].slice(2)] = args[++i]
-		}
-	}
-	return result
 }
 
 async function main() {

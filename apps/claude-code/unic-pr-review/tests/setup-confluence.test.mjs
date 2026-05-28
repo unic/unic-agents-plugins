@@ -3,7 +3,7 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -42,6 +42,26 @@ describe('writeConfluenceCreds', () => {
 		assert.doesNotThrow(() => writeConfluenceCreds('https://x.atlassian.net', 'u', 'tok', opts))
 		const content = JSON.parse(readFileSync(join(home, '.unic-confluence.json'), 'utf8'))
 		assert.equal(content.url, 'https://x.atlassian.net')
+	})
+
+	it('preserves jiraUrl when re-running to rotate credentials', () => {
+		const home = tempDir()
+		const opts = { homedir: home, platform: 'linux', chmod: () => {} }
+		// First: write initial creds + jiraUrl
+		writeFileSync(
+			join(home, '.unic-confluence.json'),
+			JSON.stringify({
+				url: 'https://x.atlassian.net',
+				username: 'u',
+				token: 'old',
+				jiraUrl: 'https://jira.atlassian.net',
+			})
+		)
+		// Re-run setup-confluence to rotate token
+		writeConfluenceCreds('https://x.atlassian.net', 'u', 'new-tok', opts)
+		const content = JSON.parse(readFileSync(join(home, '.unic-confluence.json'), 'utf8'))
+		assert.equal(content.token, 'new-tok')
+		assert.equal(content.jiraUrl, 'https://jira.atlassian.net')
 	})
 
 	it('Windows chmod warning branch — warn called, chmod skipped', () => {

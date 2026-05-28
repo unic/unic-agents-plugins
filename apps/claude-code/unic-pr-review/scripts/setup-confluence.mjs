@@ -9,22 +9,32 @@
  * conversational prompting happens in commands/setup-confluence.md.
  */
 
-import { chmodSync as realChmod, writeFileSync as realWriteFile } from 'node:fs'
+import {
+	chmodSync as realChmod,
+	existsSync as realExistsSync,
+	readFileSync as realReadFile,
+	writeFileSync as realWriteFile,
+} from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parseArgs } from './lib/args.mjs'
 
 /**
  * @typedef {Object} WriteDeps
  * @property {string} [homedir]
  * @property {string} [platform]
+ * @property {(path: string) => boolean} [exists]
+ * @property {(path: string, encoding: BufferEncoding) => string} [readFile]
  * @property {(path: string, data: string, encoding: BufferEncoding) => void} [writeFile]
  * @property {(path: string, mode: number) => void} [chmod]
  * @property {(message: string) => void} [warn]
  */
 
 /**
- * Write ~/.unic-confluence.json with the given credentials.
+ * Write ~/.unic-confluence.json with the given credentials. Preserves any
+ * existing `jiraUrl` field (and future fields) so re-running to rotate a
+ * token does not silently drop data written by :setup-jira.
  *
  * @param {string} url
  * @param {string} username
@@ -35,13 +45,25 @@ import { pathToFileURL } from 'node:url'
 export function writeConfluenceCreds(url, username, token, deps = {}) {
 	const home = deps.homedir ?? os.homedir()
 	const platform = deps.platform ?? process.platform
+	const exists = deps.exists ?? realExistsSync
+	const read = deps.readFile ?? realReadFile
 	const write = deps.writeFile ?? realWriteFile
 	const chmod = deps.chmod ?? realChmod
 	const warn = deps.warn ?? ((m) => process.stderr.write(`${m}\n`))
 
 	const path = join(home, '.unic-confluence.json')
-	const data = JSON.stringify({ url, username, token }, null, 2)
-	write(path, data, 'utf8')
+	// Preserve jiraUrl (and any future fields) from an existing file
+	let jiraUrl
+	if (exists(path)) {
+		try {
+			const existing = JSON.parse(read(path, 'utf8'))
+			if (existing && typeof existing === 'object') jiraUrl = existing.jiraUrl
+		} catch {
+			// Ignore parse errors — we will overwrite with valid data
+		}
+	}
+	const payload = jiraUrl != null ? { url, username, token, jiraUrl } : { url, username, token }
+	write(path, JSON.stringify(payload, null, 2), 'utf8')
 	if (platform === 'win32') {
 		warn(`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually via NTFS permissions.`)
 	} else {
@@ -58,24 +80,6 @@ export function writeConfluenceCreds(url, username, token, deps = {}) {
  */
 export function isEnvConfigured(env) {
 	return Boolean(env.CONFLUENCE_URL && env.CONFLUENCE_USER && env.CONFLUENCE_TOKEN)
-}
-
-/**
- * @param {string[]} args
- * @returns {Record<string, string>}
- */
-function parseArgs(args) {
-	/** @type {Record<string, string>} */
-	const result = {}
-	for (let i = 0; i < args.length; i++) {
-		const m = args[i].match(/^--([^=]+)=(.*)$/)
-		if (m) {
-			result[m[1]] = m[2]
-		} else if (args[i].startsWith('--') && i + 1 < args.length && !args[i + 1].startsWith('--')) {
-			result[args[i].slice(2)] = args[++i]
-		}
-	}
-	return result
 }
 
 async function main() {
