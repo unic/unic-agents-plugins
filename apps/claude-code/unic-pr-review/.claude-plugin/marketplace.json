@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "description": "Review pull requests in Azure DevOps with Confluence and Jira context.",
+    "homepage": "https://github.com/unic/unic-agents-plugins"
+  },
+  "name": "unic-pr-review",
+  "owner": {
+    "name": "Unic AG"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "Unic AG"
+      },
+      "category": "productivity",
+      "description": "Review pull requests in Azure DevOps with Confluence and Jira context.",
+      "displayName": "Unic PR Review",
+      "homepage": "https://github.com/unic/unic-agents-plugins",
+      "keywords": ["pr-review", "azure-devops", "jira", "confluence", "code-review", "unic"],
+      "license": "LGPL-3.0-or-later",
+      "name": "unic-pr-review",
+      "source": "./",
+      "tags": ["productivity", "code-quality"],
+      "version": "2.0.0"
+    }
+  ]
+}

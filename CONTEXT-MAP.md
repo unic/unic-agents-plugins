@@ -10,6 +10,7 @@
 - [pr-review](./apps/claude-code/pr-review/CONTEXT.md) — PR review command targeting Azure DevOps
 - [unic-confluence](./apps/claude-code/unic-confluence/CONTEXT.md) — Markdown-to-Confluence publishing command
 - [unic-archon-dlc](./apps/claude-code/unic-archon-dlc/CONTEXT.md) — Archon-powered AI development lifecycle DLC
+- [unic-pr-review](./apps/claude-code/unic-pr-review/CONTEXT.md) — PR review command for Azure DevOps with Confluence and Jira context
 
 ## Relationships
 

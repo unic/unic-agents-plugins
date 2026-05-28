@@ -1,0 +1,26 @@
+{
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "license": "LGPL-3.0-or-later",
+  "name": "unic-pr-review",
+  "packageManager": "pnpm@10.33.0",
+  "private": true,
+  "scripts": {
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "test": "node --test tests/doctor.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "verify:changelog": "unic-verify-changelog"
+  },
+  "type": "module",
+  "version": "2.0.0"
+}
