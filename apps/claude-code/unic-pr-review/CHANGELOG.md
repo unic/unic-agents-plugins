@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - realPing degrades gracefully when given a malformed URL instead of crashing the doctor
 - credentials loader distinguishes file-read errors from JSON-parse errors
 - review-pr command frontmatter allows the `Agent` tool so the code-reviewer sub-agent can be spawned
+- doctor.mjs `PingResult.error` JSDoc and `realPing` prose now reflect that the field is populated for any fetch failure (synchronous throws plus timeouts and network errors)
 
 ## [2.0.0] — 2026-05-28
 

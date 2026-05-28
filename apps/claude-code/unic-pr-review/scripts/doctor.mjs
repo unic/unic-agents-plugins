@@ -40,7 +40,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  * @typedef {Object} PingResult
  * @property {boolean} ok
  * @property {number} status
- * @property {string} [error] - set when the request threw synchronously (e.g. invalid URL or wrong scheme)
+ * @property {string} [error] - set on any request failure (synchronous throws like invalid URL or wrong scheme, plus asynchronous rejections such as timeouts and network errors)
  */
 
 /**
@@ -219,10 +219,11 @@ function realExec(cmd, args) {
 
 /**
  * Default fetcher: GET via global fetch with a 10 s timeout (ADR-0005).
- * Handles both https:// and http:// URLs; surfaces synchronous errors in the
- * optional `error` field so callers can show an actionable message.
+ * Handles both https:// and http:// URLs; surfaces any fetch failure
+ * (synchronous throws, timeouts, network errors) in the optional `error`
+ * field so callers can show an actionable message.
  *
- * Exported for unit testing of synchronous error paths (e.g. malformed URL).
+ * Exported for unit testing of error paths (e.g. malformed URL, timeout).
  * @internal
  * @type {Ping}
  */
