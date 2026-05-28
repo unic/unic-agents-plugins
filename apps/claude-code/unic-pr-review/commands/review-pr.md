@@ -70,6 +70,12 @@ Wait for the agent to complete. The agent emits a JSON object:
 { "findings": [...], "positiveObservations": [...] }
 ```
 
+Store the raw JSON verbatim — do not parse or reformat it. The next step's
+helper consumes the raw string and validates each Finding through
+`parseFinding`. If the agent emits anything other than a JSON object,
+`render-summary` will exit non-zero with a diagnostic in stderr; follow the
+Step 5 contract below for how to handle that.
+
 ## Step 5 — Render the Review Summary
 
 Pass the raw JSON from Step 4 into the `render-summary` helper via the
@@ -84,6 +90,16 @@ The helper is the single source of truth for the rendering pipeline — it
 imports `parseFinding` from `scripts/lib/finding-validator.mjs` and
 `renderReviewSummary` from `scripts/lib/review-summary-renderer.mjs`, so the
 ADR-0006 Bot Signature invariant is preserved automatically.
+
+**Always relay the helper's stderr to the user.** It carries two kinds of
+diagnostics that the user must see, neither of which appears in stdout:
+
+- Per-Finding `parseFinding` failures (the helper drops the malformed
+  Finding and keeps going). If any are reported, the user must know which
+  Findings the agent produced were excluded from the summary.
+- Fatal failures: missing `FINDINGS_JSON`, invalid JSON, non-object root —
+  the helper exits non-zero. **If the helper exits non-zero, print the
+  full stderr verbatim to the user and stop. Do not print a partial summary.**
 
 ## Step 6 — Print the preview
 
