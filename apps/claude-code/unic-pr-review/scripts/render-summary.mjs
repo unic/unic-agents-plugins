@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// @ts-check
+// Copyright © 2026 Unic
+
+/**
+ * render-summary.mjs — CLI bridge between the slash command and the renderer.
+ *
+ * Reads the Review Aspect agent's JSON output from the `FINDINGS_JSON`
+ * environment variable, validates each Finding through `parseFinding`, and
+ * writes the rendered Review Summary markdown to stdout.
+ *
+ * Exposed as a standalone script so the slash command can shell out
+ * cross-platform (Windows cmd / PowerShell / bash) without an inline
+ * `node -e` snippet whose quoting rules differ per shell.
+ */
+
+import { parseFinding } from './lib/finding-validator.mjs'
+import { renderReviewSummary } from './lib/review-summary-renderer.mjs'
+
+const raw = process.env.FINDINGS_JSON
+if (!raw) {
+	process.stderr.write('render-summary: FINDINGS_JSON environment variable is required\n')
+	process.exit(1)
+}
+
+let parsed
+try {
+	parsed = JSON.parse(raw)
+} catch (err) {
+	process.stderr.write(
+		`render-summary: FINDINGS_JSON is not valid JSON — ${err instanceof Error ? err.message : String(err)}\n`
+	)
+	process.exit(1)
+}
+
+if (!parsed || typeof parsed !== 'object') {
+	process.stderr.write('render-summary: FINDINGS_JSON must be an object\n')
+	process.exit(1)
+}
+
+const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : []
+const positiveObservations = Array.isArray(parsed.positiveObservations) ? parsed.positiveObservations : []
+
+const findings = []
+for (const raw of rawFindings) {
+	try {
+		const f = parseFinding(raw)
+		if (f) findings.push(f)
+	} catch (err) {
+		process.stderr.write(
+			`render-summary: dropped malformed Finding — ${err instanceof Error ? err.message : String(err)}\n`
+		)
+	}
+}
+
+const summary = renderReviewSummary({
+	findings,
+	positiveObservations,
+	iteration: 1,
+})
+
+process.stdout.write(summary)

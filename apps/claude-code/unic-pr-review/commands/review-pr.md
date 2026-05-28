@@ -44,6 +44,16 @@ git diff "origin/${BASE_BRANCH}...HEAD" --name-only
 
 - **Empty diff** (no output from `--name-only`): print "Nothing to review: no local changes against `<BASE_BRANCH>`." and stop.
 
+Before passing the diff to the agent, sanity-check its size — extremely large
+diffs will silently truncate at the agent's context window:
+
+```sh
+git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
+```
+
+- **Diff exceeds ~2000 lines or ~200 KB**: warn the user that the review may be
+  incomplete and suggest tightening the base branch (e.g. `--base feature/x`).
+
 ## Step 4 — Spawn the code-reviewer agent
 
 Use the Task tool to launch the `code-reviewer` agent. Provide it the following input:
@@ -62,38 +72,18 @@ Wait for the agent to complete. The agent emits a JSON object:
 
 ## Step 5 — Render the Review Summary
 
-Parse the JSON from the code-reviewer agent. For each Finding, apply the severity bucket:
-
-- confidence ≥ 90 → critical
-- confidence ≥ 80 → important
-- confidence ≥ 60 → minor
-- confidence < 60 → drop (do not include in the summary)
-
-Then call the review-summary-renderer. Run the following Node snippet (inline or as a helper script) to produce the rendered markdown:
+Pass the raw JSON from Step 4 into the `render-summary` helper via the
+`FINDINGS_JSON` environment variable. The helper validates each Finding,
+buckets by severity per ADR-0002, and writes the rendered markdown to stdout:
 
 ```sh
-node --input-type=module -e "
-import { bucketBySeverity } from '${CLAUDE_PLUGIN_ROOT}/scripts/lib/severity-bucketer.mjs'
-import { renderReviewSummary } from '${CLAUDE_PLUGIN_ROOT}/scripts/lib/review-summary-renderer.mjs'
-
-const raw = JSON.parse(process.env.FINDINGS_JSON)
-const buckets = { criticalFindings: [], importantFindings: [], minorFindings: [] }
-for (const f of raw.findings) {
-  const sev = bucketBySeverity(f.confidence)
-  if (sev === 'critical') buckets.criticalFindings.push(f)
-  else if (sev === 'important') buckets.importantFindings.push(f)
-  else if (sev === 'minor') buckets.minorFindings.push(f)
-}
-const summary = renderReviewSummary({
-  ...buckets,
-  positiveObservations: raw.positiveObservations ?? [],
-  iteration: 1,
-})
-process.stdout.write(summary)
-"
+FINDINGS_JSON='<raw JSON from the agent>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
 ```
 
-Alternatively, compose the renderer call directly in your response by reading the findings JSON and constructing the context object — the key invariant is that you call `renderReviewSummary` from `scripts/lib/review-summary-renderer.mjs` and `bucketBySeverity` from `scripts/lib/severity-bucketer.mjs`.
+The helper is the single source of truth for the rendering pipeline — it
+imports `parseFinding` from `scripts/lib/finding-validator.mjs` and
+`renderReviewSummary` from `scripts/lib/review-summary-renderer.mjs`, so the
+ADR-0006 Bot Signature invariant is preserved automatically.
 
 ## Step 6 — Print the preview
 
