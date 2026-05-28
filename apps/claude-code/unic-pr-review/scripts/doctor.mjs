@@ -7,7 +7,8 @@
  * doctor.mjs — preflight checks for unic-pr-review prerequisites.
  *
  * Six checks with cascade: each az check only runs if the prior one passes;
- * Atlassian checks always run regardless of az state.
+ * Atlassian checks run when credentials load successfully.
+ *
  *   1. az CLI on PATH
  *   2. azure-devops extension installed           (only if 1 passes)
  *   3. az devops session valid (project list)     (only if 2 passes)
@@ -20,33 +21,33 @@
  */
 
 import { Buffer } from 'node:buffer'
-import { spawnSync } from 'node:child_process'
-import https from 'node:https'
 import { pathToFileURL } from 'node:url'
 import { loadAtlassianCreds } from './lib/credentials.mjs'
+import { realExec } from './lib/exec.mjs'
 
 /** @import { AtlassianCreds } from './lib/credentials.mjs' */
+/** @import { Exec, ExecResult } from './lib/exec.mjs' */
 
 /**
- * @typedef {Object} ExecResult
- * @property {boolean} ok
- * @property {string} stdout
- * @property {string} stderr
- */
-
-/**
- * @typedef {(cmd: string, args: string[]) => ExecResult} Exec
- */
-
-/**
- * @typedef {Object} PingResult
- * @property {boolean} ok
- * @property {number} status
+ * Discriminated by `kind`:
+ *   - 'http' — fetch resolved; `status` is the HTTP response code.
+ *   - 'transport-error' — fetch rejected (invalid URL, wrong scheme, timeout,
+ *     network error); `error` carries the failure message.
+ *
+ * @typedef {{ kind: 'http', status: number } | { kind: 'transport-error', error: string }} PingResult
  */
 
 /**
  * @typedef {(url: string, headers: Record<string, string>) => Promise<PingResult>} Ping
  */
+
+/**
+ * @param {PingResult} r
+ * @returns {boolean}
+ */
+function isPingOk(r) {
+	return r.kind === 'http' && r.status >= 200 && r.status < 300
+}
 
 /**
  * @typedef {Object} CheckResult
@@ -55,7 +56,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  * @property {boolean} [skipped]
  */
 
-const AZ = process.platform === 'win32' ? 'az.cmd' : 'az'
+export const AZ = process.platform === 'win32' ? 'az.cmd' : 'az'
 
 /**
  * Predicate: `az` CLI is on PATH and runs.
@@ -152,9 +153,11 @@ export async function checkConfluence(creds, ping) {
 	const url = `${stripTrailingSlash(creds.url)}/wiki/rest/api/space?limit=1`
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
-	if (!r.ok) {
-		const detail = r.status === 0 ? `Confluence ${host} unreachable` : `Confluence ${host} returned HTTP ${r.status}`
-		return { ok: false, detail }
+	if (r.kind === 'transport-error') {
+		return { ok: false, detail: `Confluence ${host} unreachable: ${r.error}` }
+	}
+	if (!isPingOk(r)) {
+		return { ok: false, detail: `Confluence ${host} returned HTTP ${r.status}` }
 	}
 	return { ok: true, detail: `Confluence reachable (${host})` }
 }
@@ -178,9 +181,11 @@ export async function checkJira(creds, ping) {
 	const url = `${stripTrailingSlash(creds.jiraUrl)}/rest/api/3/myself`
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
-	if (!r.ok) {
-		const detail = r.status === 0 ? `Jira ${host} unreachable` : `Jira ${host} returned HTTP ${r.status}`
-		return { ok: false, detail }
+	if (r.kind === 'transport-error') {
+		return { ok: false, detail: `Jira ${host} unreachable: ${r.error}` }
+	}
+	if (!isPingOk(r)) {
+		return { ok: false, detail: `Jira ${host} returned HTTP ${r.status}` }
 	}
 	return { ok: true, detail: `Jira reachable (${host})` }
 }
@@ -211,43 +216,43 @@ function basicAuth(user, token) {
 	return `Basic ${Buffer.from(`${user}:${token}`).toString('base64')}`
 }
 
+export const PING_TIMEOUT_MS = 10_000
+
 /**
- * Default executor: wraps spawnSync.
- * @type {Exec}
+ * Map a fetch rejection to a human-readable error message. Recognises
+ * `AbortSignal.timeout`'s `TimeoutError` and emits a friendly fixed message
+ * so doctor output stays consistent across Node versions.
+ *
+ * @param {unknown} err
+ * @returns {string}
  */
-function realExec(cmd, args) {
-	const r = spawnSync(cmd, args, { encoding: 'utf8' })
-	return { ok: r.status === 0, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+export function mapPingError(err) {
+	if (err instanceof Error && err.name === 'TimeoutError') {
+		return `Request timed out after ${PING_TIMEOUT_MS / 1000}s`
+	}
+	return err instanceof Error ? err.message : String(err)
 }
 
 /**
- * Default fetcher: GET via node:https with a 10 s timeout.
+ * Default fetcher: GET via global fetch with a 10 s timeout (ADR-0005).
+ * Handles both https:// and http:// URLs. Returns the discriminated PingResult
+ * — an HTTP result on resolution, a transport-error on any rejection (invalid
+ * URL, wrong scheme, timeout, network error).
  *
- * Exported for testing error paths where https.request() throws synchronously
- * (e.g. malformed URL — the internal catch resolves { ok:false, status:0 }).
- * @internal
+ * `AbortSignal.timeout`'s rejection is mapped to a friendly fixed message so
+ * doctor output stays consistent across Node versions.
+ *
+ * Exported for unit testing of error paths (e.g. malformed URL, timeout).
  * @type {Ping}
  */
 export function realPing(url, headers) {
-	return new Promise((resolve) => {
-		let req
-		try {
-			req = https.request(url, { method: 'GET', headers, timeout: 10_000 }, (res) => {
-				const status = res.statusCode ?? 0
-				res.resume()
-				resolve({ ok: status >= 200 && status < 300, status })
-			})
-		} catch {
-			resolve({ ok: false, status: 0 })
-			return
-		}
-		req.on('error', () => resolve({ ok: false, status: 0 }))
-		req.on('timeout', () => {
-			req.destroy()
-			resolve({ ok: false, status: 0 })
-		})
-		req.end()
+	return fetch(url, {
+		method: 'GET',
+		headers,
+		signal: AbortSignal.timeout(PING_TIMEOUT_MS),
 	})
+		.then((res) => /** @type {PingResult} */ ({ kind: 'http', status: res.status }))
+		.catch((err) => /** @type {PingResult} */ ({ kind: 'transport-error', error: mapPingError(err) }))
 }
 
 /**
@@ -256,7 +261,9 @@ export function realPing(url, headers) {
  * @returns {string}
  */
 function formatLine(result, label) {
-	const glyph = result.skipped ? '○' : result.ok ? '✓' : '✗'
+	let glyph = '✗'
+	if (result.skipped) glyph = '○'
+	else if (result.ok) glyph = '✓'
 	return `${glyph} ${label} — ${result.detail}`
 }
 
@@ -308,16 +315,17 @@ export async function runDoctor(deps = {}) {
 	}
 
 	let creds = null
-	let credsFailed = false
+	let credsLoadError = null
 	try {
 		creds = loadCreds()
 	} catch (err) {
-		lines.push(`✗ Atlassian credentials — ${err instanceof Error ? err.message : String(err)}`)
-		allOk = false
-		credsFailed = true
+		credsLoadError = err instanceof Error ? err.message : String(err)
 	}
 
-	if (creds === null && !credsFailed) {
+	if (credsLoadError) {
+		lines.push(`✗ Atlassian credentials — credential file unreadable: ${credsLoadError}`)
+		allOk = false
+	} else if (!creds) {
 		lines.push('✗ Atlassian credentials — neither env vars nor ~/.unic-confluence.json found')
 		allOk = false
 	}
@@ -348,7 +356,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
-		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
+		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? String(err)}\n`)
 		process.exit(1)
 	})
 }

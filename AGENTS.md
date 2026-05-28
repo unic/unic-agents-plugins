@@ -82,7 +82,7 @@ Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
 
 ## Conventional commits
 
-Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(unic-archon-dlc): …`.
+Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(unic-archon-dlc): …`, `feat(unic-pr-review): …`.
 
 ## Git branching (Gitflow)
 

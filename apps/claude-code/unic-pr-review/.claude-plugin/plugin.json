@@ -5,6 +5,7 @@
   },
   "commands": [
     "./commands/doctor.md",
+    "./commands/review-pr.md",
     "./commands/setup-azure.md",
     "./commands/setup-confluence.md",
     "./commands/setup-jira.md"
