@@ -72,7 +72,7 @@ Parse the JSON from the code-reviewer agent. For each Finding, apply the severit
 Then call the review-summary-renderer. Run the following Node snippet (inline or as a helper script) to produce the rendered markdown:
 
 ```sh
-node -e "
+node --input-type=module -e "
 import { bucketBySeverity } from '${CLAUDE_PLUGIN_ROOT}/scripts/lib/severity-bucketer.mjs'
 import { renderReviewSummary } from '${CLAUDE_PLUGIN_ROOT}/scripts/lib/review-summary-renderer.mjs'
 

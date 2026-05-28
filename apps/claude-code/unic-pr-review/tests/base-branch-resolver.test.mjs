@@ -69,4 +69,10 @@ describe('resolveBaseBranch', () => {
 			}
 		)
 	})
+
+	it('falls back to develop when symbolic-ref returns a result without the expected prefix', () => {
+		// symbolic-ref exits 0 but returns a bare branch name, not a full remote ref
+		const exec = seqExec(ok('main\n'), ok('abc123'))
+		assert.equal(resolveBaseBranch(exec), 'develop')
+	})
 })

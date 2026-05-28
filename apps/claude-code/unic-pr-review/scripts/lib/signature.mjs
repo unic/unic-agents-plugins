@@ -25,8 +25,9 @@ export const SIGNATURE_PREFIX = '🤖 Reviewed by Claude Code — Iteration '
 /**
  * Render the Bot Signature footer line for the given iteration number.
  *
- * Returns the full wording followed by two newlines so the caller can
- * append it directly after a `---` separator without additional spacing.
+ * Returns the full wording with two trailing newlines (document terminator).
+ * Renderers push this as the last element in a `parts` array joined with `\n`,
+ * so no extra blank line is needed between the `---` separator and the footer.
  *
  * @param {number} iteration - 1-based iteration number for this Review run
  * @returns {string}

@@ -231,6 +231,45 @@ describe('runDoctor — Jira silence (US-35)', () => {
 describe('realPing', () => {
 	it('resolves { ok:false, status:0 } when given a malformed URL', async () => {
 		const r = await realPing('not-a-valid-url', {})
-		assert.deepEqual(r, { ok: false, status: 0 })
+		assert.equal(r.ok, false)
+		assert.equal(r.status, 0)
+	})
+})
+
+describe('runDoctor — credential errors', () => {
+	/** @type {Exec} */
+	const allOkExec = (_cmd, args) => {
+		if (args.includes('user') && args.includes('show'))
+			return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
+		if (args.includes('extension'))
+			return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
+		return { ok: true, stdout: '[]', stderr: '' }
+	}
+
+	it('reports missing credentials and returns ok:false when loadCreds returns null', async () => {
+		const { ok, output } = await runDoctor({
+			exec: allOkExec,
+			ping: pingReturning({ ok: true, status: 200 }),
+			loadCreds: () => null,
+		})
+		assert.equal(ok, false)
+		assert.match(output, /Atlassian credentials/)
+		assert.doesNotMatch(output, /Confluence/)
+		assert.doesNotMatch(output, /Jira/)
+	})
+
+	it('reports unreadable credential file and returns ok:false when loadCreds throws', async () => {
+		const { ok, output } = await runDoctor({
+			exec: allOkExec,
+			ping: pingReturning({ ok: true, status: 200 }),
+			loadCreds: () => {
+				throw new Error('~/.unic-confluence.json contains invalid JSON: Unexpected token')
+			},
+		})
+		assert.equal(ok, false)
+		assert.match(output, /credential file unreadable/)
+		assert.match(output, /invalid JSON/)
+		assert.doesNotMatch(output, /Confluence/)
+		assert.doesNotMatch(output, /Jira/)
 	})
 })

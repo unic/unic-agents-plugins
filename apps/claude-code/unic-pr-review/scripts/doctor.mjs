@@ -20,7 +20,6 @@
 
 import { Buffer } from 'node:buffer'
 import { spawnSync } from 'node:child_process'
-import https from 'node:https'
 import { pathToFileURL } from 'node:url'
 import { loadAtlassianCreds } from './lib/credentials.mjs'
 
@@ -41,6 +40,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  * @typedef {Object} PingResult
  * @property {boolean} ok
  * @property {number} status
+ * @property {string} [error] - set when the request threw synchronously (e.g. invalid URL or wrong scheme)
  */
 
 /**
@@ -152,7 +152,10 @@ export async function checkConfluence(creds, ping) {
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
 	if (!r.ok) {
-		return { ok: false, detail: `Confluence ${host} returned HTTP ${r.status}` }
+		const detail = r.error
+			? `Confluence ${host} request failed: ${r.error}`
+			: `Confluence ${host} returned HTTP ${r.status}`
+		return { ok: false, detail }
 	}
 	return { ok: true, detail: `Confluence reachable (${host})` }
 }
@@ -173,7 +176,8 @@ export async function checkJira(creds, ping) {
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
 	if (!r.ok) {
-		return { ok: false, detail: `Jira ${host} returned HTTP ${r.status}` }
+		const detail = r.error ? `Jira ${host} request failed: ${r.error}` : `Jira ${host} returned HTTP ${r.status}`
+		return { ok: false, detail }
 	}
 	return { ok: true, detail: `Jira reachable (${host})` }
 }
@@ -210,36 +214,26 @@ function basicAuth(user, token) {
  */
 function realExec(cmd, args) {
 	const r = spawnSync(cmd, args, { encoding: 'utf8' })
-	return { ok: r.status === 0, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+	return { ok: r.status === 0 && r.error == null, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
 
 /**
- * Default fetcher: GET via node:https with a 10 s timeout.
+ * Default fetcher: GET via global fetch with a 10 s timeout (ADR-0005).
+ * Handles both https:// and http:// URLs; surfaces synchronous errors in the
+ * optional `error` field so callers can show an actionable message.
  *
  * Exported for unit testing of synchronous error paths (e.g. malformed URL).
  * @internal
  * @type {Ping}
  */
 export function realPing(url, headers) {
-	return new Promise((resolve) => {
-		let req
-		try {
-			req = https.request(url, { method: 'GET', headers, timeout: 10_000 }, (res) => {
-				const status = res.statusCode ?? 0
-				res.resume()
-				resolve({ ok: status >= 200 && status < 300, status })
-			})
-		} catch {
-			resolve({ ok: false, status: 0 })
-			return
-		}
-		req.on('error', () => resolve({ ok: false, status: 0 }))
-		req.on('timeout', () => {
-			req.destroy()
-			resolve({ ok: false, status: 0 })
-		})
-		req.end()
+	return fetch(url, {
+		method: 'GET',
+		headers,
+		signal: AbortSignal.timeout(10_000),
 	})
+		.then((res) => ({ ok: res.status >= 200 && res.status < 300, status: res.status }))
+		.catch((err) => ({ ok: false, status: 0, error: err instanceof Error ? err.message : String(err) }))
 }
 
 /**
@@ -299,8 +293,18 @@ export async function runDoctor(deps = {}) {
 		}
 	}
 
-	const creds = loadCreds()
-	if (!creds) {
+	let creds = null
+	let credsLoadError = null
+	try {
+		creds = loadCreds()
+	} catch (err) {
+		credsLoadError = err instanceof Error ? err.message : String(err)
+	}
+
+	if (credsLoadError) {
+		lines.push(`✗ Atlassian credentials — credential file unreadable: ${credsLoadError}`)
+		allOk = false
+	} else if (!creds) {
 		lines.push('✗ Atlassian credentials — neither env vars nor ~/.unic-confluence.json found')
 		allOk = false
 	} else {
