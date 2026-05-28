@@ -61,6 +61,16 @@ describe('checkAzExtension', () => {
 		const exec = execReturning({ ok: true, stdout: 'not-json' })
 		assert.equal(checkAzExtension(exec).ok, false)
 	})
+
+	it('returns ok:false when extension list command exits non-zero', () => {
+		const exec = execReturning({ ok: false, stderr: 'permission denied' })
+		assert.equal(checkAzExtension(exec).ok, false)
+	})
+
+	it('returns ok:false when extension list returns a non-array', () => {
+		const exec = execReturning({ ok: true, stdout: JSON.stringify({ extensions: [] }) })
+		assert.equal(checkAzExtension(exec).ok, false)
+	})
 })
 
 describe('checkAzLogin', () => {
@@ -95,6 +105,11 @@ describe('checkAzIdentity', () => {
 		const exec = execReturning({ ok: true, stdout: JSON.stringify({ emailAddress: 'x@y.com' }) })
 		assert.equal(checkAzIdentity(exec).ok, false)
 	})
+
+	it('returns ok:false when user show returns invalid JSON', () => {
+		const exec = execReturning({ ok: true, stdout: 'not-valid-json' })
+		assert.equal(checkAzIdentity(exec).ok, false)
+	})
 })
 
 describe('checkConfluence', () => {
@@ -110,6 +125,12 @@ describe('checkConfluence', () => {
 		const r = await checkConfluence(creds, pingReturning({ ok: false, status: 401 }))
 		assert.equal(r.ok, false)
 		assert.match(r.detail, /401/)
+	})
+
+	it('returns ok:false when Confluence is unreachable (status 0)', async () => {
+		const creds = { url: 'https://example.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }
+		const r = await checkConfluence(creds, pingReturning({ ok: false, status: 0 }))
+		assert.equal(r.ok, false)
 	})
 })
 
@@ -146,5 +167,16 @@ describe('checkJira', () => {
 		const r = await checkJira(creds, pingReturning({ ok: false, status: 403 }))
 		assert.equal(r.ok, false)
 		assert.match(r.detail, /403/)
+	})
+
+	it('returns ok:false when Jira is unreachable (status 0)', async () => {
+		const creds = {
+			url: 'https://example.atlassian.net',
+			username: 'u',
+			token: 't',
+			jiraUrl: 'https://jira.atlassian.net',
+		}
+		const r = await checkJira(creds, pingReturning({ ok: false, status: 0 }))
+		assert.equal(r.ok, false)
 	})
 })

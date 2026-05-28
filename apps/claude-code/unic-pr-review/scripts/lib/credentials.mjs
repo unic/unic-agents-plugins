@@ -5,9 +5,8 @@
 /**
  * credentials.mjs — load Atlassian (Confluence + optional Jira) and Azure DevOps
  * credentials from environment variables or the credential files under the
- * user's home directory. Env vars take precedence over file contents; if
- * neither source is configured the function returns null and the caller
- * surfaces the error in context.
+ * user's home directory. Env vars take precedence over file contents; each
+ * loader returns null when neither source is configured.
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -59,8 +58,12 @@ export function loadAtlassianCreds(homedir, env) {
 	const home = homedir ?? os.homedir()
 	const path = join(home, '.unic-confluence.json')
 	if (!existsSync(path)) return null
-	const raw = readFileSync(path, 'utf8')
-	const parsed = JSON.parse(raw)
+	let parsed
+	try {
+		parsed = JSON.parse(readFileSync(path, 'utf8'))
+	} catch (err) {
+		throw new Error(`${path} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
+	}
 	if (!parsed.url || !parsed.username || !parsed.token) return null
 	return {
 		url: String(parsed.url),
@@ -86,8 +89,12 @@ export function loadAzureCreds(homedir, env) {
 	const home = homedir ?? os.homedir()
 	const path = join(home, '.unic-azure.json')
 	if (!existsSync(path)) return null
-	const raw = readFileSync(path, 'utf8')
-	const parsed = JSON.parse(raw)
+	let parsed
+	try {
+		parsed = JSON.parse(readFileSync(path, 'utf8'))
+	} catch (err) {
+		throw new Error(`${path} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
+	}
 	if (!parsed.orgUrl || !parsed.pat) return null
 	return { orgUrl: String(parsed.orgUrl), pat: String(parsed.pat) }
 }

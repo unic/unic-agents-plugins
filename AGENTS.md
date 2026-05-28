@@ -14,7 +14,8 @@ apps/
 │   ├── pr-review/
 │   ├── auto-format/
 │   ├── unic-confluence/
-│   └── unic-archon-dlc/
+│   ├── unic-archon-dlc/
+│   └── unic-pr-review/
 └── copilot/                  # GitHub Copilot plugins (future)
 packages/
 ├── biome-config/             # @unic/biome-config

@@ -21,6 +21,7 @@
 import { Buffer } from 'node:buffer'
 import { spawnSync } from 'node:child_process'
 import https from 'node:https'
+import { pathToFileURL } from 'node:url'
 import { loadAtlassianCreds } from './lib/credentials.mjs'
 
 /** @import { AtlassianCreds } from './lib/credentials.mjs' */
@@ -82,8 +83,11 @@ export function checkAzExtension(exec) {
 	let parsed
 	try {
 		parsed = JSON.parse(r.stdout || '[]')
-	} catch {
-		return { ok: false, detail: 'az extension list returned invalid JSON' }
+	} catch (err) {
+		return {
+			ok: false,
+			detail: `az extension list returned invalid JSON (${err instanceof Error ? err.message : String(err)})`,
+		}
 	}
 	if (!Array.isArray(parsed)) {
 		return { ok: false, detail: 'az extension list did not return an array' }
@@ -109,21 +113,25 @@ export function checkAzLogin(exec) {
 }
 
 /**
- * Predicate: `az devops user show --user me` resolves with an id (ADR-0006
- * needs this for Iteration caching).
+ * Predicate: `az devops user show --user me` resolves with a user id.
+ * ADR-0006 requires the caller's identity to be resolvable before
+ * iteration data can be cached against it.
  * @param {Exec} exec
  * @returns {CheckResult}
  */
 export function checkAzIdentity(exec) {
 	const r = exec(AZ, ['devops', 'user', 'show', '--user', 'me', '--output', 'json'])
 	if (!r.ok) {
-		return { ok: false, detail: 'az devops user show --user me failed (Iteration caching will not work)' }
+		return { ok: false, detail: 'az devops user show --user me failed (identity caching will not work)' }
 	}
 	let parsed
 	try {
 		parsed = JSON.parse(r.stdout || '{}')
-	} catch {
-		return { ok: false, detail: 'az devops user show returned invalid JSON' }
+	} catch (err) {
+		return {
+			ok: false,
+			detail: `az devops user show returned invalid JSON (${err instanceof Error ? err.message : String(err)})`,
+		}
 	}
 	if (!parsed || typeof parsed.id !== 'string' || parsed.id.length === 0) {
 		return { ok: false, detail: 'az devops user show resolved but no user id field is present' }
@@ -206,7 +214,7 @@ function realExec(cmd, args) {
 }
 
 /**
- * Default fetcher: HEAD/GET via node:https.
+ * Default fetcher: GET via node:https with a 10 s timeout.
  * @type {Ping}
  */
 function realPing(url, headers) {
@@ -285,9 +293,9 @@ async function main() {
 	process.exit(allOk ? 0 : 1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
-		process.stderr.write(`doctor: unexpected error: ${err?.message ?? err}\n`)
+		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
 		process.exit(1)
 	})
 }
