@@ -1,5 +1,7 @@
 # pr-review
 
+> Deprecated — superseded by `unic-pr-review`. Frozen; no new work.
+
 A Claude Code Plugin that analyses pull requests across multiple dimensions and posts findings back as comments. Currently targets Azure DevOps; designed to be Platform-agnostic.
 
 ## Language

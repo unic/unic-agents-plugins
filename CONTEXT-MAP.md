@@ -7,7 +7,7 @@
 ## Plugin contexts
 
 - [auto-format](./apps/claude-code/auto-format/CONTEXT.md) — formatting automation hook for Claude Code
-- [pr-review](./apps/claude-code/pr-review/CONTEXT.md) — PR review command targeting Azure DevOps
+- [pr-review](./apps/claude-code/pr-review/CONTEXT.md) — **DEPRECATED (v1)**, superseded by `unic-pr-review`; frozen and hook-protected against edits — do not develop here or port anything out of it
 - [unic-confluence](./apps/claude-code/unic-confluence/CONTEXT.md) — Markdown-to-Confluence publishing command
 - [unic-archon-dlc](./apps/claude-code/unic-archon-dlc/CONTEXT.md) — Archon-powered AI development lifecycle DLC
 - [unic-pr-review](./apps/claude-code/unic-pr-review/CONTEXT.md) — AI-powered PR review with intent checking and Confidence-scored Findings

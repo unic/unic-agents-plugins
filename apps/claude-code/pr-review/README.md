@@ -1,5 +1,7 @@
 # pr-review
 
+> ⚠️ **Deprecated.** Superseded by [`unic-pr-review`](../unic-pr-review/), a ground-up v2 rewrite. This plugin is frozen — no new features. Use `unic-pr-review` for all new work.
+
 A Claude Code plugin that reviews Azure DevOps pull requests using multi-agent analysis and posts findings as threaded inline comments and a summary directly back to the PR.
 
 ## What it does
