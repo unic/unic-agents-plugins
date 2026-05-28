@@ -6,7 +6,10 @@
 /**
  * doctor.mjs — preflight checks for unic-pr-review prerequisites.
  *
- * Six checks run sequentially:
+ * Six checks run sequentially. The az checks (1–4) short-circuit on prior
+ * failure — e.g. checks 3/4 are skipped when check 1 fails. The Atlassian
+ * checks (5–6) only run when Atlassian credentials load successfully.
+ *
  *   1. az CLI on PATH
  *   2. azure-devops extension installed
  *   3. az devops session valid (project list)
@@ -348,7 +351,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
-		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
+		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? String(err)}\n`)
 		process.exit(1)
 	})
 }

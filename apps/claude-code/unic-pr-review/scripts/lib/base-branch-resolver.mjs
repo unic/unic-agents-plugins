@@ -48,6 +48,9 @@ export function resolveBaseBranch(exec) {
 		if (ref.startsWith(SYMBOLIC_REF_PREFIX)) {
 			return ref.slice(SYMBOLIC_REF_PREFIX.length)
 		}
+		process.stderr.write(
+			`resolve-base-branch: symbolic-ref succeeded but returned an unexpected ref shape (${ref}); falling back to develop→main→master.\n`
+		)
 	}
 
 	for (const branch of FALLBACK_BRANCHES) {

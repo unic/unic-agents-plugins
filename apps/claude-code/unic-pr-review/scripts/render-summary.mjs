@@ -43,9 +43,9 @@ const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : []
 const positiveObservations = Array.isArray(parsed.positiveObservations) ? parsed.positiveObservations : []
 
 const findings = []
-for (const raw of rawFindings) {
+for (const rawFinding of rawFindings) {
 	try {
-		const f = parseFinding(raw)
+		const f = parseFinding(rawFinding)
 		if (f) findings.push(f)
 	} catch (err) {
 		process.stderr.write(

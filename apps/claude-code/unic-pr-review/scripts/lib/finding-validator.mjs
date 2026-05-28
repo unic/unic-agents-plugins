@@ -40,8 +40,12 @@ import { bucketBySeverity } from './severity-bucketer.mjs'
  * Validate a single raw Finding emitted by a Review Aspect agent.
  *
  * Returns the normalised Finding (with derived `severity`) on success.
- * Returns `null` when confidence is below the drop threshold (< 60).
- * Throws on any shape or type violation.
+ * Returns `null` when confidence is below the drop threshold (< 60). Note:
+ * sub-threshold findings short-circuit before the remaining shape checks
+ * run, so a low-confidence Finding with otherwise-garbage fields is silently
+ * dropped rather than reported as malformed.
+ * Throws on any shape, type, or confidence-range violation (non-finite or
+ * outside 0–100, surfaced via `bucketBySeverity`).
  *
  * @param {unknown} raw
  * @returns {ValidatedFinding | null}
