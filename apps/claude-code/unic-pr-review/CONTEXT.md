@@ -60,12 +60,20 @@ _Avoid_: ticket, story, task
 A prose block at the top of the Review Summary (before the Intent Check) used for warnings, escalations, and fallback conditions.
 _Avoid_: alert, banner, warning
 
+**Review Aspect**:
+One specialised sub-agent lens applied to the whole diff — e.g. `code-reviewer`, `silent-failure-hunter`, `type-design-analyzer`. Each aspect runs in parallel and emits its own Findings. Which aspects spawn is decided by the Spawn Set.
+_Avoid_: dimension, pass, check
+
+**Spawn Set**:
+The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008).
+_Avoid_: agent list, run set, active agents
+
 ## Relationships
 
 - A **Review** runs in exactly one **Mode**, decided at startup
 - A **Mode** is selected by the active **Provider**'s URL parsing plus **Bot Signature** detection
 - The Intent Checker turns one or more **Work Items** into a single **Intent Brief**
-- Every Review Aspect agent receives the **Intent Brief** and emits zero or more **Findings**
+- Every Review Aspect agent receives the **Intent Brief** (when available) and emits zero or more **Findings**
 - Each **Finding** carries a **Confidence** score that determines its **Severity** bucket
 - The **Approval Loop** mediates between **Findings** and PR write-back
 - The **Bot Signature** records the **Iteration** and lets the next Review detect prior runs

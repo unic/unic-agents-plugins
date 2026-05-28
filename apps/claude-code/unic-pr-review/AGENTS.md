@@ -39,12 +39,20 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 
 ```tree
 .claude-plugin/   # Plugin manifest (plugin.json) and marketplace listing
+agents/           # Review Aspect agent prompts (one .md per aspect)
 commands/         # Claude Code slash command definitions (.md files)
 scripts/          # Node.js implementation (.mjs, // @ts-check, no compilation)
 scripts/lib/      # Pure-function library modules
 tests/            # node:test suites (*.test.mjs)
 docs/adr/         # Plugin-scoped Architecture Decision Records
 ```
+
+### Adding a new Review Aspect
+
+Two changes are required — both are mandatory; omitting either causes the agent to be silently never spawned:
+
+1. Create `agents/<name>.md` — the agent prompt following the structure of existing agents.
+2. Add an entry to `SPAWN_TABLE` in `scripts/lib/changed-file-analyser.mjs` — the predicate that decides when to spawn it.
 
 ## Plugin doctrines
 
