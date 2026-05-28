@@ -50,10 +50,26 @@ import { renderFooter } from './signature.mjs'
  */
 
 /**
+ * The set of valid {@link AcVerdict} values — the single runtime source of truth
+ * for the union above. Surfaced verbatim, so it must match the PRD §10 phrasing.
+ * @type {readonly AcVerdict[]}
+ */
+export const AC_VERDICTS = ['addressed', 'unaddressed', 'partially addressed']
+
+/**
+ * @param {unknown} value
+ * @returns {value is AcVerdict}
+ */
+export function isAcVerdict(value) {
+	return typeof value === 'string' && /** @type {readonly string[]} */ (AC_VERDICTS).includes(value)
+}
+
+/**
  * @typedef {Object} IntentCheckItem
  * @property {string} title
  * @property {string} id
  * @property {Record<string, AcVerdict>} verdicts - e.g. { 'AC 1': 'addressed', 'AC 2': 'unaddressed' }
+ * @property {string} [note] - optional context, e.g. when an item could not be fetched
  */
 
 /**
@@ -105,6 +121,9 @@ export function renderReviewSummary(ctx) {
 		parts.push('')
 		for (const item of ctx.intentCheck) {
 			parts.push(`- **${item.title} (${item.id})**`)
+			if (item.note) {
+				parts.push(`  - _${item.note}_`)
+			}
 			for (const [ac, verdict] of Object.entries(item.verdicts)) {
 				parts.push(`  - ${ac}: ${verdict}`)
 			}

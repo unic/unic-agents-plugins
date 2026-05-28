@@ -194,4 +194,42 @@ describe('render-summary CLI — INTENT_CHECK_JSON', () => {
 		assert.match(r.stderr, /INTENT_CHECK_JSON is not valid JSON/)
 		assert.doesNotMatch(r.stdout, /### Intent Check/)
 	})
+
+	it('names the offending id when dropping a malformed IntentCheckItem', () => {
+		const intentCheck = JSON.stringify([{ id: 'PROJ-9', title: 'No verdicts' }])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /dropped malformed IntentCheckItem \(id=PROJ-9\)/)
+	})
+
+	it('drops an IntentCheckItem with an off-spec verdict value instead of rendering garbage (exit 0)', () => {
+		const intentCheck = JSON.stringify([
+			{ id: 'PROJ-1', title: 'Valid', verdicts: { 'AC 1': 'addressed' } },
+			{ id: 'PROJ-2', title: 'Bad verdict', verdicts: { 'AC 1': 'maybe?' } },
+			{ id: 'PROJ-3', title: 'Object verdict', verdicts: { 'AC 1': { nested: true } } },
+		])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /invalid verdict value/)
+		assert.match(r.stdout, /\*\*Valid \(PROJ-1\)\*\*/)
+		assert.doesNotMatch(r.stdout, /PROJ-2/)
+		assert.doesNotMatch(r.stdout, /PROJ-3/)
+		assert.doesNotMatch(r.stdout, /\[object Object\]/)
+	})
+
+	it('accepts the "partially addressed" verdict value (PRD §10)', () => {
+		const intentCheck = JSON.stringify([{ id: 'PROJ-1', title: 'Mixed', verdicts: { 'AC 1': 'partially addressed' } }])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stdout, /AC 1: partially addressed/)
+	})
+
+	it('renders an optional `note` for an item that could not be fetched', () => {
+		const intentCheck = JSON.stringify([
+			{ id: 'PROJ-7', title: 'Unfetchable', verdicts: { 'AC 1': 'unaddressed' }, note: 'Item could not be fetched.' },
+		])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stdout, /_Item could not be fetched\._/)
+	})
 })

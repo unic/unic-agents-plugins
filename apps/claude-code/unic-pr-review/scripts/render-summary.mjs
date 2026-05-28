@@ -22,7 +22,18 @@
  */
 
 import { parseFinding } from './lib/finding-validator.mjs'
-import { renderReviewSummary } from './lib/review-summary-renderer.mjs'
+import { isAcVerdict, renderReviewSummary } from './lib/review-summary-renderer.mjs'
+
+/**
+ * Best-effort id for a dropped IntentCheckItem warning, so stderr names which
+ * item failed instead of an opaque "dropped malformed item".
+ * @param {unknown} item
+ * @returns {string}
+ */
+function idLabel(item) {
+	const id = /** @type {{ id?: unknown }} */ (item)?.id
+	return typeof id === 'string' ? id : '?'
+}
 
 const raw = process.env.FINDINGS_JSON
 if (!raw) {
@@ -83,7 +94,17 @@ if (rawIntentCheck?.trim()) {
 					verdicts === null ||
 					Array.isArray(verdicts)
 				) {
-					process.stderr.write('render-summary: dropped malformed IntentCheckItem\n')
+					process.stderr.write(`render-summary: dropped malformed IntentCheckItem (id=${idLabel(item)})\n`)
+					return false
+				}
+				// Verdict values are rendered verbatim into the PR summary, so an
+				// off-spec value (object, number, typo) would surface as garbage like
+				// `AC 1: [object Object]`. Drop the whole item instead.
+				const badVerdict = Object.values(verdicts).find((v) => !isAcVerdict(v))
+				if (badVerdict !== undefined) {
+					process.stderr.write(
+						`render-summary: dropped IntentCheckItem (id=${idLabel(item)}) with invalid verdict value: ${JSON.stringify(badVerdict)}\n`
+					)
 					return false
 				}
 				return true
