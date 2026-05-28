@@ -215,15 +215,24 @@ function realExec(cmd, args) {
 
 /**
  * Default fetcher: GET via node:https with a 10 s timeout.
+ *
+ * Exported for unit testing of synchronous error paths (e.g. malformed URL).
+ * @internal
  * @type {Ping}
  */
-function realPing(url, headers) {
+export function realPing(url, headers) {
 	return new Promise((resolve) => {
-		const req = https.request(url, { method: 'GET', headers, timeout: 10_000 }, (res) => {
-			const status = res.statusCode ?? 0
-			res.resume()
-			resolve({ ok: status >= 200 && status < 300, status })
-		})
+		let req
+		try {
+			req = https.request(url, { method: 'GET', headers, timeout: 10_000 }, (res) => {
+				const status = res.statusCode ?? 0
+				res.resume()
+				resolve({ ok: status >= 200 && status < 300, status })
+			})
+		} catch {
+			resolve({ ok: false, status: 0 })
+			return
+		}
 		req.on('error', () => resolve({ ok: false, status: 0 }))
 		req.on('timeout', () => {
 			req.destroy()
@@ -243,54 +252,79 @@ function formatLine(result, label) {
 	return `${glyph} ${label} — ${result.detail}`
 }
 
-async function main() {
+/**
+ * @typedef {Object} RunDoctorDeps
+ * @property {Exec} [exec]
+ * @property {Ping} [ping]
+ * @property {() => (AtlassianCreds|null)} [loadCreds]
+ */
+
+/**
+ * Execute all preflight checks and return the rendered output + overall status.
+ * Exported so unit tests can drive main() with stubbed dependencies.
+ * @internal
+ * @param {RunDoctorDeps} [deps]
+ * @returns {Promise<{ok: boolean, output: string }>}
+ */
+export async function runDoctor(deps = {}) {
+	const exec = deps.exec ?? realExec
+	const ping = deps.ping ?? realPing
+	const loadCreds = deps.loadCreds ?? (() => loadAtlassianCreds())
+
 	const lines = []
 	lines.push('unic-pr-review doctor')
 	lines.push('─────────────────────────────────')
 
 	let allOk = true
 
-	const az = checkAzCli(realExec)
+	const az = checkAzCli(exec)
 	lines.push(formatLine(az, 'az CLI'))
 	if (!az.ok) allOk = false
 
 	if (az.ok) {
-		const ext = checkAzExtension(realExec)
+		const ext = checkAzExtension(exec)
 		lines.push(formatLine(ext, 'azure-devops extension'))
 		if (!ext.ok) allOk = false
 
 		if (ext.ok) {
-			const login = checkAzLogin(realExec)
+			const login = checkAzLogin(exec)
 			lines.push(formatLine(login, 'az devops session'))
 			if (!login.ok) allOk = false
 
 			if (login.ok) {
-				const ident = checkAzIdentity(realExec)
+				const ident = checkAzIdentity(exec)
 				lines.push(formatLine(ident, 'az devops identity'))
 				if (!ident.ok) allOk = false
 			}
 		}
 	}
 
-	const creds = loadAtlassianCreds()
+	const creds = loadCreds()
 	if (!creds) {
 		lines.push('✗ Atlassian credentials — neither env vars nor ~/.unic-confluence.json found')
 		allOk = false
 	} else {
-		const conf = await checkConfluence(creds, realPing)
+		const conf = await checkConfluence(creds, ping)
 		lines.push(formatLine(conf, 'Confluence'))
 		if (!conf.ok) allOk = false
 
-		const jira = await checkJira(creds, realPing)
-		lines.push(formatLine(jira, 'Jira'))
-		if (!jira.ok && !jira.skipped) allOk = false
+		if (creds.jiraUrl) {
+			const jira = await checkJira(creds, ping)
+			lines.push(formatLine(jira, 'Jira'))
+			if (!jira.ok) allOk = false
+		}
 	}
 
 	lines.push('─────────────────────────────────')
 	lines.push(allOk ? 'All checks passed.' : 'One or more checks failed — see lines marked ✗ above.')
 
-	process.stdout.write(`${lines.join('\n')}\n`)
-	process.exit(allOk ? 0 : 1)
+	return { ok: allOk, output: `${lines.join('\n')}\n` }
+}
+
+async function main() {
+	const { ok, output } = await runDoctor()
+	process.stdout.write(output)
+	process.exit(ok ? 0 : 1)
 }
 
 if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {

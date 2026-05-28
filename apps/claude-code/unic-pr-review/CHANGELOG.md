@@ -17,7 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- Test runner now executes credentials.test.mjs in addition to doctor.test.mjs
+- doctor stays fully silent about Jira when jiraUrl is not configured (US-35)
+- realPing degrades gracefully when given a malformed URL instead of crashing the doctor
+- credentials loader distinguishes file-read errors from JSON-parse errors
 
 ## [2.0.0] — 2026-05-28
 

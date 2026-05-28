@@ -17,8 +17,14 @@ import { join } from 'node:path'
  * @param {string} filePath
  */
 function readJsonFile(filePath) {
+	let raw
 	try {
-		return JSON.parse(readFileSync(filePath, 'utf8'))
+		raw = readFileSync(filePath, 'utf8')
+	} catch (err) {
+		throw new Error(`${filePath} could not be read: ${err instanceof Error ? err.message : String(err)}`)
+	}
+	try {
+		return JSON.parse(raw)
 	} catch (err) {
 		throw new Error(`${filePath} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
 	}

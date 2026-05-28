@@ -11,6 +11,8 @@ import {
 	checkAzLogin,
 	checkConfluence,
 	checkJira,
+	realPing,
+	runDoctor,
 } from '../scripts/doctor.mjs'
 
 /** @import { Exec, Ping } from '../scripts/doctor.mjs' */
@@ -178,5 +180,57 @@ describe('checkJira', () => {
 		}
 		const r = await checkJira(creds, pingReturning({ ok: false, status: 0 }))
 		assert.equal(r.ok, false)
+	})
+})
+
+describe('runDoctor — Jira silence (US-35)', () => {
+	// exec stub that returns ok for everything; identity returns a valid id
+	/** @type {Exec} */
+	const allOkExec = (_cmd, args) => {
+		if (args.includes('user') && args.includes('show')) {
+			return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
+		}
+		if (args.includes('extension')) {
+			return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
+		}
+		return { ok: true, stdout: '[]', stderr: '' }
+	}
+
+	it('emits no Jira line when jiraUrl is not configured', async () => {
+		const { ok, output } = await runDoctor({
+			exec: allOkExec,
+			ping: pingReturning({ ok: true, status: 200 }),
+			loadCreds: () => ({
+				url: 'https://example.atlassian.net',
+				username: 'u',
+				token: 't',
+				jiraUrl: undefined,
+			}),
+		})
+		assert.equal(ok, true)
+		assert.doesNotMatch(output, /Jira/)
+		assert.doesNotMatch(output, /skipped/)
+		assert.match(output, /Confluence reachable/)
+	})
+
+	it('emits a Jira line when jiraUrl is configured', async () => {
+		const { output } = await runDoctor({
+			exec: allOkExec,
+			ping: pingReturning({ ok: true, status: 200 }),
+			loadCreds: () => ({
+				url: 'https://example.atlassian.net',
+				username: 'u',
+				token: 't',
+				jiraUrl: 'https://jira.atlassian.net',
+			}),
+		})
+		assert.match(output, /Jira reachable/)
+	})
+})
+
+describe('realPing', () => {
+	it('resolves { ok:false, status:0 } when given a malformed URL', async () => {
+		const r = await realPing('not-a-valid-url', {})
+		assert.deepEqual(r, { ok: false, status: 0 })
 	})
 })
