@@ -52,7 +52,8 @@ git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
 ```
 
 - **Diff exceeds ~2000 lines or ~200 KB**: warn the user that the review may be
-  incomplete and suggest tightening the base branch (e.g. `--base feature/x`).
+  incomplete, and suggest splitting the work into smaller branches/PRs. The base
+  branch is auto-resolved (ADR-0009) and cannot be overridden per run.
 
 ## Step 3.5 — Gather optional intent URLs
 

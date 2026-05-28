@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `commands/review-pr.md` large-diff guidance no longer suggests a non-existent `--base` flag; it now advises splitting the branch and notes the base branch is auto-resolved (ADR-0009) with no per-run override
 - Test runner now executes credentials.test.mjs in addition to doctor.test.mjs
 - doctor stays fully silent about Jira when jiraUrl is not configured (US-35)
 - realPing degrades gracefully when given a malformed URL instead of crashing the doctor
