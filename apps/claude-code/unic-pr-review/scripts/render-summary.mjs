@@ -63,7 +63,7 @@ for (const rawFinding of rawFindings) {
 const rawIntentCheck = process.env.INTENT_CHECK_JSON
 /** @type {import('./lib/review-summary-renderer.mjs').IntentCheckItem[] | undefined} */
 let intentCheck
-if (rawIntentCheck && rawIntentCheck.trim() !== '') {
+if (rawIntentCheck?.trim()) {
 	try {
 		const parsedIntent = JSON.parse(rawIntentCheck)
 		if (!Array.isArray(parsedIntent)) {

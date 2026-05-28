@@ -189,9 +189,8 @@ export function parseJiraACs(description) {
 	if (description == null) return []
 	if (typeof description === 'string') return parseAcsFromString(description)
 	if (typeof description !== 'object') return []
-	const content = Array.isArray(/** @type {any} */ (description).content)
-		? /** @type {any} */ (description).content
-		: []
+	const adf = /** @type {any} */ (description)
+	const content = Array.isArray(adf.content) ? adf.content : []
 	/** @type {string[]} */
 	const acs = []
 	let collecting = false
