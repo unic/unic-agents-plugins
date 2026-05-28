@@ -40,9 +40,12 @@ Then reinstall plugins from the Claude Code command palette.
 
 ## Commands
 
-| Command                  | Description                                          | Argument hint    |
-| ------------------------ | ---------------------------------------------------- | ---------------- |
-| `/unic-pr-review:doctor` | Verify all unic-pr-review prerequisites are in place | _(no arguments)_ |
+| Command                            | Description                                                      | Argument hint    |
+| ---------------------------------- | ---------------------------------------------------------------- | ---------------- |
+| `/unic-pr-review:doctor`           | Verify all unic-pr-review prerequisites are in place             | _(no arguments)_ |
+| `/unic-pr-review:setup-confluence` | Interactive wizard — writes `~/.unic-confluence.json`            | _(no arguments)_ |
+| `/unic-pr-review:setup-jira`       | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json` | _(no arguments)_ |
+| `/unic-pr-review:setup-azure`      | Interactive wizard — writes `~/.unic-azure.json`                 | _(no arguments)_ |
 
 ## Credential files
 
@@ -65,7 +68,7 @@ The `jiraUrl` field is optional. If absent, doctor stays silent about Jira (US 3
 
 ### `~/.unic-azure.json`
 
-Reserved for use by later Plugin slices (the doctor in v2.0.0 relies on the cached `az devops login` session, not on the PAT):
+Used by future review commands for Azure DevOps reads/writes. The doctor in v2.0.0 relies on the cached `az devops login` session rather than this file, but you can pre-populate it now via `/unic-pr-review:setup-azure` so it is ready when the review commands land:
 
 ```json
 {

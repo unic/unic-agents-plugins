@@ -33,7 +33,7 @@ If a check fails, relay the failure detail verbatim and suggest the corrective a
 - `azure-devops` extension missing → `az extension add --name azure-devops`
 - `az devops` session invalid → `az devops login --org <your-org-url>`
 - `az devops user show` fails → re-run `az devops login`, then re-run doctor; if still failing, check your ADO permissions
-- Confluence unreachable → run `/unic-pr-review:setup-confluence` (coming in a later release) or set `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN`
-- Jira unreachable → run `/unic-pr-review:setup-jira` (coming in a later release) or set `JIRA_URL`
+- Confluence unreachable → run `/unic-pr-review:setup-confluence` to create `~/.unic-confluence.json`, or set `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN`
+- Jira unreachable → run `/unic-pr-review:setup-jira` to add the `jiraUrl` field, or set `JIRA_URL`
 
 If every line is `✓` (or `○` for unconfigured Jira), tell the user that doctor is green and they are ready for the next Plugin slice.
