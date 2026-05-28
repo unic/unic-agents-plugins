@@ -13,7 +13,7 @@ Two alternatives were considered:
 
 ## Decision
 
-The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents in parallel, each handling the whole diff under one lens. Spawning is conditional on what the diff contains — `code-reviewer` always runs; `pr-test-analyzer` runs only when test files changed; `silent-failure-hunter` only when error handling changed; etc. The Plugin does NOT split the diff into per-file chunks.
+The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents in parallel, each handling the whole diff under one lens. Spawning is conditional on what the diff contains — `code-reviewer` always runs; `pr-test-analyzer` runs only when test files changed; `silent-failure-hunter` runs when at least one non-test source file changed (a path/extension heuristic, not diff-content inspection); etc. The Plugin does NOT split the diff into per-file chunks.
 
 ## Consequences
 
