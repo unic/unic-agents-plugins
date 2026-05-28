@@ -88,8 +88,11 @@ Wait for the agent to complete. It emits exactly one of:
   summary:
 
   ```
-  Intent gathering failed: <url> is unreachable. Run <setupCommand> to configure credentials, then re-run the review.
+  Intent gathering failed: <url> could not be fetched (unreachable, or its credentials were rejected). Run <setupCommand> to configure credentials, then re-run the review.
   ```
+
+  The hard-stop fires for both `unreachable` and `auth-error` kinds (ADR-0004), so the
+  message stays accurate without claiming the cause is a network failure.
 
 - **B — intent gathered**:
 
