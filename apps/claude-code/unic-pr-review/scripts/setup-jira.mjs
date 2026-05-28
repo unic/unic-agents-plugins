@@ -87,7 +87,13 @@ export function isJiraEnvConfigured(env) {
 }
 
 async function main() {
-	const args = parseArgs(process.argv.slice(2))
+	let args
+	try {
+		args = parseArgs(process.argv.slice(2))
+	} catch (err) {
+		process.stderr.write(`setup-jira: ${err instanceof Error ? err.message : String(err)}\n`)
+		process.exit(1)
+	}
 	const { jiraUrl } = args
 	if (!jiraUrl) {
 		process.stderr.write('setup-jira: --jiraUrl is required\n')

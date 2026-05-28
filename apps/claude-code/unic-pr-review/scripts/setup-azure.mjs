@@ -61,7 +61,13 @@ export function isAzureEnvConfigured(env) {
 }
 
 async function main() {
-	const args = parseArgs(process.argv.slice(2))
+	let args
+	try {
+		args = parseArgs(process.argv.slice(2))
+	} catch (err) {
+		process.stderr.write(`setup-azure: ${err instanceof Error ? err.message : String(err)}\n`)
+		process.exit(1)
+	}
 	const { orgUrl, pat } = args
 	if (!orgUrl || !pat) {
 		process.stderr.write('setup-azure: --orgUrl and --pat are both required\n')

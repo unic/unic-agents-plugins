@@ -86,7 +86,13 @@ export function isEnvConfigured(env) {
 }
 
 async function main() {
-	const args = parseArgs(process.argv.slice(2))
+	let args
+	try {
+		args = parseArgs(process.argv.slice(2))
+	} catch (err) {
+		process.stderr.write(`setup-confluence: ${err instanceof Error ? err.message : String(err)}\n`)
+		process.exit(1)
+	}
 	const { url, username, token } = args
 	if (!url || !username || !token) {
 		process.stderr.write('setup-confluence: --url, --username and --token are all required\n')
