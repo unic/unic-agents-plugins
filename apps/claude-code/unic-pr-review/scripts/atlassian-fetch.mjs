@@ -474,7 +474,7 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 		throw new FetchError(
 			pageIdOrUrl,
 			'not-found',
-			'could not extract a Confluence page ID from this URL format — only /pages/<id>/ and ?pageId=<id> are supported'
+			`could not extract a Confluence page ID from this URL format — only /pages/<id>/ and ?pageId=<id> are supported: ${pageIdOrUrl}`
 		)
 	}
 	const url = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}?expand=body.storage,version`
@@ -502,9 +502,11 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
  */
 
 /**
- * Route, fetch, and normalise every URL. Never throws — per-URL failures are
- * collected into the `errors` array so the caller (the Intent Checker agent)
- * decides whether to hard-stop. Unrecognised URLs are warned and skipped.
+ * Route, fetch, and normalise every URL. Never throws — per-URL failures (and a
+ * missing or unreadable credential file) are collected into the `errors` array
+ * so the caller (the Intent Checker agent) decides whether to hard-stop.
+ * Unrecognised URLs are warned on stderr and recorded as a soft `unsupported`
+ * error (not silently skipped) so the Intent Checker can surface them.
  * @param {string[]} urls
  * @param {CollectDeps} [deps]
  * @returns {Promise<FetchOutput>}
@@ -513,7 +515,19 @@ export async function collectIntent(urls, deps = {}) {
 	const fetchImpl = deps.fetch ?? globalThis.fetch
 	const stderr = deps.stderr ?? process.stderr
 	const loadCreds = deps.loadCreds ?? loadAtlassianCreds
-	const creds = loadCreds(deps.homedir, deps.env)
+	/** @type {AtlassianCreds | null} */
+	let creds
+	try {
+		creds = loadCreds(deps.homedir, deps.env)
+	} catch (err) {
+		// A present-but-malformed or unreadable credential file throws in the
+		// loader. Convert it to a global auth-error (url === '') so callers get the
+		// structured never-throws contract and the CLI exits 1, just like missing
+		// credentials — a broken config can't yield valid intent either way.
+		const message = `credential file could not be read — ${err instanceof Error ? err.message : String(err)}`
+		stderr.write(`atlassian-fetch: ${message}\n`)
+		return { items: [], errors: [{ url: '', kind: 'auth-error', message }] }
+	}
 	if (!creds) {
 		return {
 			items: [],

@@ -549,6 +549,60 @@ describe('collectIntent — routing and errors', () => {
 		assert.equal(result.errors[0].kind, 'not-found')
 		assert.equal(result.errors[0].url, 'https://x.atlassian.net/wiki/spaces/X/pages/1')
 	})
+
+	it('does not throw when the credential loader throws — records a global auth-error', async () => {
+		/** @type {string[]} */
+		const warnings = []
+		const result = await collectIntent(['https://x.atlassian.net/browse/A-1'], {
+			loadCreds: () => {
+				throw new Error('/home/u/.unic-confluence.json contains invalid JSON')
+			},
+			stderr: { write: (s) => warnings.push(s) },
+		})
+		assert.deepEqual(result.items, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'auth-error')
+		assert.equal(result.errors[0].url, '')
+		assert.match(result.errors[0].message, /could not be read/)
+		assert.match(warnings.join(''), /could not be read/)
+	})
+
+	it('maps a 5xx response to a hard-stop `unreachable` error', async () => {
+		const result = await collectIntent(['https://x.atlassian.net/wiki/spaces/X/pages/1'], {
+			env,
+			fetch: fetchStatus(500),
+		})
+		assert.deepEqual(result.items, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'unreachable')
+	})
+
+	it('maps a JSON body that fails to parse to a soft `parse-error`', async () => {
+		/** @type {FetchLike} */
+		const fetchBadJson = async () => ({
+			ok: true,
+			status: 200,
+			json: async () => {
+				throw new SyntaxError('Unexpected token < in JSON')
+			},
+		})
+		const result = await collectIntent(['https://x.atlassian.net/wiki/spaces/X/pages/1'], {
+			env,
+			fetch: fetchBadJson,
+		})
+		assert.deepEqual(result.items, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'parse-error')
+	})
+
+	it('maps a `/wiki/` URL with no extractable page id to a soft `not-found`', async () => {
+		const url = 'https://x.atlassian.net/wiki/spaces/X/overview'
+		const result = await collectIntent([url], { env, fetch: fetchJson({}) })
+		assert.deepEqual(result.items, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'not-found')
+		assert.equal(result.errors[0].url, url)
+	})
 })
 
 describe('main', () => {
