@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `render-summary` no longer crashes on an `IntentCheckItem` whose `verdicts` is `null` (or an array, or whose `id`/`title` is not a string): validation now requires a non-null plain object so malformed items are dropped with a stderr note instead of throwing in `Object.entries` (PR #159 review)
 - `atlassian-fetch` reports an unrecognised pasted URL (e.g. an ADO Boards link, not yet supported on this path) as a soft `unsupported` error instead of only warning to stderr, so the Intent Checker can surface it to the reviewer rather than producing silent empty intent (PR #159 review)
 - Intent-gathering hard-stop message in `commands/review-pr.md` no longer claims the URL "is unreachable" when the cause may be rejected credentials — it now reads "could not be fetched (unreachable, or its credentials were rejected)" since the hard-stop covers both `unreachable` and `auth-error` (PR #159 review)
+- `collectIntent` no longer breaks its documented "never throws" contract when the credential file exists but is unreadable or malformed: the loader call is now guarded and a corrupt config surfaces as a global `auth-error` entry (exit 1) instead of an uncaught exception (PR #159 review, Step 4)
+- `render-summary` now drops an `IntentCheckItem` whose `verdicts` contains an off-spec value (object, number, typo) with a stderr note instead of rendering garbage like `AC 1: [object Object]` into the PR summary; verdict values are validated against the single `AC_VERDICTS` source of truth exported from `review-summary-renderer.mjs` (PR #159 review, Step 4)
+- `review-summary-renderer.mjs` now renders the optional `IntentCheckItem.note` (e.g. "Item could not be fetched.") that the Intent Checker emits for unreachable/parse-error items — previously the note was silently dropped (PR #159 review, Step 4)
+- Stale `collectIntent` JSDoc ("Unrecognised URLs are warned and skipped") corrected to describe the soft `unsupported` error it now records; dropped-`IntentCheckItem` stderr warnings now name the offending `id` (PR #159 review, Step 4)
 
 ## [2.0.0] — 2026-05-28
 
