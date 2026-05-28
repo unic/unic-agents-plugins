@@ -54,6 +54,16 @@ describe('renderInlineComment', () => {
 		assert.ok(!out.includes('```suggestion'))
 	})
 
+	it('treats whitespace-only suggestion as absent', () => {
+		const out = renderInlineComment({ ...BASE, suggestion: '   \n\t' })
+		assert.ok(!out.includes('```suggestion'), 'Whitespace-only suggestion should not render a block')
+	})
+
+	it('separates body from the suggestion fence with a blank line', () => {
+		const out = renderInlineComment({ ...BASE, suggestion: 'fix me' })
+		assert.ok(out.includes(`${BASE.body}\n\n\`\`\`suggestion`), 'Expected blank line between body and suggestion fence')
+	})
+
 	it('footer is byte-identical to renderFooter(1) for iteration 1', () => {
 		const out = renderInlineComment(BASE)
 		const expected = renderFooter(1)

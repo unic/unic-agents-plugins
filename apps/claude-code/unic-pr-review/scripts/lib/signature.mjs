@@ -25,9 +25,10 @@ export const SIGNATURE_PREFIX = '🤖 Reviewed by Claude Code — Iteration '
 /**
  * Render the Bot Signature footer line for the given iteration number.
  *
- * Returns the full wording with two trailing newlines (document terminator).
- * Renderers push this as the last element in a `parts` array joined with `\n`,
- * so no extra blank line is needed between the `---` separator and the footer.
+ * Returns `<prefix><iteration>\n\n`. Renderers push this after a `---` line
+ * into a `parts` array joined with `\n`: the join's `\n` supplies the
+ * separator-to-footer break, leaving one trailing `\n` as the document
+ * terminator. Do not inline the prefix anywhere else.
  *
  * @param {number} iteration - 1-based iteration number for this Review run
  * @returns {string}

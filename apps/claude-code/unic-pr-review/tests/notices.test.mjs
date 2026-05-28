@@ -29,12 +29,15 @@ describe('renderNotices', () => {
 		assert.ok(out.includes('> - Magic number'))
 	})
 
-	it('renders both notices when both flags are set', () => {
+	it('renders both notices when both flags are set, with fallback first', () => {
 		const out = renderNotices({
 			fallbackToFirstReview: true,
 			persistentUnaddressed: ['Rename variable'],
 		})
-		assert.ok(out.includes('> **Notice:**'))
-		assert.ok(out.includes('> **Persistent unaddressed findings:**'))
+		const fallbackIdx = out.indexOf('> **Notice:**')
+		const persistentIdx = out.indexOf('> **Persistent unaddressed findings:**')
+		assert.ok(fallbackIdx >= 0, 'Missing fallback notice')
+		assert.ok(persistentIdx >= 0, 'Missing persistent-unaddressed block')
+		assert.ok(fallbackIdx < persistentIdx, 'Fallback notice must precede persistent-unaddressed block')
 	})
 })

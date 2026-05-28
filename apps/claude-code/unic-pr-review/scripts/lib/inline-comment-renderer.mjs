@@ -44,8 +44,9 @@ const SEVERITY_EMOJI = {
 /**
  * Render an Inline Comment for a single Finding.
  *
- * The suggestion block is included ONLY when ctx.suggestion is a non-empty
- * string — never include an empty suggestion block.
+ * The suggestion block is included ONLY when ctx.suggestion is a string with
+ * at least one non-whitespace character — whitespace-only suggestions are
+ * treated as absent rather than producing an empty-looking block.
  *
  * @param {InlineCommentContext} ctx
  * @returns {string}
@@ -59,7 +60,7 @@ export function renderInlineComment(ctx) {
 	parts.push('')
 	parts.push(ctx.body)
 
-	if (ctx.suggestion) {
+	if (ctx.suggestion && ctx.suggestion.trim().length > 0) {
 		parts.push('')
 		parts.push('```suggestion')
 		parts.push(ctx.suggestion)

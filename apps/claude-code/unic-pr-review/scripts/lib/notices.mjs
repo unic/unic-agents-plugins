@@ -6,9 +6,9 @@
  * notices.mjs — build the optional Notices block that appears at the top of
  * the Review Summary before any Findings sections.
  *
- * Returns an empty string when no notices apply. The caller is responsible
- * for inserting a trailing blank line before the first section when the block
- * is non-empty.
+ * Returns an empty string when no notices apply, otherwise a block of one or
+ * more `>`-prefixed lines with no trailing newline. Callers that follow the
+ * block with further sections must push a blank line themselves.
  */
 
 /**

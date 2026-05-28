@@ -13,7 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- (none)
+- `scripts/lib/exec.mjs`: shared `Exec` / `ExecResult` types and `realExec` (removes the duplication between `doctor.mjs` and `base-branch-resolver.mjs`)
+- `scripts/lib/finding-validator.mjs`: `parseFinding` boundary validator for raw agent output (drops findings below the confidence floor, throws on malformed shapes)
+- `scripts/render-summary.mjs`: standalone CLI that reads `FINDINGS_JSON` and writes the Review Summary markdown — replaces the cross-platform-fragile inline `node -e` snippet in `commands/review-pr.md`
+- `doctor.mjs` exports `mapPingError`, `PING_TIMEOUT_MS`, `AZ` for unit testing
+- `commands/review-pr.md` Step 3 includes a large-diff (`git diff --shortstat`) sanity check before fanning out to the agent
+
+### Changed
+
+- `PingResult` is now a discriminated union (`{ kind: 'http' } | { kind: 'transport-error' }`) so callers cannot conflate transport failures with HTTP responses
+- `ModeContext` is a discriminated union mirroring the four-row decision table — nonsense input combinations are unrepresentable
+- `ReviewSummaryContext` collapses `criticalFindings` / `importantFindings` / `minorFindings` into a single `findings: SummaryFinding[]` with a `severity` field; the renderer buckets internally
+- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partial'` instead of free-form strings
+- `realPing` maps `TimeoutError` to a friendly `Request timed out after 10s` so doctor output is consistent across Node versions
+- `bucketBySeverity` throws on non-finite or out-of-range confidence inputs instead of silently returning `null`
+- `analyseChangedFiles` and `resolveBaseBranch` validate their inputs at the boundary and throw on misuse
+- `renderInlineComment` treats a whitespace-only `suggestion` as absent
+- `agents/code-reviewer.md` JSON schema drops the unused `endLine` field
 
 ### Fixed
 
@@ -22,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - realPing degrades gracefully when given a malformed URL instead of crashing the doctor
 - credentials loader distinguishes file-read errors from JSON-parse errors
 - review-pr command frontmatter allows the `Agent` tool so the code-reviewer sub-agent can be spawned
-- doctor.mjs `PingResult.error` JSDoc and `realPing` prose now reflect that the field is populated for any fetch failure (synchronous throws plus timeouts and network errors)
+- JSDoc and prose comments across `signature.mjs`, `notices.mjs`, `base-branch-resolver.mjs`, `changed-file-analyser.mjs`, and `review-summary-renderer.mjs` reworded to match runtime behaviour
+- `tests/doctor.test.mjs` covers the `mapPingError` timeout path and asserts the `AZ` binary selector matches `process.platform`
 
 ## [2.0.0] — 2026-05-28
 

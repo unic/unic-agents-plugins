@@ -18,4 +18,11 @@ describe('analyseChangedFiles', () => {
 	it('returns [] for an empty changed-files list', () => {
 		assert.deepEqual(analyseChangedFiles([]), [])
 	})
+
+	it('throws when given a non-array', () => {
+		// @ts-expect-error — intentional misuse to verify the guard
+		assert.throws(() => analyseChangedFiles(undefined), /must be an array/)
+		// @ts-expect-error — intentional misuse to verify the guard
+		assert.throws(() => analyseChangedFiles(null), /must be an array/)
+	})
 })
