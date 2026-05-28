@@ -145,6 +145,22 @@ describe('checkConfluence', () => {
 		const r = await checkConfluence(creds, pingReturning({ ok: false, status: 0 }))
 		assert.equal(r.ok, false)
 	})
+
+	it('strips a trailing slash and pings the Confluence space endpoint with Basic auth', async () => {
+		const creds = { url: 'https://example.atlassian.net/', username: 'u', token: 't', jiraUrl: undefined }
+		/** @type {{ url?: string, headers?: Record<string, string> }} */
+		const captured = {}
+		/** @type {Ping} */
+		const ping = async (url, headers) => {
+			captured.url = url
+			captured.headers = headers
+			return { ok: true, status: 200 }
+		}
+		await checkConfluence(creds, ping)
+		assert.equal(captured.url, 'https://example.atlassian.net/wiki/rest/api/space?limit=1')
+		assert.match(captured.headers?.Authorization ?? '', /^Basic /)
+		assert.equal(captured.headers?.Accept, 'application/json')
+	})
 })
 
 describe('checkJira', () => {
@@ -191,6 +207,27 @@ describe('checkJira', () => {
 		}
 		const r = await checkJira(creds, pingReturning({ ok: false, status: 0 }))
 		assert.equal(r.ok, false)
+	})
+
+	it('strips a trailing slash and pings the Jira /myself endpoint with Basic auth', async () => {
+		const creds = {
+			url: 'https://example.atlassian.net',
+			username: 'u',
+			token: 't',
+			jiraUrl: 'https://jira.atlassian.net/',
+		}
+		/** @type {{ url?: string, headers?: Record<string, string> }} */
+		const captured = {}
+		/** @type {Ping} */
+		const ping = async (url, headers) => {
+			captured.url = url
+			captured.headers = headers
+			return { ok: true, status: 200 }
+		}
+		await checkJira(creds, ping)
+		assert.equal(captured.url, 'https://jira.atlassian.net/rest/api/3/myself')
+		assert.match(captured.headers?.Authorization ?? '', /^Basic /)
+		assert.equal(captured.headers?.Accept, 'application/json')
 	})
 })
 
