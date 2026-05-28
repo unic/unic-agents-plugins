@@ -24,15 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `doctor.mjs` exports `mapPingError`, `PING_TIMEOUT_MS`, `AZ` for unit testing
 - `commands/review-pr.md` Step 3 includes a large-diff (`git diff --shortstat`) sanity check before fanning out to the agent
 - `commands/review-pr.md` Steps 4 and 5 now require the orchestrator to relay `render-summary` stderr verbatim and to stop on non-zero exit (so silently-dropped or malformed findings cannot be hidden from the user)
+- `commands/review-pr.md` Pre-PR flow gains Step 3.5 (prompt for optional Work Item / Confluence URLs, Enter to skip) and Step 3.6 (spawn the Intent Checker, hard-stop on unreachable promised intent); Step 4 broadcasts the Intent Brief verbatim to every spawned aspect agent; Step 5 forwards `intentCheck` via `INTENT_CHECK_JSON`
+- `scripts/render-summary.mjs` reads optional `INTENT_CHECK_JSON`, validates/drops malformed items, and forwards the survivors so the renderer surfaces the Intent Check block
+- `agents/code-reviewer.md` Step 3 now treats a provided Intent Brief as the authoritative source of acceptance criteria, flagging unaddressed ACs (Important, 80+) and partially-addressed ACs (Minor, 60–79)
 - `tests/render-summary.test.mjs`: 8 integration tests covering missing env var, malformed JSON, non-object root, sub-threshold drop, malformed-finding drop with stderr, and well-formed rendering
 - `tests/doctor.test.mjs`: 199 / 299 / 300 HTTP boundary tests pinning `isPingOk`
+- Intent gathering for Pre-PR mode (issue #147): `scripts/atlassian-fetch.mjs` routes pasted URLs by path (`/browse/` → Jira, `/wiki/` → Confluence), fetches Work Items and Confluence pages via the Atlassian REST APIs with built-in `fetch`, parses Story ACs and Bug repro/expected/actual from ADF, and extracts linked Confluence URLs — credentials via `lib/credentials.mjs`
+- `agents/intent-checker.md` (**Ariadne**): fetches the pasted URLs, synthesises an Intent Brief, emits per-AC verdicts, and signals a hard-stop when a promised Confluence page is unreachable (ADR-0004)
+- `tests/atlassian-fetch.test.mjs`: covers URL routing, key/page-id extraction, credential resolution (env vs file), Story/Bug ADF parsing, Confluence excerpt + link extraction, fetch-error classification, and the `collectIntent` / `main` output shape with `fetch` stubbed
+- `tests/render-summary.test.mjs`: Intent Check rendering above the Severity sections, omission on empty/absent intent, and malformed `INTENT_CHECK_JSON` handling
 
 ### Changed
 
 - `PingResult` is now a discriminated union (`{ kind: 'http' } | { kind: 'transport-error' }`) so callers cannot conflate transport failures with HTTP responses
 - `ModeContext` is a discriminated union mirroring the four-row decision table — nonsense input combinations are unrepresentable
 - `ReviewSummaryContext` collapses `criticalFindings` / `importantFindings` / `minorFindings` into a single `findings: SummaryFinding[]` with a `severity` field; the renderer buckets internally
-- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partial'` instead of free-form strings
+- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partially addressed'` — the third value matches the user-facing phrasing the renderer surfaces verbatim (PRD §10), replacing the earlier `'partial'`
 - `realPing` maps `TimeoutError` to a friendly `Request timed out after 10s` so doctor output is consistent across Node versions
 - `bucketBySeverity` throws on non-finite or out-of-range confidence inputs instead of silently returning `null`
 - `analyseChangedFiles` and `resolveBaseBranch` validate their inputs at the boundary and throw on misuse
@@ -60,6 +67,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All six aspect agent prompts now describe their output as a JSON object (matching the Output format section) instead of a JSON array, reducing non-parseable-output risk
 - `changed-file-analyser` CLI: the stdin end-handler now wraps `Buffer.concat` + `parseStdin` in the `try`/`catch`, so any synchronous failure surfaces as the tagged `changed-file-analyser:` error + exit 1 instead of an uncaught stack trace
 - ADR-0008 spawn table now notes the `.d.ts` exclusion for source-file rows; review-pr command body tool name aligned with the `Agent` frontmatter
+- `render-summary` no longer crashes on an `IntentCheckItem` whose `verdicts` is `null` (or an array, or whose `id`/`title` is not a string): validation now requires a non-null plain object so malformed items are dropped with a stderr note instead of throwing in `Object.entries` (PR #159 review)
+- `atlassian-fetch` reports an unrecognised pasted URL (e.g. an ADO Boards link, not yet supported on this path) as a soft `unsupported` error instead of only warning to stderr, so the Intent Checker can surface it to the reviewer rather than producing silent empty intent (PR #159 review)
+- Intent-gathering hard-stop message in `commands/review-pr.md` no longer claims the URL "is unreachable" when the cause may be rejected credentials — it now reads "could not be fetched (unreachable, or its credentials were rejected)" since the hard-stop covers both `unreachable` and `auth-error` (PR #159 review)
+- `collectIntent` no longer breaks its documented "never throws" contract when the credential file exists but is unreadable or malformed: the loader call is now guarded and a corrupt config surfaces as a global `auth-error` entry (exit 1) instead of an uncaught exception (PR #159 review, Step 4)
+- `render-summary` now drops an `IntentCheckItem` whose `verdicts` contains an off-spec value (object, number, typo) with a stderr note instead of rendering garbage like `AC 1: [object Object]` into the PR summary; verdict values are validated against the single `AC_VERDICTS` source of truth exported from `review-summary-renderer.mjs` (PR #159 review, Step 4)
+- `review-summary-renderer.mjs` now renders the optional `IntentCheckItem.note` (e.g. "Item could not be fetched.") that the Intent Checker emits for unreachable/parse-error items — previously the note was silently dropped (PR #159 review, Step 4)
+- Stale `collectIntent` JSDoc ("Unrecognised URLs are warned and skipped") corrected to describe the soft `unsupported` error it now records; dropped-`IntentCheckItem` stderr warnings now name the offending `id` (PR #159 review, Step 4)
 
 ## [2.0.0] — 2026-05-28
 

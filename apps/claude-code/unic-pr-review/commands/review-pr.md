@@ -44,8 +44,8 @@ git diff "origin/${BASE_BRANCH}...HEAD" --name-only
 
 - **Empty diff** (no output from `--name-only`): print "Nothing to review: no local changes against `<BASE_BRANCH>`." and stop.
 
-Before passing the diff to the agent, sanity-check its size — extremely large
-diffs will silently truncate at the agent's context window:
+Before passing the diff to the aspect agents, sanity-check its size — extremely large
+diffs will silently truncate at an agent's context window:
 
 ```sh
 git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
@@ -53,6 +53,56 @@ git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
 
 - **Diff exceeds ~2000 lines or ~200 KB**: warn the user that the review may be
   incomplete and suggest tightening the base branch (e.g. `--base feature/x`).
+
+## Step 3.5 — Gather optional intent URLs
+
+Prompt the user with this exact message:
+
+```
+Optional Work Item URLs (Jira/ADO Boards) and Confluence URLs, comma-separated. Press Enter to skip.
+```
+
+- **User presses Enter (empty response)** → set `PASTED_URLS` to the empty string. No
+  intent gathering happens. Leave `intentBrief` and `intentCheck` undefined and skip to
+  Step 4 (US 30: empty intent is legitimate).
+- **User pastes one or more URLs** → store the full comma-separated string as `PASTED_URLS`
+  and continue to Step 3.6.
+
+## Step 3.6 — Spawn the Intent Checker agent (only when `PASTED_URLS` is non-empty)
+
+Use the Agent tool to launch the `intent-checker` agent. Provide it this input:
+
+```json
+{ "pastedUrls": [<PASTED_URLS split on comma, each entry trimmed>] }
+```
+
+Wait for the agent to complete. It emits exactly one of:
+
+- **A — hard-stop** (ADR-0004, US 29):
+
+  ```json
+  { "hardStop": true, "url": "<url>", "setupCommand": "<cmd>" }
+  ```
+
+  Print verbatim and **stop** — do not spawn any aspect agents and do not print a partial
+  summary:
+
+  ```
+  Intent gathering failed: <url> could not be fetched (unreachable, or its credentials were rejected). Run <setupCommand> to configure credentials, then re-run the review.
+  ```
+
+  The hard-stop fires for both `unreachable` and `auth-error` kinds (ADR-0004), so the
+  message stays accurate without claiming the cause is a network failure.
+
+- **B — intent gathered**:
+
+  ```json
+  { "intentBrief": "<markdown>", "intentCheck": [ ... ] }
+  ```
+
+  Store `intentBrief` (a markdown string) and `intentCheck` (an array). If `intentBrief`
+  is an empty string and `intentCheck` is an empty array, treat intent as absent (leave
+  both undefined). Continue to Step 4.
 
 ## Step 4 — Determine which aspect agents to spawn and fan out
 
@@ -79,11 +129,29 @@ Use the Agent tool to launch every agent in SPAWN_SET simultaneously. Do not wai
 
 For each agent name in SPAWN_SET, launch an Agent task with this exact input:
 
-```
-Diff to review:
+- **When `intentBrief` is defined** (intent was gathered in Step 3.6), append it verbatim
+  as a preamble after the diff so the agent can reference acceptance criteria. This is the
+  broadcast point: every aspect agent spawned in the fan-out batch receives the same
+  `intentBrief` block. Provide this input:
 
-<full unified diff from Step 3>
-```
+  ```
+  Diff to review:
+
+  <full unified diff from Step 3>
+
+  Intent Brief:
+
+  <intentBrief>
+  ```
+
+- **When `intentBrief` is undefined** (no URLs pasted or empty intent), provide the diff
+  alone:
+
+  ```
+  Diff to review:
+
+  <full unified diff from Step 3>
+  ```
 
 Agent-name to agent-file mapping:
 
@@ -117,11 +185,22 @@ Construct the merged JSON object:
 { "findings": [...all findings...], "positiveObservations": [...deduplicated observations...] }
 ```
 
-Pass it to the `render-summary` helper via the `FINDINGS_JSON` environment variable. The helper validates each Finding, buckets by severity per ADR-0002, and writes the rendered markdown to stdout:
+Pass it to the `render-summary` helper via the `FINDINGS_JSON` environment variable. The helper validates each Finding, buckets by severity per ADR-0002, and writes the rendered markdown to stdout.
 
-```sh
-FINDINGS_JSON='<merged JSON>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
-```
+- **When `intentCheck` is defined** (a non-empty array from Step 3.6), also pass it via
+  `INTENT_CHECK_JSON` so the helper renders the Intent Check block above the Severity
+  sections (PRD §10):
+
+  ```sh
+  FINDINGS_JSON='<merged JSON>' INTENT_CHECK_JSON='<JSON.stringify(intentCheck)>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
+  ```
+
+- **When `intentCheck` is undefined or empty**, omit `INTENT_CHECK_JSON` entirely (the
+  Intent Check block is then omitted, US 30):
+
+  ```sh
+  FINDINGS_JSON='<merged JSON>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
+  ```
 
 The helper is the single source of truth for the rendering pipeline — it
 imports `parseFinding` from `scripts/lib/finding-validator.mjs` and
