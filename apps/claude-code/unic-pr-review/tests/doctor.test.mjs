@@ -29,6 +29,17 @@ const execReturning = (r) => () => ({ ok: r.ok ?? true, stdout: r.stdout ?? '', 
  */
 const pingReturning = (r) => async () => ({ ok: r.ok ?? true, status: r.status ?? 200 })
 
+/** @type {Exec} */
+const allOkExec = (_cmd, args) => {
+	if (args.includes('user') && args.includes('show')) {
+		return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
+	}
+	if (args.includes('extension')) {
+		return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
+	}
+	return { ok: true, stdout: '[]', stderr: '' }
+}
+
 describe('checkAzCli', () => {
 	it('returns ok:true when az --version exits 0', () => {
 		const exec = execReturning({ ok: true, stdout: 'azure-cli 2.60.0\n' })
@@ -184,18 +195,6 @@ describe('checkJira', () => {
 })
 
 describe('runDoctor — Jira silence (US-35)', () => {
-	// exec stub that returns ok for everything; identity returns a valid id
-	/** @type {Exec} */
-	const allOkExec = (_cmd, args) => {
-		if (args.includes('user') && args.includes('show')) {
-			return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
-		}
-		if (args.includes('extension')) {
-			return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
-		}
-		return { ok: true, stdout: '[]', stderr: '' }
-	}
-
 	it('emits no Jira line when jiraUrl is not configured', async () => {
 		const { ok, output } = await runDoctor({
 			exec: allOkExec,
@@ -230,16 +229,6 @@ describe('runDoctor — Jira silence (US-35)', () => {
 
 describe('runDoctor — missing credentials', () => {
 	it('returns ok:false and emits an Atlassian credentials error when creds are absent', async () => {
-		/** @type {Exec} */
-		const allOkExec = (_cmd, args) => {
-			if (args.includes('user') && args.includes('show')) {
-				return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
-			}
-			if (args.includes('extension')) {
-				return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
-			}
-			return { ok: true, stdout: '[]', stderr: '' }
-		}
 		const { ok, output } = await runDoctor({
 			exec: allOkExec,
 			ping: pingReturning({ ok: true, status: 200 }),

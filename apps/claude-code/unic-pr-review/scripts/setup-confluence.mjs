@@ -52,12 +52,11 @@ export function writeConfluenceCreds(url, username, token, deps = {}) {
 	const warn = deps.warn ?? ((m) => process.stderr.write(`${m}\n`))
 
 	const path = join(home, '.unic-confluence.json')
-	// Preserve jiraUrl (and any future fields) from an existing file
 	let jiraUrl
 	if (exists(path)) {
 		try {
 			const existing = JSON.parse(read(path, 'utf8'))
-			if (existing && typeof existing === 'object') jiraUrl = existing.jiraUrl
+			jiraUrl = existing?.jiraUrl
 		} catch {
 			// Ignore parse errors — we will overwrite with valid data
 		}
@@ -93,7 +92,7 @@ async function main() {
 	process.stdout.write(`Written: ${path}\n`)
 }
 
-if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
 		process.stderr.write(`setup-confluence: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
 		process.exit(1)

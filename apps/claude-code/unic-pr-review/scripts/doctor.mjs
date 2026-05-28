@@ -277,7 +277,7 @@ function formatLine(result, label) {
 export async function runDoctor(deps = {}) {
 	const exec = deps.exec ?? realExec
 	const ping = deps.ping ?? realPing
-	const loadCreds = deps.loadCreds ?? (() => loadAtlassianCreds())
+	const loadCreds = deps.loadCreds ?? loadAtlassianCreds
 
 	const lines = []
 	lines.push('unic-pr-review doctor')
@@ -308,14 +308,16 @@ export async function runDoctor(deps = {}) {
 	}
 
 	let creds = null
+	let credsFailed = false
 	try {
 		creds = loadCreds()
 	} catch (err) {
 		lines.push(`✗ Atlassian credentials — ${err instanceof Error ? err.message : String(err)}`)
 		allOk = false
+		credsFailed = true
 	}
 
-	if (creds === null && !lines.some((l) => l.includes('Atlassian credentials'))) {
+	if (creds === null && !credsFailed) {
 		lines.push('✗ Atlassian credentials — neither env vars nor ~/.unic-confluence.json found')
 		allOk = false
 	}
@@ -344,7 +346,7 @@ async function main() {
 	process.exit(ok ? 0 : 1)
 }
 
-if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
 		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
 		process.exit(1)

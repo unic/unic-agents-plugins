@@ -63,7 +63,7 @@ export function writeJiraUrl(jiraUrl, deps = {}) {
 	} catch (err) {
 		throw new Error(`${path} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
 	}
-	if (existing && typeof existing === 'object' && existing.jiraUrl === jiraUrl) {
+	if (existing?.jiraUrl === jiraUrl) {
 		return { path, noOp: true }
 	}
 	const updated = { ...existing, jiraUrl }
@@ -97,7 +97,7 @@ async function main() {
 	process.stdout.write(noOp ? `Unchanged: ${path}\n` : `Updated: ${path}\n`)
 }
 
-if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
 		process.stderr.write(`setup-jira: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
 		process.exit(1)
