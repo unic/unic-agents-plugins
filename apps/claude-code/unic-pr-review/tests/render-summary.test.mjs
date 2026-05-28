@@ -153,6 +153,34 @@ describe('render-summary CLI — INTENT_CHECK_JSON', () => {
 		assert.doesNotMatch(r.stdout, /PROJ-2/)
 	})
 
+	it('drops an IntentCheckItem whose verdicts is null without crashing (exit 0)', () => {
+		const intentCheck = JSON.stringify([
+			{ id: 'PROJ-1', title: 'Valid', verdicts: { 'AC 1': 'addressed' } },
+			{ id: 'PROJ-2', title: 'Null verdicts', verdicts: null }, // typeof null === 'object'
+		])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /dropped malformed IntentCheckItem/)
+		assert.match(r.stdout, /\*\*Valid \(PROJ-1\)\*\*/)
+		assert.doesNotMatch(r.stdout, /PROJ-2/)
+	})
+
+	it('drops an IntentCheckItem whose verdicts is an array (exit 0)', () => {
+		const intentCheck = JSON.stringify([{ id: 'PROJ-3', title: 'Array verdicts', verdicts: ['AC 1'] }])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /dropped malformed IntentCheckItem/)
+		assert.doesNotMatch(r.stdout, /### Intent Check/)
+	})
+
+	it('drops an IntentCheckItem whose id or title is not a string (exit 0)', () => {
+		const intentCheck = JSON.stringify([{ id: 42, title: 'Numeric id', verdicts: { 'AC 1': 'addressed' } }])
+		const r = run('{}', intentCheck)
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /dropped malformed IntentCheckItem/)
+		assert.doesNotMatch(r.stdout, /### Intent Check/)
+	})
+
 	it('ignores a non-array INTENT_CHECK_JSON with a stderr note (exit 0)', () => {
 		const r = run('{}', '{"not":"an array"}')
 		assert.equal(r.status, 0)

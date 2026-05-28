@@ -70,7 +70,19 @@ if (rawIntentCheck?.trim()) {
 			process.stderr.write('render-summary: INTENT_CHECK_JSON must be an array — ignoring\n')
 		} else {
 			intentCheck = parsedIntent.filter((item) => {
-				if (!item || typeof item !== 'object' || !item.id || !item.title || typeof item.verdicts !== 'object') {
+				// `verdicts` must be a non-null plain object: the renderer calls
+				// Object.entries(item.verdicts), which throws on null (typeof null ===
+				// 'object') and yields nonsense indices on arrays.
+				const verdicts = item?.verdicts
+				if (
+					!item ||
+					typeof item !== 'object' ||
+					typeof item.id !== 'string' ||
+					typeof item.title !== 'string' ||
+					typeof verdicts !== 'object' ||
+					verdicts === null ||
+					Array.isArray(verdicts)
+				) {
 					process.stderr.write('render-summary: dropped malformed IntentCheckItem\n')
 					return false
 				}
