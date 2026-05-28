@@ -36,21 +36,23 @@ Then reinstall plugins from the Claude Code command palette.
 
    It runs six checks and tells you exactly what is missing before any Review is attempted.
 
-2. Once doctor is green, run a review:
+2. Once doctor is green, run a review of your local branch (Pre-PR mode):
 
    ```text
-   /unic-pr-review:review-pr <ADO-PR-URL>
+   /unic-pr-review:review-pr
    ```
+
+   With no argument the command reviews your local branch against its resolved upstream base branch and prints the Review Summary in the terminal. Passing an ADO PR URL is coming soon — it is not yet supported in this release.
 
 ## Commands
 
-| Command                            | Description                                                      | Argument hint    |
-| ---------------------------------- | ---------------------------------------------------------------- | ---------------- |
-| `/unic-pr-review:doctor`           | Verify all unic-pr-review prerequisites are in place             | _(no arguments)_ |
-| `/unic-pr-review:review-pr`        | Run an AI-powered PR review against an Azure DevOps PR URL       | `<ADO-PR-URL>`   |
-| `/unic-pr-review:setup-confluence` | Interactive wizard — writes `~/.unic-confluence.json`            | _(no arguments)_ |
-| `/unic-pr-review:setup-jira`       | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json` | _(no arguments)_ |
-| `/unic-pr-review:setup-azure`      | Interactive wizard — writes `~/.unic-azure.json`                 | _(no arguments)_ |
+| Command                            | Description                                                                                      | Argument hint    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------- |
+| `/unic-pr-review:doctor`           | Verify all unic-pr-review prerequisites are in place                                             | _(no arguments)_ |
+| `/unic-pr-review:review-pr`        | Review your local branch against its upstream base (Pre-PR mode); ADO PR URL support coming soon | _(no arguments)_ |
+| `/unic-pr-review:setup-confluence` | Interactive wizard — writes `~/.unic-confluence.json`                                            | _(no arguments)_ |
+| `/unic-pr-review:setup-jira`       | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json`                                 | _(no arguments)_ |
+| `/unic-pr-review:setup-azure`      | Interactive wizard — writes `~/.unic-azure.json`                                                 | _(no arguments)_ |
 
 ## Credential files
 

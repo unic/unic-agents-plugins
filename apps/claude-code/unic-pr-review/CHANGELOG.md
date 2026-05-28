@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Setup scripts now: include an `icacls` example in the Windows chmod-skipped warning; surface a clear error when `os.homedir()` is empty instead of writing to the current directory; and print only `err.message` (not `err.stack`) for unexpected errors, avoiding the risk of leaking argv values into stderr stack frames
 - `changed-file-analyser`: `.d.ts` declaration files no longer count as runtime source files (they no longer spawn `silent-failure-hunter` or count toward the `code-simplifier` threshold) — they remain type files that spawn `type-design-analyzer`
 - `changed-file-analyser` CLI: stdin parsing is CRLF-safe (`/\r?\n/` split + per-line trim) so trailing carriage returns on Windows no longer break extension/path matching
+- README quick-start and commands table now match the actual review-pr contract — Pre-PR mode (no URL) is documented as the working path; ADO PR URL support marked coming soon
 
 ## [2.0.0] — 2026-05-28
 
