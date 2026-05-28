@@ -75,9 +75,9 @@ Spawning agents: code-reviewer, silent-failure-hunter, pr-test-analyzer
 
 ### Step 4b — Spawn all agents in parallel
 
-Use the Task tool to launch every agent in SPAWN_SET simultaneously. Do not wait for one agent to finish before starting the next — launch all at once.
+Use the Agent tool to launch every agent in SPAWN_SET simultaneously. Do not wait for one agent to finish before starting the next — launch all at once.
 
-For each agent name in SPAWN_SET, launch a Task with this exact input:
+For each agent name in SPAWN_SET, launch an Agent task with this exact input:
 
 ```
 Diff to review:
