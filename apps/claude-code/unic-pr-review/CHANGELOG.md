@@ -24,8 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `doctor.mjs` exports `mapPingError`, `PING_TIMEOUT_MS`, `AZ` for unit testing
 - `commands/review-pr.md` Step 3 includes a large-diff (`git diff --shortstat`) sanity check before fanning out to the agent
 - `commands/review-pr.md` Steps 4 and 5 now require the orchestrator to relay `render-summary` stderr verbatim and to stop on non-zero exit (so silently-dropped or malformed findings cannot be hidden from the user)
+- `commands/review-pr.md` Pre-PR flow gains Step 3.5 (prompt for optional Work Item / Confluence URLs, Enter to skip) and Step 3.6 (spawn the Intent Checker, hard-stop on unreachable promised intent); Step 4 broadcasts the Intent Brief verbatim to the code-reviewer; Step 5 forwards `intentCheck` via `INTENT_CHECK_JSON`
+- `scripts/render-summary.mjs` reads optional `INTENT_CHECK_JSON`, validates/drops malformed items, and forwards the survivors so the renderer surfaces the Intent Check block
+- `agents/code-reviewer.md` Step 3 now treats a provided Intent Brief as the authoritative source of acceptance criteria, flagging unaddressed ACs (Important, 80+) and partially-addressed ACs (Minor, 60–79)
 - `tests/render-summary.test.mjs`: 8 integration tests covering missing env var, malformed JSON, non-object root, sub-threshold drop, malformed-finding drop with stderr, and well-formed rendering
 - `tests/doctor.test.mjs`: 199 / 299 / 300 HTTP boundary tests pinning `isPingOk`
+- Intent gathering for Pre-PR mode (issue #147): `scripts/atlassian-fetch.mjs` routes pasted URLs by path (`/browse/` → Jira, `/wiki/` → Confluence), fetches Work Items and Confluence pages via the Atlassian REST APIs with built-in `fetch`, parses Story ACs and Bug repro/expected/actual from ADF, and extracts linked Confluence URLs — credentials via `lib/credentials.mjs`
+- `agents/intent-checker.md` (**Ariadne**): fetches the pasted URLs, synthesises an Intent Brief, emits per-AC verdicts, and signals a hard-stop when a promised Confluence page is unreachable (ADR-0004)
+- `tests/atlassian-fetch.test.mjs`: covers URL routing, key/page-id extraction, credential resolution (env vs file), Story/Bug ADF parsing, Confluence excerpt + link extraction, fetch-error classification, and the `collectIntent` / `main` output shape with `fetch` stubbed
+- `tests/render-summary.test.mjs`: Intent Check rendering above the Severity sections, omission on empty/absent intent, and malformed `INTENT_CHECK_JSON` handling
 
 ### Changed
 

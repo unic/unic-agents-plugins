@@ -10,6 +10,12 @@
  * environment variable, validates each Finding through `parseFinding`, and
  * writes the rendered Review Summary markdown to stdout.
  *
+ * The optional `INTENT_CHECK_JSON` environment variable carries the Intent
+ * Checker's `intentCheck` array (Pre-PR intent gathering). When present and
+ * non-empty it is parsed, malformed items are dropped with a stderr note, and
+ * the survivors are passed to the renderer, which surfaces the Intent Check
+ * block above the Severity sections. Absent or empty → no Intent Check block.
+ *
  * Exposed as a standalone script so the slash command can shell out
  * cross-platform (Windows cmd / PowerShell / bash) without an inline
  * `node -e` snippet whose quoting rules differ per shell.
@@ -54,10 +60,35 @@ for (const rawFinding of rawFindings) {
 	}
 }
 
+const rawIntentCheck = process.env.INTENT_CHECK_JSON
+/** @type {import('./lib/review-summary-renderer.mjs').IntentCheckItem[] | undefined} */
+let intentCheck
+if (rawIntentCheck && rawIntentCheck.trim() !== '') {
+	try {
+		const parsedIntent = JSON.parse(rawIntentCheck)
+		if (!Array.isArray(parsedIntent)) {
+			process.stderr.write('render-summary: INTENT_CHECK_JSON must be an array — ignoring\n')
+		} else {
+			intentCheck = parsedIntent.filter((item) => {
+				if (!item || typeof item !== 'object' || !item.id || !item.title || typeof item.verdicts !== 'object') {
+					process.stderr.write('render-summary: dropped malformed IntentCheckItem\n')
+					return false
+				}
+				return true
+			})
+		}
+	} catch (err) {
+		process.stderr.write(
+			`render-summary: INTENT_CHECK_JSON is not valid JSON — ${err instanceof Error ? err.message : String(err)}\n`
+		)
+	}
+}
+
 const summary = renderReviewSummary({
 	findings,
 	positiveObservations,
 	iteration: 1,
+	intentCheck,
 })
 
 process.stdout.write(summary)
