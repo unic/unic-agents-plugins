@@ -46,7 +46,7 @@ import { renderFooter } from './signature.mjs'
  */
 
 /**
- * @typedef {'addressed' | 'unaddressed' | 'partial'} AcVerdict
+ * @typedef {'addressed' | 'unaddressed' | 'partially addressed'} AcVerdict
  */
 
 /**

@@ -60,7 +60,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  */
 
 /**
- * @typedef {'unreachable' | 'not-found' | 'auth-error' | 'parse-error'} FetchErrorKind
+ * @typedef {'unreachable' | 'not-found' | 'auth-error' | 'parse-error' | 'unsupported'} FetchErrorKind
  */
 
 /**
@@ -535,9 +535,12 @@ export async function collectIntent(urls, deps = {}) {
 	for (const url of urls) {
 		const route = routeUrl(url)
 		if (route === null) {
-			stderr.write(
-				`atlassian-fetch: unrecognised URL format: ${url} — only /browse/ (Jira) and /wiki/ (Confluence) paths are supported; skipping\n`
-			)
+			// Surface unsupported URLs (e.g. ADO Boards links) as a soft `unsupported`
+			// error instead of skipping silently, so the Intent Checker can warn the
+			// reviewer rather than producing empty intent with no explanation.
+			const message = `unrecognised URL format — only /browse/ (Jira) and /wiki/ (Confluence) paths are supported`
+			stderr.write(`atlassian-fetch: ${message}: ${url}; skipping\n`)
+			errors.push({ url, kind: 'unsupported', message })
 			continue
 		}
 		try {

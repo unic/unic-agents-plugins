@@ -54,6 +54,7 @@ You receive a JSON object:
    - Each Bug item: title, Repro Steps, Expected Behaviour, Actual Behaviour.
    - Each Confluence item: page title and the excerpt.
    - For each `errors` entry whose `kind` is `"parse-error"` or `"not-found"`, include a warning line in the brief: "⚠️ `<id|url>`: could not be loaded (`<message>`)." For each such entry, include an `intentCheck` entry with all verdicts set to `"unaddressed"` and a `note` field: `"Item could not be fetched."`.
+   - For each `errors` entry whose `kind` is `"unsupported"` (e.g. a pasted ADO Boards URL — ADO Work Item discovery is not yet wired into this path), include a warning line in the brief: "⚠️ `<url>`: skipped — unsupported source (only Jira `/browse/` and Confluence `/wiki/` URLs are fetched)." Do **not** add an `intentCheck` entry for it (there are no acceptance criteria to track). This is **not** a hard-stop.
 
 7. Build **`intentCheck`** — one entry per Work Item with acceptance criteria. Key each AC as `"AC 1"`, `"AC 2"`, … and set every verdict to `"unaddressed"` at this stage. The Code Reviewer assesses each AC against the diff; `"unaddressed"` here means _not yet assessed_, not _failed_.
 
@@ -72,5 +73,5 @@ You receive a JSON object:
 
 ## Notes
 
-- Valid AC verdict values are `"addressed"`, `"partial"`, and `"unaddressed"` — the renderer surfaces them verbatim.
-- Never invent intent. If `items` is empty and `errors` is empty (e.g. only unrecognised URLs were pasted), emit `{ "intentBrief": "", "intentCheck": [] }`.
+- Valid AC verdict values are `"addressed"`, `"partially addressed"`, and `"unaddressed"` — the renderer surfaces them verbatim, so they must match the user-facing phrasing in the PRD (§10).
+- Never invent intent. If `items` is empty and `errors` is empty, emit `{ "intentBrief": "", "intentCheck": [] }`. Unrecognised URLs are reported as `"unsupported"` errors (see step 6) — surface them, don't silently drop them.

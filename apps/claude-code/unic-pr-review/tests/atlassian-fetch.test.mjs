@@ -524,15 +524,18 @@ describe('collectIntent — credential resolution', () => {
 describe('collectIntent — routing and errors', () => {
 	const env = { CONFLUENCE_URL: 'https://x.atlassian.net', CONFLUENCE_USER: 'u', CONFLUENCE_TOKEN: 't' }
 
-	it('skips unrecognised URLs with a stderr warning, no error entry', async () => {
+	it('records unrecognised URLs as a soft `unsupported` error plus a stderr warning', async () => {
 		/** @type {string[]} */
 		const warnings = []
-		const result = await collectIntent(['https://dev.azure.com/org/proj/_workitems/edit/9'], {
+		const adoUrl = 'https://dev.azure.com/org/proj/_workitems/edit/9'
+		const result = await collectIntent([adoUrl], {
 			env,
 			stderr: { write: (s) => warnings.push(s) },
 		})
 		assert.deepEqual(result.items, [])
-		assert.deepEqual(result.errors, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'unsupported')
+		assert.equal(result.errors[0].url, adoUrl)
 		assert.match(warnings.join(''), /unrecognised URL/)
 	})
 
