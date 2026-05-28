@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PingResult` is now a discriminated union (`{ kind: 'http' } | { kind: 'transport-error' }`) so callers cannot conflate transport failures with HTTP responses
 - `ModeContext` is a discriminated union mirroring the four-row decision table — nonsense input combinations are unrepresentable
 - `ReviewSummaryContext` collapses `criticalFindings` / `importantFindings` / `minorFindings` into a single `findings: SummaryFinding[]` with a `severity` field; the renderer buckets internally
-- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partial'` instead of free-form strings
+- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partially addressed'` — the third value matches the user-facing phrasing the renderer surfaces verbatim (PRD §10), replacing the earlier `'partial'`
 - `realPing` maps `TimeoutError` to a friendly `Request timed out after 10s` so doctor output is consistent across Node versions
 - `bucketBySeverity` throws on non-finite or out-of-range confidence inputs instead of silently returning `null`
 - `analyseChangedFiles` and `resolveBaseBranch` validate their inputs at the boundary and throw on misuse
@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `parseArgs` now throws on a flag with no value (last arg, or followed by another flag) instead of silently dropping it; setup scripts catch the throw and emit a clear `setup-<name>: --<key> requires a value` error
 - Setup scripts write credential files atomically (write-to-tmp, chmod, rename) so an interrupted write cannot leave a truncated file in place of the user's credentials
 - Setup scripts now: include an `icacls` example in the Windows chmod-skipped warning; surface a clear error when `os.homedir()` is empty instead of writing to the current directory; and print only `err.message` (not `err.stack`) for unexpected errors, avoiding the risk of leaking argv values into stderr stack frames
+- `render-summary` no longer crashes on an `IntentCheckItem` whose `verdicts` is `null` (or an array, or whose `id`/`title` is not a string): validation now requires a non-null plain object so malformed items are dropped with a stderr note instead of throwing in `Object.entries` (PR #159 review)
+- `atlassian-fetch` reports an unrecognised pasted URL (e.g. an ADO Boards link, not yet supported on this path) as a soft `unsupported` error instead of only warning to stderr, so the Intent Checker can surface it to the reviewer rather than producing silent empty intent (PR #159 review)
+- Intent-gathering hard-stop message in `commands/review-pr.md` no longer claims the URL "is unreachable" when the cause may be rejected credentials — it now reads "could not be fetched (unreachable, or its credentials were rejected)" since the hard-stop covers both `unreachable` and `auth-error` (PR #159 review)
 
 ## [2.0.0] — 2026-05-28
 
