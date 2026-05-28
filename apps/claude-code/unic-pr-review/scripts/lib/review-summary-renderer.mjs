@@ -35,27 +35,32 @@
 
 import { renderFooter } from './signature.mjs'
 
+/** @import { Severity } from './severity-bucketer.mjs' */
+
 /**
  * @typedef {Object} SummaryFinding
+ * @property {Severity} severity
  * @property {string} filePath
  * @property {number} startLine
  * @property {string} title
  */
 
 /**
+ * @typedef {'addressed' | 'unaddressed' | 'partial'} AcVerdict
+ */
+
+/**
  * @typedef {Object} IntentCheckItem
  * @property {string} title
  * @property {string} id
- * @property {Record<string, string>} verdicts - e.g. { 'AC 1': 'addressed', 'AC 2': 'unaddressed' }
+ * @property {Record<string, AcVerdict>} verdicts - e.g. { 'AC 1': 'addressed', 'AC 2': 'unaddressed' }
  */
 
 /**
  * @typedef {Object} ReviewSummaryContext
  * @property {string} [notices] - pre-rendered notices block from notices.mjs; '' or omit for none
- * @property {IntentCheckItem[]} [intentCheck] - omitted when no Work Items linked
- * @property {SummaryFinding[]} criticalFindings
- * @property {SummaryFinding[]} importantFindings
- * @property {SummaryFinding[]} minorFindings
+ * @property {IntentCheckItem[]} [intentCheck] - omitted when no Work Items linked or array is empty
+ * @property {SummaryFinding[]} findings - all findings; bucketed internally by `severity`
  * @property {string[]} positiveObservations
  * @property {number} iteration - 1-based iteration number
  */
@@ -107,30 +112,28 @@ export function renderReviewSummary(ctx) {
 		parts.push('')
 	}
 
-	if (ctx.criticalFindings.length > 0) {
-		parts.push(`### 🔴 Critical (${ctx.criticalFindings.length} found)`)
+	const critical = ctx.findings.filter((f) => f.severity === 'critical')
+	const important = ctx.findings.filter((f) => f.severity === 'important')
+	const minor = ctx.findings.filter((f) => f.severity === 'minor')
+
+	if (critical.length > 0) {
+		parts.push(`### 🔴 Critical (${critical.length} found)`)
 		parts.push('')
-		for (const f of ctx.criticalFindings) {
-			parts.push(renderCriticalOrImportant(f))
-		}
+		for (const f of critical) parts.push(renderCriticalOrImportant(f))
 		parts.push('')
 	}
 
-	if (ctx.importantFindings.length > 0) {
-		parts.push(`### 🟠 Important (${ctx.importantFindings.length} found)`)
+	if (important.length > 0) {
+		parts.push(`### 🟠 Important (${important.length} found)`)
 		parts.push('')
-		for (const f of ctx.importantFindings) {
-			parts.push(renderCriticalOrImportant(f))
-		}
+		for (const f of important) parts.push(renderCriticalOrImportant(f))
 		parts.push('')
 	}
 
-	if (ctx.minorFindings.length > 0) {
+	if (minor.length > 0) {
 		parts.push('### 🟡 Minor / Suggestions')
 		parts.push('')
-		for (const f of ctx.minorFindings) {
-			parts.push(renderMinor(f))
-		}
+		for (const f of minor) parts.push(renderMinor(f))
 		parts.push('')
 	}
 

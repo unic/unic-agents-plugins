@@ -50,4 +50,20 @@ describe('bucketBySeverity', () => {
 	it('0 → null (dropped)', () => {
 		assert.equal(bucketBySeverity(0), null)
 	})
+
+	it('throws on NaN', () => {
+		assert.throws(() => bucketBySeverity(NaN), /finite number in 0-100/)
+	})
+
+	it('throws on negative input', () => {
+		assert.throws(() => bucketBySeverity(-5), /finite number in 0-100/)
+	})
+
+	it('throws on > 100 input', () => {
+		assert.throws(() => bucketBySeverity(101), /finite number in 0-100/)
+	})
+
+	it('throws on Infinity', () => {
+		assert.throws(() => bucketBySeverity(Number.POSITIVE_INFINITY), /finite number in 0-100/)
+	})
 })

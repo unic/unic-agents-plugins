@@ -23,10 +23,13 @@
  */
 
 /**
- * @typedef {Object} ModeContext
- * @property {boolean} hasUrl - was a PR URL argument provided?
- * @property {boolean} hasPriorSignature - was a prior Bot Signature found in PR threads?
- * @property {boolean} revisionsAvailable - is the prior reviewed Revision still in the PR's Revision history?
+ * Discriminated by `hasUrl`, then by `hasPriorSignature`. Fields that the
+ * decision table marks `(any)` are simply absent from the variant where they
+ * are irrelevant — making nonsense inputs unrepresentable.
+ *
+ * @typedef {{ hasUrl: false }
+ *         | { hasUrl: true, hasPriorSignature: false }
+ *         | { hasUrl: true, hasPriorSignature: true, revisionsAvailable: boolean }} ModeContext
  */
 
 /**

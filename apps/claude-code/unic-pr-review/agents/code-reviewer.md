@@ -48,7 +48,6 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
       "confidence": 95,
       "filePath": "src/index.mjs",
       "startLine": 42,
-      "endLine": 45,
       "title": "Null pointer possible when input is undefined",
       "body": "If `input` is undefined, line 43 throws a TypeError. Either add a guard (`if (!input) return`) or assert the type at the call site.",
       "suggestion": "const value = input ?? defaultValue"
@@ -64,7 +63,6 @@ Field constraints:
 - `confidence`: integer 0–100; drop the Finding if below 60
 - `filePath`: path relative to the repository root, exactly as shown in the diff header
 - `startLine`: first line of the problematic code in the **new** file (after the patch)
-- `endLine`: last line of the problematic code (may equal `startLine` for single-line issues)
 - `title`: one short sentence, no period, ≤ 80 characters
 - `body`: 1–4 sentences explaining the problem and its impact; include `Either X, or Y` options when there are multiple valid fixes
 - `suggestion`: optional — include **only** when the fix is a clean, mechanical drop-in replacement with no judgment call required (e.g. rename a variable, add a missing null check with an obvious correct value). Omit when the fix requires design judgment.

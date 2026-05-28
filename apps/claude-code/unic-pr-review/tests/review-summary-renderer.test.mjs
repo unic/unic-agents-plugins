@@ -7,16 +7,27 @@ import { describe, it } from 'node:test'
 import { renderReviewSummary } from '../scripts/lib/review-summary-renderer.mjs'
 import { renderFooter } from '../scripts/lib/signature.mjs'
 
-/** @import { ReviewSummaryContext } from '../scripts/lib/review-summary-renderer.mjs' */
+/** @import { ReviewSummaryContext, SummaryFinding } from '../scripts/lib/review-summary-renderer.mjs' */
 
 /** @type {ReviewSummaryContext} */
 const MINIMAL = {
-	criticalFindings: [],
-	importantFindings: [],
-	minorFindings: [],
+	findings: [],
 	positiveObservations: [],
 	iteration: 1,
 }
+
+/**
+ * @param {'critical' | 'important' | 'minor'} severity
+ * @param {Partial<SummaryFinding>} [overrides]
+ * @returns {SummaryFinding}
+ */
+const finding = (severity, overrides = {}) => ({
+	severity,
+	filePath: 'src/x.mjs',
+	startLine: 1,
+	title: 'placeholder',
+	...overrides,
+})
 
 describe('renderReviewSummary', () => {
 	it("always includes the What's good section", () => {
@@ -51,7 +62,7 @@ describe('renderReviewSummary', () => {
 	it('includes Critical section with file:line link when critical findings present', () => {
 		const out = renderReviewSummary({
 			...MINIMAL,
-			criticalFindings: [{ filePath: 'src/index.mjs', startLine: 42, title: 'Null pointer' }],
+			findings: [finding('critical', { filePath: 'src/index.mjs', startLine: 42, title: 'Null pointer' })],
 		})
 		assert.ok(out.includes('### 🔴 Critical (1 found)'))
 		assert.ok(out.includes('**[src/index.mjs:42]** Null pointer'))
@@ -60,7 +71,7 @@ describe('renderReviewSummary', () => {
 	it('includes Important section with file:line link when important findings present', () => {
 		const out = renderReviewSummary({
 			...MINIMAL,
-			importantFindings: [{ filePath: 'lib/util.mjs', startLine: 10, title: 'Magic number' }],
+			findings: [finding('important', { filePath: 'lib/util.mjs', startLine: 10, title: 'Magic number' })],
 		})
 		assert.ok(out.includes('### 🟠 Important (1 found)'))
 		assert.ok(out.includes('**[lib/util.mjs:10]** Magic number'))
@@ -69,11 +80,30 @@ describe('renderReviewSummary', () => {
 	it('includes Minor section with title only when minor findings present', () => {
 		const out = renderReviewSummary({
 			...MINIMAL,
-			minorFindings: [{ filePath: 'src/x.mjs', startLine: 1, title: 'Rename variable' }],
+			findings: [finding('minor', { title: 'Rename variable' })],
 		})
 		assert.ok(out.includes('### 🟡 Minor / Suggestions'))
 		assert.ok(out.includes('- Rename variable'))
 		assert.ok(!out.includes('[src/x.mjs:1]'), 'Minor findings do not show file:line link')
+	})
+
+	it("orders sections Critical → Important → Minor → What's good when all are present", () => {
+		const out = renderReviewSummary({
+			...MINIMAL,
+			findings: [
+				finding('critical', { title: 'C1' }),
+				finding('important', { title: 'I1' }),
+				finding('minor', { title: 'M1' }),
+			],
+			positiveObservations: ['P1'],
+		})
+		const idxCritical = out.indexOf('### 🔴 Critical')
+		const idxImportant = out.indexOf('### 🟠 Important')
+		const idxMinor = out.indexOf('### 🟡 Minor')
+		const idxGood = out.indexOf("### ✅ What's good")
+		assert.ok(idxCritical >= 0 && idxImportant > idxCritical, 'Critical should precede Important')
+		assert.ok(idxMinor > idxImportant, 'Important should precede Minor')
+		assert.ok(idxGood > idxMinor, "Minor should precede What's good")
 	})
 
 	it('includes Intent Check section when intentCheck is provided', () => {
@@ -94,6 +124,18 @@ describe('renderReviewSummary', () => {
 	it('renders notices block before other sections when notices provided', () => {
 		const out = renderReviewSummary({ ...MINIMAL, notices: '> **Notice:** test notice' })
 		assert.ok(out.startsWith('> **Notice:** test notice'))
+	})
+
+	it('separates notices from the first section with a blank line', () => {
+		const out = renderReviewSummary({
+			...MINIMAL,
+			notices: '> **Notice:** force-push detected',
+			findings: [finding('critical', { title: 'C1' })],
+		})
+		assert.ok(
+			out.includes('force-push detected\n\n### 🔴 Critical'),
+			'Expected blank line between notices and first section'
+		)
 	})
 
 	it('does not include a notices block when notices is absent', () => {

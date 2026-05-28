@@ -22,10 +22,17 @@
  *   - 60-79  → minor
  *   - <60    → null (Finding dropped entirely)
  *
+ * Non-finite or out-of-range inputs throw — they almost always signal a
+ * programming bug upstream and silently bucketing them as `null` would hide it.
+ *
  * @param {number} confidence - integer 0-100
  * @returns {Severity | null} null means the Finding should be dropped
+ * @throws {Error} when confidence is not finite or is outside 0-100
  */
 export function bucketBySeverity(confidence) {
+	if (!Number.isFinite(confidence) || confidence < 0 || confidence > 100) {
+		throw new Error(`bucketBySeverity: confidence must be a finite number in 0-100, got ${confidence}`)
+	}
 	if (confidence >= 90) return 'critical'
 	if (confidence >= 80) return 'important'
 	if (confidence >= 60) return 'minor'
