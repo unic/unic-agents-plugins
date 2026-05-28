@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - realPing degrades gracefully when given a malformed URL instead of crashing the doctor
 - credentials loader distinguishes file-read errors from JSON-parse errors
 - `writeConfluenceCreds` preserves all existing fields on token rotation (not just `jiraUrl`) and only swallows JSON syntax errors — EACCES and other read errors now propagate instead of silently dropping data
+- Setup scripts and doctor guard their main-module check against `process.argv[1]` being unset, so they can be imported without crashing in `pathToFileURL(undefined)`
 
 ## [2.0.0] — 2026-05-28
 

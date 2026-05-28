@@ -346,7 +346,7 @@ async function main() {
 	process.exit(ok ? 0 : 1)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
 		process.stderr.write(`doctor: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
 		process.exit(1)

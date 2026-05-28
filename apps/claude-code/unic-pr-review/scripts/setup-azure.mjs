@@ -71,7 +71,7 @@ async function main() {
 	process.stdout.write(`Written: ${path}\n`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
 		process.stderr.write(`setup-azure: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
 		process.exit(1)
