@@ -44,8 +44,8 @@ git diff "origin/${BASE_BRANCH}...HEAD" --name-only
 
 - **Empty diff** (no output from `--name-only`): print "Nothing to review: no local changes against `<BASE_BRANCH>`." and stop.
 
-Before passing the diff to the agent, sanity-check its size — extremely large
-diffs will silently truncate at the agent's context window:
+Before passing the diff to the aspect agents, sanity-check its size — extremely large
+diffs will silently truncate at an agent's context window:
 
 ```sh
 git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
@@ -70,7 +70,7 @@ Optional Work Item URLs (Jira/ADO Boards) and Confluence URLs, comma-separated. 
 
 ## Step 3.6 — Spawn the Intent Checker agent (only when `PASTED_URLS` is non-empty)
 
-Use the Task tool to launch the `intent-checker` agent. Provide it this input:
+Use the Agent tool to launch the `intent-checker` agent. Provide it this input:
 
 ```json
 { "pastedUrls": [<PASTED_URLS split on comma, each entry trimmed>] }
