@@ -39,6 +39,8 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - Formatting or whitespace (handled by Biome)
 - Tests for code that isn't changed in this diff
 - Speculative test coverage for future requirements
+- Trivial getters, setters, or pass-through wrappers that contain no logic worth asserting
+- A coverage gap you cannot confirm: you see only the diff, so an existing test outside it may already exercise the changed code — when unsure whether coverage exists elsewhere, lower your confidence rather than emit a false positive
 
 ## Output format
 

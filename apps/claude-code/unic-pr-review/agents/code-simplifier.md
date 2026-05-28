@@ -34,12 +34,14 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - `if (x) return true; else return false` — simplifiable to `return x` (or `return Boolean(x)`)
 - Unnecessary async: a function declared `async` that never `await`s and could be synchronous
 - Chains of `.then().then().then()` in new code where `async/await` would be more readable
+- Nested or chained ternary operators (`a ? b : c ? d : e`) that would read more clearly as an `if/else` chain, `switch`, or lookup table
 
 ## What NOT to look for
 
 - Formatting or whitespace (handled by Biome)
 - Complexity that exists for documented performance reasons
 - Speculative abstractions for future code not in the diff
+- Changes that trade readability for fewer lines — never flag a helpful abstraction, a clearly-named intermediate variable, or a separated concern merely because it could be inlined or merged into one unit
 
 ## Output format
 

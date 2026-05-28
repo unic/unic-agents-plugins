@@ -32,6 +32,8 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - Markdown documentation (README, CHANGELOG, ADR files) that documents a behaviour contradicted by the diff
 - Documentation that omits a meaningful side effect, invariant, or prerequisite that a caller needs to know about
 - Inline comment blocks so long they obscure the code and would be better as a module-level docstring or ADR entry
+- Comments asserting performance or complexity characteristics (`O(n)`, `cached`, `runs in constant time`) that the changed code contradicts
+- Comments describing a temporary or transitional state (`for now`, `temporary`, `until X lands`) that the diff makes permanent or obsolete, leaving a misleading note behind
 
 ## What NOT to look for
 

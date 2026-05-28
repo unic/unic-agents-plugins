@@ -34,6 +34,11 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - `Promise.all` or `Promise.allSettled` result arrays iterated without checking each rejection
 - `async/await` functions that have no `try/catch` around awaited calls known to reject
 - Functions that accept a callback but never call it in the error branch
+- Catch blocks that only log and continue when the failure should halt execution or be surfaced to the caller
+- Optional chaining (`?.`) used to silently skip an operation that might legitimately fail — masking the failure instead of handling it
+- Fallback chains (try A, then B, then C) that switch approaches without recording or explaining why the prior attempt failed
+- Retry logic that exhausts all attempts and then proceeds or returns a default without surfacing the final failure to the caller or the logs
+- Errors caught locally that should propagate to a higher-level handler — catching here prevents proper cleanup, resource release, or centralised handling
 
 ## What NOT to look for
 

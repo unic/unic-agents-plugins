@@ -33,6 +33,11 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - Exported types with no JSDoc `@typedef` or type-alias comment explaining their invariants
 - Mutable types used where an immutable (`Readonly<T>`) variant would prevent accidental mutation
 - Union types that don't cover all discriminant cases — missing `never` exhaustiveness check
+- Anemic domain models: types that are pure data bags with no behaviour, forcing every consumer to re-implement the same validation or derivation logic
+- Types that expose mutable internals (public mutable arrays, objects, or fields) letting callers break the type's invariants from outside
+- Invariants enforced only by documentation or convention rather than by the type itself or a constructor/factory guard
+- Inconsistent enforcement: one mutation path validates an invariant while another (a setter, an alternate constructor) bypasses it
+- Missing validation at the construction boundary — a type that can be assembled field-by-field into an illegal state before any guard runs
 
 ## What NOT to look for
 
@@ -78,6 +83,7 @@ Field constraints:
 ## Procedure
 
 1. Read the entire diff before emitting any Finding.
-2. Apply the confidence rubric and drop anything below 60.
-3. If an Intent Brief is provided, note whether the changed code addresses the acceptance criteria — flag gaps as Important or Minor Findings.
-4. Emit the JSON object. Nothing else.
+2. For each changed type, first identify the invariants it should hold — required/optional field relationships, valid state transitions, and pre/postconditions — then check whether the type makes illegal states unrepresentable or defers them to runtime guards.
+3. Apply the confidence rubric and drop anything below 60.
+4. If an Intent Brief is provided, note whether the changed code addresses the acceptance criteria — flag gaps as Important or Minor Findings.
+5. Emit the JSON object. Nothing else.
