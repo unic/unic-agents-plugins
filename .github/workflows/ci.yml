@@ -49,7 +49,7 @@ jobs:
               - 'apps/claude-code/unic-archon-dlc/**'
 
   test:
-    name: Test ${{ matrix.package }} / ${{ matrix.os }} / Node ${{ matrix.node }}
+    name: Test ${{ matrix.package.name }} / ${{ matrix.os }} / Node ${{ matrix.node }}
     needs: changes
     if: |
       needs.changes.outputs.auto-format == 'true' ||
