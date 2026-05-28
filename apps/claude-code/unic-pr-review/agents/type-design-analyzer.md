@@ -69,7 +69,7 @@ Field constraints:
 - `body`: 1–4 sentences explaining the problem and its impact; include `Either X, or Y` options when there are multiple valid fixes
 - `suggestion`: optional — include **only** when the fix is a clean, mechanical drop-in replacement with no judgment call required (e.g. rename a variable, add a missing null check with an obvious correct value). Omit when the fix requires design judgment.
 
-```positiveObservations``` must always be present (use an empty array `[]` when you find nothing noteworthy to praise). Keep observations concise — one sentence each.
+`positiveObservations` must always be present (use an empty array `[]` when you find nothing noteworthy to praise). Keep observations concise — one sentence each.
 
 ## Procedure
 

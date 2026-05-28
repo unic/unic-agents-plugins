@@ -6,7 +6,7 @@ description: Review a pull request or your local branch. Pass an ADO PR URL to r
 
 # unic-pr-review:review-pr
 
-Runs an AI-powered code review. Without a URL the Plugin operates in **Pre-PR mode** — it computes the diff of your local branch against the resolved upstream base branch, fans out to the `code-reviewer` aspect agent, and prints the Review Summary in the terminal. Nothing is written to ADO.
+Runs an AI-powered code review. Without a URL the Plugin operates in **Pre-PR mode** — it computes the diff of your local branch against the resolved upstream base branch, determines which Review Aspect agents to spawn based on the changed files (ADR-0008), fans out to those agents in parallel, and prints the merged Review Summary in the terminal. Nothing is written to ADO.
 
 ## Step 1 — Detect mode
 
@@ -54,9 +54,30 @@ git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
 - **Diff exceeds ~2000 lines or ~200 KB**: warn the user that the review may be
   incomplete and suggest tightening the base branch (e.g. `--base feature/x`).
 
-## Step 4 — Spawn the code-reviewer agent
+## Step 4 — Determine which aspect agents to spawn and fan out
 
-Use the Task tool to launch the `code-reviewer` agent. Provide it the following input:
+### Step 4a — Resolve the spawn set
+
+Run the changed-file-analyser to determine which Review Aspect agents apply to this diff:
+
+```sh
+git diff "origin/${BASE_BRANCH}...HEAD" --name-only | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+```
+
+- **Exit 0**: stdout contains a JSON array of agent names, e.g. `["code-reviewer","silent-failure-hunter"]`. Store it as `SPAWN_SET`.
+- **Exit non-zero**: relay stderr verbatim and stop.
+
+Print the spawn set to the terminal so the user can see which agents will run:
+
+```
+Spawning agents: code-reviewer, silent-failure-hunter, pr-test-analyzer
+```
+
+### Step 4b — Spawn all agents in parallel
+
+Use the Task tool to launch every agent in SPAWN_SET simultaneously. Do not wait for one agent to finish before starting the next — launch all at once.
+
+For each agent name in SPAWN_SET, launch a Task with this exact input:
 
 ```
 Diff to review:
@@ -64,26 +85,42 @@ Diff to review:
 <full unified diff from Step 3>
 ```
 
-Wait for the agent to complete. The agent emits a JSON object:
+Agent-name to agent-file mapping:
+
+| Agent name              | Agent file (relative to CLAUDE_PLUGIN_ROOT) |
+| ----------------------- | ------------------------------------------- |
+| `code-reviewer`         | `agents/code-reviewer.md`                   |
+| `silent-failure-hunter` | `agents/silent-failure-hunter.md`           |
+| `type-design-analyzer`  | `agents/type-design-analyzer.md`            |
+| `pr-test-analyzer`      | `agents/pr-test-analyzer.md`                |
+| `comment-analyzer`      | `agents/comment-analyzer.md`                |
+| `code-simplifier`       | `agents/code-simplifier.md`                 |
+
+Wait for all agents to complete. Each returns a JSON object:
 
 ```json
 { "findings": [...], "positiveObservations": [...] }
 ```
 
-Store the raw JSON verbatim — do not parse or reformat it. The next step's
-helper consumes the raw string and validates each Finding through
-`parseFinding`. If the agent emits anything other than a JSON object,
-`render-summary` will exit non-zero with a diagnostic in stderr; follow the
-Step 5 contract below for how to handle that.
+Store every response. If an agent returns something other than a JSON object, log a warning to the user (include the agent name) and continue with the remaining agents — do not abort the whole review.
 
-## Step 5 — Render the Review Summary
+## Step 5 — Merge findings and render the Review Summary
 
-Pass the raw JSON from Step 4 into the `render-summary` helper via the
-`FINDINGS_JSON` environment variable. The helper validates each Finding,
-buckets by severity per ADR-0002, and writes the rendered markdown to stdout:
+Merge the responses from all agents:
+
+- Concatenate all `findings` arrays into one flat array.
+- Concatenate all `positiveObservations` arrays into one flat array; remove exact-string duplicates.
+
+Construct the merged JSON object:
+
+```json
+{ "findings": [...all findings...], "positiveObservations": [...deduplicated observations...] }
+```
+
+Pass it to the `render-summary` helper via the `FINDINGS_JSON` environment variable. The helper validates each Finding, buckets by severity per ADR-0002, and writes the rendered markdown to stdout:
 
 ```sh
-FINDINGS_JSON='<raw JSON from the agent>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
+FINDINGS_JSON='<merged JSON>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
 ```
 
 The helper is the single source of truth for the rendering pipeline — it

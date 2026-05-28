@@ -56,3 +56,22 @@ export function decideSpawnSet(changedFiles) {
 	if (changedFiles.length === 0) return new Set()
 	return new Set(SPAWN_TABLE.filter(({ predicate }) => predicate(changedFiles)).map(({ agent }) => agent))
 }
+
+// CLI entry — reads newline-separated file paths from stdin, writes JSON array to stdout.
+// Only runs when executed directly: `node scripts/lib/changed-file-analyser.mjs`
+if (import.meta.url === new URL(process.argv[1], 'file:').href) {
+	/** @type {Buffer[]} */
+	const chunks = []
+	process.stdin.on('data', (chunk) => chunks.push(chunk))
+	process.stdin.on('end', () => {
+		const raw = Buffer.concat(chunks).toString('utf8')
+		const files = raw.trim().split('\n').filter(Boolean)
+		try {
+			const agents = [...decideSpawnSet(files)]
+			process.stdout.write(JSON.stringify(agents) + '\n')
+		} catch (err) {
+			process.stderr.write(`changed-file-analyser: ${err instanceof Error ? err.message : String(err)}\n`)
+			process.exit(1)
+		}
+	})
+}
