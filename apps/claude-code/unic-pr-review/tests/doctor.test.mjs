@@ -133,6 +133,26 @@ describe('checkConfluence', () => {
 		assert.match(r.detail, /401/)
 	})
 
+	it('returns ok:true on 299 (inclusive upper bound of 2xx)', async () => {
+		const creds = { url: 'https://example.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }
+		const r = await checkConfluence(creds, pingHttp(299))
+		assert.equal(r.ok, true)
+	})
+
+	it('returns ok:false on 199 (just below 2xx)', async () => {
+		const creds = { url: 'https://example.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }
+		const r = await checkConfluence(creds, pingHttp(199))
+		assert.equal(r.ok, false)
+		assert.match(r.detail, /199/)
+	})
+
+	it('returns ok:false on 300 (just above 2xx)', async () => {
+		const creds = { url: 'https://example.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }
+		const r = await checkConfluence(creds, pingHttp(300))
+		assert.equal(r.ok, false)
+		assert.match(r.detail, /300/)
+	})
+
 	it('returns ok:false when Confluence is unreachable (transport-error)', async () => {
 		const creds = { url: 'https://example.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }
 		const r = await checkConfluence(creds, pingError('ECONNREFUSED'))
