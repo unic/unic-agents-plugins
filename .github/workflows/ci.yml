@@ -26,7 +26,7 @@ jobs:
       pr-review: ${{ steps.filter.outputs.pr-review }}
       unic-pr-review: ${{ steps.filter.outputs.unic-pr-review }}
       auto-format: ${{ steps.filter.outputs.auto-format }}
-      confluence-publish: ${{ steps.filter.outputs.confluence-publish }}
+      unic-confluence: ${{ steps.filter.outputs.unic-confluence }}
       release-tools: ${{ steps.filter.outputs.release-tools }}
       unic-archon-dlc: ${{ steps.filter.outputs.unic-archon-dlc }}
     steps:
