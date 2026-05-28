@@ -33,6 +33,17 @@ const pingHttp = (status) => async () => ({ kind: 'http', status })
 /** @param {string} error @returns {Ping} */
 const pingError = (error) => async () => ({ kind: 'transport-error', error })
 
+/** @type {Exec} */
+const allOkExec = (_cmd, args) => {
+	if (args.includes('user') && args.includes('show')) {
+		return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
+	}
+	if (args.includes('extension')) {
+		return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
+	}
+	return { ok: true, stdout: '[]', stderr: '' }
+}
+
 describe('checkAzCli', () => {
 	it('returns ok:true when az --version exits 0', () => {
 		const exec = execReturning({ ok: true, stdout: 'azure-cli 2.60.0\n' })
@@ -159,6 +170,22 @@ describe('checkConfluence', () => {
 		assert.equal(r.ok, false)
 		assert.match(r.detail, /ECONNREFUSED/)
 	})
+
+	it('strips a trailing slash and pings the Confluence space endpoint with Basic auth', async () => {
+		const creds = { url: 'https://example.atlassian.net/', username: 'u', token: 't', jiraUrl: undefined }
+		/** @type {{ url?: string, headers?: Record<string, string> }} */
+		const captured = {}
+		/** @type {Ping} */
+		const ping = async (url, headers) => {
+			captured.url = url
+			captured.headers = headers
+			return { kind: 'http', status: 200 }
+		}
+		await checkConfluence(creds, ping)
+		assert.equal(captured.url, 'https://example.atlassian.net/wiki/rest/api/space?limit=1')
+		assert.match(captured.headers?.Authorization ?? '', /^Basic /)
+		assert.equal(captured.headers?.Accept, 'application/json')
+	})
 })
 
 describe('checkJira', () => {
@@ -207,21 +234,30 @@ describe('checkJira', () => {
 		assert.equal(r.ok, false)
 		assert.match(r.detail, /ETIMEDOUT/)
 	})
+
+	it('strips a trailing slash and pings the Jira /myself endpoint with Basic auth', async () => {
+		const creds = {
+			url: 'https://example.atlassian.net',
+			username: 'u',
+			token: 't',
+			jiraUrl: 'https://jira.atlassian.net/',
+		}
+		/** @type {{ url?: string, headers?: Record<string, string> }} */
+		const captured = {}
+		/** @type {Ping} */
+		const ping = async (url, headers) => {
+			captured.url = url
+			captured.headers = headers
+			return { kind: 'http', status: 200 }
+		}
+		await checkJira(creds, ping)
+		assert.equal(captured.url, 'https://jira.atlassian.net/rest/api/3/myself')
+		assert.match(captured.headers?.Authorization ?? '', /^Basic /)
+		assert.equal(captured.headers?.Accept, 'application/json')
+	})
 })
 
 describe('runDoctor — Jira silence (US-35)', () => {
-	// exec stub that returns ok for everything; identity returns a valid id
-	/** @type {Exec} */
-	const allOkExec = (_cmd, args) => {
-		if (args.includes('user') && args.includes('show')) {
-			return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
-		}
-		if (args.includes('extension')) {
-			return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
-		}
-		return { ok: true, stdout: '[]', stderr: '' }
-	}
-
 	it('emits no Jira line when jiraUrl is not configured', async () => {
 		const { ok, output } = await runDoctor({
 			exec: allOkExec,
@@ -251,6 +287,63 @@ describe('runDoctor — Jira silence (US-35)', () => {
 			}),
 		})
 		assert.match(output, /Jira reachable/)
+	})
+})
+
+describe('runDoctor — missing credentials', () => {
+	it('returns ok:false and emits an Atlassian credentials error when creds are absent', async () => {
+		const { ok, output } = await runDoctor({
+			exec: allOkExec,
+			ping: pingHttp(200),
+			loadCreds: () => null,
+		})
+		assert.equal(ok, false)
+		assert.match(output, /Atlassian credentials/)
+		assert.match(output, /One or more checks failed/)
+	})
+
+	it('returns ok:false and formats error when loadCreds throws', async () => {
+		const { ok, output } = await runDoctor({
+			exec: execReturning({ ok: true, stdout: '[]' }),
+			ping: pingHttp(200),
+			loadCreds: () => {
+				throw new Error('EACCES: permission denied')
+			},
+		})
+		assert.equal(ok, false)
+		assert.match(output, /Atlassian credentials/)
+		assert.match(output, /EACCES/)
+		assert.match(output, /One or more checks failed/)
+	})
+})
+
+describe('runDoctor — waterfall short-circuits', () => {
+	it('skips extension/login/identity when az CLI is missing', async () => {
+		const { ok, output } = await runDoctor({
+			exec: execReturning({ ok: false }),
+			ping: pingHttp(200),
+			loadCreds: () => ({ url: 'https://x.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }),
+		})
+		assert.equal(ok, false)
+		assert.doesNotMatch(output, /azure-devops extension/)
+		assert.doesNotMatch(output, /az devops session/)
+		assert.doesNotMatch(output, /az devops identity/)
+	})
+
+	it('skips login/identity when extension is missing', async () => {
+		/** @type {Exec} */
+		const exec = (_cmd, args) => {
+			if (args.includes('--version')) return { ok: true, stdout: 'azure-cli 2.60.0', stderr: '' }
+			if (args.includes('extension')) return { ok: true, stdout: JSON.stringify([]), stderr: '' }
+			return { ok: true, stdout: '[]', stderr: '' }
+		}
+		const { output } = await runDoctor({
+			exec,
+			ping: pingHttp(200),
+			loadCreds: () => ({ url: 'https://x.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }),
+		})
+		assert.doesNotMatch(output, /az devops session/)
+		assert.doesNotMatch(output, /az devops identity/)
 	})
 })
 

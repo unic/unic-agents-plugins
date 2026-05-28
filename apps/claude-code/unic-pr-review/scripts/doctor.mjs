@@ -6,14 +6,13 @@
 /**
  * doctor.mjs — preflight checks for unic-pr-review prerequisites.
  *
- * Six checks run sequentially. The az checks (1–4) short-circuit on prior
- * failure — e.g. checks 3/4 are skipped when check 1 fails. The Atlassian
- * checks (5–6) only run when Atlassian credentials load successfully.
+ * Six checks with cascade: each az check only runs if the prior one passes;
+ * Atlassian checks run when credentials load successfully.
  *
  *   1. az CLI on PATH
- *   2. azure-devops extension installed
- *   3. az devops session valid (project list)
- *   4. az devops user show --user me resolves (identity caching — ADR-0006)
+ *   2. azure-devops extension installed           (only if 1 passes)
+ *   3. az devops session valid (project list)     (only if 2 passes)
+ *   4. az devops user show --user me              (only if 3 passes)
  *   5. Confluence reachable
  *   6. Jira reachable (silent when jiraUrl is unset — US 35)
  *
@@ -155,7 +154,7 @@ export async function checkConfluence(creds, ping) {
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
 	if (r.kind === 'transport-error') {
-		return { ok: false, detail: `Confluence ${host} request failed: ${r.error}` }
+		return { ok: false, detail: `Confluence ${host} unreachable: ${r.error}` }
 	}
 	if (!isPingOk(r)) {
 		return { ok: false, detail: `Confluence ${host} returned HTTP ${r.status}` }
@@ -164,8 +163,12 @@ export async function checkConfluence(creds, ping) {
 }
 
 /**
- * Predicate: Jira is reachable. Returns ok:true with skipped:true when no
- * `jiraUrl` is configured — US 35 requires doctor to stay silent in that case.
+ * Predicate: Jira is reachable with the configured credentials.
+ * Returns ok:true with skipped:true when no `jiraUrl` is configured —
+ * US 35 requires doctor to be silent in that case.
+ *
+ * Note: `runDoctor` only calls this predicate when `jiraUrl` is set;
+ * the skipped guard is a safety net for standalone use.
  * @param {AtlassianCreds} creds
  * @param {Ping} ping
  * @returns {Promise<CheckResult>}
@@ -179,7 +182,7 @@ export async function checkJira(creds, ping) {
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
 	if (r.kind === 'transport-error') {
-		return { ok: false, detail: `Jira ${host} request failed: ${r.error}` }
+		return { ok: false, detail: `Jira ${host} unreachable: ${r.error}` }
 	}
 	if (!isPingOk(r)) {
 		return { ok: false, detail: `Jira ${host} returned HTTP ${r.status}` }
@@ -273,7 +276,7 @@ function formatLine(result, label) {
 
 /**
  * Execute all preflight checks and return the rendered output + overall status.
- * Exported so unit tests can drive main() with stubbed dependencies.
+ * Exported so unit tests can inject stubs without patching the module system.
  * @internal
  * @param {RunDoctorDeps} [deps]
  * @returns {Promise<{ok: boolean, output: string }>}
@@ -281,7 +284,7 @@ function formatLine(result, label) {
 export async function runDoctor(deps = {}) {
 	const exec = deps.exec ?? realExec
 	const ping = deps.ping ?? realPing
-	const loadCreds = deps.loadCreds ?? (() => loadAtlassianCreds())
+	const loadCreds = deps.loadCreds ?? loadAtlassianCreds
 
 	const lines = []
 	lines.push('unic-pr-review doctor')
@@ -325,7 +328,9 @@ export async function runDoctor(deps = {}) {
 	} else if (!creds) {
 		lines.push('✗ Atlassian credentials — neither env vars nor ~/.unic-confluence.json found')
 		allOk = false
-	} else {
+	}
+
+	if (creds) {
 		const conf = await checkConfluence(creds, ping)
 		lines.push(formatLine(conf, 'Confluence'))
 		if (!conf.ok) allOk = false

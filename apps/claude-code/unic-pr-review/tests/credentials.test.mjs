@@ -63,6 +63,22 @@ describe('loadAtlassianCreds', () => {
 		writeFileSync(join(home, '.unic-confluence.json'), 'not-valid-json')
 		assert.throws(() => loadAtlassianCreds(home, {}), /invalid JSON/)
 	})
+
+	it('includes jiraUrl from file when present', () => {
+		const home = tempDir()
+		writeFileSync(
+			join(home, '.unic-confluence.json'),
+			JSON.stringify({
+				url: 'https://x.atlassian.net',
+				username: 'u',
+				token: 't',
+				jiraUrl: 'https://jira.atlassian.net',
+			})
+		)
+		const r = loadAtlassianCreds(home, {})
+		assert.ok(r)
+		assert.equal(r.jiraUrl, 'https://jira.atlassian.net')
+	})
 })
 
 describe('loadAzureCreds', () => {
