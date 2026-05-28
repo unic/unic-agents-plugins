@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - doctor stays fully silent about Jira when jiraUrl is not configured (US-35)
 - realPing degrades gracefully when given a malformed URL instead of crashing the doctor
 - credentials loader distinguishes file-read errors from JSON-parse errors
+- `writeConfluenceCreds` preserves all existing fields on token rotation (not just `jiraUrl`) and only swallows JSON syntax errors — EACCES and other read errors now propagate instead of silently dropping data
 
 ## [2.0.0] — 2026-05-28
 

@@ -33,8 +33,10 @@ import { parseArgs } from './lib/args.mjs'
 
 /**
  * Write ~/.unic-confluence.json with the given credentials. Preserves any
- * existing `jiraUrl` field (and future fields) so re-running to rotate a
- * token does not silently drop data written by :setup-jira.
+ * existing fields (e.g. `jiraUrl` from :setup-jira) so re-running to rotate
+ * a token does not silently drop data. If the existing file is unparseable
+ * the writer warns and overwrites; non-syntax read errors (EACCES, etc.)
+ * propagate so callers can surface them rather than silently losing data.
  *
  * @param {string} url
  * @param {string} username
@@ -52,16 +54,18 @@ export function writeConfluenceCreds(url, username, token, deps = {}) {
 	const warn = deps.warn ?? ((m) => process.stderr.write(`${m}\n`))
 
 	const path = join(home, '.unic-confluence.json')
-	let jiraUrl
+	let preserved = {}
 	if (exists(path)) {
+		const raw = read(path, 'utf8')
 		try {
-			const existing = JSON.parse(read(path, 'utf8'))
-			jiraUrl = existing?.jiraUrl
-		} catch {
-			// Ignore parse errors — we will overwrite with valid data
+			const existing = JSON.parse(raw)
+			if (existing && typeof existing === 'object') preserved = existing
+		} catch (err) {
+			if (!(err instanceof SyntaxError)) throw err
+			warn(`${path} contains invalid JSON — overwriting (any prior jiraUrl will be lost).`)
 		}
 	}
-	const payload = jiraUrl != null ? { url, username, token, jiraUrl } : { url, username, token }
+	const payload = { ...preserved, url, username, token }
 	write(path, JSON.stringify(payload, null, 2), 'utf8')
 	if (platform === 'win32') {
 		warn(`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually via NTFS permissions.`)

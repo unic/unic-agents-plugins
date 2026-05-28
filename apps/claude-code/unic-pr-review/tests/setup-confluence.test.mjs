@@ -44,10 +44,9 @@ describe('writeConfluenceCreds', () => {
 		assert.equal(content.url, 'https://x.atlassian.net')
 	})
 
-	it('preserves jiraUrl when re-running to rotate credentials', () => {
+	it('preserves jiraUrl and other existing fields when re-running to rotate credentials', () => {
 		const home = tempDir()
 		const opts = { homedir: home, platform: 'linux', chmod: () => {} }
-		// First: write initial creds + jiraUrl
 		writeFileSync(
 			join(home, '.unic-confluence.json'),
 			JSON.stringify({
@@ -55,13 +54,54 @@ describe('writeConfluenceCreds', () => {
 				username: 'u',
 				token: 'old',
 				jiraUrl: 'https://jira.atlassian.net',
+				bitbucketUrl: 'https://bitbucket.example.com',
 			})
 		)
-		// Re-run setup-confluence to rotate token
 		writeConfluenceCreds('https://x.atlassian.net', 'u', 'new-tok', opts)
 		const content = JSON.parse(readFileSync(join(home, '.unic-confluence.json'), 'utf8'))
 		assert.equal(content.token, 'new-tok')
 		assert.equal(content.jiraUrl, 'https://jira.atlassian.net')
+		assert.equal(content.bitbucketUrl, 'https://bitbucket.example.com')
+	})
+
+	it('warns and overwrites when the existing file contains invalid JSON', () => {
+		const home = tempDir()
+		writeFileSync(join(home, '.unic-confluence.json'), 'not-valid-json')
+		/** @type {string[]} */
+		const warns = []
+		writeConfluenceCreds('https://x.atlassian.net', 'u', 'tok', {
+			homedir: home,
+			platform: 'linux',
+			chmod: () => {},
+			warn: (m) => warns.push(m),
+		})
+		assert.equal(warns.length, 1)
+		assert.match(warns[0], /invalid JSON/)
+		const content = JSON.parse(readFileSync(join(home, '.unic-confluence.json'), 'utf8'))
+		assert.equal(content.token, 'tok')
+		assert.equal(content.jiraUrl, undefined)
+	})
+
+	it('rethrows non-syntax read errors (e.g. EACCES) instead of silently dropping data', () => {
+		const home = tempDir()
+		assert.throws(
+			() =>
+				writeConfluenceCreds('https://x.atlassian.net', 'u', 'tok', {
+					homedir: home,
+					platform: 'linux',
+					exists: () => true,
+					readFile: () => {
+						const err = /** @type {Error & { code?: string }} */ (new Error('EACCES: permission denied'))
+						err.code = 'EACCES'
+						throw err
+					},
+					writeFile: () => {
+						throw new Error('write must not be called when read fails')
+					},
+					chmod: () => {},
+				}),
+			/EACCES/
+		)
 	})
 
 	it('Windows chmod warning branch — warn called, chmod skipped', () => {
