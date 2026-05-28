@@ -1,4 +1,5 @@
 ---
+name: silent-failure-hunter
 description: Silent Failure Hunter — scans the diff for swallowed errors, empty catch blocks, and inappropriate fallback patterns. Emits structured Findings with Confidence Scores.
 ---
 

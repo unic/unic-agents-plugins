@@ -1,4 +1,5 @@
 ---
+name: comment-analyzer
 description: Comment Analyzer — scans the diff for comment rot, inaccurate documentation, and over-documentation antipatterns. Emits structured Findings with Confidence Scores.
 ---
 

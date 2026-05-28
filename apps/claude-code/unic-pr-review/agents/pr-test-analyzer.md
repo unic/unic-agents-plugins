@@ -1,4 +1,5 @@
 ---
+name: pr-test-analyzer
 description: PR Test Analyzer — checks the diff for test-coverage gaps, missing edge cases, and shallow assertions. Emits structured Findings with Confidence Scores.
 ---
 

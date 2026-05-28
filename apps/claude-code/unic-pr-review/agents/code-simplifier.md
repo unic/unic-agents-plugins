@@ -1,4 +1,5 @@
 ---
+name: code-simplifier
 description: Code Simplifier — identifies opportunities to reduce complexity and eliminate unnecessary code in the diff. Emits structured Findings with Confidence Scores.
 ---
 

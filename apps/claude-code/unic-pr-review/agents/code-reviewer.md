@@ -1,4 +1,5 @@
 ---
+name: code-reviewer
 description: Code Reviewer — analyses the diff for correctness, style, and maintainability issues. Emits structured Findings with Confidence Scores.
 ---
 

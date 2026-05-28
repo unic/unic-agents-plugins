@@ -1,4 +1,5 @@
 ---
+name: type-design-analyzer
 description: Type Design Analyzer — inspects the diff for weakly-encapsulated types and missing invariants. Emits structured Findings with Confidence Scores.
 ---
 
