@@ -7,7 +7,9 @@
  * base-branch-resolver.mjs — resolve the upstream base branch for Pre-PR mode.
  *
  * Resolution chain (ADR-0009 — Pre-PR mode is a peer operating mode):
- *   1. git symbolic-ref refs/remotes/origin/HEAD → strip "refs/remotes/origin/" prefix
+ *   1. git symbolic-ref refs/remotes/origin/HEAD → strip "refs/remotes/origin/" prefix.
+ *      If symbolic-ref returns a ref shape that does not start with the prefix
+ *      (older git, unusual config), silently fall through to the chain below.
  *   2. git rev-parse --verify origin/develop
  *   3. git rev-parse --verify origin/main
  *   4. git rev-parse --verify origin/master
@@ -17,29 +19,10 @@
  * without a real git repository.
  */
 
-import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
+import { realExec } from './exec.mjs'
 
-/**
- * @typedef {Object} ExecResult
- * @property {boolean} ok
- * @property {string} stdout
- * @property {string} stderr
- */
-
-/**
- * @typedef {(cmd: string, args: string[]) => ExecResult} Exec
- */
-
-/** @type {Exec} */
-export function realExec(cmd, args) {
-	const r = spawnSync(cmd, args, { encoding: 'utf8' })
-	return {
-		ok: r.status === 0 && r.error == null,
-		stdout: r.stdout ?? '',
-		stderr: r.stderr ?? '',
-	}
-}
+/** @import { Exec } from './exec.mjs' */
 
 const SYMBOLIC_REF_PREFIX = 'refs/remotes/origin/'
 const FALLBACK_BRANCHES = ['develop', 'main', 'master']
@@ -56,6 +39,9 @@ const FALLBACK_BRANCHES = ['develop', 'main', 'master']
  * @throws {Error} when no base branch is resolvable
  */
 export function resolveBaseBranch(exec) {
+	if (typeof exec !== 'function') {
+		throw new Error('resolveBaseBranch: exec must be a function (pass realExec in production)')
+	}
 	const symref = exec('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'])
 	if (symref.ok) {
 		const ref = symref.stdout.trim()

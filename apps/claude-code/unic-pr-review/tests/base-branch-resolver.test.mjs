@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { resolveBaseBranch } from '../scripts/lib/base-branch-resolver.mjs'
 
-/** @import { Exec, ExecResult } from '../scripts/lib/base-branch-resolver.mjs' */
+/** @import { Exec, ExecResult } from '../scripts/lib/exec.mjs' */
 
 /**
  * Build a sequential stub Exec that returns the given results in order.
@@ -74,5 +74,10 @@ describe('resolveBaseBranch', () => {
 		// symbolic-ref exits 0 but returns a bare branch name, not a full remote ref
 		const exec = seqExec(ok('main\n'), ok('abc123'))
 		assert.equal(resolveBaseBranch(exec), 'develop')
+	})
+
+	it('throws when exec is not a function', () => {
+		// @ts-expect-error — intentional misuse to verify the guard
+		assert.throws(() => resolveBaseBranch(undefined), /exec must be a function/)
 	})
 })

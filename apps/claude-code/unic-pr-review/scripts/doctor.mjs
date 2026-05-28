@@ -19,33 +19,33 @@
  */
 
 import { Buffer } from 'node:buffer'
-import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { loadAtlassianCreds } from './lib/credentials.mjs'
+import { realExec } from './lib/exec.mjs'
 
 /** @import { AtlassianCreds } from './lib/credentials.mjs' */
+/** @import { Exec, ExecResult } from './lib/exec.mjs' */
 
 /**
- * @typedef {Object} ExecResult
- * @property {boolean} ok
- * @property {string} stdout
- * @property {string} stderr
- */
-
-/**
- * @typedef {(cmd: string, args: string[]) => ExecResult} Exec
- */
-
-/**
- * @typedef {Object} PingResult
- * @property {boolean} ok
- * @property {number} status
- * @property {string} [error] - set on any request failure (synchronous throws like invalid URL or wrong scheme, plus asynchronous rejections such as timeouts and network errors)
+ * Discriminated by `kind`:
+ *   - 'http' — fetch resolved; `status` is the HTTP response code.
+ *   - 'transport-error' — fetch rejected (invalid URL, wrong scheme, timeout,
+ *     network error); `error` carries the failure message.
+ *
+ * @typedef {{ kind: 'http', status: number } | { kind: 'transport-error', error: string }} PingResult
  */
 
 /**
  * @typedef {(url: string, headers: Record<string, string>) => Promise<PingResult>} Ping
  */
+
+/**
+ * @param {PingResult} r
+ * @returns {boolean}
+ */
+function isPingOk(r) {
+	return r.kind === 'http' && r.status >= 200 && r.status < 300
+}
 
 /**
  * @typedef {Object} CheckResult
@@ -54,7 +54,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  * @property {boolean} [skipped]
  */
 
-const AZ = process.platform === 'win32' ? 'az.cmd' : 'az'
+export const AZ = process.platform === 'win32' ? 'az.cmd' : 'az'
 
 /**
  * Predicate: `az` CLI is on PATH and runs.
@@ -151,11 +151,11 @@ export async function checkConfluence(creds, ping) {
 	const url = `${stripTrailingSlash(creds.url)}/wiki/rest/api/space?limit=1`
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
-	if (!r.ok) {
-		const detail = r.error
-			? `Confluence ${host} request failed: ${r.error}`
-			: `Confluence ${host} returned HTTP ${r.status}`
-		return { ok: false, detail }
+	if (r.kind === 'transport-error') {
+		return { ok: false, detail: `Confluence ${host} request failed: ${r.error}` }
+	}
+	if (!isPingOk(r)) {
+		return { ok: false, detail: `Confluence ${host} returned HTTP ${r.status}` }
 	}
 	return { ok: true, detail: `Confluence reachable (${host})` }
 }
@@ -175,9 +175,11 @@ export async function checkJira(creds, ping) {
 	const url = `${stripTrailingSlash(creds.jiraUrl)}/rest/api/3/myself`
 	const headers = { Authorization: basicAuth(creds.username, creds.token), Accept: 'application/json' }
 	const r = await ping(url, headers)
-	if (!r.ok) {
-		const detail = r.error ? `Jira ${host} request failed: ${r.error}` : `Jira ${host} returned HTTP ${r.status}`
-		return { ok: false, detail }
+	if (r.kind === 'transport-error') {
+		return { ok: false, detail: `Jira ${host} request failed: ${r.error}` }
+	}
+	if (!isPingOk(r)) {
+		return { ok: false, detail: `Jira ${host} returned HTTP ${r.status}` }
 	}
 	return { ok: true, detail: `Jira reachable (${host})` }
 }
@@ -208,33 +210,43 @@ function basicAuth(user, token) {
 	return `Basic ${Buffer.from(`${user}:${token}`).toString('base64')}`
 }
 
+export const PING_TIMEOUT_MS = 10_000
+
 /**
- * Default executor: wraps spawnSync.
- * @type {Exec}
+ * Map a fetch rejection to a human-readable error message. Recognises
+ * `AbortSignal.timeout`'s `TimeoutError` and emits a friendly fixed message
+ * so doctor output stays consistent across Node versions.
+ *
+ * @param {unknown} err
+ * @returns {string}
  */
-function realExec(cmd, args) {
-	const r = spawnSync(cmd, args, { encoding: 'utf8' })
-	return { ok: r.status === 0 && r.error == null, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+export function mapPingError(err) {
+	if (err instanceof Error && err.name === 'TimeoutError') {
+		return `Request timed out after ${PING_TIMEOUT_MS / 1000}s`
+	}
+	return err instanceof Error ? err.message : String(err)
 }
 
 /**
  * Default fetcher: GET via global fetch with a 10 s timeout (ADR-0005).
- * Handles both https:// and http:// URLs; surfaces any fetch failure
- * (synchronous throws, timeouts, network errors) in the optional `error`
- * field so callers can show an actionable message.
+ * Handles both https:// and http:// URLs. Returns the discriminated PingResult
+ * — an HTTP result on resolution, a transport-error on any rejection (invalid
+ * URL, wrong scheme, timeout, network error).
+ *
+ * `AbortSignal.timeout`'s rejection is mapped to a friendly fixed message so
+ * doctor output stays consistent across Node versions.
  *
  * Exported for unit testing of error paths (e.g. malformed URL, timeout).
- * @internal
  * @type {Ping}
  */
 export function realPing(url, headers) {
 	return fetch(url, {
 		method: 'GET',
 		headers,
-		signal: AbortSignal.timeout(10_000),
+		signal: AbortSignal.timeout(PING_TIMEOUT_MS),
 	})
-		.then((res) => ({ ok: res.status >= 200 && res.status < 300, status: res.status }))
-		.catch((err) => ({ ok: false, status: 0, error: err instanceof Error ? err.message : String(err) }))
+		.then((res) => /** @type {PingResult} */ ({ kind: 'http', status: res.status }))
+		.catch((err) => /** @type {PingResult} */ ({ kind: 'transport-error', error: mapPingError(err) }))
 }
 
 /**
