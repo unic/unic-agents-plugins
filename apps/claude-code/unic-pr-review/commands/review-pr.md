@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(node *), Bash(git *)
+allowed-tools: Agent, Bash(node *), Bash(git *)
 argument-hint: [<PR URL>]
 description: Review a pull request or your local branch. Pass an ADO PR URL to review an open PR (coming soon); omit the URL to review your local branch against its upstream base (Pre-PR mode).
 ---
