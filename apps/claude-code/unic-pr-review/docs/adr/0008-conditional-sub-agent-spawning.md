@@ -23,11 +23,11 @@ The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents i
 
 ### Spawn Table (as of PR #158)
 
-| Agent                   | Spawn condition                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------- |
-| `code-reviewer`         | Always — any non-empty diff                                                            |
-| `silent-failure-hunter` | At least one non-test source file (`.mjs`, `.cjs`, `.js`, `.ts`, `.tsx`, `.jsx`)       |
-| `type-design-analyzer`  | At least one `.d.ts`, `.ts`, `.tsx`, or file under `types/`, `schemas/`, `interfaces/` |
-| `pr-test-analyzer`      | At least one test file (`.test.*`, `.spec.*`, or under `tests/`, `__tests__/`)         |
-| `comment-analyzer`      | At least one `.md` / `.mdx` file or file under `docs/`                                 |
-| `code-simplifier`       | Three or more non-test source files                                                    |
+| Agent                   | Spawn condition                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `code-reviewer`         | Always — any non-empty diff                                                                         |
+| `silent-failure-hunter` | At least one non-test source file (`.mjs`, `.cjs`, `.js`, `.ts`, `.tsx`, `.jsx`; excluding `.d.ts`) |
+| `type-design-analyzer`  | At least one `.d.ts`, `.ts`, `.tsx`, or file under `types/`, `schemas/`, `interfaces/`              |
+| `pr-test-analyzer`      | At least one test file (`.test.*`, `.spec.*`, or under `tests/`, `__tests__/`)                      |
+| `comment-analyzer`      | At least one `.md` / `.mdx` file or file under `docs/`                                              |
+| `code-simplifier`       | Three or more non-test source files (excluding `.d.ts`)                                             |
