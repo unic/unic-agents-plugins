@@ -9,7 +9,7 @@
  * prompting happens in commands/setup-azure.md.
  */
 
-import { chmodSync as realChmod, writeFileSync as realWriteFile } from 'node:fs'
+import { chmodSync as realChmod, renameSync as realRename, writeFileSync as realWriteFile } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -20,6 +20,7 @@ import { parseArgs } from './lib/args.mjs'
  * @property {string} [homedir]
  * @property {string} [platform]
  * @property {(path: string, data: string, encoding: BufferEncoding) => void} [writeFile]
+ * @property {(oldPath: string, newPath: string) => void} [rename]
  * @property {(path: string, mode: number) => void} [chmod]
  * @property {(message: string) => void} [warn]
  */
@@ -36,17 +37,20 @@ export function writeAzureCreds(orgUrl, pat, deps = {}) {
 	const home = deps.homedir ?? os.homedir()
 	const platform = deps.platform ?? process.platform
 	const write = deps.writeFile ?? realWriteFile
+	const rename = deps.rename ?? realRename
 	const chmod = deps.chmod ?? realChmod
 	const warn = deps.warn ?? ((m) => process.stderr.write(`${m}\n`))
 
 	const path = join(home, '.unic-azure.json')
 	const data = JSON.stringify({ orgUrl, pat }, null, 2)
-	write(path, data, 'utf8')
+	const tmp = `${path}.tmp`
+	write(tmp, data, 'utf8')
 	if (platform === 'win32') {
 		warn(`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually via NTFS permissions.`)
 	} else {
-		chmod(path, 0o600)
+		chmod(tmp, 0o600)
 	}
+	rename(tmp, path)
 	return { path }
 }
 

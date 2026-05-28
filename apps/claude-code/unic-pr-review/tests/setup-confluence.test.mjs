@@ -31,8 +31,23 @@ describe('writeConfluenceCreds', () => {
 		assert.equal(content.username, 'u')
 		assert.equal(content.token, 'tok')
 		assert.equal(chmodCalls.length, 1)
-		assert.equal(chmodCalls[0].p, path)
+		assert.equal(chmodCalls[0].p, `${path}.tmp`)
 		assert.equal(chmodCalls[0].m, 0o600)
+	})
+
+	it('writes atomically via tmp + rename', () => {
+		const home = tempDir()
+		/** @type {string[]} */
+		const writeOrder = []
+		writeConfluenceCreds('https://x.atlassian.net', 'u', 'tok', {
+			homedir: home,
+			platform: 'linux',
+			writeFile: (p) => writeOrder.push(`write:${p}`),
+			rename: (from, to) => writeOrder.push(`rename:${from}->${to}`),
+			chmod: (p) => writeOrder.push(`chmod:${p}`),
+		})
+		const target = join(home, '.unic-confluence.json')
+		assert.deepEqual(writeOrder, [`write:${target}.tmp`, `chmod:${target}.tmp`, `rename:${target}.tmp->${target}`])
 	})
 
 	it('idempotent re-run — same file, no error on second call', () => {

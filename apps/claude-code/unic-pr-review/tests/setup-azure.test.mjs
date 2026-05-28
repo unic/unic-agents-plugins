@@ -30,8 +30,23 @@ describe('writeAzureCreds', () => {
 		assert.equal(content.orgUrl, 'https://dev.azure.com/org')
 		assert.equal(content.pat, 'pat123')
 		assert.equal(chmodCalls.length, 1)
-		assert.equal(chmodCalls[0].p, path)
+		assert.equal(chmodCalls[0].p, `${path}.tmp`)
 		assert.equal(chmodCalls[0].m, 0o600)
+	})
+
+	it('writes atomically via tmp + rename', () => {
+		const home = tempDir()
+		/** @type {string[]} */
+		const order = []
+		writeAzureCreds('https://dev.azure.com/org', 'pat123', {
+			homedir: home,
+			platform: 'linux',
+			writeFile: (p) => order.push(`write:${p}`),
+			rename: (from, to) => order.push(`rename:${from}->${to}`),
+			chmod: (p) => order.push(`chmod:${p}`),
+		})
+		const target = join(home, '.unic-azure.json')
+		assert.deepEqual(order, [`write:${target}.tmp`, `chmod:${target}.tmp`, `rename:${target}.tmp->${target}`])
 	})
 
 	it('idempotent re-run — same file, no error on second call', () => {

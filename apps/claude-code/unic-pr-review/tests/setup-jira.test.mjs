@@ -36,6 +36,25 @@ describe('writeJiraUrl', () => {
 		assert.equal(content.jiraUrl, 'https://jira.atlassian.net')
 	})
 
+	it('writes atomically via tmp + rename', () => {
+		const home = tempDir()
+		writeFileSync(
+			join(home, '.unic-confluence.json'),
+			JSON.stringify({ url: 'https://x.atlassian.net', username: 'u', token: 't' })
+		)
+		/** @type {string[]} */
+		const order = []
+		writeJiraUrl('https://jira.atlassian.net', {
+			homedir: home,
+			platform: 'linux',
+			writeFile: (p) => order.push(`write:${p}`),
+			rename: (from, to) => order.push(`rename:${from}->${to}`),
+			chmod: (p) => order.push(`chmod:${p}`),
+		})
+		const target = join(home, '.unic-confluence.json')
+		assert.deepEqual(order, [`write:${target}.tmp`, `chmod:${target}.tmp`, `rename:${target}.tmp->${target}`])
+	})
+
 	it('idempotent re-run — same jiraUrl returns noOp:true and does not rewrite the file', () => {
 		const home = tempDir()
 		writeFileSync(

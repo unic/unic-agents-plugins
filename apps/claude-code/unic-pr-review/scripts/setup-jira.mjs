@@ -17,6 +17,7 @@ import {
 	chmodSync as realChmod,
 	existsSync as realExistsSync,
 	readFileSync as realReadFile,
+	renameSync as realRename,
 	writeFileSync as realWriteFile,
 } from 'node:fs'
 import os from 'node:os'
@@ -31,6 +32,7 @@ import { parseArgs } from './lib/args.mjs'
  * @property {(path: string) => boolean} [exists]
  * @property {(path: string, encoding: BufferEncoding) => string} [readFile]
  * @property {(path: string, data: string, encoding: BufferEncoding) => void} [writeFile]
+ * @property {(oldPath: string, newPath: string) => void} [rename]
  * @property {(path: string, mode: number) => void} [chmod]
  * @property {(message: string) => void} [warn]
  */
@@ -49,6 +51,7 @@ export function writeJiraUrl(jiraUrl, deps = {}) {
 	const exists = deps.exists ?? realExistsSync
 	const read = deps.readFile ?? realReadFile
 	const write = deps.writeFile ?? realWriteFile
+	const rename = deps.rename ?? realRename
 	const chmod = deps.chmod ?? realChmod
 	const warn = deps.warn ?? ((m) => process.stderr.write(`${m}\n`))
 
@@ -67,12 +70,14 @@ export function writeJiraUrl(jiraUrl, deps = {}) {
 		return { path, noOp: true }
 	}
 	const updated = { ...existing, jiraUrl }
-	write(path, JSON.stringify(updated, null, 2), 'utf8')
+	const tmp = `${path}.tmp`
+	write(tmp, JSON.stringify(updated, null, 2), 'utf8')
 	if (platform === 'win32') {
 		warn(`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually via NTFS permissions.`)
 	} else {
-		chmod(path, 0o600)
+		chmod(tmp, 0o600)
 	}
+	rename(tmp, path)
 	return { path, noOp: false }
 }
 
