@@ -59,6 +59,23 @@ export function decideSpawnSet(changedFiles) {
 	return new Set(SPAWN_TABLE.filter(({ predicate }) => predicate(changedFiles)).map(({ agent }) => agent))
 }
 
+/**
+ * Parse raw stdin into a clean list of changed-file paths.
+ *
+ * Splits on LF or CRLF and trims each line so trailing carriage returns on
+ * CRLF platforms (e.g. `src/a.mjs\r`) do not break extension/path matching.
+ * Blank and whitespace-only lines are dropped.
+ *
+ * @param {string} raw - raw stdin contents
+ * @returns {string[]} trimmed, non-empty file paths
+ */
+export function parseStdin(raw) {
+	return raw
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean)
+}
+
 /** @param {unknown} err */
 const errMsg = (err) => (err instanceof Error ? err.message : String(err))
 
@@ -70,7 +87,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 	process.stdin.on('data', (chunk) => chunks.push(chunk))
 	process.stdin.on('end', () => {
 		const raw = Buffer.concat(chunks).toString('utf8')
-		const files = raw.trim().split('\n').filter(Boolean)
+		const files = parseStdin(raw)
 		try {
 			const agents = [...decideSpawnSet(files)]
 			process.stdout.write(`${JSON.stringify(agents)}\n`)

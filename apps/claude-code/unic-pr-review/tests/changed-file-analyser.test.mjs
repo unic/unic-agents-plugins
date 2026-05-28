@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { decideSpawnSet } from '../scripts/lib/changed-file-analyser.mjs'
+import { decideSpawnSet, parseStdin } from '../scripts/lib/changed-file-analyser.mjs'
 
 const SCRIPT = path.resolve(fileURLToPath(import.meta.url), '../../scripts/lib/changed-file-analyser.mjs')
 
@@ -213,6 +213,29 @@ describe('decideSpawnSet', () => {
 	})
 })
 
+describe('parseStdin', () => {
+	it('splits LF-separated input into trimmed paths', () => {
+		assert.deepEqual(parseStdin('src/a.mjs\nsrc/b.ts\n'), ['src/a.mjs', 'src/b.ts'])
+	})
+
+	it('splits CRLF-separated input and strips the trailing carriage return', () => {
+		assert.deepEqual(parseStdin('src/a.mjs\r\nsrc/b.ts\r\n'), ['src/a.mjs', 'src/b.ts'])
+	})
+
+	it('drops blank and whitespace-only lines', () => {
+		assert.deepEqual(parseStdin('  \r\nsrc/a.mjs\r\n\r\n'), ['src/a.mjs'])
+	})
+
+	it('returns an empty array for empty input', () => {
+		assert.deepEqual(parseStdin(''), [])
+	})
+
+	it('feeds clean paths into decideSpawnSet for CRLF input', () => {
+		const result = decideSpawnSet(parseStdin('src/service.mjs\r\n'))
+		assert.ok(result.has('silent-failure-hunter'))
+	})
+})
+
 describe('CLI entry point', () => {
 	it('emits a JSON array of agent names to stdout for a source file', () => {
 		const result = spawnSync('node', [SCRIPT], {
@@ -224,6 +247,17 @@ describe('CLI entry point', () => {
 		assert.ok(Array.isArray(agents))
 		assert.ok(agents.includes('code-reviewer'))
 		assert.ok(agents.includes('silent-failure-hunter'))
+	})
+
+	it('handles CRLF-separated stdin (no trailing \\r breaks classification)', () => {
+		const result = spawnSync('node', [SCRIPT], {
+			input: 'src/service.mjs\r\nsrc/auth.ts\r\n',
+			encoding: 'utf8',
+		})
+		assert.equal(result.status, 0)
+		const agents = JSON.parse(result.stdout.trim())
+		assert.ok(agents.includes('silent-failure-hunter'))
+		assert.ok(agents.includes('type-design-analyzer'))
 	})
 
 	it('emits an empty JSON array for empty stdin', () => {
