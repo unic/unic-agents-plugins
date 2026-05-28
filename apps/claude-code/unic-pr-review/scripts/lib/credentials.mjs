@@ -14,6 +14,17 @@ import os from 'node:os'
 import { join } from 'node:path'
 
 /**
+ * @param {string} filePath
+ */
+function readJsonFile(filePath) {
+	try {
+		return JSON.parse(readFileSync(filePath, 'utf8'))
+	} catch (err) {
+		throw new Error(`${filePath} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
+	}
+}
+
+/**
  * @typedef {Object} AtlassianCreds
  * @property {string} url
  * @property {string} username
@@ -58,12 +69,7 @@ export function loadAtlassianCreds(homedir, env) {
 	const home = homedir ?? os.homedir()
 	const path = join(home, '.unic-confluence.json')
 	if (!existsSync(path)) return null
-	let parsed
-	try {
-		parsed = JSON.parse(readFileSync(path, 'utf8'))
-	} catch (err) {
-		throw new Error(`${path} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
-	}
+	const parsed = readJsonFile(path)
 	if (!parsed.url || !parsed.username || !parsed.token) return null
 	return {
 		url: String(parsed.url),
@@ -89,12 +95,7 @@ export function loadAzureCreds(homedir, env) {
 	const home = homedir ?? os.homedir()
 	const path = join(home, '.unic-azure.json')
 	if (!existsSync(path)) return null
-	let parsed
-	try {
-		parsed = JSON.parse(readFileSync(path, 'utf8'))
-	} catch (err) {
-		throw new Error(`${path} contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`)
-	}
+	const parsed = readJsonFile(path)
 	if (!parsed.orgUrl || !parsed.pat) return null
 	return { orgUrl: String(parsed.orgUrl), pat: String(parsed.pat) }
 }
