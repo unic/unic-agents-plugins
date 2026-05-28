@@ -86,9 +86,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 	const chunks = []
 	process.stdin.on('data', (chunk) => chunks.push(chunk))
 	process.stdin.on('end', () => {
-		const raw = Buffer.concat(chunks).toString('utf8')
-		const files = parseStdin(raw)
 		try {
+			const raw = Buffer.concat(chunks).toString('utf8')
+			const files = parseStdin(raw)
 			const agents = [...decideSpawnSet(files)]
 			process.stdout.write(`${JSON.stringify(agents)}\n`)
 		} catch (err) {

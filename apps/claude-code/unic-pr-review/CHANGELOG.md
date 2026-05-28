@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README quick-start and commands table now match the actual review-pr contract — Pre-PR mode (no URL) is documented as the working path; ADO PR URL support marked coming soon
 - ADR-0008 Decision narrative reconciled with the implemented spawn predicate — silent-failure-hunter spawns on any non-test source file (path/extension heuristic), matching the Spawn Table
 - All six aspect agent prompts now describe their output as a JSON object (matching the Output format section) instead of a JSON array, reducing non-parseable-output risk
+- `changed-file-analyser` CLI: the stdin end-handler now wraps `Buffer.concat` + `parseStdin` in the `try`/`catch`, so any synchronous failure surfaces as the tagged `changed-file-analyser:` error + exit 1 instead of an uncaught stack trace
 
 ## [2.0.0] — 2026-05-28
 
