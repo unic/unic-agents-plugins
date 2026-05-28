@@ -11,23 +11,18 @@
  */
 
 /** @param {string} f */
-const isTestFile = f =>
-	/\.(test|spec)\.(mjs|cjs|js|ts|tsx|jsx)$/.test(f) ||
-	/[\/\\](tests?|__tests?__)[/\\]/i.test(f)
+const isTestFile = (f) =>
+	/\.(test|spec)\.(mjs|cjs|js|ts|tsx|jsx)$/.test(f) || /(^|[/\\])(tests?|__tests?__)[/\\]/i.test(f)
 
 /** @param {string} f */
-const isSourceFile = f => /\.(mjs|cjs|js|ts|tsx|jsx)$/.test(f) && !isTestFile(f)
+const isSourceFile = (f) => /\.(mjs|cjs|js|ts|tsx|jsx)$/.test(f) && !isTestFile(f)
 
 /** @param {string} f */
-const isTypeFile = f =>
-	/\.d\.ts$/.test(f) ||
-	/[\/\\](types?|schemas?|interfaces?)[/\\]/i.test(f) ||
-	/\.ts$/.test(f)
+const isTypeFile = (f) =>
+	/\.d\.ts$/.test(f) || /(^|[/\\])(types?|schemas?|interfaces?)[/\\]/i.test(f) || /\.ts$/.test(f)
 
 /** @param {string} f */
-const isDocFile = f =>
-	/\.(md|mdx)$/.test(f) ||
-	/[\/\\]docs?[\/\\]/i.test(f)
+const isDocFile = (f) => /\.(md|mdx)$/.test(f) || /(^|[/\\])docs?[/\\]/i.test(f)
 
 /**
  * Spawn-decision table (ADR-0008). Each entry maps an agent name to its spawn
@@ -37,11 +32,11 @@ const isDocFile = f =>
  */
 const SPAWN_TABLE = [
 	{ agent: 'code-reviewer', predicate: () => true },
-	{ agent: 'silent-failure-hunter', predicate: files => files.some(isSourceFile) },
-	{ agent: 'type-design-analyzer', predicate: files => files.some(isTypeFile) },
-	{ agent: 'pr-test-analyzer', predicate: files => files.some(isTestFile) },
-	{ agent: 'comment-analyzer', predicate: files => files.some(isDocFile) },
-	{ agent: 'code-simplifier', predicate: files => files.filter(isSourceFile).length >= 3 },
+	{ agent: 'silent-failure-hunter', predicate: (files) => files.some(isSourceFile) },
+	{ agent: 'type-design-analyzer', predicate: (files) => files.some(isTypeFile) },
+	{ agent: 'pr-test-analyzer', predicate: (files) => files.some(isTestFile) },
+	{ agent: 'comment-analyzer', predicate: (files) => files.some(isDocFile) },
+	{ agent: 'code-simplifier', predicate: (files) => files.filter(isSourceFile).length >= 3 },
 ]
 
 /**
@@ -59,9 +54,5 @@ export function decideSpawnSet(changedFiles) {
 		throw new Error(`decideSpawnSet: changedFiles must be an array, got ${typeof changedFiles}`)
 	}
 	if (changedFiles.length === 0) return new Set()
-	return new Set(
-		SPAWN_TABLE
-			.filter(({ predicate }) => predicate(changedFiles))
-			.map(({ agent }) => agent),
-	)
+	return new Set(SPAWN_TABLE.filter(({ predicate }) => predicate(changedFiles)).map(({ agent }) => agent))
 }
