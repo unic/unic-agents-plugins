@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pr-review: ${{ steps.filter.outputs.pr-review }}
+      unic-pr-review: ${{ steps.filter.outputs.unic-pr-review }}
       auto-format: ${{ steps.filter.outputs.auto-format }}
       confluence-publish: ${{ steps.filter.outputs.confluence-publish }}
       release-tools: ${{ steps.filter.outputs.release-tools }}
@@ -36,6 +37,8 @@ jobs:
           filters: |
             pr-review:
               - 'apps/claude-code/pr-review/**'
+            unic-pr-review:
+              - 'apps/claude-code/unic-pr-review/**'
             auto-format:
               - 'apps/claude-code/auto-format/**'
             unic-confluence:
@@ -53,7 +56,8 @@ jobs:
       needs.changes.outputs.unic-confluence == 'true' ||
       needs.changes.outputs.release-tools == 'true' ||
       needs.changes.outputs.unic-archon-dlc == 'true' ||
-      needs.changes.outputs.pr-review == 'true'
+      needs.changes.outputs.pr-review == 'true' ||
+      needs.changes.outputs.unic-pr-review == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -70,6 +74,8 @@ jobs:
             changed: ${{ needs.changes.outputs.unic-archon-dlc }}
           - name: pr-review
             changed: ${{ needs.changes.outputs.pr-review }}
+          - name: unic-pr-review
+            changed: ${{ needs.changes.outputs.unic-pr-review }}
         exclude:
           - package:
               changed: 'false'
