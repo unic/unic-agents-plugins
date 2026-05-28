@@ -10,7 +10,7 @@ A standalone Claude Code Plugin, `unic-pr-review`, that:
 
 1. Detects whether I'm reviewing a real ADO PR (URL given) or my local branch (Pre-PR mode).
 2. Pulls every linked Work Item from Azure Boards or Jira (Atlassian Cloud, same credentials as Confluence), extracts and fetches every Confluence link inside each Work Item, and synthesises a labelled Intent Brief.
-3. Fans out to seven Review Aspect sub-agents in parallel, each seeded with the Intent Brief, each emitting Findings with a 0-100 Confidence Score.
+3. Fans out to six Review Aspect sub-agents in parallel (the Intent Checker runs first as a separate non-aspect agent), each aspect agent seeded with the Intent Brief, each emitting Findings with a 0-100 Confidence Score.
 4. Surfaces an Intent Check block at the top of the Review Summary listing per-Acceptance-Criterion verdicts (addressed / partially addressed / unaddressed), never blocking.
 5. Previews everything in my terminal by default. When I pass `--post`, walks me through each Finding one at a time with accept / edit / skip choices, then posts only what I approved as ADO Threads in Active status. `--yes` bulk-accepts.
 6. On Re-review, computes a delta diff from the prior reviewed Revision (state read from the Bot Signature in the PR — no local cache), classifies existing Review Threads into addressed / disputed / pending / obsolete, and replies or resolves instead of duplicating.
@@ -52,7 +52,7 @@ Ships at v2.0.0 to mark a clean break from the existing `pr-review` Plugin, whic
 31. As a Unic reviewer, I want a `setup-confluence` Slash Command that walks me through writing `~/.unic-confluence.json` (URL, username, token) interactively with chmod 600, so that first-time setup needs no manual file editing.
 32. As a Unic reviewer, I want a `setup-jira` Slash Command that adds an optional `jiraUrl` field to the same file (defaulting to my Confluence tenant URL), so that Jira fetching works without a second credential file.
 33. As a Unic reviewer, I want a `setup-azure` Slash Command that writes `~/.unic-azure.json` with my ADO PAT, so that the Plugin works without me hand-editing JSON.
-34. As a Unic reviewer, I want a `doctor` Slash Command that verifies `az` CLI presence, the `azure-devops` extension, `az login` status, Confluence reachability, and (only when `jiraUrl` is configured) Jira reachability, so that I can debug setup issues without running a Review.
+34. As a Unic reviewer, I want a `doctor` Slash Command that verifies `az` CLI presence, the `azure-devops` extension, `az devops login` status, Confluence reachability, and (only when `jiraUrl` is configured) Jira reachability, so that I can debug setup issues without running a Review.
 35. As a Unic reviewer on a project without Jira, I want `doctor` to stay silent about Jira, so that project-irrelevant warnings don't appear.
 36. As a Unic reviewer, I want env vars `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN`, `JIRA_URL`, `AZURE_DEVOPS_ORG_URL`, `AZURE_DEVOPS_PAT` to override the Credential Files, so that CI runs without writing to home directories.
 37. As a maintainer, I want the Plugin to live at `apps/claude-code/unic-pr-review/` in the existing monorepo, with the standard `bump` / `sync-version` / `tag` / `verify:changelog` scripts wired up, so that release management follows the established workflow.
@@ -77,7 +77,7 @@ All modules are designed and built from scratch for this Plugin. The Plugin take
 - **Review Aspect agents (`agents/*.md`)** — six sub-agents written from scratch in this Plugin's own voice, each with a distinctive name and colour for in-terminal disambiguation, each embedding the Confidence-Score rubric verbatim, each consuming the Intent Brief as a preamble: `code-reviewer`, `silent-failure-hunter`, `type-design-analyzer`, `pr-test-analyzer`, `comment-analyzer`, `code-simplifier`. Conditional spawning by changed-file analysis (`code-reviewer` always; the others conditionally). In Re-review mode each receives prior Findings as context and emits a per-prior-Finding `priorVerdict` (`fixed` / `partial` / `ignored`) alongside any new Findings.
 - **Re-review Coordinator (`agents/re-review-coordinator.md`)** — LLM agent invoked only when the ADO Fetcher reports a prior Bot Signature found. Trusted to merge aspect-agent verdicts, ADO Thread status, and human-Reply signals into the four Thread Classifications (`addressed` / `disputed` / `pending` / `obsolete`), decide reply-vs-new-Thread per Finding, and produce a structured plan `{ threadActions: [...], persistentUnaddressed: [...], freshFindings: [...] }` that the ADO Writer consumes mechanically. No deterministic rule table, no drift constants — by design (motto: get out of the models' way).
 - **Providers (`providers/<name>/`)** — folder bundle per Source Platform. Each bundle exports a `provider.mjs` exposing `name`, `label`, `prUrlPattern`, `parsePrUrl(url)`, `agents.{fetcher, writer}`, and `discoverWorkItems(prMetadata) → [{ id, type, url, raw }]`. v2 ships `providers/azure_devops/` only; `providers/index.mjs` exposes `detectProvider(url)`. Work-item discovery is platform-specific (ADO uses the PR's Work Item field; GitHub/GitLab will use their respective native linkages when added).
-- **Atlassian Fetcher (`scripts/atlassian-fetch.mjs`)** — Node script using `node:fetch`, reads `~/.unic-confluence.json`, fetches Confluence pages or Jira issues via their REST APIs. Distinguishes by URL path (`/browse/` → Jira, `/wiki/` → Confluence). Self-contained; called by the Intent Checker via Bash.
+- **Atlassian Fetcher (`scripts/atlassian-fetch.mjs`)** — Node script using Node's built-in global `fetch` (Node 22+), reads `~/.unic-confluence.json`, fetches Confluence pages or Jira issues via their REST APIs. Distinguishes by URL path (`/browse/` → Jira, `/wiki/` → Confluence). Self-contained; called by the Intent Checker via Bash.
 - **Approval Loop (`scripts/approval-loop.mjs`)** — Node script that reads a JSON Findings file, walks each Finding interactively (accept / edit / skip), and writes an approved-Findings JSON file for the ADO Writer to consume. Detects non-TTY stdin and aborts cleanly when `--post` is given without `--yes`. Resumable across Ctrl-C: state persisted in `<cwd>/.unic-pr-review/<key>/state.json`, where the directory self-ignores via a `<cwd>/.unic-pr-review/.gitignore` containing `*`. Key is `sha16(pr-url)` in ADO modes, `sha16(cwd + ' ' + branch)` in Pre-PR. State directory is deleted on successful Writer run; preserved on interruption. `--yes` writes state too (one code path; the flag just auto-fills decisions and skips prompting).
 - **Setup Wizards (`scripts/setup-confluence.mjs`, `scripts/setup-jira.mjs`, `scripts/setup-azure.mjs`)** — Interactive credential writers, `chmod 600` on output where the platform supports it (Windows behaviour: warn but don't fail).
 - **Doctor (`scripts/doctor.mjs`)** — Verifies `az` CLI, `azure-devops` extension, `az devops login` status, Confluence reachability, Jira reachability (only if configured). Used both as a Slash Command and as preflight inside `review-pr`.
@@ -91,7 +91,7 @@ All modules are designed and built from scratch for this Plugin. The Plugin take
 
 ### Architectural decisions
 
-The load-bearing decisions are captured as ADRs in [`docs/adr/`](../../apps/claude-code/unic-pr-review/docs/adr/):
+The load-bearing decisions are captured as ADRs in [`apps/claude-code/unic-pr-review/docs/adr/`](../../apps/claude-code/unic-pr-review/docs/adr/):
 
 - ADR-0001 — Multi-source intent gathering with shared Atlassian credentials
 - ADR-0002 — Confidence-scored Findings with explicit Severity thresholds
@@ -102,9 +102,9 @@ The load-bearing decisions are captured as ADRs in [`docs/adr/`](../../apps/clau
 - ADR-0007 — Re-review uses a delta diff, not a full PR diff
 - ADR-0008 — Conditional sub-agent spawning over per-file chunking
 - ADR-0009 — Pre-PR mode is a peer operating mode, not a flag
-- ADR-0010 — Provider as a folder bundle (new; captures the `providers/<name>/` shape over a single-file alternative)
+- ADR-0010 (planned) — Provider as a folder bundle. Lands with the slice that exercises the provider abstraction (issue #148).
 
-ADR-0001 also carries an amendment noting that work-item discovery is a Provider contract — each Provider owns `discoverWorkItems(prMetadata)` and the Intent Checker consumes the normalised list. The Intent Checker stays Source-Platform-agnostic.
+ADR-0001 will also carry an amendment (planned) noting that work-item discovery is a Provider contract; the amendment lands with issue #148. Each Provider owns `discoverWorkItems(prMetadata)` and the Intent Checker consumes the normalised list. The Intent Checker stays Source-Platform-agnostic.
 
 ### Schema: Review Summary
 
@@ -188,7 +188,7 @@ What makes a good test for this Plugin: tests assert observable external behavio
 - **Changed-file analyser** — input changed-files list + a small content sample → set of aspect agents to spawn. Pure-function table-driven.
 - **Renderers** (`review-summary-renderer.mjs`, `inline-comment-renderer.mjs`) — input structured Findings / Coordinator plan → exact markdown blobs including the Bot Signature footer drawn from `signature.mjs`. Snapshot-style fixtures.
 - **Setup Wizards** — file writing under `chmod 600` (where supported), idempotent re-runs, env-var override precedence. Tested against a temp HOME. Windows path branches assert "warn but don't fail".
-- **Doctor** — preflight predicates (`az` present, extension present, `az login` valid, Confluence ping, Jira ping when configured). Tested with each predicate stubbed.
+- **Doctor** — preflight predicates (`az` present, extension present, `az devops login` valid, Confluence ping, Jira ping when configured). Tested with each predicate stubbed.
 - **Provider module** (`providers/azure_devops/`) — `prUrlPattern` match/non-match, `parsePrUrl` parsing, `discoverWorkItems` against stubbed PR metadata fixtures (with-WI, without-WI, multiple-WI).
 
 ### Modules NOT tested in v2
@@ -199,7 +199,7 @@ What makes a good test for this Plugin: tests assert observable external behavio
 
 ## Out of Scope
 
-- GitHub and GitLab Platform support. The `providers/` abstraction is prepared in v2 but only `azure_devops.js` ships.
+- GitHub and GitLab Platform support. The `providers/` abstraction ships as a folder bundle layout (`providers/<name>/`) but only `providers/azure_devops/` is implemented in v2.
 - Jira issue link traversal (following "is blocked by", "relates to"). v2 fetches only the pasted or directly-linked issue.
 - Author-side commands (composing PR descriptions, opening PRs, requesting reviewers).
 - A standalone web UI or MCP server. The Slash Command and the CLI are the only surfaces.
