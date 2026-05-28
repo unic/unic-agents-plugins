@@ -75,7 +75,7 @@ export function resolveBaseBranch(exec) {
 	)
 }
 
-if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	try {
 		const branch = resolveBaseBranch(realExec)
 		process.stdout.write(`${branch}\n`)
