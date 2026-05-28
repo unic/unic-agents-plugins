@@ -10,7 +10,8 @@
  *
  * The Confluence credential file MUST already exist; the slash command
  * (commands/setup-jira.md) prompts the user to run :setup-confluence first
- * when it is missing. The script throws a descriptive error in that case.
+ * when it is missing. The script throws a descriptive error if the file is
+ * missing or contains invalid JSON.
  */
 
 import {
