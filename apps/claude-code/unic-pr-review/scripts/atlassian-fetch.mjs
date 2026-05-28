@@ -329,7 +329,8 @@ export function extractConfluenceLinks(htmlBody) {
 
 /**
  * Extract absolute Confluence URLs from arbitrary text (e.g. a stringified ADF
- * issue body, where links appear as `"href":"https://…/wiki/…"`).
+ * body with `"href":"https://…/wiki/…"` marks, or plain-text descriptions with
+ * bare links).
  * @param {string} text
  * @returns {string[]}
  */
@@ -411,6 +412,9 @@ export function mapFetchError(err) {
 }
 
 /**
+ * Map a Jira issue type name to the three canonical buckets used for
+ * intent extraction. Epics are bucketed as `'story'` because they can
+ * carry acceptance criteria in the same AC-heading format.
  * @param {string | undefined} typeName
  * @returns {'story' | 'bug' | 'other'}
  */
@@ -432,6 +436,7 @@ export async function fetchJiraIssue(issueKeyOrUrl, creds, deps = {}) {
 	const fetchImpl = deps.fetch ?? globalThis.fetch
 	const jiraBase = stripTrailingSlash(creds.jiraUrl ?? creds.url)
 	const key = extractJiraKey(issueKeyOrUrl) ?? issueKeyOrUrl
+	// customfield_10016 = story points; included so callers can surface it without a second request.
 	const fields = 'summary,description,issuetype,customfield_10016,customfield_10300,customfield_10301,customfield_10302'
 	const url = `${jiraBase}/rest/api/3/issue/${encodeURIComponent(key)}?fields=${fields}`
 	const json = await fetchJson(url, creds, fetchImpl)
@@ -465,7 +470,14 @@ export async function fetchJiraIssue(issueKeyOrUrl, creds, deps = {}) {
 export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 	const fetchImpl = deps.fetch ?? globalThis.fetch
 	const confluenceBase = stripTrailingSlash(creds.url)
-	const pageId = extractConfluencePageId(pageIdOrUrl) ?? pageIdOrUrl
+	const pageId = extractConfluencePageId(pageIdOrUrl)
+	if (pageId === null) {
+		throw new FetchError(
+			pageIdOrUrl,
+			'not-found',
+			'could not extract a Confluence page ID from this URL format — only /pages/<id>/ and ?pageId=<id> are supported'
+		)
+	}
 	const url = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}?expand=body.storage,version`
 	const json = await fetchJson(url, creds, fetchImpl)
 	const htmlBody = json?.body?.storage?.value ?? ''
@@ -475,7 +487,9 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 		url: pageIdOrUrl,
 		title: typeof json?.title === 'string' ? json.title : '',
 		excerpt: stripHtml(typeof htmlBody === 'string' ? htmlBody : '').slice(0, 800),
-		linkedUrls: extractConfluenceLinks(htmlBody),
+		linkedUrls: extractConfluenceLinks(htmlBody).map((href) =>
+			href.startsWith('http') ? href : `${confluenceBase}${href}`
+		),
 	}
 }
 
@@ -539,7 +553,11 @@ export async function collectIntent(urls, deps = {}) {
 			if (err instanceof FetchError) {
 				errors.push({ url, kind: err.kind, message: err.message })
 			} else {
-				errors.push({ url, kind: 'unreachable', message: err instanceof Error ? err.message : String(err) })
+				// Internal code error — flag as parse-error (soft failure) rather than
+				// unreachable (hard-stop), so a code defect doesn't abort the review.
+				const msg = err instanceof Error ? (err.stack ?? err.message) : String(err)
+				stderr.write(`atlassian-fetch: internal error processing ${url}: ${msg}\n`)
+				errors.push({ url, kind: 'parse-error', message: msg })
 			}
 		}
 	}
@@ -571,13 +589,23 @@ export function parseUrlsArg(argv) {
 export async function main(argv, deps = {}) {
 	const urls = parseUrlsArg(argv)
 	const result = await collectIntent(urls, deps)
-	;(deps.stdout ?? process.stdout).write(`${JSON.stringify(result)}\n`)
+	let serialised
+	try {
+		serialised = JSON.stringify(result)
+	} catch (err) {
+		throw new Error(`atlassian-fetch: failed to serialise result: ${err instanceof Error ? err.message : String(err)}`)
+	}
+	;(deps.stdout ?? process.stdout).write(`${serialised}\n`)
 	return result
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main(process.argv.slice(2))
 		.then((result) => {
+			// Exit 1 only when no credentials are configured at all (global auth-error,
+			// url === ''). Per-URL auth errors and not-found entries exit 0 so the
+			// intent-checker agent can apply ADR-0004 hard-stop logic by inspecting the
+			// errors array — not-found is soft, auth-error/unreachable per-URL is hard.
 			const credsMissing = result.errors.some((e) => e.kind === 'auth-error' && e.url === '')
 			process.exit(credsMissing ? 1 : 0)
 		})

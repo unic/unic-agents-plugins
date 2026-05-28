@@ -14,9 +14,11 @@ import {
 	extractConfluenceLinks,
 	extractConfluencePageId,
 	extractJiraKey,
+	FETCH_TIMEOUT_MS,
 	fetchConfluencePage,
 	fetchJiraIssue,
 	main,
+	mapFetchError,
 	parseJiraACs,
 	parseJiraBug,
 	parseUrlsArg,
@@ -187,6 +189,25 @@ describe('parseJiraACs', () => {
 		assert.deepEqual(parseJiraACs(null), [])
 		assert.deepEqual(parseJiraACs(undefined), [])
 	})
+
+	it('extracts ACs from an orderedList as well as bulletList', () => {
+		const description = {
+			type: 'doc',
+			content: [
+				{ type: 'heading', content: [{ type: 'text', text: 'Acceptance Criteria' }] },
+				{
+					type: 'orderedList',
+					content: [
+						{
+							type: 'listItem',
+							content: [{ type: 'paragraph', content: [{ type: 'text', text: 'AC from ordered list' }] }],
+						},
+					],
+				},
+			],
+		}
+		assert.deepEqual(parseJiraACs(description), ['AC from ordered list'])
+	})
 })
 
 describe('parseJiraBug', () => {
@@ -345,6 +366,43 @@ describe('fetchJiraIssue', () => {
 			(err) => /** @type {any} */ (err).kind === 'not-found'
 		)
 	})
+
+	it('classifies an Epic as a story (returns acs, not bug fields)', async () => {
+		const epic = {
+			key: 'PROJ-10',
+			fields: { summary: 'Epic story', issuetype: { name: 'Epic' }, description: {} },
+		}
+		const item = await fetchJiraIssue('https://unic.atlassian.net/browse/PROJ-10', CREDS, { fetch: fetchJson(epic) })
+		assert.equal(item.type, 'story')
+		assert.deepEqual(item.acs, [])
+	})
+
+	it('classifies a Defect as a bug', async () => {
+		const defect = {
+			key: 'PROJ-11',
+			fields: {
+				summary: 'A defect',
+				issuetype: { name: 'Defect' },
+				customfield_10300: 'repro',
+				customfield_10301: 'expected',
+				customfield_10302: 'actual',
+			},
+		}
+		const item = await fetchJiraIssue('https://unic.atlassian.net/browse/PROJ-11', CREDS, { fetch: fetchJson(defect) })
+		assert.equal(item.type, 'bug')
+		assert.equal(item.repro, 'repro')
+	})
+
+	it('classifies a Task as other (no acs, no bug fields)', async () => {
+		const task = {
+			key: 'PROJ-12',
+			fields: { summary: 'A task', issuetype: { name: 'Task' }, description: {} },
+		}
+		const item = await fetchJiraIssue('https://unic.atlassian.net/browse/PROJ-12', CREDS, { fetch: fetchJson(task) })
+		assert.equal(item.type, 'other')
+		assert.deepEqual(item.acs, [])
+		assert.equal(item.repro, '')
+	})
 })
 
 describe('fetchConfluencePage', () => {
@@ -360,7 +418,7 @@ describe('fetchConfluencePage', () => {
 		assert.equal(item.title, 'Design Doc')
 		assert.equal(item.id, '123456')
 		assert.match(item.excerpt, /Hello world/)
-		assert.deepEqual(item.linkedUrls, ['/wiki/spaces/Y/pages/9'])
+		assert.deepEqual(item.linkedUrls, ['https://unic.atlassian.net/wiki/spaces/Y/pages/9'])
 	})
 
 	it('strips HTML tags from the excerpt', async () => {
@@ -379,6 +437,38 @@ describe('fetchConfluencePage', () => {
 				}),
 			(err) => /** @type {any} */ (err).kind === 'unreachable'
 		)
+	})
+
+	it('throws FetchError with kind auth-error on 401', async () => {
+		await assert.rejects(
+			() =>
+				fetchConfluencePage('https://unic.atlassian.net/wiki/spaces/X/pages/1', CREDS, {
+					fetch: fetchStatus(401),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
+	it('throws FetchError with kind not-found on 404', async () => {
+		await assert.rejects(
+			() =>
+				fetchConfluencePage('https://unic.atlassian.net/wiki/spaces/X/pages/1', CREDS, {
+					fetch: fetchStatus(404),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('resolves relative wiki hrefs to absolute URLs using the credentials base', async () => {
+		const page = {
+			id: '999',
+			title: 'With Relative Link',
+			body: { storage: { value: '<a href="/wiki/spaces/Y/pages/9">link</a>' } },
+		}
+		const item = await fetchConfluencePage('https://unic.atlassian.net/wiki/spaces/X/pages/999', CREDS, {
+			fetch: fetchJson(page),
+		})
+		assert.deepEqual(item.linkedUrls, ['https://unic.atlassian.net/wiki/spaces/Y/pages/9'])
 	})
 })
 
@@ -472,5 +562,25 @@ describe('main', () => {
 		assert.equal(parsed.items.length, 1)
 		assert.equal(parsed.items[0].id, 'A-1')
 		assert.deepEqual(parsed, result)
+	})
+})
+
+describe('mapFetchError', () => {
+	it('returns a human-readable message for TimeoutError', () => {
+		const err = Object.assign(new Error('The operation was aborted'), { name: 'TimeoutError' })
+		assert.match(mapFetchError(err), /timed out/)
+	})
+
+	it('includes the configured timeout seconds in the message', () => {
+		const err = Object.assign(new Error('The operation was aborted'), { name: 'TimeoutError' })
+		assert.match(mapFetchError(err), new RegExp(`${FETCH_TIMEOUT_MS / 1000}s`))
+	})
+
+	it('returns err.message for a generic Error', () => {
+		assert.equal(mapFetchError(new Error('network failure')), 'network failure')
+	})
+
+	it('stringifies a non-Error value', () => {
+		assert.equal(mapFetchError('oops'), 'oops')
 	})
 })
