@@ -52,7 +52,7 @@ Ships at v2.0.0 to mark a clean break from the existing `pr-review` Plugin, whic
 31. As a Unic reviewer, I want a `setup-confluence` Slash Command that walks me through writing `~/.unic-confluence.json` (URL, username, token) interactively with chmod 600, so that first-time setup needs no manual file editing.
 32. As a Unic reviewer, I want a `setup-jira` Slash Command that adds an optional `jiraUrl` field to the same file (defaulting to my Confluence tenant URL), so that Jira fetching works without a second credential file.
 33. As a Unic reviewer, I want a `setup-azure` Slash Command that writes `~/.unic-azure.json` with my ADO PAT, so that the Plugin works without me hand-editing JSON.
-34. As a Unic reviewer, I want a `doctor` Slash Command that verifies `az` CLI presence, the `azure-devops` extension, `az devops login` status, Confluence reachability, and (only when `jiraUrl` is configured) Jira reachability, so that I can debug setup issues without running a Review.
+34. As a Unic reviewer, I want a `doctor` Slash Command that verifies `az` CLI presence, the `azure-devops` extension, `az devops login` status, that `az devops user show --user me` resolves (so identity caching will succeed at review time), Confluence reachability, and (only when `jiraUrl` is configured) Jira reachability, so that I can debug setup issues without running a Review.
 35. As a Unic reviewer on a project without Jira, I want `doctor` to stay silent about Jira, so that project-irrelevant warnings don't appear.
 36. As a Unic reviewer, I want env vars `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN`, `JIRA_URL`, `AZURE_DEVOPS_ORG_URL`, `AZURE_DEVOPS_PAT` to override the Credential Files, so that CI runs without writing to home directories.
 37. As a maintainer, I want the Plugin to live at `apps/claude-code/unic-pr-review/` in the existing monorepo, with the standard `bump` / `sync-version` / `tag` / `verify:changelog` scripts wired up, so that release management follows the established workflow.
@@ -91,7 +91,7 @@ All modules are designed and built from scratch for this Plugin. The Plugin take
 
 ### Architectural decisions
 
-The load-bearing decisions are captured as ADRs in [`apps/claude-code/unic-pr-review/docs/adr/`](../../apps/claude-code/unic-pr-review/docs/adr/):
+The load-bearing decisions are captured as ADRs in [`apps/claude-code/unic-pr-review/docs/adr/`](../../../apps/claude-code/unic-pr-review/docs/adr/):
 
 - ADR-0001 — Multi-source intent gathering with shared Atlassian credentials
 - ADR-0002 — Confidence-scored Findings with explicit Severity thresholds
@@ -111,7 +111,12 @@ ADR-0001 will also carry an amendment (planned) noting that work-item discovery 
 ```
 {NOTICES_BLOCK — prose, optional}
 
-{INTENT_CHECK — per-Work-Item AC verdicts, optional}
+### Intent Check (optional — omitted when no Work Items linked)
+
+- **<Work Item title> (<ID>)**
+  - AC 1: addressed
+  - AC 2: partially addressed
+  - AC 3: unaddressed
 
 ### 🔴 Critical (N found)
 - **[filePath:startLine]** title
@@ -126,8 +131,10 @@ ADR-0001 will also carry an amendment (planned) noting that work-item discovery 
 - positive observation
 
 ---
-🤖 Reviewed by Claude Code — Iteration N
+{BOT_SIGNATURE_FOOTER}
 ```
+
+`{BOT_SIGNATURE_FOOTER}` resolves to the load-bearing wording owned by `scripts/lib/signature.mjs` (see ADR-0006). Renderers must not inline the literal — the placeholder pattern is the tripwire that keeps detection (the Bot Signature parser) and rendering (this schema) from drifting apart.
 
 ### Schema: Inline Comment
 
@@ -139,7 +146,7 @@ ADR-0001 will also carry an amendment (planned) noting that work-item discovery 
 [OPTIONAL: ```suggestion block — conservative use only]
 
 ---
-🤖 Reviewed by Claude Code — Iteration N
+{BOT_SIGNATURE_FOOTER}
 ````
 
 ### Schema: Credentials
@@ -163,6 +170,8 @@ ADR-0001 will also carry an amendment (planned) noting that work-item discovery 
 ```
 
 ### Specific interactions
+
+> All bullets below describe planned behaviour. Nothing in this section ships with this PRD; each interaction lands with the slice that exercises it (see issues #143–#152). Tense remains indicative for readability — when reading post-implementation, treat these as the canonical contract for what the running plugin must do.
 
 - **Identity caching**: the orchestrator runs `az account show` plus `az devops user show --user me` once at startup, caches `{ id, displayName }` for the duration of the run, and the ADO Fetcher uses `id` to filter comments by author when detecting prior Bot Signatures.
 - **Re-review fallback**: if the Bot Signature parser finds a prior reviewed Revision that no longer exists in the PR's Revision history (force-push), the Plugin emits a warning Notice and falls back to First-review mode for this run.
@@ -210,7 +219,7 @@ What makes a good test for this Plugin: tests assert observable external behavio
 
 ## Further Notes
 
-- The Plugin retires the existing `apps/claude-code/pr-review` Plugin after acceptance testing. Until then both coexist in the monorepo as **fully independent** Plugins — `unic-pr-review` shares no code, no prompts, no fixtures, and no soft dependency with `pr-review`. The maintainer will delete `pr-review` once `unic-pr-review` proves itself on the two target projects (one ADO, one Jira).
+- The Plugin retires the existing `apps/claude-code/pr-review` Plugin after acceptance testing. As of 2026-05 both coexist in the monorepo as **fully independent** Plugins — `unic-pr-review` shares no code, no prompts, no fixtures, and no soft dependency with `pr-review`. The maintainer will delete `pr-review` once `unic-pr-review` proves itself on the two target projects (one ADO, one Jira).
 - The six aspect agents are written from scratch in this Plugin's own voice with our Confidence-Score rubric embedded verbatim. The conditional-spawning pattern is loosely inspired by Anthropic's `pr-review-toolkit`, but we take no soft dependency and copy no prompts.
-- The CONTEXT-MAP at the repo root must be updated to add this Plugin's CONTEXT.md before the first commit lands.
+- The root `CONTEXT-MAP.md` must be updated to add this Plugin's `CONTEXT.md` — that update is tracked by issue #143 (plugin scaffold), which also creates the `CONTEXT.md` file itself.
 - The Plugin's `plugin.json` keywords include `pr-review`, `azure-devops`, `jira`, `confluence`, `code-review`, `unic`.
