@@ -58,7 +58,7 @@ describe('writeAzureCreds', () => {
 		assert.equal(content.orgUrl, 'https://dev.azure.com/org')
 	})
 
-	it('Windows chmod warning branch — warn called, chmod skipped', () => {
+	it('Windows chmod warning branch — warn called with icacls hint, chmod skipped', () => {
 		const home = tempDir()
 		/** @type {string[]} */
 		const warns = []
@@ -73,6 +73,14 @@ describe('writeAzureCreds', () => {
 		assert.equal(chmodCalled.length, 0)
 		assert.equal(warns.length, 1)
 		assert.match(warns[0], /Windows/)
+		assert.match(warns[0], /icacls/)
+	})
+
+	it('throws when home cannot be determined', () => {
+		assert.throws(
+			() => writeAzureCreds('https://dev.azure.com/org', 'pat', { homedir: '', platform: 'linux', chmod: () => {} }),
+			/could not determine home directory/
+		)
 	})
 })
 

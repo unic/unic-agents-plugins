@@ -48,6 +48,7 @@ import { parseArgs } from './lib/args.mjs'
  */
 export function writeConfluenceCreds(url, username, token, deps = {}) {
 	const home = deps.homedir ?? os.homedir()
+	if (!home) throw new Error('could not determine home directory (HOME / USERPROFILE unset)')
 	const platform = deps.platform ?? process.platform
 	const exists = deps.exists ?? realExistsSync
 	const read = deps.readFile ?? realReadFile
@@ -72,7 +73,9 @@ export function writeConfluenceCreds(url, username, token, deps = {}) {
 	const tmp = `${path}.tmp`
 	write(tmp, JSON.stringify(payload, null, 2), 'utf8')
 	if (platform === 'win32') {
-		warn(`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually via NTFS permissions.`)
+		warn(
+			`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually, e.g.:\n  icacls "${path}" /inheritance:r /grant:r "%USERNAME%:F"`
+		)
 	} else {
 		chmod(tmp, 0o600)
 	}
@@ -109,7 +112,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
-		process.stderr.write(`setup-confluence: unexpected error: ${err?.stack ?? err?.message ?? err}\n`)
+		process.stderr.write(`setup-confluence: unexpected error: ${err?.message ?? String(err)}\n`)
 		process.exit(1)
 	})
 }

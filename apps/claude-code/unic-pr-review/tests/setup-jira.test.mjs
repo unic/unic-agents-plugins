@@ -78,7 +78,7 @@ describe('writeJiraUrl', () => {
 		assert.equal(writeCalls.length, 0)
 	})
 
-	it('Windows chmod warning branch — warn called, chmod skipped', () => {
+	it('Windows chmod warning branch — warn called with icacls hint, chmod skipped', () => {
 		const home = tempDir()
 		writeFileSync(
 			join(home, '.unic-confluence.json'),
@@ -97,6 +97,14 @@ describe('writeJiraUrl', () => {
 		assert.equal(chmodCalled.length, 0)
 		assert.equal(warns.length, 1)
 		assert.match(warns[0], /Windows/)
+		assert.match(warns[0], /icacls/)
+	})
+
+	it('throws when home cannot be determined', () => {
+		assert.throws(
+			() => writeJiraUrl('https://jira.atlassian.net', { homedir: '', platform: 'linux', chmod: () => {} }),
+			/could not determine home directory/
+		)
 	})
 
 	it('throws a descriptive error when the source file is missing', () => {
