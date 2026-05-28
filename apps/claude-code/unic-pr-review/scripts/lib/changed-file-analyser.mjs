@@ -2,6 +2,8 @@
 // @ts-check
 // Copyright © 2026 Unic
 
+import { pathToFileURL } from 'node:url'
+
 /**
  * changed-file-analyser.mjs — determine which Review Aspect agents to spawn
  * based on the changed-files list (ADR-0008: conditional sub-agent spawning).
@@ -19,7 +21,7 @@ const isSourceFile = (f) => /\.(mjs|cjs|js|ts|tsx|jsx)$/.test(f) && !isTestFile(
 
 /** @param {string} f */
 const isTypeFile = (f) =>
-	/\.d\.ts$/.test(f) || /(^|[/\\])(types?|schemas?|interfaces?)[/\\]/i.test(f) || /\.ts$/.test(f)
+	/\.d\.ts$/.test(f) || /(^|[/\\])(types?|schemas?|interfaces?)[/\\]/i.test(f) || /\.tsx?$/.test(f)
 
 /** @param {string} f */
 const isDocFile = (f) => /\.(md|mdx)$/.test(f) || /(^|[/\\])docs?[/\\]/i.test(f)
@@ -59,7 +61,7 @@ export function decideSpawnSet(changedFiles) {
 
 // CLI entry — reads newline-separated file paths from stdin, writes JSON array to stdout.
 // Only runs when executed directly: `node scripts/lib/changed-file-analyser.mjs`
-if (import.meta.url === new URL(process.argv[1], 'file:').href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	/** @type {Buffer[]} */
 	const chunks = []
 	process.stdin.on('data', (chunk) => chunks.push(chunk))
@@ -68,10 +70,14 @@ if (import.meta.url === new URL(process.argv[1], 'file:').href) {
 		const files = raw.trim().split('\n').filter(Boolean)
 		try {
 			const agents = [...decideSpawnSet(files)]
-			process.stdout.write(JSON.stringify(agents) + '\n')
+			process.stdout.write(`${JSON.stringify(agents)}\n`)
 		} catch (err) {
 			process.stderr.write(`changed-file-analyser: ${err instanceof Error ? err.message : String(err)}\n`)
 			process.exit(1)
 		}
+	})
+	process.stdin.on('error', (err) => {
+		process.stderr.write(`changed-file-analyser: ${err instanceof Error ? err.message : String(err)}\n`)
+		process.exit(1)
 	})
 }

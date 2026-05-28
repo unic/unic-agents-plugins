@@ -45,16 +45,18 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
 {
   "findings": [
     {
-      "severity": "critical",
-      "confidence": 95,
-      "filePath": "src/index.mjs",
-      "startLine": 42,
-      "title": "Null pointer possible when input is undefined",
-      "body": "If `input` is undefined, line 43 throws a TypeError. Either add a guard (`if (!input) return`) or assert the type at the call site.",
-      "suggestion": "const value = input ?? defaultValue"
+      "severity": "important",
+      "confidence": 85,
+      "filePath": "src/auth.mjs",
+      "startLine": 14,
+      "title": "JSDoc @param name 'token' does not match renamed parameter 'apiKey'",
+      "body": "The JSDoc on line 14 still documents `@param {string} token` but the function signature was renamed to `apiKey` in this diff. Callers reading the docs will use the wrong name.",
+      "suggestion": "@param {string} apiKey"
     }
   ],
-  "positiveObservations": ["Error handling in the fetch wrapper is thorough — all HTTP status codes are covered."]
+  "positiveObservations": [
+    "The new ADR entry accurately reflects the decision made in this PR — no stale future-tense language."
+  ]
 }
 ```
 

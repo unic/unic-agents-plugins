@@ -46,16 +46,18 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
 {
   "findings": [
     {
-      "severity": "critical",
-      "confidence": 95,
-      "filePath": "src/index.mjs",
-      "startLine": 42,
-      "title": "Null pointer possible when input is undefined",
-      "body": "If `input` is undefined, line 43 throws a TypeError. Either add a guard (`if (!input) return`) or assert the type at the call site.",
-      "suggestion": "const value = input ?? defaultValue"
+      "severity": "important",
+      "confidence": 81,
+      "filePath": "src/types/user.d.ts",
+      "startLine": 12,
+      "title": "Optional 'email' field allows invalid state the constructor rejects",
+      "body": "The `UserProfile` type declares `email?: string`, but `createUserProfile()` throws when `email` is absent. Making the field optional in the type widens the domain beyond what the constructor accepts, letting callers construct an unparseable object before hitting the runtime guard.",
+      "suggestion": "email: string"
     }
   ],
-  "positiveObservations": ["Error handling in the fetch wrapper is thorough — all HTTP status codes are covered."]
+  "positiveObservations": [
+    "The discriminated union for `PaymentMethod` exhaustively covers all variants — a new case would be caught at compile time."
+  ]
 }
 ```
 

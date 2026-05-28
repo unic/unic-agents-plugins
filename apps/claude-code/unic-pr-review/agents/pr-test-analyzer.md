@@ -46,16 +46,18 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
 {
   "findings": [
     {
-      "severity": "critical",
-      "confidence": 95,
-      "filePath": "src/index.mjs",
-      "startLine": 42,
-      "title": "Null pointer possible when input is undefined",
-      "body": "If `input` is undefined, line 43 throws a TypeError. Either add a guard (`if (!input) return`) or assert the type at the call site.",
-      "suggestion": "const value = input ?? defaultValue"
+      "severity": "important",
+      "confidence": 83,
+      "filePath": "src/payment.mjs",
+      "startLine": 44,
+      "title": "Error branch in processPayment has no test coverage",
+      "body": "The new `catch` block added on line 44 is exercised by zero tests in the diff. A regression in the error path would go undetected. Either add a test that forces a payment error, or document why this branch is intentionally untested.",
+      "suggestion": null
     }
   ],
-  "positiveObservations": ["Error handling in the fetch wrapper is thorough — all HTTP status codes are covered."]
+  "positiveObservations": [
+    "The happy-path tests for the new discount logic are thorough and cover the boundary at 0% and 100%."
+  ]
 }
 ```
 

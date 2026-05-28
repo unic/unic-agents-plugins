@@ -47,16 +47,16 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
 {
   "findings": [
     {
-      "severity": "critical",
-      "confidence": 95,
-      "filePath": "src/index.mjs",
-      "startLine": 42,
-      "title": "Null pointer possible when input is undefined",
-      "body": "If `input` is undefined, line 43 throws a TypeError. Either add a guard (`if (!input) return`) or assert the type at the call site.",
-      "suggestion": "const value = input ?? defaultValue"
+      "severity": "minor",
+      "confidence": 72,
+      "filePath": "src/processor.mjs",
+      "startLine": 38,
+      "title": "Nested conditional can be flattened with an early return",
+      "body": "The `if (isValid) { if (hasData) { … } }` nesting on line 38 can be replaced with two guard clauses. Flattening removes one indentation level and makes the happy path immediately visible.",
+      "suggestion": "if (!isValid) return\nif (!hasData) return\n// happy path"
     }
   ],
-  "positiveObservations": ["Error handling in the fetch wrapper is thorough — all HTTP status codes are covered."]
+  "positiveObservations": ["The `mapResults` helper is appropriately short and single-purpose — no extraction needed."]
 }
 ```
 
