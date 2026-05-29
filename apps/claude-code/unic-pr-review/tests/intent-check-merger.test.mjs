@@ -125,4 +125,32 @@ describe('mergeIntentCheck', () => {
 		assert.equal(merged[0].verdicts['AC 1'], 'addressed')
 		assert.equal(merged[1].verdicts['AC 1'], 'unaddressed')
 	})
+
+	it('keeps skeleton verdicts when the assessed item has no verdicts property', () => {
+		/** @type {IntentCheckItem[]} */
+		const skeleton = [{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'unaddressed' } }]
+		const assessed = /** @type {unknown} */ ([{ id: 'PROJ-1', title: 'Login' }])
+
+		const merged = mergeIntentCheck(skeleton, assessed)
+
+		assert.equal(merged[0].verdicts['AC 1'], 'unaddressed')
+	})
+
+	it('passes note-bearing items through while still merging adjacent normal items', () => {
+		/** @type {IntentCheckItem[]} */
+		const skeleton = [
+			{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'unaddressed' }, note: 'Could not fetch' },
+			{ id: 'PROJ-2', title: 'Logout', verdicts: { 'AC 1': 'unaddressed' } },
+		]
+		const assessed = [
+			{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'addressed' } },
+			{ id: 'PROJ-2', title: 'Logout', verdicts: { 'AC 1': 'addressed' } },
+		]
+
+		const merged = mergeIntentCheck(skeleton, assessed)
+
+		assert.equal(merged[0].verdicts['AC 1'], 'unaddressed')
+		assert.equal(merged[0].note, 'Could not fetch')
+		assert.equal(merged[1].verdicts['AC 1'], 'addressed')
+	})
 })
