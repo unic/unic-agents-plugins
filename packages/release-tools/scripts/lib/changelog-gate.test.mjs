@@ -130,5 +130,6 @@ describe('evaluateBumpGate', () => {
 		})
 		assert.equal(v.ok, true)
 		assert.equal(v.code, 'ok')
+		assert.ok(v.message.includes('(new) → 1.0.0'), `message: ${v.message}`)
 	})
 })

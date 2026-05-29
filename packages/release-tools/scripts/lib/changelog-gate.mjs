@@ -61,5 +61,6 @@ export function evaluateBumpGate({ changedFiles, guardedPatterns, headVersion, b
 			message: `CHANGELOG.md section [${headVersion}] has no entries — only "(none)" placeholders found\n  Add bullets under [Unreleased] then re-run: pnpm bump`,
 		}
 	}
-	return { ok: true, code: 'ok', message: `version ${baseVersion} → ${headVersion}` }
+	const fromVersion = baseVersion || '(new)'
+	return { ok: true, code: 'ok', message: `version ${fromVersion} → ${headVersion}` }
 }
