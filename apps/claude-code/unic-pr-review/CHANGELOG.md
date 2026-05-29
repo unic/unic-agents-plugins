@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PingResult` is now a discriminated union (`{ kind: 'http' } | { kind: 'transport-error' }`) so callers cannot conflate transport failures with HTTP responses
 - `ModeContext` is a discriminated union mirroring the four-row decision table — nonsense input combinations are unrepresentable
 - `ReviewSummaryContext` collapses `criticalFindings` / `importantFindings` / `minorFindings` into a single `findings: SummaryFinding[]` with a `severity` field; the renderer buckets internally
-- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partially addressed'` — the third value matches the user-facing phrasing the renderer surfaces verbatim (PRD §10), replacing the earlier `'partial'`
+- `IntentCheckItem.verdicts` value type is now `'addressed' | 'unaddressed' | 'partially addressed'` — the third value matches the user-facing phrasing the renderer surfaces verbatim (PRD § Schema: Review Summary), replacing the earlier `'partial'`
 - `realPing` maps `TimeoutError` to a friendly `Request timed out after 10s` so doctor output is consistent across Node versions
 - `bucketBySeverity` throws on non-finite or out-of-range confidence inputs instead of silently returning `null`
 - `analyseChangedFiles` and `resolveBaseBranch` validate their inputs at the boundary and throw on misuse
@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `commands/review-pr.md` large-diff guidance no longer suggests a non-existent `--base` flag; it now advises splitting the branch and notes the base branch is auto-resolved (ADR-0009) with no per-run override
 - Test runner now executes credentials.test.mjs in addition to doctor.test.mjs
 - doctor stays fully silent about Jira when jiraUrl is not configured (US-35)
 - realPing degrades gracefully when given a malformed URL instead of crashing the doctor

@@ -1,0 +1,33 @@
+# 0011. Intent Assessor as a dedicated agent for live AC verdicts
+
+**Status:** Accepted (2026-05)
+
+## Context
+
+The Intent Check block lists a per-Acceptance-Criterion verdict (`addressed` / `partially addressed` / `unaddressed`) at the top of the Review Summary. The Intent Checker emits an `intentCheck` array, but every verdict is hard-coded to `unaddressed` ("not yet assessed") — it never sees the diff, so it cannot judge coverage. The orchestrator forwarded that static array verbatim to `render-summary`, so the rendered block could only ever show `unaddressed` for every AC, contradicting the Review Summary mock in [issue #160](https://github.com/unic/unic-agents-plugins/issues/160), which shows a mix of verdicts.
+
+Producing live verdicts requires assessing each AC against the diff. Three placements were considered:
+
+- **Option A — the Code Reviewer emits an updated `intentCheck`.** Rejected. The Code Reviewer's spawn is conditional (ADR-0008): a diff that does not spawn `code-reviewer` would silently produce zero live verdicts. It also forces the orchestrator to reconcile a code-reviewer-authored array against the static one (and against other aspects' opinions) — cross-agent merge logic we want to avoid. And it splits ownership of the Intent Check away from the intent agents.
+- **Option B1 — the Intent Checker assesses in-process.** Rejected. The Intent Checker owns the hard-stop decision on unreachable intent (ADR-0004), which it must make _before_ looking at any diff. Folding diff assessment into the same agent loads the full diff into the abort-decision agent and broadens its single responsibility from "gather intent" to "gather + assess."
+- **Option B2 — a dedicated assessment agent.** Accepted (see Decision).
+
+A second decision was what `addressed` _means_. If it meant "correctly and completely satisfied" (coverage **and** quality), the assessor would have to consume the aspect agents' Findings — forcing serialization (aspects first, assessor second) and re-introducing the cross-agent merge we rejected in Option A. It would also double-count: a bug would surface both as a Finding and as a downgraded verdict, and Findings dropped below the confidence floor (ADR-0002) would silently fail to downgrade an AC.
+
+## Decision
+
+A dedicated **Intent Assessor** agent (`agents/intent-assessor.md`) produces the live AC verdicts. It runs in the **same parallel fan-out batch** as the Review Aspect agents (zero added latency), seeded with `{ intentBrief, intentCheck (skeleton), diff }`, and returns the same structure with verdicts filled in — no Findings, no `positiveObservations`.
+
+- **`addressed` means coverage, not quality.** A verdict answers "does the diff contain changes that implement this AC?" — orthogonal to the Findings, which answer "is it built well?" The Assessor therefore needs only the diff, never the aspect agents' output, so full parallelism is correct.
+- **The skeleton is the structural source of truth.** The Intent Checker still emits the `intentCheck` skeleton (all `unaddressed`) plus the Intent Brief, unchanged. The Assessor only colours in verdicts; it never adds, drops, renames, or reorders ACs.
+- **Overlay merge in `scripts/lib/intent-check-merger.mjs`.** A pure helper overlays the Assessor's verdicts onto the skeleton: for each skeleton item + AC key, take the Assessor's verdict iff present and valid (`isAcVerdict`), else keep `unaddressed`. Assessor items/keys absent from the skeleton are ignored. The orchestrator runs the merger before `render-summary`, then passes the merged array as `INTENT_CHECK_JSON`.
+- **The Assessor is NOT a Review Aspect.** It is spawned by intent presence (`intentBrief` defined **and** the skeleton non-empty), not by changed-file categories. It must **not** be added to `SPAWN_TABLE` in `changed-file-analyser.mjs`.
+- The Code Reviewer no longer assesses ACs (its former step 3 is removed) — AC assessment lives solely in the Assessor, so an unaddressed AC is never reported twice.
+
+## Consequences
+
+- A structurally drifted-but-well-formed Assessor response cannot corrupt the block: the overlay projects verdicts onto the skeleton, so hallucinated or missing ACs are impossible by construction.
+- Graceful degradation is free: if the Assessor is not spawned, fails, or returns garbage, every AC stays `unaddressed` — identical to the pre-#160 behaviour, no crash, no partial output.
+- Note-bearing items (unfetchable ACs tagged by the Intent Checker per ADR-0004) pass through the Assessor and the merger untouched.
+- Unit tests cover the merger (`tests/intent-check-merger.test.mjs`); the agent prompt is not unit-tested, consistent with the other aspect agents.
+- The spawn-table exclusion is documented in `agents/intent-assessor.md`, `changed-file-analyser.mjs`, `commands/review-pr.md`, and `CLAUDE.md` so a future maintainer or PR reviewer does not "fix" the Assessor into the Spawn Set.

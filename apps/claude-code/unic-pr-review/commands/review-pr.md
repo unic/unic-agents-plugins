@@ -52,7 +52,8 @@ git diff "origin/${BASE_BRANCH}...HEAD" --shortstat
 ```
 
 - **Diff exceeds ~2000 lines or ~200 KB**: warn the user that the review may be
-  incomplete and suggest tightening the base branch (e.g. `--base feature/x`).
+  incomplete, and suggest splitting the work into smaller branches/PRs. The base
+  branch is auto-resolved (ADR-0009) and cannot be overridden per run.
 
 ## Step 3.5 — Gather optional intent URLs
 
@@ -189,7 +190,7 @@ Pass it to the `render-summary` helper via the `FINDINGS_JSON` environment varia
 
 - **When `intentCheck` is defined** (a non-empty array from Step 3.6), also pass it via
   `INTENT_CHECK_JSON` so the helper renders the Intent Check block above the Severity
-  sections (PRD §10):
+  sections (PRD § Schema: Review Summary):
 
   ```sh
   FINDINGS_JSON='<merged JSON>' INTENT_CHECK_JSON='<JSON.stringify(intentCheck)>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"

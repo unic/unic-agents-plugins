@@ -73,5 +73,5 @@ You receive a JSON object:
 
 ## Notes
 
-- Valid AC verdict values are `"addressed"`, `"partially addressed"`, and `"unaddressed"` — the renderer surfaces them verbatim, so they must match the user-facing phrasing in the PRD (§10).
+- Valid AC verdict values are `"addressed"`, `"partially addressed"`, and `"unaddressed"` — the renderer surfaces them verbatim, so they must match the user-facing phrasing in the PRD (§ Schema: Review Summary).
 - Never invent intent. If `items` is empty and `errors` is empty, emit `{ "intentBrief": "", "intentCheck": [] }`. Unrecognised URLs are reported as `"unsupported"` errors (see step 6) — surface them, don't silently drop them.

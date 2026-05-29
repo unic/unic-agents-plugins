@@ -217,7 +217,7 @@ describe('render-summary CLI — INTENT_CHECK_JSON', () => {
 		assert.doesNotMatch(r.stdout, /\[object Object\]/)
 	})
 
-	it('accepts the "partially addressed" verdict value (PRD §10)', () => {
+	it('accepts the "partially addressed" verdict value (PRD § Schema: Review Summary)', () => {
 		const intentCheck = JSON.stringify([{ id: 'PROJ-1', title: 'Mixed', verdicts: { 'AC 1': 'partially addressed' } }])
 		const r = run('{}', intentCheck)
 		assert.equal(r.status, 0)
