@@ -42,7 +42,6 @@ describe('mergeIntentCheck', () => {
 
 		const merged = mergeIntentCheck(skeleton, assessed)
 
-		assert.deepEqual(Object.keys(merged[0].verdicts), ['AC 1'])
 		assert.deepEqual(merged[0].verdicts, { 'AC 1': 'addressed' })
 	})
 
