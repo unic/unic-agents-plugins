@@ -34,7 +34,14 @@ export function mergeIntentCheck(skeleton, assessed) {
 		return skeleton
 	}
 
-	const assessedById = new Map(/** @type {IntentCheckItem[]} */ (assessed).map((item) => [item.id, item]))
+	/** @type {Map<string, IntentCheckItem>} */
+	const assessedById = new Map()
+	for (const item of assessed) {
+		if (typeof item === 'object' && item !== null && typeof (/** @type {{ id?: unknown }} */ (item).id) === 'string') {
+			const validItem = /** @type {IntentCheckItem} */ (item)
+			assessedById.set(validItem.id, validItem)
+		}
+	}
 
 	return skeleton.map((skeletonItem) => {
 		if (skeletonItem.note !== undefined) {

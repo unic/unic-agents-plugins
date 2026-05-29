@@ -135,6 +135,25 @@ describe('mergeIntentCheck', () => {
 		assert.equal(merged[0].verdicts['AC 1'], 'unaddressed')
 	})
 
+	it('ignores malformed assessed elements (null, non-object, missing id) without throwing', () => {
+		/** @type {IntentCheckItem[]} */
+		const skeleton = [
+			{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'unaddressed' } },
+			{ id: 'PROJ-2', title: 'Logout', verdicts: { 'AC 1': 'unaddressed' } },
+		]
+		const assessed = /** @type {unknown} */ ([
+			null,
+			'oops',
+			{ title: 'no id' },
+			{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'addressed' } },
+		])
+
+		const merged = mergeIntentCheck(skeleton, assessed)
+
+		assert.equal(merged[0].verdicts['AC 1'], 'addressed')
+		assert.equal(merged[1].verdicts['AC 1'], 'unaddressed')
+	})
+
 	it('passes note-bearing items through while still merging adjacent normal items', () => {
 		/** @type {IntentCheckItem[]} */
 		const skeleton = [
