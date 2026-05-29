@@ -48,6 +48,16 @@ describe('isBumpRequired', () => {
 	it('does not trigger on arbitrary md outside commands/', () => {
 		assert.equal(isBumpRequired(['some-dir/notes.md'], GUARDED), false)
 	})
+
+	it('triggers when a guarded file is mixed among unguarded files (not first)', () => {
+		const files = ['tests/foo.test.mjs', 'package.json', 'commands/review-pr.md']
+		assert.equal(isBumpRequired(files, GUARDED), true)
+	})
+
+	it('does not trigger when all files in a list are unguarded', () => {
+		const files = ['tests/foo.test.mjs', 'package.json', 'docs/adr/0001.md']
+		assert.equal(isBumpRequired(files, GUARDED), false)
+	})
 })
 
 describe('evaluateBumpGate', () => {

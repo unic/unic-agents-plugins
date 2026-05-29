@@ -235,7 +235,7 @@ function runVerifyE2E({ changelog, changedFiles, pluginDir, headVersion, baseVer
 		writeFileSync(diffFile, changedFiles.join('\n'), 'utf8')
 
 		const basePluginJson = JSON.stringify({ version: baseVersion })
-		const showPrefixOutput = pluginDir + '/'
+		const showPrefixOutput = `${pluginDir}/`
 		const shimPath = path.join(tmpDir, 'fake-git.cjs')
 		writeFileSync(
 			shimPath,
@@ -330,4 +330,20 @@ test('regression #163: file from a different plugin does not trigger this plugin
 	})
 	assert.strictEqual(result.exitCode, 0)
 	assert.ok(result.stdout.includes('no guarded paths changed'), `stdout: ${result.stdout}`)
+})
+
+test('regression #163: Windows backslash diff/show-prefix paths are normalised and trigger gate', async (_t) => {
+	// On Windows git can emit backslash separators for both --show-prefix and diff output.
+	// Exercise the `.replace(/\\/g, '/')` normalisation that the CI Windows matrix cannot
+	// reach (the shim emits POSIX separators regardless of host OS).
+	const pluginDir = 'apps\\claude-code\\unic-pr-review'
+	const result = runVerifyE2E({
+		changelog: validChangelog(),
+		changedFiles: ['apps\\claude-code\\unic-pr-review\\commands\\review-pr.md'],
+		pluginDir,
+		headVersion: '1.0.0',
+		baseVersion: '1.0.0',
+	})
+	assert.strictEqual(result.exitCode, 1)
+	assert.ok(result.stderr.includes('version in plugin.json was not bumped'), `stderr: ${result.stderr}`)
 })

@@ -83,11 +83,17 @@ if (isCI) {
 }
 
 // Resolve plugin prefix (e.g. "apps/claude-code/unic-pr-review/") for path normalisation.
-// Real git with --relative strips this automatically; the test shim may not.
+// With real git, --relative below already strips this; the strip is the fallback for the
+// test shim, which does not honor --relative and emits repo-root-relative paths.
 const showPrefix = git('rev-parse', '--show-prefix')
+if (showPrefix.status !== 0) {
+	// Not fatal: real git's --relative still scopes paths. Surfaced so a genuine git
+	// failure (which would also disable the prefix-strip fallback) is traceable in CI logs.
+	console.error('verify:changelog: warn — could not resolve plugin prefix; relying on git --relative for scoping')
+}
 const pluginPrefix = showPrefix.status === 0 ? showPrefix.stdout.trim().replace(/\\/g, '/') : ''
 
-// List changed files. --relative tells real git to return plugin-relative paths.
+// List changed files. --relative makes real git emit paths relative to cwd (the plugin dir here).
 const diff = git('diff', '--name-only', '--relative', `${base}...HEAD`)
 if (diff.status !== 0) {
 	if (isCI) {
@@ -103,7 +109,7 @@ const changedFiles = diff.stdout
 	.filter(Boolean)
 	.map((f) => {
 		// Normalise separators and strip the plugin prefix when present.
-		// This handles test shims that emit root-relative paths regardless of --relative.
+		// This handles the test shim, which emits root-relative paths regardless of --relative.
 		const normalised = f.replace(/\\/g, '/')
 		if (pluginPrefix && normalised.startsWith(pluginPrefix)) return normalised.slice(pluginPrefix.length)
 		return normalised
@@ -125,6 +131,9 @@ try {
 	process.exit(1) // unreachable — satisfies TS
 }
 const headVersion = headPlugin.version
+if (typeof headVersion !== 'string' || headVersion === '') {
+	fail(`${pluginPath} has no valid "version" field`)
+}
 
 // Read base version
 const basePluginRaw = git('show', `${base}:.claude-plugin/plugin.json`)
