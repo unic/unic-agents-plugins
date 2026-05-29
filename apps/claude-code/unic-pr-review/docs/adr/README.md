@@ -11,6 +11,7 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0007](0007-delta-diff-for-re-review.md) — Re-review uses a delta diff, not a full PR diff
 - [0008](0008-conditional-sub-agent-spawning.md) — Conditional sub-agent spawning over per-file chunking
 - [0009](0009-pre-pr-mode-as-peer-of-pr-modes.md) — Pre-PR mode is a peer operating mode, not a flag
+- [0011](0011-intent-assessor-for-live-ac-verdicts.md) — Intent Assessor as a dedicated agent for live AC verdicts
 
 ## Planned
 
