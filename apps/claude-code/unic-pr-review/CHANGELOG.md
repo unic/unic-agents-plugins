@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `analyseChangedFiles` and `resolveBaseBranch` validate their inputs at the boundary and throw on misuse
 - `renderInlineComment` treats a whitespace-only `suggestion` as absent
 - `agents/code-reviewer.md` JSON schema drops the unused `endLine` field
+- `scripts/lib/intent-check-merger.mjs`: pure, context-free `mergeIntentCheck(skeleton, assessed)` overlays the Intent Assessor's verdicts onto the Intent Checker skeleton (the structural source of truth), validating each verdict via the renderer's `isAcVerdict` (ADR-0011, US 13). Returns `{ items, diagnostics }` where `diagnostics` carries mechanical counts (`assessedReceived`, `applied`, `droppedElements`, `rejectedVerdicts`, `unmatchedItems`) so the orchestrator can warn the Reviewer with a Notice when zero verdicts were applied and log a maintainer-facing stderr diagnostic on any drop — verdict provenance is surfaced rather than silently lost (ADR-0011 §Consequences, PR #168 review)
 
 ### Fixed
 
@@ -75,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `render-summary` now drops an `IntentCheckItem` whose `verdicts` contains an off-spec value (object, number, typo) with a stderr note instead of rendering garbage like `AC 1: [object Object]` into the PR summary; verdict values are validated against the single `AC_VERDICTS` source of truth exported from `review-summary-renderer.mjs` (PR #159 review, Step 4)
 - `review-summary-renderer.mjs` now renders the optional `IntentCheckItem.note` (e.g. "Item could not be fetched.") that the Intent Checker emits for unreachable/parse-error items — previously the note was silently dropped (PR #159 review, Step 4)
 - Stale `collectIntent` JSDoc ("Unrecognised URLs are warned and skipped") corrected to describe the soft `unsupported` error it now records; dropped-`IntentCheckItem` stderr warnings now name the offending `id` (PR #159 review, Step 4)
-- `mergeIntentCheck` no longer throws when a non-empty `assessed` array contains `null`, `undefined`, non-object, or `id`-less elements: the id→item map is now built defensively (only non-null objects with a string `id`), so malformed Assessor output degrades gracefully to the skeleton's `unaddressed` verdicts instead of crashing (PR #168 review)
+- `mergeIntentCheck` no longer throws when a non-empty `assessed` array contains `null`, `undefined`, non-object, or `id`-less elements: the id→item map is now built defensively (only non-null objects with a string `id`), so malformed Assessor output degrades gracefully to the skeleton's `unaddressed` verdicts instead of crashing. Dropped elements, rejected verdicts, and unmatched ids are now **counted** in the returned `diagnostics` rather than silently swallowed, so the degradation is observable (PR #168 review)
 
 ## [2.0.0] — 2026-05-28
 
