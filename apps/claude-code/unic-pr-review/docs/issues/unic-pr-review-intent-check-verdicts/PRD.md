@@ -14,7 +14,7 @@ created: 2026-05-29
 
 ## Problem Statement
 
-As a Unic reviewer, I paste a Work Item URL and expect the Intent Check block at the top of the Review Summary to tell me, per Acceptance Criterion, whether the diff actually delivers it — `addressed`, `partially addressed`, or `unaddressed`. Today every AC always renders `unaddressed`, regardless of what the diff does. The Intent Checker emits a static `intentCheck` (every verdict hard-coded to `unaddressed` = "not yet assessed"), the orchestrator forwards it verbatim, and nothing ever fills in real verdicts. The block is therefore useless — it contradicts PRD §10, which shows a mix of verdicts.
+As a Unic reviewer, I paste a Work Item URL and expect the Intent Check block at the top of the Review Summary to tell me, per Acceptance Criterion, whether the diff actually delivers it — `addressed`, `partially addressed`, or `unaddressed`. Today every AC always renders `unaddressed`, regardless of what the diff does. The Intent Checker emits a static `intentCheck` (every verdict hard-coded to `unaddressed` = "not yet assessed"), the orchestrator forwards it verbatim, and nothing ever fills in real verdicts. The block is therefore useless — it contradicts the Review Summary mock in [issue #160](https://github.com/unic/unic-agents-plugins/issues/160), which shows a mix of verdicts.
 
 ## Solution
 

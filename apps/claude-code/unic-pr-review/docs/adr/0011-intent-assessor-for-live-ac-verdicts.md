@@ -4,7 +4,7 @@
 
 ## Context
 
-The Intent Check block lists a per-Acceptance-Criterion verdict (`addressed` / `partially addressed` / `unaddressed`) at the top of the Review Summary (PRD §10). The Intent Checker emits an `intentCheck` array, but every verdict is hard-coded to `unaddressed` ("not yet assessed") — it never sees the diff, so it cannot judge coverage. The orchestrator forwarded that static array verbatim to `render-summary`, so the rendered block could only ever show `unaddressed` for every AC, contradicting the PRD which shows a mix of verdicts (issue #160).
+The Intent Check block lists a per-Acceptance-Criterion verdict (`addressed` / `partially addressed` / `unaddressed`) at the top of the Review Summary. The Intent Checker emits an `intentCheck` array, but every verdict is hard-coded to `unaddressed` ("not yet assessed") — it never sees the diff, so it cannot judge coverage. The orchestrator forwarded that static array verbatim to `render-summary`, so the rendered block could only ever show `unaddressed` for every AC, contradicting the Review Summary mock in [issue #160](https://github.com/unic/unic-agents-plugins/issues/160), which shows a mix of verdicts.
 
 Producing live verdicts requires assessing each AC against the diff. Three placements were considered:
 
