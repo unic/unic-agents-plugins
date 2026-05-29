@@ -8,7 +8,7 @@ The Re-review machinery needs to know which Revision of a PR was last reviewed s
 
 Two alternatives were considered:
 
-- **Local state file under `~/.unic-pr-review/state.json` keyed by PR URL.** Rejected — invokers swap machines, share laptops, and run the Plugin from CI. A local cache silently desyncs and would force every Review to re-detect mode from the PR anyway. (Note: a different, repo-local cache at `<cwd>/.unic-pr-review/<key>/` is used by the Approval Loop for Ctrl-C-resumable per-Finding decisions — see PRD §81. That cache is scoped to one Review's lifetime, not to long-term iteration state, and the two are not interchangeable.)
+- **Local state file under `~/.unic-pr-review/state.json` keyed by PR URL.** Rejected — invokers swap machines, share laptops, and run the Plugin from CI. A local cache silently desyncs and would force every Review to re-detect mode from the PR anyway. (Note: a different, repo-local cache at `<cwd>/.unic-pr-review/<key>/` is used by the Approval Loop for Ctrl-C-resumable per-Finding decisions — see PRD § Modules (Approval Loop). That cache is scoped to one Review's lifetime, not to long-term iteration state, and the two are not interchangeable.)
 - **A custom ADO PR property (`pullRequest.properties`).** Rejected — properties are not visible in the PR UI, can be modified out-of-band, and require an extra round-trip. The Bot Signature is human-readable, lives in the same place as the Findings, and survives every ADO change short of comment deletion.
 
 ## Decision

@@ -51,7 +51,7 @@ import { renderFooter } from './signature.mjs'
 
 /**
  * The set of valid {@link AcVerdict} values — the single runtime source of truth
- * for the union above. Surfaced verbatim, so it must match the PRD §10 phrasing.
+ * for the union above. Surfaced verbatim, so it must match the PRD § Schema: Review Summary phrasing.
  * @type {readonly AcVerdict[]}
  */
 export const AC_VERDICTS = ['addressed', 'unaddressed', 'partially addressed']

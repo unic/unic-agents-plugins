@@ -190,7 +190,7 @@ Pass it to the `render-summary` helper via the `FINDINGS_JSON` environment varia
 
 - **When `intentCheck` is defined** (a non-empty array from Step 3.6), also pass it via
   `INTENT_CHECK_JSON` so the helper renders the Intent Check block above the Severity
-  sections (PRD §10):
+  sections (PRD § Schema: Review Summary):
 
   ```sh
   FINDINGS_JSON='<merged JSON>' INTENT_CHECK_JSON='<JSON.stringify(intentCheck)>' node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
