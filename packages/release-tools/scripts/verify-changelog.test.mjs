@@ -239,26 +239,24 @@ function runVerifyE2E({ changelog, changedFiles, pluginDir, headVersion, baseVer
 		const shimPath = path.join(tmpDir, 'fake-git.cjs')
 		writeFileSync(
 			shimPath,
-			[
-				"const { readFileSync } = require('node:fs')",
-				'const args = process.argv.slice(2)',
-				'const cmd = args[0]',
-				"if (cmd === 'rev-parse' && args.includes('--show-prefix')) {",
-				`  process.stdout.write(${JSON.stringify(showPrefixOutput)})`,
-				'  process.exit(0)',
-				'}',
-				"if (cmd === 'rev-parse') { process.exit(1) }",
-				"if (cmd === 'show') {",
-				`  process.stdout.write(${JSON.stringify(basePluginJson)})`,
-				'  process.exit(0)',
-				'}',
-				"if (cmd === 'diff') {",
-				'  const f = process.env._GIT_DIFF_FILE',
-				"  if (f) process.stdout.write(readFileSync(f, 'utf8'))",
-				'  process.exit(0)',
-				'}',
-				'process.exit(1)',
-			].join('\n')
+			`const { readFileSync } = require('node:fs')
+const args = process.argv.slice(2)
+const cmd = args[0]
+if (cmd === 'rev-parse' && args.includes('--show-prefix')) {
+  process.stdout.write(${JSON.stringify(showPrefixOutput)})
+  process.exit(0)
+}
+if (cmd === 'rev-parse') { process.exit(1) }
+if (cmd === 'show') {
+  process.stdout.write(${JSON.stringify(basePluginJson)})
+  process.exit(0)
+}
+if (cmd === 'diff') {
+  const f = process.env._GIT_DIFF_FILE
+  if (f) process.stdout.write(readFileSync(f, 'utf8'))
+  process.exit(0)
+}
+process.exit(1)`
 		)
 		const result = spawnSync('node', [script], {
 			encoding: 'utf8',
