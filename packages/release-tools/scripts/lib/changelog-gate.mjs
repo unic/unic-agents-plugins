@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // @ts-check
 // SPDX-License-Identifier: LGPL-3.0-or-later
 

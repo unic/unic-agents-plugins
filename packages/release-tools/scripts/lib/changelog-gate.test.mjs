@@ -118,4 +118,17 @@ describe('evaluateBumpGate', () => {
 		assert.equal(v.code, 'ok')
 		assert.ok(v.message.includes('1.0.0 → 1.1.0'))
 	})
+
+	it('treats empty baseVersion as newly introduced plugin (version check passes)', () => {
+		const cl = '## [1.0.0] — 2026-05-29\n\n### Added\n- initial release'
+		const v = evaluateBumpGate({
+			changedFiles: ['commands/setup.md'],
+			guardedPatterns: GUARDED,
+			headVersion: '1.0.0',
+			baseVersion: '',
+			changelog: cl,
+		})
+		assert.equal(v.ok, true)
+		assert.equal(v.code, 'ok')
+	})
 })

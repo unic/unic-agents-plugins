@@ -31,8 +31,8 @@ function fail(/** @type {string} */ msg) {
 	let changelog
 	try {
 		changelog = readFileSync(changelogPath, 'utf8')
-	} catch {
-		fail('cannot read CHANGELOG.md')
+	} catch (e) {
+		fail(`cannot read CHANGELOG.md: ${/** @type {Error} */ (e).message}`)
 	}
 
 	const structuralErrors = []
@@ -120,8 +120,8 @@ const pluginPath = path.join(root, '.claude-plugin/plugin.json')
 let headPlugin
 try {
 	headPlugin = /** @type {any} */ (JSON.parse(readFileSync(pluginPath, 'utf8')))
-} catch {
-	fail(`cannot read ${pluginPath}`)
+} catch (e) {
+	fail(`cannot read ${pluginPath}: ${/** @type {Error} */ (e).message}`)
 	process.exit(1) // unreachable — satisfies TS
 }
 const headVersion = headPlugin.version
@@ -132,8 +132,9 @@ let baseVersion = ''
 if (basePluginRaw.status === 0) {
 	try {
 		baseVersion = /** @type {{ version: string }} */ (JSON.parse(basePluginRaw.stdout)).version
-	} catch {
-		// base doesn't have plugin.json yet — treat as empty
+	} catch (e) {
+		console.error(`verify:changelog: warn — could not parse base plugin.json: ${/** @type {Error} */ (e).message}`)
+		// intentional fallback: treat base as new plugin with no prior version
 	}
 }
 
@@ -141,9 +142,9 @@ if (basePluginRaw.status === 0) {
 let changelog
 try {
 	changelog = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
-} catch {
-	fail('cannot read CHANGELOG.md')
-	process.exit(1)
+} catch (e) {
+	fail(`cannot read CHANGELOG.md: ${/** @type {Error} */ (e).message}`)
+	process.exit(1) // unreachable — satisfies TS
 }
 
 const verdict = evaluateBumpGate({ changedFiles, guardedPatterns: GUARDED, headVersion, baseVersion, changelog })
