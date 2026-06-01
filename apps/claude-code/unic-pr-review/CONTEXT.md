@@ -8,6 +8,10 @@ A Claude Code Plugin that runs AI-powered PR Reviews with intent checking agains
 The `unic-pr-review` Claude Code Plugin itself; the subject of this context. Ships at `apps/claude-code/unic-pr-review/`.
 _Avoid_: tool, app, integration
 
+**Reviewer**:
+The Unic person who runs the Plugin and is walked through the Approval Loop — the sole human persona in this context. They read the Review Summary (Notices, Intent Check, Findings) and decide what is written back to the PR. Diagnostics written to stderr are **not** addressed to the Reviewer; they are a debugging channel for a maintainer troubleshooting the Plugin.
+_Avoid_: operator, user, author, approver
+
 **Review**:
 A complete run of the Plugin against either an Azure DevOps Pull Request (ADO Mode) or a local feature branch (Pre-PR Mode) — from intent gathering through aspect fan-out and Approval Loop to the optional write-back.
 _Avoid_: scan, audit, check
