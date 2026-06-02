@@ -83,7 +83,7 @@ The `jiraUrl` field is optional. If absent, doctor stays silent about Jira (US 3
 
 ### `~/.unic-azure.json`
 
-Holds your Azure DevOps credentials. When you pass a PR URL, `review-pr` derives the org, project, repo, and PR id from the URL itself (via the provider's `parse-url`) — it does **not** read `orgUrl` from this file. The stored Personal Access Token (or the `AZURE_DEVOPS_PAT` env var) authenticates the `az` calls the ADO flow makes.
+Holds your Azure DevOps credentials. When you pass a PR URL, `review-pr` derives the org, project, repo, and PR id from the URL itself (via the provider's `parse-url`) — it does **not** read `orgUrl` from this file. The `az`-based ADO flow authenticates against your ambient `az devops login` session (ADR-0005), not the stored PAT; the PAT here is consumed by the `setup-azure` wizard and credential helpers, and is not currently wired into the review flow.
 
 ```json
 {

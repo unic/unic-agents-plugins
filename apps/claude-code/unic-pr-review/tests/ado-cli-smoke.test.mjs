@@ -35,5 +35,17 @@ describe('ado-cli inventory', () => {
 				`az devops invoke --area/--resource "${key}" in ado-fetcher.md is NOT in ado-cli-inventory.json`
 			)
 		}
+
+		// Reverse direction (invokeCommands only): every inventoried invoke call must
+		// actually appear in ado-fetcher.md, so the inventory cannot advertise a call
+		// the agent never makes (e.g. a deferred `diffs` fetch). `otherCommands` stays
+		// directional by design — it documents non-invoke CLI calls.
+		const foundSet = new Set(found)
+		for (const key of inventoried) {
+			assert.ok(
+				foundSet.has(key),
+				`ado-cli-inventory.json lists az devops invoke "${key}" but ado-fetcher.md never makes that call`
+			)
+		}
 	})
 })

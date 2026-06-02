@@ -13,12 +13,6 @@
       "resource": "pullrequestiterationchanges",
       "httpMethod": "GET",
       "description": "Changed files in latest iteration"
-    },
-    {
-      "area": "git",
-      "resource": "diffs",
-      "httpMethod": "GET",
-      "description": "Raw diff between source and target commits"
     }
   ],
   "otherCommands": [

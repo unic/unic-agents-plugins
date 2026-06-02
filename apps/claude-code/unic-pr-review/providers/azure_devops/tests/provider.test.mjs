@@ -68,6 +68,14 @@ describe('discoverWorkItems', () => {
 	it('returns empty array when workItemRefs absent', () => {
 		assert.deepEqual(discoverWorkItems({}), [])
 	})
+	it('throws on non-object input instead of silently returning empty', () => {
+		// @ts-expect-error — deliberately passing the wrong shape to assert the guard fires
+		assert.throws(() => discoverWorkItems(null), /Expected PR metadata object/)
+		// @ts-expect-error — deliberately passing the wrong shape to assert the guard fires
+		assert.throws(() => discoverWorkItems('not-json'), /got string/)
+		// @ts-expect-error — deliberately passing the wrong shape to assert the guard fires
+		assert.throws(() => discoverWorkItems([]), /got array/)
+	})
 	it('emits string ids and ado-work-item type for every entry', () => {
 		const items = discoverWorkItems(fixture('pr-with-multiple-work-items.json'))
 		for (const item of items) {

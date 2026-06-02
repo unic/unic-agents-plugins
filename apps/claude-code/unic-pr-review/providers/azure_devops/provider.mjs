@@ -46,8 +46,13 @@ export const agents = {
  *
  * @param {{ workItemRefs?: Array<{ id: string, url: string }> }} prMetadata
  * @returns {Array<{ id: string, type: string, url: string, raw: object }>}
+ * @throws {Error} when `prMetadata` is not a PR-metadata object (guards against a
+ *   malformed stdin payload silently yielding zero Work Items)
  */
 export function discoverWorkItems(prMetadata) {
+	if (prMetadata === null || typeof prMetadata !== 'object' || Array.isArray(prMetadata)) {
+		throw new Error(`Expected PR metadata object with optional workItemRefs[], got ${describeType(prMetadata)}`)
+	}
 	return (prMetadata.workItemRefs ?? []).map((ref) => ({
 		id: String(ref.id),
 		type: 'ado-work-item',
@@ -58,6 +63,9 @@ export function discoverWorkItems(prMetadata) {
 
 /** Default export — the full Provider bundle for `providers/index.mjs`. */
 export default { name, label, prUrlPattern, parsePrUrl, agents, discoverWorkItems }
+
+/** @param {unknown} value */
+const describeType = (value) => (value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value)
 
 /** @param {unknown} err */
 const errMsg = (err) => (err instanceof Error ? err.message : String(err))
@@ -78,6 +86,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			process.exit(1)
 		}
 	} else if (subcommand === 'discover-work-items') {
+		if (process.stdin.isTTY) {
+			process.stderr.write('discover-work-items expects PR metadata JSON on stdin (pipe it in)\n')
+			process.exit(1)
+		}
 		/** @type {Buffer[]} */
 		const chunks = []
 		process.stdin.on('data', (c) => chunks.push(c))

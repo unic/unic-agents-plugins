@@ -79,7 +79,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			}
 			process.stdout.write(`${JSON.stringify(provider.parsePrUrl(url))}\n`)
 		} catch (err) {
-			process.stderr.write(`${errMsg(err)}\n`)
+			process.stderr.write(`URL parse error: ${errMsg(err)}\n`)
 			process.exit(1)
 		}
 	} else if (subcommand === 'discover-work-items' && url) {
@@ -87,6 +87,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			const provider = await detectProvider(url)
 			if (!provider) {
 				process.stderr.write(`No provider matched: ${url}\n`)
+				process.exit(1)
+			}
+			if (process.stdin.isTTY) {
+				process.stderr.write('discover-work-items expects PR metadata JSON on stdin (pipe it in)\n')
 				process.exit(1)
 			}
 			/** @type {Buffer[]} */

@@ -41,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `agents/ado-fetcher.md` (**Hermes**): reads PR data from Azure DevOps via `az devops invoke` (PR metadata, Revisions, Threads, changed-file list) and caches reviewer identity once per run; read-only, never writes to ADO. Line-level diff is deferred in this preview — `rawDiff` is returned empty with a warning, and the orchestrator skips the diff-driven aspect fan-out when it is empty
 - `agents/intent-checker.md` (Ariadne) accepts a `workItems` input alongside `pastedUrls` and fetches ADO Work Items via `az boards work-item show`, extracting linked Confluence pages — work-item discovery stays a Provider contract (ADR-0001 amendment)
 - `commands/review-pr.md` Step 1 replaces the "ADO mode not yet supported" stub with the full ADO first-review flow (provider detection → URL parse → ADO Fetcher → Work Item discovery → Intent Checker → aspect fan-out → terminal preview); no writes
-- `tests/ado-cli-smoke.test.mjs`: asserts every `az devops invoke` call in `ado-fetcher.md` is catalogued in `fixtures/ado-cli-inventory.json`
+- `tests/ado-cli-smoke.test.mjs`: asserts `az devops invoke` calls and `fixtures/ado-cli-inventory.json` agree in both directions, so the inventory cannot advertise an invoke call the fetcher never makes
+- `providers/azure_devops/provider.mjs`: `discoverWorkItems` throws on non-object input (instead of silently yielding zero Work Items) and the `discover-work-items` CLI rejects a missing stdin pipe rather than hanging
 - ADR-0010 (Provider folder bundle) accepted and ADR-0001 amended (provider-owned work-item discovery)
 
 ### Changed
