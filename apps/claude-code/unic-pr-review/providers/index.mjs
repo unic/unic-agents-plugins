@@ -44,26 +44,73 @@ export async function detectProvider(url) {
 	return PROVIDERS.find((p) => p.prUrlPattern.test(url)) ?? null
 }
 
-// CLI entry — `node providers/index.mjs detect <url>`. Writes provider summary
-// JSON to stdout (exit 0) or an error to stderr (exit 1) when no Provider matches.
+/** @param {unknown} err */
+const errMsg = (err) => (err instanceof Error ? err.message : String(err))
+
+// CLI entry — `node providers/index.mjs detect|parse-url|discover-work-items <url>`.
+// Exits 0 on success (JSON to stdout); exits 1 on stderr when no Provider matches or usage is invalid.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	const [, , subcommand, url] = process.argv
 	if (subcommand === 'detect' && url) {
-		const provider = await detectProvider(url)
-		if (!provider) {
-			process.stderr.write(`No provider matched: ${url}\n`)
+		try {
+			const provider = await detectProvider(url)
+			if (!provider) {
+				process.stderr.write(`No provider matched: ${url}\n`)
+				process.exit(1)
+			}
+			process.stdout.write(
+				`${JSON.stringify({
+					name: provider.name,
+					label: provider.label,
+					fetcher: provider.agents.fetcher,
+					writer: provider.agents.writer,
+				})}\n`
+			)
+		} catch (err) {
+			process.stderr.write(`Provider registry error: ${errMsg(err)}\n`)
 			process.exit(1)
 		}
-		process.stdout.write(
-			`${JSON.stringify({
-				name: provider.name,
-				label: provider.label,
-				fetcher: provider.agents.fetcher,
-				writer: provider.agents.writer,
-			})}\n`
-		)
+	} else if (subcommand === 'parse-url' && url) {
+		try {
+			const provider = await detectProvider(url)
+			if (!provider) {
+				process.stderr.write(`No provider matched: ${url}\n`)
+				process.exit(1)
+			}
+			process.stdout.write(`${JSON.stringify(provider.parsePrUrl(url))}\n`)
+		} catch (err) {
+			process.stderr.write(`${errMsg(err)}\n`)
+			process.exit(1)
+		}
+	} else if (subcommand === 'discover-work-items' && url) {
+		try {
+			const provider = await detectProvider(url)
+			if (!provider) {
+				process.stderr.write(`No provider matched: ${url}\n`)
+				process.exit(1)
+			}
+			/** @type {Buffer[]} */
+			const chunks = []
+			process.stdin.on('data', (c) => chunks.push(c))
+			process.stdin.on('end', () => {
+				try {
+					const meta = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+					process.stdout.write(`${JSON.stringify(provider.discoverWorkItems(meta))}\n`)
+				} catch (err) {
+					process.stderr.write(`${errMsg(err)}\n`)
+					process.exit(1)
+				}
+			})
+			process.stdin.on('error', (err) => {
+				process.stderr.write(`${errMsg(err)}\n`)
+				process.exit(1)
+			})
+		} catch (err) {
+			process.stderr.write(`Provider registry error: ${errMsg(err)}\n`)
+			process.exit(1)
+		}
 	} else {
-		process.stderr.write('Usage: node providers/index.mjs detect <url>\n')
+		process.stderr.write('Usage: node providers/index.mjs detect|parse-url|discover-work-items <url>\n')
 		process.exit(1)
 	}
 }

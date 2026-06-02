@@ -21,7 +21,8 @@ describe('ado-cli inventory', () => {
 			inventory.invokeCommands.map((/** @type {{ area: string, resource: string }} */ c) => `${c.area}/${c.resource}`)
 		)
 
-		// Each `az devops invoke --area X --resource Y` appears on a single line in the agent.
+		// Convention: `az devops invoke --area X --resource Y` always opens the command
+		// (same logical line in each shell block in ado-fetcher.md). \s+ tolerates future wrapping.
 		const singleLinePattern = /az devops invoke\s+--area\s+(\S+)\s+--resource\s+(\S+)/g
 
 		/** @type {string[]} */

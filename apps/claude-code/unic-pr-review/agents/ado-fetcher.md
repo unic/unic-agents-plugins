@@ -24,11 +24,16 @@ You receive a JSON object:
 
 ### Step 1 — Cache reviewer identity (once)
 
-Run these two commands and extract the identity. Store as `IDENTITY`.
+Run these commands and extract the identity. Store as `IDENTITY`.
 
 ```sh
 az account show --output json
-az devops user show --user me --org "<orgUrl>" --output json
+```
+
+Extract `upn = .user.name` from the output above, then:
+
+```sh
+az devops user show --user "<upn>" --org "<orgUrl>" --output json
 ```
 
 From `az devops user show`: extract `id` (the ADO user object ID) and `displayName`. Store `IDENTITY = { id, displayName }`.
@@ -49,6 +54,12 @@ az devops invoke --area git --resource pullrequests \
 
 Store stdout as `PR_METADATA`.
 
+If the command exits non-zero, emit this error and stop:
+
+```json
+{ "error": "fetch-failed", "step": 2, "resource": "pullrequests", "message": "<stderr>" }
+```
+
 ### Step 3 — Fetch Revisions (iterations)
 
 ```sh
@@ -59,6 +70,12 @@ az devops invoke --area git --resource pullrequestiterations \
 
 Store stdout as `REVISIONS`. The latest revision is the last entry in the `value` array.
 
+If the command exits non-zero, emit this error and stop:
+
+```json
+{ "error": "fetch-failed", "step": 3, "resource": "pullrequestiterations", "message": "<stderr>" }
+```
+
 ### Step 4 — Fetch Review Threads
 
 ```sh
@@ -68,6 +85,12 @@ az devops invoke --area git --resource threads \
 ```
 
 Store stdout as `THREADS`. Used by the orchestrator to detect a prior Bot Signature (ADR-0006).
+
+If the command exits non-zero, emit this error and stop:
+
+```json
+{ "error": "fetch-failed", "step": 4, "resource": "threads", "message": "<stderr>" }
+```
 
 ### Step 5 — Fetch changed files
 
@@ -81,20 +104,21 @@ az devops invoke --area git --resource pullrequestiterationchanges \
 
 Extract the list of changed file paths from `changeEntries[*].item.path`. Store as `CHANGED_FILES` (array of strings).
 
-### Step 6 — Fetch raw diff
+If the command exits non-zero, emit this error and stop:
 
-Extract `sourceCommit = PR_METADATA.lastMergeSourceCommit.commitId` and `targetCommit = PR_METADATA.lastMergeTargetCommit.commitId`.
-
-```sh
-az devops invoke --area git --resource diffs \
-  --route-parameters organization="<orgUrl>" project="<project>" repositoryId="<repo>" \
-  --query-parameters baseVersionType=commit baseVersion="<targetCommit>" targetVersionType=commit targetVersion="<sourceCommit>" \
-  --http-method GET --api-version 7.0 --output json
+```json
+{ "error": "fetch-failed", "step": 5, "resource": "pullrequestiterationchanges", "message": "<stderr>" }
 ```
 
-Assemble a unified-diff-like string from the response's `changes` array. For each change entry, format as `--- a/<path>` / `+++ b/<path>` followed by the diff hunks, using the `originalPath`/`path` fields and the content blocks. Store as `RAW_DIFF`.
+### Step 6 — Fetch raw diff (best-effort)
 
-If the diff endpoint is unavailable or returns an empty change list, set `RAW_DIFF` to an empty string and add a warning to the output (Step 7). Large PRs may paginate — assemble the diff across all pages and add a `warnings` entry if the result is truncated.
+The ADO `diffs` endpoint (`GET .../diffs/commits`) returns per-file change entries with path metadata only — it does **not** return line-level diff content or diff hunks. Full blob-level diff fetching is deferred to a later slice.
+
+Set `RAW_DIFF` to an empty string and add the following to `warnings`:
+
+```
+"ADO diffs API returns file-level metadata only — line-level diff unavailable in this preview. Review agents will operate on changedFiles."
+```
 
 ### Step 7 — Emit result
 

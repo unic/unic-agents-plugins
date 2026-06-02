@@ -30,7 +30,7 @@ node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" detect "<URL>"
 #### Step 1.2 — Parse the PR URL
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/providers/azure_devops/provider.mjs" parse-url "<URL>"
+node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" parse-url "<URL>"
 ```
 
 - **Exit 0**: stdout is `{ orgUrl, project, repo, prId }`. Store as `PR_REF`.
@@ -38,7 +38,7 @@ node "${CLAUDE_PLUGIN_ROOT}/providers/azure_devops/provider.mjs" parse-url "<URL
 
 #### Step 1.3 — Invoke the ADO Fetcher agent
 
-Use the Agent tool to launch `agents/ado-fetcher.md`. Provide:
+Use the Agent tool to launch the agent identified by `FETCHER_AGENT` (e.g. `unic-pr-review:ado-fetcher`). Provide:
 
 ```json
 { "orgUrl": "<PR_REF.orgUrl>", "project": "<PR_REF.project>", "repo": "<PR_REF.repo>", "prId": <PR_REF.prId> }
@@ -58,8 +58,11 @@ Wait for the agent to complete. It returns a JSON object:
 }
 ```
 
-- **If the agent returns `{ "error": "identity-cache-failed" }`**: print `"ADO identity caching failed. Run /unic-pr-review:doctor to diagnose."` and stop.
-- **Print any `warnings` entries** to the terminal so the user can see non-fatal issues (e.g. empty diff).
+- **Print any `warnings` entries** first (if present) so the user sees diagnostic context even on error.
+- **If the agent returns an object with `"error"` set**:
+  - `"identity-cache-failed"` → print `"ADO identity caching failed. Run /unic-pr-review:doctor to diagnose."` and stop.
+  - `"fetch-failed"` → print `"ADO data fetch failed at step <step> (<resource>): <message>"` and stop.
+  - Any other error key → print the error message verbatim and stop.
 - Store `FETCHER_OUTPUT`.
 
 #### Step 1.4 — Detect mode (first-review vs re-review)
@@ -74,7 +77,7 @@ Scan `FETCHER_OUTPUT.threads` for a prior Bot Signature authored by `FETCHER_OUT
 Write `FETCHER_OUTPUT.prMetadata` to a temp file (avoids shell-quoting the JSON), then pipe it in:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/providers/azure_devops/provider.mjs" discover-work-items < "<temp file with prMetadata JSON>"
+node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" discover-work-items "<URL>" < "<temp file with prMetadata JSON>"
 ```
 
 - **Exit 0**: stdout is a JSON array. Store as `WORK_ITEMS`.
