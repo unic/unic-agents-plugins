@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 
 /**
  * providers/azure_devops/provider.mjs — Azure DevOps Source Platform Provider
- * (ADR-0010). Library + CLI entry, mirroring `scripts/lib/changed-file-analyser.mjs`.
+ * (ADR-0010). Library + CLI entry.
  *
  * Exports the Provider contract: `name`, `label`, `prUrlPattern`, `parsePrUrl`,
  * `agents`, and `discoverWorkItems`. The default export bundles them for the
@@ -48,8 +48,7 @@ export const agents = {
  * @returns {Array<{ id: string, type: string, url: string, raw: object }>}
  */
 export function discoverWorkItems(prMetadata) {
-	const refs = prMetadata.workItemRefs ?? []
-	return refs.map((ref) => ({
+	return (prMetadata.workItemRefs ?? []).map((ref) => ({
 		id: String(ref.id),
 		type: 'ado-work-item',
 		url: ref.url,
