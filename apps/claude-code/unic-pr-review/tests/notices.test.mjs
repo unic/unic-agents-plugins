@@ -40,4 +40,24 @@ describe('renderNotices', () => {
 		assert.ok(persistentIdx >= 0, 'Missing persistent-unaddressed block')
 		assert.ok(fallbackIdx < persistentIdx, 'Fallback notice must precede persistent-unaddressed block')
 	})
+
+	it('renders the unassessed-intent-check notice when unassessedIntentCheck is true', () => {
+		const out = renderNotices({ unassessedIntentCheck: true })
+		assert.ok(out.includes('> **Notice:**'))
+		assert.ok(out.includes('Intent Check block'))
+		assert.ok(out.includes('unaddressed'))
+	})
+
+	it('returns empty string when unassessedIntentCheck is false', () => {
+		assert.equal(renderNotices({ unassessedIntentCheck: false }), '')
+	})
+
+	it('renders unassessed-intent-check notice after fallbackToFirstReview when both are set', () => {
+		const out = renderNotices({ fallbackToFirstReview: true, unassessedIntentCheck: true })
+		const fallbackIdx = out.indexOf('force-push detected')
+		const unassessedIdx = out.indexOf('Intent Check block')
+		assert.ok(fallbackIdx >= 0, 'Missing fallback notice')
+		assert.ok(unassessedIdx >= 0, 'Missing unassessed notice')
+		assert.ok(fallbackIdx < unassessedIdx, 'fallback notice must precede unassessed notice')
+	})
 })

@@ -54,6 +54,8 @@ Two changes are required — both are mandatory; omitting either causes the agen
 1. Create `agents/<name>.md` — the agent prompt following the structure of existing agents.
 2. Add an entry to `SPAWN_TABLE` in `scripts/lib/changed-file-analyser.mjs` — the predicate that decides when to spawn it.
 
+> **Important**: The Intent Assessor (`agents/intent-assessor.md`) is **not** a Review Aspect and must **not** be added to `SPAWN_TABLE`. It is spawned by intent presence (`intentBrief` defined **and** skeleton non-empty), not by changed-file categories — see ADR-0011. Adding it to the spawn table would break its spawn semantics.
+
 ## Plugin doctrines
 
 Load-bearing invariants captured as ADRs. All nine must be understood before editing:

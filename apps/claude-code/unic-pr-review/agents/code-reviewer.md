@@ -77,5 +77,4 @@ Field constraints:
 
 1. Read the entire diff before emitting any Finding.
 2. Apply the confidence rubric and drop anything below 60.
-3. If an Intent Brief is provided at the end of the input (after the diff), treat it as the authoritative source of acceptance criteria. For each Acceptance Criterion listed, assess whether the diff directly addresses it. Flag unaddressed ACs as Important Findings with confidence 80+. Flag partially-addressed ACs as Minor Findings with confidence 60–79.
-4. Emit the JSON object. Nothing else.
+3. Emit the JSON object. Nothing else.

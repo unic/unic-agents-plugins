@@ -32,6 +32,10 @@ const isDocFile = (f) => /\.(md|mdx)$/.test(f) || /(^|[/\\])docs?[/\\]/i.test(f)
  *
  * @type {Array<{ agent: string, predicate: (files: string[]) => boolean }>}
  */
+// NOTE: The Intent Assessor (`agents/intent-assessor.md`) is deliberately absent
+// from this table. It is spawned by intent presence (intentBrief defined and the
+// skeleton non-empty), not by changed-file categories — see ADR-0011. Do not add
+// it here.
 const SPAWN_TABLE = [
 	{ agent: 'code-reviewer', predicate: () => true },
 	{ agent: 'silent-failure-hunter', predicate: (files) => files.some(isSourceFile) },

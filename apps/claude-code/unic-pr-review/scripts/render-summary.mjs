@@ -22,6 +22,7 @@
  */
 
 import { parseFinding } from './lib/finding-validator.mjs'
+import { renderNotices } from './lib/notices.mjs'
 import { isAcVerdict, renderReviewSummary } from './lib/review-summary-renderer.mjs'
 
 /**
@@ -117,11 +118,29 @@ if (rawIntentCheck?.trim()) {
 	}
 }
 
+const rawNotices = process.env.NOTICES_JSON
+let notices = ''
+if (rawNotices?.trim()) {
+	try {
+		const parsedNoticesCtx = JSON.parse(rawNotices)
+		if (!parsedNoticesCtx || typeof parsedNoticesCtx !== 'object' || Array.isArray(parsedNoticesCtx)) {
+			process.stderr.write('render-summary: NOTICES_JSON must be a plain object — ignoring\n')
+		} else {
+			notices = renderNotices(/** @type {import('./lib/notices.mjs').NoticesContext} */ (parsedNoticesCtx))
+		}
+	} catch (err) {
+		process.stderr.write(
+			`render-summary: NOTICES_JSON is not valid JSON — ${err instanceof Error ? err.message : String(err)}\n`
+		)
+	}
+}
+
 const summary = renderReviewSummary({
 	findings,
 	positiveObservations,
 	iteration: 1,
 	intentCheck,
+	notices: notices || undefined,
 })
 
 process.stdout.write(summary)

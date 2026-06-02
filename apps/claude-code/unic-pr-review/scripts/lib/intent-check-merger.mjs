@@ -29,6 +29,7 @@
  * items (ADR-0004 hard-stop signal) pass through verbatim, verdicts untouched.
  */
 
+import { pathToFileURL } from 'node:url'
 import { isAcVerdict } from './review-summary-renderer.mjs'
 
 /** @import { IntentCheckItem, AcVerdict } from './review-summary-renderer.mjs' */
@@ -126,5 +127,34 @@ export function mergeIntentCheck(skeleton, assessed) {
 	return {
 		items,
 		diagnostics: { assessedReceived: assessed.length, applied, droppedElements, rejectedVerdicts, unmatchedItems },
+	}
+}
+
+/** @param {unknown} err */
+const errMsg = (err) => (err instanceof Error ? err.message : String(err))
+
+// CLI entry — reads SKELETON_JSON and ASSESSED_JSON from env, writes { items, diagnostics } JSON to stdout.
+// Only runs when executed directly: `node scripts/lib/intent-check-merger.mjs`
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+	const rawSkeleton = process.env.SKELETON_JSON
+	const rawAssessed = process.env.ASSESSED_JSON
+
+	if (!rawSkeleton) {
+		process.stderr.write('intent-check-merger: SKELETON_JSON environment variable is required\n')
+		process.exit(1)
+	}
+	if (!rawAssessed) {
+		process.stderr.write('intent-check-merger: ASSESSED_JSON environment variable is required\n')
+		process.exit(1)
+	}
+
+	try {
+		const skeleton = JSON.parse(rawSkeleton)
+		const assessed = JSON.parse(rawAssessed)
+		const result = mergeIntentCheck(skeleton, assessed)
+		process.stdout.write(`${JSON.stringify(result)}\n`)
+	} catch (err) {
+		process.stderr.write(`intent-check-merger: ${errMsg(err)}\n`)
+		process.exit(1)
 	}
 }
