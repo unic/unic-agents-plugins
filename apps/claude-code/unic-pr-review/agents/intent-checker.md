@@ -65,6 +65,10 @@ Work items with `type !== 'ado-work-item'` are currently unsupported — add a w
 
 Build an `intentCheck` entry for each fetched User Story / Bug with acceptance criteria, keyed `"AC 1"`, `"AC 2"`, … with every verdict set to `"unaddressed"` (the same skeleton convention as step 7).
 
+## Step 1 — Fetch pasted URLs, synthesise the Intent Brief, and emit
+
+This step runs for every review (both the `pastedUrls` and `workItems` paths feed into it). Its numbered sub-steps below are independent of the Step 0 sub-steps above.
+
 1. Join all `pastedUrls` into a comma-separated string and fetch them:
 
    ```sh

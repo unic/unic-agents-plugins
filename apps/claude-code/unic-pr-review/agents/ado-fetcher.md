@@ -1,6 +1,6 @@
 ---
 name: ado-fetcher
-description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, changed files, and raw diff. Caches reviewer identity once per run.
+description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Line-level diff is deferred in this preview (rawDiff is returned empty). Caches reviewer identity once per run.
 model: inherit
 color: purple
 allowed-tools: Bash(az *), Bash(node *)

@@ -25,7 +25,7 @@ node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" detect "<URL>"
 ```
 
 - **Exit 0**: stdout is a JSON object. Parse it: `PROVIDER_NAME`, `FETCHER_AGENT` (e.g. `unic-pr-review:ado-fetcher`).
-- **Exit 1** (no provider matched): print `"Unsupported PR URL: <URL>. Only Azure DevOps (dev.azure.com) URLs are currently supported."` and stop.
+- **Exit 1** (no provider matched): print `"Unsupported PR URL: <URL>. Only Azure DevOps URLs (dev.azure.com or *.visualstudio.com) are currently supported."` and stop.
 
 #### Step 1.2 — Parse the PR URL
 
@@ -112,7 +112,17 @@ Print the spawn set to the terminal.
 
 #### Step 1.8 — Spawn all agents in parallel (ADO mode)
 
-Same as Step 7 (Pre-PR), but use `FETCHER_OUTPUT.rawDiff` as the diff. Launch every agent in `SPAWN_SET` simultaneously, seeding each with the diff (and `intentBrief` as a preamble when it is defined). Spawn the Intent Assessor in the **same parallel batch** when `intentBrief` is defined **and** the `intentCheck` skeleton is non-empty (ADR-0011) — it is never added to `SPAWN_SET`.
+**Guard — empty diff.** The Review Aspect agents (and the Intent Assessor) are diff-driven. In this preview the ADO Fetcher returns an empty `rawDiff` (line-level diff fetching is deferred — see `agents/ado-fetcher.md` Step 6). If `FETCHER_OUTPUT.rawDiff` is empty or whitespace-only:
+
+- Do **not** spawn the aspect agents or the Intent Assessor — running them on an empty diff would produce a misleading "clean" review with zero findings.
+- Set `FINDINGS_JSON` to an empty findings set so Step 1.9 still renders the available context (spawn set, changed files, and the Intent Check skeleton when present).
+- Print this notice prominently so the empty result is not read as a clean bill of health:
+
+  > ⚠️ Line-level diff is unavailable in this ADO first-review preview, so the diff-driven Review Aspect agents were not run. The preview below reflects provider detection, Work Item discovery, intent gathering, and the changed-file spawn set only. Diff-based findings arrive in a later slice.
+
+- Continue to Step 1.9 to render the preview, then Step 1.10.
+
+Otherwise (`rawDiff` non-empty), proceed as in Step 7 (Pre-PR): launch every agent in `SPAWN_SET` simultaneously, seeding each with the diff (and `intentBrief` as a preamble when it is defined). Spawn the Intent Assessor in the **same parallel batch** when `intentBrief` is defined **and** the `intentCheck` skeleton is non-empty (ADR-0011) — it is never added to `SPAWN_SET`.
 
 #### Step 1.9 — Merge findings and render (ADO mode)
 

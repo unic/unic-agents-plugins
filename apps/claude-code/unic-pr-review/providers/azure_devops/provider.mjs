@@ -95,7 +95,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			process.exit(1)
 		})
 	} else {
-		process.stderr.write('Usage: node provider.mjs parse-url <url> | discover-work-items\n')
+		process.stderr.write(
+			'Usage:\n  node provider.mjs parse-url <url>\n  node provider.mjs discover-work-items   (reads PR metadata JSON from stdin)\n'
+		)
 		process.exit(1)
 	}
 }
