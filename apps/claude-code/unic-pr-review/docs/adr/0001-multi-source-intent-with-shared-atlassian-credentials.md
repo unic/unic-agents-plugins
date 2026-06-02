@@ -20,3 +20,13 @@ Reuse `~/.unic-confluence.json` as the shared Atlassian Credential File for both
 - The Confluence Setup Wizard becomes the de-facto Atlassian wizard; the Jira wizard is a thin overlay that only writes the `jiraUrl` field if absent.
 - The Doctor command pings Jira only when `jiraUrl` is configured, keeping projects that don't use Jira free of noise.
 - If Atlassian ever splits Cloud auth across products, the schema can be extended additively (`jiraToken`, `jiraUsername`) without breaking existing files.
+
+## Amendment (2026-06)
+
+Work-item discovery is a **Provider contract**. Each Source Platform Provider exposes
+`discoverWorkItems(prMetadata) → [{ id, type, url, raw }]`. For ADO, this reads the
+PR's native `workItemRefs` field (not regex-scraping the description); for future
+GitHub/GitLab Providers it will use their respective native linkages. The Intent Checker
+stays Source-Platform-agnostic: it consumes the normalised list regardless of origin.
+This separates "where did the Work Items come from?" (Provider contract) from "what
+intent do they express?" (Intent Checker responsibility).

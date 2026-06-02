@@ -1,0 +1,11 @@
+{
+  "pullRequestId": 43,
+  "title": "chore: tidy build scripts",
+  "sourceRefName": "refs/heads/chore/build",
+  "targetRefName": "refs/heads/develop",
+  "status": "active",
+  "createdBy": { "id": "user-id-002", "displayName": "Bob Dev" },
+  "lastMergeSourceCommit": { "commitId": "aaa1111" },
+  "lastMergeTargetCommit": { "commitId": "bbb2222" },
+  "workItemRefs": []
+}

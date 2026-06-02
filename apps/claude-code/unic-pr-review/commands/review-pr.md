@@ -1,25 +1,130 @@
 ---
 allowed-tools: Agent, Bash(node *), Bash(git *)
 argument-hint: [<PR URL>]
-description: Review a pull request or your local branch. Pass an ADO PR URL to review an open PR (coming soon); omit the URL to review your local branch against its upstream base (Pre-PR mode).
+description: Review a pull request or your local branch. Pass an Azure DevOps PR URL to review an open PR (first-review preview, read-only); omit the URL to review your local branch against its upstream base (Pre-PR mode).
 ---
 
 # unic-pr-review:review-pr
 
 Runs an AI-powered code review. Without a URL the Plugin operates in **Pre-PR mode** — it computes the diff of your local branch against the resolved upstream base branch, determines which Review Aspect agents to spawn based on the changed files (ADR-0008), fans out to those agents in parallel, and prints the merged Review Summary in the terminal. Nothing is written to ADO.
 
-## Step 1 — Detect mode
+## Step 1 — Detect mode and route
 
 Inspect the first argument passed to the command.
 
-- **URL given** → print the following message and stop:
+### Path A: No argument → Pre-PR mode
 
-  ```
-  ADO mode is not yet supported in this release.
-  Run `/unic-pr-review:review-pr` without a URL to use Pre-PR mode.
-  ```
+Continue to Step 2.
 
-- **No argument** → continue to Step 2 (Pre-PR mode).
+### Path B: URL given → ADO first-review
+
+#### Step 1.1 — Detect provider
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" detect "<URL>"
+```
+
+- **Exit 0**: stdout is a JSON object. Parse it: `PROVIDER_NAME`, `FETCHER_AGENT` (e.g. `unic-pr-review:ado-fetcher`).
+- **Exit 1** (no provider matched): print `"Unsupported PR URL: <URL>. Only Azure DevOps (dev.azure.com) URLs are currently supported."` and stop.
+
+#### Step 1.2 — Parse the PR URL
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/providers/azure_devops/provider.mjs" parse-url "<URL>"
+```
+
+- **Exit 0**: stdout is `{ orgUrl, project, repo, prId }`. Store as `PR_REF`.
+- **Exit non-zero**: relay stderr verbatim and stop.
+
+#### Step 1.3 — Invoke the ADO Fetcher agent
+
+Use the Agent tool to launch `agents/ado-fetcher.md`. Provide:
+
+```json
+{ "orgUrl": "<PR_REF.orgUrl>", "project": "<PR_REF.project>", "repo": "<PR_REF.repo>", "prId": <PR_REF.prId> }
+```
+
+Wait for the agent to complete. It returns a JSON object:
+
+```json
+{
+  "identity": { "id": "...", "displayName": "..." },
+  "prMetadata": {},
+  "revisions": {},
+  "threads": {},
+  "changedFiles": [],
+  "rawDiff": "...",
+  "warnings": []
+}
+```
+
+- **If the agent returns `{ "error": "identity-cache-failed" }`**: print `"ADO identity caching failed. Run /unic-pr-review:doctor to diagnose."` and stop.
+- **Print any `warnings` entries** to the terminal so the user can see non-fatal issues (e.g. empty diff).
+- Store `FETCHER_OUTPUT`.
+
+#### Step 1.4 — Detect mode (first-review vs re-review)
+
+Scan `FETCHER_OUTPUT.threads` for a prior Bot Signature authored by `FETCHER_OUTPUT.identity.id` (ADR-0006). For **this release (first-review preview only)**:
+
+- **Prior signature found** → print `"Re-review mode is not yet supported in this release. Proceeding as first-review."` and continue.
+- **No prior signature** → continue (first-review mode).
+
+#### Step 1.5 — Discover Work Items
+
+Write `FETCHER_OUTPUT.prMetadata` to a temp file (avoids shell-quoting the JSON), then pipe it in:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/providers/azure_devops/provider.mjs" discover-work-items < "<temp file with prMetadata JSON>"
+```
+
+- **Exit 0**: stdout is a JSON array. Store as `WORK_ITEMS`.
+- **Exit non-zero**: relay stderr and stop.
+
+#### Step 1.6 — Spawn Intent Checker (only when `WORK_ITEMS` is non-empty)
+
+Use the Agent tool to launch `agents/intent-checker.md`. Provide:
+
+```json
+{ "workItems": <WORK_ITEMS> }
+```
+
+Process the response identically to the Pre-PR path (Step 5):
+
+- Hard-stop on `{ "hardStop": true }` → print verbatim error and stop.
+- Success → store `intentBrief` and `intentCheck`.
+- Empty brief + empty intentCheck → treat as absent (no intent gathering).
+
+#### Step 1.7 — Resolve spawn set
+
+Use `FETCHER_OUTPUT.changedFiles` instead of `git diff --name-only`. Pipe the newline-joined paths into the analyser:
+
+```sh
+printf '%s\n' "<each entry of FETCHER_OUTPUT.changedFiles>" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+```
+
+- **Exit 0**: stdout is a JSON array of agent names. Store as `SPAWN_SET`.
+- **Exit non-zero**: relay stderr and stop.
+
+Print the spawn set to the terminal.
+
+#### Step 1.8 — Spawn all agents in parallel (ADO mode)
+
+Same as Step 7 (Pre-PR), but use `FETCHER_OUTPUT.rawDiff` as the diff. Launch every agent in `SPAWN_SET` simultaneously, seeding each with the diff (and `intentBrief` as a preamble when it is defined). Spawn the Intent Assessor in the **same parallel batch** when `intentBrief` is defined **and** the `intentCheck` skeleton is non-empty (ADR-0011) — it is never added to `SPAWN_SET`.
+
+#### Step 1.9 — Merge findings and render (ADO mode)
+
+Same as Step 8 (Pre-PR): merge all agents' findings and positive observations, run the overlay merger when the Assessor was spawned, and pass `FINDINGS_JSON`, `INTENT_CHECK_JSON` (if applicable), and `NOTICES_JSON` (if applicable) to `render-summary.mjs`. Always relay the helper's stderr; stop on a non-zero exit.
+
+#### Step 1.10 — Print preview (ADO mode)
+
+Print the rendered Review Summary markdown.
+
+Remind the user:
+
+- This is a terminal preview only — nothing has been written to ADO.
+- `--post` mode (interactive Approval Loop) is coming in a later release.
+
+**After Step 1.10, stop. Do not continue to Step 2.**
 
 ## Step 2 — Resolve the base branch
 

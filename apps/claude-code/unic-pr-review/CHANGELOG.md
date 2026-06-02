@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/lib/intent-check-merger.mjs` gains a CLI entry (`SKELETON_JSON` / `ASSESSED_JSON` → `{ items, diagnostics }` on stdout) so the orchestrator can shell out cross-platform; the merge logic is unchanged
 - `scripts/lib/notices.mjs` gains the `unassessedIntentCheck` `NoticesContext` field and render block (Reviewer Notice when the Intent Check block degraded to all-`unaddressed`), with unit tests in `tests/notices.test.mjs`
 - `scripts/render-summary.mjs` reads optional `NOTICES_JSON`, renders it via `renderNotices`, and forwards the block to the renderer
+- ADO first-review preview (issue #148): `providers/` Source Platform Provider abstraction (ADR-0010) — `providers/index.mjs` exposes `detectProvider(url)`; the `providers/azure_devops/` folder bundle ships `provider.mjs` (`prUrlPattern`, `parsePrUrl`, `discoverWorkItems` reading the PR's native `workItemRefs`, registered `agents.{fetcher,writer}`), `manifest.json`, `README.md`, co-located fixtures, and unit tests
+- `agents/ado-fetcher.md` (**Hermes**): reads all PR data from Azure DevOps via `az devops invoke` (PR metadata, Revisions, Threads, changed files, raw diff) and caches reviewer identity once per run; read-only, never writes to ADO
+- `agents/intent-checker.md` (Ariadne) accepts a `workItems` input alongside `pastedUrls` and fetches ADO Work Items via `az boards work-item show`, extracting linked Confluence pages — work-item discovery stays a Provider contract (ADR-0001 amendment)
+- `commands/review-pr.md` Step 1 replaces the "ADO mode not yet supported" stub with the full ADO first-review flow (provider detection → URL parse → ADO Fetcher → Work Item discovery → Intent Checker → aspect fan-out → terminal preview); no writes
+- `tests/ado-cli-smoke.test.mjs`: asserts every `az devops invoke` call in `ado-fetcher.md` is catalogued in `fixtures/ado-cli-inventory.json`
+- ADR-0010 (Provider folder bundle) accepted and ADR-0001 amended (provider-owned work-item discovery)
 
 ### Changed
 

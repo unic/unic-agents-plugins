@@ -11,11 +11,5 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0007](0007-delta-diff-for-re-review.md) — Re-review uses a delta diff, not a full PR diff
 - [0008](0008-conditional-sub-agent-spawning.md) — Conditional sub-agent spawning over per-file chunking
 - [0009](0009-pre-pr-mode-as-peer-of-pr-modes.md) — Pre-PR mode is a peer operating mode, not a flag
+- [0010](0010-provider-folder-bundle.md) — Provider as a folder bundle
 - [0011](0011-intent-assessor-for-live-ac-verdicts.md) — Intent Assessor as a dedicated agent for live AC verdicts
-
-## Planned
-
-The following ADRs are referenced from the PRD but have not landed yet. Each is scheduled to ship with the implementation slice that first exercises the decision.
-
-- **ADR-0010 — Provider as a folder bundle.** Captures the `providers/<name>/` shape over a single-file alternative. Lands with issue [#148](https://github.com/unic/unic-agents-plugins/issues/148) (ADO first-review preview).
-- **Amendment to ADR-0001 — provider-owned work-item discovery.** Adds a note that each Provider owns `discoverWorkItems(prMetadata)` and the Intent Checker consumes the normalised list. Lands with issue [#148](https://github.com/unic/unic-agents-plugins/issues/148).

@@ -1,0 +1,10 @@
+{
+  "name": "azure_devops",
+  "label": "Azure DevOps",
+  "version": "1.0.0",
+  "description": "Azure DevOps (dev.azure.com) source platform provider for unic-pr-review",
+  "agents": {
+    "fetcher": "unic-pr-review:ado-fetcher",
+    "writer": "unic-pr-review:ado-writer"
+  }
+}

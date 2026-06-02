@@ -58,7 +58,7 @@ Two changes are required — both are mandatory; omitting either causes the agen
 
 ## Plugin doctrines
 
-Load-bearing invariants captured as ADRs. All ten must be understood before editing:
+Load-bearing invariants captured as ADRs. All eleven must be understood before editing:
 
 - **ADR-0001** — Multi-source intent gathering with shared Atlassian credentials (`.unic-confluence.json` covers both Confluence and Jira)
 - **ADR-0002** — Confidence-scored Findings with explicit Severity thresholds (Critical 90-100, Important 80-89, Minor 60-79; drop below 60)
@@ -69,9 +69,8 @@ Load-bearing invariants captured as ADRs. All ten must be understood before edit
 - **ADR-0007** — Re-review uses a delta diff against the prior reviewed Revision
 - **ADR-0008** — Conditional sub-agent spawning by changed-file analysis
 - **ADR-0009** — Pre-PR Mode is a peer of the ADO Modes, not a special case
+- **ADR-0010** — Provider as a folder bundle (`providers/<name>/`); accepted, landed with issue #148 (ADO first-review preview)
 - **ADR-0011** — Intent Assessor is a dedicated agent for live AC verdicts; spawned by intent presence, not changed-file categories; never added to SPAWN_TABLE
-
-ADR-0010 (Provider folder bundle layout) is planned but not yet landed; the [docs/adr/README.md](docs/adr/README.md) lists it as planned.
 
 ## Conventions
 
@@ -90,5 +89,4 @@ This Plugin takes **no code, no prompts, no fixtures, and no soft dependency** o
 
 - External runtime npm dependencies (zero is the bar — the doctor uses only built-ins)
 - A `LICENSE` file in this directory; per root AGENTS.md the maintainer manages LICENSE files manually
-- An `0010-*.md` ADR file — ADR-0010 is listed as planned in `docs/adr/README.md` but has not yet been merged
 - Any file outside `apps/claude-code/unic-pr-review/` except the one-line entry in the root `CONTEXT-MAP.md`
