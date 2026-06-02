@@ -176,6 +176,7 @@ Store every response. If an agent returns something other than a JSON object, lo
 ### Intent Assessor (parallel, when applicable)
 
 Before waiting for agent completion, when `intentBrief` is defined **and** `intentCheck` (skeleton) is non-empty, spawn the Intent Assessor in the **same parallel batch** alongside the Review Aspect agents:
+
 - **Agent file**: `agents/intent-assessor.md`
 - **Input**:
 
