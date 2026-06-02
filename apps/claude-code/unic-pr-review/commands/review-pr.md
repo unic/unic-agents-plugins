@@ -105,9 +105,7 @@ Wait for the agent to complete. It emits exactly one of:
   is an empty string and `intentCheck` is an empty array, treat intent as absent (leave
   both undefined). Continue to Step 6.
 
-## Step 6 — Determine which aspect agents to spawn and fan out
-
-### Step 6a — Resolve the spawn set
+## Step 6 — Resolve the spawn set
 
 Run the changed-file-analyser to determine which Review Aspect agents apply to this diff:
 
@@ -124,7 +122,7 @@ Print the spawn set to the terminal so the user can see which agents will run:
 Spawning agents: code-reviewer, silent-failure-hunter, pr-test-analyzer
 ```
 
-### Step 6b — Spawn all agents in parallel
+## Step 7 — Spawn all agents in parallel
 
 Use the Agent tool to launch every agent in SPAWN_SET simultaneously. Do not wait for one agent to finish before starting the next — launch all at once.
 
@@ -192,7 +190,7 @@ The Intent Assessor is **not** a Review Aspect and is **not** in the spawn set r
 
 Store the Assessor's response separately as `ASSESSOR_RESPONSE`.
 
-## Step 7 — Merge findings and render the Review Summary
+## Step 8 — Merge findings and render the Review Summary
 
 Merge the responses from all agents:
 
@@ -207,7 +205,7 @@ Construct the merged JSON object:
 
 ### Run the overlay merger (when Assessor was spawned)
 
-When the Intent Assessor was spawned in Step 6b:
+When the Intent Assessor was spawned in Step 7:
 
 1. Extract the assessed `intentCheck` array from `ASSESSOR_RESPONSE.intentCheck`. If `ASSESSOR_RESPONSE` is missing, not an object, or `ASSESSOR_RESPONSE.intentCheck` is not an array, treat `assessed` as `null`.
 
@@ -266,7 +264,7 @@ diagnostics that the user must see, neither of which appears in stdout:
   the helper exits non-zero. **If the helper exits non-zero, print the
   full stderr verbatim to the user and stop. Do not print a partial summary.**
 
-## Step 8 — Print the preview
+## Step 9 — Print the preview
 
 Print the rendered Review Summary markdown to the terminal.
 
