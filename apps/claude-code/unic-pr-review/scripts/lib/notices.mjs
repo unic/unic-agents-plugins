@@ -17,6 +17,8 @@
  *   Revision to disappear from the PR's Revision history (ADR-0006)
  * @property {string[]} [persistentUnaddressed] - Finding titles that remain unaddressed
  *   across two or more Iterations (US 27)
+ * @property {boolean} [unassessedIntentCheck] - true when the Assessor was spawned but
+ *   applied zero verdicts (assessed missing, non-array, or all-zero applied count)
  */
 
 /**
@@ -41,6 +43,13 @@ export function renderNotices(ctx) {
 		for (const title of ctx.persistentUnaddressed) {
 			lines.push(`> - ${title}`)
 		}
+	}
+
+	if (ctx.unassessedIntentCheck) {
+		lines.push(
+			'> **Notice:** The Intent Check block could not be assessed — the Assessor produced no valid verdicts. ' +
+				'Every AC shows `unaddressed`, which may not reflect the diff.'
+		)
 	}
 
 	return lines.join('\n')

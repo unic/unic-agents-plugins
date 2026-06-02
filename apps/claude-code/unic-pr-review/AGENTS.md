@@ -39,7 +39,7 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 
 ```tree
 .claude-plugin/   # Plugin manifest (plugin.json) and marketplace listing
-agents/           # Review Aspect agent prompts (one .md per aspect)
+agents/           # Review Aspect prompts + Intent Assessor (intent-assessor.md — not a Review Aspect)
 commands/         # Claude Code slash command definitions (.md files)
 scripts/          # Node.js implementation (.mjs, // @ts-check, no compilation)
 scripts/lib/      # Pure-function library modules
@@ -54,9 +54,11 @@ Two changes are required — both are mandatory; omitting either causes the agen
 1. Create `agents/<name>.md` — the agent prompt following the structure of existing agents.
 2. Add an entry to `SPAWN_TABLE` in `scripts/lib/changed-file-analyser.mjs` — the predicate that decides when to spawn it.
 
+> **Important**: The Intent Assessor (`agents/intent-assessor.md`) is **not** a Review Aspect and must **not** be added to `SPAWN_TABLE`. It is spawned by intent presence (`intentBrief` defined **and** skeleton non-empty), not by changed-file categories — see ADR-0011. Adding it to the spawn table would break its spawn semantics.
+
 ## Plugin doctrines
 
-Load-bearing invariants captured as ADRs. All nine must be understood before editing:
+Load-bearing invariants captured as ADRs. All ten must be understood before editing:
 
 - **ADR-0001** — Multi-source intent gathering with shared Atlassian credentials (`.unic-confluence.json` covers both Confluence and Jira)
 - **ADR-0002** — Confidence-scored Findings with explicit Severity thresholds (Critical 90-100, Important 80-89, Minor 60-79; drop below 60)
@@ -67,6 +69,7 @@ Load-bearing invariants captured as ADRs. All nine must be understood before edi
 - **ADR-0007** — Re-review uses a delta diff against the prior reviewed Revision
 - **ADR-0008** — Conditional sub-agent spawning by changed-file analysis
 - **ADR-0009** — Pre-PR Mode is a peer of the ADO Modes, not a special case
+- **ADR-0011** — Intent Assessor is a dedicated agent for live AC verdicts; spawned by intent presence, not changed-file categories; never added to SPAWN_TABLE
 
 ADR-0010 (Provider folder bundle layout) is planned but not yet landed; the [docs/adr/README.md](docs/adr/README.md) lists it as planned.
 

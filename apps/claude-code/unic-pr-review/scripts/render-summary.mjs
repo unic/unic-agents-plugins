@@ -16,12 +16,19 @@
  * the survivors are passed to the renderer, which surfaces the Intent Check
  * block above the Severity sections. Absent or empty → no Intent Check block.
  *
+ * The optional `NOTICES_JSON` environment variable carries a serialised
+ * {@link import('./lib/notices.mjs').NoticesContext} plain object. When present,
+ * it is rendered via `renderNotices` and forwarded to the renderer as the Notices
+ * block. A non-object value or invalid JSON is logged to stderr and silently
+ * ignored. Absent or empty → no Notices block.
+ *
  * Exposed as a standalone script so the slash command can shell out
  * cross-platform (Windows cmd / PowerShell / bash) without an inline
  * `node -e` snippet whose quoting rules differ per shell.
  */
 
 import { parseFinding } from './lib/finding-validator.mjs'
+import { renderNotices } from './lib/notices.mjs'
 import { isAcVerdict, renderReviewSummary } from './lib/review-summary-renderer.mjs'
 
 /**
@@ -117,11 +124,29 @@ if (rawIntentCheck?.trim()) {
 	}
 }
 
+const rawNotices = process.env.NOTICES_JSON
+let notices = ''
+if (rawNotices?.trim()) {
+	try {
+		const parsedNoticesCtx = JSON.parse(rawNotices)
+		if (!parsedNoticesCtx || typeof parsedNoticesCtx !== 'object' || Array.isArray(parsedNoticesCtx)) {
+			process.stderr.write('render-summary: NOTICES_JSON must be a plain object — ignoring\n')
+		} else {
+			notices = renderNotices(/** @type {import('./lib/notices.mjs').NoticesContext} */ (parsedNoticesCtx))
+		}
+	} catch (err) {
+		process.stderr.write(
+			`render-summary: NOTICES_JSON is not valid JSON — ${err instanceof Error ? err.message : String(err)}\n`
+		)
+	}
+}
+
 const summary = renderReviewSummary({
 	findings,
 	positiveObservations,
 	iteration: 1,
 	intentCheck,
+	notices: notices || undefined,
 })
 
 process.stdout.write(summary)
