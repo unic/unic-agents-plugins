@@ -4,19 +4,10 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { evaluateBumpGate, GUARDED, isBumpRequired } from './lib/changelog-gate.mjs'
 import { gitCmd } from './lib/platform.mjs'
 
 const root = process.cwd()
-
-/** Paths that trigger enforcement when changed */
-const GUARDED = [
-	/^scripts\/.+\.mjs$/,
-	/^commands\/.+\.md$/,
-	/^\.claude-plugin\/plugin\.json$/,
-	/^\.claude-plugin\/marketplace\.json$/,
-	/^CLAUDE\.md$/,
-	/^README\.md$/,
-]
 
 /**
  * @param {string[]} args
@@ -40,8 +31,8 @@ function fail(/** @type {string} */ msg) {
 	let changelog
 	try {
 		changelog = readFileSync(changelogPath, 'utf8')
-	} catch {
-		fail('cannot read CHANGELOG.md')
+	} catch (e) {
+		fail(`cannot read CHANGELOG.md: ${/** @type {Error} */ (e).message}`)
 	}
 
 	const structuralErrors = []
@@ -91,8 +82,19 @@ if (isCI) {
 	base = upstream.status === 0 ? upstream.stdout.trim() : 'HEAD~1'
 }
 
-// List changed files
-const diff = git('diff', '--name-only', `${base}...HEAD`)
+// Resolve plugin prefix (e.g. "apps/claude-code/unic-pr-review/") for path normalisation.
+// With real git, --relative below already strips this; the strip is the fallback for the
+// test shim, which does not honor --relative and emits repo-root-relative paths.
+const showPrefix = git('rev-parse', '--show-prefix')
+if (showPrefix.status !== 0) {
+	// Not fatal: real git's --relative still scopes paths. Surfaced so a genuine git
+	// failure (which would also disable the prefix-strip fallback) is traceable in CI logs.
+	console.error('verify:changelog: warn — could not resolve plugin prefix; relying on git --relative for scoping')
+}
+const pluginPrefix = showPrefix.status === 0 ? showPrefix.stdout.trim().replace(/\\/g, '/') : ''
+
+// List changed files. --relative makes real git emit paths relative to cwd (the plugin dir here).
+const diff = git('diff', '--name-only', '--relative', `${base}...HEAD`)
 if (diff.status !== 0) {
 	if (isCI) {
 		fail('git diff unavailable — add fetch-depth: 0 to the checkout step in ci.yml')
@@ -101,9 +103,19 @@ if (diff.status !== 0) {
 	process.exit(0)
 }
 
-const changedFiles = diff.stdout.trim().split('\n').filter(Boolean)
-const triggered = changedFiles.some((f) => GUARDED.some((re) => re.test(f)))
-if (!triggered) {
+const changedFiles = diff.stdout
+	.trim()
+	.split('\n')
+	.filter(Boolean)
+	.map((f) => {
+		// Normalise separators and strip the plugin prefix when present.
+		// This handles the test shim, which emits root-relative paths regardless of --relative.
+		const normalised = f.replace(/\\/g, '/')
+		if (pluginPrefix && normalised.startsWith(pluginPrefix)) return normalised.slice(pluginPrefix.length)
+		return normalised
+	})
+
+if (!isBumpRequired(changedFiles, GUARDED)) {
 	console.log('verify:changelog: ok (structural checks passed; no guarded paths changed)')
 	process.exit(0)
 }
@@ -114,11 +126,14 @@ const pluginPath = path.join(root, '.claude-plugin/plugin.json')
 let headPlugin
 try {
 	headPlugin = /** @type {any} */ (JSON.parse(readFileSync(pluginPath, 'utf8')))
-} catch {
-	fail(`cannot read ${pluginPath}`)
+} catch (e) {
+	fail(`cannot read ${pluginPath}: ${/** @type {Error} */ (e).message}`)
 	process.exit(1) // unreachable — satisfies TS
 }
 const headVersion = headPlugin.version
+if (typeof headVersion !== 'string' || headVersion === '') {
+	fail(`${pluginPath} has no valid "version" field`)
+}
 
 // Read base version
 const basePluginRaw = git('show', `${base}:.claude-plugin/plugin.json`)
@@ -126,42 +141,25 @@ let baseVersion = ''
 if (basePluginRaw.status === 0) {
 	try {
 		baseVersion = /** @type {{ version: string }} */ (JSON.parse(basePluginRaw.stdout)).version
-	} catch {
-		// base doesn't have plugin.json yet — treat as empty
+	} catch (e) {
+		console.error(`verify:changelog: warn — could not parse base plugin.json: ${/** @type {Error} */ (e).message}`)
+		// intentional fallback: treat base as new plugin with no prior version
 	}
 }
 
-if (headVersion === baseVersion) {
-	fail(
-		`version in plugin.json was not bumped\n  current: ${headVersion} (same as base)\n  Run: pnpm bump <patch|minor|major>`
-	)
-}
-
-// Check CHANGELOG has a section for headVersion with at least one real bullet
+// Read CHANGELOG
 let changelog
 try {
 	changelog = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
-} catch {
-	fail('cannot read CHANGELOG.md')
-	process.exit(1)
+} catch (e) {
+	fail(`cannot read CHANGELOG.md: ${/** @type {Error} */ (e).message}`)
+	process.exit(1) // unreachable — satisfies TS
 }
 
-const sectionMatch = changelog.match(
-	new RegExp(`## \\[${headVersion.replace(/\./g, '\\.')}\\] — \\d{4}-\\d{2}-\\d{2}([\\s\\S]*?)(?=\\n## \\[|\\s*$)`)
-)
-if (!sectionMatch) {
-	fail(`CHANGELOG.md has no entry for version ${headVersion}\n  Add bullets under [Unreleased] then run: pnpm bump`)
+const verdict = evaluateBumpGate({ changedFiles, guardedPatterns: GUARDED, headVersion, baseVersion, changelog })
+
+if (!verdict.ok) {
+	fail(verdict.message)
 }
 
-const sectionBody = sectionMatch[1]
-const hasRealEntry = sectionBody
-	.split('\n')
-	.filter((l) => l.startsWith('- '))
-	.some((l) => l !== '- (none)')
-if (!hasRealEntry) {
-	fail(
-		`CHANGELOG.md section [${headVersion}] has no entries — only "(none)" placeholders found\n  Add bullets under [Unreleased] then re-run: pnpm bump`
-	)
-}
-
-console.log(`verify:changelog: ok — version ${baseVersion} → ${headVersion}`)
+console.log(`verify:changelog: ok — ${verdict.message}`)
