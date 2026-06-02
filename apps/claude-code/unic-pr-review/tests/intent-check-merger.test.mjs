@@ -3,8 +3,79 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { mergeIntentCheck } from '../scripts/lib/intent-check-merger.mjs'
+
+const SCRIPT = fileURLToPath(new URL('../scripts/lib/intent-check-merger.mjs', import.meta.url))
+
+/**
+ * @param {string | undefined} skeletonJson
+ * @param {string | undefined} assessedJson
+ */
+function runCli(skeletonJson, assessedJson) {
+	const env = { ...process.env }
+	if (skeletonJson === undefined) delete env.SKELETON_JSON
+	else env.SKELETON_JSON = skeletonJson
+	if (assessedJson === undefined) delete env.ASSESSED_JSON
+	else env.ASSESSED_JSON = assessedJson
+	const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
+	return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+}
+
+describe('intent-check-merger CLI', () => {
+	it('exits 1 with stderr when SKELETON_JSON is missing', () => {
+		const r = runCli(undefined, '[]')
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /SKELETON_JSON environment variable is required/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 with stderr when ASSESSED_JSON is missing', () => {
+		const skeleton = JSON.stringify([{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'unaddressed' } }])
+		const r = runCli(skeleton, undefined)
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /ASSESSED_JSON environment variable is required/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 with stderr when SKELETON_JSON is invalid JSON', () => {
+		const r = runCli('{not json}', '[]')
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /intent-check-merger:/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 with stderr when SKELETON_JSON is not an array', () => {
+		const r = runCli('{}', '[]')
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /SKELETON_JSON must be an array/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('writes { items, diagnostics } JSON to stdout on a valid run', () => {
+		const skeleton = JSON.stringify([{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'unaddressed' } }])
+		const assessed = JSON.stringify([{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'addressed' } }])
+		const r = runCli(skeleton, assessed)
+		assert.equal(r.status, 0)
+		assert.equal(r.stderr, '')
+		const out = JSON.parse(r.stdout)
+		assert.ok(Array.isArray(out.items), 'items must be an array')
+		assert.equal(out.items[0].verdicts['AC 1'], 'addressed')
+		assert.ok(typeof out.diagnostics === 'object', 'diagnostics must be present')
+		assert.equal(out.diagnostics.applied, 1)
+	})
+
+	it('exits 0 with all-unaddressed items when assessed is null JSON', () => {
+		const skeleton = JSON.stringify([{ id: 'PROJ-1', title: 'Login', verdicts: { 'AC 1': 'unaddressed' } }])
+		const r = runCli(skeleton, 'null')
+		assert.equal(r.status, 0)
+		const out = JSON.parse(r.stdout)
+		assert.equal(out.items[0].verdicts['AC 1'], 'unaddressed')
+		assert.equal(out.diagnostics.applied, 0)
+	})
+})
 
 /** @import { IntentCheckItem } from '../scripts/lib/review-summary-renderer.mjs' */
 

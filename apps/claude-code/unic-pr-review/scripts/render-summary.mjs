@@ -16,6 +16,12 @@
  * the survivors are passed to the renderer, which surfaces the Intent Check
  * block above the Severity sections. Absent or empty → no Intent Check block.
  *
+ * The optional `NOTICES_JSON` environment variable carries a serialised
+ * {@link import('./lib/notices.mjs').NoticesContext} plain object. When present,
+ * it is rendered via `renderNotices` and forwarded to the renderer as the Notices
+ * block. A non-object value or invalid JSON is logged to stderr and silently
+ * ignored. Absent or empty → no Notices block.
+ *
  * Exposed as a standalone script so the slash command can shell out
  * cross-platform (Windows cmd / PowerShell / bash) without an inline
  * `node -e` snippet whose quoting rules differ per shell.

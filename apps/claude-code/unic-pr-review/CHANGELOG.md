@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `analyseChangedFiles` and `resolveBaseBranch` validate their inputs at the boundary and throw on misuse
 - `renderInlineComment` treats a whitespace-only `suggestion` as absent
 - `agents/code-reviewer.md` JSON schema drops the unused `endLine` field
+- `agents/code-reviewer.md` no longer assesses Acceptance Criteria — Step 3 (AC verdict logic) removed to prevent double-counting now that the Intent Assessor (Themis) owns verdicts
 - `scripts/lib/intent-check-merger.mjs`: pure, context-free `mergeIntentCheck(skeleton, assessed)` overlays the Intent Assessor's verdicts onto the Intent Checker skeleton (the structural source of truth), validating each verdict via the renderer's `isAcVerdict` (ADR-0011, US 13). Returns `{ items, diagnostics }` where `diagnostics` carries mechanical counts (`assessedReceived`, `applied`, `droppedElements`, `rejectedVerdicts`, `unmatchedItems`) so the orchestrator can warn the Reviewer with a Notice when zero verdicts were applied and log a maintainer-facing stderr diagnostic on any drop — verdict provenance is surfaced rather than silently lost (ADR-0011 §Consequences, PR #168 review)
 
 ### Fixed

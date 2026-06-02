@@ -217,7 +217,7 @@ When the Intent Assessor was spawned in Step 6b:
    SKELETON_JSON='<JSON.stringify(intentCheck skeleton)>' ASSESSED_JSON='<JSON.stringify(assessed) or "null">' node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/intent-check-merger.mjs"
    ```
 
-   Parse stdout as `{ items, diagnostics }`. Use `items` as the merged `intentCheck` for rendering.
+   Parse stdout as `{ items, diagnostics }`. Use `items` as the merged `intentCheck` for rendering. **If the merger exits non-zero or stdout cannot be parsed as JSON**, treat `assessed` as null (all-zero diagnostics), write the stderr diagnostic `unic-pr-review: intent-check degraded — merger CLI failure`, and set `unassessedIntentCheck: true` (the full Notice path, item 3 below).
 
 3. **Reviewer-facing Notice** — when the Assessor was spawned but `diagnostics.applied === 0` (or `assessed` was missing/non-array), set `unassessedIntentCheck: true` in the NoticesContext object. Partial degradation (some applied, some dropped) raises **no** Notice.
 

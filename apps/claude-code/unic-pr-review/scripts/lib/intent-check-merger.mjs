@@ -151,6 +151,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 	try {
 		const skeleton = JSON.parse(rawSkeleton)
 		const assessed = JSON.parse(rawAssessed)
+
+		if (!Array.isArray(skeleton)) {
+			process.stderr.write('intent-check-merger: SKELETON_JSON must be an array\n')
+			process.exit(1)
+		}
+
 		const result = mergeIntentCheck(skeleton, assessed)
 		process.stdout.write(`${JSON.stringify(result)}\n`)
 	} catch (err) {

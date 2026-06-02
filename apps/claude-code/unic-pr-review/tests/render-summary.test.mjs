@@ -10,19 +10,22 @@ import { fileURLToPath } from 'node:url'
 const SCRIPT = fileURLToPath(new URL('../scripts/render-summary.mjs', import.meta.url))
 
 /**
- * Run render-summary.mjs in a child process with the given FINDINGS_JSON and
- * optional INTENT_CHECK_JSON.
+ * Run render-summary.mjs in a child process with the given FINDINGS_JSON,
+ * optional INTENT_CHECK_JSON, and optional NOTICES_JSON.
  *
  * @param {string | undefined} findingsJson
  * @param {string} [intentCheckJson]
+ * @param {string} [noticesJson]
  * @returns {{ status: number, stdout: string, stderr: string }}
  */
-function run(findingsJson, intentCheckJson) {
+function run(findingsJson, intentCheckJson, noticesJson) {
 	const env = { ...process.env }
 	if (findingsJson === undefined) delete env.FINDINGS_JSON
 	else env.FINDINGS_JSON = findingsJson
 	if (intentCheckJson === undefined) delete env.INTENT_CHECK_JSON
 	else env.INTENT_CHECK_JSON = intentCheckJson
+	if (noticesJson === undefined) delete env.NOTICES_JSON
+	else env.NOTICES_JSON = noticesJson
 	const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
 	return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
@@ -231,5 +234,33 @@ describe('render-summary CLI — INTENT_CHECK_JSON', () => {
 		const r = run('{}', intentCheck)
 		assert.equal(r.status, 0)
 		assert.match(r.stdout, /_Item could not be fetched\._/)
+	})
+})
+
+describe('render-summary CLI — NOTICES_JSON', () => {
+	it('renders the unassessed-intent-check notice when NOTICES_JSON contains unassessedIntentCheck: true', () => {
+		const r = run('{}', undefined, JSON.stringify({ unassessedIntentCheck: true }))
+		assert.equal(r.status, 0)
+		assert.match(r.stdout, /Intent Check block/)
+	})
+
+	it('emits no notice when NOTICES_JSON is absent', () => {
+		const r = run('{}')
+		assert.equal(r.status, 0)
+		assert.doesNotMatch(r.stdout, /Intent Check block/)
+	})
+
+	it('ignores invalid JSON in NOTICES_JSON with a stderr note (exit 0)', () => {
+		const r = run('{}', undefined, '{not json}')
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /NOTICES_JSON is not valid JSON/)
+		assert.doesNotMatch(r.stdout, /Intent Check block/)
+	})
+
+	it('ignores a non-object NOTICES_JSON with a stderr note (exit 0)', () => {
+		const r = run('{}', undefined, '["array"]')
+		assert.equal(r.status, 0)
+		assert.match(r.stderr, /NOTICES_JSON must be a plain object/)
+		assert.doesNotMatch(r.stdout, /Intent Check block/)
 	})
 })
