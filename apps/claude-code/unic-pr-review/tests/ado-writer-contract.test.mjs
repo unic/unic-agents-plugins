@@ -42,32 +42,22 @@ function extractJsonBlocks(md, startMarker) {
 }
 
 describe('ado-writer.md contract — Step 5c reopen shape', () => {
+	const step5c = writerMd.slice(writerMd.indexOf('#### 5c'), writerMd.indexOf('### Step 6'))
+
 	it('Step 5c specifies replySuccess and statusSuccess fields on reopen entries', () => {
-		const step5cStart = writerMd.indexOf('#### 5c')
-		const step6Start = writerMd.indexOf('### Step 6')
-		const step5c = writerMd.slice(step5cStart, step6Start)
 		assert.ok(step5c.includes('replySuccess'), 'Step 5c must specify replySuccess on the reopen result')
 		assert.ok(step5c.includes('statusSuccess'), 'Step 5c must specify statusSuccess on the reopen result')
 	})
 
 	it('Step 5c does not record a top-level success field on reopen entries', () => {
-		// Scope to the entire Step 5c section (before Step 6 begins)
-		const step5cStart = writerMd.indexOf('#### 5c')
-		const step6Start = writerMd.indexOf('### Step 6')
-		const step5c = writerMd.slice(step5cStart, step6Start)
-		// The Record line must NOT contain `action: "reopen", success`
 		assert.ok(
 			!step5c.includes('"reopen", success'),
 			'Step 5c must not record a single top-level success field on reopen entries'
 		)
-		// But the recorded shape must have replySuccess
 		assert.ok(step5c.includes('replySuccess'), 'Step 5c recorded shape must include replySuccess')
 	})
 
 	it('Step 5c specifies that both sub-operations run regardless of each other', () => {
-		const step5cStart = writerMd.indexOf('#### 5c')
-		const step6Start = writerMd.indexOf('### Step 6')
-		const step5c = writerMd.slice(step5cStart, step6Start)
 		assert.ok(
 			step5c.includes('regardless') || step5c.includes('no early abort'),
 			'Step 5c must state both sub-ops run regardless of each other (no early abort)'
@@ -75,9 +65,6 @@ describe('ado-writer.md contract — Step 5c reopen shape', () => {
 	})
 
 	it('Step 5c specifies error aggregation with semicolon separator for dual failures', () => {
-		const step5cStart = writerMd.indexOf('#### 5c')
-		const step6Start = writerMd.indexOf('### Step 6')
-		const step5c = writerMd.slice(step5cStart, step6Start)
 		assert.ok(
 			step5c.includes('; '),
 			'Step 5c must document the "; " separator for aggregating two sub-op error messages'
@@ -86,10 +73,9 @@ describe('ado-writer.md contract — Step 5c reopen shape', () => {
 })
 
 describe('ado-writer.md contract — Step 6 best-effort policy', () => {
+	const step6 = writerMd.slice(writerMd.indexOf('### Step 6'), writerMd.indexOf('### Step 7'))
+
 	it('Step 6 states best-effort-and-continue for fresh Finding POST failures', () => {
-		const step6Start = writerMd.indexOf('### Step 6')
-		const step7Start = writerMd.indexOf('### Step 7')
-		const step6 = writerMd.slice(step6Start, step7Start)
 		assert.ok(
 			step6.includes('best-effort') || step6.includes('continue'),
 			'Step 6 must document best-effort-and-continue policy for fresh Finding POST failures'
@@ -97,9 +83,6 @@ describe('ado-writer.md contract — Step 6 best-effort policy', () => {
 	})
 
 	it('Step 6 states that a POST failure does not abort the run', () => {
-		const step6Start = writerMd.indexOf('### Step 6')
-		const step7Start = writerMd.indexOf('### Step 7')
-		const step6 = writerMd.slice(step6Start, step7Start)
 		assert.ok(
 			step6.includes('do not abort') || step6.includes('continue to the next'),
 			'Step 6 must state that a POST failure does not abort the run'
