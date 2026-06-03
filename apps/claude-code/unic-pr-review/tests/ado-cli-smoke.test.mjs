@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const root = resolve(__dirname, '..')
 
+const inventory = JSON.parse(readFileSync(resolve(root, 'providers/azure_devops/fixtures/ado-cli-inventory.json'), 'utf8'))
+
 /** Extract `area/resource` pairs from `az devops invoke --area X --resource Y` patterns. */
 const INVOKE_PATTERN = /az devops invoke\s+--area\s+(\S+)\s+--resource\s+(\S+)/g
 
@@ -25,9 +27,6 @@ function extractInvokePairs(markdown) {
 describe('ado-cli inventory', () => {
 	it('every az devops invoke call in ado-fetcher.md is in ado-cli-inventory.json', () => {
 		const fetcherMd = readFileSync(resolve(root, 'agents/ado-fetcher.md'), 'utf8')
-		const inventory = JSON.parse(
-			readFileSync(resolve(root, 'providers/azure_devops/fixtures/ado-cli-inventory.json'), 'utf8')
-		)
 		const inventoried = new Set(
 			inventory.invokeCommands.map((/** @type {{ area: string, resource: string }} */ c) => `${c.area}/${c.resource}`)
 		)
@@ -59,9 +58,6 @@ describe('ado-cli inventory', () => {
 
 	it('every az devops invoke call in ado-writer.md is in ado-cli-inventory.json (invokeCommandsWriter)', () => {
 		const writerMd = readFileSync(resolve(root, 'agents/ado-writer.md'), 'utf8')
-		const inventory = JSON.parse(
-			readFileSync(resolve(root, 'providers/azure_devops/fixtures/ado-cli-inventory.json'), 'utf8')
-		)
 
 		const inventoriedWriter = new Set(
 			(inventory.invokeCommandsWriter ?? []).map(
