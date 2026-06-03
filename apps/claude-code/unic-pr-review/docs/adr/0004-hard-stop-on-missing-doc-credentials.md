@@ -19,3 +19,9 @@ If a fetched Work Item links to a Confluence page and the Confluence Credential 
 
 - The Doctor command becomes load-bearing: invokers run `doctor` before their first Review to surface missing credentials before they're in the middle of a PR review.
 - Empty intent (no Work Items linked, none pasted) is NOT a failure — it's an empty Intent Brief and the Review proceeds without a preamble. The hard stop fires only when intent is promised by a link but cannot be retrieved.
+
+## Amendment (2026-06) — Provider-discovered Work Items are promised intent
+
+Work Items discovered natively by a Source Platform Provider (e.g. ADO `workItemRefs` linked to a PR) are **promised intent** and follow the same reachability doctrine as pasted Jira / Confluence URLs. If a linked Work Item is unreachable or returns an auth error, the Plugin halts with a hard-stop. `not-found` remains a soft note — matching the pasted-URL rule — because the Work Item was deleted or inaccessible without signalling an error on the caller's side.
+
+Org-URL extraction failures (malformed or unrecognised Work Item URL shapes) are treated as unreachable: the Plugin halts and surfaces the offending URL rather than silently passing a wrong `--org` flag to `az boards work-item show`.

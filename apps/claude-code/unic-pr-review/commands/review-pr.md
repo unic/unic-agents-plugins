@@ -92,11 +92,39 @@ Use the Agent tool to launch `agents/intent-checker.md`. Provide:
 { "workItems": <WORK_ITEMS> }
 ```
 
-Process the response identically to the Pre-PR path (Step 5):
+Wait for the agent to complete. It emits one of:
 
-- Hard-stop on `{ "hardStop": true }` → print verbatim error and stop.
-- Success → store `intentBrief` and `intentCheck`.
-- Empty brief + empty intentCheck → treat as absent (no intent gathering).
+- **A — hard-stop on unreachable Work Item** (ADR-0004): the linked Work Item itself could not be fetched (auth error, unreachable org URL, or unrecognised URL shape):
+
+  ```json
+  { "hardStop": true, "workItem": "<id>", "url": "<url>", "reason": "work-item-unreachable" }
+  ```
+
+  Print and **stop** — do not spawn any aspect agents:
+
+  ```
+  Intent gathering failed: Work Item <id> (<url>) could not be fetched (unreachable or credentials rejected). Run /unic-pr-review:setup-azure to reconfigure Azure credentials, then re-run the review.
+  ```
+
+- **B — hard-stop on unreachable Atlassian source** (ADR-0004): a Confluence page embedded in the Work Item is unreachable:
+
+  ```json
+  { "hardStop": true, "url": "<url>", "setupCommand": "<cmd>" }
+  ```
+
+  Print and **stop** — same message as the Pre-PR path (Step 5):
+
+  ```
+  Intent gathering failed: <url> could not be fetched (unreachable, or its credentials were rejected). Run <setupCommand> to configure credentials, then re-run the review.
+  ```
+
+- **C — intent gathered**:
+
+  ```json
+  { "intentBrief": "<markdown>", "intentCheck": [ ... ] }
+  ```
+
+  Store `intentBrief` and `intentCheck`. If both empty, treat intent as absent (no intent gathering).
 
 #### Step 1.7 — Resolve spawn set
 

@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (none)
 
+## [2.0.2] — 2026-06-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- `agents/intent-checker.md` Step 0: an unreachable or auth-erroring ADO Work Item linked natively in the PR now hard-stops instead of silently dropping its acceptance criteria, consistent with ADR-0004 promised-intent doctrine; `not-found` remains a soft note. Org-URL extraction now surfaces the offending URL on failure instead of silently passing a wrong `--org` to `az boards work-item show` (issue #177)
+- `commands/review-pr.md` Step 1.6: handles the new `{ "hardStop": true, "workItem": "…", "reason": "work-item-unreachable" }` shape emitted by the Intent Checker when a linked ADO Work Item is unreachable, printing a clear message that references the Work Item id and URL (issue #177)
+- ADR-0004 amended to state that provider-discovered Work Items are promised intent and follow the same reachability doctrine as pasted URLs (issue #177)
+
 ## [2.0.1] — 2026-06-03
 
 ### Breaking
