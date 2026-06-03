@@ -5,10 +5,11 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { renderFooter } from '../scripts/lib/signature.mjs'
 
 describe('parse-prior-signature.mjs (subprocess)', () => {
-	const scriptPath = new URL('../scripts/parse-prior-signature.mjs', import.meta.url).pathname
+	const scriptPath = fileURLToPath(new URL('../scripts/parse-prior-signature.mjs', import.meta.url))
 
 	it('returns null JSON for empty thread array', () => {
 		const out = execFileSync(process.execPath, [scriptPath], { input: '[]', encoding: 'utf8' })
