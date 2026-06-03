@@ -52,15 +52,23 @@ Then reinstall plugins from the Claude Code command palette.
 
    This runs the ADO first-review flow (read-only preview): fetches PR metadata, Revisions, Threads, and Work Items via the Azure DevOps CLI, then fans out to the Review Aspect agents and prints the merged Review Summary. Nothing is written to ADO.
 
+   To review an open Azure DevOps PR and write Findings back, pass the PR URL with `--post`:
+
+   ```text
+   /unic-pr-review:review-pr https://dev.azure.com/myorg/myproj/_git/myrepo/pullrequest/42 --post
+   ```
+
+   Omit `--post` for a read-only terminal preview; add `--yes` to bulk-accept all Findings without prompting.
+
 ## Commands
 
-| Command                                    | Description                                                                                    | Argument hint    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------- | ---------------- |
-| `/unic-pr-review:doctor`                   | Verify all unic-pr-review prerequisites are in place                                           | _(no arguments)_ |
-| `/unic-pr-review:review-pr [<ADO PR URL>]` | Review your local branch (Pre-PR mode) or an Azure DevOps PR (first-review preview, read-only) | `[<ADO PR URL>]` |
-| `/unic-pr-review:setup-confluence`         | Interactive wizard — writes `~/.unic-confluence.json`                                          | _(no arguments)_ |
-| `/unic-pr-review:setup-jira`               | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json`                               | _(no arguments)_ |
-| `/unic-pr-review:setup-azure`              | Interactive wizard — writes `~/.unic-azure.json`                                               | _(no arguments)_ |
+| Command                                    | Description                                                                                                                      | Argument hint                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `/unic-pr-review:doctor`                   | Verify all unic-pr-review prerequisites are in place                                                                             | _(no arguments)_                  |
+| `/unic-pr-review:review-pr [<ADO PR URL>]` | Review your local branch (Pre-PR mode) or an Azure DevOps PR. Add `--post` to enter the Approval Loop and write Findings to ADO. | `[<ADO PR URL>] [--post] [--yes]` |
+| `/unic-pr-review:setup-confluence`         | Interactive wizard — writes `~/.unic-confluence.json`                                                                            | _(no arguments)_                  |
+| `/unic-pr-review:setup-jira`               | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json`                                                                 | _(no arguments)_                  |
+| `/unic-pr-review:setup-azure`              | Interactive wizard — writes `~/.unic-azure.json`                                                                                 | _(no arguments)_                  |
 
 ## Credential files
 

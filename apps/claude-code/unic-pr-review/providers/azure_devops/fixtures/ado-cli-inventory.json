@@ -15,6 +15,14 @@
       "description": "Changed files in latest iteration"
     }
   ],
+  "invokeCommandsWriter": [
+    {
+      "area": "git",
+      "resource": "threads",
+      "httpMethod": "POST",
+      "description": "Create Review Thread (inline comment attached to file+line range, or General Comment Thread for the Review Summary)"
+    }
+  ],
   "otherCommands": [
     { "command": "az account show", "description": "Cache identity step 1 — AAD account info" },
     {

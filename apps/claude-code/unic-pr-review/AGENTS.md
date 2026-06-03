@@ -39,7 +39,7 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 
 ```tree
 .claude-plugin/          # Plugin manifest (plugin.json) and marketplace listing
-agents/                  # Review Aspect prompts + Intent Assessor (intent-assessor.md — not a Review Aspect)
+agents/                  # Review Aspect prompts, Intent Assessor (intent-assessor.md), and Provider agents (ado-fetcher.md, ado-writer.md) — only Review Aspects belong in SPAWN_TABLE
 commands/                # Claude Code slash command definitions (.md files)
 providers/               # Source Platform Provider bundles (ADR-0010)
 providers/azure_devops/  # Azure DevOps provider: provider.mjs, manifest.json, fixtures/, tests/

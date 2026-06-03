@@ -1,16 +1,22 @@
 ---
-allowed-tools: Agent, Bash(node *), Bash(git *)
-argument-hint: [<PR URL>]
-description: Review a pull request or your local branch. Pass an Azure DevOps PR URL to review an open PR (first-review preview, read-only); omit the URL to review your local branch against its upstream base (Pre-PR mode).
+allowed-tools: Agent, Bash(az *), Bash(node *), Bash(git *)
+argument-hint: [<PR URL>] [--post] [--yes]
+description: Review a pull request or your local branch. Pass an Azure DevOps PR URL to review an open PR; add --post to enter the Approval Loop and write to ADO; omit the URL to review your local branch against its upstream base (Pre-PR mode).
 ---
 
 # unic-pr-review:review-pr
 
 Runs an AI-powered code review. Without a URL the Plugin operates in **Pre-PR mode** — it computes the diff of your local branch against the resolved upstream base branch, determines which Review Aspect agents to spawn based on the changed files (ADR-0008), fans out to those agents in parallel, and prints the merged Review Summary in the terminal. Nothing is written to ADO.
 
+With `--post` (ADO mode only) the Plugin enters the **Approval Loop** after the preview: you walk each Finding one at a time with accept / edit / skip choices, then the ADO Writer posts only the approved Findings as Review Threads plus the Review Summary as a General Comment Thread. `--post --yes` bulk-accepts all Findings without prompting.
+
 ## Step 1 — Detect mode and route
 
-Inspect the first argument passed to the command.
+Parse all arguments passed to the command:
+
+- **PR URL**: the first argument that is not a flag (does not start with `--`). If absent, use Pre-PR mode.
+- **`IS_POST`**: true when `--post` is among the arguments.
+- **`IS_YES`**: true when `--yes` is among the arguments.
 
 ### Path A: No argument → Pre-PR mode
 
@@ -35,6 +41,17 @@ node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" parse-url "<URL>"
 
 - **Exit 0**: stdout is `{ orgUrl, project, repo, prId }`. Store as `PR_REF`.
 - **Exit non-zero**: relay stderr verbatim and stop.
+
+Also compute `PR_KEY` — the 16-hex state-directory key derived from the PR URL (used by the Approval Loop and cleanup):
+
+```sh
+node -e "
+const {createHash}=require('node:crypto')
+process.stdout.write(createHash('sha256').update('<URL>','utf8').digest('hex').slice(0,16))
+"
+```
+
+Store the output as `PR_KEY`.
 
 #### Step 1.3 — Invoke the ADO Fetcher agent
 
@@ -162,12 +179,149 @@ When `FETCHER_OUTPUT.diffUnavailable` is `true`, always include `NOTICES_JSON` i
 
 Print the rendered Review Summary markdown.
 
-Remind the user:
+If `IS_POST` is **false**:
 
-- This is a terminal preview only — nothing has been written to ADO.
-- `--post` mode (interactive Approval Loop) is coming in a later release.
+- Remind the user: _"This is a terminal preview only — nothing has been written to ADO. Pass `--post` to enter the Approval Loop and write Findings to the PR."_
+- **Stop. Do not continue to Step 1.11 or Step 2.**
 
-**After Step 1.10, stop. Do not continue to Step 2.**
+If `IS_POST` is **true**, continue to Step 1.11.
+
+#### Step 1.11 — Run the Approval Loop
+
+Abort early if the diffUnavailable guard fired (FETCHER_OUTPUT.diffUnavailable is true) and FINDINGS_JSON contains an empty findings array — there is nothing to post:
+
+```
+unic-pr-review: --post ignored — diff unavailable; nothing to write to ADO.
+```
+
+Otherwise:
+
+**1. Write the findings to a temp file.**
+
+Extract the `findings` array from `FINDINGS_JSON` and write it to a temp file for the Approval Loop:
+
+```sh
+node -e "
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path')
+const {findings}=JSON.parse(process.env.FINDINGS_JSON)
+const f=path.join(os.tmpdir(),'unic-pr-review-findings-'+process.env.PR_KEY+'.json')
+fs.writeFileSync(f,JSON.stringify(findings??[]))
+process.stdout.write(f)
+" PR_KEY="<PR_KEY>" FINDINGS_JSON='<FINDINGS_JSON>'
+```
+
+Capture the output path as `FINDINGS_FILE`.
+
+**If the `node -e` script exits non-zero**, print the stderr verbatim and stop. Do not proceed with an empty or invalid findings path.
+
+**2. Determine the approved-Findings path.**
+
+```sh
+node -e "
+const os=require('node:os'),path=require('node:path')
+process.stdout.write(path.join(os.tmpdir(),'unic-pr-review-approved-'+process.env.PR_KEY+'.json'))
+" PR_KEY="<PR_KEY>"
+```
+
+Capture as `APPROVED_FILE`.
+
+**3. Get the current HEAD SHA.**
+
+```sh
+git rev-parse HEAD
+```
+
+Capture as `HEAD_SHA`.
+
+**4. Get the plugin version.**
+
+```sh
+node -e "
+const {version}=JSON.parse(require('node:fs').readFileSync(process.env.PLUGIN_JSON,'utf8'))
+process.stdout.write(version)
+" PLUGIN_JSON="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+```
+
+Capture as `PLUGIN_VERSION`.
+
+**5. Run the Approval Loop.**
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/approval-loop.mjs" \
+  --findings "<FINDINGS_FILE>" \
+  --approved "<APPROVED_FILE>" \
+  --key "<PR_KEY>" \
+  --head-sha "<HEAD_SHA>" \
+  --mode first-review \
+  --plugin-version "<PLUGIN_VERSION>" \
+  --iteration 1 \
+  <--yes if IS_YES>
+```
+
+- **Exit 0**: continue to Step 1.12.
+- **Exit 2** (non-TTY without --yes): print `"approval-loop: --post requires an interactive terminal or --yes."` and stop.
+- **Any other non-zero exit**: relay stderr verbatim and stop.
+
+**6. Clean up the findings temp file.**
+
+```sh
+node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<FINDINGS_FILE>"
+```
+
+#### Step 1.12 — Spawn ADO Writer
+
+Use the Agent tool to launch `unic-pr-review:ado-writer`. Provide:
+
+```json
+{
+  "orgUrl":       "<PR_REF.orgUrl>",
+  "project":      "<PR_REF.project>",
+  "repo":         "<PR_REF.repo>",
+  "prId":         <PR_REF.prId>,
+  "approvedPath": "<APPROVED_FILE>",
+  "iteration":    1
+}
+```
+
+Wait for the agent to complete. It returns:
+
+```json
+{
+  "inlineResults": [...],
+  "summaryResult": { "success": true, "threadId": 200, "error": null },
+  "success": true
+}
+```
+
+Print the summary: how many inline threads were posted, how many failed, and the summary thread ID. On failures, print each error.
+
+If `success` is `false` (any thread failed), warn the user:
+
+```
+⚠ Some threads could not be posted. Check the errors above and re-run with --post (not --post --yes) once the issues are resolved — the Approval Loop resumes from saved state and re-posts only the threads that failed. Using --yes would re-post the threads that already succeeded, creating duplicate comments.
+```
+
+#### Step 1.13 — Cleanup
+
+Delete the approved-Findings temp file (always — it is not needed for retries):
+
+```sh
+node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<APPROVED_FILE>"
+```
+
+**Only if the ADO Writer reported `success: true`**, delete the Approval Loop state directory:
+
+```sh
+node -e "
+const fs=require('node:fs'),path=require('node:path')
+const d=path.join(process.cwd(),'.unic-pr-review',process.env.PR_KEY)
+try{fs.rmSync(d,{recursive:true,force:true})}catch{}
+" PR_KEY="<PR_KEY>"
+```
+
+If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.
+
+**After Step 1.13, stop. Do not continue to Step 2.**
 
 ## Step 2 — Resolve the base branch
 
@@ -419,4 +573,4 @@ Print the rendered Review Summary markdown to the terminal.
 Remind the user:
 
 - This is a terminal preview only — nothing has been written to ADO.
-- `--post` mode (interactive Approval Loop) is coming in a later release.
+- To write Findings back to a PR, pass an ADO PR URL with `--post`.
