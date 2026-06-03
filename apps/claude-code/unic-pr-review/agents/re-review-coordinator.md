@@ -1,6 +1,6 @@
 ---
 name: re-review-coordinator
-description: Re-review Coordinator — classifies existing PR Threads into addressed/disputed/pending/obsolete, decides reply vs new-Thread per Finding, and emits a structured plan for the ADO Writer.
+description: Re-review Coordinator — classifies existing PR Threads into addressed/disputed/pending/obsolete/regressed, decides reply vs resolve vs reopen vs new-Thread per Finding, and emits a structured plan for the ADO Writer.
 model: opus
 color: blue
 ---
@@ -54,23 +54,25 @@ Apply these rules to classify each thread in `priorFindings`. The signals you ha
 
 ### Thread Classifications
 
-| Classification | When to apply                                                                                                                                  |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `addressed`    | The author has explicitly fixed or acknowledged the issue AND ≥1 aspect agent rates it `fixed` or `partial`. Auto-resolved.                    |
-| `disputed`     | The author has pushed back (comment challenging the finding) and no aspect agent rates it `fixed`. Leave as-is — do not reply, do not resolve. |
-| `pending`      | No human reply AND aspect agents rate it `ignored`. Reply to note it is still unaddressed.                                                     |
-| `obsolete`     | The code the finding referred to was removed or changed in a way that renders the finding irrelevant, even if not "fixed". Resolve silently.   |
+| Classification | When to apply                                                                                                                                                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `addressed`    | The author has explicitly fixed or acknowledged the issue AND ≥1 aspect agent rates it `fixed` or `partial`. Auto-resolved.                                                                                                                                    |
+| `disputed`     | The author has pushed back (comment challenging the finding) and no aspect agent rates it `fixed`. Leave as-is — do not reply, do not resolve.                                                                                                                 |
+| `pending`      | No human reply AND aspect agents rate it `ignored`. Reply to note it is still unaddressed.                                                                                                                                                                     |
+| `obsolete`     | The code the finding referred to was removed or changed in a way that renders the finding irrelevant, even if not "fixed". Resolve silently.                                                                                                                   |
+| `regressed`    | The Thread was previously marked resolved/fixed (ADO `status` is `resolved`/`fixed`, or the author acknowledged a fix) BUT ≥1 aspect agent now rates it `ignored` again — the underlying issue has reappeared in the current diff. Reopen with an explanation. |
 
-When signals conflict, prefer `disputed` over `addressed` (humans have agency). When uncertain, use `pending`.
+When signals conflict, prefer `disputed` over `addressed` (humans have agency). Prefer `regressed` over `addressed` when a once-fixed Thread is rated `ignored` again. When uncertain, use `pending`.
 
 ### Classification → threadActions mapping
 
-| Classification | Action in `threadActions`          |
-| -------------- | ---------------------------------- |
-| `addressed`    | `{ action: "resolve" }`            |
-| `disputed`     | omit (Writer leaves untouched)     |
-| `pending`      | `{ action: "reply", body: "..." }` |
-| `obsolete`     | `{ action: "resolve" }`            |
+| Classification | Action in `threadActions`                                          |
+| -------------- | ------------------------------------------------------------------ |
+| `addressed`    | `{ action: "resolve" }`                                            |
+| `disputed`     | omit (Writer leaves untouched)                                     |
+| `pending`      | `{ action: "reply", body: "..." }`                                 |
+| `obsolete`     | `{ action: "resolve" }`                                            |
+| `regressed`    | `{ action: "reopen", body: "..." }` (body explains the regression) |
 
 ### Persistent-Unaddressed Logic
 
@@ -92,11 +94,18 @@ Construct `threadUrl` as: `<orgUrl>/<project>/_git/<repo>/pullrequest/<prId>?dis
 ## Procedure
 
 1. Read all signals.
-2. For each thread in `priorFindings`, determine its classification using the rules above.
-3. Build `threadActions`: one entry per thread except `disputed`-classified threads (omit those to keep the plan minimal; the Writer will leave them untouched).
+2. For each thread in `priorFindings`, determine its classification using the rules above (`addressed` / `disputed` / `pending` / `obsolete` / `regressed`).
+3. Build `threadActions`: one entry per thread except `disputed`-classified threads (omit those to keep the plan minimal; the Writer will leave them untouched). `regressed` threads map to a `reopen` action with a `body`.
 4. Build `persistentUnaddressed` from threads satisfying the ≥2-iterations logic.
 5. Collect `freshFindings` from `aspectFindings` across all agents (flatten, deduplicate by filePath+startLine+title).
 6. Emit the JSON object below. Nothing else.
+
+## Error handling
+
+Before building the plan, guard against unusable inputs so a degraded run never looks like a clean success. If either condition holds, emit `{ "error": "<concise reason>" }` and nothing else:
+
+- `aspectFindings` is empty or absent while `priorFindings` is non-empty (every aspect agent failed to produce verdicts, so no thread can be classified).
+- `rawThreadsJson` is empty while `priorFindings` references one or more thread IDs (the Thread state needed to classify those threads is missing).
 
 ## Output
 
