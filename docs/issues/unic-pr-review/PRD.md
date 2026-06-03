@@ -102,10 +102,10 @@ The load-bearing decisions are captured as ADRs in [`apps/claude-code/unic-pr-re
 - ADR-0007 — Re-review uses a delta diff, not a full PR diff
 - ADR-0008 — Conditional sub-agent spawning over per-file chunking
 - ADR-0009 — Pre-PR mode is a peer operating mode, not a flag
-- ADR-0010 (planned) — Provider as a folder bundle. Lands with the slice that exercises the provider abstraction (issue #148).
+- ADR-0010 — Provider as a folder bundle. Landed with issue #148 (ADO first-review preview).
 - ADR-0011 — Intent Assessor for live AC verdicts. Splits intent gathering from intent assessment: the Intent Checker emits an `intentCheck` skeleton with verdicts unset; the new Intent Assessor agent (`agents/intent-assessor.md`) assesses each Acceptance Criterion against the diff; `scripts/lib/intent-check-merger.mjs` overlays the assessor's verdicts onto the skeleton.
 
-ADR-0001 will also carry an amendment (planned) noting that work-item discovery is a Provider contract; the amendment lands with issue #148. Each Provider owns `discoverWorkItems(prMetadata)` and the Intent Checker consumes the normalised list. The Intent Checker stays Source-Platform-agnostic.
+ADR-0001 carries an amendment noting that work-item discovery is a Provider contract; the amendment landed with issue #148. Each Provider owns `discoverWorkItems(prMetadata)` and the Intent Checker consumes the normalised list. The Intent Checker stays Source-Platform-agnostic.
 
 The Intent Assessor (per ADR-0011) is **not** a Review Aspect — it is spawned by intent presence (`intentBrief` defined and the skeleton non-empty), never by changed-file categories, and is never added to the aspect `SPAWN_TABLE`. Any future work that touches intent gathering or the orchestrator's spawn fan-out must preserve this separation and the merger flow.
 

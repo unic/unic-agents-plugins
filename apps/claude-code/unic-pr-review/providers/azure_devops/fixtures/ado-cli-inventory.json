@@ -1,0 +1,25 @@
+{
+  "invokeCommands": [
+    { "area": "git", "resource": "pullrequests", "httpMethod": "GET", "description": "PR metadata" },
+    {
+      "area": "git",
+      "resource": "pullrequestiterations",
+      "httpMethod": "GET",
+      "description": "PR Revisions (iterations)"
+    },
+    { "area": "git", "resource": "threads", "httpMethod": "GET", "description": "PR Review Threads" },
+    {
+      "area": "git",
+      "resource": "pullrequestiterationchanges",
+      "httpMethod": "GET",
+      "description": "Changed files in latest iteration"
+    }
+  ],
+  "otherCommands": [
+    { "command": "az account show", "description": "Cache identity step 1 — AAD account info" },
+    {
+      "command": "az devops user show --user <UPN>",
+      "description": "Cache identity step 2 — ADO user id + displayName (UPN extracted from az account show)"
+    }
+  ]
+}
