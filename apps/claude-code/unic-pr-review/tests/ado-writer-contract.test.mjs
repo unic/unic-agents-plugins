@@ -16,7 +16,7 @@ const writerMd = readFileSync(resolve(root, 'agents/ado-writer.md'), 'utf8')
 /**
  * Extract fenced JSON code blocks from a markdown section.
  * Returns all ```json ... ``` blocks found between `startMarker` and the next
- * same-level heading (or end of file).
+ * heading of any level (h1-h4), or end of file.
  * @param {string} md
  * @param {string} startMarker  — exact section header text to anchor on
  * @returns {unknown[]}
@@ -24,7 +24,7 @@ const writerMd = readFileSync(resolve(root, 'agents/ado-writer.md'), 'utf8')
 function extractJsonBlocks(md, startMarker) {
 	const start = md.indexOf(startMarker)
 	if (start === -1) return []
-	// Find next heading at same or higher level to bound the section
+	// Bound section at the next heading (any level h1-h4)
 	const after = md.slice(start + startMarker.length)
 	const nextHeading = after.search(/^#{1,4} /m)
 	const section = nextHeading === -1 ? after : after.slice(0, nextHeading)
@@ -43,13 +43,15 @@ function extractJsonBlocks(md, startMarker) {
 
 describe('ado-writer.md contract — Step 5c reopen shape', () => {
 	it('Step 5c specifies replySuccess and statusSuccess fields on reopen entries', () => {
-		const step5c = writerMd.slice(writerMd.indexOf('#### 5c'))
+		const step5cStart = writerMd.indexOf('#### 5c')
+		const step6Start = writerMd.indexOf('### Step 6')
+		const step5c = writerMd.slice(step5cStart, step6Start)
 		assert.ok(step5c.includes('replySuccess'), 'Step 5c must specify replySuccess on the reopen result')
 		assert.ok(step5c.includes('statusSuccess'), 'Step 5c must specify statusSuccess on the reopen result')
 	})
 
 	it('Step 5c does not record a top-level success field on reopen entries', () => {
-		// Find just the Record line in 5c (before Step 6 begins)
+		// Scope to the entire Step 5c section (before Step 6 begins)
 		const step5cStart = writerMd.indexOf('#### 5c')
 		const step6Start = writerMd.indexOf('### Step 6')
 		const step5c = writerMd.slice(step5cStart, step6Start)
