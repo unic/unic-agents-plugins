@@ -89,4 +89,39 @@ describe('renderNotices', () => {
 		assert.ok(diffIdx >= 0, 'Missing diff-unavailable notice')
 		assert.ok(fallbackIdx < diffIdx, 'fallback notice must precede diff-unavailable notice')
 	})
+
+	it('renders priorVerdictSummary with all three buckets', () => {
+		const out = renderNotices({ priorVerdictSummary: { fixed: 2, partial: 1, ignored: 1 } })
+		assert.ok(out.includes('> **Re-review:**'))
+		assert.ok(out.includes('3 of 4 prior findings addressed'))
+		assert.ok(out.includes('2 fixed'))
+		assert.ok(out.includes('1 partially addressed'))
+		assert.ok(out.includes('1 pending'))
+	})
+
+	it('renders priorVerdictSummary when everything is fixed', () => {
+		const out = renderNotices({ priorVerdictSummary: { fixed: 3, partial: 0, ignored: 0 } })
+		assert.ok(out.includes('3 of 3 prior finding'))
+		assert.ok(out.includes('3 fixed'))
+		assert.ok(!out.includes('partially addressed'))
+		assert.ok(!out.includes('pending'))
+	})
+
+	it('renders priorVerdictSummary with singular "finding" when total is 1', () => {
+		const out = renderNotices({ priorVerdictSummary: { fixed: 0, partial: 0, ignored: 1 } })
+		assert.ok(out.includes('0 of 1 prior finding addressed'))
+		assert.ok(out.includes('1 pending'))
+	})
+
+	it('renders priorVerdictSummary after diffUnavailable when both set', () => {
+		const out = renderNotices({
+			diffUnavailable: true,
+			priorVerdictSummary: { fixed: 1, partial: 0, ignored: 0 },
+		})
+		const diffIdx = out.indexOf('Line-level diff')
+		const reReviewIdx = out.indexOf('Re-review:')
+		assert.ok(diffIdx >= 0)
+		assert.ok(reReviewIdx >= 0)
+		assert.ok(diffIdx < reReviewIdx, 'diffUnavailable notice must precede priorVerdictSummary')
+	})
 })

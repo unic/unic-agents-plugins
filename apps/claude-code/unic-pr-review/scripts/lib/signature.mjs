@@ -9,9 +9,6 @@
  * The exact load-bearing wording lives ONLY in SIGNATURE_PREFIX — do not
  * inline it anywhere else. Detection (parser) and rendering (footer) cannot
  * drift apart when both import from this module.
- *
- * The parser is stubbed in this slice; the full implementation lands with the
- * re-review detection slice.
  */
 
 /**
@@ -38,15 +35,62 @@ export function renderFooter(iteration) {
 }
 
 /**
- * Parse a Bot Signature from PR thread body text.
+ * A single comment within an ADO PR Thread, pre-filtered by the caller to
+ * include only bot-authored comments.
  *
- * Stub — returns null for all input. Full implementation (regex match on
- * SIGNATURE_PREFIX, CRLF tolerance, revision-id extraction) lands with the
- * re-review detection slice.
- *
- * @param {string} _threadBody
- * @returns {null}
+ * @typedef {Object} ThreadComment
+ * @property {string} content - comment body text (may contain CRLF line endings)
+ * @property {{ id: string }} author - comment author identity
+ * @property {string} [publishedDate] - ISO date string (for future ordering; not used by parser today)
  */
-export function parseSignature(_threadBody) {
-	return null
+
+/**
+ * A simplified ADO PR Thread payload. The caller (ADO Fetcher) filters threads
+ * to only include those authored by the bot identity before passing here.
+ *
+ * @typedef {Object} SignatureThread
+ * @property {ThreadComment[]} comments - at least one comment
+ */
+
+/**
+ * Result of parsing a Bot Signature from pre-filtered thread payloads.
+ *
+ * @typedef {Object} ParsedSignature
+ * @property {number} priorRevisionId - ADO iteration ID embedded in the footer (same as priorIteration)
+ * @property {string} priorAuthorUserId - ADO user ID of the matched comment author
+ * @property {number} priorIteration - the iteration number N from "Iteration N" in the footer
+ */
+
+/**
+ * Parse the most recent Bot Signature from pre-filtered PR Thread payloads.
+ *
+ * "Most recent" is defined as the highest iteration number found across all
+ * comment bodies. The caller must have already filtered threads to only
+ * bot-authored comments (ADR-0006 identity-caching requirement).
+ *
+ * CRLF-tolerant: `\r\n` in comment content is normalised to `\n` before matching.
+ *
+ * @param {SignatureThread[]} threads - pre-filtered threads (bot comments only)
+ * @returns {ParsedSignature | null}
+ */
+export function parseSignature(threads) {
+	/** @type {ParsedSignature | null} */
+	let best = null
+	const regex = new RegExp(`${SIGNATURE_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)`)
+	for (const thread of threads) {
+		for (const comment of thread.comments ?? []) {
+			const body = (comment.content ?? '').replace(/\r\n/g, '\n')
+			const match = body.match(regex)
+			if (!match) continue
+			const n = parseInt(match[1], 10)
+			if (best === null || n > best.priorRevisionId) {
+				best = {
+					priorRevisionId: n,
+					priorAuthorUserId: comment.author?.id ?? '',
+					priorIteration: n,
+				}
+			}
+		}
+	}
+	return best
 }

@@ -21,6 +21,8 @@
  *   applied zero verdicts (assessed missing, non-array, or all-zero applied count)
  * @property {boolean} [diffUnavailable] - true when line-level diff could not be fetched;
  *   diff-driven aspect agents were not run and an empty Findings list does not mean clean
+ * @property {{ fixed: number, partial: number, ignored: number }} [priorVerdictSummary] - verdicts
+ *   aggregated across all aspect agents in re-review mode; omit in first-review mode
  */
 
 /**
@@ -58,6 +60,21 @@ export function renderNotices(ctx) {
 		lines.push(
 			'> **Notice:** Line-level diff was unavailable in this preview, so diff-driven Review Aspect agents did not run. ' +
 				'An empty Findings list does **not** mean the PR is clean.'
+		)
+	}
+
+	if (ctx.priorVerdictSummary) {
+		const { fixed, partial, ignored } = ctx.priorVerdictSummary
+		const addressed = fixed + partial
+		const total = fixed + partial + ignored
+		const parts = []
+		if (fixed > 0) parts.push(`${fixed} fixed`)
+		if (partial > 0) parts.push(`${partial} partially addressed`)
+		if (ignored > 0) parts.push(`${ignored} pending`)
+		lines.push(
+			`> **Re-review:** ${addressed} of ${total} prior finding${total !== 1 ? 's' : ''} addressed` +
+				(parts.length > 0 ? ` (${parts.join(', ')})` : '') +
+				'.'
 		)
 	}
 

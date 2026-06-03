@@ -66,4 +66,29 @@ describe('parseFinding', () => {
 	it('throws when confidence is out of range (via bucketBySeverity)', () => {
 		assert.throws(() => parseFinding({ ...valid, confidence: 101 }), /finite number in 0-100/)
 	})
+
+	it('preserves priorVerdict when it is a valid verdict string', () => {
+		const r = parseFinding({ ...valid, priorVerdict: 'fixed' })
+		assert.equal(r?.priorVerdict, 'fixed')
+	})
+
+	it('preserves priorVerdict: partial', () => {
+		const r = parseFinding({ ...valid, priorVerdict: 'partial' })
+		assert.equal(r?.priorVerdict, 'partial')
+	})
+
+	it('preserves priorVerdict: ignored', () => {
+		const r = parseFinding({ ...valid, priorVerdict: 'ignored' })
+		assert.equal(r?.priorVerdict, 'ignored')
+	})
+
+	it('drops priorVerdict when value is unrecognised (silent, forward-compatible)', () => {
+		const r = parseFinding({ ...valid, priorVerdict: 'resolved' })
+		assert.equal(r?.priorVerdict, undefined)
+	})
+
+	it('drops priorVerdict when absent', () => {
+		const r = parseFinding({ ...valid })
+		assert.equal(r?.priorVerdict, undefined)
+	})
 })
