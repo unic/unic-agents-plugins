@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `providers/azure_devops/fixtures/ado-cli-inventory.json`: `invokeCommandsWriter` gains `git/comments` (reply POST + summary PATCH) and documents PATCH on `git/threads`
 - `commands/review-pr.md`: Step 1.4 now routes by `FETCHER_OUTPUT.mode` — `first-review`, `re-review` (invokes the Re-review Coordinator, skips the Approval Loop, drives the re-review Writer), and `first-review-fallback` (force-push: `fallbackToFirstReview` notice, fresh iteration 1)
 - `tests/ado-cli-smoke.test.mjs`, `tests/notices.test.mjs`, `tests/render-summary.test.mjs`: cover the Coordinator's LLM-only guard, `git/comments` writer coverage, `PersistentUnaddressedEntry` rendering (threadUrl link, sinceIteration label, order preservation), and the `ITERATION` env-var footer
+- `agents/ado-fetcher.md`: `priorFindings` elements now carry `threadId` (the number id of the ADO Thread holding that prior finding's bot comment), extracted from `thread.id` in Step 6 — closing a producer/consumer contract break where the Re-review Coordinator keyed all thread classification, reply/resolve/reopen actions, persistent-unaddressed tracking, and `threadUrl` on a `threadId` the Fetcher never emitted
 
 ### Fixed
 

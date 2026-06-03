@@ -157,6 +157,7 @@ Set `RAW_DIFF` to `DELTA_RAW_DIFF`, `DIFF_UNAVAILABLE` to `false`.
 
 Extract `priorFindings` from `BOT_THREADS` that have a non-null `threadContext` (inline comment threads):
 
+- `threadId` (number) from `thread.id` — the id of the ADO Thread carrying that prior finding's bot comment. The Re-review Coordinator keys every classification, reply/resolve/reopen action, persistent-unaddressed entry, and `threadUrl` on this id, so it must be present.
 - `filePath` from `thread.threadContext.filePath`
 - `startLine` from `thread.threadContext.rightFileStart.line`
 - `severity` from the emoji on the first line of `thread.comments[0].content`: `🔴` → `critical`, `🟠` → `important`, `🟡` → `minor`
@@ -196,4 +197,4 @@ Emit exactly one JSON object — no prose, no markdown, no footer:
 }
 ```
 
-`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ filePath, startLine, severity, title }` objects (empty except in `re-review` mode). `diffUnavailable` is `false` in `re-review` mode (the delta diff populates `rawDiff`) and `true` in first-review modes (line-level diff deferred). `warnings` is an array of strings for any non-fatal issues (e.g. empty diff, identity fields missing, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.
+`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` in `re-review` mode (the delta diff populates `rawDiff`) and `true` in first-review modes (line-level diff deferred). `warnings` is an array of strings for any non-fatal issues (e.g. empty diff, identity fields missing, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.
