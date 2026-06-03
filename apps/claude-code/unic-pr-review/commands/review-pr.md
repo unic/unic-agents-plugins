@@ -54,6 +54,7 @@ Wait for the agent to complete. It returns a JSON object:
   "threads": {},
   "changedFiles": [],
   "rawDiff": "...",
+  "diffUnavailable": true,
   "warnings": []
 }
 ```
@@ -91,11 +92,41 @@ Use the Agent tool to launch `agents/intent-checker.md`. Provide:
 { "workItems": <WORK_ITEMS> }
 ```
 
-Process the response identically to the Pre-PR path (Step 5):
+Wait for the agent to complete. It emits one of:
 
-- Hard-stop on `{ "hardStop": true }` → print verbatim error and stop.
-- Success → store `intentBrief` and `intentCheck`.
-- Empty brief + empty intentCheck → treat as absent (no intent gathering).
+- **A — hard-stop on unreachable Work Item** (ADR-0004): the linked Work Item itself could not be fetched (auth error, unreachable org URL, or unrecognised URL shape):
+
+  ```json
+  { "hardStop": true, "workItem": "<id>", "url": "<url>", "reason": "work-item-unreachable" }
+  ```
+
+  Print and **stop** — do not spawn any aspect agents:
+
+  ```
+  Intent gathering failed: Work Item <id> (<url>) could not be fetched (network error, unreachable org, or credentials rejected). If credentials may be misconfigured, run /unic-pr-review:setup-azure to reconfigure Azure credentials, then re-run the review. For transient network errors, re-running the review directly may suffice.
+  ```
+
+- **B — hard-stop on unreachable Atlassian source** (ADR-0004): a Confluence page embedded in the Work Item is unreachable:
+
+  ```json
+  { "hardStop": true, "url": "<url>", "setupCommand": "<cmd>" }
+  ```
+
+  Print and **stop** — same message as the Pre-PR path (Step 5):
+
+  ```
+  Intent gathering failed: <url> could not be fetched (unreachable, or its credentials were rejected). Run <setupCommand> to configure credentials, then re-run the review.
+  ```
+
+- **C — intent gathered**:
+
+  ```json
+  { "intentBrief": "<markdown>", "intentCheck": [ ... ] }
+  ```
+
+  Store `intentBrief` and `intentCheck`. If both empty, treat intent as absent (no intent gathering).
+
+- **D — unexpected hard-stop**: `"hardStop": true` but shape matches neither A nor B — print the full JSON verbatim and **stop**. (Defensive fallback: should not occur if the Intent Checker follows its spec.)
 
 #### Step 1.7 — Resolve spawn set
 
@@ -112,14 +143,11 @@ Print the spawn set to the terminal.
 
 #### Step 1.8 — Spawn all agents in parallel (ADO mode)
 
-**Guard — empty diff.** The Review Aspect agents (and the Intent Assessor) are diff-driven. In this preview the ADO Fetcher returns an empty `rawDiff` (line-level diff fetching is deferred — see `agents/ado-fetcher.md` Step 6). If `FETCHER_OUTPUT.rawDiff` is empty or whitespace-only:
+**Guard — diff unavailable.** The Review Aspect agents (and the Intent Assessor) are diff-driven. The ADO Fetcher emits `diffUnavailable: true` whenever line-level diff could not be fetched (see `agents/ado-fetcher.md` Step 6). If `FETCHER_OUTPUT.diffUnavailable` is `true`:
 
 - Do **not** spawn the aspect agents or the Intent Assessor — running them on an empty diff would produce a misleading "clean" review with zero findings.
 - Set `FINDINGS_JSON` to an empty findings set so Step 1.9 still renders the available context (spawn set, changed files, and the Intent Check skeleton when present).
-- Print this notice prominently so the empty result is not read as a clean bill of health:
-
-  > ⚠️ Line-level diff is unavailable in this ADO first-review preview, so the diff-driven Review Aspect agents were not run. The preview below reflects provider detection, Work Item discovery, intent gathering, and the changed-file spawn set only. Diff-based findings arrive in a later slice.
-
+- Set `diffUnavailable: true` in the NoticesContext — this is the structural guarantee that the "not a clean review" notice fires; do **not** print a separate prose notice.
 - Continue to Step 1.9 to render the preview, then Step 1.10.
 
 Otherwise (`rawDiff` non-empty), proceed as in Step 7 (Pre-PR): launch every agent in `SPAWN_SET` simultaneously, seeding each with the diff (and `intentBrief` as a preamble when it is defined). Spawn the Intent Assessor in the **same parallel batch** when `intentBrief` is defined **and** the `intentCheck` skeleton is non-empty (ADR-0011) — it is never added to `SPAWN_SET`.
@@ -127,6 +155,8 @@ Otherwise (`rawDiff` non-empty), proceed as in Step 7 (Pre-PR): launch every age
 #### Step 1.9 — Merge findings and render (ADO mode)
 
 Same as Step 8 (Pre-PR): merge all agents' findings and positive observations, run the overlay merger when the Assessor was spawned, and pass `FINDINGS_JSON`, `INTENT_CHECK_JSON` (if applicable), and `NOTICES_JSON` (if applicable) to `render-summary.mjs`. Always relay the helper's stderr; stop on a non-zero exit.
+
+When `FETCHER_OUTPUT.diffUnavailable` is `true`, always include `NOTICES_JSON` in the render-summary call (even if no Assessor Notice applies), so the renderer structurally guarantees the "diff unavailable" notice is surfaced to the reviewer.
 
 #### Step 1.10 — Print preview (ADO mode)
 

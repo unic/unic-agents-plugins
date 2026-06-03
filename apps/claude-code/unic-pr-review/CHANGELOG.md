@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Interactive Approval Loop (issue #149, ADR-0003): `scripts/approval-loop.mjs` reads `findings.json`, walks each Finding interactively (`a`ccept / `e`dit / `s`kip), and writes `approved.json`; state persists to `<cwd>/.unic-pr-review/<key>/state.json` after every decision so the loop is resumable across Ctrl-C, and is deleted on success (best-effort — a cleanup failure is a non-fatal warning). `--yes` bulk-accepts (still writes state); `--reset` forces fresh state (also rescuing a malformed state file); a non-TTY context without `--yes` exits 2 before reading state. `approved.json` and `state.json` are both written atomically via tmp + rename
+- `scripts/lib/cache-paths.mjs`: `sha16()` key derivation and `getApprovalStateDir(key)` returning `<cwd>/.unic-pr-review/<key>/`, writing a self-ignoring `<cwd>/.unic-pr-review/.gitignore` (`*`) on first use so the state tree is never tracked
+- `scripts/lib/args.mjs`: `parseArgs` gains an `options.booleanFlags` set for presence-only flags (`--yes`, `--reset`) recorded as `''`; existing callers are unaffected
+- `scripts/lib/severity-bucketer.mjs` exports `SEVERITY_ORDER` so the Approval Loop's stable Finding ordering reuses the canonical severity vocabulary instead of duplicating it
+- `tests/approval-loop.test.mjs` + `tests/args.test.mjs`: cover state-file shape, accept/edit/skip transitions, resume from partial state, all head-SHA-mismatch branches (fresh/continue/`--reset`/`--yes`), non-TTY abort, `--yes` bulk-accept, malformed-findings and malformed-state guards, early stream close (Ctrl-D), atomic-write and best-effort-cleanup behaviour, gitignore creation, and `parseArgs` boolean-flag handling
+
+### Fixed
+
+- (none)
+
+## [2.0.2] — 2026-06-03
+
+### Breaking
+
+- (none)
+
+### Added
+
+- (none)
+
+### Fixed
+
+- `agents/intent-checker.md` Step 0: an unreachable or auth-erroring ADO Work Item linked natively in the PR now hard-stops instead of silently dropping its acceptance criteria, consistent with ADR-0004 promised-intent doctrine; `not-found` remains a soft note. Org-URL extraction now surfaces the offending URL on failure instead of silently passing a wrong `--org` to `az boards work-item show` (issue #177)
+- `commands/review-pr.md` Step 1.6: handles the new `{ "hardStop": true, "workItem": "…", "reason": "work-item-unreachable" }` shape emitted by the Intent Checker when a linked ADO Work Item is unreachable, printing a clear message that references the Work Item id and URL (issue #177)
+- ADR-0004 amended to state that provider-discovered Work Items are promised intent and follow the same reachability doctrine as pasted URLs (issue #177)
+
+## [2.0.1] — 2026-06-03
+
+### Breaking
+
+- (none)
+
+### Added
+
 - `/unic-pr-review:review-pr` slash command (`commands/review-pr.md`) + `agents/code-reviewer.md` aspect agent: Pre-PR mode that diffs the local branch against its upstream base and prints the Review Summary
 - `/unic-pr-review:setup-confluence` slash command (`commands/setup-confluence.md`) + `scripts/setup-confluence.mjs` writes `~/.unic-confluence.json` with chmod 600 on POSIX
 - `/unic-pr-review:setup-jira` slash command (`commands/setup-jira.md`) + `scripts/setup-jira.mjs` adds/updates the `jiraUrl` field in the Confluence credential file, idempotent on re-run
@@ -44,11 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/ado-cli-smoke.test.mjs`: asserts `az devops invoke` calls and `fixtures/ado-cli-inventory.json` agree in both directions, so the inventory cannot advertise an invoke call the fetcher never makes
 - `providers/azure_devops/provider.mjs`: `discoverWorkItems` throws on non-object input (instead of silently yielding zero Work Items) and the `discover-work-items` CLI rejects a missing stdin pipe rather than hanging
 - ADR-0010 (Provider folder bundle) accepted and ADR-0001 amended (provider-owned work-item discovery)
-- Interactive Approval Loop (issue #149, ADR-0003): `scripts/approval-loop.mjs` reads `findings.json`, walks each Finding interactively (`a`ccept / `e`dit / `s`kip), and writes `approved.json`; state persists to `<cwd>/.unic-pr-review/<key>/state.json` after every decision so the loop is resumable across Ctrl-C, and is deleted on success (best-effort — a cleanup failure is a non-fatal warning). `--yes` bulk-accepts (still writes state); `--reset` forces fresh state (also rescuing a malformed state file); a non-TTY context without `--yes` exits 2 before reading state. `approved.json` and `state.json` are both written atomically via tmp + rename
-- `scripts/lib/cache-paths.mjs`: `sha16()` key derivation and `getApprovalStateDir(key)` returning `<cwd>/.unic-pr-review/<key>/`, writing a self-ignoring `<cwd>/.unic-pr-review/.gitignore` (`*`) on first use so the state tree is never tracked
-- `scripts/lib/args.mjs`: `parseArgs` gains an `options.booleanFlags` set for presence-only flags (`--yes`, `--reset`) recorded as `''`; existing callers are unaffected
-- `scripts/lib/severity-bucketer.mjs` exports `SEVERITY_ORDER` so the Approval Loop's stable Finding ordering reuses the canonical severity vocabulary instead of duplicating it
-- `tests/approval-loop.test.mjs` + `tests/args.test.mjs`: cover state-file shape, accept/edit/skip transitions, resume from partial state, all head-SHA-mismatch branches (fresh/continue/`--reset`/`--yes`), non-TTY abort, `--yes` bulk-accept, malformed-findings and malformed-state guards, early stream close (Ctrl-D), atomic-write and best-effort-cleanup behaviour, gitignore creation, and `parseArgs` boolean-flag handling
+- `agents/ado-fetcher.md` Step 6/7: emits `diffUnavailable: true` in the result envelope whenever line-level diff is deferred, making the "not a clean review" signal machine-checkable
+- `scripts/lib/notices.mjs` gains the `diffUnavailable` `NoticesContext` field and render block (Reviewer Notice when line-level diff was unavailable and diff-driven agents did not run), with unit tests in `tests/notices.test.mjs`
+- `commands/review-pr.md` Step 1.8 guard keys off `FETCHER_OUTPUT.diffUnavailable` (structural flag) instead of prose-testing `rawDiff` emptiness; Step 1.9 always forwards `NOTICES_JSON` when `diffUnavailable` is `true` so the renderer structurally guarantees the notice
 
 ### Changed
 
