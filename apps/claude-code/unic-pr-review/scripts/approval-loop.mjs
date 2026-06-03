@@ -40,6 +40,7 @@ import readline from 'node:readline'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from './lib/args.mjs'
 import { getApprovalStateDir } from './lib/cache-paths.mjs'
+import { SEVERITY_ORDER } from './lib/severity-bucketer.mjs'
 
 /** @import { CachePathDeps } from './lib/cache-paths.mjs' */
 
@@ -103,8 +104,6 @@ import { getApprovalStateDir } from './lib/cache-paths.mjs'
  * @property {boolean} isYes
  * @property {boolean} isReset
  */
-
-const SEVERITY_ORDER = /** @type {Record<string, number>} */ ({ critical: 0, important: 1, minor: 2 })
 
 /**
  * Derive a stable Finding ID from its content.
@@ -177,6 +176,32 @@ export function buildInitialState(rawFindings, params, createdAt) {
 }
 
 /**
+ * Read and parse a JSON file with descriptive error messages.
+ *
+ * @param {(path: string, enc: BufferEncoding) => string} readFile
+ * @param {string} filePath
+ * @param {string} label - human-readable name for error messages
+ * @returns {unknown}
+ */
+function readJson(readFile, filePath, label) {
+	let text
+	try {
+		text = readFile(filePath, 'utf8')
+	} catch (err) {
+		throw new Error(
+			`approval-loop: cannot read ${label} at ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+		)
+	}
+	try {
+		return JSON.parse(text)
+	} catch (err) {
+		throw new Error(
+			`approval-loop: ${label} is not valid JSON at ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+		)
+	}
+}
+
+/**
  * Atomically write a JSON state file via tmp + rename.
  *
  * @param {string} statePath
@@ -194,8 +219,9 @@ function writeState(statePath, state, deps) {
 /**
  * Run the interactive Approval Loop.
  *
- * The caller is responsible for providing the state directory path via
- * `params.key`; `getApprovalStateDir` is called internally to create it.
+ * The caller is responsible for providing the state directory key via
+ * `params.key`; `getApprovalStateDir` is called internally to derive and
+ * create the full directory path.
  *
  * @param {LoopParams} params
  * @param {LoopDeps} [deps]
@@ -226,7 +252,14 @@ export async function runApprovalLoop(params, deps = {}) {
 		exit(2)
 	}
 
-	const rawFindings = JSON.parse(readFile(findingsPath, 'utf8'))
+	const parsedFindings = readJson(readFile, findingsPath, '--findings file')
+	if (!Array.isArray(parsedFindings)) {
+		stderr.write(
+			`approval-loop: findings file must contain a JSON array (got ${typeof parsedFindings}): ${findingsPath}\n`
+		)
+		exit(1)
+	}
+	const rawFindings = /** @type {object[]} */ (parsedFindings)
 
 	const stateDir = getApprovalStateDir(key, {
 		cwd,
@@ -246,82 +279,84 @@ export async function runApprovalLoop(params, deps = {}) {
 	const rl = isYes ? null : readline.createInterface({ input: stdin, terminal: false })
 	const lines = rl ? rl[Symbol.asyncIterator]() : null
 
-	if (existsSync(statePath)) {
-		const existing = /** @type {LoopState} */ (JSON.parse(readFile(statePath, 'utf8')))
+	try {
+		if (existsSync(statePath)) {
+			const existing = /** @type {LoopState} */ (readJson(readFile, statePath, 'state file (use --reset to discard)'))
 
-		if (existing.headSha !== headSha) {
-			if (!isReset && !isYes && lines) {
-				stdout.write(
-					`\napproval-loop: HEAD has changed since this review was generated.\n` +
-						`  Prior SHA : ${existing.headSha}\n` +
-						`  Current SHA: ${headSha}\n\n` +
-						`  [c]ontinue with stale findings  /  [f]resh start (discard prior state): `
-				)
+			if (existing.headSha !== headSha) {
+				if (!isReset && !isYes && lines) {
+					stdout.write(
+						`\napproval-loop: HEAD has changed since this review was generated.\n` +
+							`  Prior SHA : ${existing.headSha}\n` +
+							`  Current SHA: ${headSha}\n\n` +
+							`  [c]ontinue with stale findings  /  [f]resh start (discard prior state): `
+					)
 
-				const { value: line } = await lines.next()
-				const choice = (line ?? '').trim().toLowerCase().charAt(0)
-				state = choice === 'c' ? existing : buildInitialState(rawFindings, params, now())
+					const { value: line } = await lines.next()
+					const choice = (line ?? '').trim().toLowerCase().charAt(0)
+					state = choice === 'c' ? existing : buildInitialState(rawFindings, params, now())
+				} else {
+					state = buildInitialState(rawFindings, params, now())
+				}
 			} else {
-				state = buildInitialState(rawFindings, params, now())
+				state = existing
 			}
 		} else {
-			state = existing
+			state = buildInitialState(rawFindings, params, now())
 		}
-	} else {
-		state = buildInitialState(rawFindings, params, now())
-	}
 
-	writeState(statePath, state, { writeFile, renameSync })
-
-	if (isYes) {
-		for (const finding of state.findings) {
-			if (finding.decision === 'pending') {
-				finding.decision = 'accept'
-				finding.decidedAt = now()
-			}
-		}
 		writeState(statePath, state, { writeFile, renameSync })
-	} else if (lines) {
-		for (const finding of state.findings) {
-			if (finding.decision !== 'pending') continue
 
-			stdout.write(
-				`\n${'─'.repeat(60)}\n` +
-					`[${finding.severity.toUpperCase()}] ${finding.title}\n` +
-					`${finding.filePath}:${finding.startLine}\n\n` +
-					`${finding.body}\n` +
-					(finding.suggestion ? `\nSuggestion:\n${finding.suggestion}\n` : '') +
-					`\n[a]ccept / [e]dit / [s]kip: `
-			)
-
-			const { value: choiceLine, done } = await lines.next()
-			if (done) break
-
-			const choice = (choiceLine ?? '').trim().toLowerCase().charAt(0)
-
-			if (choice === 'e') {
-				stdout.write(`\nEdit body (current shown above). Enter replacement or press Enter to keep:\n> `)
-
-				const { value: editLine, done: done2 } = await lines.next()
-				if (done2) break
-
-				const edited = (editLine ?? '').trim()
-				finding.decision = 'edit'
-				finding.editedBody = edited || finding.body
-				finding.decidedAt = now()
-			} else if (choice === 'a') {
-				finding.decision = 'accept'
-				finding.decidedAt = now()
-			} else {
-				finding.decision = 'skip'
-				finding.decidedAt = now()
+		if (isYes) {
+			for (const finding of state.findings) {
+				if (finding.decision === 'pending') {
+					finding.decision = 'accept'
+					finding.decidedAt = now()
+				}
 			}
-
 			writeState(statePath, state, { writeFile, renameSync })
-		}
-	}
+		} else if (lines) {
+			for (const finding of state.findings) {
+				if (finding.decision !== 'pending') continue
 
-	if (rl) rl.close()
+				stdout.write(
+					`\n${'─'.repeat(60)}\n` +
+						`[${finding.severity.toUpperCase()}] ${finding.title}\n` +
+						`${finding.filePath}:${finding.startLine}\n\n` +
+						`${finding.body}\n` +
+						(finding.suggestion ? `\nSuggestion:\n${finding.suggestion}\n` : '') +
+						`\n[a]ccept / [e]dit / [s]kip: `
+				)
+
+				const { value: choiceLine, done } = await lines.next()
+				if (done) break
+
+				const choice = (choiceLine ?? '').trim().toLowerCase().charAt(0)
+
+				if (choice === 'e') {
+					stdout.write(`\nEdit body (current shown above). Enter replacement or press Enter to keep:\n> `)
+
+					const { value: editLine, done: done2 } = await lines.next()
+					if (done2) break
+
+					const edited = (editLine ?? '').trim()
+					finding.decision = 'edit'
+					finding.editedBody = edited || finding.body
+					finding.decidedAt = now()
+				} else if (choice === 'a') {
+					finding.decision = 'accept'
+					finding.decidedAt = now()
+				} else {
+					finding.decision = 'skip'
+					finding.decidedAt = now()
+				}
+
+				writeState(statePath, state, { writeFile, renameSync })
+			}
+		}
+	} finally {
+		if (rl) rl.close()
+	}
 
 	const approved = state.findings.filter((f) => f.decision === 'accept' || f.decision === 'edit')
 	writeFile(approvedPath, JSON.stringify(approved, null, 2), 'utf8')
@@ -334,7 +369,7 @@ export async function runApprovalLoop(params, deps = {}) {
 async function main() {
 	let parsed
 	try {
-		parsed = parseArgs(process.argv.slice(2))
+		parsed = parseArgs(process.argv.slice(2), { booleanFlags: new Set(['yes', 'reset']) })
 	} catch (err) {
 		process.stderr.write(`approval-loop: ${err instanceof Error ? err.message : String(err)}\n`)
 		process.exit(1)
@@ -348,8 +383,6 @@ async function main() {
 		mode,
 		'plugin-version': pluginVersion,
 		iteration,
-		yes,
-		reset,
 	} = parsed
 
 	if (!findingsPath) {
@@ -385,8 +418,8 @@ async function main() {
 		mode,
 		pluginVersion,
 		...(iteration !== undefined && { iteration: Number(iteration) }),
-		isYes: yes !== undefined,
-		isReset: reset !== undefined,
+		isYes: 'yes' in parsed,
+		isReset: 'reset' in parsed,
 	})
 }
 

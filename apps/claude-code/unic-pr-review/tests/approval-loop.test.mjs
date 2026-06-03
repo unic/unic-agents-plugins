@@ -725,8 +725,8 @@ describe('state persistence', () => {
 			}
 		)
 
-		// state.json.tmp was written at least twice (once per finding decision + initial)
-		assert.ok(stateWrites.length >= 2)
+		// state.json.tmp is written on init + after each decision: 1 (init) + N (decisions)
+		assert.ok(stateWrites.length >= 3)
 	})
 
 	it('state.json directory is cleaned up on successful completion', async () => {
@@ -754,6 +754,76 @@ describe('state persistence', () => {
 		assert.ok(existsSync(gitignorePath), 'gitignore written on first use')
 		const content = readFileSync(gitignorePath, 'utf8')
 		assert.equal(content.trim(), '*')
+	})
+})
+
+// ─── edge-case: unrecognised input character ──────────────────────────────────
+
+describe('unknown input character', () => {
+	it('treats unrecognised input as skip (current behaviour)', async () => {
+		const dir = tempDir()
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		const out = approvedPath(dir)
+
+		// 'x' is not 'a', 'e', or 's' — falls to the else branch → skip
+		await loop({ findingsPath: fp, approvedPath: out, cwd: dir }, { stdin: scriptedStdin('x\n'), cwd: dir })
+
+		const approved = JSON.parse(readFileSync(out, 'utf8'))
+		assert.equal(approved.length, 0, 'unrecognised input treated as skip')
+	})
+})
+
+// ─── edge-case: empty findings array ─────────────────────────────────────────
+
+describe('empty findings array', () => {
+	it('--yes with zero findings writes empty approved.json', async () => {
+		const dir = tempDir()
+		const fp = writeFindingsFile([], dir)
+		const out = approvedPath(dir)
+
+		await loop({ findingsPath: fp, approvedPath: out, isYes: true, cwd: dir }, { isTTY: false, cwd: dir })
+
+		const approved = JSON.parse(readFileSync(out, 'utf8'))
+		assert.deepEqual(approved, [])
+	})
+})
+
+// ─── edge-case: suggestion field rendering ────────────────────────────────────
+
+describe('suggestion field rendering', () => {
+	it('renders Suggestion: block in stdout when finding has suggestion', async () => {
+		const dir = tempDir()
+		const findingWithSuggestion = {
+			...SAMPLE_FINDINGS[0],
+			suggestion: 'Use optional chaining: token?.value',
+		}
+		const fp = writeFindingsFile([findingWithSuggestion], dir)
+		const out = approvedPath(dir)
+		const outputLines = captureOutput()
+
+		await loop(
+			{ findingsPath: fp, approvedPath: out, cwd: dir },
+			{ stdin: scriptedStdin('a\n'), stdout: outputLines, cwd: dir }
+		)
+
+		const allOutput = outputLines.lines.join('')
+		assert.ok(allOutput.includes('Suggestion:'), 'Suggestion: block rendered when suggestion field present')
+		assert.ok(allOutput.includes('Use optional chaining: token?.value'), 'suggestion text rendered')
+	})
+
+	it('omits Suggestion: block when finding has no suggestion', async () => {
+		const dir = tempDir()
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		const out = approvedPath(dir)
+		const outputLines = captureOutput()
+
+		await loop(
+			{ findingsPath: fp, approvedPath: out, cwd: dir },
+			{ stdin: scriptedStdin('a\n'), stdout: outputLines, cwd: dir }
+		)
+
+		const allOutput = outputLines.lines.join('')
+		assert.ok(!allOutput.includes('Suggestion:'), 'Suggestion: block absent when no suggestion field')
 	})
 })
 
