@@ -13,6 +13,9 @@
  * @typedef {'critical' | 'important' | 'minor'} Severity
  */
 
+/** @type {Record<string, number>} */
+export const SEVERITY_ORDER = { critical: 0, important: 1, minor: 2 }
+
 /**
  * Map a Confidence Score to a Severity bucket.
  *

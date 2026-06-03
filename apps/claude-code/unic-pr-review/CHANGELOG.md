@@ -13,7 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- (none)
+- Interactive Approval Loop (issue #149, ADR-0003): `scripts/approval-loop.mjs` reads `findings.json`, walks each Finding interactively (`a`ccept / `e`dit / `s`kip), and writes `approved.json`; state persists to `<cwd>/.unic-pr-review/<key>/state.json` after every decision so the loop is resumable across Ctrl-C, and is deleted on success (best-effort — a cleanup failure is a non-fatal warning). `--yes` bulk-accepts (still writes state); `--reset` forces fresh state (also rescuing a malformed state file); a non-TTY context without `--yes` exits 2 before reading state. `approved.json` and `state.json` are both written atomically via tmp + rename
+- `scripts/lib/cache-paths.mjs`: `sha16()` key derivation and `getApprovalStateDir(key)` returning `<cwd>/.unic-pr-review/<key>/`, writing a self-ignoring `<cwd>/.unic-pr-review/.gitignore` (`*`) on first use so the state tree is never tracked
+- `scripts/lib/args.mjs`: `parseArgs` gains an `options.booleanFlags` set for presence-only flags (`--yes`, `--reset`) recorded as `''`; existing callers are unaffected
+- `scripts/lib/severity-bucketer.mjs` exports `SEVERITY_ORDER` so the Approval Loop's stable Finding ordering reuses the canonical severity vocabulary instead of duplicating it
+- `tests/approval-loop.test.mjs` + `tests/args.test.mjs`: cover state-file shape, accept/edit/skip transitions, resume from partial state, all head-SHA-mismatch branches (fresh/continue/`--reset`/`--yes`), non-TTY abort, `--yes` bulk-accept, malformed-findings and malformed-state guards, early stream close (Ctrl-D), atomic-write and best-effort-cleanup behaviour, gitignore creation, and `parseArgs` boolean-flag handling
 
 ### Fixed
 

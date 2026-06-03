@@ -42,4 +42,35 @@ describe('parseArgs', () => {
 	it('throws when a flag is followed by another flag instead of a value', () => {
 		assert.throws(() => parseArgs(['--url', '--token', 't']), /--url requires a value/)
 	})
+
+	describe('boolean flags', () => {
+		const booleanFlags = new Set(['yes', 'reset'])
+
+		it('records a declared boolean flag as an empty string when present', () => {
+			const result = parseArgs(['--yes'], { booleanFlags })
+			assert.equal(result.yes, '')
+			assert.ok('yes' in result)
+		})
+
+		it('does not record a declared boolean flag when absent', () => {
+			const result = parseArgs(['--url', 'https://x'], { booleanFlags })
+			assert.ok(!('yes' in result))
+		})
+
+		it('does not consume the next token as the boolean flag value', () => {
+			const result = parseArgs(['--yes', '--url', 'https://x'], { booleanFlags })
+			assert.deepEqual(result, { yes: '', url: 'https://x' })
+		})
+
+		it('accepts a declared boolean flag as the last argument without throwing', () => {
+			assert.deepEqual(parseArgs(['--url', 'https://x', '--reset'], { booleanFlags }), {
+				url: 'https://x',
+				reset: '',
+			})
+		})
+
+		it('still throws for an undeclared valueless flag at the end of argv', () => {
+			assert.throws(() => parseArgs(['--yes'], { booleanFlags: new Set() }), /--yes requires a value/)
+		})
+	})
 })
