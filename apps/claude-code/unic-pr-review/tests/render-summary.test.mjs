@@ -55,6 +55,13 @@ describe('render-summary CLI', () => {
 		assert.equal(r.stdout, '')
 	})
 
+	it('exits non-zero with a stderr message when FINDINGS_JSON is a bare array', () => {
+		const r = run(JSON.stringify([{ confidence: 95, filePath: 'src/a.mjs', startLine: 1, title: 'X', body: 'y' }]))
+		assert.notEqual(r.status, 0)
+		assert.match(r.stderr, /bare array/)
+		assert.equal(r.stdout, '')
+	})
+
 	it('renders an empty summary when findings and positiveObservations are absent', () => {
 		const r = run('{}')
 		assert.equal(r.status, 0)
@@ -283,6 +290,21 @@ describe('render-summary CLI — ITERATION', () => {
 
 	it('falls back to Iteration 1 when ITERATION is non-numeric', () => {
 		const env = { ...process.env, FINDINGS_JSON: '{}', ITERATION: 'not-a-number' }
+		const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
+		assert.equal(r.status ?? -1, 0)
+		assert.match(r.stdout ?? '', /Iteration 1/)
+	})
+
+	it('falls back to Iteration 1 when ITERATION is negative', () => {
+		const env = { ...process.env, FINDINGS_JSON: '{}', ITERATION: '-3' }
+		const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
+		assert.equal(r.status ?? -1, 0)
+		assert.match(r.stdout ?? '', /Iteration 1/)
+		assert.doesNotMatch(r.stdout ?? '', /Iteration -3/)
+	})
+
+	it('falls back to Iteration 1 when ITERATION is zero', () => {
+		const env = { ...process.env, FINDINGS_JSON: '{}', ITERATION: '0' }
 		const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
 		assert.equal(r.status ?? -1, 0)
 		assert.match(r.stdout ?? '', /Iteration 1/)

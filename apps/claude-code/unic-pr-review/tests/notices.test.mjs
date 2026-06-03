@@ -15,6 +15,13 @@ describe('renderNotices', () => {
 		assert.equal(renderNotices({ persistentUnaddressed: [] }), '')
 	})
 
+	it('ignores a non-array persistentUnaddressed string without throwing or rendering a block', () => {
+		const out = renderNotices(/** @type {any} */ ({ persistentUnaddressed: 'a single finding title' }))
+		assert.equal(out, '')
+		assert.ok(!out.includes('Persistent unaddressed findings'))
+		assert.ok(!out.includes('undefined'))
+	})
+
 	it('renders the force-push fallback notice when fallbackToFirstReview is true', () => {
 		const out = renderNotices({ fallbackToFirstReview: true })
 		assert.ok(out.includes('> **Notice:**'))

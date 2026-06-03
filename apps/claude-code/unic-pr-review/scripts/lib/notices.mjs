@@ -50,7 +50,7 @@ export function renderNotices(ctx) {
 		)
 	}
 
-	if (ctx.persistentUnaddressed && ctx.persistentUnaddressed.length > 0) {
+	if (Array.isArray(ctx.persistentUnaddressed) && ctx.persistentUnaddressed.length > 0) {
 		lines.push('> **Persistent unaddressed findings:**')
 		for (const entry of ctx.persistentUnaddressed) {
 			lines.push(`> - [${entry.title}](${entry.threadUrl}) _(since Iteration ${entry.sinceIteration})_`)
