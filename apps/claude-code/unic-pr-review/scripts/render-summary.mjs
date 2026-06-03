@@ -141,10 +141,12 @@ if (rawNotices?.trim()) {
 	}
 }
 
+const iteration = parseInt(process.env.ITERATION ?? '1', 10) || 1
+
 const summary = renderReviewSummary({
 	findings,
 	positiveObservations,
-	iteration: 1,
+	iteration,
 	intentCheck,
 	notices: notices || undefined,
 })

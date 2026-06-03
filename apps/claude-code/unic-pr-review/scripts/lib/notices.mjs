@@ -12,11 +12,19 @@
  */
 
 /**
+ * @typedef {Object} PersistentUnaddressedEntry
+ * @property {number} threadId - ADO Thread id the unaddressed Finding lives on
+ * @property {string} threadUrl - direct link to the Thread (discussionId anchor)
+ * @property {string} title - single-line Finding label
+ * @property {number} sinceIteration - earliest Iteration the Finding was raised
+ */
+
+/**
  * @typedef {Object} NoticesContext
  * @property {boolean} [fallbackToFirstReview] - true when force-push caused the prior
  *   Revision to disappear from the PR's Revision history (ADR-0006)
- * @property {string[]} [persistentUnaddressed] - Finding titles that remain unaddressed
- *   across two or more Iterations (US 27)
+ * @property {PersistentUnaddressedEntry[]} [persistentUnaddressed] - Findings that remain
+ *   unaddressed across two or more Iterations, ordered by sinceIteration ascending (US 27)
  * @property {boolean} [unassessedIntentCheck] - true when the Assessor was spawned but
  *   applied zero verdicts (assessed missing, non-array, or all-zero applied count)
  * @property {boolean} [diffUnavailable] - true when line-level diff could not be fetched;
@@ -44,8 +52,8 @@ export function renderNotices(ctx) {
 
 	if (ctx.persistentUnaddressed && ctx.persistentUnaddressed.length > 0) {
 		lines.push('> **Persistent unaddressed findings:**')
-		for (const title of ctx.persistentUnaddressed) {
-			lines.push(`> - ${title}`)
+		for (const entry of ctx.persistentUnaddressed) {
+			lines.push(`> - [${entry.title}](${entry.threadUrl}) _(since Iteration ${entry.sinceIteration})_`)
 		}
 	}
 

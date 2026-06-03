@@ -16,9 +16,10 @@ const SCRIPT = fileURLToPath(new URL('../scripts/render-summary.mjs', import.met
  * @param {string | undefined} findingsJson
  * @param {string} [intentCheckJson]
  * @param {string} [noticesJson]
+ * @param {number} [iteration]
  * @returns {{ status: number, stdout: string, stderr: string }}
  */
-function run(findingsJson, intentCheckJson, noticesJson) {
+function run(findingsJson, intentCheckJson, noticesJson, iteration) {
 	const env = { ...process.env }
 	if (findingsJson === undefined) delete env.FINDINGS_JSON
 	else env.FINDINGS_JSON = findingsJson
@@ -26,6 +27,8 @@ function run(findingsJson, intentCheckJson, noticesJson) {
 	else env.INTENT_CHECK_JSON = intentCheckJson
 	if (noticesJson === undefined) delete env.NOTICES_JSON
 	else env.NOTICES_JSON = noticesJson
+	if (iteration === undefined) delete env.ITERATION
+	else env.ITERATION = String(iteration)
 	const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
 	return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
@@ -262,5 +265,26 @@ describe('render-summary CLI — NOTICES_JSON', () => {
 		assert.equal(r.status, 0)
 		assert.match(r.stderr, /NOTICES_JSON must be a plain object/)
 		assert.doesNotMatch(r.stdout, /Intent Check block/)
+	})
+})
+
+describe('render-summary CLI — ITERATION', () => {
+	it('stamps the given ITERATION in the Bot Signature footer', () => {
+		const r = run(JSON.stringify({ findings: [], positiveObservations: [] }), undefined, undefined, 3)
+		assert.equal(r.status, 0)
+		assert.ok(r.stdout.includes('Iteration 3'), `Expected "Iteration 3" in stdout; got: ${r.stdout.slice(0, 200)}`)
+	})
+
+	it('defaults to Iteration 1 when ITERATION is absent', () => {
+		const r = run(JSON.stringify({ findings: [], positiveObservations: [] }))
+		assert.equal(r.status, 0)
+		assert.match(r.stdout, /Iteration 1/)
+	})
+
+	it('falls back to Iteration 1 when ITERATION is non-numeric', () => {
+		const env = { ...process.env, FINDINGS_JSON: '{}', ITERATION: 'not-a-number' }
+		const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8', env })
+		assert.equal(r.status ?? -1, 0)
+		assert.match(r.stdout ?? '', /Iteration 1/)
 	})
 })

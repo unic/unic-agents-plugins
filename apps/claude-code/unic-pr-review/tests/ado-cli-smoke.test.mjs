@@ -86,4 +86,30 @@ describe('ado-cli inventory', () => {
 			)
 		}
 	})
+
+	it('re-review-coordinator.md makes no az devops invoke calls (LLM-only agent)', () => {
+		const coordinatorMd = readFileSync(resolve(root, 'agents/re-review-coordinator.md'), 'utf8')
+		const found = extractInvokePairs(coordinatorMd)
+		assert.equal(
+			found.length,
+			0,
+			`re-review-coordinator.md must not contain az devops invoke calls; found: ${found.join(', ')}`
+		)
+	})
+
+	it('invokeCommandsWriter covers git/comments for reply and summary-PATCH operations', () => {
+		const inventoriedWriter = new Set(
+			(inventory.invokeCommandsWriter ?? []).map(
+				(/** @type {{ area: string, resource: string }} */ c) => `${c.area}/${c.resource}`
+			)
+		)
+		assert.ok(
+			inventoriedWriter.has('git/comments'),
+			'ado-cli-inventory.json invokeCommandsWriter must include git/comments for reply POST and summary PATCH'
+		)
+		assert.ok(
+			inventoriedWriter.has('git/threads'),
+			'ado-cli-inventory.json invokeCommandsWriter must include git/threads for status PATCH'
+		)
+	})
 })

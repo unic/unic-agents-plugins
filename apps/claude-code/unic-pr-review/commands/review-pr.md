@@ -83,12 +83,30 @@ Wait for the agent to complete. It returns a JSON object:
   - Any other error key → print the error message verbatim and stop.
 - Store `FETCHER_OUTPUT`.
 
-#### Step 1.4 — Detect mode (first-review vs re-review)
+#### Step 1.4 — Route by mode
 
-Scan `FETCHER_OUTPUT.threads` for a prior Bot Signature authored by `FETCHER_OUTPUT.identity.id` (ADR-0006). For **this release (first-review preview only)**:
+Read `FETCHER_OUTPUT.mode` (the ADO Fetcher emits `"first-review"`, `"re-review"`, or `"first-review-fallback"` — see `agents/ado-fetcher.md` Step 4a).
 
-- **Prior signature found** → print `"Re-review mode is not yet supported in this release. Proceeding as first-review."` and continue.
-- **No prior signature** → continue (first-review mode).
+**`mode === "first-review"` → continue to Step 1.5 as-is.** Set `IS_FALLBACK = false` and `CURRENT_ITERATION = 1`.
+
+**`mode === "first-review-fallback"` (force-push path):**
+
+Set `IS_FALLBACK = true`. Set `CURRENT_ITERATION = 1` (fresh review — the prior Revision is gone, so there is no prior iteration to increment). Set `fallbackToFirstReview: true` in `NOTICES_CONTEXT`. Continue to Step 1.5 using the first-review path; the force-push warning appears in the Notices block of the rendered summary.
+
+**`mode === "re-review"` → re-review path:**
+
+Set `IS_FALLBACK = false`. Set `CURRENT_ITERATION = FETCHER_OUTPUT.priorIteration + 1`.
+
+Then proceed through the shared steps with these re-review deltas:
+
+- Step 1.5 (Work Items) — unchanged.
+- Step 1.7 (resolve spawn set) — use `FETCHER_OUTPUT.changedFiles`, unchanged.
+- Step 1.8 (spawn agents) — use `FETCHER_OUTPUT.deltaRawDiff` as the diff (NOT `rawDiff`, which is empty in re-review mode), and pass `FETCHER_OUTPUT.priorFindings` to each aspect agent (see **Step 1.8 extension** below).
+- After Step 1.8 completes, invoke the Re-review Coordinator (see **Step 1.8a** below) before rendering.
+- Step 1.9 (render) — add `ITERATION=<CURRENT_ITERATION>` to the `render-summary.mjs` env call and build `NOTICES_CONTEXT` from the Coordinator's `persistentUnaddressed` output (see **Step 1.9 extension** below).
+- Step 1.10 (preview print) — print normally.
+- Step 1.11 (Approval Loop) — **skip it in re-review mode** (the Coordinator's plan is the approved plan). If `IS_POST` is false, stop after the preview as usual. If `IS_POST` is true, skip directly to the **Step 1.12 extension** below.
+- Step 1.12 (ADO Writer) — use the re-review writer input shape (see **Step 1.12 extension** below).
 
 #### Step 1.5 — Discover Work Items
 
@@ -322,6 +340,126 @@ try{fs.rmSync(d,{recursive:true,force:true})}catch{}
 If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.
 
 **After Step 1.13, stop. Do not continue to Step 2.**
+
+### Re-review extensions (Path B, `mode === "re-review"`)
+
+These sub-steps apply only when Step 1.4 routed to the re-review path. They replace or augment the like-numbered first-review steps as noted in Step 1.4.
+
+#### Step 1.8 extension — Re-review: pass priorFindings to aspect agents
+
+When `mode === "re-review"` and `FETCHER_OUTPUT.diffUnavailable` is false, pass `priorFindings` alongside the delta diff for each agent in `SPAWN_SET`. The agent input becomes:
+
+```
+Diff to review:
+
+<FETCHER_OUTPUT.deltaRawDiff>
+
+Prior Findings to re-assess:
+
+<JSON.stringify(FETCHER_OUTPUT.priorFindings)>
+
+[Optional: Intent Brief preamble when intentBrief is defined]
+```
+
+The aspect agents use `priorFindings` to emit `priorFindingVerdicts` in their output. Store the full aspect-agent response map as `ASPECT_RESPONSES` (keyed by agent name).
+
+#### Step 1.8a — Invoke Re-review Coordinator (re-review mode only)
+
+After all aspect agents complete, use the Agent tool to launch `unic-pr-review:re-review-coordinator`. Provide:
+
+```json
+{
+  "orgUrl":           "<PR_REF.orgUrl>",
+  "project":          "<PR_REF.project>",
+  "repo":             "<PR_REF.repo>",
+  "prId":             <PR_REF.prId>,
+  "identityId":       "<FETCHER_OUTPUT.identity.id>",
+  "signaturePrefix":  "🤖 Reviewed by Claude Code — Iteration ",
+  "deltaRawDiff":     "<FETCHER_OUTPUT.deltaRawDiff>",
+  "priorFindings":    <FETCHER_OUTPUT.priorFindings>,
+  "priorIteration":   <FETCHER_OUTPUT.priorIteration>,
+  "currentIteration": <CURRENT_ITERATION>,
+  "rawThreadsJson":   <FETCHER_OUTPUT.threads.value>,
+  "aspectFindings":   <ASPECT_RESPONSES>
+}
+```
+
+`signaturePrefix` is the exact literal string `"🤖 Reviewed by Claude Code — Iteration "`. The orchestrator is a slash-command `.md` file, not a Node script, so it cannot `import { SIGNATURE_PREFIX }` from `scripts/lib/signature.mjs`; this single hardcoded occurrence is the one legitimate exception to the "never inline the prefix" rule (ADR-0006). The Coordinator uses it only for string-matching bot-signed comments in `rawThreadsJson`.
+
+Wait for the Coordinator to complete. It returns:
+
+```json
+{
+  "threadActions": [...],
+  "persistentUnaddressed": [...],
+  "freshFindings": [...]
+}
+```
+
+Store as `COORDINATOR_PLAN`.
+
+On error (non-JSON output or an `"error"` field present): print the error verbatim and stop. Do not proceed to an ADO write without a valid plan.
+
+#### Step 1.9 extension — Re-review: build NoticesContext with persistentUnaddressed
+
+When `mode === "re-review"`, add to `NOTICES_CONTEXT`:
+
+- `persistentUnaddressed: COORDINATOR_PLAN.persistentUnaddressed` — pass through unchanged; the Coordinator has already sorted by `sinceIteration` ascending.
+- `priorVerdictSummary`: aggregate `priorFindingVerdicts` across all aspect agents into `{ fixed, partial, ignored }` counts.
+
+Pass `ITERATION=<CURRENT_ITERATION>` as an env var to `render-summary.mjs`:
+
+```sh
+FINDINGS_JSON='<freshFindings from Coordinator, as a {findings, positiveObservations} object>' \
+  INTENT_CHECK_JSON='<JSON.stringify(mergedIntentCheck) when applicable>' \
+  NOTICES_JSON='<JSON.stringify(NOTICES_CONTEXT)>' \
+  ITERATION="<CURRENT_ITERATION>" \
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
+```
+
+`FINDINGS_JSON` for re-review contains **only** `COORDINATOR_PLAN.freshFindings` (brand-new issues). Do NOT re-surface prior Findings here — those are handled by `COORDINATOR_PLAN.threadActions` (reply/resolve/reopen). Re-adding them would print them in the summary as if they were new.
+
+Store the rendered output as `RENDERED_SUMMARY`.
+
+#### Step 1.11 extension — Re-review: skip the Approval Loop
+
+When `mode === "re-review"` and `IS_POST` is true, skip Steps 1.11 (1–6) entirely — there is no Approval Loop in re-review mode; the Coordinator's plan is the approved plan. Proceed directly to the Step 1.12 extension below.
+
+#### Step 1.12 extension — Re-review: invoke ADO Writer with the coordinator plan
+
+When `mode === "re-review"` and `IS_POST` is true, use the Agent tool to launch `unic-pr-review:ado-writer` with the re-review input shape:
+
+```json
+{
+  "orgUrl":          "<PR_REF.orgUrl>",
+  "project":         "<PR_REF.project>",
+  "repo":            "<PR_REF.repo>",
+  "prId":            <PR_REF.prId>,
+  "mode":            "re-review",
+  "coordinatorPlan": <COORDINATOR_PLAN>,
+  "renderedSummary": "<RENDERED_SUMMARY>",
+  "rawThreadsJson":  <FETCHER_OUTPUT.threads.value>,
+  "identity":        <FETCHER_OUTPUT.identity>,
+  "iteration":       <CURRENT_ITERATION>
+}
+```
+
+Wait for the agent to complete. It returns:
+
+```json
+{
+  "threadActionResults": [...],
+  "inlineResults": [...],
+  "summaryResult": { "success": true, "threadId": 200, "error": null },
+  "success": true
+}
+```
+
+Print a summary: how many thread actions succeeded/failed, how many fresh-finding threads were posted, and whether the Summary was rewritten in place. On failures, print each error.
+
+If `success` is false, warn the user (same partial-failure guidance as the first-review path). There is no Approval Loop state directory in re-review mode, so no cleanup is required.
+
+**After the re-review writer step, stop. Do not continue to Step 2.**
 
 ## Step 2 — Resolve the base branch
 
