@@ -11,6 +11,17 @@ import { fileURLToPath } from 'node:url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const root = resolve(__dirname, '..')
 
+/** Extract `area/resource` pairs from `az devops invoke --area X --resource Y` patterns. */
+const INVOKE_PATTERN = /az devops invoke\s+--area\s+(\S+)\s+--resource\s+(\S+)/g
+
+/**
+ * @param {string} markdown
+ * @returns {string[]}
+ */
+function extractInvokePairs(markdown) {
+	return [...markdown.matchAll(INVOKE_PATTERN)].map((m) => `${m[1]}/${m[2]}`)
+}
+
 describe('ado-cli inventory', () => {
 	it('every az devops invoke call in ado-fetcher.md is in ado-cli-inventory.json', () => {
 		const fetcherMd = readFileSync(resolve(root, 'agents/ado-fetcher.md'), 'utf8')
@@ -23,10 +34,7 @@ describe('ado-cli inventory', () => {
 
 		// Convention: `az devops invoke --area X --resource Y` always opens the command
 		// (same logical line in each shell block in ado-fetcher.md). \s+ tolerates future wrapping.
-		const singleLinePattern = /az devops invoke\s+--area\s+(\S+)\s+--resource\s+(\S+)/g
-
-		/** @type {string[]} */
-		const found = [...fetcherMd.matchAll(singleLinePattern)].map((m) => `${m[1]}/${m[2]}`)
+		const found = extractInvokePairs(fetcherMd)
 
 		assert.ok(found.length > 0, 'Expected at least one az devops invoke call in ado-fetcher.md')
 		for (const key of found) {
@@ -45,6 +53,38 @@ describe('ado-cli inventory', () => {
 			assert.ok(
 				foundSet.has(key),
 				`ado-cli-inventory.json lists az devops invoke "${key}" but ado-fetcher.md never makes that call`
+			)
+		}
+	})
+
+	it('every az devops invoke call in ado-writer.md is in ado-cli-inventory.json (invokeCommandsWriter)', () => {
+		const writerMd = readFileSync(resolve(root, 'agents/ado-writer.md'), 'utf8')
+		const inventory = JSON.parse(
+			readFileSync(resolve(root, 'providers/azure_devops/fixtures/ado-cli-inventory.json'), 'utf8')
+		)
+
+		const inventoriedWriter = new Set(
+			(inventory.invokeCommandsWriter ?? []).map(
+				(/** @type {{ area: string, resource: string }} */ c) => `${c.area}/${c.resource}`
+			)
+		)
+
+		const found = extractInvokePairs(writerMd)
+
+		assert.ok(found.length > 0, 'Expected at least one az devops invoke call in ado-writer.md')
+		for (const key of found) {
+			assert.ok(
+				inventoriedWriter.has(key),
+				`az devops invoke --area/--resource "${key}" in ado-writer.md is NOT in ado-cli-inventory.json invokeCommandsWriter`
+			)
+		}
+
+		// Reverse direction: every invokeCommandsWriter entry must appear in ado-writer.md.
+		const foundSet = new Set(found)
+		for (const key of inventoriedWriter) {
+			assert.ok(
+				foundSet.has(key),
+				`ado-cli-inventory.json invokeCommandsWriter lists "${key}" but ado-writer.md never makes that call`
 			)
 		}
 	})

@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/lib/args.mjs`: `parseArgs` gains an `options.booleanFlags` set for presence-only flags (`--yes`, `--reset`) recorded as `''`; existing callers are unaffected
 - `scripts/lib/severity-bucketer.mjs` exports `SEVERITY_ORDER` so the Approval Loop's stable Finding ordering reuses the canonical severity vocabulary instead of duplicating it
 - `tests/approval-loop.test.mjs` + `tests/args.test.mjs`: cover state-file shape, accept/edit/skip transitions, resume from partial state, all head-SHA-mismatch branches (fresh/continue/`--reset`/`--yes`), non-TTY abort, `--yes` bulk-accept, malformed-findings and malformed-state guards, early stream close (Ctrl-D), atomic-write and best-effort-cleanup behaviour, gitignore creation, and `parseArgs` boolean-flag handling
+- ADO Writer agent (issue #150): `agents/ado-writer.md` ("Scribe", orange) consumes `approved.json` from the Approval Loop and posts one inline Review Thread per approved Finding (Active status, attached to the right file and line range) plus one General Comment Thread for the Review Summary, all via `az devops invoke --area git --resource threads --http-method POST`; the Bot Signature footer on every comment is rendered exclusively by `scripts/render-inline-comment.mjs` and `scripts/render-summary.mjs` (never inlined by the agent); `suggestion` blocks appear only when the upstream Finding included a non-empty `suggestion` field
+- `scripts/render-inline-comment.mjs`: CLI bridge that renders a single Finding's Inline Comment (severity emoji, title, prose body, optional suggestion block, Bot Signature footer) from `INLINE_COMMENT_JSON` env var; cross-platform, no shell quoting issues
+- `scripts/lib/parse-write-response.mjs`: normalises the `az devops invoke` POST result into `{ success, threadId, error }` covering both create-thread and future patch-thread paths; tested in `tests/parse-write-response.test.mjs`
+- `providers/azure_devops/fixtures/ado-cli-inventory.json` gains an `invokeCommandsWriter` section listing the `git/threads POST` path used by the ADO Writer
+- `tests/ado-cli-smoke.test.mjs` expanded: new bidirectional test verifies every `az devops invoke` path in `ado-writer.md` is present in `invokeCommandsWriter` and vice versa
+- `commands/review-pr.md` gains `--post` / `--yes` write path (ADO mode only): serialises Findings, runs the Approval Loop, spawns the ADO Writer agent, and deletes the state directory after writer success
 
 ### Fixed
 
