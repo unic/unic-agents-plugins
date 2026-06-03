@@ -114,7 +114,7 @@ If the command exits non-zero, emit this error and stop:
 
 The ADO `diffs` endpoint (`GET .../diffs/commits`) returns per-file change entries with path metadata only — it does **not** return line-level diff content or diff hunks. Full blob-level diff fetching is deferred to a later slice.
 
-Set `RAW_DIFF` to an empty string and add the following to `warnings`:
+Set `RAW_DIFF` to an empty string, set `DIFF_UNAVAILABLE` to `true`, and add the following to `warnings`. When a later slice adds blob-level diff fetching, set `DIFF_UNAVAILABLE` to `false` and populate `RAW_DIFF` — the orchestrator guard and the `diffUnavailable` notice will stop firing automatically with no other changes needed.
 
 ```
 "ADO diffs API returns file-level metadata only — line-level diff unavailable in this preview. Review agents will operate on changedFiles."
@@ -132,8 +132,9 @@ Emit exactly one JSON object — no prose, no markdown, no footer:
   "threads": <THREADS object>,
   "changedFiles": ["path/to/file.ts"],
   "rawDiff": "<unified diff string or empty>",
+  "diffUnavailable": true,
   "warnings": []
 }
 ```
 
-`warnings` is an array of strings for any non-fatal issues (e.g. empty diff, identity fields missing, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.
+`diffUnavailable` is `true` when line-level diff could not be fetched (always `true` in this preview — deferred to a later slice). `warnings` is an array of strings for any non-fatal issues (e.g. empty diff, identity fields missing, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.

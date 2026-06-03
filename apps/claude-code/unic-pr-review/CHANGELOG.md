@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- (none)
+
+### Fixed
+
+- (none)
+
+## [2.0.1] — 2026-06-03
+
+### Breaking
+
+- (none)
+
+### Added
+
 - `/unic-pr-review:review-pr` slash command (`commands/review-pr.md`) + `agents/code-reviewer.md` aspect agent: Pre-PR mode that diffs the local branch against its upstream base and prints the Review Summary
 - `/unic-pr-review:setup-confluence` slash command (`commands/setup-confluence.md`) + `scripts/setup-confluence.mjs` writes `~/.unic-confluence.json` with chmod 600 on POSIX
 - `/unic-pr-review:setup-jira` slash command (`commands/setup-jira.md`) + `scripts/setup-jira.mjs` adds/updates the `jiraUrl` field in the Confluence credential file, idempotent on re-run
@@ -44,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/ado-cli-smoke.test.mjs`: asserts `az devops invoke` calls and `fixtures/ado-cli-inventory.json` agree in both directions, so the inventory cannot advertise an invoke call the fetcher never makes
 - `providers/azure_devops/provider.mjs`: `discoverWorkItems` throws on non-object input (instead of silently yielding zero Work Items) and the `discover-work-items` CLI rejects a missing stdin pipe rather than hanging
 - ADR-0010 (Provider folder bundle) accepted and ADR-0001 amended (provider-owned work-item discovery)
+- `agents/ado-fetcher.md` Step 6/7: emits `diffUnavailable: true` in the result envelope whenever line-level diff is deferred, making the "not a clean review" signal machine-checkable
+- `scripts/lib/notices.mjs` gains the `diffUnavailable` `NoticesContext` field and render block (Reviewer Notice when line-level diff was unavailable and diff-driven agents did not run), with unit tests in `tests/notices.test.mjs`
+- `commands/review-pr.md` Step 1.8 guard keys off `FETCHER_OUTPUT.diffUnavailable` (structural flag) instead of prose-testing `rawDiff` emptiness; Step 1.9 always forwards `NOTICES_JSON` when `diffUnavailable` is `true` so the renderer structurally guarantees the notice
 
 ### Changed
 

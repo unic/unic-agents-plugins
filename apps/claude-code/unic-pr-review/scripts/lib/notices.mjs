@@ -19,6 +19,8 @@
  *   across two or more Iterations (US 27)
  * @property {boolean} [unassessedIntentCheck] - true when the Assessor was spawned but
  *   applied zero verdicts (assessed missing, non-array, or all-zero applied count)
+ * @property {boolean} [diffUnavailable] - true when line-level diff could not be fetched;
+ *   diff-driven aspect agents were not run and an empty Findings list does not mean clean
  */
 
 /**
@@ -49,6 +51,13 @@ export function renderNotices(ctx) {
 		lines.push(
 			'> **Notice:** The Intent Check block could not be assessed — the Assessor produced no valid verdicts. ' +
 				'Every AC shows `unaddressed`, which may not reflect the diff.'
+		)
+	}
+
+	if (ctx.diffUnavailable) {
+		lines.push(
+			'> **Notice:** Line-level diff was unavailable in this preview, so diff-driven Review Aspect agents did not run. ' +
+				'An empty Findings list does **not** mean the PR is clean.'
 		)
 	}
 
