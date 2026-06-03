@@ -56,12 +56,13 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
       "startLine": 44,
       "title": "Error branch in processPayment has no test coverage",
       "body": "The new `catch` block added on line 44 is exercised by zero tests in the diff. A regression in the error path would go undetected. Either add a test that forces a payment error, or document why this branch is intentionally untested.",
-      "suggestion": null
+      "priorVerdict": "fixed"
     }
   ],
   "positiveObservations": [
     "The happy-path tests for the new discount logic are thorough and cover the boundary at 0% and 100%."
-  ]
+  ],
+  "priorFindingVerdicts": [{ "title": "Error branch in processPayment has no test coverage", "verdict": "fixed" }]
 }
 ```
 
@@ -74,8 +75,25 @@ Field constraints:
 - `title`: one short sentence, no period, ≤ 80 characters
 - `body`: 1–4 sentences explaining the problem and its impact; include `Either X, or Y` options when there are multiple valid fixes
 - `suggestion`: optional — include **only** when the fix is a clean, mechanical drop-in replacement with no judgment call required (e.g. rename a variable, add a missing null check with an obvious correct value). Omit when the fix requires design judgment.
+- `priorVerdict`: optional — present **only** in Re-review mode and **only** on a Finding that corresponds to a prior Finding. One of `"fixed"`, `"partial"`, `"ignored"`.
 
 `positiveObservations` must always be present (use an empty array `[]` when you find nothing noteworthy to praise). Keep observations concise — one sentence each.
+
+`priorFindingVerdicts` (optional): present only in re-review mode. One entry per element in `priorFindings`. `verdict` must be one of `"fixed"`, `"partial"`, `"ignored"`. Use the exact `title` string from the corresponding prior Finding.
+
+## Re-review context (optional)
+
+When the orchestrator supplies a `priorFindings` array alongside the diff, you are in Re-review mode. Each element has the shape `{ title, filePath, startLine, severity }`.
+
+For each prior Finding, decide:
+
+- **`fixed`** — the diff clearly addresses the finding; the problematic code is changed or removed.
+- **`partial`** — the diff shows partial progress but the root concern is not fully resolved.
+- **`ignored`** — the diff contains no changes related to this finding.
+
+Emit your verdict in the `priorFindingVerdicts` array (see Output format). One entry per prior Finding, using the same `title` string verbatim. Do NOT re-emit prior Findings as new Findings.
+
+If no `priorFindings` are provided, omit `priorFindingVerdicts` from the output entirely.
 
 ## Procedure
 

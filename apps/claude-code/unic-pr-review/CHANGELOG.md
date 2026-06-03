@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `providers/azure_devops/fixtures/ado-cli-inventory.json` gains an `invokeCommandsWriter` section listing the `git/threads POST` path used by the ADO Writer
 - `tests/ado-cli-smoke.test.mjs` expanded: new bidirectional test verifies every `az devops invoke` path in `ado-writer.md` is present in `invokeCommandsWriter` and vice versa
 - `commands/review-pr.md` gains `--post` / `--yes` write path (ADO mode only): serialises Findings, runs the Approval Loop, spawns the ADO Writer agent, and deletes the state directory after writer success
+- Re-review detection + delta diff + per-prior verdicts (issue #151, ADR-0006 / ADR-0007). `scripts/lib/signature.mjs` `parseSignature` is now a real parser: it takes bot-filtered PR Thread payloads and returns `{ priorRevisionId, priorAuthorUserId, priorIteration }` for the newest Bot Signature (highest iteration), or `null` when none is found; detection and rendering share the single `SIGNATURE_PREFIX` literal, and `\r\n` is normalised before matching
+- `scripts/parse-prior-signature.mjs`: a thin executable wrapper that reads bot-filtered threads from stdin, calls `parseSignature`, and writes the result as JSON, so the ADO Fetcher invokes the canonical parser via `node` instead of duplicating the regex
+- `agents/ado-fetcher.md` Step 4a filters Threads by the cached identity ID before parsing (so human comments are never read as prior reviews), detects `MODE` (`first-review` / `re-review` / `first-review-fallback`), and in `re-review` mode computes a `git diff` delta between the prior reviewed Revision's commit and the current commit and extracts `priorFindings` from inline bot Threads; output schema gains `mode`, `priorRevisionId`, `priorIteration`, `deltaRawDiff`, and `priorFindings` (the agent gains `Bash(git *)`; no new `az devops invoke` paths)
+- `scripts/lib/finding-validator.mjs`: the Finding schema gains an optional `priorVerdict` (`fixed` / `partial` / `ignored`); `parseFinding` passes valid verdicts through and silently drops unrecognised values for forward compatibility
+- All six Review Aspect agents accept an optional `priorFindings` preamble and, in Re-review mode, emit a per-prior-Finding `priorFindingVerdicts` array plus an optional `priorVerdict` on matching Findings
+- `scripts/lib/notices.mjs`: a `priorVerdictSummary` notice renders the qualitative re-review tally (`N of M prior findings addressed`) in the terminal preview, after the diff-unavailable notice
+- `tests/signature.test.mjs`, `tests/finding-validator.test.mjs`, `tests/notices.test.mjs`: cover empty / no-match / single / highest-wins / force-push / CRLF / round-trip parsing, `priorVerdict` pass-through and silent-drop, and `priorVerdictSummary` rendering and ordering
 
 ### Fixed
 
@@ -32,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/render-inline-comment.mjs`: required fields were validated for presence only; `title`/`body` are now required to be non-empty strings and `iteration` a finite number, so malformed input fails fast instead of rendering garbage into the load-bearing Bot Signature
 - `scripts/lib/parse-write-response.mjs`: an `az devops invoke` exit-0 error envelope (`{ message, typeKey, errorCode }`, no numeric `id`) was reported as a generic "missing numeric id" error; the ADO `message` is now surfaced verbatim as `ADO error: <message>`
 - `agents/ado-writer.md` Step 1: added an explicit guard for an unreadable or non-array approved-Findings file so the writer reports `success: false` instead of a false success that would trigger state cleanup and silently drop approved Findings
+- `scripts/lib/signature.mjs`: corrected the `ThreadComment` / `SignatureThread` typedocs and the `parseSignature` body comment to accurately describe the caller's thread-granularity filter (a thread is kept when its FIRST comment is bot-authored, so `parseSignature` may iterate over non-bot comments within a kept thread) and documented that `priorAuthorUserId` falls back to an empty string when the matched comment's `author.id` is absent; added `tests/parse-prior-signature.test.mjs` cases for CRLF-encoded stdin, empty stdin (exit 1 + stderr), and an empty-stderr assertion on the success path
 
 ## [2.0.2] — 2026-06-03
 

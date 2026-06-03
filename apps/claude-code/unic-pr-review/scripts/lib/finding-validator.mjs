@@ -16,6 +16,10 @@ import { bucketBySeverity } from './severity-bucketer.mjs'
 /** @import { Severity } from './severity-bucketer.mjs' */
 
 /**
+ * @typedef {'fixed' | 'partial' | 'ignored'} PriorVerdict
+ */
+
+/**
  * @typedef {Object} RawFinding
  * @property {string} filePath
  * @property {number} startLine
@@ -23,6 +27,7 @@ import { bucketBySeverity } from './severity-bucketer.mjs'
  * @property {string} title
  * @property {string} body
  * @property {string} [suggestion]
+ * @property {PriorVerdict} [priorVerdict]
  */
 
 /**
@@ -34,7 +39,10 @@ import { bucketBySeverity } from './severity-bucketer.mjs'
  * @property {string} title
  * @property {string} body
  * @property {string} [suggestion]
+ * @property {PriorVerdict} [priorVerdict]
  */
+
+const PRIOR_VERDICTS = /** @type {readonly string[]} */ (['fixed', 'partial', 'ignored'])
 
 /**
  * Validate a single raw Finding emitted by a Review Aspect agent.
@@ -78,6 +86,11 @@ export function parseFinding(raw) {
 
 	const suggestion = typeof r.suggestion === 'string' && r.suggestion.trim().length > 0 ? r.suggestion : undefined
 
+	const priorVerdict =
+		typeof r.priorVerdict === 'string' && PRIOR_VERDICTS.includes(r.priorVerdict)
+			? /** @type {PriorVerdict} */ (r.priorVerdict)
+			: undefined
+
 	return {
 		severity,
 		confidence: r.confidence,
@@ -86,5 +99,6 @@ export function parseFinding(raw) {
 		title: r.title,
 		body: r.body,
 		...(suggestion !== undefined && { suggestion }),
+		...(priorVerdict !== undefined && { priorVerdict }),
 	}
 }
