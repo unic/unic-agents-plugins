@@ -65,9 +65,21 @@ describe('ado-writer.md contract — Step 5c reopen shape', () => {
 	})
 
 	it('Step 5c specifies error aggregation with semicolon separator for dual failures', () => {
-		assert.ok(
-			step5c.includes('; '),
-			'Step 5c must document the "; " separator for aggregating two sub-op error messages'
+		// Anchor on the surrounding rule text, not a bare "; " — a bare substring would
+		// stay green even if the dual-failure concatenation rule were reworded away.
+		assert.match(
+			step5c,
+			/concatenated with `; ` when both failed/,
+			'Step 5c must document concatenating both sub-op error messages with "; " when both fail'
+		)
+	})
+
+	it('Step 5c specifies the error is null on full success and a single message when one sub-op fails', () => {
+		assert.match(step5c, /`null` when both succeeded/, 'Step 5c must state error is null when both sub-ops succeed')
+		assert.match(
+			step5c,
+			/failing sub-op's error message when exactly one failed/,
+			'Step 5c must state error is the single failing sub-op message when exactly one fails'
 		)
 	})
 })
@@ -134,7 +146,20 @@ describe('ado-writer.md contract — Step 8 aggregation shape', () => {
 		assert.ok(reopenEntry, 'Step 8 success example must contain a reopen entry')
 		assert.equal(reopenEntry.replySuccess, true, 'replySuccess must be true in success example')
 		assert.equal(reopenEntry.statusSuccess, true, 'statusSuccess must be true in success example')
+		assert.equal(reopenEntry.error, null, 'error must be null when both reopen sub-ops succeed')
 		assert.equal(successExample.success, true, 'top-level success must be true in success example')
+	})
+
+	it('Step 8 reply/resolve entries keep a single success field and are never split', () => {
+		const blocks = extractJsonBlocks(writerMd, '### Step 8')
+		const partialFailure = /** @type {any} */ (blocks[0])
+		const nonReopen = partialFailure.threadActionResults?.filter((/** @type {any} */ e) => e.action !== 'reopen')
+		assert.ok(nonReopen?.length, 'Step 8 example must contain at least one reply/resolve entry')
+		for (const entry of nonReopen) {
+			assert.ok('success' in entry, `${entry.action} entry must keep a single success field`)
+			assert.ok(!('replySuccess' in entry), `${entry.action} entry must NOT be split into replySuccess`)
+			assert.ok(!('statusSuccess' in entry), `${entry.action} entry must NOT be split into statusSuccess`)
+		}
 	})
 
 	it('Step 8 states reopen requires both replySuccess and statusSuccess for overall success', () => {
