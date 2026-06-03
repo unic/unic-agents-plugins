@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/render-inline-comment.mjs`: required fields were validated for presence only; `title`/`body` are now required to be non-empty strings and `iteration` a finite number, so malformed input fails fast instead of rendering garbage into the load-bearing Bot Signature
 - `scripts/lib/parse-write-response.mjs`: an `az devops invoke` exit-0 error envelope (`{ message, typeKey, errorCode }`, no numeric `id`) was reported as a generic "missing numeric id" error; the ADO `message` is now surfaced verbatim as `ADO error: <message>`
 - `agents/ado-writer.md` Step 1: added an explicit guard for an unreadable or non-array approved-Findings file so the writer reports `success: false` instead of a false success that would trigger state cleanup and silently drop approved Findings
+- `scripts/lib/signature.mjs`: corrected the `ThreadComment` / `SignatureThread` typedocs and the `parseSignature` body comment to accurately describe the caller's thread-granularity filter (a thread is kept when its FIRST comment is bot-authored, so `parseSignature` may iterate over non-bot comments within a kept thread) and documented that `priorAuthorUserId` falls back to an empty string when the matched comment's `author.id` is absent; added `tests/parse-prior-signature.test.mjs` cases for CRLF-encoded stdin, empty stdin (exit 1 + stderr), and an empty-stderr assertion on the success path
 
 ## [2.0.2] — 2026-06-03
 

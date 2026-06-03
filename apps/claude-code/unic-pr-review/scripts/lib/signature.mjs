@@ -35,8 +35,10 @@ export function renderFooter(iteration) {
 }
 
 /**
- * A single comment within an ADO PR Thread, pre-filtered by the caller to
- * include only bot-authored comments.
+ * A single comment within an ADO PR Thread. The caller filters at thread
+ * granularity (it keeps a thread when the thread's FIRST comment is
+ * bot-authored), so individual comments here are not guaranteed to be
+ * bot-authored.
  *
  * @typedef {Object} ThreadComment
  * @property {string} content - comment body text (may contain CRLF line endings)
@@ -45,8 +47,9 @@ export function renderFooter(iteration) {
  */
 
 /**
- * A simplified ADO PR Thread payload. The caller (ADO Fetcher) filters threads
- * to only include those authored by the bot identity before passing here.
+ * A simplified ADO PR Thread payload. The caller (ADO Fetcher, Step 4a) filters
+ * threads to only those whose FIRST comment is bot-authored before passing here;
+ * the remaining comments in a kept thread may have other authors.
  *
  * @typedef {Object} SignatureThread
  * @property {ThreadComment[]} comments - at least one comment
@@ -58,7 +61,8 @@ export function renderFooter(iteration) {
  * @typedef {Object} ParsedSignature
  * @property {number} priorRevisionId - iteration number N from the footer; equals priorIteration.
  *   Used by the caller to look up the revision in REVISIONS.value (ADO iteration ID = revision ID).
- * @property {string} priorAuthorUserId - ADO user ID of the matched comment author
+ * @property {string} priorAuthorUserId - ADO user ID of the matched comment author;
+ *   falls back to an empty string `''` when the matched comment's author.id is absent
  * @property {number} priorIteration - the iteration number N from "Iteration N" in the footer
  */
 
@@ -66,12 +70,13 @@ export function renderFooter(iteration) {
  * Parse the most recent Bot Signature from pre-filtered PR Thread payloads.
  *
  * "Most recent" is defined as the highest iteration number found across all
- * comment bodies. The caller must have already filtered threads to only
- * bot-authored comments (ADR-0006 identity-caching requirement).
+ * comment bodies. The caller must have already filtered threads to only those
+ * whose FIRST comment is bot-authored (ADR-0006 identity-caching requirement);
+ * this function still iterates over every comment in each kept thread.
  *
  * CRLF-tolerant: `\r\n` in comment content is normalised to `\n` before matching.
  *
- * @param {SignatureThread[]} threads - pre-filtered threads (bot comments only)
+ * @param {SignatureThread[]} threads - threads whose first comment is bot-authored
  * @returns {ParsedSignature | null}
  */
 export function parseSignature(threads) {
