@@ -60,4 +60,24 @@ describe('renderNotices', () => {
 		assert.ok(unassessedIdx >= 0, 'Missing unassessed notice')
 		assert.ok(fallbackIdx < unassessedIdx, 'fallback notice must precede unassessed notice')
 	})
+
+	it('returns empty string when diffUnavailable is false', () => {
+		assert.equal(renderNotices({ diffUnavailable: false }), '')
+	})
+
+	it('renders the diff-unavailable notice when diffUnavailable is true', () => {
+		const out = renderNotices({ diffUnavailable: true })
+		assert.ok(out.includes('> **Notice:**'))
+		assert.ok(out.includes('Line-level diff was unavailable'))
+		assert.ok(out.includes('does **not** mean the PR is clean'))
+	})
+
+	it('renders diff-unavailable notice after unassessedIntentCheck when both are set', () => {
+		const out = renderNotices({ unassessedIntentCheck: true, diffUnavailable: true })
+		const unassessedIdx = out.indexOf('Intent Check block')
+		const diffIdx = out.indexOf('Line-level diff was unavailable')
+		assert.ok(unassessedIdx >= 0, 'Missing unassessed notice')
+		assert.ok(diffIdx >= 0, 'Missing diff-unavailable notice')
+		assert.ok(unassessedIdx < diffIdx, 'unassessed notice must precede diff-unavailable notice')
+	})
 })
