@@ -62,13 +62,13 @@ Then reinstall plugins from the Claude Code command palette.
 
 ## Commands
 
-| Command                                    | Description                                                                                    | Argument hint    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------- | ---------------- |
-| `/unic-pr-review:doctor`                   | Verify all unic-pr-review prerequisites are in place                                           | _(no arguments)_ |
+| Command                                    | Description                                                                                                                      | Argument hint                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `/unic-pr-review:doctor`                   | Verify all unic-pr-review prerequisites are in place                                                                             | _(no arguments)_                  |
 | `/unic-pr-review:review-pr [<ADO PR URL>]` | Review your local branch (Pre-PR mode) or an Azure DevOps PR. Add `--post` to enter the Approval Loop and write Findings to ADO. | `[<ADO PR URL>] [--post] [--yes]` |
-| `/unic-pr-review:setup-confluence`         | Interactive wizard — writes `~/.unic-confluence.json`                                          | _(no arguments)_ |
-| `/unic-pr-review:setup-jira`               | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json`                               | _(no arguments)_ |
-| `/unic-pr-review:setup-azure`              | Interactive wizard — writes `~/.unic-azure.json`                                               | _(no arguments)_ |
+| `/unic-pr-review:setup-confluence`         | Interactive wizard — writes `~/.unic-confluence.json`                                                                            | _(no arguments)_                  |
+| `/unic-pr-review:setup-jira`               | Interactive wizard — adds `jiraUrl` to `~/.unic-confluence.json`                                                                 | _(no arguments)_                  |
+| `/unic-pr-review:setup-azure`              | Interactive wizard — writes `~/.unic-azure.json`                                                                                 | _(no arguments)_                  |
 
 ## Credential files
 

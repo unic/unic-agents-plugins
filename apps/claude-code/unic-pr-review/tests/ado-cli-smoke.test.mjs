@@ -11,7 +11,9 @@ import { fileURLToPath } from 'node:url'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const root = resolve(__dirname, '..')
 
-const inventory = JSON.parse(readFileSync(resolve(root, 'providers/azure_devops/fixtures/ado-cli-inventory.json'), 'utf8'))
+const inventory = JSON.parse(
+	readFileSync(resolve(root, 'providers/azure_devops/fixtures/ado-cli-inventory.json'), 'utf8')
+)
 
 /** Extract `area/resource` pairs from `az devops invoke --area X --resource Y` patterns. */
 const INVOKE_PATTERN = /az devops invoke\s+--area\s+(\S+)\s+--resource\s+(\S+)/g
