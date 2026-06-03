@@ -385,29 +385,18 @@ async function main() {
 		iteration,
 	} = parsed
 
-	if (!findingsPath) {
-		process.stderr.write('approval-loop: --findings is required\n')
-		process.exit(1)
-	}
-	if (!approvedPath) {
-		process.stderr.write('approval-loop: --approved is required\n')
-		process.exit(1)
-	}
-	if (!key) {
-		process.stderr.write('approval-loop: --key is required\n')
-		process.exit(1)
-	}
-	if (!headSha) {
-		process.stderr.write('approval-loop: --head-sha is required\n')
-		process.exit(1)
-	}
-	if (!mode) {
-		process.stderr.write('approval-loop: --mode is required\n')
-		process.exit(1)
-	}
-	if (!pluginVersion) {
-		process.stderr.write('approval-loop: --plugin-version is required\n')
-		process.exit(1)
+	for (const [val, flag] of /** @type {[string | undefined, string][]} */ ([
+		[findingsPath, '--findings'],
+		[approvedPath, '--approved'],
+		[key, '--key'],
+		[headSha, '--head-sha'],
+		[mode, '--mode'],
+		[pluginVersion, '--plugin-version'],
+	])) {
+		if (!val) {
+			process.stderr.write(`approval-loop: ${flag} is required\n`)
+			process.exit(1)
+		}
 	}
 
 	await runApprovalLoop({

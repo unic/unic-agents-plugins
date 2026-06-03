@@ -90,6 +90,20 @@ function loop(params, deps) {
 	)
 }
 
+/** Minimal LoopParams used in buildInitialState unit tests (unused path fields are intentional). */
+const BASE_PARAMS = {
+	findingsPath: '',
+	approvedPath: '',
+	key: 'testkey1234abcd0',
+	headSha: 'sha1',
+	mode: 'first-review',
+	pluginVersion: '2.0.0',
+	isYes: false,
+	isReset: false,
+}
+
+const CREATED_AT = '2026-06-03T00:00:00.000Z'
+
 // ─── deriveId ────────────────────────────────────────────────────────────────
 
 describe('deriveId', () => {
@@ -153,21 +167,7 @@ describe('sortFindings', () => {
 
 describe('buildInitialState', () => {
 	it('all findings start as pending', () => {
-		const state = buildInitialState(
-			SAMPLE_FINDINGS,
-			{
-				findingsPath: '',
-				approvedPath: '',
-				key: 'testkey1234abcd0',
-				headSha: 'sha1',
-				mode: 'first-review',
-				pluginVersion: '2.0.0',
-				isYes: false,
-				isReset: false,
-			},
-			'2026-06-03T00:00:00.000Z'
-		)
-
+		const state = buildInitialState(SAMPLE_FINDINGS, BASE_PARAMS, CREATED_AT)
 		assert.equal(
 			state.findings.every((f) => f.decision === 'pending'),
 			true
@@ -175,21 +175,7 @@ describe('buildInitialState', () => {
 	})
 
 	it('assigns stable id to each finding', () => {
-		const state = buildInitialState(
-			SAMPLE_FINDINGS,
-			{
-				findingsPath: '',
-				approvedPath: '',
-				key: 'testkey1234abcd0',
-				headSha: 'sha1',
-				mode: 'first-review',
-				pluginVersion: '2.0.0',
-				isYes: false,
-				isReset: false,
-			},
-			'2026-06-03T00:00:00.000Z'
-		)
-
+		const state = buildInitialState(SAMPLE_FINDINGS, BASE_PARAMS, CREATED_AT)
 		assert.equal(
 			state.findings.every((f) => /^[0-9a-f]{16}$/.test(f.id)),
 			true
@@ -197,21 +183,7 @@ describe('buildInitialState', () => {
 	})
 
 	it('findings are sorted by severity bucket', () => {
-		const state = buildInitialState(
-			SAMPLE_FINDINGS,
-			{
-				findingsPath: '',
-				approvedPath: '',
-				key: 'testkey1234abcd0',
-				headSha: 'sha1',
-				mode: 'first-review',
-				pluginVersion: '2.0.0',
-				isYes: false,
-				isReset: false,
-			},
-			'2026-06-03T00:00:00.000Z'
-		)
-
+		const state = buildInitialState(SAMPLE_FINDINGS, BASE_PARAMS, CREATED_AT)
 		assert.equal(state.findings[0].severity, 'critical')
 		assert.equal(state.findings[1].severity, 'important')
 	})
@@ -219,21 +191,11 @@ describe('buildInitialState', () => {
 	it('state shape contains all required fields', () => {
 		const state = buildInitialState(
 			SAMPLE_FINDINGS,
-			{
-				findingsPath: '',
-				approvedPath: '',
-				key: 'deadbeef01234567',
-				headSha: 'abc123',
-				mode: 'first-review',
-				pluginVersion: '2.0.0',
-				isYes: false,
-				isReset: false,
-			},
-			'2026-06-03T00:00:00.000Z'
+			{ ...BASE_PARAMS, key: 'deadbeef01234567', headSha: 'abc123' },
+			CREATED_AT
 		)
-
 		assert.equal(state.pluginVersion, '2.0.0')
-		assert.equal(state.createdAt, '2026-06-03T00:00:00.000Z')
+		assert.equal(state.createdAt, CREATED_AT)
 		assert.equal(state.mode, 'first-review')
 		assert.equal(state.key, 'deadbeef01234567')
 		assert.equal(state.headSha, 'abc123')
@@ -241,41 +203,16 @@ describe('buildInitialState', () => {
 	})
 
 	it('includes endLine when present in raw finding', () => {
-		const state = buildInitialState(
-			SAMPLE_FINDINGS,
-			{
-				findingsPath: '',
-				approvedPath: '',
-				key: 'key',
-				headSha: 'sha',
-				mode: 'first-review',
-				pluginVersion: '2.0.0',
-				isYes: false,
-				isReset: false,
-			},
-			'2026-06-03T00:00:00.000Z'
-		)
-
+		const state = buildInitialState(SAMPLE_FINDINGS, { ...BASE_PARAMS, key: 'key', headSha: 'sha' }, CREATED_AT)
 		assert.equal(state.findings[0].endLine, 50)
 	})
 
 	it('includes iteration when provided', () => {
 		const state = buildInitialState(
 			SAMPLE_FINDINGS,
-			{
-				findingsPath: '',
-				approvedPath: '',
-				key: 'key',
-				headSha: 'sha',
-				mode: 'first-review',
-				pluginVersion: '2.0.0',
-				iteration: 3,
-				isYes: false,
-				isReset: false,
-			},
-			'2026-06-03T00:00:00.000Z'
+			{ ...BASE_PARAMS, key: 'key', headSha: 'sha', iteration: 3 },
+			CREATED_AT
 		)
-
 		assert.equal(state.iteration, 3)
 	})
 })
@@ -541,6 +478,29 @@ describe('resume from partial state', () => {
 	})
 })
 
+/**
+ * Write a seeded state.json to disk with all findings set to a given decision.
+ *
+ * @param {string} stateDir
+ * @param {string} key
+ * @param {string} fp - findings file path (used for LoopParams only)
+ * @param {string} out - approved file path (used for LoopParams only)
+ * @param {'accept' | 'skip'} decision
+ * @param {string} [headSha]
+ */
+function seedStateFile(stateDir, key, fp, out, decision, headSha = 'old-sha') {
+	mkdirSync(stateDir, { recursive: true })
+	writeFileSync(join(stateDir, '..', '.gitignore'), '*\n', 'utf8')
+	const params = { ...BASE_PARAMS, findingsPath: fp, approvedPath: out, key, headSha }
+	const findings = buildInitialState([SAMPLE_FINDINGS[0]], params, CREATED_AT).findings.map((f) => ({
+		...f,
+		decision,
+		decidedAt: CREATED_AT,
+	}))
+	const state = { pluginVersion: '2.0.0', createdAt: CREATED_AT, mode: 'first-review', key, headSha, findings }
+	writeFileSync(join(stateDir, 'state.json'), JSON.stringify(state, null, 2), 'utf8')
+}
+
 // ─── head-SHA mismatch prompt ─────────────────────────────────────────────────
 
 describe('head-SHA mismatch', () => {
@@ -549,37 +509,7 @@ describe('head-SHA mismatch', () => {
 		const key = sha16('mismatch-test')
 		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
 		const out = approvedPath(dir)
-		const stateDir = join(dir, '.unic-pr-review', key)
-		mkdirSync(stateDir, { recursive: true })
-		writeFileSync(join(dir, '.unic-pr-review', '.gitignore'), '*\n', 'utf8')
-
-		const oldState = {
-			pluginVersion: '2.0.0',
-			createdAt: '2026-06-03T00:00:00.000Z',
-			mode: 'first-review',
-			key,
-			headSha: 'old-sha',
-			findings: buildInitialState(
-				[SAMPLE_FINDINGS[0]],
-				{
-					findingsPath: fp,
-					approvedPath: out,
-					key,
-					headSha: 'old-sha',
-					mode: 'first-review',
-					pluginVersion: '2.0.0',
-					isYes: false,
-					isReset: false,
-				},
-				'2026-06-03T00:00:00.000Z'
-			).findings.map((f) => ({
-				...f,
-				decision: 'skip',
-				decidedAt: '2026-06-03T00:00:00.000Z',
-			})),
-		}
-		writeFileSync(join(stateDir, 'state.json'), JSON.stringify(oldState, null, 2), 'utf8')
-
+		seedStateFile(join(dir, '.unic-pr-review', key), key, fp, out, 'skip')
 		const outputLines = captureOutput()
 
 		// 'f' = fresh start, then 'a' = accept the finding
@@ -598,36 +528,7 @@ describe('head-SHA mismatch', () => {
 		const key = sha16('mismatch-continue')
 		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
 		const out = approvedPath(dir)
-		const stateDir = join(dir, '.unic-pr-review', key)
-		mkdirSync(stateDir, { recursive: true })
-		writeFileSync(join(dir, '.unic-pr-review', '.gitignore'), '*\n', 'utf8')
-
-		const oldState = {
-			pluginVersion: '2.0.0',
-			createdAt: '2026-06-03T00:00:00.000Z',
-			mode: 'first-review',
-			key,
-			headSha: 'old-sha',
-			findings: buildInitialState(
-				[SAMPLE_FINDINGS[0]],
-				{
-					findingsPath: fp,
-					approvedPath: out,
-					key,
-					headSha: 'old-sha',
-					mode: 'first-review',
-					pluginVersion: '2.0.0',
-					isYes: false,
-					isReset: false,
-				},
-				'2026-06-03T00:00:00.000Z'
-			).findings.map((f) => ({
-				...f,
-				decision: 'accept',
-				decidedAt: '2026-06-03T00:00:00.000Z',
-			})),
-		}
-		writeFileSync(join(stateDir, 'state.json'), JSON.stringify(oldState, null, 2), 'utf8')
+		seedStateFile(join(dir, '.unic-pr-review', key), key, fp, out, 'accept')
 
 		// 'c' = continue with stale findings (all already decided, no more prompts needed)
 		await loop(
@@ -645,36 +546,7 @@ describe('head-SHA mismatch', () => {
 		const key = sha16('reset-test')
 		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
 		const out = approvedPath(dir)
-		const stateDir = join(dir, '.unic-pr-review', key)
-		mkdirSync(stateDir, { recursive: true })
-		writeFileSync(join(dir, '.unic-pr-review', '.gitignore'), '*\n', 'utf8')
-
-		const oldState = {
-			pluginVersion: '2.0.0',
-			createdAt: '2026-06-03T00:00:00.000Z',
-			mode: 'first-review',
-			key,
-			headSha: 'old-sha',
-			findings: buildInitialState(
-				[SAMPLE_FINDINGS[0]],
-				{
-					findingsPath: fp,
-					approvedPath: out,
-					key,
-					headSha: 'old-sha',
-					mode: 'first-review',
-					pluginVersion: '2.0.0',
-					isYes: false,
-					isReset: false,
-				},
-				'2026-06-03T00:00:00.000Z'
-			).findings.map((f) => ({
-				...f,
-				decision: 'skip',
-				decidedAt: '2026-06-03T00:00:00.000Z',
-			})),
-		}
-		writeFileSync(join(stateDir, 'state.json'), JSON.stringify(oldState, null, 2), 'utf8')
+		seedStateFile(join(dir, '.unic-pr-review', key), key, fp, out, 'skip')
 
 		// --reset + 'a' = no prompt, fresh start, accept
 		await loop(
