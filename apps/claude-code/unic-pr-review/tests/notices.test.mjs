@@ -15,6 +15,13 @@ describe('renderNotices', () => {
 		assert.equal(renderNotices({ persistentUnaddressed: [] }), '')
 	})
 
+	it('ignores a non-array persistentUnaddressed string without throwing or rendering a block', () => {
+		const out = renderNotices(/** @type {any} */ ({ persistentUnaddressed: 'a single finding title' }))
+		assert.equal(out, '')
+		assert.ok(!out.includes('Persistent unaddressed findings'))
+		assert.ok(!out.includes('undefined'))
+	})
+
 	it('renders the force-push fallback notice when fallbackToFirstReview is true', () => {
 		const out = renderNotices({ fallbackToFirstReview: true })
 		assert.ok(out.includes('> **Notice:**'))
@@ -23,16 +30,63 @@ describe('renderNotices', () => {
 	})
 
 	it('renders persistent-unaddressed block with one entry per title', () => {
-		const out = renderNotices({ persistentUnaddressed: ['Null check missing', 'Magic number'] })
+		const out = renderNotices({
+			persistentUnaddressed: [
+				{
+					threadId: 1,
+					threadUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/42?discussionId=1',
+					title: 'Null check missing',
+					sinceIteration: 1,
+				},
+				{
+					threadId: 2,
+					threadUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/42?discussionId=2',
+					title: 'Magic number',
+					sinceIteration: 2,
+				},
+			],
+		})
 		assert.ok(out.includes('> **Persistent unaddressed findings:**'))
-		assert.ok(out.includes('> - Null check missing'))
-		assert.ok(out.includes('> - Magic number'))
+		assert.ok(out.includes('> - [Null check missing](https://dev.azure.com/'))
+		assert.ok(out.includes('> - [Magic number](https://dev.azure.com/'))
+	})
+
+	it('renders threadUrl as a markdown link', () => {
+		const url = 'https://dev.azure.com/org/proj/_git/repo/pullrequest/42?discussionId=5'
+		const out = renderNotices({
+			persistentUnaddressed: [{ threadId: 5, threadUrl: url, title: 'My finding', sinceIteration: 3 }],
+		})
+		assert.ok(out.includes(`[My finding](${url})`))
+	})
+
+	it('renders sinceIteration label', () => {
+		const out = renderNotices({
+			persistentUnaddressed: [{ threadId: 6, threadUrl: 'https://example.com', title: 'x', sinceIteration: 2 }],
+		})
+		assert.ok(out.includes('_(since Iteration 2)_'))
+	})
+
+	it('preserves order of persistentUnaddressed entries as provided', () => {
+		const out = renderNotices({
+			persistentUnaddressed: [
+				{ threadId: 7, threadUrl: 'https://a.com', title: 'older', sinceIteration: 1 },
+				{ threadId: 8, threadUrl: 'https://b.com', title: 'newer', sinceIteration: 3 },
+			],
+		})
+		assert.ok(out.indexOf('older') < out.indexOf('newer'))
 	})
 
 	it('renders both notices when both flags are set, with fallback first', () => {
 		const out = renderNotices({
 			fallbackToFirstReview: true,
-			persistentUnaddressed: ['Rename variable'],
+			persistentUnaddressed: [
+				{
+					threadId: 3,
+					threadUrl: 'https://dev.azure.com/org/proj/_git/repo/pullrequest/42?discussionId=3',
+					title: 'Rename variable',
+					sinceIteration: 1,
+				},
+			],
 		})
 		const fallbackIdx = out.indexOf('> **Notice:**')
 		const persistentIdx = out.indexOf('> **Persistent unaddressed findings:**')

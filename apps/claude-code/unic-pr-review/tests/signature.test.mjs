@@ -35,7 +35,7 @@ describe('parseSignature', () => {
 	// Helpers
 	/** @param {number} n @param {string} authorId @returns {import('../scripts/lib/signature.mjs').SignatureThread} */
 	const threadWith = (n, authorId = 'bot-123') => ({
-		comments: [{ content: `${renderFooter(n)}`, author: { id: authorId } }],
+		comments: [{ content: renderFooter(n), author: { id: authorId } }],
 	})
 
 	it('returns null when threads array is empty', () => {

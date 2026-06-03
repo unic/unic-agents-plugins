@@ -22,6 +22,11 @@
  * block. A non-object value or invalid JSON is logged to stderr and silently
  * ignored. Absent or empty → no Notices block.
  *
+ * The optional `ITERATION` environment variable carries the current review
+ * iteration number as a positive integer (default `1`). It is stamped into
+ * the Bot Signature footer of the rendered summary. Any non-positive value
+ * (`0` or negative), non-numeric value, and an absent value all fall back to `1`.
+ *
  * Exposed as a standalone script so the slash command can shell out
  * cross-platform (Windows cmd / PowerShell / bash) without an inline
  * `node -e` snippet whose quoting rules differ per shell.
@@ -54,6 +59,13 @@ try {
 } catch (err) {
 	process.stderr.write(
 		`render-summary: FINDINGS_JSON is not valid JSON — ${err instanceof Error ? err.message : String(err)}\n`
+	)
+	process.exit(1)
+}
+
+if (Array.isArray(parsed)) {
+	process.stderr.write(
+		'render-summary: FINDINGS_JSON is a bare array — expected { findings, positiveObservations }. Refusing to silently drop findings.\n'
 	)
 	process.exit(1)
 }
@@ -141,10 +153,13 @@ if (rawNotices?.trim()) {
 	}
 }
 
+const parsedIteration = parseInt(process.env.ITERATION ?? '1', 10)
+const iteration = Number.isInteger(parsedIteration) && parsedIteration >= 1 ? parsedIteration : 1
+
 const summary = renderReviewSummary({
 	findings,
 	positiveObservations,
-	iteration: 1,
+	iteration,
 	intentCheck,
 	notices: notices || undefined,
 })

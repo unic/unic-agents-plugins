@@ -39,7 +39,7 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 
 ```tree
 .claude-plugin/          # Plugin manifest (plugin.json) and marketplace listing
-agents/                  # Review Aspect prompts, Intent Assessor (intent-assessor.md), and Provider agents (ado-fetcher.md, ado-writer.md) — only Review Aspects belong in SPAWN_TABLE
+agents/                  # Review Aspect prompts, Intent Assessor (intent-assessor.md), Provider agents (ado-fetcher.md, ado-writer.md), and the Re-review Coordinator (re-review-coordinator.md) — only Review Aspects belong in SPAWN_TABLE
 commands/                # Claude Code slash command definitions (.md files)
 providers/               # Source Platform Provider bundles (ADR-0010)
 providers/azure_devops/  # Azure DevOps provider: provider.mjs, manifest.json, fixtures/, tests/
@@ -57,6 +57,8 @@ Two changes are required — both are mandatory; omitting either causes the agen
 2. Add an entry to `SPAWN_TABLE` in `scripts/lib/changed-file-analyser.mjs` — the predicate that decides when to spawn it.
 
 > **Important**: The Intent Assessor (`agents/intent-assessor.md`) is **not** a Review Aspect and must **not** be added to `SPAWN_TABLE`. It is spawned by intent presence (`intentBrief` defined **and** skeleton non-empty), not by changed-file categories — see ADR-0011. Adding it to the spawn table would break its spawn semantics.
+
+> **Important**: The Re-review Coordinator (`agents/re-review-coordinator.md`) is also **not** a Review Aspect and must **not** be added to `SPAWN_TABLE`. It is spawned by `review-pr.md` only when `mode == "re-review"` and requires full Thread state as input — not a file-category predicate.
 
 ## Plugin doctrines
 

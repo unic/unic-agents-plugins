@@ -19,6 +19,8 @@
  */
 export const SIGNATURE_PREFIX = '🤖 Reviewed by Claude Code — Iteration '
 
+const SIGNATURE_REGEX = new RegExp(`${SIGNATURE_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)`)
+
 /**
  * Render the Bot Signature footer line for the given iteration number.
  *
@@ -82,11 +84,10 @@ export function renderFooter(iteration) {
 export function parseSignature(threads) {
 	/** @type {ParsedSignature | null} */
 	let best = null
-	const regex = new RegExp(`${SIGNATURE_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)`)
 	for (const thread of threads) {
 		for (const comment of thread.comments ?? []) {
 			const body = (comment.content ?? '').replace(/\r\n/g, '\n')
-			const match = body.match(regex)
+			const match = body.match(SIGNATURE_REGEX)
 			if (!match) continue
 			const n = parseInt(match[1], 10)
 			if (best === null || n > best.priorRevisionId) {
