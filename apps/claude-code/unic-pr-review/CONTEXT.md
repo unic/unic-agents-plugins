@@ -40,6 +40,10 @@ _Avoid_: gap analysis, intent diff, requirements check
 The agent that produces the live Intent Check verdicts by assessing each Acceptance Criterion against the diff (ADR-0011). Runs in the parallel fan-out batch alongside the Review Aspect agents, but is **not** a Review Aspect — it is spawned by intent presence, not changed-file categories, and is never added to the Spawn Set. The Intent Checker emits the unassessed AC skeleton; the Intent Assessor colours in the verdicts.
 _Avoid_: intent checker, verifier, validator
 
+**Re-review Coordinator**:
+The agent (named "Arbiter") that runs in Re-review Mode after the Review Aspect fan-out completes. It receives ADO Thread state, prior Findings, and the aspect agents' new Findings with per-prior-Finding verdicts; it classifies each prior Thread (`addressed` / `disputed` / `pending` / `obsolete`) and emits a structured plan (`{ threadActions, persistentUnaddressed, freshFindings }`) that the ADO Writer executes mechanically. It never calls `az devops invoke` and never appends a Bot Signature footer — both are the ADO Writer's responsibility.
+_Avoid_: arbiter, planner, classifier
+
 **Bot Signature**:
 The load-bearing footer wording `🤖 Reviewed by Claude Code — Iteration N`, owned solely by `scripts/lib/signature.mjs`. Used for Re-review detection and Iteration counting (ADR-0006).
 _Avoid_: marker, tag, watermark

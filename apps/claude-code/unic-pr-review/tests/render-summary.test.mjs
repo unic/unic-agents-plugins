@@ -11,7 +11,7 @@ const SCRIPT = fileURLToPath(new URL('../scripts/render-summary.mjs', import.met
 
 /**
  * Run render-summary.mjs in a child process with the given FINDINGS_JSON,
- * optional INTENT_CHECK_JSON, and optional NOTICES_JSON.
+ * optional INTENT_CHECK_JSON, NOTICES_JSON, and optional ITERATION.
  *
  * @param {string | undefined} findingsJson
  * @param {string} [intentCheckJson]

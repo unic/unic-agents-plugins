@@ -97,6 +97,8 @@ Set `IS_FALLBACK = true`. Set `CURRENT_ITERATION = 1` (fresh review — the prio
 
 Set `IS_FALLBACK = false`. Set `CURRENT_ITERATION = FETCHER_OUTPUT.priorIteration + 1`.
 
+**Any other `mode` value → abort.** Print `Unexpected mode value: <mode>. Aborting.` and stop. Do not proceed.
+
 Then proceed through the shared steps with these re-review deltas:
 
 - Step 1.5 (Work Items) — unchanged.
@@ -416,6 +418,8 @@ FINDINGS_JSON='<freshFindings from Coordinator, as a {findings, positiveObservat
   ITERATION="<CURRENT_ITERATION>" \
   node "${CLAUDE_PLUGIN_ROOT}/scripts/render-summary.mjs"
 ```
+
+> Construct `FINDINGS_JSON` as `JSON.stringify({ findings: COORDINATOR_PLAN.freshFindings, positiveObservations: [] })`.
 
 `FINDINGS_JSON` for re-review contains **only** `COORDINATOR_PLAN.freshFindings` (brand-new issues). Do NOT re-surface prior Findings here — those are handled by `COORDINATOR_PLAN.threadActions` (reply/resolve/reopen). Re-adding them would print them in the summary as if they were new.
 

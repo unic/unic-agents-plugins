@@ -63,6 +63,15 @@ Apply these rules to classify each thread in `priorFindings`. The signals you ha
 
 When signals conflict, prefer `disputed` over `addressed` (humans have agency). When uncertain, use `pending`.
 
+### Classification → threadActions mapping
+
+| Classification | Action in `threadActions`          |
+| -------------- | ---------------------------------- |
+| `addressed`    | `{ action: "resolve" }`            |
+| `disputed`     | omit (Writer leaves untouched)     |
+| `pending`      | `{ action: "reply", body: "..." }` |
+| `obsolete`     | `{ action: "resolve" }`            |
+
 ### Persistent-Unaddressed Logic
 
 A Finding is **persistent-unaddressed** when:
@@ -84,7 +93,7 @@ Construct `threadUrl` as: `<orgUrl>/<project>/_git/<repo>/pullrequest/<prId>?dis
 
 1. Read all signals.
 2. For each thread in `priorFindings`, determine its classification using the rules above.
-3. Build `threadActions`: one entry per thread except `leave`-classified threads (omit those to keep the plan minimal; the Writer will leave them untouched).
+3. Build `threadActions`: one entry per thread except `disputed`-classified threads (omit those to keep the plan minimal; the Writer will leave them untouched).
 4. Build `persistentUnaddressed` from threads satisfying the ≥2-iterations logic.
 5. Collect `freshFindings` from `aspectFindings` across all agents (flatten, deduplicate by filePath+startLine+title).
 6. Emit the JSON object below. Nothing else.
@@ -125,7 +134,7 @@ Construct `threadUrl` as: `<orgUrl>/<project>/_git/<repo>/pullrequest/<prId>?dis
 
 Field constraints:
 
-- `threadActions[*].action`: one of `"reply"` / `"resolve"` / `"reopen"`. Omit `leave`-classified threads entirely.
+- `threadActions[*].action`: one of `"reply"` / `"resolve"` / `"reopen"`. Omit `disputed`-classified threads entirely.
 - `threadActions[*].body`: required for `reply` and `reopen`; omit for `resolve`.
 - `persistentUnaddressed[*].sinceIteration`: the earliest iteration the bot posted on that thread, as an integer.
 - `persistentUnaddressed`: ordered by `sinceIteration` ascending (oldest first).

@@ -22,6 +22,11 @@
  * block. A non-object value or invalid JSON is logged to stderr and silently
  * ignored. Absent or empty → no Notices block.
  *
+ * The optional `ITERATION` environment variable carries the current review
+ * iteration number as a positive integer (default `1`). It is stamped into
+ * the Bot Signature footer of the rendered summary. Non-numeric values and
+ * absent values both fall back to `1`.
+ *
  * Exposed as a standalone script so the slash command can shell out
  * cross-platform (Windows cmd / PowerShell / bash) without an inline
  * `node -e` snippet whose quoting rules differ per shell.
