@@ -56,12 +56,12 @@ export function parseWriteResponse(stdout, stderr, cmdOk) {
 
 	const obj = /** @type {Record<string, unknown>} */ (parsed)
 	const id = obj.id
-	if (typeof id !== 'number' && typeof obj.message === 'string' && obj.message.trim() !== '') {
-		return { success: false, threadId: null, error: `ADO error: ${obj.message}` }
-	}
-
 	if (typeof id !== 'number') {
-		return { success: false, threadId: null, error: `Response missing numeric id field: ${stdout.slice(0, 200)}` }
+		const error =
+			typeof obj.message === 'string' && obj.message.trim() !== ''
+				? `ADO error: ${obj.message}`
+				: `Response missing numeric id field: ${stdout.slice(0, 200)}`
+		return { success: false, threadId: null, error }
 	}
 
 	return { success: true, threadId: id, error: null }
