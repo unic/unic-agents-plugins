@@ -113,6 +113,11 @@ describe('renderNotices', () => {
 		assert.ok(out.includes('1 pending'))
 	})
 
+	it('renders nothing for priorVerdictSummary when all counts are zero', () => {
+		const out = renderNotices({ priorVerdictSummary: { fixed: 0, partial: 0, ignored: 0 } })
+		assert.equal(out, '')
+	})
+
 	it('renders priorVerdictSummary after diffUnavailable when both set', () => {
 		const out = renderNotices({
 			diffUnavailable: true,

@@ -42,6 +42,8 @@ import { bucketBySeverity } from './severity-bucketer.mjs'
  * @property {PriorVerdict} [priorVerdict]
  */
 
+const PRIOR_VERDICTS = /** @type {readonly string[]} */ (['fixed', 'partial', 'ignored'])
+
 /**
  * Validate a single raw Finding emitted by a Review Aspect agent.
  *
@@ -84,7 +86,6 @@ export function parseFinding(raw) {
 
 	const suggestion = typeof r.suggestion === 'string' && r.suggestion.trim().length > 0 ? r.suggestion : undefined
 
-	const PRIOR_VERDICTS = /** @type {readonly string[]} */ (['fixed', 'partial', 'ignored'])
 	const priorVerdict =
 		typeof r.priorVerdict === 'string' && PRIOR_VERDICTS.includes(r.priorVerdict)
 			? /** @type {PriorVerdict} */ (r.priorVerdict)

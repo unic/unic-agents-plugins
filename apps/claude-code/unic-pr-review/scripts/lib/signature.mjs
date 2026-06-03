@@ -56,7 +56,8 @@ export function renderFooter(iteration) {
  * Result of parsing a Bot Signature from pre-filtered thread payloads.
  *
  * @typedef {Object} ParsedSignature
- * @property {number} priorRevisionId - ADO iteration ID embedded in the footer (same as priorIteration)
+ * @property {number} priorRevisionId - iteration number N from the footer; equals priorIteration.
+ *   Used by the caller to look up the revision in REVISIONS.value (ADO iteration ID = revision ID).
  * @property {string} priorAuthorUserId - ADO user ID of the matched comment author
  * @property {number} priorIteration - the iteration number N from "Iteration N" in the footer
  */

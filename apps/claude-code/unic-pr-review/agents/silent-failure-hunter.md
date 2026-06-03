@@ -60,7 +60,6 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
       "startLine": 57,
       "title": "fetch error caught and discarded — caller receives undefined silently",
       "body": "The catch block on line 57 logs nothing and returns `undefined`. The caller at line 83 does not check the return value, so a network failure produces no diagnostic and the downstream consumer receives corrupt state.",
-      "suggestion": null,
       "priorVerdict": "fixed"
     }
   ],

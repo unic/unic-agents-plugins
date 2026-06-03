@@ -65,17 +65,19 @@ export function renderNotices(ctx) {
 
 	if (ctx.priorVerdictSummary) {
 		const { fixed, partial, ignored } = ctx.priorVerdictSummary
-		const addressed = fixed + partial
 		const total = fixed + partial + ignored
-		const parts = []
-		if (fixed > 0) parts.push(`${fixed} fixed`)
-		if (partial > 0) parts.push(`${partial} partially addressed`)
-		if (ignored > 0) parts.push(`${ignored} pending`)
-		lines.push(
-			`> **Re-review:** ${addressed} of ${total} prior finding${total !== 1 ? 's' : ''} addressed` +
-				(parts.length > 0 ? ` (${parts.join(', ')})` : '') +
-				'.'
-		)
+		if (total > 0) {
+			const addressed = fixed + partial
+			const parts = []
+			if (fixed > 0) parts.push(`${fixed} fixed`)
+			if (partial > 0) parts.push(`${partial} partially addressed`)
+			if (ignored > 0) parts.push(`${ignored} pending`)
+			lines.push(
+				`> **Re-review:** ${addressed} of ${total} prior finding${total !== 1 ? 's' : ''} addressed` +
+					(parts.length > 0 ? ` (${parts.join(', ')})` : '') +
+					'.'
+			)
+		}
 	}
 
 	return lines.join('\n')

@@ -56,7 +56,6 @@ Emit **only** a JSON object with two fields — no prose, no markdown fencing, n
       "startLine": 44,
       "title": "Error branch in processPayment has no test coverage",
       "body": "The new `catch` block added on line 44 is exercised by zero tests in the diff. A regression in the error path would go undetected. Either add a test that forces a payment error, or document why this branch is intentionally untested.",
-      "suggestion": null,
       "priorVerdict": "fixed"
     }
   ],

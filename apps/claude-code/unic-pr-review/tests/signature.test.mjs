@@ -108,4 +108,22 @@ describe('parseSignature', () => {
 		assert.ok(result)
 		assert.equal(result.priorRevisionId, 6)
 	})
+
+	it('returns null when a thread has no comments field', () => {
+		assert.equal(parseSignature(/** @type {any} */ ([{}])), null)
+	})
+
+	it('skips comment with no content field and continues to next', () => {
+		const threads = /** @type {any} */ ([{ comments: [{ author: { id: 'bot-1' } }] }, threadWith(2, 'bot-1')])
+		const result = parseSignature(threads)
+		assert.ok(result)
+		assert.equal(result.priorRevisionId, 2)
+	})
+
+	it('returns empty string for priorAuthorUserId when author.id is absent', () => {
+		const threads = /** @type {any} */ ([{ comments: [{ content: renderFooter(1), author: {} }] }])
+		const result = parseSignature(threads)
+		assert.ok(result)
+		assert.equal(result.priorAuthorUserId, '')
+	})
 })

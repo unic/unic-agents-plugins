@@ -25,5 +25,19 @@ for await (const line of rl) {
 }
 
 /** @type {import('./lib/signature.mjs').SignatureThread[]} */
-const threads = JSON.parse(chunks.join('\n'))
+let threads
+try {
+	threads = JSON.parse(chunks.join('\n'))
+} catch (err) {
+	process.stderr.write(
+		`parse-prior-signature: stdin is not valid JSON — ${err instanceof Error ? err.message : String(err)}\n`
+	)
+	process.exit(1)
+}
+
+if (!Array.isArray(threads)) {
+	process.stderr.write(`parse-prior-signature: expected a JSON array, got ${typeof threads}\n`)
+	process.exit(1)
+}
+
 process.stdout.write(`${JSON.stringify(parseSignature(threads))}\n`)
