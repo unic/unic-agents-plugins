@@ -38,7 +38,15 @@ You receive a JSON object with one or both of these fields:
 
 For each item in `workItems` where `type === 'ado-work-item'`:
 
-1. Extract `orgUrl` from the item's `url` (the portion up to and including the org segment, e.g. `https://dev.azure.com/myorg`).
+1. Extract `orgUrl` from the item's `url`:
+
+   - `https://dev.azure.com/<org>/…` → `orgUrl` is `https://dev.azure.com/<org>`
+   - `https://<org>.visualstudio.com/…` → `orgUrl` is `https://<org>.visualstudio.com`
+   - Any other shape → the URL is unrecognised; emit the hard-stop below (quoting the offending URL, not just the id) and stop:
+
+     ```json
+     { "hardStop": true, "workItem": "<item.id>", "url": "<item.url>", "reason": "work-item-unreachable" }
+     ```
 
 2. Fetch the work item:
 
@@ -46,7 +54,14 @@ For each item in `workItems` where `type === 'ado-work-item'`:
    az boards work-item show --id "<item.id>" --org "<orgUrl>" --output json
    ```
 
-   If the command fails (non-zero exit), treat as a soft error: add a warning line to the brief (`⚠️ Work Item <id>: could not be fetched.`) and continue.
+   If the command fails (non-zero exit), classify the failure by inspecting stderr:
+
+   - **not-found** — stderr contains `"TF401232"`, `"does not exist"`, or `"not found"`: soft error — add a warning line to the brief (`⚠️ Work Item <item.id>: not found.`) and add an `intentCheck` entry: `{ "id": "<item.id>", "title": "Work Item <item.id>", "verdicts": {}, "note": "Work Item not found." }`. Continue.
+   - **auth-error or unreachable** (any other non-zero exit, including credential failures, network errors, and unknown failures): emit and stop:
+
+     ```json
+     { "hardStop": true, "workItem": "<item.id>", "url": "<item.url>", "reason": "work-item-unreachable" }
+     ```
 
 3. Parse the JSON output. Relevant fields:
 
@@ -63,7 +78,7 @@ For each item in `workItems` where `type === 'ado-work-item'`:
 
 Work items with `type !== 'ado-work-item'` are currently unsupported — add a warning line in the brief and skip.
 
-Build an `intentCheck` entry for each fetched User Story / Bug with acceptance criteria, keyed `"AC 1"`, `"AC 2"`, … with every verdict set to `"unaddressed"` (the same skeleton convention as step 7).
+Build an `intentCheck` entry for each successfully fetched User Story / Bug with acceptance criteria, keyed `"AC 1"`, `"AC 2"`, … with every verdict set to `"unaddressed"` (the same skeleton convention as step 7).
 
 ## Step 1 — Fetch pasted URLs, synthesise the Intent Brief, and emit
 
