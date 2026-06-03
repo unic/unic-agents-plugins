@@ -22,6 +22,6 @@ If a fetched Work Item links to a Confluence page and the Confluence Credential 
 
 ## Amendment (2026-06) — Provider-discovered Work Items are promised intent
 
-Work Items discovered natively by a Source Platform Provider (e.g. ADO `workItemRefs` linked to a PR) are **promised intent** and follow the same reachability doctrine as pasted Jira / Confluence URLs. If a linked Work Item is unreachable or returns an auth error, the Plugin halts with a hard-stop. `not-found` remains a soft note — matching the pasted-URL rule — because the Work Item was deleted or inaccessible without signalling an error on the caller's side.
+Work Items discovered natively by a Source Platform Provider (e.g. ADO `workItemRefs` linked to a PR) are **promised intent** and follow the same reachability doctrine as pasted Jira / Confluence URLs. If a linked Work Item is unreachable or returns an auth error, the Plugin halts with a hard-stop. `not-found` remains a soft note — matching the pasted-URL rule — because it signals that the Work Item was genuinely absent from the system (deleted or never created), not that a configuration or credentials problem prevents the Plugin from reaching ADO. Auth errors and unreachable URLs indicate a broken setup the reviewer must fix; a missing Work Item is recoverable missing context.
 
 Org-URL extraction failures (malformed or unrecognised Work Item URL shapes) are treated as unreachable: the Plugin halts and surfaces the offending URL rather than silently passing a wrong `--org` flag to `az boards work-item show`.

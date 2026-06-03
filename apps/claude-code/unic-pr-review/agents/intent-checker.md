@@ -56,7 +56,7 @@ For each item in `workItems` where `type === 'ado-work-item'`:
 
    If the command fails (non-zero exit), classify the failure by inspecting stderr:
 
-   - **not-found** — stderr contains `"TF401232"`, `"does not exist"`, or `"not found"`: soft error — add a warning line to the brief (`⚠️ Work Item <item.id>: not found.`) and add an `intentCheck` entry with empty `verdicts` and `"note": "Work Item not found."`. Continue.
+   - **not-found** — stderr contains `"TF401232"`, `"does not exist"`, or `"not found"`: soft error — add a warning line to the brief (`⚠️ Work Item <item.id>: not found.`) and add an `intentCheck` entry: `{ "id": "<item.id>", "title": "Work Item <item.id>", "verdicts": {}, "note": "Work Item not found." }`. Continue.
    - **auth-error or unreachable** (any other non-zero exit, including credential failures, network errors, and unknown failures): emit and stop:
 
      ```json

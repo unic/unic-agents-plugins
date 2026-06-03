@@ -103,7 +103,7 @@ Wait for the agent to complete. It emits one of:
   Print and **stop** — do not spawn any aspect agents:
 
   ```
-  Intent gathering failed: Work Item <id> (<url>) could not be fetched (unreachable or credentials rejected). Run /unic-pr-review:setup-azure to reconfigure Azure credentials, then re-run the review.
+  Intent gathering failed: Work Item <id> (<url>) could not be fetched (network error, unreachable org, or credentials rejected). If credentials may be misconfigured, run /unic-pr-review:setup-azure to reconfigure Azure credentials, then re-run the review. For transient network errors, re-running the review directly may suffice.
   ```
 
 - **B — hard-stop on unreachable Atlassian source** (ADR-0004): a Confluence page embedded in the Work Item is unreachable:
@@ -125,6 +125,8 @@ Wait for the agent to complete. It emits one of:
   ```
 
   Store `intentBrief` and `intentCheck`. If both empty, treat intent as absent (no intent gathering).
+
+- **D — unexpected hard-stop**: `"hardStop": true` but shape matches neither A nor B — print the full JSON verbatim and **stop**. (Defensive fallback: should not occur if the Intent Checker follows its spec.)
 
 #### Step 1.7 — Resolve spawn set
 
