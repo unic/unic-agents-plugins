@@ -45,12 +45,19 @@ describe('render-inline-comment CLI', () => {
 		assert.equal(r.stdout, '')
 	})
 
-	it('exits 1 with the missing field name when a required field is absent', () => {
-		const r = run(JSON.stringify({ severity: 'critical', title: 'T', iteration: 1 }))
-		assert.equal(r.status, 1)
-		assert.match(r.stderr, /missing required field "body"/)
-		assert.equal(r.stdout, '')
-	})
+	for (const [missingField, presentFields] of [
+		['severity', { title: 'T', body: 'B', iteration: 1 }],
+		['title', { severity: 'critical', body: 'B', iteration: 1 }],
+		['body', { severity: 'critical', title: 'T', iteration: 1 }],
+		['iteration', { severity: 'critical', title: 'T', body: 'B' }],
+	]) {
+		it(`exits 1 with the missing field name when "${missingField}" is absent`, () => {
+			const r = run(JSON.stringify(presentFields))
+			assert.equal(r.status, 1)
+			assert.match(r.stderr, new RegExp(`missing required field "${missingField}"`))
+			assert.equal(r.stdout, '')
+		})
+	}
 
 	it('renders the inline comment with severity emoji, title, body and footer', () => {
 		const r = run(JSON.stringify({ severity: 'critical', title: 'Null deref', body: 'Add a guard.', iteration: 1 }))
@@ -58,6 +65,25 @@ describe('render-inline-comment CLI', () => {
 		assert.ok(r.stdout.startsWith('🔴 Null deref'))
 		assert.match(r.stdout, /Add a guard\./)
 		assert.match(r.stdout, /🤖 Reviewed by Claude Code — Iteration 1/)
+	})
+
+	it('exits 1 with an invalid severity message when severity is not in the allowlist', () => {
+		const r = run(JSON.stringify({ severity: 'high', title: 'T', body: 'B', iteration: 1 }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /invalid severity "high"/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('does not include a suggestion block when suggestion is an empty string', () => {
+		const r = run(JSON.stringify({ severity: 'minor', title: 'T', body: 'B', suggestion: '', iteration: 1 }))
+		assert.equal(r.status, 0)
+		assert.ok(!r.stdout.includes('```suggestion'))
+	})
+
+	it('does not include a suggestion block when suggestion is whitespace-only', () => {
+		const r = run(JSON.stringify({ severity: 'minor', title: 'T', body: 'B', suggestion: '   ', iteration: 1 }))
+		assert.equal(r.status, 0)
+		assert.ok(!r.stdout.includes('```suggestion'))
 	})
 
 	it('includes a suggestion block only when suggestion is present and non-empty', () => {

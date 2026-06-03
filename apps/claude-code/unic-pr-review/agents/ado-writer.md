@@ -90,6 +90,8 @@ process.stdout.write(tmp)
 
 Capture stdout as `BODY_FILE`.
 
+**If the `node -e` script exits non-zero**, record `{ findingId, success: false, threadId: null, error: "write-thread-body failed: <stderr>" }` for this Finding and skip to the next.
+
 #### 2c — Post the Review Thread
 
 ```sh
@@ -127,10 +129,10 @@ Failure here is silent — continue with the next Finding regardless.
 
 #### 3a — Render the Review Summary
 
-Build `FINDINGS_JSON` from **all** approved Findings — include only the fields the renderer needs (`severity`, `filePath`, `startLine`, `title`) and an empty `positiveObservations` array:
+Build `FINDINGS_JSON` from **all** approved Findings — include the full Finding shape required by `parseFinding` inside `render-summary.mjs`: at minimum `confidence`, `filePath`, `startLine`, `title`, `body`, and optionally `suggestion`. Include `severity` too (already on the approved Finding). Pass an empty `positiveObservations` array:
 
 ```sh
-FINDINGS_JSON='{"findings":[<objects with severity/filePath/startLine/title>],"positiveObservations":[]}' \
+FINDINGS_JSON='{"findings":[<full approved Finding objects>],"positiveObservations":[]}' \
   node "<CLAUDE_PLUGIN_ROOT>/scripts/render-summary.mjs"
 ```
 
@@ -150,13 +152,15 @@ const body={
   properties:{},
   status:'active'
 }
-const tmp=path.join(os.tmpdir(),'unic-pr-review-summary.json')
+const tmp=path.join(os.tmpdir(),'unic-pr-review-summary-'+process.env.PR_ID+'.json')
 fs.writeFileSync(tmp,JSON.stringify(body))
 process.stdout.write(tmp)
-" SUMMARY_BODY="$SUMMARY_BODY"
+" SUMMARY_BODY="$SUMMARY_BODY" PR_ID="<prId>"
 ```
 
 Capture stdout as `SUMMARY_FILE`.
+
+**If the `node -e` script exits non-zero**, record `summaryResult: { success: false, threadId: null, error: "write-summary-body failed: <stderr>" }` and skip Steps 3c–3d.
 
 #### 3c — Post the General Comment Thread
 

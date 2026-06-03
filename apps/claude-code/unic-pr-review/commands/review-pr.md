@@ -212,6 +212,8 @@ process.stdout.write(f)
 
 Capture the output path as `FINDINGS_FILE`.
 
+**If the `node -e` script exits non-zero**, print the stderr verbatim and stop. Do not proceed with an empty or invalid findings path.
+
 **2. Determine the approved-Findings path.**
 
 ```sh
@@ -301,13 +303,13 @@ If `success` is `false` (any thread failed), warn the user:
 
 #### Step 1.13 — Cleanup
 
-Delete the approved-Findings temp file:
+Delete the approved-Findings temp file (always — it is not needed for retries):
 
 ```sh
 node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<APPROVED_FILE>"
 ```
 
-Delete the Approval Loop state directory (best-effort — the loop may have already cleaned it up):
+**Only if the ADO Writer reported `success: true`**, delete the Approval Loop state directory:
 
 ```sh
 node -e "
@@ -316,6 +318,8 @@ const d=path.join(process.env.CWD,'.unic-pr-review',process.env.PR_KEY)
 try{fs.rmSync(d,{recursive:true,force:true})}catch{}
 " CWD="${CLAUDE_PLUGIN_ROOT}" PR_KEY="<PR_KEY>"
 ```
+
+If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.
 
 **After Step 1.13, stop. Do not continue to Step 2.**
 
@@ -569,4 +573,4 @@ Print the rendered Review Summary markdown to the terminal.
 Remind the user:
 
 - This is a terminal preview only — nothing has been written to ADO.
-- `--post` mode (interactive Approval Loop) is coming in a later release.
+- To write Findings back to a PR, pass an ADO PR URL with `--post`.

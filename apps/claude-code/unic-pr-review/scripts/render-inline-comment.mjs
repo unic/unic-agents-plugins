@@ -51,12 +51,25 @@ for (const field of ['severity', 'title', 'body', 'iteration']) {
 	}
 }
 
-process.stdout.write(
-	renderInlineComment({
+const VALID_SEVERITIES = ['critical', 'important', 'minor']
+if (!VALID_SEVERITIES.includes(ctx.severity)) {
+	process.stderr.write(
+		`render-inline-comment: invalid severity "${ctx.severity}" — expected one of ${VALID_SEVERITIES.join(', ')}\n`
+	)
+	process.exit(1)
+}
+
+let rendered
+try {
+	rendered = renderInlineComment({
 		severity: ctx.severity,
 		title: ctx.title,
 		body: ctx.body,
 		suggestion: typeof ctx.suggestion === 'string' ? ctx.suggestion : undefined,
 		iteration: ctx.iteration,
 	})
-)
+} catch (err) {
+	process.stderr.write(`render-inline-comment: renderer threw — ${err instanceof Error ? err.message : String(err)}\n`)
+	process.exit(1)
+}
+process.stdout.write(rendered)
