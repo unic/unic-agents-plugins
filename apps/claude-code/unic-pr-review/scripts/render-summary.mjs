@@ -153,8 +153,8 @@ if (rawNotices?.trim()) {
 	}
 }
 
-const parsedIteration = parseInt(process.env.ITERATION ?? '1', 10)
-const iteration = Number.isInteger(parsedIteration) && parsedIteration >= 1 ? parsedIteration : 1
+const parsedIteration = parseInt(process.env.ITERATION ?? '', 10)
+const iteration = parsedIteration >= 1 ? parsedIteration : 1
 
 const summary = renderReviewSummary({
 	findings,

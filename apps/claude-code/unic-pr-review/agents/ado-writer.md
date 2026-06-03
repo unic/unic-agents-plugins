@@ -318,7 +318,7 @@ Delete the temp file (best-effort).
 
 For threads with `action === "reopen"`:
 
-1. Post the reply prose first, exactly as in Step 5a (build the body with `renderFooter`, write to a temp file, POST `git/comments`).
+1. Post the reply prose first, exactly as in Step 5a (build the body with `renderFooter`, write to a temp file, POST `git/comments`). Capture the `parseWriteResponse` result as `REPLY_RESULT` – do **not** abort on failure; continue to the status PATCH regardless.
 2. Then PATCH the Thread status back to `active`. Write `{ "status": "active" }` to a temp file as `PATCH_FILE`, then:
 
 ```sh
@@ -330,7 +330,17 @@ az devops invoke --area git --resource threads \
   --output json
 ```
 
-Parse via `parseWriteResponse`. Record `{ threadId: <entry.threadId>, action: "reopen", success, error }`.
+Capture the `parseWriteResponse` result as `STATUS_RESULT`.
+
+Both sub-operations run regardless of each other's outcome – there is no early abort within a reopen. Each parses its own `parseWriteResponse` independently.
+
+Derive `error` from the sub-operation results:
+
+- `null` when both succeeded
+- The failing sub-op's error message when exactly one failed
+- Both error messages concatenated with `; ` when both failed
+
+Record `{ threadId: <entry.threadId>, action: "reopen", replySuccess: REPLY_RESULT.success, statusSuccess: STATUS_RESULT.success, error }`.
 
 Delete the temp files (best-effort).
 
@@ -339,6 +349,8 @@ Delete the temp files (best-effort).
 ### Step 6 — Post fresh Findings as new Threads
 
 For each entry in `coordinatorPlan.freshFindings`, follow the exact same procedure as Steps 2a–2d in the first-review path (render the inline comment with `iteration = <iteration>`, write to a temp file, POST `git/threads`, delete the temp file). Record each result in `inlineResults`.
+
+**Best-effort policy**: if a fresh-Finding POST fails (any of Steps 2a–2d), record `{ findingId, success: false, threadId: null, error: "<message>" }` for that Finding and continue to the next – do not abort the run. Top-level `success` (Step 8) ANDs every fresh-Finding result in, consistent with the first-review path.
 
 If `coordinatorPlan.freshFindings` is empty, skip Step 6 — there are no new inline threads to post.
 
@@ -391,15 +403,38 @@ Follow exactly Steps 3b–3d from the first-review path (write `renderedSummary`
 
 ### Step 8 — Emit re-review result
 
-Top-level `success` is `true` when every thread action AND the summary operation succeeded.
+Top-level `success` is `true` when every thread action, every fresh Finding, and the summary operation all succeeded. For `action: "reopen"` entries, both `replySuccess` **and** `statusSuccess` must be `true` – a reopen entry where either is `false` contributes `false` to the top-level result.
+
+The example below shows a partial-failure reopen (reply succeeded, status PATCH failed) – top-level `success` is `false`:
 
 ```json
 {
   "threadActionResults": [
     { "threadId": 101, "action": "reply", "success": true, "commentId": 5, "error": null },
-    { "threadId": 102, "action": "resolve", "success": true, "error": null }
+    { "threadId": 102, "action": "resolve", "success": true, "error": null },
+    {
+      "threadId": 103,
+      "action": "reopen",
+      "replySuccess": true,
+      "statusSuccess": false,
+      "error": "PATCH git/threads: TF401019: access denied"
+    }
   ],
   "inlineResults": [{ "findingId": "<id>", "success": true, "threadId": 201, "error": null }],
+  "summaryResult": { "success": true, "threadId": 200, "error": null },
+  "success": false
+}
+```
+
+When all operations succeed (including every reopen's both sub-ops), `success` is `true`:
+
+```json
+{
+  "threadActionResults": [
+    { "threadId": 101, "action": "reply", "success": true, "commentId": 5, "error": null },
+    { "threadId": 103, "action": "reopen", "replySuccess": true, "statusSuccess": true, "error": null }
+  ],
+  "inlineResults": [],
   "summaryResult": { "success": true, "threadId": 200, "error": null },
   "success": true
 }
