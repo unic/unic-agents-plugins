@@ -114,7 +114,7 @@ If the command exits non-zero, emit this error and stop:
 
 The ADO `diffs` endpoint (`GET .../diffs/commits`) returns per-file change entries with path metadata only — it does **not** return line-level diff content or diff hunks. Full blob-level diff fetching is deferred to a later slice.
 
-Set `RAW_DIFF` to an empty string, set `DIFF_UNAVAILABLE` to `true`, and add the following to `warnings`:
+Set `RAW_DIFF` to an empty string, set `DIFF_UNAVAILABLE` to `true`, and add the following to `warnings`. When a later slice adds blob-level diff fetching, set `DIFF_UNAVAILABLE` to `false` and populate `RAW_DIFF` — the orchestrator guard and the `diffUnavailable` notice will stop firing automatically with no other changes needed.
 
 ```
 "ADO diffs API returns file-level metadata only — line-level diff unavailable in this preview. Review agents will operate on changedFiles."

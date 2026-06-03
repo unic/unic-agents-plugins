@@ -80,4 +80,13 @@ describe('renderNotices', () => {
 		assert.ok(diffIdx >= 0, 'Missing diff-unavailable notice')
 		assert.ok(unassessedIdx < diffIdx, 'unassessed notice must precede diff-unavailable notice')
 	})
+
+	it('renders diff-unavailable notice after fallbackToFirstReview when both are set', () => {
+		const out = renderNotices({ fallbackToFirstReview: true, diffUnavailable: true })
+		const fallbackIdx = out.indexOf('force-push detected')
+		const diffIdx = out.indexOf('Line-level diff was unavailable')
+		assert.ok(fallbackIdx >= 0, 'Missing fallback notice')
+		assert.ok(diffIdx >= 0, 'Missing diff-unavailable notice')
+		assert.ok(fallbackIdx < diffIdx, 'fallback notice must precede diff-unavailable notice')
+	})
 })
