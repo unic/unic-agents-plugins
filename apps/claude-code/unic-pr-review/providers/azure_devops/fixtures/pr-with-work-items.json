@@ -1,0 +1,11 @@
+{
+  "pullRequestId": 42,
+  "title": "feat: add user authentication",
+  "sourceRefName": "refs/heads/feature/auth",
+  "targetRefName": "refs/heads/develop",
+  "status": "active",
+  "createdBy": { "id": "user-id-001", "displayName": "Alice Dev" },
+  "lastMergeSourceCommit": { "commitId": "abc1234" },
+  "lastMergeTargetCommit": { "commitId": "def5678" },
+  "workItemRefs": [{ "id": "101", "url": "https://dev.azure.com/myorg/myproject/_apis/wit/workitems/101" }]
+}

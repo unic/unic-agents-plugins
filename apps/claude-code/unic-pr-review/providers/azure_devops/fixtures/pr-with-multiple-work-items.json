@@ -1,0 +1,14 @@
+{
+  "pullRequestId": 44,
+  "title": "feat: checkout flow + bugfix",
+  "sourceRefName": "refs/heads/feature/checkout",
+  "targetRefName": "refs/heads/develop",
+  "status": "active",
+  "createdBy": { "id": "user-id-003", "displayName": "Carol Dev" },
+  "lastMergeSourceCommit": { "commitId": "ccc3333" },
+  "lastMergeTargetCommit": { "commitId": "ddd4444" },
+  "workItemRefs": [
+    { "id": "101", "url": "https://dev.azure.com/myorg/myproject/_apis/wit/workitems/101" },
+    { "id": "102", "url": "https://dev.azure.com/myorg/myproject/_apis/wit/workitems/102" }
+  ]
+}

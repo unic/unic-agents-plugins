@@ -14,7 +14,8 @@ apps/
 │   ├── pr-review/
 │   ├── auto-format/
 │   ├── unic-confluence/
-│   └── unic-archon-dlc/
+│   ├── unic-archon-dlc/
+│   └── unic-pr-review/
 └── copilot/                  # GitHub Copilot plugins (future)
 packages/
 ├── biome-config/             # @unic/biome-config
@@ -81,7 +82,7 @@ Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
 
 ## Conventional commits
 
-Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(unic-archon-dlc): …`.
+Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(release-tools): …`, `chore(unic-archon-dlc): …`, `feat(unic-pr-review): …`.
 
 ## Git branching (Gitflow)
 
@@ -121,6 +122,7 @@ New work enters through the issue tracker as Features. Use `/tdd` to implement i
 - External runtime deps to plugins unless truly essential (`auto-format` has zero; that's the bar)
 - Turborepo or other build orchestrators — plain pnpm workspaces is the current choice
 - Features not tracked in the issue tracker — open a Feature first
+- Per-plugin `pnpm-lock.yaml` files — the root lockfile is canonical; sub-package lockfiles should never be committed
 
 ## LICENSE files
 

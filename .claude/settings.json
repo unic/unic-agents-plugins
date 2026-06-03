@@ -32,6 +32,15 @@
             "command": "node .claude/hooks/block-lockfile.mjs"
           }
         ]
+      },
+      {
+        "matcher": "Read|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/block-pr-review.mjs"
+          }
+        ]
       }
     ]
   }

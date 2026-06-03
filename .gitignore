@@ -335,6 +335,10 @@ dist
 # pnpm
 .pnpm-store
 
+# pnpm workspace: per-plugin lockfiles should never exist; root lockfile is canonical
+apps/**/pnpm-lock.yaml
+packages/**/pnpm-lock.yaml
+
 # yarn v3
 .pnp.*
 .yarn/*

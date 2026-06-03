@@ -1,0 +1,39 @@
+{
+  "invokeCommands": [
+    { "area": "git", "resource": "pullrequests", "httpMethod": "GET", "description": "PR metadata" },
+    {
+      "area": "git",
+      "resource": "pullrequestiterations",
+      "httpMethod": "GET",
+      "description": "PR Revisions (iterations)"
+    },
+    { "area": "git", "resource": "threads", "httpMethod": "GET", "description": "PR Review Threads" },
+    {
+      "area": "git",
+      "resource": "pullrequestiterationchanges",
+      "httpMethod": "GET",
+      "description": "Changed files in latest iteration"
+    }
+  ],
+  "invokeCommandsWriter": [
+    {
+      "area": "git",
+      "resource": "threads",
+      "httpMethod": "POST/PATCH",
+      "description": "Create Review Thread (inline comment or General Comment); PATCH to update Thread status (resolve/reopen)"
+    },
+    {
+      "area": "git",
+      "resource": "comments",
+      "httpMethod": "POST/PATCH",
+      "description": "POST a Reply to an existing Thread; PATCH the first comment of the Summary Thread to rewrite it in place"
+    }
+  ],
+  "otherCommands": [
+    { "command": "az account show", "description": "Cache identity step 1 — AAD account info" },
+    {
+      "command": "az devops user show --user <UPN>",
+      "description": "Cache identity step 2 — ADO user id + displayName (UPN extracted from az account show)"
+    }
+  ]
+}
