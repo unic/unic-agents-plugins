@@ -39,6 +39,7 @@ You receive a JSON object with one or both of these fields:
 For each item in `workItems` where `type === 'ado-work-item'`:
 
 1. Extract `orgUrl` from the item's `url`:
+
    - `https://dev.azure.com/<org>/…` → `orgUrl` is `https://dev.azure.com/<org>`
    - `https://<org>.visualstudio.com/…` → `orgUrl` is `https://<org>.visualstudio.com`
    - Any other shape → the URL is unrecognised; emit the hard-stop below (quoting the offending URL, not just the id) and stop:
