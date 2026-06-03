@@ -298,7 +298,7 @@ Print the summary: how many inline threads were posted, how many failed, and the
 If `success` is `false` (any thread failed), warn the user:
 
 ```
-⚠ Some threads could not be posted. Check the errors above and re-run with --post --yes if the issues are resolved.
+⚠ Some threads could not be posted. Check the errors above and re-run with --post (not --post --yes) once the issues are resolved — the Approval Loop resumes from saved state and re-posts only the threads that failed. Using --yes would re-post the threads that already succeeded, creating duplicate comments.
 ```
 
 #### Step 1.13 — Cleanup
@@ -314,9 +314,9 @@ node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<APPROVED_
 ```sh
 node -e "
 const fs=require('node:fs'),path=require('node:path')
-const d=path.join(process.env.CWD,'.unic-pr-review',process.env.PR_KEY)
+const d=path.join(process.cwd(),'.unic-pr-review',process.env.PR_KEY)
 try{fs.rmSync(d,{recursive:true,force:true})}catch{}
-" CWD="${CLAUDE_PLUGIN_ROOT}" PR_KEY="<PR_KEY>"
+" PR_KEY="<PR_KEY>"
 ```
 
 If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.

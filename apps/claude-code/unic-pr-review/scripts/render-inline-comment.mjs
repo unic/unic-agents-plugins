@@ -59,6 +59,18 @@ if (!VALID_SEVERITIES.includes(ctx.severity)) {
 	process.exit(1)
 }
 
+for (const field of ['title', 'body']) {
+	if (typeof ctx[field] !== 'string' || ctx[field].trim() === '') {
+		process.stderr.write(`render-inline-comment: field "${field}" must be a non-empty string\n`)
+		process.exit(1)
+	}
+}
+
+if (!Number.isFinite(ctx.iteration)) {
+	process.stderr.write('render-inline-comment: field "iteration" must be a finite number\n')
+	process.exit(1)
+}
+
 let rendered
 try {
 	rendered = renderInlineComment({

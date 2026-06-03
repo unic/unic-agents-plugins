@@ -59,6 +59,56 @@ describe('render-inline-comment CLI', () => {
 		})
 	}
 
+	it('exits 1 when title is not a string', () => {
+		const r = run(JSON.stringify({ severity: 'critical', title: null, body: 'B', iteration: 1 }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:.*title/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 when body is not a string', () => {
+		const r = run(JSON.stringify({ severity: 'critical', title: 'T', body: 42, iteration: 1 }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:.*body/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 when title is an empty string', () => {
+		const r = run(JSON.stringify({ severity: 'critical', title: '', body: 'B', iteration: 1 }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:.*title/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 when body is whitespace-only', () => {
+		const r = run(JSON.stringify({ severity: 'critical', title: 'T', body: '   ', iteration: 1 }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:.*body/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 when iteration is a numeric string', () => {
+		const r = run(JSON.stringify({ severity: 'critical', title: 'T', body: 'B', iteration: '1' }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:.*iteration/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 when iteration is null', () => {
+		const r = run(JSON.stringify({ severity: 'critical', title: 'T', body: 'B', iteration: null }))
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:.*iteration/)
+		assert.equal(r.stdout, '')
+	})
+
+	it('exits 1 when iteration is NaN (non-finite)', () => {
+		// NaN cannot survive JSON.stringify, so inject the raw JSON literal directly.
+		const r = run('{"severity":"critical","title":"T","body":"B","iteration":NaN}')
+		assert.equal(r.status, 1)
+		assert.match(r.stderr, /render-inline-comment:/)
+		assert.equal(r.stdout, '')
+	})
+
 	it('renders the inline comment with severity emoji, title, body and footer', () => {
 		const r = run(JSON.stringify({ severity: 'critical', title: 'Null deref', body: 'Add a guard.', iteration: 1 }))
 		assert.equal(r.status, 0)

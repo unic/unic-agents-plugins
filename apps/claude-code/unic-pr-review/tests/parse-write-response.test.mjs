@@ -61,6 +61,25 @@ describe('parseWriteResponse', () => {
 		assert.ok(r.error)
 	})
 
+	it('surfaces the ADO error-envelope message when present and id is absent', () => {
+		const r = parseWriteResponse(
+			JSON.stringify({ message: 'TF401027: You need the Contribute permission.', typeKey: 'X', errorCode: 0 }),
+			'',
+			true
+		)
+		assert.equal(r.success, false)
+		assert.equal(r.threadId, null)
+		assert.ok(r.error?.startsWith('ADO error:'))
+		assert.match(r.error ?? '', /TF401027: You need the Contribute permission\./)
+	})
+
+	it('still reports missing numeric id when neither id nor message is present', () => {
+		const r = parseWriteResponse(JSON.stringify({ status: 'active', typeKey: 'X' }), '', true)
+		assert.equal(r.success, false)
+		assert.equal(r.threadId, null)
+		assert.match(r.error ?? '', /missing numeric id/)
+	})
+
 	it('returns failure when the response parses to null', () => {
 		const r = parseWriteResponse('null', '', true)
 		assert.equal(r.success, false)

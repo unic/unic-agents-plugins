@@ -46,7 +46,9 @@ Read and parse the JSON array at `approvedPath`. Each element carries:
 
 **Effective body** = `editedBody` when `decision === "edit"`, otherwise `body`.
 
-If the array is empty, skip Steps 2 and 3a–3d; emit a success result with an empty `inlineResults` array and `summaryResult: null`.
+**If the file cannot be read or does not parse to a JSON array**, emit `{ "inlineResults": [], "summaryResult": null, "success": false, "error": "approved-read-failed: <message>" }` and stop — do not proceed to Steps 2–3. Reporting `success: true` here would trigger the state-directory cleanup in the calling command and silently drop every Finding the user just approved.
+
+If the array is empty, skip Steps 2 and 3a–3d; emit a success result with an empty `inlineResults` array and `summaryResult: null`. (An empty array is the legitimate "user approved zero Findings" case, distinct from the read-failure case above.)
 
 ### Step 2 — Post inline Review Threads
 

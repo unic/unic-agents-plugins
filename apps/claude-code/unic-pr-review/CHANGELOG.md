@@ -27,7 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (none)
+- `commands/review-pr.md` Step 1.13: the state-directory cleanup keyed off `CLAUDE_PLUGIN_ROOT`, but the Approval Loop persists state under `process.cwd()`; the success-branch `rmSync` therefore targeted a non-existent path and never removed the real state directory. Cleanup now uses `process.cwd()` to match where the state was written
+- `commands/review-pr.md`: partial-failure retry advice told users to re-run with `--post --yes`, which would re-post already-succeeded threads as duplicate ADO comments; corrected to `--post` (resume from saved state, re-posting only the failed threads)
+- `scripts/render-inline-comment.mjs`: required fields were validated for presence only; `title`/`body` are now required to be non-empty strings and `iteration` a finite number, so malformed input fails fast instead of rendering garbage into the load-bearing Bot Signature
+- `scripts/lib/parse-write-response.mjs`: an `az devops invoke` exit-0 error envelope (`{ message, typeKey, errorCode }`, no numeric `id`) was reported as a generic "missing numeric id" error; the ADO `message` is now surfaced verbatim as `ADO error: <message>`
+- `agents/ado-writer.md` Step 1: added an explicit guard for an unreadable or non-array approved-Findings file so the writer reports `success: false` instead of a false success that would trigger state cleanup and silently drop approved Findings
 
 ## [2.0.2] — 2026-06-03
 
