@@ -73,9 +73,7 @@ export function renderNotices(ctx) {
 			if (partial > 0) parts.push(`${partial} partially addressed`)
 			if (ignored > 0) parts.push(`${ignored} pending`)
 			lines.push(
-				`> **Re-review:** ${addressed} of ${total} prior finding${total !== 1 ? 's' : ''} addressed` +
-					(parts.length > 0 ? ` (${parts.join(', ')})` : '') +
-					'.'
+				`> **Re-review:** ${addressed} of ${total} prior finding${total !== 1 ? 's' : ''} addressed (${parts.join(', ')}).`
 			)
 		}
 	}
