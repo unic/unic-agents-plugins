@@ -322,9 +322,16 @@ describe('--yes bulk-accept', () => {
 			}
 		).catch(() => {})
 
-		// Check the actual state file on disk
+		// The last persisted state (written to the tmp path before the final
+		// rename) must carry accept decisions, not pending — the premise this
+		// test's name promises.
 		const stateDir = join(dir, '.unic-pr-review', key)
 		const statePath = join(stateDir, 'state.json')
+		const lastState = JSON.parse(writes[`${statePath}.tmp`])
+		assert.ok(
+			lastState.findings.every(/** @param {any} f */ (f) => f.decision === 'accept'),
+			'every decision persisted as accept'
+		)
 		// State dir should be deleted after success
 		assert.ok(!existsSync(statePath), 'state dir deleted after successful run')
 	})
@@ -696,6 +703,171 @@ describe('suggestion field rendering', () => {
 
 		const allOutput = outputLines.lines.join('')
 		assert.ok(!allOutput.includes('Suggestion:'), 'Suggestion: block absent when no suggestion field')
+	})
+})
+
+// ─── input validation & robustness ───────────────────────────────────────────
+
+describe('input validation', () => {
+	it('exits 1 when the findings file is not a JSON array', async () => {
+		const dir = tempDir()
+		const fp = join(dir, 'findings.json')
+		writeFileSync(fp, JSON.stringify({ not: 'an array' }), 'utf8')
+		let exitCode = /** @type {number | null} */ (null)
+		const stderrLines = /** @type {string[]} */ ([])
+
+		await loop(
+			{ findingsPath: fp, approvedPath: approvedPath(dir), isYes: true, cwd: dir },
+			{
+				isTTY: false,
+				cwd: dir,
+				stderr: { write: (s) => stderrLines.push(s) },
+				exit: (code) => {
+					exitCode = code
+					throw new Error(`exit:${code}`)
+				},
+			}
+		).catch((err) => {
+			if (!String(err.message).startsWith('exit:')) throw err
+		})
+
+		assert.equal(exitCode, 1)
+		assert.ok(stderrLines.some((l) => /must contain a JSON array/.test(l)))
+	})
+
+	it('exits 1 when the resumed state file is malformed', async () => {
+		const dir = tempDir()
+		const key = sha16('malformed-state')
+		const stateDir = join(dir, '.unic-pr-review', key)
+		mkdirSync(stateDir, { recursive: true })
+		writeFileSync(join(stateDir, 'state.json'), JSON.stringify({ findings: 'not-an-array' }), 'utf8')
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		let exitCode = /** @type {number | null} */ (null)
+		const stderrLines = /** @type {string[]} */ ([])
+
+		await loop(
+			{ findingsPath: fp, approvedPath: approvedPath(dir), key, isYes: true, cwd: dir },
+			{
+				isTTY: false,
+				cwd: dir,
+				stderr: { write: (s) => stderrLines.push(s) },
+				exit: (code) => {
+					exitCode = code
+					throw new Error(`exit:${code}`)
+				},
+			}
+		).catch((err) => {
+			if (!String(err.message).startsWith('exit:')) throw err
+		})
+
+		assert.equal(exitCode, 1)
+		assert.ok(stderrLines.some((l) => /malformed/.test(l)))
+	})
+
+	it('--reset rescues a malformed state file by starting fresh', async () => {
+		const dir = tempDir()
+		const key = sha16('reset-malformed')
+		const stateDir = join(dir, '.unic-pr-review', key)
+		mkdirSync(stateDir, { recursive: true })
+		writeFileSync(join(stateDir, 'state.json'), JSON.stringify({ findings: 'not-an-array' }), 'utf8')
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		const out = approvedPath(dir)
+
+		await loop({ findingsPath: fp, approvedPath: out, key, isYes: true, isReset: true, cwd: dir }, { cwd: dir })
+
+		const approved = JSON.parse(readFileSync(out, 'utf8'))
+		assert.equal(approved.length, 1)
+		assert.equal(approved[0].decision, 'accept')
+	})
+})
+
+describe('head-SHA mismatch under --yes', () => {
+	it('starts fresh without prompting when state is stale and --yes is set', async () => {
+		const dir = tempDir()
+		const key = sha16('yes-mismatch')
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		const out = approvedPath(dir)
+		// Seed stale state where the finding was previously skipped.
+		seedStateFile(join(dir, '.unic-pr-review', key), key, fp, out, 'skip')
+
+		await loop(
+			{ findingsPath: fp, approvedPath: out, key, headSha: 'new-sha', isYes: true, cwd: dir },
+			{ isTTY: false, cwd: dir }
+		)
+
+		// Fresh start ignores the stale skip and bulk-accepts.
+		const approved = JSON.parse(readFileSync(out, 'utf8'))
+		assert.equal(approved.length, 1)
+		assert.equal(approved[0].decision, 'accept')
+	})
+})
+
+describe('early stream close (Ctrl-D)', () => {
+	it('writes a partial approved.json from decisions made before EOF', async () => {
+		// Documents current behaviour: when stdin closes mid-walk, the loop breaks
+		// and finalises whatever was decided so far. Resumability across an
+		// interrupted session relies on Ctrl-C (SIGINT), not Ctrl-D (stream EOF).
+		const dir = tempDir()
+		const fp = writeFindingsFile(SAMPLE_FINDINGS, dir)
+		const out = approvedPath(dir)
+
+		// Decide the first finding ('a'), then the stream ends before the second.
+		await loop({ findingsPath: fp, approvedPath: out, cwd: dir }, { stdin: scriptedStdin('a\n'), cwd: dir })
+
+		const approved = JSON.parse(readFileSync(out, 'utf8'))
+		assert.equal(approved.length, 1, 'only the pre-EOF decision is approved')
+		assert.equal(approved[0].decision, 'accept')
+	})
+})
+
+describe('atomic & best-effort I/O', () => {
+	it('writes approved.json atomically via tmp + rename', async () => {
+		const dir = tempDir()
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		const out = approvedPath(dir)
+		const renames = /** @type {[string, string][]} */ ([])
+
+		await loop(
+			{ findingsPath: fp, approvedPath: out, isYes: true, cwd: dir },
+			{
+				isTTY: false,
+				cwd: dir,
+				writeFile: (p, d, enc) => writeFileSync(p, d, enc),
+				renameSync: (from, to) => {
+					renames.push([from, to])
+					renameSync(from, to)
+				},
+			}
+		)
+
+		assert.ok(
+			renames.some(([from, to]) => from === `${out}.tmp` && to === out),
+			'approved.json is produced by a tmp → final rename'
+		)
+		assert.equal(JSON.parse(readFileSync(out, 'utf8')).length, 1)
+	})
+
+	it('treats a state-dir cleanup failure as non-fatal', async () => {
+		const dir = tempDir()
+		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
+		const out = approvedPath(dir)
+		const stderrLines = /** @type {string[]} */ ([])
+
+		await loop(
+			{ findingsPath: fp, approvedPath: out, isYes: true, cwd: dir },
+			{
+				isTTY: false,
+				cwd: dir,
+				stderr: { write: (s) => stderrLines.push(s) },
+				rmSync: () => {
+					throw new Error('EPERM: operation not permitted')
+				},
+			}
+		)
+
+		// The approval still landed and the run did not throw.
+		assert.equal(JSON.parse(readFileSync(out, 'utf8')).length, 1)
+		assert.ok(stderrLines.some((l) => /could not remove state dir/.test(l)))
 	})
 })
 

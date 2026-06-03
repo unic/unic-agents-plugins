@@ -202,18 +202,20 @@ function readJson(readFile, filePath, label) {
 }
 
 /**
- * Atomically write a JSON state file via tmp + rename.
+ * Atomically write a JSON file via tmp + rename so a crash mid-write can never
+ * leave a partially-written file in place. Used for both `state.json` and the
+ * `approved.json` artifact that the posting step consumes.
  *
- * @param {string} statePath
- * @param {LoopState} state
+ * @param {string} filePath
+ * @param {unknown} value
  * @param {{ writeFile: LoopDeps['writeFile'], renameSync: LoopDeps['renameSync'] }} deps
  */
-function writeState(statePath, state, deps) {
+function writeJsonAtomic(filePath, value, deps) {
 	const write = deps.writeFile ?? realWriteFile
 	const rename = deps.renameSync ?? realRename
-	const tmp = `${statePath}.tmp`
-	write(tmp, JSON.stringify(state, null, 2), 'utf8')
-	rename(tmp, statePath)
+	const tmp = `${filePath}.tmp`
+	write(tmp, JSON.stringify(value, null, 2), 'utf8')
+	rename(tmp, filePath)
 }
 
 /**
@@ -249,7 +251,7 @@ export async function runApprovalLoop(params, deps = {}) {
 			'approval-loop: --post requires an interactive terminal (TTY) or --yes to bulk-accept.\n' +
 				'Run with --yes to post all Findings without prompting, or run in a terminal.\n'
 		)
-		exit(2)
+		return exit(2)
 	}
 
 	const parsedFindings = readJson(readFile, findingsPath, '--findings file')
@@ -257,7 +259,7 @@ export async function runApprovalLoop(params, deps = {}) {
 		stderr.write(
 			`approval-loop: findings file must contain a JSON array (got ${typeof parsedFindings}): ${findingsPath}\n`
 		)
-		exit(1)
+		return exit(1)
 	}
 	const rawFindings = /** @type {object[]} */ (parsedFindings)
 
@@ -280,11 +282,21 @@ export async function runApprovalLoop(params, deps = {}) {
 	const lines = rl ? rl[Symbol.asyncIterator]() : null
 
 	try {
-		if (existsSync(statePath)) {
+		// `--reset` always discards prior state and starts fresh; otherwise reuse
+		// the persisted state when it exists.
+		if (existsSync(statePath) && !isReset) {
 			const existing = /** @type {LoopState} */ (readJson(readFile, statePath, 'state file (use --reset to discard)'))
 
+			if (existing === null || typeof existing !== 'object' || !Array.isArray(existing.findings)) {
+				stderr.write(
+					`approval-loop: state file is malformed (findings is not an array): ${statePath}\n` +
+						`Run with --reset to discard prior state and start fresh.\n`
+				)
+				return exit(1)
+			}
+
 			if (existing.headSha !== headSha) {
-				if (!isReset && !isYes && lines) {
+				if (!isYes && lines) {
 					stdout.write(
 						`\napproval-loop: HEAD has changed since this review was generated.\n` +
 							`  Prior SHA : ${existing.headSha}\n` +
@@ -305,7 +317,7 @@ export async function runApprovalLoop(params, deps = {}) {
 			state = buildInitialState(rawFindings, params, now())
 		}
 
-		writeState(statePath, state, { writeFile, renameSync })
+		writeJsonAtomic(statePath, state, { writeFile, renameSync })
 
 		if (isYes) {
 			for (const finding of state.findings) {
@@ -314,7 +326,7 @@ export async function runApprovalLoop(params, deps = {}) {
 					finding.decidedAt = now()
 				}
 			}
-			writeState(statePath, state, { writeFile, renameSync })
+			writeJsonAtomic(statePath, state, { writeFile, renameSync })
 		} else if (lines) {
 			for (const finding of state.findings) {
 				if (finding.decision !== 'pending') continue
@@ -351,7 +363,7 @@ export async function runApprovalLoop(params, deps = {}) {
 					finding.decidedAt = now()
 				}
 
-				writeState(statePath, state, { writeFile, renameSync })
+				writeJsonAtomic(statePath, state, { writeFile, renameSync })
 			}
 		}
 	} finally {
@@ -359,9 +371,19 @@ export async function runApprovalLoop(params, deps = {}) {
 	}
 
 	const approved = state.findings.filter((f) => f.decision === 'accept' || f.decision === 'edit')
-	writeFile(approvedPath, JSON.stringify(approved, null, 2), 'utf8')
+	writeJsonAtomic(approvedPath, approved, { writeFile, renameSync })
 
-	rmSync(stateDir, { recursive: true, force: true })
+	// State-dir cleanup is best-effort: the approval already landed durably, so a
+	// removal failure (e.g. EPERM/EBUSY on Windows) must not masquerade as a fatal
+	// error and make the reviewer re-run a successful review.
+	try {
+		rmSync(stateDir, { recursive: true, force: true })
+	} catch (err) {
+		stderr.write(
+			`approval-loop: warning: could not remove state dir ${stateDir}: ` +
+				`${err instanceof Error ? err.message : String(err)}\n`
+		)
+	}
 
 	stdout.write(`\napproval-loop: done. ${approved.length} Finding(s) approved → ${approvedPath}\n`)
 }
