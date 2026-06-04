@@ -60,6 +60,70 @@ Then reinstall plugins from the Claude Code command palette.
 
    Omit `--post` for a read-only terminal preview; add `--yes` to bulk-accept all Findings without prompting.
 
+## How it works
+
+The `review-pr` command runs the orchestrator in [`commands/review-pr.md`](commands/review-pr.md) through nine steps. The Intent Assessor and Re-review Coordinator are dedicated agents — not Review Aspects — spawned by mode/intent presence, never by changed-file categories ([ADR-0008](docs/adr/0008-conditional-sub-agent-spawning.md), [ADR-0011](docs/adr/0011-intent-assessor-for-live-ac-verdicts.md)).
+
+```mermaid
+flowchart TD
+  start(["/unic-pr-review:review-pr  URL?  --post?  --yes?"])
+  start --> s1{"Step 1<br/>Detect mode"}
+  s1 -->|"no URL"| prepr["Pre-PR"]
+  s1 -->|"URL, no prior signature"| first["first-review"]
+  s1 -->|"URL, prior signature found"| rere["re-review"]
+
+  prepr --> s2
+  first --> s2
+  rere --> s2
+
+  s2["Step 2: Resolve base branch"] --> s3{"Step 3: Compute diff"}
+  s3 -->|"first-review / Pre-PR"| full["Full diff vs base"]
+  s3 -->|"re-review (ADR-0007)"| delta["Delta diff: prior Revision to HEAD"]
+
+  full --> s4
+  delta --> s4
+
+  s4["Step 4: Gather intent URLs<br/>Pre-PR pasted URLs OR ADO Work Items via Provider"]
+  s4 -->|"intent present"| s5["Step 5: Intent Checker<br/>emits intentCheck skeleton + Intent Brief"]
+  s4 -->|"no intent"| s6
+  s5 --> s6
+
+  s6["Step 6: Resolve spawn set<br/>scripts/lib/changed-file-analyser.mjs"]
+
+  subgraph s7 ["Step 7: Parallel fan-out"]
+    direction TB
+    cr["code-reviewer <br>(always)"]
+    sfh["silent-failure-hunter <br>(if source files)"]
+    tda["type-design-analyzer <br>(if type files)"]
+    pta["pr-test-analyzer <br>(if test files)"]
+    cma["comment-analyzer <br>(if docs)"]
+    csi["code-simplifier <br>(if 3+ source files)"]
+    ia["Intent Assessor <br>(if intentBrief present + skeleton non-empty)"]
+  end
+  s6 --> s7
+
+  s7 --> coord{"re-review?"}
+  coord -->|"yes"| rrc["Re-review Coordinator<br>Merges priorVerdicts + Thread state<br>Emits threadActions, persistentUnaddressed, freshFindings"]
+  coord -->|"no"| s8
+  rrc --> s8
+
+  s8["Step 8: Merge findings + render Review Summary<br>Intent-check-merger.mjs overlays Assessor verdicts<br>Bot Signature footer (ADR-0006)"]
+  s8 --> s9["Step 9: Print preview in terminal"]
+
+  s9 --> postq{"post flag set?"}
+  postq -->|"no"| ok(["Done: read-only"])
+  postq -->|"non-TTY without yes flag"| stop(["Abort exit 2: ADR-0003 guard"])
+  postq -->|"TTY or yes flag"| loop["Approval Loop<br>Walk Findings: accept / edit / skip"]
+
+  loop --> w["ADO Writer"]
+  w -->|"first-review"| w1["Post Threads + Summary General Comment"]
+  w -->|"re-review"| w2["Reply on Threads / auto-resolve addressed /<br>Rewrite Summary in place / Persistent Unaddressed Notice"]
+  w1 --> posted(["Done: posted"])
+  w2 --> posted
+```
+
+Read-only by default. The `--post` path writes only what you accept in the Approval Loop, and the Bot Signature in every comment lets the next run recognise its own prior work without any local state ([ADR-0006](docs/adr/0006-iteration-state-in-pr.md)).
+
 ## Commands
 
 | Command                                    | Description                                                                                                                      | Argument hint                     |
