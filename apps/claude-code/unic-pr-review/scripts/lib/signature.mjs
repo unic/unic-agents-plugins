@@ -48,7 +48,7 @@ export function renderFooter(iteration) {
  */
 
 /**
- * A simplified ADO PR Thread payload. The caller (ADO Fetcher, Step 4a) filters
+ * A simplified ADO PR Thread payload. The caller (ADO Fetcher, Step 3a) filters
  * threads to only those whose FIRST comment contains an Iteration Marker before
  * passing here; the remaining comments in a kept thread may not carry a marker.
  *

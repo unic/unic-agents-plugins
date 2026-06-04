@@ -83,7 +83,7 @@ Wait for the agent to complete. It returns a JSON object:
 
 #### Step 1.4 — Route by mode
 
-Read `FETCHER_OUTPUT.mode` (the ADO Fetcher emits `"first-review"`, `"re-review"`, or `"first-review-fallback"` — see `agents/ado-fetcher.md` Step 4a).
+Read `FETCHER_OUTPUT.mode` (the ADO Fetcher emits `"first-review"`, `"re-review"`, or `"first-review-fallback"` — see `agents/ado-fetcher.md` Step 3a).
 
 **`mode === "first-review"` → continue to Step 1.5 as-is.** Set `IS_FALLBACK = false` and `CURRENT_ITERATION = 1`.
 
