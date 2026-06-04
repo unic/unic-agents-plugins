@@ -13,3 +13,4 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0009](0009-pre-pr-mode-as-peer-of-pr-modes.md) — Pre-PR mode is a peer operating mode, not a flag
 - [0010](0010-provider-folder-bundle.md) — Provider as a folder bundle
 - [0011](0011-intent-assessor-for-live-ac-verdicts.md) — Intent Assessor as a dedicated agent for live AC verdicts
+- [0012](0012-checkout-free-first-review-diff.md) — First-review computes a checkout-free merge-base diff from ADO commit SHAs
