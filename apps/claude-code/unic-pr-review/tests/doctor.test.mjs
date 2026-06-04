@@ -242,6 +242,7 @@ describe('runDoctor — Jira silence (US-35)', () => {
 		assert.doesNotMatch(output, /Jira/)
 		assert.doesNotMatch(output, /skipped/)
 		assert.match(output, /Confluence reachable/)
+		assert.match(output, /All checks passed/)
 	})
 
 	it('emits a Jira line when jiraUrl is configured', async () => {
@@ -256,33 +257,6 @@ describe('runDoctor — Jira silence (US-35)', () => {
 			}),
 		})
 		assert.match(output, /Jira reachable/)
-	})
-})
-
-describe('runDoctor — missing credentials', () => {
-	it('returns ok:false and emits an Atlassian credentials error when creds are absent', async () => {
-		const { ok, output } = await runDoctor({
-			exec: allOkExec,
-			ping: pingHttp(200),
-			loadCreds: () => null,
-		})
-		assert.equal(ok, false)
-		assert.match(output, /Atlassian credentials/)
-		assert.match(output, /One or more checks failed/)
-	})
-
-	it('returns ok:false and formats error when loadCreds throws', async () => {
-		const { ok, output } = await runDoctor({
-			exec: execReturning({ ok: true, stdout: '[]' }),
-			ping: pingHttp(200),
-			loadCreds: () => {
-				throw new Error('EACCES: permission denied')
-			},
-		})
-		assert.equal(ok, false)
-		assert.match(output, /Atlassian credentials/)
-		assert.match(output, /EACCES/)
-		assert.match(output, /One or more checks failed/)
 	})
 })
 
@@ -346,13 +320,6 @@ describe('AZ binary selector', () => {
 })
 
 describe('runDoctor — credential errors', () => {
-	/** @type {Exec} */
-	const allOkExec = (_cmd, args) => {
-		if (args.includes('extension'))
-			return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
-		return { ok: true, stdout: '[]', stderr: '' }
-	}
-
 	it('reports missing credentials and returns ok:false when loadCreds returns null', async () => {
 		const { ok, output } = await runDoctor({
 			exec: allOkExec,
@@ -361,6 +328,7 @@ describe('runDoctor — credential errors', () => {
 		})
 		assert.equal(ok, false)
 		assert.match(output, /Atlassian credentials/)
+		assert.match(output, /One or more checks failed/)
 		assert.doesNotMatch(output, /Confluence/)
 		assert.doesNotMatch(output, /Jira/)
 	})
@@ -376,6 +344,7 @@ describe('runDoctor — credential errors', () => {
 		assert.equal(ok, false)
 		assert.match(output, /credential file unreadable/)
 		assert.match(output, /invalid JSON/)
+		assert.match(output, /One or more checks failed/)
 		assert.doesNotMatch(output, /Confluence/)
 		assert.doesNotMatch(output, /Jira/)
 	})

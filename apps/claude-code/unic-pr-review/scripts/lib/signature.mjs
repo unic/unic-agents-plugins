@@ -86,6 +86,7 @@ export function parseSignature(threads) {
 			const match = body.match(ITERATION_MARKER_REGEX)
 			if (!match) continue
 			const n = parseInt(match[1], 10)
+			if (Number.isNaN(n)) continue
 			if (best === null || n > best.priorRevisionId) {
 				best = {
 					priorRevisionId: n,
