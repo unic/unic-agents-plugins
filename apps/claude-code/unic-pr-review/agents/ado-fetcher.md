@@ -3,7 +3,7 @@ name: ado-fetcher
 description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Computes a checkout-free merge-base diff (commonRefCommit→sourceRefCommit) for first-review modes via git fetch + git diff; falls back to diffUnavailable when not in a matching clone. Carries the git delta diff in re-review mode. Detects prior bot threads by Iteration Marker, not caller identity.
 model: inherit
 color: purple
-allowed-tools: Bash(az *), Bash(node *), Bash(git *), Bash(jq *)
+allowed-tools: Bash(az *), Bash(node *), Bash(git *)
 ---
 
 # ADO Fetcher
@@ -149,10 +149,10 @@ Set `DELTA_RAW_DIFF` to `""` and `PRIOR_FINDINGS` to `[]`.
 
 **Step 5a — Repo-match guard**
 
-Resolve the ADO remote URL from `prMetadata.repository.remoteUrl`:
+Resolve the ADO remote URL from `prMetadata.repository.remoteUrl`. Parse it with Node (not `jq`) so the step stays cross-platform — `jq` is not available by default on Windows:
 
 ```sh
-ADO_REMOTE_URL=$(echo "$PR_METADATA" | jq -r '.repository.remoteUrl')
+ADO_REMOTE_URL=$(echo "$PR_METADATA" | node -e 'let s="";process.stdin.on("data",(d)=>{s+=d}).on("end",()=>{process.stdout.write((JSON.parse(s).repository||{}).remoteUrl||"")})')
 ```
 
 Check whether any local remote matches the ADO remote:
