@@ -159,10 +159,10 @@ Check whether any local remote matches the ADO remote:
 
 ```sh
 set -o pipefail
-REMOTES_MATCH=$(git remote -v | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL") || REMOTES_MATCH=error
+REMOTES_MATCH=$(git remote -v | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/remote-match.mjs" "$ADO_REMOTE_URL") || REMOTES_MATCH=error
 ```
 
-`set -o pipefail` makes the pipeline exit non-zero if `git remote -v` fails (not only if the helper fails); the `|| REMOTES_MATCH=error` then collapses any non-zero exit (git failure or helper crash) into a sentinel so a tool failure can never be mistaken for a `false` match. Treat only the literal `true` as a match: if `REMOTES_MATCH` is not exactly `true` (i.e. `false`, `error`, or empty), set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+The helper is referenced via `${CLAUDE_PLUGIN_ROOT}` (not a bare relative path) because this step runs with the user's clone as the working directory — `git remote -v` must inspect the clone, so a path relative to cwd would not find the plugin's script. `set -o pipefail` makes the pipeline exit non-zero if `git remote -v` fails (not only if the helper fails); the `|| REMOTES_MATCH=error` then collapses any non-zero exit (git failure or helper crash) into a sentinel so a tool failure can never be mistaken for a `false` match. Treat only the literal `true` as a match: if `REMOTES_MATCH` is not exactly `true` (i.e. `false`, `error`, or empty), set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
 
 ```
 "Repo-match guard: no local remote matches prMetadata.repository.remoteUrl. Run from inside a clone of the PR's repo to get a line-level diff."
