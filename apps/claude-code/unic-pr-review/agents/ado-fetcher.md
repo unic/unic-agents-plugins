@@ -215,7 +215,16 @@ If the command exits non-zero, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `tr
 "git diff failed — commits may not be present locally after fetch. Review agents will operate on changedFiles."
 ```
 
-Otherwise set `RAW_DIFF` to the diff stdout and `DIFF_UNAVAILABLE` to `false`.
+Otherwise the command exited zero. `git diff` exits zero on success whether or not it found any differences, so an empty stdout is not self-evidently safe — cross-check it against `CHANGED_FILES`:
+
+- If the diff stdout is non-empty, set `RAW_DIFF` to it and `DIFF_UNAVAILABLE` to `false`.
+- If the diff stdout is empty **and** `CHANGED_FILES` is non-empty, the diff is empty despite known changes (a silent `git fetch` failure left stale commits, the two SHAs resolve to the same tree, or a shallow clone collapsed both refs). Do not hand review agents an empty diff and a `false` flag — that reads as a clean PR. Set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+
+```
+"git diff succeeded but produced an empty diff while changedFiles is non-empty — refusing to treat as a clean review. Review agents will operate on changedFiles."
+```
+
+- If the diff stdout is empty **and** `CHANGED_FILES` is also empty, there are genuinely no changes to review: set `RAW_DIFF` to `""` and `DIFF_UNAVAILABLE` to `false`.
 
 ### Step 6 — Emit result
 
@@ -238,4 +247,4 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
 }
 ```
 
-`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit, or git diff failure). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.
+`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit, git diff failure, or an empty diff despite a non-empty changedFiles). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.
