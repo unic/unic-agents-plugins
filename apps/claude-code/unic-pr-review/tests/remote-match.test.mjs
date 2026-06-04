@@ -39,53 +39,31 @@ describe('remotesMatch', () => {
 	// ── .git suffix ─────────────────────────────────────────────────────────────
 
 	it('ignores trailing .git suffix on HTTPS URL', () => {
-		assert.equal(
-			remotesMatch('https://github.com/org/repo.git', ['https://github.com/org/repo']),
-			true
-		)
+		assert.equal(remotesMatch('https://github.com/org/repo.git', ['https://github.com/org/repo']), true)
 	})
 
 	it('ignores trailing .git suffix on SSH URL', () => {
-		assert.equal(
-			remotesMatch('https://github.com/org/repo', ['git@github.com:org/repo.git']),
-			true
-		)
+		assert.equal(remotesMatch('https://github.com/org/repo', ['git@github.com:org/repo.git']), true)
 	})
 
 	it('ignores trailing .git suffix on ADO SSH URL', () => {
-		assert.equal(
-			remotesMatch('https://dev.azure.com/o/p/_git/r', [
-				'git@ssh.dev.azure.com:v3/o/p/r.git',
-			]),
-			true
-		)
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['git@ssh.dev.azure.com:v3/o/p/r.git']), true)
 	})
 
 	// ── Host casing ─────────────────────────────────────────────────────────────
 
 	it('ignores host casing on HTTPS URL', () => {
-		assert.equal(
-			remotesMatch('https://GITHUB.COM/org/repo', ['https://github.com/org/repo']),
-			true
-		)
+		assert.equal(remotesMatch('https://GITHUB.COM/org/repo', ['https://github.com/org/repo']), true)
 	})
 
 	it('ignores host casing on ADO HTTPS URL', () => {
-		assert.equal(
-			remotesMatch('https://DEV.AZURE.COM/o/p/_git/r', ['https://dev.azure.com/o/p/_git/r']),
-			true
-		)
+		assert.equal(remotesMatch('https://DEV.AZURE.COM/o/p/_git/r', ['https://dev.azure.com/o/p/_git/r']), true)
 	})
 
 	// ── Embedded credentials ─────────────────────────────────────────────────────
 
 	it('strips embedded user:token credentials from HTTPS URL', () => {
-		assert.equal(
-			remotesMatch('https://user:token@github.com/org/repo', [
-				'https://github.com/org/repo',
-			]),
-			true
-		)
+		assert.equal(remotesMatch('https://user:token@github.com/org/repo', ['https://github.com/org/repo']), true)
 	})
 
 	it('strips embedded username (ADO pat-style) from HTTPS URL', () => {
@@ -98,35 +76,25 @@ describe('remotesMatch', () => {
 	})
 
 	it('strips credentials from local remote URL', () => {
-		assert.equal(
-			remotesMatch('https://github.com/org/repo', ['https://pat:x@github.com/org/repo']),
-			true
-		)
+		assert.equal(remotesMatch('https://github.com/org/repo', ['https://pat:x@github.com/org/repo']), true)
 	})
 
 	// ── Different repo does not match ───────────────────────────────────────────
 
 	it('returns false for a different repo on the same host', () => {
-		assert.equal(
-			remotesMatch('https://github.com/org/repo-a', ['https://github.com/org/repo-b']),
-			false
-		)
+		assert.equal(remotesMatch('https://github.com/org/repo-a', ['https://github.com/org/repo-b']), false)
 	})
 
 	it('returns false for a different ADO repo', () => {
 		assert.equal(
-			remotesMatch('https://dev.azure.com/org/proj/_git/repo-a', [
-				'https://dev.azure.com/org/proj/_git/repo-b',
-			]),
+			remotesMatch('https://dev.azure.com/org/proj/_git/repo-a', ['https://dev.azure.com/org/proj/_git/repo-b']),
 			false
 		)
 	})
 
 	it('returns false for same repo name in a different ADO project', () => {
 		assert.equal(
-			remotesMatch('https://dev.azure.com/org/project-a/_git/repo', [
-				'https://dev.azure.com/org/project-b/_git/repo',
-			]),
+			remotesMatch('https://dev.azure.com/org/project-a/_git/repo', ['https://dev.azure.com/org/project-b/_git/repo']),
 			false
 		)
 	})
@@ -168,16 +136,10 @@ describe('remotesMatch', () => {
 	// ── Generic HTTPS ↔ SSH (non-ADO) ───────────────────────────────────────────
 
 	it('matches GitHub HTTPS against GitHub SSH shorthand', () => {
-		assert.equal(
-			remotesMatch('https://github.com/org/repo', ['git@github.com:org/repo']),
-			true
-		)
+		assert.equal(remotesMatch('https://github.com/org/repo', ['git@github.com:org/repo']), true)
 	})
 
 	it('matches GitLab SSH shorthand against GitLab HTTPS', () => {
-		assert.equal(
-			remotesMatch('git@gitlab.com:org/repo', ['https://gitlab.com/org/repo']),
-			true
-		)
+		assert.equal(remotesMatch('git@gitlab.com:org/repo', ['https://gitlab.com/org/repo']), true)
 	})
 })

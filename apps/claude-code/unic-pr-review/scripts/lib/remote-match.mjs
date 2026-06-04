@@ -83,7 +83,10 @@ function normalise(rawUrl) {
 		return `${parsed.hostname}${path}`
 	} catch {
 		// URL not parseable — best-effort lowercase + strip .git
-		return url.toLowerCase().replace(/\.git$/, '').replace(/\/$/, '')
+		return url
+			.toLowerCase()
+			.replace(/\.git$/, '')
+			.replace(/\/$/, '')
 	}
 }
 
@@ -119,9 +122,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		localUrls = JSON.parse(chunks.join('\n'))
 		if (!Array.isArray(localUrls)) throw new Error('expected JSON array')
 	} catch (err) {
-		process.stderr.write(
-			`remote-match: invalid stdin JSON — ${err instanceof Error ? err.message : String(err)}\n`
-		)
+		process.stderr.write(`remote-match: invalid stdin JSON — ${err instanceof Error ? err.message : String(err)}\n`)
 		process.exit(1)
 	}
 
