@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.0] — 2026-06-04
+
+### Breaking
+- (none)
+
+### Added
+- README "How it works" section with a Mermaid `flowchart TD` covering all nine orchestrator steps, the conditional aspect-agent fan-out, the Intent Assessor branch (ADR-0011), the re-review delta path (ADR-0007) and Re-review Coordinator merge, the Approval Loop non-TTY guard (ADR-0003), and the ADO Writer's first-review vs re-review write paths.
+
+### Fixed
+- (none)
+
 ## [2.0.3] — 2026-06-03
 
 ### Breaking
