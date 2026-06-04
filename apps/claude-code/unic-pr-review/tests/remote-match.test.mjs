@@ -50,6 +50,10 @@ describe('remotesMatch', () => {
 		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['git@ssh.dev.azure.com:v3/o/p/r.git']), true)
 	})
 
+	it('ignores a trailing slash on a generic HTTPS URL', () => {
+		assert.equal(remotesMatch('https://github.com/org/repo/', ['https://github.com/org/repo']), true)
+	})
+
 	// ── Host casing ─────────────────────────────────────────────────────────────
 
 	it('ignores host casing on HTTPS URL', () => {
@@ -90,6 +94,16 @@ describe('remotesMatch', () => {
 			remotesMatch('https://dev.azure.com/org/proj/_git/repo-a', ['https://dev.azure.com/org/proj/_git/repo-b']),
 			false
 		)
+	})
+
+	it('returns false across forms for a different ADO repo (HTTPS vs SSH)', () => {
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/repo-a', ['git@ssh.dev.azure.com:v3/o/p/repo-b']), false)
+	})
+
+	it('does not let a generic host collide with an ADO identity token', () => {
+		// ADO URLs normalise to an `ado:` token, generic URLs to `<host>/<path>`;
+		// the two namespaces must never collide even if a path mimics the token.
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['https://evil.com/ado:o/p/r']), false)
 	})
 
 	it('returns false for same repo name in a different ADO project', () => {

@@ -158,10 +158,11 @@ ADO_REMOTE_URL=$(echo "$PR_METADATA" | jq -r '.repository.remoteUrl')
 Check whether any local remote matches the ADO remote:
 
 ```sh
+set -o pipefail
 REMOTES_MATCH=$(git remote -v | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL") || REMOTES_MATCH=error
 ```
 
-The `|| REMOTES_MATCH=error` collapses any non-zero exit (pipeline failure, helper crash) into a sentinel so a tool failure can never be mistaken for a `false` match. Treat only the literal `true` as a match: if `REMOTES_MATCH` is not exactly `true` (i.e. `false`, `error`, or empty), set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+`set -o pipefail` makes the pipeline exit non-zero if `git remote -v` fails (not only if the helper fails); the `|| REMOTES_MATCH=error` then collapses any non-zero exit (git failure or helper crash) into a sentinel so a tool failure can never be mistaken for a `false` match. Treat only the literal `true` as a match: if `REMOTES_MATCH` is not exactly `true` (i.e. `false`, `error`, or empty), set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
 
 ```
 "Repo-match guard: no local remote matches prMetadata.repository.remoteUrl. Run from inside a clone of the PR's repo to get a line-level diff."
@@ -237,4 +238,4 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
 }
 ```
 
-`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit, or git failure). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.
+`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit, or git diff failure). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.
