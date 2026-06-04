@@ -6,15 +6,14 @@
 /**
  * doctor.mjs — preflight checks for unic-pr-review prerequisites.
  *
- * Six checks with cascade: each az check only runs if the prior one passes;
+ * Five checks with cascade: each az check only runs if the prior one passes;
  * Atlassian checks run when credentials load successfully.
  *
  *   1. az CLI on PATH
  *   2. azure-devops extension installed           (only if 1 passes)
  *   3. az devops session valid (project list)     (only if 2 passes)
- *   4. az devops user show --user me              (only if 3 passes)
- *   5. Confluence reachable
- *   6. Jira reachable (silent when jiraUrl is unset — US 35)
+ *   4. Confluence reachable
+ *   5. Jira reachable (silent when jiraUrl is unset — US 35)
  *
  * Each predicate accepts an injectable executor (for az) or fetcher (for HTTP)
  * so unit tests can stub them without mocking node:child_process or globalThis.
@@ -112,34 +111,6 @@ export function checkAzLogin(exec) {
 		return { ok: false, detail: 'az devops session is not valid (run: az devops login --org <your-org-url>)' }
 	}
 	return { ok: true, detail: 'az devops session valid' }
-}
-
-/**
- * Predicate: `az devops user show --user me` resolves with a user id.
- * ADR-0006 requires the caller's identity to be resolvable before
- * iteration data can be cached against it.
- * @param {Exec} exec
- * @returns {CheckResult}
- */
-export function checkAzIdentity(exec) {
-	const r = exec(AZ, ['devops', 'user', 'show', '--user', 'me', '--output', 'json'])
-	if (!r.ok) {
-		return { ok: false, detail: 'az devops user show --user me failed (identity caching will not work)' }
-	}
-	let parsed
-	try {
-		parsed = JSON.parse(r.stdout || '{}')
-	} catch (err) {
-		return {
-			ok: false,
-			detail: `az devops user show returned invalid JSON (${err instanceof Error ? err.message : String(err)})`,
-		}
-	}
-	if (!parsed || typeof parsed.id !== 'string' || parsed.id.length === 0) {
-		return { ok: false, detail: 'az devops user show resolved but no user id field is present' }
-	}
-	const label = parsed.emailAddress || parsed.principalName || parsed.id
-	return { ok: true, detail: `identity resolves (${label})` }
 }
 
 /**
@@ -305,12 +276,6 @@ export async function runDoctor(deps = {}) {
 			const login = checkAzLogin(exec)
 			lines.push(formatLine(login, 'az devops session'))
 			if (!login.ok) allOk = false
-
-			if (login.ok) {
-				const ident = checkAzIdentity(exec)
-				lines.push(formatLine(ident, 'az devops identity'))
-				if (!ident.ok) allOk = false
-			}
 		}
 	}
 

@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.1] — 2026-06-04
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Remove identity matching end-to-end: `doctor` no longer probes `az devops user show` (which fails for non-admins via `_apis/UserEntitlements`); re-review detection now keys on the hidden Iteration Marker `<!-- unic-pr-review:iteration=N -->` embedded in every bot-authored comment, never on the caller's ADO user id (issue #194, ADR-0006)
+
 ## [2.1.0] — 2026-06-04
 
 ### Breaking

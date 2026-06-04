@@ -11,8 +11,8 @@
  * Usage (from ADO Fetcher agent):
  *   echo "$FILTERED_THREADS_JSON" | node scripts/parse-prior-signature.mjs
  *
- * The bot-identity filtering (keeping only threads where comments[0].author.id
- * matches IDENTITY.id) must be done by the caller BEFORE piping here.
+ * The Iteration-Marker filtering (keeping only threads where comments[0].content
+ * contains the Iteration Marker) must be done by the caller BEFORE piping here.
  */
 
 import { createInterface } from 'node:readline'

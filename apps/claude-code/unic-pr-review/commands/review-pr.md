@@ -65,7 +65,6 @@ Wait for the agent to complete. It returns a JSON object:
 
 ```json
 {
-  "identity": { "id": "...", "displayName": "..." },
   "prMetadata": {},
   "revisions": {},
   "threads": {},
@@ -78,7 +77,6 @@ Wait for the agent to complete. It returns a JSON object:
 
 - **Print any `warnings` entries** first (if present) so the user sees diagnostic context even on error.
 - **If the agent returns an object with `"error"` set**:
-  - `"identity-cache-failed"` → print `"ADO identity caching failed. Run /unic-pr-review:doctor to diagnose."` and stop.
   - `"fetch-failed"` → print `"ADO data fetch failed at step <step> (<resource>): <message>"` and stop.
   - Any other error key → print the error message verbatim and stop.
 - Store `FETCHER_OUTPUT`.
@@ -375,8 +373,6 @@ After all aspect agents complete, use the Agent tool to launch `unic-pr-review:r
   "project":          "<PR_REF.project>",
   "repo":             "<PR_REF.repo>",
   "prId":             <PR_REF.prId>,
-  "identityId":       "<FETCHER_OUTPUT.identity.id>",
-  "signaturePrefix":  "🤖 Reviewed by Claude Code — Iteration ",
   "deltaRawDiff":     "<FETCHER_OUTPUT.deltaRawDiff>",
   "priorFindings":    <FETCHER_OUTPUT.priorFindings>,
   "priorIteration":   <FETCHER_OUTPUT.priorIteration>,
@@ -385,8 +381,6 @@ After all aspect agents complete, use the Agent tool to launch `unic-pr-review:r
   "aspectFindings":   <ASPECT_RESPONSES>
 }
 ```
-
-`signaturePrefix` is the exact literal string `"🤖 Reviewed by Claude Code — Iteration "`. The orchestrator is a slash-command `.md` file, not a Node script, so it cannot `import { SIGNATURE_PREFIX }` from `scripts/lib/signature.mjs`; this single hardcoded occurrence is the one legitimate exception to the "never inline the prefix" rule (ADR-0006). The Coordinator uses it only for string-matching bot-signed comments in `rawThreadsJson`.
 
 Wait for the Coordinator to complete. It returns:
 
@@ -443,7 +437,6 @@ When `mode === "re-review"` and `IS_POST` is true, use the Agent tool to launch 
   "coordinatorPlan": <COORDINATOR_PLAN>,
   "renderedSummary": "<RENDERED_SUMMARY>",
   "rawThreadsJson":  <FETCHER_OUTPUT.threads.value>,
-  "identity":        <FETCHER_OUTPUT.identity>,
   "iteration":       <CURRENT_ITERATION>
 }
 ```

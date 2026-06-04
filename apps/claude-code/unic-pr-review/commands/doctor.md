@@ -13,9 +13,8 @@ Checks performed:
 1. `az` CLI is on `PATH`
 2. `azure-devops` extension is installed
 3. `az devops` session is valid (`az devops project list --detect`)
-4. `az devops user show --user me` resolves (identity caching — required by ADR-0006)
-5. Confluence is reachable via `~/.unic-confluence.json` or the `CONFLUENCE_*` env vars
-6. Jira is reachable — only when `jiraUrl` is configured (US 35: doctor stays silent otherwise)
+4. Confluence is reachable via `~/.unic-confluence.json` or the `CONFLUENCE_*` env vars
+5. Jira is reachable — only when `jiraUrl` is configured (US 35: doctor stays silent otherwise)
 
 ## Step 1 — Run the doctor script
 
@@ -32,7 +31,6 @@ If a check fails, relay the failure detail verbatim and suggest the corrective a
 - `az` missing → install the Azure CLI: <https://learn.microsoft.com/en-us/cli/azure/install-azure-cli>
 - `azure-devops` extension missing → `az extension add --name azure-devops`
 - `az devops` session invalid → `az devops login --org <your-org-url>`
-- `az devops user show` fails → re-run `az devops login`, then re-run doctor; if still failing, check your ADO permissions
 - Confluence unreachable → run `/unic-pr-review:setup-confluence` to create `~/.unic-confluence.json`, or set `CONFLUENCE_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN`
 - Jira unreachable → run `/unic-pr-review:setup-jira` to add the `jiraUrl` field, or set `JIRA_URL`
 
