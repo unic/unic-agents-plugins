@@ -45,7 +45,15 @@ The plugin-dev skill above scaffolds the plugin's core logic files (hooks, comma
 }
 ```
 
-**`.claude-plugin/marketplace.json`** — mirror structure of `apps/claude-code/auto-format/.claude-plugin/marketplace.json`, adjusting name/description/version.
+**`.claude-plugin/marketplace.json`** — mirror structure of `apps/claude-code/auto-format/.claude-plugin/marketplace.json`, adjusting name/description/version. This is the plugin's own per-plugin manifest (`unic-sync-version` mirrors `plugin.json`'s version into it).
+
+**Root `.claude-plugin/marketplace.json` (MANDATORY — easy to forget)** — append an entry to the `plugins[]` array of the repo-root registry. This is the install registry Claude Code actually reads; a plugin omitted here is invisible to anyone who installs the marketplace, even though every other file is correct. Entries are minimal:
+
+```json
+{ "name": "<plugin-name>", "source": "./apps/claude-code/<plugin-name>" }
+```
+
+See ADR-0013 for the two-file split (root registry vs. per-plugin manifest).
 
 For **hook-based plugins**, `plugin.json` needs no extra fields beyond the base shape above.
 
