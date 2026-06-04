@@ -91,7 +91,7 @@ All modules are designed and built from scratch for this Plugin. The Plugin take
 
 ### Architectural decisions
 
-The load-bearing decisions are captured as ADRs in [`apps/claude-code/unic-pr-review/docs/adr/`](../../../apps/claude-code/unic-pr-review/docs/adr/):
+The load-bearing decisions are captured as ADRs in [`apps/claude-code/unic-pr-review/docs/adr/`](../../adr/):
 
 - ADR-0001 — Multi-source intent gathering with shared Atlassian credentials
 - ADR-0002 — Confidence-scored Findings with explicit Severity thresholds

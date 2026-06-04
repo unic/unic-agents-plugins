@@ -3,7 +3,7 @@
 **Status:** needs-triage
 **Category:** enhancement
 **Plugin:** `apps/claude-code/pr-review`
-**Depends on:** `docs/issues/pr-review-ado-fetcher-reliability/PRD.md` (PRD A — must land first)
+**Depends on:** `apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/PRD.md` (PRD A — must land first)
 
 ---
 

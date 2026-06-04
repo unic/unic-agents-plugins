@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
 
 ## What to build
 
@@ -38,7 +38,7 @@ End-to-end demoable: invoke `/pr-review:review-pr` against a PR while the local 
 
 ## Blocked by
 
-`docs/issues/pr-review-ado-fetcher-reliability/02-classify-http-error-and-work-items.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/02-classify-http-error-and-work-items.md`
 
 ---
 
