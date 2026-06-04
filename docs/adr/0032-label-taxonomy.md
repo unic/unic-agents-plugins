@@ -71,8 +71,11 @@ were kept, since Dependabot auto-applies and recreates them.
   fully retired.
 - `app:pr-review` deliberately tags the **deprecated v1** plugin's historical
   issues; it remains valid for that frozen context.
-- **Do not re-run `/setup-matt-pocock-skills` without re-reconciling.** Its seed
-  would otherwise revert `docs/agents/triage-labels.md` to the 5-role/`wontfix`
-  vocabulary. Its seed has been aligned to the 8-state set to make a re-run
-  non-destructive, but it is a vendored skill and an upstream update could
-  overwrite that alignment.
+- **Do not re-run `/setup-matt-pocock-skills` without re-reconciling.** Only this
+  skill's reference doc (`.agents/skills/setup-matt-pocock-skills/triage-labels.md`)
+  was reconciled to the 8-state vocabulary. The skill's executable prompt
+  (`SKILL.md`) still declares the original five canonical roles (using `wontfix`,
+  not `rejected`), so a re-run remains destructive: it would present the 5-role
+  vocabulary and revert `docs/agents/triage-labels.md` to the 5-role/`wontfix`
+  set. Re-aligning `SKILL.md` was left out of scope because it is a vendored skill
+  an upstream update could overwrite; reconcile it by hand if you re-run the skill.
