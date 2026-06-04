@@ -1,0 +1,81 @@
+# 0032. Issue label taxonomy: state, type, priority, and a repo-owned area tier
+
+**Status:** Accepted (2026-06)
+
+## Context
+
+The GitHub issue tracker had accreted ~38 labels with no coherent scheme. The
+largest source of noise was a per-feature label family (`feature/<slug>`, 15
+labels) minted ad-hoc by Matt's issue skills, alongside GitHub's default labels
+and Dependabot's. Two label-setup systems also coexist in this repo and collide
+on `docs/agents/` and the `## Agent skills` block:
+
+- **`unic-archon-dlc`** (installed here via dogfooding) deterministically
+  generates `docs/agents/labels.md` from `.archon/unic-dlc.config.json`. Its
+  canonical taxonomy is three tiers: **state** (8: `needs-triage` to
+  `rejected`), **type** (`feature`, `bug`, `spike`, `tech-debt`, `docs`),
+  **priority** (`p0`-`p3`). This is the tool that stays.
+- **`setup-matt-pocock-skills`** (manual-invocation-only) seeds a narrower,
+  divergent **state** vocabulary (5 roles, using `wontfix` not `rejected`) and
+  is being phased out.
+
+We needed fewer labels, a stable scheme, and a way to group issues by which
+app/package they belong to, without breaking the surviving tool.
+
+## Decision
+
+A four-tier taxonomy. The first three tiers are owned by `unic-archon-dlc`; the
+fourth (area) is a repo convention.
+
+1. **State (8)**: unchanged, archon-canonical: `needs-triage`, `needs-info`,
+   `needs-specs`, `ready-for-agent`, `ready-for-human`, `resolved`, `closed`,
+   `rejected`. `rejected` is canonical, **not** `wontfix`.
+2. **Type (6)**: `feature`, `bug`, `spike`, `tech-debt`, `docs`, `release`.
+   - `documentation` became `docs` and `refactor` became `tech-debt` (renamed to
+     the canonical names; assignments preserved).
+   - `enhancement` (48 issues) merged into `feature`, then deleted, leaving one
+     canonical "new capability" type.
+   - `release` added as a **repo-local** entry in `.archon/unic-dlc.config.json`
+     `labels.type`, not in the plugin's shipped `TYPE_LABELS`. The plugin's
+     `install-runner` shallow-merges `{ ...DEFAULTS, ...existing }` and only
+     falls back to defaults when `labels` is absent, so this edit survives every
+     `/unic-archon-dlc:setup` re-run and does not propagate to other consumers.
+3. **Priority (4)**: `p0`-`p3` created empty to realize the canonical tier.
+4. **Area (new tier)**: one label per app and per package, plus a repo-wide
+   catch-all:
+
+   - `app:<plugin>` for each plugin (`app:auto-format`, `app:pr-review`, ...)
+   - `pkg:<package>` for each workspace package (`pkg:biome-config`, ...)
+   - `repo` for monorepo-wide / cross-cutting work
+
+   The 15 `feature/<slug>` labels were migrated onto these area labels (issues
+   **and** PRs, all states) and then deleted. `pr-review` and `unic-archon-dlc`
+   (which already existed as bare labels) were renamed to the `app:` prefix.
+
+GitHub's unused default labels (`duplicate`, `good first issue`, `help wanted`,
+`invalid`, `question`) were deleted. Dependabot's (`dependencies`, `javascript`)
+were kept, since Dependabot auto-applies and recreates them.
+
+## Consequences
+
+- Label count dropped from ~38 to 29 with a predictable scheme.
+- **The area tier is owned by neither tool.** It is hand-applied and documented
+  in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md); `docs/agents/labels.md` stays
+  consumer-generic and three-tier (its "three-tier" wording is auto-generated,
+  so do not hand-edit it). Teaching `unic-archon-dlc` an area/component tier is a
+  natural future enhancement that would let it own this tier too.
+- **`feature/<slug>` grouping is retired with no replacement generator.** Going
+  forward, per-feature grouping comes from archon's Slug/Session plus the area
+  label. If Matt's skills are still live and create a new feature, they may mint
+  a fresh `feature/<slug>` label that needs periodic re-migration until they are
+  fully retired.
+- `app:pr-review` deliberately tags the **deprecated v1** plugin's historical
+  issues; it remains valid for that frozen context.
+- **Do not re-run `/setup-matt-pocock-skills` without re-reconciling.** Only this
+  skill's reference doc (`.agents/skills/setup-matt-pocock-skills/triage-labels.md`)
+  was reconciled to the 8-state vocabulary. The skill's executable prompt
+  (`SKILL.md`) still declares the original five canonical roles (using `wontfix`,
+  not `rejected`), so a re-run remains destructive: it would present the 5-role
+  vocabulary and revert `docs/agents/triage-labels.md` to the 5-role/`wontfix`
+  set. Re-aligning `SKILL.md` was left out of scope because it is a vendored skill
+  an upstream update could overwrite; reconcile it by hand if you re-run the skill.
