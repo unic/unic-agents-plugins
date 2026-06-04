@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- Checkout-free first-review line diff (issue #196, ADR-0012): `agents/ado-fetcher.md` now computes a real merge-base diff (`commonRefCommit→sourceRefCommit`) via `git fetch origin` + `git diff --unified=3` for `first-review` and `first-review-fallback` modes; guarded by a new `scripts/lib/remote-match.mjs` pure helper that matches the ADO remote URL against local remotes before fetching (normalises HTTPS/SSH forms, `.git` suffix, host casing, and embedded credentials); falls back to `diffUnavailable: true` when not in a matching clone, when `commonRefCommit` is absent, or when the git diff fails — the structural Notice (issue #176) is preserved on genuine fallback
+- Checkout-free first-review line diff (issue #196, ADR-0012): `agents/ado-fetcher.md` now computes a real merge-base diff (`commonRefCommit→sourceRefCommit`) via `git fetch origin` + `git diff --unified=3` for `first-review` and `first-review-fallback` modes; guarded by a new `scripts/lib/remote-match.mjs` pure helper that matches the ADO remote URL against local remotes before fetching (normalises HTTPS/SSH forms, `.git` suffix, host casing, and embedded credentials); falls back to `diffUnavailable: true` when not in a matching clone, when `commonRefCommit` or `sourceRefCommit` is absent, when the git diff fails, or when the diff is empty despite a non-empty changed-file list — the structural Notice (issue #176) is preserved on genuine fallback
 
 ### Fixed
 - (none)
