@@ -33,18 +33,20 @@ import { pathToFileURL } from 'node:url'
  */
 function adoIdentity(parsed) {
 	const host = parsed.hostname.toLowerCase()
-	const parts = parsed.pathname.replace(/^\//, '').split('/')
+	// Strip leading and trailing slashes before splitting so segment counts are exact
+	// (a real ADO repo URL has no path segments beyond the repo name).
+	const parts = parsed.pathname.replace(/^\/+/, '').replace(/\/+$/, '').split('/')
 
-	if (host === 'dev.azure.com' && parts.length >= 4 && parts[2] === '_git') {
+	if (host === 'dev.azure.com' && parts.length === 4 && parts[2] === '_git') {
 		return `ado:${parts[0].toLowerCase()}/${parts[1].toLowerCase()}/${parts[3].replace(/\.git$/i, '').toLowerCase()}`
 	}
 	// ssh://ssh.dev.azure.com/v3/ORG/PROJECT/REPO after git shorthand expansion
-	if (host === 'ssh.dev.azure.com' && parts.length >= 4 && parts[0] === 'v3') {
+	if (host === 'ssh.dev.azure.com' && parts.length === 4 && parts[0] === 'v3') {
 		return `ado:${parts[1].toLowerCase()}/${parts[2].toLowerCase()}/${parts[3].replace(/\.git$/i, '').toLowerCase()}`
 	}
 	if (host.endsWith('.visualstudio.com')) {
 		const org = host.split('.')[0]
-		if (parts.length >= 3 && parts[1] === '_git') {
+		if (parts.length === 3 && parts[1] === '_git') {
 			return `ado:${org}/${parts[0].toLowerCase()}/${parts[2].replace(/\.git$/i, '').toLowerCase()}`
 		}
 	}
@@ -54,8 +56,9 @@ function adoIdentity(parsed) {
 /**
  * Normalise a git remote URL to a canonical string for equality comparison.
  * Returns an `ado:<org>/<project>/<repo>` token for ADO hosts, a bare
- * `<host>/<path>` string for parseable non-ADO URLs, or a best-effort
- * lowercased string for URLs that cannot be parsed.
+ * `<host>/<path>` string for parseable non-ADO URLs, or a `raw:`-prefixed
+ * best-effort lowercased string for URLs that cannot be parsed. The three
+ * forms occupy disjoint namespaces, so a value from one can never match another.
  *
  * @param {string} rawUrl
  * @returns {string}
@@ -83,11 +86,13 @@ function normalise(rawUrl) {
 		const path = parsed.pathname.replace(/\/+$/, '').replace(/\.git$/, '')
 		return `${parsed.hostname}${path}`
 	} catch {
-		// URL not parseable — best-effort lowercase + strip trailing slashes then .git suffix
-		return original
+		// URL not parseable — tag with `raw:` so a malformed value can never forge an
+		// `ado:` identity token; best-effort lowercase + strip trailing slashes then .git suffix
+		const best = original
 			.toLowerCase()
 			.replace(/\/+$/, '')
 			.replace(/\.git$/, '')
+		return `raw:${best}`
 	}
 }
 

@@ -3,8 +3,12 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { remotesMatch } from '../scripts/lib/remote-match.mjs'
+
+const CLI = fileURLToPath(new URL('../scripts/lib/remote-match.mjs', import.meta.url))
 
 describe('remotesMatch', () => {
 	// ── ADO HTTPS vs SSH equivalence ───────────────────────────────────────────
@@ -110,6 +114,15 @@ describe('remotesMatch', () => {
 		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['https://evil.com/ado:o/p/r']), false)
 	})
 
+	it('does not match an ADO URL with extra trailing path segments', () => {
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['https://dev.azure.com/o/p/_git/r/extra']), false)
+	})
+
+	it('does not let a malformed remote forge an ado: identity token', () => {
+		// An unparseable value is tagged `raw:`, so it cannot equal a real `ado:` token.
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['ado:o/p/r']), false)
+	})
+
 	it('returns false for same repo name in a different ADO project', () => {
 		assert.equal(
 			remotesMatch('https://dev.azure.com/org/project-a/_git/repo', ['https://dev.azure.com/org/project-b/_git/repo']),
@@ -205,5 +218,48 @@ describe('remotesMatch', () => {
 
 	it('matches GitLab SSH shorthand against GitLab HTTPS', () => {
 		assert.equal(remotesMatch('git@gitlab.com:org/repo', ['https://gitlab.com/org/repo']), true)
+	})
+})
+
+describe('remote-match CLI', () => {
+	// `git remote -v` emits two lines per remote (fetch + push); the CLI dedups them.
+	const gitRemoteV = [
+		'origin\thttps://dev.azure.com/o/p/_git/r (fetch)',
+		'origin\thttps://dev.azure.com/o/p/_git/r (push)',
+	].join('\n')
+
+	it('prints "true" when a local remote matches the ADO URL', () => {
+		const out = execFileSync(process.execPath, [CLI, 'https://dev.azure.com/o/p/_git/r'], {
+			input: gitRemoteV,
+			encoding: 'utf8',
+		})
+		assert.equal(out.trim(), 'true')
+	})
+
+	it('prints "false" when no local remote matches', () => {
+		const out = execFileSync(process.execPath, [CLI, 'https://dev.azure.com/o/p/_git/other'], {
+			input: gitRemoteV,
+			encoding: 'utf8',
+		})
+		assert.equal(out.trim(), 'false')
+	})
+
+	it('prints "false" for empty stdin (no remotes)', () => {
+		const out = execFileSync(process.execPath, [CLI, 'https://dev.azure.com/o/p/_git/r'], {
+			input: '',
+			encoding: 'utf8',
+		})
+		assert.equal(out.trim(), 'false')
+	})
+
+	it('exits non-zero with a usage error when the ADO URL arg is missing', () => {
+		let threw = false
+		try {
+			execFileSync(process.execPath, [CLI], { input: gitRemoteV, encoding: 'utf8' })
+		} catch (err) {
+			threw = true
+			assert.equal(err.status, 1)
+		}
+		assert.ok(threw, 'Expected the CLI to exit non-zero when no ADO URL is given')
 	})
 })
