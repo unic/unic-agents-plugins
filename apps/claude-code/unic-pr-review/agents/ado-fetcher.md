@@ -1,9 +1,9 @@
 ---
 name: ado-fetcher
-description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Line-level diff is deferred in this preview: rawDiff is empty in first-review modes and carries the git delta diff in re-review mode. Detects prior bot threads by Iteration Marker, not caller identity.
+description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Computes a checkout-free merge-base diff (commonRefCommit→sourceRefCommit) for first-review modes via git fetch + git diff; falls back to diffUnavailable when not in a matching clone. Carries the git delta diff in re-review mode. Detects prior bot threads by Iteration Marker, not caller identity.
 model: inherit
 color: purple
-allowed-tools: Bash(az *), Bash(node *), Bash(git *)
+allowed-tools: Bash(az *), Bash(node *), Bash(git *), Bash(awk *), Bash(jq *), Bash(sort *)
 ---
 
 # ADO Fetcher
@@ -145,13 +145,66 @@ Store as `PRIOR_FINDINGS` (array; may be empty if no inline threads exist).
 
 **If `MODE` is NOT `re-review` (first-review or first-review-fallback):**
 
-Set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, `DELTA_RAW_DIFF` to `""`, `PRIOR_FINDINGS` to `[]`.
+Set `DELTA_RAW_DIFF` to `""` and `PRIOR_FINDINGS` to `[]`.
 
-Add warning:
+**Step 5a — Repo-match guard**
+
+Resolve the ADO remote URL from `prMetadata.repository.remoteUrl`. Collect all local remote fetch URLs as a JSON array:
+
+```sh
+LOCAL_REMOTE_URLS_JSON=$(git remote -v | awk '{print $2}' | sort -u | jq -R . | jq -s .)
+```
+
+Check whether any local remote matches the ADO remote:
+
+```sh
+REMOTES_MATCH=$(echo "$LOCAL_REMOTE_URLS_JSON" | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL")
+```
+
+If `REMOTES_MATCH` is `false`, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
 
 ```
-"ADO diffs API returns file-level metadata only — line-level diff unavailable in this preview. Review agents will operate on changedFiles."
+"Repo-match guard: no local remote matches prMetadata.repository.remoteUrl. Run from inside a clone of the PR's repo to get a line-level diff."
 ```
+
+Stop and proceed to Step 6.
+
+**Step 5b — Extract commit SHAs from latest revision**
+
+From the latest revision (last entry in `REVISIONS.value`):
+
+- `COMMON_REF_COMMIT` = `commonRefCommit.commitId` (the ADO-computed merge base)
+- `SOURCE_REF_COMMIT` = `sourceRefCommit.commitId` (the source branch tip)
+
+If `COMMON_REF_COMMIT` is absent or empty, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+
+```
+"commonRefCommit missing from latest revision — cannot compute merge-base diff. Review agents will operate on changedFiles."
+```
+
+Stop and proceed to Step 6.
+
+**Step 5c — Fetch and diff**
+
+Fetch any missing commits:
+
+```sh
+git fetch origin
+```
+
+Compute the merge-base-relative diff:
+
+```sh
+git diff "$COMMON_REF_COMMIT" "$SOURCE_REF_COMMIT" --unified=3
+```
+
+If the command exits non-zero, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+
+```
+"git diff failed — commits may not be present locally after fetch. Review agents will operate on changedFiles."
+```
+
+Otherwise set `RAW_DIFF` to the diff stdout and `DIFF_UNAVAILABLE` to `false`.
 
 ### Step 6 — Emit result
 
@@ -174,4 +227,4 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
 }
 ```
 
-`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` in `re-review` mode (the delta diff populates `rawDiff`) and `true` in first-review modes (line-level diff deferred). `warnings` is an array of strings for any non-fatal issues (e.g. empty diff, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.
+`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit, or git failure). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.
