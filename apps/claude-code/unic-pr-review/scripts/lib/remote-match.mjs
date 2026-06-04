@@ -75,18 +75,19 @@ function normalise(rawUrl) {
 		const ado = adoIdentity(parsed)
 		if (ado != null) return ado
 
-		// Generic: strip credentials, lowercase host, strip .git suffix + trailing slashes
+		// Generic: strip credentials, lowercase host, strip trailing slashes then .git suffix
+		// (slashes first: a `.git$` anchor cannot match when a trailing slash follows it)
 		parsed.username = ''
 		parsed.password = ''
 		parsed.hostname = parsed.hostname.toLowerCase()
-		const path = parsed.pathname.replace(/\.git$/, '').replace(/\/+$/, '')
+		const path = parsed.pathname.replace(/\/+$/, '').replace(/\.git$/, '')
 		return `${parsed.hostname}${path}`
 	} catch {
-		// URL not parseable — best-effort lowercase + strip .git suffix + trailing slash
+		// URL not parseable — best-effort lowercase + strip trailing slashes then .git suffix
 		return original
 			.toLowerCase()
+			.replace(/\/+$/, '')
 			.replace(/\.git$/, '')
-			.replace(/\/$/, '')
 	}
 }
 

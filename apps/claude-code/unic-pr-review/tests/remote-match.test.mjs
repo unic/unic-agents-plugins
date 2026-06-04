@@ -54,6 +54,10 @@ describe('remotesMatch', () => {
 		assert.equal(remotesMatch('https://github.com/org/repo/', ['https://github.com/org/repo']), true)
 	})
 
+	it('ignores a combined .git suffix and trailing slash (repo.git/)', () => {
+		assert.equal(remotesMatch('https://github.com/org/repo.git/', ['https://github.com/org/repo']), true)
+	})
+
 	// ── Host casing ─────────────────────────────────────────────────────────────
 
 	it('ignores host casing on HTTPS URL', () => {
