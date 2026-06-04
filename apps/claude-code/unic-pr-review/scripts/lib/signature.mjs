@@ -7,8 +7,8 @@
  *
  * Every renderer that appends the footer MUST call renderFooter() from here.
  * The exact load-bearing wording lives ONLY in SIGNATURE_PREFIX — do not
- * inline it anywhere else. Detection (parser) and rendering (footer) cannot
- * drift apart when both import from this module.
+ * inline it anywhere else. Detection keys on ITERATION_MARKER_REGEX only;
+ * rendering and detection cannot drift when both import from this module.
  */
 
 /**
@@ -19,39 +19,38 @@
  */
 export const SIGNATURE_PREFIX = '🤖 Reviewed by Claude Code — Iteration '
 
-const SIGNATURE_REGEX = new RegExp(`${SIGNATURE_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)`)
+/** Load-bearing Iteration Marker regex. Detection keys on this, never on author identity. */
+const ITERATION_MARKER_REGEX = /<!-- unic-pr-review:iteration=(\d+) -->/
 
 /**
- * Render the Bot Signature footer line for the given iteration number.
+ * Render the Bot Signature footer for the given iteration number.
  *
- * Returns `<prefix><iteration>\n\n`. Renderers push this after a `---` line
- * into a `parts` array joined with `\n`: the join's `\n` supplies the
- * separator-to-footer break, leaving one trailing `\n` as the document
- * terminator. Do not inline the prefix anywhere else.
+ * Returns the visible line, the hidden Iteration Marker on its own line, and
+ * two trailing newlines. Renderers push this after a `---` line into a `parts`
+ * array joined with `\n`: the join's `\n` supplies the separator-to-footer
+ * break, leaving one trailing `\n` as the document terminator.
+ *
+ * Do not inline the prefix or the marker anywhere else.
  *
  * @param {number} iteration - 1-based iteration number for this Review run
  * @returns {string}
  */
 export function renderFooter(iteration) {
-	return `${SIGNATURE_PREFIX}${iteration}\n\n`
+	return `${SIGNATURE_PREFIX}${iteration}\n<!-- unic-pr-review:iteration=${iteration} -->\n\n`
 }
 
 /**
- * A single comment within an ADO PR Thread. The caller filters at thread
- * granularity (it keeps a thread when the thread's FIRST comment is
- * bot-authored), so individual comments here are not guaranteed to be
- * bot-authored.
+ * A single comment within an ADO PR Thread.
  *
  * @typedef {Object} ThreadComment
  * @property {string} content - comment body text (may contain CRLF line endings)
- * @property {{ id: string }} author - comment author identity
  * @property {string} [publishedDate] - ISO date string (for future ordering; not used by parser today)
  */
 
 /**
- * A simplified ADO PR Thread payload. The caller (ADO Fetcher, Step 4a) filters
- * threads to only those whose FIRST comment is bot-authored before passing here;
- * the remaining comments in a kept thread may have other authors.
+ * A simplified ADO PR Thread payload. The caller (ADO Fetcher, Step 3a) filters
+ * threads to only those whose FIRST comment contains an Iteration Marker before
+ * passing here; the remaining comments in a kept thread may not carry a marker.
  *
  * @typedef {Object} SignatureThread
  * @property {ThreadComment[]} comments - at least one comment
@@ -61,24 +60,21 @@ export function renderFooter(iteration) {
  * Result of parsing a Bot Signature from pre-filtered thread payloads.
  *
  * @typedef {Object} ParsedSignature
- * @property {number} priorRevisionId - iteration number N from the footer; equals priorIteration.
+ * @property {number} priorRevisionId - iteration number N from the Iteration Marker; equals priorIteration.
  *   Used by the caller to look up the revision in REVISIONS.value (ADO iteration ID = revision ID).
- * @property {string} priorAuthorUserId - ADO user ID of the matched comment author;
- *   falls back to an empty string `''` when the matched comment's author.id is absent
- * @property {number} priorIteration - the iteration number N from "Iteration N" in the footer
+ * @property {number} priorIteration - the iteration number N from the Iteration Marker
  */
 
 /**
  * Parse the most recent Bot Signature from pre-filtered PR Thread payloads.
  *
  * "Most recent" is defined as the highest iteration number found across all
- * comment bodies. The caller must have already filtered threads to only those
- * whose FIRST comment is bot-authored (ADR-0006 identity-caching requirement);
- * this function still iterates over every comment in each kept thread.
+ * comment bodies via the Iteration Marker (`<!-- unic-pr-review:iteration=N -->`).
+ * Detection never uses the comment author's ADO identity (ADR-0006).
  *
  * CRLF-tolerant: `\r\n` in comment content is normalised to `\n` before matching.
  *
- * @param {SignatureThread[]} threads - threads whose first comment is bot-authored
+ * @param {SignatureThread[]} threads - threads whose first comment contains an Iteration Marker
  * @returns {ParsedSignature | null}
  */
 export function parseSignature(threads) {
@@ -87,13 +83,13 @@ export function parseSignature(threads) {
 	for (const thread of threads) {
 		for (const comment of thread.comments ?? []) {
 			const body = (comment.content ?? '').replace(/\r\n/g, '\n')
-			const match = body.match(SIGNATURE_REGEX)
+			const match = body.match(ITERATION_MARKER_REGEX)
 			if (!match) continue
 			const n = parseInt(match[1], 10)
+			if (Number.isNaN(n)) continue
 			if (best === null || n > best.priorRevisionId) {
 				best = {
 					priorRevisionId: n,
-					priorAuthorUserId: comment.author?.id ?? '',
 					priorIteration: n,
 				}
 			}

@@ -95,6 +95,8 @@ Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(relea
 
 **Never commit directly to `main` or `develop`.** Always go through a PR.
 
+Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `feature/` (the prefix encodes PR topology, not change kind). Archon-dispatched branches add a scope sub-namespace: `feature/<scope>/<issue#>-<slug>`, where `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `repo` → `repo`). The `/archon-rollout` command owns the full derivation rule.
+
 ## Release flow
 
 To ship a new plugin version:

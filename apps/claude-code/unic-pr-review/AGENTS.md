@@ -62,19 +62,20 @@ Two changes are required — both are mandatory; omitting either causes the agen
 
 ## Plugin doctrines
 
-Load-bearing invariants captured as ADRs. All eleven must be understood before editing:
+Load-bearing invariants captured as ADRs. All twelve must be understood before editing:
 
 - **ADR-0001** — Multi-source intent gathering with shared Atlassian credentials (`.unic-confluence.json` covers both Confluence and Jira)
 - **ADR-0002** — Confidence-scored Findings with explicit Severity thresholds (Critical 90-100, Important 80-89, Minor 60-79; drop below 60)
 - **ADR-0003** — Interactive Approval Loop as the default write path
 - **ADR-0004** — Hard-stop when intent sources are unreachable; empty intent is legitimate
 - **ADR-0005** — `az` CLI for Azure DevOps reads/writes; `node:https` (or global `fetch`) for Atlassian
-- **ADR-0006** — Iteration state lives in the PR's Bot Signature, not on disk; identity is cached from `az devops user show --user me` at startup
+- **ADR-0006** — Iteration state lives in the PR's Bot Signature (hidden `<!-- unic-pr-review:iteration=N -->` Iteration Marker), not on disk; detection keys on the Iteration Marker, never on ADO author identity; `doctor` does not probe `az devops user show`
 - **ADR-0007** — Re-review uses a delta diff against the prior reviewed Revision
 - **ADR-0008** — Conditional sub-agent spawning by changed-file analysis
 - **ADR-0009** — Pre-PR Mode is a peer of the ADO Modes, not a special case
 - **ADR-0010** — Provider as a folder bundle (`providers/<name>/`); accepted, landed with issue #148 (ADO first-review preview)
 - **ADR-0011** — Intent Assessor is a dedicated agent for live AC verdicts; spawned by intent presence, not changed-file categories; never added to SPAWN_TABLE
+- **ADR-0012** — First-review computes a checkout-free merge-base diff (`commonRefCommit→sourceRefCommit`) from ADO commit SHAs, guarded by a remote-URL match; REST diff fallback deferred
 
 ## Conventions
 

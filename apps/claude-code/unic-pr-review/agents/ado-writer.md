@@ -48,7 +48,6 @@ You run in one of two modes. In **first-review** mode (default) you consume appr
   },
   "renderedSummary": "...",
   "rawThreadsJson": [...],
-  "identity": { "id": "...", "displayName": "..." },
   "iteration": 2
 }
 ```
@@ -360,9 +359,8 @@ If `coordinatorPlan.freshFindings` is empty, skip Step 6 — there are no new in
 
 Scan `rawThreadsJson` for a thread where:
 
-- `comments[0].author.id === identity.id` (bot-authored)
 - There is no `threadContext` field (General Comment Thread)
-- `comments[0].content` contains `🤖 Reviewed by Claude Code — Iteration` (has a Bot Signature)
+- `comments[0].content` contains `<!-- unic-pr-review:iteration=` (has an Iteration Marker)
 
 If found, store `SUMMARY_THREAD_ID = thread.id` and `SUMMARY_COMMENT_ID = thread.comments[0].id`.
 
