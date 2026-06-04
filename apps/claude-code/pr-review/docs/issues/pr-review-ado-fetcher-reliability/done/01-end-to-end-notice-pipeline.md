@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
 
 ## What to build
 

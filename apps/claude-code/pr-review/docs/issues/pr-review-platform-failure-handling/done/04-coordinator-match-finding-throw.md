@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-platform-failure-handling/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-platform-failure-handling/PRD.md`
 
 ## What to build
 
@@ -36,7 +36,7 @@ End-to-end demoable: inject a synthetic match-finding parse failure (e.g. corrup
 
 ## Blocked by
 
-`docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`
 
 ---
 

@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/PRD.md`
 
 ## What to build
 
@@ -34,7 +34,7 @@ End-to-end demoable: invoke `/pr-review:review-pr` against a PR where the prior 
 
 ## Blocked by
 
-`docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`
 
 ---
 

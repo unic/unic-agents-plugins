@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-platform-failure-handling/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-platform-failure-handling/PRD.md`
 
 ## What to build
 
@@ -37,7 +37,7 @@ End-to-end demoable: run `/pr-review:review-pr` (no URL) in a Gitflow project wh
 
 ## Blocked by
 
-`docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/01-end-to-end-notice-pipeline.md`
 
 ---
 

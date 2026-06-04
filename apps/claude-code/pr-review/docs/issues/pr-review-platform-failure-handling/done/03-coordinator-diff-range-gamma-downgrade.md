@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-platform-failure-handling/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-platform-failure-handling/PRD.md`
 
 ## What to build
 
@@ -35,7 +35,7 @@ End-to-end demoable: trigger A4's diff-range fallback (force-push away the prior
 
 ## Blocked by
 
-`docs/issues/pr-review-ado-fetcher-reliability/04-diff-range-sentinel.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-ado-fetcher-reliability/04-diff-range-sentinel.md`
 
 ---
 

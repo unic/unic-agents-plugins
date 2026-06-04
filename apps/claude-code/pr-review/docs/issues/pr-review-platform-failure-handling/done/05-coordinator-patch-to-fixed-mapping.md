@@ -7,7 +7,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-platform-failure-handling/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-platform-failure-handling/PRD.md`
 
 ## What to build
 
@@ -37,7 +37,7 @@ End-to-end demoable: run a re-review against a PR whose threads include at least
 
 ## Blocked by
 
-`docs/issues/pr-review-platform-failure-handling/01-writer-http-tier-mapping.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-platform-failure-handling/01-writer-http-tier-mapping.md`
 
 ---
 
