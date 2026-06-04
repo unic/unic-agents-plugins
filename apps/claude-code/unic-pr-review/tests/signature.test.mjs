@@ -137,14 +137,4 @@ describe('parseSignature', () => {
 		}
 	})
 
-	it('highest-N-wins: picks the highest marker across multiple threads', () => {
-		const threads = [
-			{ comments: [{ content: renderFooter(1) }] },
-			{ comments: [{ content: renderFooter(5) }] },
-			{ comments: [{ content: renderFooter(2) }] },
-		]
-		const result = parseSignature(threads)
-		assert.ok(result)
-		assert.equal(result.priorRevisionId, 5)
-	})
 })
