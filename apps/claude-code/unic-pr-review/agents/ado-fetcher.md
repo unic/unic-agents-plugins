@@ -152,16 +152,16 @@ Set `DELTA_RAW_DIFF` to `""` and `PRIOR_FINDINGS` to `[]`.
 Resolve the ADO remote URL from `prMetadata.repository.remoteUrl`:
 
 ```sh
-ADO_REMOTE_URL=$(echo "$PR_METADATA_JSON" | jq -r '.repository.remoteUrl')
+ADO_REMOTE_URL=$(echo "$PR_METADATA" | jq -r '.repository.remoteUrl')
 ```
 
 Check whether any local remote matches the ADO remote:
 
 ```sh
-REMOTES_MATCH=$(git remote -v | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL")
+REMOTES_MATCH=$(git remote -v | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL") || REMOTES_MATCH=error
 ```
 
-If `REMOTES_MATCH` is `false` or the command exits non-zero, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+The `|| REMOTES_MATCH=error` collapses any non-zero exit (pipeline failure, helper crash) into a sentinel so a tool failure can never be mistaken for a `false` match. Treat only the literal `true` as a match: if `REMOTES_MATCH` is not exactly `true` (i.e. `false`, `error`, or empty), set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
 
 ```
 "Repo-match guard: no local remote matches prMetadata.repository.remoteUrl. Run from inside a clone of the PR's repo to get a line-level diff."
@@ -194,13 +194,13 @@ Stop and proceed to Step 6.
 
 **Step 5c — Fetch and diff**
 
-Fetch any missing commits:
+Fetch any missing commits (mirrors re-review's proven sequence per ADR-0012):
 
 ```sh
-git fetch --all
+git fetch origin
 ```
 
-If `git fetch --all` exits non-zero, record a warning: `"git fetch failed — using locally cached commits if available."` (Do not set `DIFF_UNAVAILABLE` here; continue to git diff.)
+If `git fetch origin` exits non-zero, record a warning: `"git fetch failed — using locally cached commits if available."` (Do not set `DIFF_UNAVAILABLE` here; continue to git diff.)
 
 Compute the merge-base-relative diff:
 
