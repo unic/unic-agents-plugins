@@ -77,7 +77,7 @@ Filter `THREADS.value` to keep only threads where `thread.comments[0].content` c
 Serialize `BOT_THREADS` as a JSON array of `{ comments: [{ content }] }` objects, then run:
 
 ```sh
-echo "$BOT_THREADS_JSON" | node scripts/parse-prior-signature.mjs
+echo "$BOT_THREADS_JSON" | node "${CLAUDE_PLUGIN_ROOT}/scripts/parse-prior-signature.mjs"
 ```
 
 Store the parsed output as `PRIOR_SIG` (may be `null`).
