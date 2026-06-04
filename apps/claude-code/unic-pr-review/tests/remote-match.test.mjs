@@ -258,7 +258,7 @@ describe('remote-match CLI', () => {
 			execFileSync(process.execPath, [CLI], { input: gitRemoteV, encoding: 'utf8' })
 		} catch (err) {
 			threw = true
-			assert.equal(err.status, 1)
+			assert.equal(/** @type {{ status?: number }} */ (err).status, 1)
 		}
 		assert.ok(threw, 'Expected the CLI to exit non-zero when no ADO URL is given')
 	})
