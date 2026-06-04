@@ -79,9 +79,7 @@ function normalise(rawUrl) {
 		parsed.username = ''
 		parsed.password = ''
 		parsed.hostname = parsed.hostname.toLowerCase()
-		let path = parsed.pathname
-		if (path.endsWith('.git')) path = path.slice(0, -4)
-		while (path.endsWith('/')) path = path.slice(0, -1)
+		const path = parsed.pathname.replace(/\.git$/, '').replace(/\/+$/, '')
 		return `${parsed.hostname}${path}`
 	} catch {
 		// URL not parseable — best-effort lowercase + strip .git suffix + trailing slash
