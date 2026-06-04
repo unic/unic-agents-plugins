@@ -1,6 +1,6 @@
 ---
 name: ado-fetcher
-description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Line-level diff is deferred in this preview (rawDiff is returned empty). Detects prior bot threads by Iteration Marker, not caller identity.
+description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Line-level diff is deferred in this preview: rawDiff is empty in first-review modes and carries the git delta diff in re-review mode. Detects prior bot threads by Iteration Marker, not caller identity.
 model: inherit
 color: purple
 allowed-tools: Bash(az *), Bash(node *), Bash(git *)
@@ -155,7 +155,7 @@ Add warning:
 
 ### Step 6 — Emit result
 
-Emit exactly one JSON object — no prose, no markdown, no footer:
+Emit exactly one JSON object — no prose, no markdown, no footer (replace each `<…>` placeholder with the real value it names; `prMetadata`, `revisions`, and `threads` are objects, not strings):
 
 ```json
 {
