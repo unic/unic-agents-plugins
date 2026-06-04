@@ -1,12 +1,22 @@
 {
   "permissions": {
     "allow": [
+      "Bash(gh pr list --repo unic/unic-agents-plugins *)",
+      "Bash(gh pr checks *)",
+      "Bash(git commit -m *)",
+      "Bash(git status)",
+      "Bash(git * status)",
       "Bash(pnpm --filter * test)",
       "Bash(pnpm bump *)",
+      "Bash(pnpm --filter * bump)",
       "Bash(pnpm check *)",
+      "Bash(pnpm --filter * check)",
       "Bash(pnpm ci:check)",
+      "Bash(pnpm --filter * ci:check)",
       "Bash(pnpm format *)",
+      "Bash(pnpm --filter * format)",
       "Bash(pnpm typecheck *)",
+      "Bash(pnpm --filter * typecheck)",
       "Skill(archon)",
       "Skill(commit-commands:commit)"
     ]
