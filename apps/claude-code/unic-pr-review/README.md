@@ -34,7 +34,7 @@ Then reinstall plugins from the Claude Code command palette.
    /unic-pr-review:doctor
    ```
 
-   It runs six checks and tells you exactly what is missing before any Review is attempted.
+   It runs all prerequisite checks and tells you exactly what is missing before any Review is attempted.
 
 2. Once doctor is green, run a review of your local branch (Pre-PR mode):
 

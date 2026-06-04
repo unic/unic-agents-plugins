@@ -1,6 +1,6 @@
 ---
 name: ado-fetcher
-description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Line-level diff is deferred in this preview (rawDiff is returned empty). Caches reviewer identity once per run.
+description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Line-level diff is deferred in this preview: rawDiff is empty in first-review modes and carries the git delta diff in re-review mode. Detects prior bot threads by Iteration Marker, not caller identity.
 model: inherit
 color: purple
 allowed-tools: Bash(az *), Bash(node *), Bash(git *)
@@ -22,29 +22,7 @@ You receive a JSON object:
 
 ## Procedure
 
-### Step 1 — Cache reviewer identity (once)
-
-Run these commands and extract the identity. Store as `IDENTITY`.
-
-```sh
-az account show --output json
-```
-
-Extract `upn = .user.name` from the output above, then:
-
-```sh
-az devops user show --user "<upn>" --org "<orgUrl>" --output json
-```
-
-From `az devops user show`: extract `id` (the ADO user object ID) and `displayName`. Store `IDENTITY = { id, displayName }`.
-
-If either command fails, emit this error and stop:
-
-```json
-{ "error": "identity-cache-failed", "message": "<stderr>" }
-```
-
-### Step 2 — Fetch PR metadata
+### Step 1 — Fetch PR metadata
 
 ```sh
 az devops invoke --area git --resource pullrequests \
@@ -57,10 +35,10 @@ Store stdout as `PR_METADATA`.
 If the command exits non-zero, emit this error and stop:
 
 ```json
-{ "error": "fetch-failed", "step": 2, "resource": "pullrequests", "message": "<stderr>" }
+{ "error": "fetch-failed", "step": 1, "resource": "pullrequests", "message": "<stderr>" }
 ```
 
-### Step 3 — Fetch Revisions (iterations)
+### Step 2 — Fetch Revisions (iterations)
 
 ```sh
 az devops invoke --area git --resource pullrequestiterations \
@@ -73,10 +51,10 @@ Store stdout as `REVISIONS`. The latest revision is the last entry in the `value
 If the command exits non-zero, emit this error and stop:
 
 ```json
-{ "error": "fetch-failed", "step": 3, "resource": "pullrequestiterations", "message": "<stderr>" }
+{ "error": "fetch-failed", "step": 2, "resource": "pullrequestiterations", "message": "<stderr>" }
 ```
 
-### Step 4 — Fetch Review Threads
+### Step 3 — Fetch Review Threads
 
 ```sh
 az devops invoke --area git --resource threads \
@@ -89,14 +67,14 @@ Store stdout as `THREADS`. Used by the orchestrator to detect a prior Bot Signat
 If the command exits non-zero, emit this error and stop:
 
 ```json
-{ "error": "fetch-failed", "step": 4, "resource": "threads", "message": "<stderr>" }
+{ "error": "fetch-failed", "step": 3, "resource": "threads", "message": "<stderr>" }
 ```
 
-### Step 4a — Filter threads by bot identity and detect prior Bot Signature
+### Step 3a — Filter threads by Iteration Marker and detect prior Bot Signature
 
-Filter `THREADS.value` to keep only threads where `thread.comments[0].author.id` equals `IDENTITY.id`. Store as `BOT_THREADS`. This ensures human comments are never mistaken for a prior review (ADR-0006).
+Filter `THREADS.value` to keep only threads where `thread.comments[0].content` contains `<!-- unic-pr-review:iteration=`. Store as `BOT_THREADS`. This ensures human comments (which never carry the Iteration Marker) are never mistaken for a prior review (ADR-0006).
 
-Serialize `BOT_THREADS` as a JSON array of `{ comments: [{ content, author: { id } }] }` objects, then run:
+Serialize `BOT_THREADS` as a JSON array of `{ comments: [{ content }] }` objects, then run:
 
 ```sh
 echo "$BOT_THREADS_JSON" | node scripts/parse-prior-signature.mjs
@@ -112,9 +90,9 @@ Determine `MODE`:
 - If `PRIOR_SIG` is not null AND `PRIOR_REVISION_IN_HISTORY` is true → `re-review`
 - If `PRIOR_SIG` is not null AND `PRIOR_REVISION_IN_HISTORY` is false → `first-review-fallback`
 
-### Step 5 — Fetch changed files
+### Step 4 — Fetch changed files
 
-Use the latest iteration ID from Step 3 (last entry in `REVISIONS.value`, field `id`):
+Use the latest iteration ID from Step 2 (last entry in `REVISIONS.value`, field `id`):
 
 ```sh
 az devops invoke --area git --resource pullrequestiterationchanges \
@@ -127,10 +105,10 @@ Extract the list of changed file paths from `changeEntries[*].item.path`. Store 
 If the command exits non-zero, emit this error and stop:
 
 ```json
-{ "error": "fetch-failed", "step": 5, "resource": "pullrequestiterationchanges", "message": "<stderr>" }
+{ "error": "fetch-failed", "step": 4, "resource": "pullrequestiterationchanges", "message": "<stderr>" }
 ```
 
-### Step 6 — Fetch raw diff
+### Step 5 — Fetch raw diff
 
 **If `MODE` is `re-review`:**
 
@@ -175,16 +153,15 @@ Add warning:
 "ADO diffs API returns file-level metadata only — line-level diff unavailable in this preview. Review agents will operate on changedFiles."
 ```
 
-### Step 7 — Emit result
+### Step 6 — Emit result
 
-Emit exactly one JSON object — no prose, no markdown, no footer:
+Emit exactly one JSON object — no prose, no markdown, no footer (replace each `<…>` placeholder with the real value it names; `prMetadata`, `revisions`, and `threads` are objects, not strings):
 
 ```json
 {
-  "identity": { "id": "<string>", "displayName": "<string>" },
-  "prMetadata": <PR_METADATA object>,
-  "revisions": <REVISIONS object>,
-  "threads": <THREADS object>,
+  "prMetadata": "<PR_METADATA object>",
+  "revisions": "<REVISIONS object>",
+  "threads": "<THREADS object>",
   "changedFiles": ["path/to/file.ts"],
   "rawDiff": "<unified diff string or empty>",
   "diffUnavailable": false,
@@ -197,4 +174,4 @@ Emit exactly one JSON object — no prose, no markdown, no footer:
 }
 ```
 
-`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` in `re-review` mode (the delta diff populates `rawDiff`) and `true` in first-review modes (line-level diff deferred). `warnings` is an array of strings for any non-fatal issues (e.g. empty diff, identity fields missing, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.
+`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` in `re-review` mode (the delta diff populates `rawDiff`) and `true` in first-review modes (line-level diff deferred). `warnings` is an array of strings for any non-fatal issues (e.g. empty diff, truncated diff). Never emit `hardStop` — the orchestrator handles all write decisions.

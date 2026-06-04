@@ -69,7 +69,7 @@ Load-bearing invariants captured as ADRs. All twelve must be understood before e
 - **ADR-0003** — Interactive Approval Loop as the default write path
 - **ADR-0004** — Hard-stop when intent sources are unreachable; empty intent is legitimate
 - **ADR-0005** — `az` CLI for Azure DevOps reads/writes; `node:https` (or global `fetch`) for Atlassian
-- **ADR-0006** — Iteration state lives in the PR's Bot Signature, not on disk; identity is cached from `az devops user show --user me` at startup
+- **ADR-0006** — Iteration state lives in the PR's Bot Signature (hidden `<!-- unic-pr-review:iteration=N -->` Iteration Marker), not on disk; detection keys on the Iteration Marker, never on ADO author identity; `doctor` does not probe `az devops user show`
 - **ADR-0007** — Re-review uses a delta diff against the prior reviewed Revision
 - **ADR-0008** — Conditional sub-agent spawning by changed-file analysis
 - **ADR-0009** — Pre-PR Mode is a peer of the ADO Modes, not a special case

@@ -8,7 +8,6 @@ import {
 	AZ,
 	checkAzCli,
 	checkAzExtension,
-	checkAzIdentity,
 	checkAzLogin,
 	checkConfluence,
 	checkJira,
@@ -35,9 +34,6 @@ const pingError = (error) => async () => ({ kind: 'transport-error', error })
 
 /** @type {Exec} */
 const allOkExec = (_cmd, args) => {
-	if (args.includes('user') && args.includes('show')) {
-		return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
-	}
 	if (args.includes('extension')) {
 		return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
 	}
@@ -99,33 +95,6 @@ describe('checkAzLogin', () => {
 	it('returns ok:false on non-zero exit (no cached login)', () => {
 		const exec = execReturning({ ok: false, stderr: 'Please run az devops login' })
 		assert.equal(checkAzLogin(exec).ok, false)
-	})
-})
-
-describe('checkAzIdentity', () => {
-	it('returns ok:true when user show resolves with an id', () => {
-		const exec = execReturning({
-			ok: true,
-			stdout: JSON.stringify({ id: 'abc-123', emailAddress: 'user@unic.com' }),
-		})
-		const r = checkAzIdentity(exec)
-		assert.equal(r.ok, true)
-		assert.match(r.detail, /user@unic\.com/)
-	})
-
-	it('returns ok:false when user show exits non-zero', () => {
-		const exec = execReturning({ ok: false, stderr: 'not logged in' })
-		assert.equal(checkAzIdentity(exec).ok, false)
-	})
-
-	it('returns ok:false when user show succeeds but JSON has no id', () => {
-		const exec = execReturning({ ok: true, stdout: JSON.stringify({ emailAddress: 'x@y.com' }) })
-		assert.equal(checkAzIdentity(exec).ok, false)
-	})
-
-	it('returns ok:false when user show returns invalid JSON', () => {
-		const exec = execReturning({ ok: true, stdout: 'not-valid-json' })
-		assert.equal(checkAzIdentity(exec).ok, false)
 	})
 })
 
@@ -273,6 +242,7 @@ describe('runDoctor — Jira silence (US-35)', () => {
 		assert.doesNotMatch(output, /Jira/)
 		assert.doesNotMatch(output, /skipped/)
 		assert.match(output, /Confluence reachable/)
+		assert.match(output, /All checks passed/)
 	})
 
 	it('emits a Jira line when jiraUrl is configured', async () => {
@@ -290,35 +260,8 @@ describe('runDoctor — Jira silence (US-35)', () => {
 	})
 })
 
-describe('runDoctor — missing credentials', () => {
-	it('returns ok:false and emits an Atlassian credentials error when creds are absent', async () => {
-		const { ok, output } = await runDoctor({
-			exec: allOkExec,
-			ping: pingHttp(200),
-			loadCreds: () => null,
-		})
-		assert.equal(ok, false)
-		assert.match(output, /Atlassian credentials/)
-		assert.match(output, /One or more checks failed/)
-	})
-
-	it('returns ok:false and formats error when loadCreds throws', async () => {
-		const { ok, output } = await runDoctor({
-			exec: execReturning({ ok: true, stdout: '[]' }),
-			ping: pingHttp(200),
-			loadCreds: () => {
-				throw new Error('EACCES: permission denied')
-			},
-		})
-		assert.equal(ok, false)
-		assert.match(output, /Atlassian credentials/)
-		assert.match(output, /EACCES/)
-		assert.match(output, /One or more checks failed/)
-	})
-})
-
 describe('runDoctor — waterfall short-circuits', () => {
-	it('skips extension/login/identity when az CLI is missing', async () => {
+	it('skips extension/login when az CLI is missing', async () => {
 		const { ok, output } = await runDoctor({
 			exec: execReturning({ ok: false }),
 			ping: pingHttp(200),
@@ -327,10 +270,9 @@ describe('runDoctor — waterfall short-circuits', () => {
 		assert.equal(ok, false)
 		assert.doesNotMatch(output, /azure-devops extension/)
 		assert.doesNotMatch(output, /az devops session/)
-		assert.doesNotMatch(output, /az devops identity/)
 	})
 
-	it('skips login/identity when extension is missing', async () => {
+	it('skips login when extension is missing', async () => {
 		/** @type {Exec} */
 		const exec = (_cmd, args) => {
 			if (args.includes('--version')) return { ok: true, stdout: 'azure-cli 2.60.0', stderr: '' }
@@ -343,7 +285,6 @@ describe('runDoctor — waterfall short-circuits', () => {
 			loadCreds: () => ({ url: 'https://x.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }),
 		})
 		assert.doesNotMatch(output, /az devops session/)
-		assert.doesNotMatch(output, /az devops identity/)
 	})
 })
 
@@ -379,15 +320,6 @@ describe('AZ binary selector', () => {
 })
 
 describe('runDoctor — credential errors', () => {
-	/** @type {Exec} */
-	const allOkExec = (_cmd, args) => {
-		if (args.includes('user') && args.includes('show'))
-			return { ok: true, stdout: JSON.stringify({ id: 'abc', emailAddress: 'u@unic.com' }), stderr: '' }
-		if (args.includes('extension'))
-			return { ok: true, stdout: JSON.stringify([{ name: 'azure-devops', version: '0.26.0' }]), stderr: '' }
-		return { ok: true, stdout: '[]', stderr: '' }
-	}
-
 	it('reports missing credentials and returns ok:false when loadCreds returns null', async () => {
 		const { ok, output } = await runDoctor({
 			exec: allOkExec,
@@ -396,6 +328,7 @@ describe('runDoctor — credential errors', () => {
 		})
 		assert.equal(ok, false)
 		assert.match(output, /Atlassian credentials/)
+		assert.match(output, /One or more checks failed/)
 		assert.doesNotMatch(output, /Confluence/)
 		assert.doesNotMatch(output, /Jira/)
 	})
@@ -411,6 +344,7 @@ describe('runDoctor — credential errors', () => {
 		assert.equal(ok, false)
 		assert.match(output, /credential file unreadable/)
 		assert.match(output, /invalid JSON/)
+		assert.match(output, /One or more checks failed/)
 		assert.doesNotMatch(output, /Confluence/)
 		assert.doesNotMatch(output, /Jira/)
 	})
