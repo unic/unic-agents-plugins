@@ -6,7 +6,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-suppress-addressed-reply/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-suppress-addressed-reply/PRD.md`
 
 ## What to build
 
@@ -22,7 +22,7 @@ The version must be updated in both `plugin.json` and `marketplace.json`. Use th
 
 ## Blocked by
 
-`docs/issues/pr-review-suppress-addressed-reply/01-remove-addressed-reply.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-suppress-addressed-reply/01-remove-addressed-reply.md`
 
 ## Comments
 

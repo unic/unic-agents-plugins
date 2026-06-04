@@ -6,7 +6,7 @@
 
 ## Parent
 
-`docs/issues/pr-review-suppress-addressed-reply/PRD.md`
+`apps/claude-code/pr-review/docs/issues/pr-review-suppress-addressed-reply/PRD.md`
 
 ## What to build
 
