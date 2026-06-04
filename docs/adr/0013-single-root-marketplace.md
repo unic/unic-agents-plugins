@@ -13,7 +13,7 @@ Maintain a single **root registry** at `.claude-plugin/marketplace.json` that li
 The repo uses two distinct files that share the `marketplace.json` name; do not conflate them:
 
 - **Root `.claude-plugin/marketplace.json`** — the install registry. Entries are minimal `{ "name", "source" }` and carry no version. It is **hand-maintained**: adding a plugin requires manually appending an entry. Nothing derives or generates it.
-- **Per-plugin `<plugin>/.claude-plugin/marketplace.json`** — a per-plugin release artifact. `unic-sync-version` mirrors that plugin's `plugin.json` version (plus `license`/`homepage`/`keywords`) into *this* file. It does **not** touch the root registry.
+- **Per-plugin `<plugin>/.claude-plugin/marketplace.json`** — a per-plugin release artifact. `unic-sync-version` mirrors that plugin's `plugin.json` version (plus `license`/`homepage`/`keywords`) into _this_ file. It does **not** touch the root registry.
 
 ## Consequences
 
