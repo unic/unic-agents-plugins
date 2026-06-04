@@ -136,5 +136,4 @@ describe('parseSignature', () => {
 			assert.equal(result.priorRevisionId, n, `Round-trip failed for iteration ${n}`)
 		}
 	})
-
 })
