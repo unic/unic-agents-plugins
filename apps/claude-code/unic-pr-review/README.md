@@ -50,7 +50,7 @@ Then reinstall plugins from the Claude Code command palette.
    /unic-pr-review:review-pr https://dev.azure.com/myorg/myproj/_git/myrepo/pullrequest/42
    ```
 
-   This runs the ADO first-review flow (read-only preview): fetches PR metadata, Revisions, Threads, and Work Items via the Azure DevOps CLI, then fans out to the Review Aspect agents and prints the merged Review Summary. Nothing is written to ADO.
+   This runs the ADO first-review flow (read-only preview): fetches PR metadata, Revisions, Threads, and Work Items via the Azure DevOps CLI, then fans out to the Review Aspect agents and prints the merged Review Summary. Nothing is written to ADO. If you run from inside a local clone of the PR's repository, the Plugin computes a checkout-free line-level diff (merge base to source branch) and passes it to the Review Aspect agents; if no matching clone is detected the Plugin falls back to file-list-only mode (see [ADR-0012](docs/adr/0012-checkout-free-first-review-diff.md)).
 
    To review an open Azure DevOps PR and write Findings back, pass the PR URL with `--post`:
 
@@ -77,9 +77,11 @@ flowchart TD
   rere --> s2
 
   s2["Step 2: Resolve base branch"] --> s3{"Step 3: Compute diff"}
-  s3 -->|"first-review / Pre-PR"| full["Full diff vs base"]
+  s3 -->|"first-review (ADR-0012)"| sha["Merge-base diff: commonRefCommit→sourceRefCommit<br/>(checkout-free git diff; falls back to diffUnavailable)"]
+  s3 -->|"Pre-PR (ADR-0009)"| full["Full diff vs base branch"]
   s3 -->|"re-review (ADR-0007)"| delta["Delta diff: prior Revision to HEAD"]
 
+  sha --> s4
   full --> s4
   delta --> s4
 
