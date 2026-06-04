@@ -23,6 +23,7 @@ gh issue view <n> --repo unic/unic-agents-plugins --json number,title,body,label
 From each issue derive:
 
 - **Scope** — the `app:<plugin>` / `pkg:<package>` / `repo` label (drives the `pnpm --filter` target and whether clean-slate applies).
+- **Branch name**: `feature/<scope>/<issue#>-<slug>` (see Standing rules #1). `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `pkg:release-tools` → `release-tools`, `repo` → `repo`). If an issue has **no** area label, stop and ask rather than guess. `<slug>` is a short verb-first phrase for the _change_ (not the symptom), lowercase-hyphenated, ≤ ~4 words, e.g. `194-remove-identity-matching`. Never `fix/` or `hotfix/` (bugs that target `develop` are `feature/` too; `hotfix/` is reserved for fixes branched off `main`).
 - **PR title** — a Conventional Commit from the `bug`/`feature`/etc. type label + the issue title, scoped to the package (e.g. `fix(unic-pr-review): …`).
 - **Source-of-truth** — paths the body names as the contract: any `docs/.../PRD.md`, `docs/adr/*.md`, `CONTEXT.md`, or an explicit "source of truth" line.
 - **Blockers** — any `blocked by #N` / `depends on #N` in the body. Use these to order the tree.
@@ -51,7 +52,7 @@ Run each `archon workflow run` in the **background** (`run_in_background: true`)
 Dispatch command shape (fill the bracketed clauses from Step 1; drop clauses that don't apply):
 
 ```sh
-archon workflow run archon-fix-github-issue --branch fix/issue-<n> "Fix issue #<n> in repo unic/unic-agents-plugins. Read the issue body carefully — the acceptance criteria are exhaustive. Source of truth: <derived paths>. [IF unic-pr-review: CLEAN-SLATE DOCTRINE — write every module fresh from the PRD and ADRs; do NOT load, copy, or pattern-match anything from apps/claude-code/pr-review/.] [IF guarded: run 'pnpm --filter <name> bump patch' and add a CHANGELOG bullet under the new version.] After 'pnpm --filter <name> test' and 'pnpm --filter <name> typecheck' are green, push and open a PR targeting develop titled '<PR title>'."
+archon workflow run archon-fix-github-issue --branch feature/<scope>/<n>-<slug> "Fix issue #<n> in repo unic/unic-agents-plugins. Read the issue body carefully — the acceptance criteria are exhaustive. Source of truth: <derived paths>. [IF unic-pr-review: CLEAN-SLATE DOCTRINE — write every module fresh from the PRD and ADRs; do NOT load, copy, or pattern-match anything from apps/claude-code/pr-review/.] [IF guarded: run 'pnpm --filter <name> bump patch' and add a CHANGELOG bullet under the new version.] After 'pnpm --filter <name> test' and 'pnpm --filter <name> typecheck' are green, push and open a PR targeting develop titled '<PR title>'."
 ```
 
 ## Step 5 — Arm the monitor
@@ -109,7 +110,7 @@ Monitor signals: `HOOK-TRIP` (clean-slate violation — always investigate) · `
 
 ## Standing rules (always apply)
 
-1. **Branch from `develop`, PR to `develop`.** Always `--branch <name>`. Never target `main`.
+1. **Branch from `develop`, PR to `develop`.** Always pass `--branch feature/<scope>/<issue#>-<slug>` (derived in Step 1). Follow Gitflow's two-prefix model: develop-targeting work (features **and** bugs) is `feature/`; `hotfix/` is reserved for fixes branched off `main`. Never `fix/`, never target `main`. The Gitflow _topology_ is owned by `docs/agents/branching.md` (auto-generated, do not edit); the `<scope>/<issue#>-<slug>` naming _within_ the `feature/` namespace is owned by this command.
 2. **Foundation on `develop` first** (Step 2). Never dispatch a dependent before its contract is on `develop`.
 3. **Clean-slate for `unic-pr-review`.** Issues scoped to `apps/claude-code/unic-pr-review/` share no code/prompts/fixtures/dependency with `apps/claude-code/pr-review/` (deprecated, hook-protected by `.claude/hooks/block-pr-review.mjs`). Put the clean-slate clause in those dispatch prompts verbatim. Other scopes are exempt.
 4. **`verify:changelog` merge-gate.** Guarded-file PRs need a version bump + CHANGELOG bullet or CI fails. If a rollout itself introduces/tightens this gate, merge that PR **last**.
