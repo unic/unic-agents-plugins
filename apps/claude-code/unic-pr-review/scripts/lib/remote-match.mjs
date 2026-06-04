@@ -11,9 +11,9 @@
  * the generic fallback.
  *
  * CLI: node scripts/lib/remote-match.mjs <adoRemoteUrl>
- *   stdin: JSON array of local remote URL strings
+ *   stdin: raw output of `git remote -v`
  *   stdout: "true" or "false"
- *   exit 0 on success, exit 1 on parse/usage error
+ *   exit 0 on success, exit 1 on usage error
  */
 
 import { createInterface } from 'node:readline'
@@ -53,14 +53,16 @@ function adoIdentity(parsed) {
 
 /**
  * Normalise a git remote URL to a canonical string for equality comparison.
- * Returns an `ado:<org>/<project>/<repo>` token for ADO hosts, or a bare
- * `<host>/<path>` string for all others.
+ * Returns an `ado:<org>/<project>/<repo>` token for ADO hosts, a bare
+ * `<host>/<path>` string for parseable non-ADO URLs, or a best-effort
+ * lowercased string for URLs that cannot be parsed.
  *
  * @param {string} rawUrl
  * @returns {string}
  */
 function normalise(rawUrl) {
-	let url = rawUrl.trim()
+	const original = rawUrl.trim()
+	let url = original
 
 	// Expand git shorthand  git@host:path  →  ssh://host/path
 	const shorthand = url.match(/^(?:[a-zA-Z0-9._-]+@)([^:]+):(.+)$/)
@@ -82,8 +84,8 @@ function normalise(rawUrl) {
 		while (path.endsWith('/')) path = path.slice(0, -1)
 		return `${parsed.hostname}${path}`
 	} catch {
-		// URL not parseable — best-effort lowercase + strip .git
-		return url
+		// URL not parseable — best-effort lowercase + strip .git suffix + trailing slash
+		return original
 			.toLowerCase()
 			.replace(/\.git$/, '')
 			.replace(/\/$/, '')
@@ -99,32 +101,39 @@ function normalise(rawUrl) {
  * @returns {boolean}
  */
 export function remotesMatch(adoRemoteUrl, localRemoteUrls) {
+	if (typeof adoRemoteUrl !== 'string' || !adoRemoteUrl) return false
 	if (!Array.isArray(localRemoteUrls) || localRemoteUrls.length === 0) return false
 	const adoNorm = normalise(adoRemoteUrl)
-	return localRemoteUrls.some((u) => normalise(u) === adoNorm)
+	return localRemoteUrls.some((u) => typeof u === 'string' && normalise(u) === adoNorm)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-	const adoUrl = process.argv[2]
-	if (!adoUrl) {
-		process.stderr.write(
-			'remote-match: usage: node scripts/lib/remote-match.mjs <adoRemoteUrl>  (local URLs from stdin as JSON array)\n'
-		)
-		process.exit(1)
+	async function main() {
+		const adoUrl = process.argv[2]
+		if (!adoUrl) {
+			process.stderr.write(
+				'remote-match: usage: node scripts/lib/remote-match.mjs <adoRemoteUrl>  (git remote -v output on stdin)\n'
+			)
+			process.exit(1)
+		}
+
+		const rl = createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })
+		const seen = new Set()
+		/** @type {string[]} */
+		const localUrls = []
+		for await (const line of rl) {
+			const url = line.split(/\s+/)[1]
+			if (url && !seen.has(url)) {
+				seen.add(url)
+				localUrls.push(url)
+			}
+		}
+
+		process.stdout.write(`${remotesMatch(adoUrl, localUrls)}\n`)
 	}
 
-	const rl = createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY })
-	const chunks = []
-	for await (const line of rl) chunks.push(line)
-
-	let localUrls
-	try {
-		localUrls = JSON.parse(chunks.join('\n'))
-		if (!Array.isArray(localUrls)) throw new Error('expected JSON array')
-	} catch (err) {
-		process.stderr.write(`remote-match: invalid stdin JSON — ${err instanceof Error ? err.message : String(err)}\n`)
+	main().catch((err) => {
+		process.stderr.write(`remote-match: unexpected error: ${err instanceof Error ? err.message : String(err)}\n`)
 		process.exit(1)
-	}
-
-	process.stdout.write(`${remotesMatch(adoUrl, localUrls)}\n`)
+	})
 }

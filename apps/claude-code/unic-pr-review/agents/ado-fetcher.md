@@ -3,7 +3,7 @@ name: ado-fetcher
 description: ADO Fetcher — reads all PR data from Azure DevOps via az devops invoke. Fetches PR metadata, Revisions, Threads, and the changed-file list. Computes a checkout-free merge-base diff (commonRefCommit→sourceRefCommit) for first-review modes via git fetch + git diff; falls back to diffUnavailable when not in a matching clone. Carries the git delta diff in re-review mode. Detects prior bot threads by Iteration Marker, not caller identity.
 model: inherit
 color: purple
-allowed-tools: Bash(az *), Bash(node *), Bash(git *), Bash(awk *), Bash(jq *), Bash(sort *)
+allowed-tools: Bash(az *), Bash(node *), Bash(git *), Bash(jq *)
 ---
 
 # ADO Fetcher
@@ -149,19 +149,19 @@ Set `DELTA_RAW_DIFF` to `""` and `PRIOR_FINDINGS` to `[]`.
 
 **Step 5a — Repo-match guard**
 
-Resolve the ADO remote URL from `prMetadata.repository.remoteUrl`. Collect all local remote fetch URLs as a JSON array:
+Resolve the ADO remote URL from `prMetadata.repository.remoteUrl`:
 
 ```sh
-LOCAL_REMOTE_URLS_JSON=$(git remote -v | awk '{print $2}' | sort -u | jq -R . | jq -s .)
+ADO_REMOTE_URL=$(echo "$PR_METADATA_JSON" | jq -r '.repository.remoteUrl')
 ```
 
 Check whether any local remote matches the ADO remote:
 
 ```sh
-REMOTES_MATCH=$(echo "$LOCAL_REMOTE_URLS_JSON" | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL")
+REMOTES_MATCH=$(git remote -v | node scripts/lib/remote-match.mjs "$ADO_REMOTE_URL")
 ```
 
-If `REMOTES_MATCH` is `false`, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+If `REMOTES_MATCH` is `false` or the command exits non-zero, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
 
 ```
 "Repo-match guard: no local remote matches prMetadata.repository.remoteUrl. Run from inside a clone of the PR's repo to get a line-level diff."
@@ -184,13 +184,23 @@ If `COMMON_REF_COMMIT` is absent or empty, set `RAW_DIFF` to `""`, `DIFF_UNAVAIL
 
 Stop and proceed to Step 6.
 
+If `SOURCE_REF_COMMIT` is absent or empty, set `RAW_DIFF` to `""`, `DIFF_UNAVAILABLE` to `true`, and add warning:
+
+```
+"sourceRefCommit missing from latest revision — cannot compute merge-base diff. Review agents will operate on changedFiles."
+```
+
+Stop and proceed to Step 6.
+
 **Step 5c — Fetch and diff**
 
 Fetch any missing commits:
 
 ```sh
-git fetch origin
+git fetch --all
 ```
+
+If `git fetch --all` exits non-zero, record a warning: `"git fetch failed — using locally cached commits if available."` (Do not set `DIFF_UNAVAILABLE` here; continue to git diff.)
 
 Compute the merge-base-relative diff:
 

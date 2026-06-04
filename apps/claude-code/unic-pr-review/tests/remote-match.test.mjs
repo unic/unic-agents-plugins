@@ -133,6 +133,52 @@ describe('remotesMatch', () => {
 		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', null), false)
 	})
 
+	it('returns false when localRemoteUrls contains a null element', () => {
+		// @ts-expect-error — intentional misuse
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', [null, 'https://github.com/other/repo']), false)
+	})
+
+	it('returns false when adoRemoteUrl is null', () => {
+		// @ts-expect-error — intentional misuse
+		assert.equal(remotesMatch(null, ['https://dev.azure.com/o/p/_git/r']), false)
+	})
+
+	// ── ADO path-component casing ────────────────────────────────────────────────
+
+	it('ignores org/project/repo casing on ADO HTTPS URL', () => {
+		assert.equal(
+			remotesMatch('https://dev.azure.com/MyOrg/MyProject/_git/MyRepo', [
+				'https://dev.azure.com/myorg/myproject/_git/myrepo',
+			]),
+			true
+		)
+	})
+
+	it('ignores path casing when matching ADO HTTPS against ADO SSH shorthand', () => {
+		assert.equal(
+			remotesMatch('https://dev.azure.com/MyOrg/MyProject/_git/MyRepo', [
+				'git@ssh.dev.azure.com:v3/MYORG/MYPROJECT/MYREPO',
+			]),
+			true
+		)
+	})
+
+	// ── Full ssh:// ADO URI form ─────────────────────────────────────────────────
+
+	it('matches ADO full ssh:// URI against ADO HTTPS', () => {
+		assert.equal(remotesMatch('https://dev.azure.com/o/p/_git/r', ['ssh://ssh.dev.azure.com/v3/o/p/r']), true)
+	})
+
+	// ── URL-parse failure fallback ───────────────────────────────────────────────
+
+	it('returns false for an unparseable ADO URL matched against a valid remote', () => {
+		assert.equal(remotesMatch('not-a-url', ['https://github.com/org/repo']), false)
+	})
+
+	it('does not throw for an unparseable local remote URL', () => {
+		assert.equal(remotesMatch('https://github.com/org/repo', ['not-a-url']), false)
+	})
+
 	// ── Generic HTTPS ↔ SSH (non-ADO) ───────────────────────────────────────────
 
 	it('matches GitHub HTTPS against GitHub SSH shorthand', () => {
