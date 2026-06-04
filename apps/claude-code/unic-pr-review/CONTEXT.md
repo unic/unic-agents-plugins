@@ -45,8 +45,8 @@ The agent (named "Arbiter") that runs in Re-review Mode after the Review Aspect 
 _Avoid_: arbiter, planner, classifier
 
 **Bot Signature**:
-The load-bearing footer wording `🤖 Reviewed by Claude Code — Iteration N`, owned solely by `scripts/lib/signature.mjs`. Used for Re-review detection and Iteration counting (ADR-0006).
-_Avoid_: marker, tag, watermark
+The footer every bot-authored comment carries, owned solely by `scripts/lib/signature.mjs`: a human-facing visible line `🤖 Reviewed by Claude Code — Iteration N` plus a hidden machine-readable **Iteration Marker** `<!-- unic-pr-review:iteration=N -->`. Re-review detection and Iteration counting key on the Iteration Marker; the visible line is for the Reviewer. Recognising a comment as the Plugin's own relies on the Bot Signature alone — never on the author's ADO identity (ADR-0006).
+_Avoid_: tag, watermark
 
 **Iteration**:
 The review count for a single PR, stored in the Bot Signature, incremented on each Re-review.
@@ -97,8 +97,8 @@ _Avoid_: agent list, run set, active agents
 > **Dev:** "What happens if a PR links no Work Items at all?"
 > **Domain expert:** "The Intent Check block is just omitted from the Review Summary. Per ADR-0004 the absence of intent is a legitimate state — we only hard-stop if a referenced source is unreachable."
 
-> **Dev:** "Why does `doctor` verify `az devops user show --user me` and not just `az devops login`?"
-> **Domain expert:** "ADR-0006 stores Iteration state in the PR's own Bot Signature. To detect our own prior comments at Review time the Plugin caches the authenticated ADO user id at startup. If `user show` can't resolve the identity, Re-review detection breaks — so we check it during doctor instead of failing mid-Review."
+> **Dev:** "How does a Re-review know which comments are the Plugin's own, without looking up our ADO identity?"
+> **Domain expert:** "Every bot comment carries the Bot Signature — including a hidden `<!-- unic-pr-review:iteration=N -->` Iteration Marker. Re-review detection matches that marker, so it never needs the caller's ADO user id. That's why `doctor` no longer probes identity (ADR-0006): a normal reviewer with no admin entitlement runs Reviews fine."
 
 > **Dev:** "A Finding came back with Confidence 55. Why didn't I see it in the Summary?"
 > **Domain expert:** "Anything below 60 is filtered out per ADR-0002. That's the noise floor — Minor starts at 60."
