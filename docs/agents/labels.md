@@ -32,6 +32,7 @@ Three-tier taxonomy for `github`. Canonical names are used inside workflows; the
 | spike     | spike          |
 | tech-debt | tech-debt      |
 | docs      | docs           |
+| release   | release        |
 
 ## Priority labels
 

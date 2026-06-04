@@ -24,7 +24,8 @@
       "bug": "bug",
       "spike": "spike",
       "tech-debt": "tech-debt",
-      "docs": "docs"
+      "docs": "docs",
+      "release": "release"
     },
     "priority": {
       "p0": "p0",
