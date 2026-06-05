@@ -4,7 +4,7 @@
 // Copyright © 2026 Unic
 
 /**
- * setup-confluence.mjs — write ~/.unic-confluence.json with the user's
+ * setup-confluence.mjs - write ~/.unic-confluence.json with the user's
  * Confluence credentials. Pure file-writer: values arrive as CLI args; the
  * conversational prompting happens in commands/setup-confluence.md.
  */
@@ -66,7 +66,7 @@ export function writeConfluenceCreds(url, username, token, deps = {}) {
 			if (existing && typeof existing === 'object') preserved = existing
 		} catch (err) {
 			if (!(err instanceof SyntaxError)) throw err
-			warn(`${path} contains invalid JSON — overwriting (any prior jiraUrl will be lost).`)
+			warn(`${path} contains invalid JSON - overwriting (any prior jiraUrl will be lost).`)
 		}
 	}
 	const payload = { ...preserved, url, username, token }
@@ -74,7 +74,7 @@ export function writeConfluenceCreds(url, username, token, deps = {}) {
 	write(tmp, JSON.stringify(payload, null, 2), 'utf8')
 	if (platform === 'win32') {
 		warn(
-			`Windows detected — skipping chmod 600 on ${path}. Restrict file access manually, e.g.:\n  icacls "${path}" /inheritance:r /grant:r "%USERNAME%:F"`
+			`Windows detected - skipping chmod 600 on ${path}. Restrict file access manually, e.g.:\n  icacls "${path}" /inheritance:r /grant:r "%USERNAME%:F"`
 		)
 	} else {
 		chmod(tmp, 0o600)

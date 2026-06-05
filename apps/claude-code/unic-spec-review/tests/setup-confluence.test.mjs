@@ -17,7 +17,7 @@ function tempDir() {
 }
 
 describe('writeConfluenceCreds', () => {
-	it('happy path — writes correct JSON to temp home and chmods 600 on linux', () => {
+	it('happy path - writes correct JSON to temp home and chmods 600 on linux', () => {
 		const home = tempDir()
 		/** @type {{ p: string, m: number }[]} */
 		const chmodCalls = []
@@ -50,7 +50,7 @@ describe('writeConfluenceCreds', () => {
 		assert.deepEqual(writeOrder, [`write:${target}.tmp`, `chmod:${target}.tmp`, `rename:${target}.tmp->${target}`])
 	})
 
-	it('idempotent re-run — same file, no error on second call', () => {
+	it('idempotent re-run - same file, no error on second call', () => {
 		const home = tempDir()
 		const opts = { homedir: home, platform: 'linux', chmod: () => {} }
 		writeConfluenceCreds('https://x.atlassian.net', 'u', 'tok', opts)
@@ -119,7 +119,7 @@ describe('writeConfluenceCreds', () => {
 		)
 	})
 
-	it('Windows chmod warning branch — warn called with icacls hint, chmod skipped', () => {
+	it('Windows chmod warning branch - warn called with icacls hint, chmod skipped', () => {
 		const home = tempDir()
 		/** @type {string[]} */
 		const warns = []

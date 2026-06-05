@@ -4,7 +4,7 @@
 // Copyright © 2026 Unic
 
 /**
- * spec-doctor.mjs — Confluence credential + connectivity preflight for
+ * spec-doctor.mjs - Confluence credential + connectivity preflight for
  * unic-spec-review.
  *
  * This script covers only the parts of the preflight that can run inside a
@@ -25,8 +25,8 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
 
 /**
  * Discriminated by `kind`:
- *   - 'http' — fetch resolved; `status` is the HTTP response code.
- *   - 'transport-error' — fetch rejected (invalid URL, wrong scheme, timeout,
+ *   - 'http' - fetch resolved; `status` is the HTTP response code.
+ *   - 'transport-error' - fetch rejected (invalid URL, wrong scheme, timeout,
  *     network error); `error` carries the failure message.
  *
  * @typedef {{ kind: 'http', status: number } | { kind: 'transport-error', error: string }} PingResult
@@ -115,7 +115,7 @@ export function mapPingError(err) {
 
 /**
  * Default fetcher: GET via global fetch with a 10 s timeout. Handles both
- * https:// and http:// URLs. Returns the discriminated PingResult — an HTTP
+ * https:// and http:// URLs. Returns the discriminated PingResult - an HTTP
  * result on resolution, a transport-error on any rejection (invalid URL,
  * wrong scheme, timeout, network error).
  *
@@ -139,7 +139,7 @@ export function realPing(url, headers) {
  */
 function formatLine(result, label) {
 	const glyph = result.ok ? '✓' : '✗'
-	return `${glyph} ${label} — ${result.detail}`
+	return `${glyph} ${label} - ${result.detail}`
 }
 
 /**
@@ -172,10 +172,10 @@ export async function runSpecDoctorCredentials(deps = {}) {
 	}
 
 	if (credsLoadError) {
-		lines.push(`✗ Atlassian credentials — credential file unreadable: ${credsLoadError}`)
+		lines.push(`✗ Atlassian credentials - credential file unreadable: ${credsLoadError}`)
 		allOk = false
 	} else if (!creds) {
-		lines.push('✗ Atlassian credentials — neither env vars nor ~/.unic-confluence.json found')
+		lines.push('✗ Atlassian credentials - neither env vars nor ~/.unic-confluence.json found')
 		allOk = false
 	}
 

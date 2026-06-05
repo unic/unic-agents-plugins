@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make `/review-spec` orchestration portable: write the scratch report JSON into the gitignored `.spec-review/` directory instead of the POSIX-only `/tmp` path (broke on Windows CI), and surface the structured `errors[].kind`/`errors[].message` from the fetch script so the real failure cause is shown.
 
 ### Documentation
-- Correct stale cross-plugin references in code comments (drop the `render-summary.mjs`, `doctor.mjs`, and inaccurate `ADR-0001` citations), reword the `CONTEXT.md` status line so it no longer promises an unused `(S1)` per-term marking convention, and replace em dashes with hyphens in authored comments and messages per the org typography rule.
+- Correct stale cross-plugin references in code comments (drop the `render-summary.mjs`, `doctor.mjs`, and inaccurate `ADR-0001` citations), reword the `CONTEXT.md` status line so it no longer promises an unused `(S1)` per-term marking convention, and replace em dashes with hyphens in authored comments, command docs, user-facing script output, and test descriptions, per this slice's acceptance criterion (no em dash in authored text except the mandated CHANGELOG version header).
 
 ## [0.1.1] — 2026-06-05
 

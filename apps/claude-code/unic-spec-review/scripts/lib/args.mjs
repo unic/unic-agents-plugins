@@ -3,7 +3,7 @@
 // Copyright © 2026 Unic
 
 /**
- * args.mjs — CLI argument parsers for unic-spec-review.
+ * args.mjs - CLI argument parsers for unic-spec-review.
  *
  * - `parseReviewSpecArgs`: accepts a raw string or argv array; extracts http(s)
  *   URLs and the `--post` flag (for the /review-spec command).
@@ -45,7 +45,7 @@ export function parseReviewSpecArgs(input) {
  *
  * Accepts both `--key=value` and `--key value` forms. Bare positional args
  * are ignored. A `--flag` with no following value (last arg, or followed by
- * another `--flag`) throws — the previous silent-drop behaviour produced
+ * another `--flag`) throws - the previous silent-drop behaviour produced
  * misleading "X is required" errors when the user actually did pass the flag.
  *
  * Boolean flags (presence-only, no value) must be declared in `options.booleanFlags`.
