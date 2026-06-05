@@ -21,7 +21,7 @@ This Plugin's own decisions:
 - [Plugin docs/adr/](docs/adr/): ADRs 0001 to 0004 (vendoring/self-containment, similarity dedup, Six-Hats lens, inline-anchored comments) and a README index
 - [CONTEXT.md](CONTEXT.md): domain vocabulary for this bounded context
 
-## Design (locked via grilling, pending PRD)
+## Design (locked via grilling; see [PRD](docs/issues/unic-spec-review/PRD.md))
 
 - **Home:** standalone plugin. Commands `/review-spec` (main), `/spec-doctor` (preflight), `/setup-confluence` (credential wizard).
 - **Self-containment (hard requirement):** installable and usable on its own, with no runtime or setup dependency on `unic-pr-review` or `unic-confluence`. Ships its own `/setup-confluence` wizard and vendored credential handling. Duplication across plugins is accepted as the price of self-containment.
