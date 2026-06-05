@@ -8,12 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.1] — 2026-06-05
+
+### Breaking
 
 - (none)
 
 ### Added
 
-- (none)
+- Vendor `atlassian-fetch.mjs` and `credentials.mjs` from `unic-pr-review` (ADR-0001 self-containment); only the Confluence page-read path is used in this slice.
+- Add `link-classifier` module: routes a pasted URL to `confluence` / `figma-page` / `figma-frame` / `live` / `unknown` and extracts the Confluence page id.
+- Add `args` module: parses `/review-spec` arguments (URL list + `--post` flag recognition).
+- Add `report-renderer` module: renders a timestamped markdown report and writes it to `.spec-review/` (gitignored).
+- Add `gaps-agent` (Gaps/Completeness dimension agent): inspects a Confluence page for missing states, undefined behaviour, and absent acceptance criteria.
+- Implement `/review-spec` S1 skeleton: classify URL, fetch one Confluence page, run Gaps agent, print findings, write report.
+- Restore test harness: `pnpm test` and `pnpm typecheck` scripts, `tsconfig.json`, `scripts/` and `tests/` directories.
 
 ### Fixed
 

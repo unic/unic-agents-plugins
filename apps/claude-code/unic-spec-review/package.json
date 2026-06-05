@@ -1,6 +1,6 @@
 {
   "name": "unic-spec-review",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
@@ -13,9 +13,14 @@
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
     "verify:changelog": "unic-verify-changelog"
   },
   "devDependencies": {
-    "@unic/release-tools": "workspace:*"
+    "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
+    "typescript": "catalog:"
   }
 }
