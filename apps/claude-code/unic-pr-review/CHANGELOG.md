@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [2.1.3] — 2026-06-05
+
+### Breaking
+- (none)
+
+### Added
 - `silent-failure-hunter` agent now detects lost-signal / observability gaps: fallback branches, early-return guards, and cancellation handlers that exit without emitting the analytics event, telemetry call, structured log, or Sentry capture that the normal execution path emits (issue #217)
 - `silent-failure-hunter` agent recognises missing event-emission APIs (`trackEvent`, `analytics.page`, `reportError`, APM spans, Sentry breadcrumbs) on non-success paths (issue #217)
 - `silent-failure-hunter` agent flags logging or diagnostic calls unconditionally gated on a development / debug flag, making them invisible in production (issue #217)
