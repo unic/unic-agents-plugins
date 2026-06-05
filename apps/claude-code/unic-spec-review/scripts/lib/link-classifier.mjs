@@ -3,7 +3,7 @@
 // Copyright © 2026 Unic
 
 /**
- * link-classifier.mjs — classify a pasted URL by kind and extract identifiers.
+ * link-classifier.mjs - classify a pasted URL by kind and extract identifiers.
  *
  * Returns one of five kinds: 'confluence', 'figma-page', 'figma-frame',
  * 'live', 'unknown'. Never throws; returns 'unknown' for malformed input.

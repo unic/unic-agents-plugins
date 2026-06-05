@@ -3,7 +3,7 @@
 // Copyright © 2026 Unic
 
 /**
- * args.mjs — parse /review-spec command arguments.
+ * args.mjs - parse /review-spec command arguments.
  *
  * Accepts a raw argument string or a pre-split argv array.
  * Tokens that parse as valid URLs go into `urls`; `--post` sets `post: true`;

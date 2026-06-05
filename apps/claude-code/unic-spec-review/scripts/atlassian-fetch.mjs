@@ -4,25 +4,24 @@
 // Copyright © 2026 Unic
 
 /**
- * atlassian-fetch.mjs — fetch Confluence page content (and optionally Jira
+ * atlassian-fetch.mjs - fetch Confluence page content (and optionally Jira
  * issue data) for spec reviews.
  *
  * Pure-function library plus a thin CLI entry point. Given a list of pasted
- * URLs it routes each by path (`/browse/` → Jira, `/wiki/` → Confluence),
- * fetches the linked page / issue via the Atlassian REST APIs using global
- * `fetch` (Node 22+), and normalises the response into structures the
- * `/review-spec` command and Gaps agent can consume.
+ * URLs it routes each by path (`/browse/` -> Jira, `/wiki/` -> Confluence),
+ * fetches the linked page / issue via the Atlassian REST APIs using the
+ * built-in global `fetch` (Node 22+), and normalises the response into
+ * structures the `/review-spec` command and Gaps agent can consume.
  *
  * Credentials come from `lib/credentials.mjs` (env vars override the file).
- * Every HTTP call uses Basic auth (email:token) with a hard 15 s timeout
- * (ADR-0001: built-in fetch, no external runtime deps).
+ * Every HTTP call uses Basic auth (email:token) with a hard 15 s timeout.
  *
  * The fetch helpers accept an injectable `fetch` (via `deps.fetch`) so unit
  * tests can stub HTTP without mocking globalThis.
  *
  * Note: Jira exports (fetchJiraIssue, parseJiraACs, parseJiraBug,
  * extractJiraKey) are vendored from unic-pr-review but untested in this
- * plugin — coverage lives in unic-pr-review.
+ * plugin - coverage lives in unic-pr-review.
  */
 
 import { Buffer } from 'node:buffer'
@@ -156,7 +155,7 @@ export function extractConfluencePageId(url) {
 
 /**
  * Build the base64 portion of a Basic-auth header from email + API token.
- * Mirrors the Basic-auth pattern in doctor.mjs.
+ * Standard HTTP Basic auth: base64(email:token).
  * @param {string} username
  * @param {string} token
  * @returns {string}
@@ -314,7 +313,7 @@ export function parseJiraBug(fields) {
 }
 
 /**
- * Extract Confluence `/wiki/` hrefs from an HTML body. Best-effort — scoped to
+ * Extract Confluence `/wiki/` hrefs from an HTML body. Best-effort - scoped to
  * href-embedded links, which covers the common Confluence storage format.
  * Deduplicated, order preserved.
  * @param {unknown} htmlBody
@@ -369,7 +368,7 @@ function stripHtml(html) {
 
 /**
  * GET a JSON resource with Basic auth and a hard timeout. Classifies failures
- * into FetchError kinds and throws — never returns a partial result.
+ * into FetchError kinds and throws - never returns a partial result.
  * @param {string} url
  * @param {AtlassianCreds} creds
  * @param {FetchLike} fetchImpl
@@ -387,10 +386,10 @@ async function fetchJson(url, creds, fetchImpl) {
 		throw new FetchError(url, 'unreachable', mapFetchError(err))
 	}
 	if (res.status === 401 || res.status === 403) {
-		throw new FetchError(url, 'auth-error', `HTTP ${res.status} — credentials rejected`)
+		throw new FetchError(url, 'auth-error', `HTTP ${res.status} - credentials rejected`)
 	}
 	if (res.status === 404) {
-		throw new FetchError(url, 'not-found', `HTTP ${res.status} — resource not found`)
+		throw new FetchError(url, 'not-found', `HTTP ${res.status} - resource not found`)
 	}
 	if (!res.ok) {
 		throw new FetchError(url, 'unreachable', `HTTP ${res.status}`)
@@ -478,7 +477,7 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 		throw new FetchError(
 			pageIdOrUrl,
 			'not-found',
-			`could not extract a Confluence page ID from this URL format — only /pages/<id>/ and ?pageId=<id> are supported: ${pageIdOrUrl}`
+			`could not extract a Confluence page ID from this URL format - only /pages/<id>/ and ?pageId=<id> are supported: ${pageIdOrUrl}`
 		)
 	}
 	const url = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}?expand=body.storage,version`
@@ -506,7 +505,7 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
  */
 
 /**
- * Route, fetch, and normalise every URL. Never throws — per-URL failures (and a
+ * Route, fetch, and normalise every URL. Never throws - per-URL failures (and a
  * missing or unreadable credential file) are collected into the `errors` array
  * so the caller (Gaps agent or `/review-spec` command) decides whether to
  * hard-stop. Unrecognised URLs are warned on stderr and recorded as a soft
@@ -527,8 +526,8 @@ export async function collectIntent(urls, deps = {}) {
 		// A present-but-malformed or unreadable credential file throws in the
 		// loader. Convert it to a global auth-error (url === '') so callers get the
 		// structured never-throws contract and the CLI exits 1, just like missing
-		// credentials — a broken config can't yield valid intent either way.
-		const message = `credential file could not be read — ${err instanceof Error ? err.message : String(err)}`
+		// credentials - a broken config can't yield valid intent either way.
+		const message = `credential file could not be read - ${err instanceof Error ? err.message : String(err)}`
 		stderr.write(`atlassian-fetch: ${message}\n`)
 		return { items: [], errors: [{ url: '', kind: 'auth-error', message }] }
 	}
@@ -539,7 +538,7 @@ export async function collectIntent(urls, deps = {}) {
 				{
 					url: '',
 					kind: 'auth-error',
-					message: 'No Atlassian credentials configured — run /unic-spec-review:setup-confluence',
+					message: 'No Atlassian credentials configured - run /unic-spec-review:setup-confluence',
 				},
 			],
 		}
@@ -556,7 +555,7 @@ export async function collectIntent(urls, deps = {}) {
 			// Surface unsupported URLs (e.g. ADO Boards links) as a soft `unsupported`
 			// error instead of skipping silently, so the caller can warn the reviewer
 			// rather than producing empty intent with no explanation.
-			const message = `unrecognised URL format — only /browse/ (Jira) and /wiki/ (Confluence) paths are supported`
+			const message = `unrecognised URL format - only /browse/ (Jira) and /wiki/ (Confluence) paths are supported`
 			stderr.write(`atlassian-fetch: ${message}: ${url}; skipping\n`)
 			errors.push({ url, kind: 'unsupported', message })
 			continue
@@ -573,7 +572,7 @@ export async function collectIntent(urls, deps = {}) {
 			if (err instanceof FetchError) {
 				errors.push({ url, kind: err.kind, message: err.message })
 			} else {
-				// Internal code error — flag as parse-error (soft failure) rather than
+				// Internal code error - flag as parse-error (soft failure) rather than
 				// unreachable (hard-stop), so a code defect doesn't abort the review.
 				const msg = err instanceof Error ? (err.stack ?? err.message) : String(err)
 				stderr.write(`atlassian-fetch: internal error processing ${url}: ${msg}\n`)
@@ -624,7 +623,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		.then((result) => {
 			// Exit 1 only when no credentials are configured at all (global auth-error,
 			// url === ''). Per-URL auth errors and not-found entries exit 0 so the
-			// gaps-agent can apply hard-stop logic by inspecting the errors array —
+			// gaps-agent can apply hard-stop logic by inspecting the errors array -
 			// not-found is soft, auth-error/unreachable per-URL is hard.
 			const credsMissing = result.errors.some((e) => e.kind === 'auth-error' && e.url === '')
 			process.exit(credsMissing ? 1 : 0)

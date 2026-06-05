@@ -6,8 +6,9 @@
  * report-renderer.mjs - render and write a timestamped spec-review report.
  *
  * Pure library: renderReport() accepts injectable fs deps for unit testing.
- * CLI entry reads from REPORT_JSON + REPORT_OUTPUT_DIR env vars, following
- * the same pattern as render-summary.mjs in unic-pr-review.
+ * The CLI entry reads the report JSON from a file-path argument (argv[2]),
+ * falling back to the REPORT_JSON env var, and writes the rendered report
+ * under REPORT_OUTPUT_DIR.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'

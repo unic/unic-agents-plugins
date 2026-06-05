@@ -3,7 +3,7 @@
 // Copyright © 2026 Unic
 
 /**
- * credentials.mjs — load Atlassian (Confluence + optional Jira) and Azure DevOps
+ * credentials.mjs - load Atlassian (Confluence + optional Jira) and Azure DevOps
  * credentials from environment variables or the credential files under the
  * user's home directory. Env vars take precedence over file contents; each
  * loader returns null when neither source is configured.
