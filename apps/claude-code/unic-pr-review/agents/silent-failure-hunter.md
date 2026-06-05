@@ -39,12 +39,17 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - Fallback chains (try A, then B, then C) that switch approaches without recording or explaining why the prior attempt failed
 - Retry logic that exhausts all attempts and then proceeds or returns a default without surfacing the final failure to the caller or the logs
 - Errors caught locally that should propagate to a higher-level handler — catching here prevents proper cleanup, resource release, or centralised handling
+- Lost-signal / observability gaps: a fallback branch, early-return guard, or cancellation handler exits without emitting the analytics event, telemetry call, structured log, or Sentry capture that the normal execution path emits — leaving the outcome invisible in production observability tools
+- Event emission (`trackEvent`, `analytics.page`, `reportError`, APM spans, Sentry breadcrumbs) that appears only on the success/normal path; an early-exit guard or exception branch skips it without firing a corresponding trace to record what actually happened
+- Logging or diagnostic calls unconditionally gated on a development flag (`process.env.NODE_ENV !== 'production'`, `__DEV__`, `IS_TEST`) with no production-observable fallback — production gets silence where developers see output
 
 ## What NOT to look for
 
 - Formatting or whitespace (handled by Biome)
 - Error-handling that is deliberately suppressive and clearly documented as such (e.g. fire-and-forget telemetry)
 - Handling patterns outside the diff scope
+- A fallback or early-return that deliberately fires a **different** matching event to record the outcome (e.g. a `navigation_cancelled` event in place of `page_view`) — the outcome is still traced under a different name; this is deliberate traced suppression, not a gap
+- Analytics / telemetry emission that is intentionally disabled in specific environments when the omission is explicit and documented (e.g. a guarding comment, a feature flag, or a dedicated `isAnalyticsEnabled()` / `isTelemetryEnabled()` wrapper)
 
 ## Output format
 
