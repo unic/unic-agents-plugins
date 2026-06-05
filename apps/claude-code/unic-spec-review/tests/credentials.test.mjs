@@ -64,6 +64,22 @@ describe('loadAtlassianCreds', () => {
 		assert.throws(() => loadAtlassianCreds(home, {}), /invalid JSON/)
 	})
 
+	it('prefers env vars over a present file when both are configured', () => {
+		const home = tempDir()
+		writeFileSync(
+			join(home, '.unic-confluence.json'),
+			JSON.stringify({ url: 'https://file.example.com', username: 'fileuser', token: 'filetoken' })
+		)
+		const env = {
+			CONFLUENCE_URL: 'https://env.example.com',
+			CONFLUENCE_USER: 'envuser',
+			CONFLUENCE_TOKEN: 'envtoken',
+		}
+		const r = loadAtlassianCreds(home, env)
+		assert.ok(r)
+		assert.equal(r.url, 'https://env.example.com')
+	})
+
 	it('includes jiraUrl from file when present', () => {
 		const home = tempDir()
 		writeFileSync(

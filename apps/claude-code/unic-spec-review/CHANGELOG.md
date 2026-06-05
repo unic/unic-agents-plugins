@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Cover two previously untested paths flagged in PR #210 review: `loadAtlassianCreds` preferring env vars over a present credentials file, and `fetchConfluencePage` capping the stripped excerpt at 800 characters.
 
 ### Fixed
 - Reject non-http(s) URLs in arg parsing, link classification, and validate `pageTitle`/`pageUrl` in the report-renderer CLI entry, so ftp/file/mailto inputs no longer slip through and missing report fields no longer render as literal `undefined`.

@@ -143,6 +143,15 @@ describe('fetchConfluencePage', () => {
 		assert.equal(item.excerpt, 'Hello world')
 	})
 
+	it('caps the excerpt at 800 characters', async () => {
+		const longBody = 'word '.repeat(400)
+		const page = { id: '2', title: 'Long', body: { storage: { value: longBody } } }
+		const item = await fetchConfluencePage('https://unic.atlassian.net/wiki/spaces/X/pages/2', CREDS, {
+			fetch: fetchJson(page),
+		})
+		assert.equal(item.excerpt.length, 800)
+	})
+
 	it('throws FetchError with kind unreachable on network error', async () => {
 		await assert.rejects(
 			() =>
