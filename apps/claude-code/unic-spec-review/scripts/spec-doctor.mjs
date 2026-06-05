@@ -48,7 +48,6 @@ function isPingOk(r) {
  * @typedef {Object} CheckResult
  * @property {boolean} ok
  * @property {string} detail
- * @property {boolean} [skipped]
  */
 
 /**
@@ -139,9 +138,7 @@ export function realPing(url, headers) {
  * @returns {string}
  */
 function formatLine(result, label) {
-	let glyph = '✗'
-	if (result.skipped) glyph = '○'
-	else if (result.ok) glyph = '✓'
+	const glyph = result.ok ? '✓' : '✗'
 	return `${glyph} ${label} — ${result.detail}`
 }
 

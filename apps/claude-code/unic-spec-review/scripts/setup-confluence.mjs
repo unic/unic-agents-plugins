@@ -112,7 +112,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	main().catch((err) => {
-		process.stderr.write(`setup-confluence: unexpected error: ${err?.message ?? String(err)}\n`)
+		process.stderr.write(`setup-confluence: unexpected error: ${err?.stack ?? err?.message ?? String(err)}\n`)
 		process.exit(1)
 	})
 }

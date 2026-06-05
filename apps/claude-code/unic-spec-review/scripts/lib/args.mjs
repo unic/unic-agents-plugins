@@ -3,11 +3,12 @@
 // Copyright © 2026 Unic
 
 /**
- * args.mjs - parse /review-spec command arguments.
+ * args.mjs — CLI argument parsers for unic-spec-review.
  *
- * Accepts a raw argument string or a pre-split argv array.
- * Tokens that parse as valid URLs go into `urls`; `--post` sets `post: true`;
- * other flags and unrecognised tokens are silently ignored.
+ * - `parseReviewSpecArgs`: accepts a raw string or argv array; extracts http(s)
+ *   URLs and the `--post` flag (for the /review-spec command).
+ * - `parseArgs`: key=value / key value flag parser for setup scripts;
+ *   throws on a flag with no value rather than silently dropping it.
  */
 
 /**

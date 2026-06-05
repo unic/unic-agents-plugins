@@ -23,7 +23,7 @@ If the file exists, show the current values (redact the token — print only `**
 
 ```sh
 node -e "
-const c = JSON.parse(require('fs').readFileSync(process.env.HOME + '/.unic-confluence.json', 'utf8'));
+const c = JSON.parse(require('fs').readFileSync(require('os').homedir() + '/.unic-confluence.json', 'utf8'));
 console.log(JSON.stringify({ url: c.url, username: c.username, token: '****', jiraUrl: c.jiraUrl ?? null }, null, 2));
 "
 ```

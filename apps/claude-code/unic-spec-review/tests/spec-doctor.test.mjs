@@ -144,4 +144,13 @@ describe('runSpecDoctorCredentials', () => {
 		assert.equal(ok, false)
 		assert.match(output, /ECONNREFUSED/)
 	})
+
+	it('returns ok:false when Confluence returns a non-2xx status (e.g. 401)', async () => {
+		const { ok, output } = await runSpecDoctorCredentials({
+			ping: pingHttp(401),
+			loadCreds: () => ({ url: 'https://example.atlassian.net', username: 'u', token: 't', jiraUrl: undefined }),
+		})
+		assert.equal(ok, false)
+		assert.match(output, /401/)
+	})
 })
