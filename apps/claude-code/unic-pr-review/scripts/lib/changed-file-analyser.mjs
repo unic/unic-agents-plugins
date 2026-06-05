@@ -75,7 +75,8 @@ export function decideSpawnSet(changedFiles) {
  * @returns {boolean}
  */
 export function shouldRunPhase2(changedFiles, findings) {
-	if (!Array.isArray(changedFiles)) throw new Error(`shouldRunPhase2: changedFiles must be an array, got ${typeof changedFiles}`)
+	if (!Array.isArray(changedFiles))
+		throw new Error(`shouldRunPhase2: changedFiles must be an array, got ${typeof changedFiles}`)
 	if (!Array.isArray(findings)) throw new Error(`shouldRunPhase2: findings must be an array, got ${typeof findings}`)
 	const hasBlocker = findings.some((f) => f.severity === 'critical' || f.severity === 'important')
 	if (hasBlocker) return false
