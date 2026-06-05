@@ -35,8 +35,9 @@ import { parseArgs } from './lib/args.mjs'
 
 /**
  * Write ~/.unic-confluence.json with the given credentials. Preserves any
- * existing fields (e.g. `jiraUrl` from :setup-jira) so re-running to rotate
- * a token does not silently drop data. If the existing file is unparseable
+ * existing fields (such as a `jiraUrl` written by another tool that shares
+ * ~/.unic-confluence.json) so re-running to rotate a token does not silently
+ * drop data. If the existing file is unparseable
  * the writer warns and overwrites; non-syntax read errors (EACCES, etc.)
  * propagate so callers can surface them rather than silently losing data.
  *

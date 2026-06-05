@@ -62,6 +62,13 @@ describe('checkConfluence', () => {
 		assert.match(r.detail, /ECONNREFUSED/)
 	})
 
+	it('falls back to the raw url string in the detail when the url is unparseable', async () => {
+		const creds = { url: 'not a url', username: 'u', token: 't', jiraUrl: undefined }
+		const r = await checkConfluence(creds, pingHttp(401))
+		assert.equal(r.ok, false)
+		assert.match(r.detail, /not a url/)
+	})
+
 	it('strips a trailing slash and pings the Confluence space endpoint with Basic auth', async () => {
 		const creds = { url: 'https://example.atlassian.net/', username: 'u', token: 't', jiraUrl: undefined }
 		/** @type {{ url?: string, headers?: Record<string, string> }} */

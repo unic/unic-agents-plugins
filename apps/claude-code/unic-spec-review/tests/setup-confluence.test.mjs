@@ -163,4 +163,10 @@ describe('isEnvConfigured', () => {
 		assert.equal(isEnvConfigured({ CONFLUENCE_USER: 'u', CONFLUENCE_TOKEN: 't' }), false)
 		assert.equal(isEnvConfigured({}), false)
 	})
+
+	it('returns false when a variable is present but empty (no silent empty-string pass-through)', () => {
+		assert.equal(isEnvConfigured({ CONFLUENCE_URL: '', CONFLUENCE_USER: 'u', CONFLUENCE_TOKEN: 't' }), false)
+		assert.equal(isEnvConfigured({ CONFLUENCE_URL: 'x', CONFLUENCE_USER: '', CONFLUENCE_TOKEN: 't' }), false)
+		assert.equal(isEnvConfigured({ CONFLUENCE_URL: 'x', CONFLUENCE_USER: 'u', CONFLUENCE_TOKEN: '' }), false)
+	})
 })
