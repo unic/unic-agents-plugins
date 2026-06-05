@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { decideSpawnSet, parseStdin } from '../scripts/lib/changed-file-analyser.mjs'
+import { decideSpawnSet, parseStdin, shouldRunPhase2 } from '../scripts/lib/changed-file-analyser.mjs'
 
 const SCRIPT = path.resolve(fileURLToPath(import.meta.url), '../../scripts/lib/changed-file-analyser.mjs')
 
@@ -130,33 +130,14 @@ describe('decideSpawnSet', () => {
 	})
 
 	describe('code-simplifier', () => {
-		it('is spawned when 3 or more source files changed (complexity heuristic)', () => {
-			assert.ok(decideSpawnSet(['src/a.mjs', 'src/b.mjs', 'src/c.mjs']).has('code-simplifier'))
+		it('is never in the Phase 1 spawn set — it runs as a Phase 2 post-pass (ADR-0013)', () => {
+			const three = ['src/a.mjs', 'src/b.mjs', 'src/c.mjs']
+			assert.ok(!decideSpawnSet(three).has('code-simplifier'), 'not in spawn set for 3 source files')
 		})
 
-		it('is spawned when more than 3 source files changed', () => {
+		it('is absent from the spawn set even for many source files', () => {
 			const files = ['src/a.mjs', 'src/b.mjs', 'src/c.mjs', 'src/d.ts']
-			assert.ok(decideSpawnSet(files).has('code-simplifier'))
-		})
-
-		it('is NOT spawned when only 2 source files changed', () => {
-			assert.ok(!decideSpawnSet(['src/a.mjs', 'src/b.mjs']).has('code-simplifier'))
-		})
-
-		it('is NOT spawned when only 1 source file changed', () => {
-			assert.ok(!decideSpawnSet(['src/a.mjs']).has('code-simplifier'))
-		})
-
-		it('test files do not count toward the source-file threshold', () => {
-			const files = ['src/a.mjs', 'tests/a.test.mjs', 'tests/b.test.mjs']
 			assert.ok(!decideSpawnSet(files).has('code-simplifier'))
-		})
-
-		it('.d.ts declaration files do not count toward the source-file threshold', () => {
-			const files = ['src/types/a.d.ts', 'src/types/b.d.ts', 'src/types/c.d.ts']
-			const result = decideSpawnSet(files)
-			assert.ok(!result.has('code-simplifier'), 'code-simplifier not spawned')
-			assert.ok(result.has('type-design-analyzer'), 'type-design-analyzer still spawned')
 		})
 	})
 
@@ -176,7 +157,7 @@ describe('decideSpawnSet', () => {
 			assert.ok(result.has('type-design-analyzer'), 'type-design-analyzer')
 			assert.ok(result.has('pr-test-analyzer'), 'pr-test-analyzer')
 			assert.ok(result.has('comment-analyzer'), 'comment-analyzer')
-			assert.ok(result.has('code-simplifier'), 'code-simplifier (3+ source files)')
+			assert.ok(!result.has('code-simplifier'), 'code-simplifier is Phase 2 only — not in Phase 1 spawn set (ADR-0013)')
 		})
 
 		it('spawns code-reviewer and silent-failure-hunter for a single plain source file', () => {
@@ -278,7 +259,7 @@ describe('CLI entry point', () => {
 		assert.doesNotThrow(() => JSON.parse(result.stdout.trim()))
 	})
 
-	it('spawns all six agents for a mixed-content diff via stdin', () => {
+	it('spawns five Phase 1 agents for a mixed-content diff via stdin (code-simplifier is Phase 2 only)', () => {
 		const input = `${[
 			'src/service.mjs',
 			'src/utils.mjs',
@@ -296,6 +277,72 @@ describe('CLI entry point', () => {
 		assert.ok(agents.includes('type-design-analyzer'))
 		assert.ok(agents.includes('pr-test-analyzer'))
 		assert.ok(agents.includes('comment-analyzer'))
-		assert.ok(agents.includes('code-simplifier'))
+		assert.ok(!agents.includes('code-simplifier'), 'code-simplifier absent from Phase 1 spawn set (ADR-0013)')
+	})
+})
+
+describe('shouldRunPhase2', () => {
+	const THREE_SOURCE = ['src/a.mjs', 'src/b.mjs', 'src/c.mjs']
+	const TWO_SOURCE = ['src/a.mjs', 'src/b.mjs']
+
+	it('throws when changedFiles is not an array', () => {
+		// @ts-expect-error — intentional misuse
+		assert.throws(() => shouldRunPhase2(null, []), /changedFiles must be an array/)
+	})
+
+	it('throws when findings is not an array', () => {
+		// @ts-expect-error — intentional misuse
+		assert.throws(() => shouldRunPhase2(THREE_SOURCE, null), /findings must be an array/)
+	})
+
+	it('returns true when Phase 1 passes and ≥3 source files changed (canonical AC scenario)', () => {
+		const findings = [{ severity: 'minor' }, { severity: 'minor' }]
+		assert.ok(shouldRunPhase2(THREE_SOURCE, findings))
+	})
+
+	it('returns true when Phase 1 has zero findings and ≥3 source files changed', () => {
+		assert.ok(shouldRunPhase2(THREE_SOURCE, []))
+	})
+
+	it('returns false when Phase 1 passes but <3 source files changed (canonical AC scenario)', () => {
+		assert.ok(!shouldRunPhase2(TWO_SOURCE, []))
+	})
+
+	it('returns false when Phase 1 passes but only 1 source file changed', () => {
+		assert.ok(!shouldRunPhase2(['src/a.mjs'], []))
+	})
+
+	it('returns false when Phase 1 has an Important finding — even with ≥3 source files (canonical AC scenario)', () => {
+		const findings = [{ severity: 'important' }]
+		assert.ok(!shouldRunPhase2(THREE_SOURCE, findings))
+	})
+
+	it('returns false when Phase 1 has a Critical finding — even with ≥3 source files', () => {
+		const findings = [{ severity: 'critical' }]
+		assert.ok(!shouldRunPhase2(THREE_SOURCE, findings))
+	})
+
+	it('returns false when Phase 1 has mixed Critical and Minor findings', () => {
+		const findings = [{ severity: 'critical' }, { severity: 'minor' }]
+		assert.ok(!shouldRunPhase2(THREE_SOURCE, findings))
+	})
+
+	it('test files do not count toward the ≥3 source-file threshold', () => {
+		const files = ['src/a.mjs', 'tests/a.test.mjs', 'tests/b.test.mjs']
+		assert.ok(!shouldRunPhase2(files, []))
+	})
+
+	it('.d.ts declaration files do not count toward the ≥3 source-file threshold', () => {
+		const files = ['src/types/a.d.ts', 'src/types/b.d.ts', 'src/types/c.d.ts']
+		assert.ok(!shouldRunPhase2(files, []))
+	})
+
+	it('returns true for exactly 3 source files with only Minor findings', () => {
+		const findings = [{ severity: 'minor' }]
+		assert.ok(shouldRunPhase2(['src/x.mjs', 'src/y.mjs', 'src/z.ts'], findings))
+	})
+
+	it('returns false for an empty changed-files list', () => {
+		assert.ok(!shouldRunPhase2([], []))
 	})
 })

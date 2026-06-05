@@ -30,6 +30,10 @@ const isDocFile = (f) => /\.(md|mdx)$/.test(f) || /(^|[/\\])docs?[/\\]/i.test(f)
  * Spawn-decision table (ADR-0008). Each entry maps an agent name to its spawn
  * predicate. The table is evaluated in order; code-reviewer is always first.
  *
+ * code-simplifier is absent deliberately — it runs as a Phase 2 post-pass only
+ * when Phase 1 yields no Critical/Important findings and ≥3 source files changed
+ * (ADR-0013). Use shouldRunPhase2() to evaluate that gate. Never add it here.
+ *
  * @type {Array<{ agent: string, predicate: (files: string[]) => boolean }>}
  */
 // Intent Assessor is absent deliberately — spawned by intent presence, not file categories (ADR-0011). Never add it here.
@@ -39,7 +43,6 @@ const SPAWN_TABLE = [
 	{ agent: 'type-design-analyzer', predicate: (files) => files.some(isTypeFile) },
 	{ agent: 'pr-test-analyzer', predicate: (files) => files.some(isTestFile) },
 	{ agent: 'comment-analyzer', predicate: (files) => files.some(isDocFile) },
-	{ agent: 'code-simplifier', predicate: (files) => files.filter(isSourceFile).length >= 3 },
 ]
 
 /**
@@ -58,6 +61,25 @@ export function decideSpawnSet(changedFiles) {
 	}
 	if (changedFiles.length === 0) return new Set()
 	return new Set(SPAWN_TABLE.filter(({ predicate }) => predicate(changedFiles)).map(({ agent }) => agent))
+}
+
+/**
+ * Decide whether to run the Phase 2 code-simplifier pass (ADR-0013).
+ *
+ * Returns true only when both conditions hold:
+ *   1. No Critical or Important findings in Phase 1 (severity gate, ADR-0002).
+ *   2. Three or more non-test source files changed (file-count gate).
+ *
+ * @param {string[]} changedFiles - relative paths of files changed in the diff
+ * @param {Array<{ severity?: string }>} findings - merged Phase 1 findings
+ * @returns {boolean}
+ */
+export function shouldRunPhase2(changedFiles, findings) {
+	if (!Array.isArray(changedFiles)) throw new Error(`shouldRunPhase2: changedFiles must be an array, got ${typeof changedFiles}`)
+	if (!Array.isArray(findings)) throw new Error(`shouldRunPhase2: findings must be an array, got ${typeof findings}`)
+	const hasBlocker = findings.some((f) => f.severity === 'critical' || f.severity === 'important')
+	if (hasBlocker) return false
+	return changedFiles.filter(isSourceFile).length >= 3
 }
 
 /**

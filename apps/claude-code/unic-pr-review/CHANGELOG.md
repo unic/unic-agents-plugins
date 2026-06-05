@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Two-phase code-simplifier model (issue #216, ADR-0013): `code-simplifier` is removed from the initial parallel fan-out and runs as a second phase only when Phase 1 yields no Critical and no Important findings and ≥3 non-test source files changed; Phase 2 honours preview / `--dry-run` (computes and renders, posts nothing); new `shouldRunPhase2` pure helper in `changed-file-analyser.mjs` with full unit-test coverage
 
 ### Fixed
 - (none)
