@@ -18,3 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - (none)
+
+## [0.1.0] — 2026-06-05
+
+### Added
+
+- Scaffold the unic-spec-review plugin: `/review-spec`, `/spec-doctor`, and `/setup-confluence` command stubs; PRD (#200); ADRs 0001 to 0004; `CONTEXT.md` domain vocabulary; `app:unic-spec-review` area label; CI and release-workflow registration. Command and agent logic pending implementation.
