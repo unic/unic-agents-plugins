@@ -101,8 +101,8 @@ describe('dedupe-ordering regression fixture (PR #5612 parity guard)', () => {
 	it('parseFinding accepts the reference finding and derives severity minor', () => {
 		const result = parseFinding(REFERENCE_FINDING)
 		assert.ok(result !== null, 'finding must not be dropped (confidence >= 60)')
-		assert.equal(result?.severity, 'minor')
-		assert.equal(result?.confidence, 70)
+		assert.equal(result.severity, 'minor')
+		assert.equal(result.confidence, 70)
 	})
 
 	it('reference finding title names the ordering defect', () => {
