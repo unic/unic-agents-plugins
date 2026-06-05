@@ -102,18 +102,26 @@ export class FetchError extends Error {
 export const FETCH_TIMEOUT_MS = 15_000
 
 /**
+ * @param {string} url
+ * @returns {URL | null}
+ */
+function tryParseUrl(url) {
+	try {
+		return new URL(url)
+	} catch {
+		return null
+	}
+}
+
+/**
  * Route a pasted URL by its path. `/browse/` → Jira, `/wiki/` → Confluence.
  * Anything else (including malformed URLs and ADO Boards links) returns null.
  * @param {string} url
  * @returns {UrlRoute}
  */
 export function routeUrl(url) {
-	let parsed
-	try {
-		parsed = new URL(url)
-	} catch {
-		return null
-	}
+	const parsed = tryParseUrl(url)
+	if (!parsed) return null
 	if (parsed.pathname.includes('/browse/')) return 'jira'
 	if (parsed.pathname.includes('/wiki/')) return 'confluence'
 	return null
@@ -125,12 +133,8 @@ export function routeUrl(url) {
  * @returns {string | null}
  */
 export function extractJiraKey(url) {
-	let parsed
-	try {
-		parsed = new URL(url)
-	} catch {
-		return null
-	}
+	const parsed = tryParseUrl(url)
+	if (!parsed) return null
 	const m = parsed.pathname.match(/\/browse\/([A-Z][A-Z0-9]+-\d+)/)
 	return m ? m[1] : null
 }
@@ -142,12 +146,8 @@ export function extractJiraKey(url) {
  * @returns {string | null}
  */
 export function extractConfluencePageId(url) {
-	let parsed
-	try {
-		parsed = new URL(url)
-	} catch {
-		return null
-	}
+	const parsed = tryParseUrl(url)
+	if (!parsed) return null
 	const pathMatch = parsed.pathname.match(/\/pages\/(\d+)/)
 	if (pathMatch) return pathMatch[1]
 	const queryId = parsed.searchParams.get('pageId')
