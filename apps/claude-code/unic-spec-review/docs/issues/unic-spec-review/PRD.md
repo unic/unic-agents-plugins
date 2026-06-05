@@ -128,5 +128,4 @@ Findings are presented for triage first, ranked and grouped, with any near-dupli
 ## Further Notes
 
 - The locked design from the grilling session is recorded in `apps/claude-code/unic-spec-review/AGENTS.md`.
-- Org typography rule: no em dash in any authored text (commands, agents, reports, comments, docs).
 - Follow-up before implementation: slice this PRD into tracer-bullet issues (intake and classification, Confluence read plus comments, traversal, Landscape Brief, review engine, report, posting plus dedup, preflight) so each slice is independently shippable.
