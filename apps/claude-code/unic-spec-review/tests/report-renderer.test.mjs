@@ -3,7 +3,7 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { describe, it } from 'node:test'
 import { renderReport } from '../scripts/lib/report-renderer.mjs'
 
@@ -44,7 +44,7 @@ describe('renderReport', () => {
 	it('derives a filename slug with no colon or T character', () => {
 		const { deps, calls } = stubDeps()
 		renderReport(BASE_INPUT, '/tmp/out', deps)
-		const filename = calls.path.split('/').pop() ?? ''
+		const filename = basename(calls.path)
 		assert.ok(!filename.includes(':'))
 		assert.ok(!filename.includes('T'))
 		assert.match(filename, /^spec-review-2026-06-05-13-45-09\.md$/)
