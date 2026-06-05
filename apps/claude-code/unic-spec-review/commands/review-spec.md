@@ -46,14 +46,19 @@ Store `PAGE_ID` from the output.
 node "${CLAUDE_PLUGIN_ROOT}/scripts/atlassian-fetch.mjs" --urls "$TARGET_URL"
 ```
 
-Parse the JSON from stdout.
+Parse the JSON from stdout. The fetch script writes its JSON to stdout **before** exiting non-zero, so a non-zero exit together with the `url === ''` auth-error sentinel is the expected credentials-missing signal - prefer the friendly "credentials not configured" message below over a raw command-failure report.
 
 - If `errors` contains an entry where `kind === 'auth-error'` AND `url === ''`, stop with:
   ```
   Confluence credentials not configured.
   Run /unic-spec-review:setup-confluence to add them.
   ```
-- If `items` is empty or the Confluence page fetch failed, print the error message and stop.
+- Otherwise, if `errors` contains any entry whose `url === TARGET_URL` (or `url === ''`), stop and print that entry's `errors[0].kind` and `errors[0].message` verbatim, so the real cause (`parse-error` / `unreachable` / `not-found` / `auth-error`) is shown:
+  ```
+  Could not fetch the Confluence page.
+  <errors[0].kind>: <errors[0].message>
+  ```
+- If `items` is empty (and no matching error was reported), stop and report that the page returned no content.
 
 Extract from `items[0]`:
 
@@ -105,10 +110,10 @@ Construct the report input object:
 }
 ```
 
-Use the **Write tool** to write this JSON to `/tmp/spec-review-report.json` (avoids shell-quoting issues with apostrophes in page titles). Then run:
+Use the **Write tool** to write this JSON to `.spec-review/.report-input.json` (the `.spec-review/` directory is gitignored, so the scratch file stays out of git; writing via the tool avoids shell-quoting issues with apostrophes in page titles, and the path is portable across macOS, Windows, and Linux). Then run:
 
 ```bash
-REPORT_OUTPUT_DIR=".spec-review" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/report-renderer.mjs" /tmp/spec-review-report.json
+REPORT_OUTPUT_DIR=".spec-review" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/report-renderer.mjs" .spec-review/.report-input.json
 ```
 
 The script prints the path to the written file. Report it to the user:
