@@ -13,7 +13,7 @@ Each context maps to an `app:` area label on the issue tracker (see [Area labels
 - [unic-confluence](./apps/claude-code/unic-confluence/CONTEXT.md) — Markdown-to-Confluence publishing command (`app:unic-confluence`)
 - [unic-archon-dlc](./apps/claude-code/unic-archon-dlc/CONTEXT.md) — Archon-powered AI development lifecycle DLC (`app:unic-archon-dlc`)
 - [unic-pr-review](./apps/claude-code/unic-pr-review/CONTEXT.md) — AI-powered PR review with intent checking and Confidence-scored Findings (`app:unic-pr-review`)
-- [unic-spec-review](./apps/claude-code/unic-spec-review/CONTEXT.md): adversarial review of web specifications across Confluence, Figma, and the live system (`app:unic-spec-review`)
+- [unic-spec-review](./apps/claude-code/unic-spec-review/CONTEXT.md) — adversarial review of web specifications across Confluence, Figma, and the live system (`app:unic-spec-review`)
 
 ## Workspace packages
 
