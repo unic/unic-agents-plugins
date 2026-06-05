@@ -15,7 +15,8 @@ apps/
 │   ├── auto-format/
 │   ├── unic-confluence/
 │   ├── unic-archon-dlc/
-│   └── unic-pr-review/
+│   ├── unic-pr-review/
+│   └── unic-spec-review/
 └── copilot/                  # GitHub Copilot plugins (future)
 packages/
 ├── biome-config/             # @unic/biome-config
@@ -79,6 +80,8 @@ Every plugin must work on **macOS, Windows, and Linux**. Use Node.js APIs (`node
 Plugins are versioned independently. `plugin.json` is the source of truth. Use `pnpm --filter <name> bump <patch|minor|major>` — never hand-edit `marketplace.json`.
 
 Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
+
+**CHANGELOG version headers** must use the format `## [X.Y.Z] — YYYY-MM-DD` (em dash, then ISO date). `pnpm bump` writes this format and `verify:changelog` (in `packages/release-tools`) structurally enforces ` — YYYY-MM-DD` on every versioned header. Do not change the separator or the date format: CI and the release flow depend on it.
 
 ## Conventional commits
 
