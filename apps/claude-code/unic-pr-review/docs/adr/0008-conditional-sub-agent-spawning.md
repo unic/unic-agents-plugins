@@ -21,16 +21,18 @@ The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents i
 - The Intent Checker is the one exception — it always runs first (regardless of file types) because its output seeds every other agent's context. Its result is broadcast to every spawned aspect agent.
 - Adding a new Review Aspect is additive: define the agent in `agents/<name>.md`, add one entry to `SPAWN_TABLE` in `changed-file-analyser.mjs` — no orchestration rewrite needed.
 
-### Spawn Table (as of PR #158)
+### Spawn Table (as of PR #158; rows marked † amended by 2026-06 content-gating — see amendment section below)
 
-| Agent                   | Spawn condition                                                                                     |
-| ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `code-reviewer`         | Always — any non-empty diff                                                                         |
-| `silent-failure-hunter` | At least one non-test source file (`.mjs`, `.cjs`, `.js`, `.ts`, `.tsx`, `.jsx`; excluding `.d.ts`) |
-| `type-design-analyzer`  | At least one `.d.ts`, `.ts`, `.tsx`, or file under `types/`, `schemas/`, `interfaces/`              |
-| `pr-test-analyzer`      | At least one test file (`.test.*`, `.spec.*`, or under `tests/`, `__tests__/`)                      |
-| `comment-analyzer`      | At least one `.md` / `.mdx` file or file under `docs/`                                              |
-| `code-simplifier`       | Three or more non-test source files (excluding `.d.ts`)                                             |
+| Agent                   | Spawn condition                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `code-reviewer`         | Always — any non-empty diff                                                                           |
+| `silent-failure-hunter` | † At least one non-test source file (`.mjs`, `.cjs`, `.js`, `.ts`, `.tsx`, `.jsx`; excluding `.d.ts`) |
+| `type-design-analyzer`  | † At least one `.d.ts`, `.ts`, `.tsx`, or file under `types/`, `schemas/`, `interfaces/`              |
+| `pr-test-analyzer`      | At least one test file (`.test.*`, `.spec.*`, or under `tests/`, `__tests__/`)                        |
+| `comment-analyzer`      | † At least one `.md` / `.mdx` file or file under `docs/`                                              |
+| `code-simplifier`       | Three or more non-test source files (excluding `.d.ts`)                                               |
+
+† Path classification is the fast path; additionally gated by deterministic diff-content sampling per the amendment below.
 
 ## Content-gated spawning for semantic gates (amended 2026-06, issue #212)
 

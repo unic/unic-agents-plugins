@@ -77,7 +77,7 @@ One specialised sub-agent lens applied to the whole diff — e.g. `code-reviewer
 _Avoid_: dimension, pass, check
 
 **Spawn Set**:
-The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008).
+The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008); additionally content-aware for the three semantic gates (`comment-analyzer`, `silent-failure-hunter`, `type-design-analyzer`) via deterministic diff-content sampling (ADR-0008 amendment, 2026-06).
 _Avoid_: agent list, run set, active agents
 
 ## Relationships
