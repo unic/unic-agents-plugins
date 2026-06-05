@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { parseReviewSpecArgs } from '../scripts/lib/args.mjs'
+import { parseArgs, parseReviewSpecArgs } from '../scripts/lib/args.mjs'
 
 describe('parseReviewSpecArgs', () => {
 	it('parses a single URL from an array, post defaults to false', () => {
@@ -74,5 +74,44 @@ describe('parseReviewSpecArgs', () => {
 			urls: ['http://a.example/wiki/p/1', 'https://b.example/wiki/p/2'],
 			post: false,
 		})
+	})
+})
+
+describe('parseArgs', () => {
+	it('parses --key=value inline form', () => {
+		assert.deepEqual(parseArgs(['--url=https://x.atlassian.net', '--username=u']), {
+			url: 'https://x.atlassian.net',
+			username: 'u',
+		})
+	})
+
+	it('parses --key value space-separated form', () => {
+		assert.deepEqual(parseArgs(['--url', 'https://x.atlassian.net', '--username', 'u']), {
+			url: 'https://x.atlassian.net',
+			username: 'u',
+		})
+	})
+
+	it('records boolean flags as empty string (presence-only)', () => {
+		const result = parseArgs(['--dry-run', '--verbose'], { booleanFlags: new Set(['dry-run', 'verbose']) })
+		assert.ok('dry-run' in result)
+		assert.ok('verbose' in result)
+		assert.equal(result['dry-run'], '')
+	})
+
+	it('ignores bare positional args (no leading --)', () => {
+		assert.deepEqual(parseArgs(['positional', '--url', 'https://x.example']), { url: 'https://x.example' })
+	})
+
+	it('throws when --flag appears at end of args with no value', () => {
+		assert.throws(() => parseArgs(['--url']), /--url requires a value/)
+	})
+
+	it('throws when --flag is followed immediately by another --flag', () => {
+		assert.throws(() => parseArgs(['--url', '--username']), /--url requires a value/)
+	})
+
+	it('returns empty object for empty args array', () => {
+		assert.deepEqual(parseArgs([]), {})
 	})
 })

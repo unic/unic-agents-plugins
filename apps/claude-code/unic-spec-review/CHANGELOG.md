@@ -11,14 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.2] — 2026-06-05
+
+### Breaking
+- (none)
+
+### Added
 - Cover two previously untested paths flagged in PR #210 review: `loadAtlassianCreds` preferring env vars over a present credentials file, and `fetchConfluencePage` capping the stripped excerpt at 800 characters.
+- Add `/setup-confluence` command: interactive credential wizard writing `~/.unic-confluence.json`, vendored by copying from `unic-pr-review` (ADR-0001 self-containment, no cross-import).
+- Add `/spec-doctor` command: preflight checks for Confluence credentials and connectivity, Figma Dev Mode MCP, and Playwright MCP; absent MCPs are reported as explicit loud failures with remediation, never a silent skip.
+- Add `parseArgs` to the `args` module (CLI parser shared by the setup wizard) alongside the existing `parseReviewSpecArgs`.
+- Unit tests for the vendored `setup-confluence` wizard (`writeConfluenceCreds`, `isEnvConfigured`) and the Confluence preflight logic (`checkConfluence`, `runSpecDoctorCredentials`, `mapPingError`, `realPing`) with injected `homedir`/`platform`/`fetch`/`loadCreds`; no live services.
+- Cover two more pure-logic branches flagged in PR #211 review: `isEnvConfigured` rejecting an env var that is present but empty, and `checkConfluence` falling back to the raw url string when the configured url is unparseable.
 
 ### Fixed
 - Reject non-http(s) URLs in arg parsing, link classification, and validate `pageTitle`/`pageUrl` in the report-renderer CLI entry, so ftp/file/mailto inputs no longer slip through and missing report fields no longer render as literal `undefined`.
 - Make `/review-spec` orchestration portable: write the scratch report JSON into the gitignored `.spec-review/` directory instead of the POSIX-only `/tmp` path (broke on Windows CI), and surface the structured `errors[].kind`/`errors[].message` from the fetch script so the real failure cause is shown.
 
 ### Documentation
-- Correct stale cross-plugin references in code comments (drop the `render-summary.mjs`, `doctor.mjs`, and inaccurate `ADR-0001` citations), reword the `CONTEXT.md` status line so it no longer promises an unused `(S1)` per-term marking convention, and replace em dashes with hyphens in authored comments and messages per the org typography rule.
+- Correct stale cross-plugin references in code comments (drop the `render-summary.mjs`, `doctor.mjs`, and inaccurate `ADR-0001` citations), reword the `CONTEXT.md` status line so it no longer promises an unused `(S1)` per-term marking convention, and replace em dashes with hyphens in authored comments, command docs, user-facing script output, and test descriptions, per this slice's acceptance criterion (no em dash in authored text except the mandated CHANGELOG version header).
+- Reword the `writeConfluenceCreds` JSDoc to drop a stale `:setup-jira` reference (a command that exists in `unic-pr-review` but not in this plugin); the `jiraUrl` preservation behavior is unchanged.
 
 ## [0.1.1] — 2026-06-05
 
