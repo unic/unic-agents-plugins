@@ -25,6 +25,7 @@ jobs:
     outputs:
       pr-review: ${{ steps.filter.outputs.pr-review }}
       unic-pr-review: ${{ steps.filter.outputs.unic-pr-review }}
+      unic-spec-review: ${{ steps.filter.outputs.unic-spec-review }}
       auto-format: ${{ steps.filter.outputs.auto-format }}
       unic-confluence: ${{ steps.filter.outputs.unic-confluence }}
       release-tools: ${{ steps.filter.outputs.release-tools }}
@@ -39,6 +40,8 @@ jobs:
               - 'apps/claude-code/pr-review/**'
             unic-pr-review:
               - 'apps/claude-code/unic-pr-review/**'
+            unic-spec-review:
+              - 'apps/claude-code/unic-spec-review/**'
             auto-format:
               - 'apps/claude-code/auto-format/**'
             unic-confluence:
@@ -57,7 +60,8 @@ jobs:
       needs.changes.outputs.release-tools == 'true' ||
       needs.changes.outputs.unic-archon-dlc == 'true' ||
       needs.changes.outputs.pr-review == 'true' ||
-      needs.changes.outputs.unic-pr-review == 'true'
+      needs.changes.outputs.unic-pr-review == 'true' ||
+      needs.changes.outputs.unic-spec-review == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -76,6 +80,8 @@ jobs:
             changed: ${{ needs.changes.outputs.pr-review }}
           - name: unic-pr-review
             changed: ${{ needs.changes.outputs.unic-pr-review }}
+          - name: unic-spec-review
+            changed: ${{ needs.changes.outputs.unic-spec-review }}
         exclude:
           - package:
               changed: 'false'
