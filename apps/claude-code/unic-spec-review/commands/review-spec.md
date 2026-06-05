@@ -1,5 +1,5 @@
 ---
-allowed-tools: Agent, Bash(node *)
+allowed-tools: Agent, Bash(node *), Write
 argument-hint: '<confluence-url> [--post]'
 description: Adversarial review of web specifications (Confluence). Read-only by default; --post enables the Approval Loop (inert in S1).
 ---
@@ -94,7 +94,7 @@ No gaps or completeness issues found in this spec.
 
 ## Step 6 - Write the report
 
-Construct `REPORT_JSON` as a JSON string:
+Construct the report input object:
 
 ```json
 {
@@ -105,10 +105,10 @@ Construct `REPORT_JSON` as a JSON string:
 }
 ```
 
-Run:
+Use the **Write tool** to write this JSON to `/tmp/spec-review-report.json` (avoids shell-quoting issues with apostrophes in page titles). Then run:
 
 ```bash
-REPORT_JSON='<REPORT_JSON>' REPORT_OUTPUT_DIR=".spec-review" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/report-renderer.mjs"
+REPORT_OUTPUT_DIR=".spec-review" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/report-renderer.mjs" /tmp/spec-review-report.json
 ```
 
 The script prints the path to the written file. Report it to the user:

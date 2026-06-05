@@ -32,6 +32,11 @@ describe('classifyUrl', () => {
 		assert.deepEqual(classifyUrl(url), { kind: 'figma-page', url })
 	})
 
+	it('routes a bare figma.com URL (no www) to figma-page', () => {
+		const url = 'https://figma.com/design/abc/My-File'
+		assert.deepEqual(classifyUrl(url), { kind: 'figma-page', url })
+	})
+
 	it('routes a generic HTTPS URL to live', () => {
 		const url = 'https://example.com/products/checkout'
 		assert.deepEqual(classifyUrl(url), { kind: 'live', url })

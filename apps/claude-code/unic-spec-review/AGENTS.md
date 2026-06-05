@@ -6,7 +6,7 @@ Guidance for any AI agent working inside this Plugin directory. `CLAUDE.md` in t
 
 `unic-spec-review` is a Claude Code Plugin in the [`unic-agents-plugins`](../../../AGENTS.md) monorepo. It runs an adversarial review of web specifications across four sources (Confluence pages & comments, Figma designs via the Dev Mode MCP, the live production system via the Playwright MCP, and the local repo) and emits Confidence-scored, Six-Hats-tagged Findings. An interactive Approval Loop, gated behind `--post`, publishes selected Findings as Confluence comments.
 
-> Status: scaffolding only. The command/agent logic is specified in the PRD under `docs/issues/` and not yet implemented.
+> Status: S1 skeleton implemented (URL classify → Confluence fetch → Gaps agent → report). Full design (traversal, Figma, live-system, Approval Loop, de-dup) is specified in the [PRD](docs/issues/unic-spec-review/PRD.md) and lands in later slices.
 
 ## Where to start
 
@@ -40,8 +40,8 @@ pnpm bump <patch|minor|major>   # bump plugin.json version + promote CHANGELOG
 pnpm sync-version               # mirror plugin.json version into marketplace.json + package.json
 pnpm tag                        # create the unic-spec-review@<version> git tag locally
 pnpm verify:changelog           # check CHANGELOG entry for the current version
+pnpm test                       # run node:test suite
+pnpm typecheck                  # tsc --noEmit type check
 ```
-
-> `pnpm test` and `pnpm typecheck` (plus `tsconfig.json` and the `scripts/`/`tests/` dirs) will be added back once the first `.mjs` script is vendored during implementation. The plugin is command-only at scaffold time.
 
 Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:check`) are documented in the [root AGENTS.md](../../../AGENTS.md).

@@ -4,21 +4,25 @@
 // Copyright © 2026 Unic
 
 /**
- * atlassian-fetch.mjs — fetch Work Item and Confluence intent for Pre-PR reviews.
+ * atlassian-fetch.mjs — fetch Confluence page content (and optionally Jira
+ * issue data) for spec reviews.
  *
- * Pure-function library plus a thin CLI entry point. Given a comma-separated
- * list of pasted URLs it routes each by path (`/browse/` → Jira, `/wiki/` →
- * Confluence), fetches the linked Work Item / page via the Atlassian REST APIs
- * using global `fetch` (Node 22+), and normalises the response into intent
- * structures the Intent Checker agent can synthesise.
+ * Pure-function library plus a thin CLI entry point. Given a list of pasted
+ * URLs it routes each by path (`/browse/` → Jira, `/wiki/` → Confluence),
+ * fetches the linked page / issue via the Atlassian REST APIs using global
+ * `fetch` (Node 22+), and normalises the response into structures the
+ * `/review-spec` command and Gaps agent can consume.
  *
  * Credentials come from `lib/credentials.mjs` (env vars override the file).
- * Every HTTP call uses Basic auth (email:token) — the same pattern doctor.mjs
- * uses for its Confluence and Jira pings (ADR-0005: built-in fetch, no deps).
+ * Every HTTP call uses Basic auth (email:token) with a hard 15 s timeout
+ * (ADR-0001: built-in fetch, no external runtime deps).
  *
  * The fetch helpers accept an injectable `fetch` (via `deps.fetch`) so unit
- * tests can stub HTTP without mocking globalThis — mirroring the injectable
- * `ping` in doctor.mjs.
+ * tests can stub HTTP without mocking globalThis.
+ *
+ * Note: Jira exports (fetchJiraIssue, parseJiraACs, parseJiraBug,
+ * extractJiraKey) are vendored from unic-pr-review but untested in this
+ * plugin — coverage lives in unic-pr-review.
  */
 
 import { Buffer } from 'node:buffer'
@@ -77,9 +81,9 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  */
 
 /**
- * Structured fetch failure. The `kind` discriminator lets the Intent Checker
- * decide whether to hard-stop (ADR-0004) — `unreachable` and `auth-error` on a
- * promised intent source abort the review; `not-found` is surfaced but softer.
+ * Structured fetch failure. The `kind` discriminator lets the caller (Gaps agent /
+ * `/review-spec` command) decide whether to hard-stop: `unreachable` and
+ * `auth-error` on a promised source abort the review; `not-found` is softer.
  */
 export class FetchError extends Error {
 	/**
@@ -504,9 +508,9 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 /**
  * Route, fetch, and normalise every URL. Never throws — per-URL failures (and a
  * missing or unreadable credential file) are collected into the `errors` array
- * so the caller (the Intent Checker agent) decides whether to hard-stop.
- * Unrecognised URLs are warned on stderr and recorded as a soft `unsupported`
- * error (not silently skipped) so the Intent Checker can surface them.
+ * so the caller (Gaps agent or `/review-spec` command) decides whether to
+ * hard-stop. Unrecognised URLs are warned on stderr and recorded as a soft
+ * `unsupported` error (not silently skipped) so the caller can surface them.
  * @param {string[]} urls
  * @param {CollectDeps} [deps]
  * @returns {Promise<FetchOutput>}
@@ -550,8 +554,8 @@ export async function collectIntent(urls, deps = {}) {
 		const route = routeUrl(url)
 		if (route === null) {
 			// Surface unsupported URLs (e.g. ADO Boards links) as a soft `unsupported`
-			// error instead of skipping silently, so the Intent Checker can warn the
-			// reviewer rather than producing empty intent with no explanation.
+			// error instead of skipping silently, so the caller can warn the reviewer
+			// rather than producing empty intent with no explanation.
 			const message = `unrecognised URL format — only /browse/ (Jira) and /wiki/ (Confluence) paths are supported`
 			stderr.write(`atlassian-fetch: ${message}: ${url}; skipping\n`)
 			errors.push({ url, kind: 'unsupported', message })
@@ -620,8 +624,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		.then((result) => {
 			// Exit 1 only when no credentials are configured at all (global auth-error,
 			// url === ''). Per-URL auth errors and not-found entries exit 0 so the
-			// intent-checker agent can apply ADR-0004 hard-stop logic by inspecting the
-			// errors array — not-found is soft, auth-error/unreachable per-URL is hard.
+			// gaps-agent can apply hard-stop logic by inspecting the errors array —
+			// not-found is soft, auth-error/unreachable per-URL is hard.
 			const credsMissing = result.errors.some((e) => e.kind === 'auth-error' && e.url === '')
 			process.exit(credsMissing ? 1 : 0)
 		})

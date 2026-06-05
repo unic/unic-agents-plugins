@@ -163,6 +163,16 @@ describe('fetchConfluencePage', () => {
 		)
 	})
 
+	it('throws FetchError with kind auth-error on 403', async () => {
+		await assert.rejects(
+			() =>
+				fetchConfluencePage('https://unic.atlassian.net/wiki/spaces/X/pages/1', CREDS, {
+					fetch: fetchStatus(403),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
 	it('throws FetchError with kind not-found on 404', async () => {
 		await assert.rejects(
 			() =>
@@ -248,6 +258,28 @@ describe('collectIntent - credential resolution', () => {
 		assert.deepEqual(result.items, [])
 		assert.equal(result.errors.length, 1)
 		assert.equal(result.errors[0].kind, 'unreachable')
+	})
+
+	it('records an unsupported error for an unrecognised URL without throwing', async () => {
+		const env = { CONFLUENCE_URL: 'https://x.atlassian.net', CONFLUENCE_USER: 'u', CONFLUENCE_TOKEN: 't' }
+		const result = await collectIntent(['https://dev.azure.com/org/proj/_workitems/edit/123'], { env })
+		assert.deepEqual(result.items, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'unsupported')
+		assert.equal(result.errors[0].url, 'https://dev.azure.com/org/proj/_workitems/edit/123')
+	})
+
+	it('converts a credential load exception into a global auth-error', async () => {
+		const result = await collectIntent(['https://x.atlassian.net/wiki/spaces/X/pages/1'], {
+			loadCreds: () => {
+				throw new Error('invalid JSON')
+			},
+		})
+		assert.deepEqual(result.items, [])
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'auth-error')
+		assert.equal(result.errors[0].url, '')
+		assert.match(result.errors[0].message, /could not be read/)
 	})
 })
 

@@ -89,4 +89,25 @@ describe('renderReport', () => {
 		assert.equal(result.path, calls.path)
 		assert.equal(result.markdown, calls.data)
 	})
+
+	it('renders the anchor quote block when anchor is present', () => {
+		const { deps, calls } = stubDeps()
+		renderReport(
+			{
+				...BASE_INPUT,
+				findings: [
+					{
+						title: 'Missing error state',
+						description: 'No failure outcome defined.',
+						severity: 'important',
+						confidence: 80,
+						anchor: 'The user clicks Submit',
+					},
+				],
+			},
+			'/tmp/out',
+			deps
+		)
+		assert.ok(calls.data.includes('> Anchor: `The user clicks Submit`'))
+	})
 })

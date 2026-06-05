@@ -10,7 +10,7 @@
  * the same pattern as render-summary.mjs in unic-pr-review.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -103,7 +103,22 @@ export function renderReport(input, outputDir, deps = {}) {
 
 // CLI entry
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-	const raw = process.env.REPORT_JSON
+	// Accept JSON from a file path (argv[2]) to avoid shell-quoting issues with
+	// apostrophes in page titles; falls back to REPORT_JSON env var.
+	const jsonFilePath = process.argv[2]
+	let raw
+	if (jsonFilePath) {
+		try {
+			raw = readFileSync(jsonFilePath, 'utf8')
+		} catch (err) {
+			process.stderr.write(
+				`report-renderer: could not read JSON file ${jsonFilePath}: ${err instanceof Error ? err.message : String(err)}\n`
+			)
+			process.exit(1)
+		}
+	} else {
+		raw = process.env.REPORT_JSON
+	}
 	if (!raw) {
 		process.stderr.write('report-renderer: REPORT_JSON environment variable is required\n')
 		process.exit(1)
@@ -117,7 +132,27 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		)
 		process.exit(1)
 	}
+	if (typeof input !== 'object' || input === null) {
+		process.stderr.write('report-renderer: REPORT_JSON must be an object\n')
+		process.exit(1)
+	}
+	if (!Array.isArray(input.findings)) {
+		process.stderr.write('report-renderer: REPORT_JSON missing required field: findings\n')
+		process.exit(1)
+	}
+	if (typeof input.timestamp !== 'string') {
+		process.stderr.write('report-renderer: REPORT_JSON missing required field: timestamp\n')
+		process.exit(1)
+	}
 	const outputDir = process.env.REPORT_OUTPUT_DIR ?? '.spec-review'
-	const result = renderReport(input, outputDir)
+	let result
+	try {
+		result = renderReport(input, outputDir)
+	} catch (err) {
+		process.stderr.write(
+			`report-renderer: could not write report to ${outputDir}: ${err instanceof Error ? err.message : String(err)}\n`
+		)
+		process.exit(1)
+	}
 	process.stdout.write(`${result.path}\n`)
 }

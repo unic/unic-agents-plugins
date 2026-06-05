@@ -6,4 +6,4 @@ Findings are presented for triage first. With `--post`, an interactive Approval 
 
 The plugin is fully self-contained: it ships its own `/setup-confluence` wizard and vendored credential handling, so it can be installed and used without any other plugin. It stores credentials in `~/.unic-confluence.json` (the same convention `unic-pr-review` uses, or `CONFLUENCE_*` env vars), so a user with both plugins configures Confluence once. Figma access is via the Figma Dev Mode MCP; live-system access is via the Playwright MCP. Both are discovered at runtime.
 
-> Status: scaffolding. Behaviour is specified in the PRD (`docs/issues/`) and not yet implemented.
+> **S1 available:** pass a single Confluence page URL to run a Gaps/Completeness review. Full multi-source adversarial review (Figma, live system, Approval Loop) lands in later slices; see `docs/issues/` for the roadmap.
