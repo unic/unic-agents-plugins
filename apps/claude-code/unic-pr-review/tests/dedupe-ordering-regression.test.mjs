@@ -104,14 +104,14 @@ describe('dedupe-ordering regression fixture (PR #5612 parity guard)', () => {
 	it('reference finding title names the ordering defect', () => {
 		assert.ok(
 			/dedupe|duplicate|reset|guard/i.test(REFERENCE_FINDING.title),
-			'title must reference the ordering/dedupe issue',
+			'title must reference the ordering/dedupe issue'
 		)
 	})
 
 	it('reference finding body mentions the duplicate emission consequence', () => {
 		assert.ok(
 			/duplicate|re-fires?|emiss/i.test(REFERENCE_FINDING.body),
-			'body must describe the duplicate-emission consequence',
+			'body must describe the duplicate-emission consequence'
 		)
 	})
 })
