@@ -67,6 +67,10 @@ const DEDUPE_ORDERING_DIFF = `\
  * This object is the eval ground-truth. parseFinding must accept it and derive
  * severity 'minor'. If the thresholds or validator shape change in a way that
  * breaks this finding, the regression fixture will fail.
+ *
+ * Note: REFERENCE_FINDING is the expected output shape for this pattern. It is
+ * not derived from DEDUPE_ORDERING_DIFF by any runtime logic in this file —
+ * the fixture validates the validator, not the detector.
  */
 const REFERENCE_FINDING = {
 	confidence: 70,
