@@ -1,0 +1,13 @@
+{
+  "author": {
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
+  },
+  "commands": ["./commands/review-spec.md", "./commands/spec-doctor.md", "./commands/setup-confluence.md"],
+  "description": "Adversarial review of web specifications across Confluence pages & comments, Figma designs, and the live system. Produces Confidence-scored, Six-Hats-tagged Findings with an interactive Approval Loop that posts selected comments back to Confluence.",
+  "homepage": "https://github.com/unic/unic-agents-plugins",
+  "keywords": ["spec-review", "confluence", "figma", "adversarial-review", "six-hats", "unic"],
+  "license": "LGPL-3.0-or-later",
+  "name": "unic-spec-review",
+  "version": "0.1.0"
+}
