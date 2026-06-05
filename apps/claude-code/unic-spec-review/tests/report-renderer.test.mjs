@@ -7,8 +7,8 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { renderReport } from '../scripts/lib/report-renderer.mjs'
 
 const RENDERER_PATH = fileURLToPath(new URL('../scripts/lib/report-renderer.mjs', import.meta.url))
