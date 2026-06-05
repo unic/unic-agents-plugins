@@ -3,9 +3,15 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
 import { renderReport } from '../scripts/lib/report-renderer.mjs'
+
+const RENDERER_PATH = fileURLToPath(new URL('../scripts/lib/report-renderer.mjs', import.meta.url))
 
 /**
  * Build a renderer-deps stub that records the mkdir/write calls.
@@ -109,5 +115,53 @@ describe('renderReport', () => {
 			deps
 		)
 		assert.ok(calls.data.includes('> Anchor: `The user clicks Submit`'))
+	})
+})
+
+/**
+ * Run the report-renderer CLI entry with a JSON file argument.
+ * @param {unknown} json
+ * @returns {{ status: number | null, stderr: string }}
+ */
+function runCli(json) {
+	const dir = mkdtempSync(join(tmpdir(), 'spec-review-cli-'))
+	const jsonFile = join(dir, 'input.json')
+	writeFileSync(jsonFile, JSON.stringify(json))
+	const res = spawnSync(process.execPath, [RENDERER_PATH, jsonFile], {
+		encoding: 'utf8',
+		env: { ...process.env, REPORT_OUTPUT_DIR: join(dir, 'out') },
+	})
+	return { status: res.status, stderr: res.stderr }
+}
+
+describe('report-renderer CLI validation', () => {
+	it('exits 1 and mentions pageTitle when pageTitle is missing', () => {
+		const { status, stderr } = runCli({
+			pageUrl: 'https://x.atlassian.net/wiki/p/1',
+			timestamp: '2026-06-05T13:45:09.123Z',
+			findings: [],
+		})
+		assert.equal(status, 1)
+		assert.match(stderr, /pageTitle/)
+	})
+
+	it('exits 1 and mentions pageUrl when pageUrl is missing', () => {
+		const { status, stderr } = runCli({
+			pageTitle: 'My Spec',
+			timestamp: '2026-06-05T13:45:09.123Z',
+			findings: [],
+		})
+		assert.equal(status, 1)
+		assert.match(stderr, /pageUrl/)
+	})
+
+	it('exits 0 when all required fields are present', () => {
+		const { status } = runCli({
+			pageTitle: 'My Spec',
+			pageUrl: 'https://x.atlassian.net/wiki/p/1',
+			timestamp: '2026-06-05T13:45:09.123Z',
+			findings: [],
+		})
+		assert.equal(status, 0)
 	})
 })

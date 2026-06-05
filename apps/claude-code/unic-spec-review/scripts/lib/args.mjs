@@ -28,8 +28,10 @@ export function parseReviewSpecArgs(input) {
 	for (const t of tokens) {
 		if (t.startsWith('--')) continue
 		try {
-			new URL(t)
-			urls.push(t)
+			const parsed = new URL(t)
+			if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+				urls.push(t)
+			}
 		} catch {
 			// not a URL; ignore
 		}

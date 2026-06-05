@@ -53,4 +53,26 @@ describe('parseReviewSpecArgs', () => {
 			post: false,
 		})
 	})
+
+	it('ignores non-http(s) URL schemes (ftp, file, mailto)', () => {
+		assert.deepEqual(
+			parseReviewSpecArgs([
+				'ftp://files.example.com/spec.txt',
+				'file:///etc/passwd',
+				'mailto:someone@example.com',
+				'https://x.example/wiki/p/1',
+			]),
+			{
+				urls: ['https://x.example/wiki/p/1'],
+				post: false,
+			}
+		)
+	})
+
+	it('keeps both http and https URLs', () => {
+		assert.deepEqual(parseReviewSpecArgs(['http://a.example/wiki/p/1', 'https://b.example/wiki/p/2']), {
+			urls: ['http://a.example/wiki/p/1', 'https://b.example/wiki/p/2'],
+			post: false,
+		})
+	})
 })

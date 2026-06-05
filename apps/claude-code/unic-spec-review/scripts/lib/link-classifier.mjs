@@ -57,6 +57,10 @@ export function classifyUrl(url) {
 		return { kind: 'unknown', url }
 	}
 
+	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+		return { kind: 'unknown', url }
+	}
+
 	if (parsed.pathname.includes('/wiki/')) {
 		const pageId = extractPageId(parsed)
 		if (pageId) return { kind: 'confluence', pageId, url }

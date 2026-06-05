@@ -51,4 +51,14 @@ describe('classifyUrl', () => {
 		const url = 'ftp://files.example.com/spec.txt'
 		assert.deepEqual(classifyUrl(url), { kind: 'unknown', url })
 	})
+
+	it('does not misclassify a file:// URL with /wiki/ as confluence', () => {
+		const url = 'file:///wiki/pages/123'
+		assert.deepEqual(classifyUrl(url), { kind: 'unknown', url })
+	})
+
+	it('does not misclassify an ftp:// URL with /wiki/ as confluence', () => {
+		const url = 'ftp://host/wiki/pages/123'
+		assert.deepEqual(classifyUrl(url), { kind: 'unknown', url })
+	})
 })
