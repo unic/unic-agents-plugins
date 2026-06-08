@@ -16,10 +16,9 @@ import { detectLandscape } from '../scripts/lib/landscape-detector.mjs'
  */
 function stubFs(files) {
 	return {
-		existsSync: (p) =>
-			Object.prototype.hasOwnProperty.call(files, p) || Object.keys(files).some((f) => f.startsWith(`${p}/`)),
+		existsSync: (p) => Object.hasOwn(files, p) || Object.keys(files).some((f) => f.startsWith(`${p}/`)),
 		readFileSync: (p) => {
-			if (!Object.prototype.hasOwnProperty.call(files, p)) throw new Error(`ENOENT: ${p}`)
+			if (!Object.hasOwn(files, p)) throw new Error(`ENOENT: ${p}`)
 			return files[p]
 		},
 		readdirSync: (dir) =>
