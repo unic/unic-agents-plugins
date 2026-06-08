@@ -53,7 +53,7 @@ export function resolveAnchor(anchor, pageHtml) {
 	const normalizedPage = stripHtml(pageHtml)
 	const normalizedAnchor = anchor.replace(/\s+/g, ' ').trim()
 	const matches = normalizedPage.match(new RegExp(escapeRegex(normalizedAnchor), 'gi'))
-	const count = matches ? matches.length : 0
+	const count = matches?.length ?? 0
 	if (count === 0) return { type: 'footer', reason: 'not-found' }
 	if (count === 1) return { type: 'inline', textSelection: normalizedAnchor, matchCount: 1 }
 	return { type: 'footer', reason: 'ambiguous', ambiguousCount: count }

@@ -55,7 +55,7 @@ async function main() {
 		const resolution = resolveAnchor(finding.anchor ?? null, pageHtml)
 		const commentBody = `*${finding.title}* (${finding.severity}, ${finding.confidence}%, ${finding.dimension})\n\n${finding.body}`
 		const bodyWithFooter = withFooter(commentBody, finding.dimension, finding.hat)
-		const type = resolution.type === 'inline' ? 'inline' : 'footer'
+		const type = resolution.type
 		const anchor =
 			resolution.type === 'inline'
 				? { textSelection: resolution.textSelection, matchCount: resolution.matchCount }
