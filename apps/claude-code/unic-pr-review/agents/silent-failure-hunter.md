@@ -49,7 +49,7 @@ Apply the rubric strictly. If you are unsure whether a Finding reaches 60, it do
 - Error-handling that is deliberately suppressive and clearly documented as such (e.g. fire-and-forget telemetry)
 - Handling patterns outside the diff scope
 - A fallback or early-return that deliberately fires a **different** matching event to record the outcome (e.g. a `navigation_cancelled` event in place of `page_view`) — the outcome is still traced under a different name; this is deliberate traced suppression, not a gap
-- Analytics / telemetry emission that is intentionally disabled in specific environments when the omission is explicit and documented (e.g. a guarding comment, a feature flag, or a dedicated `isAnalyticsEnabled()` / `isTelemetryEnabled()` wrapper)
+- Analytics / telemetry emission that is intentionally disabled in specific environments when the omission is explicit and documented (e.g. a guarding comment, a feature flag, or a dedicated `isAnalyticsEnabled()` / `isTelemetryEnabled()` wrapper) — a bare inline dev-flag check with no comment or named wrapper does NOT qualify for this exclusion; treat that under the lost-signal bullet above
 
 ## Output format
 
