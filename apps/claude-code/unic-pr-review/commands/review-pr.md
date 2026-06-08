@@ -636,12 +636,12 @@ Store the Assessor's response separately as `ASSESSOR_RESPONSE`.
 After all Phase 1 agents finish, evaluate the Phase 2 gate (ADR-0013). The gate is implemented by `shouldRunPhase2` in `scripts/lib/changed-file-analyser.mjs` — call it via an inline Node.js one-liner:
 
 ```sh
-node -e "
+FILES='<JSON.stringify(changedFiles from Step 6)>' FINDINGS='<JSON.stringify(all Phase 1 findings flattened)>' node -e "
 const {shouldRunPhase2}=await import('${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs')
 const files=JSON.parse(process.env.FILES)
 const findings=JSON.parse(process.env.FINDINGS)
 process.stdout.write(shouldRunPhase2(files,findings)?'true':'false')
-" FILES='<JSON.stringify(changedFiles from Step 6)>' FINDINGS='<JSON.stringify(all Phase 1 findings flattened)>'
+"
 ```
 
 - **Output `true`**: launch `agents/code-simplifier.md` sequentially (wait for it before Step 8). Provide the same diff (and `intentBrief` preamble when defined) as in the Phase 1 fan-out. Wait for it to complete and merge its `findings` and `positiveObservations` into the full set alongside the Phase 1 results.
