@@ -431,6 +431,35 @@ describe('fetchConfluenceComments', () => {
 		assert.equal(result.comments[0].id, 'c1')
 		assert.equal(result.comments[1].id, 'c2')
 		assert.equal(call, 2)
+		assert.equal(result.truncated, false)
+	})
+
+	it('caps pagination at 50 pages and flags truncated on a runaway _links.next', async () => {
+		let call = 0
+		// Always returns a non-empty self-referential next link, so without the cap
+		// this would loop forever.
+		const runawayFetch = async () => {
+			call++
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					results: [
+						{
+							id: `c${call}`,
+							body: { storage: { value: 'x' } },
+							extensions: { location: 'footer', inlineProperties: null },
+							history: { createdBy: { displayName: 'A' }, createdDate: '' },
+						},
+					],
+					_links: { next: '/wiki/rest/api/content/123/child/comment?start=0&limit=100' },
+				}),
+			}
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: runawayFetch })
+		assert.equal(call, 50)
+		assert.equal(result.comments.length, 50)
+		assert.equal(result.truncated, true)
 	})
 
 	it('strips HTML tags from the comment body', async () => {

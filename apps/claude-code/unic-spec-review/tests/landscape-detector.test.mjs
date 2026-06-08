@@ -20,8 +20,7 @@ const norm = (p) => p.replace(/[\\/]+/g, '/')
 /**
  * Build a minimal in-memory filesystem stub. Keys are absolute paths (forward
  * slashes); values are file contents. Path matching is separator-insensitive so
- * the same test runs on POSIX and Windows. readdirSync returns only entries
- * directly within a dir.
+ * the same test runs on POSIX and Windows.
  * @param {Record<string, string>} files
  * @returns {LandscapeDetectorDeps}
  */
@@ -37,13 +36,6 @@ function stubFs(files) {
 			const match = keys.find((k) => norm(k) === np)
 			if (match === undefined) throw new Error(`ENOENT: ${p}`)
 			return files[match]
-		},
-		readdirSync: (dir) => {
-			const nd = norm(dir)
-			return keys
-				.map(norm)
-				.filter((k) => k.startsWith(`${nd}/`) && !k.slice(nd.length + 1).includes('/'))
-				.map((k) => k.slice(nd.length + 1))
 		},
 	}
 }
@@ -106,18 +98,25 @@ describe('detectLandscape', () => {
 		assert.ok(!brief.testFrameworks.includes('Playwright'))
 	})
 
-	it('detects playwright.config.js and sets reachableProd=true', () => {
-		const pkg = JSON.stringify({ devDependencies: {} })
-		const brief = detectLandscape(
-			'/repo',
-			[],
-			stubFs({
-				'/repo/package.json': pkg,
-				'/repo/playwright.config.js': 'module.exports = {}',
-			})
-		)
-		assert.equal(brief.reachableProd, true)
-	})
+	for (const variant of [
+		'playwright.config.js',
+		'playwright.config.ts',
+		'playwright.config.mjs',
+		'playwright.config.cjs',
+	]) {
+		it(`detects ${variant} and sets reachableProd=true`, () => {
+			const pkg = JSON.stringify({ devDependencies: {} })
+			const brief = detectLandscape(
+				'/repo',
+				[],
+				stubFs({
+					'/repo/package.json': pkg,
+					[`/repo/${variant}`]: 'module.exports = {}',
+				})
+			)
+			assert.equal(brief.reachableProd, true)
+		})
+	}
 
 	it('detects Biome and ESLint as tooling', () => {
 		const pkg = JSON.stringify({ devDependencies: { '@biomejs/biome': '2.0.0', eslint: '8.0.0' } })
@@ -186,14 +185,13 @@ describe('detectLandscape', () => {
 		assert.doesNotThrow(() => detectLandscape('/repo', [], stubFs({ '/repo/package.json': '{invalid json}' })))
 	})
 
-	it('does not throw when readdirSync fails', () => {
+	it('does not throw when existsSync fails', () => {
 		/** @type {LandscapeDetectorDeps} */
 		const deps = {
-			existsSync: (p) => p.endsWith('package.json'),
-			readFileSync: () => JSON.stringify({ devDependencies: {} }),
-			readdirSync: () => {
+			existsSync: () => {
 				throw new Error('permission denied')
 			},
+			readFileSync: () => JSON.stringify({ devDependencies: {} }),
 		}
 		assert.doesNotThrow(() => detectLandscape('/repo', [], deps))
 	})

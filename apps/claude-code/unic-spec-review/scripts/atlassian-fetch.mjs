@@ -69,12 +69,13 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  * @property {string} body - plain text from the HTML-stripped comment body
  * @property {string} [anchor] - original selection text (inline comments only)
  * @property {string} author - display name or account id of the commenter
- * @property {string} created - ISO creation timestamp
+ * @property {string} created - ISO creation timestamp, or '' when unavailable
  */
 
 /**
  * @typedef {Object} ConfluenceCommentsResult
  * @property {ConfluenceComment[]} comments
+ * @property {boolean} truncated - true if the page-count cap was hit and the comment set is incomplete
  */
 
 /**
@@ -539,10 +540,16 @@ export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
 	const limit = 100
 	const MAX_PAGES = 50
 	let page = 0
+	let truncated = false
 	let nextUrl = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}/child/comment?expand=body.storage,extensions.inlineProperties,history&limit=${limit}&start=0`
 
 	while (nextUrl) {
-		if (++page > MAX_PAGES) break
+		// Cap pagination to guard against a misbehaving self-referential `_links.next`.
+		// Hitting the cap means the comment set is incomplete, surfaced via `truncated`.
+		if (++page > MAX_PAGES) {
+			truncated = true
+			break
+		}
 		const json = await fetchJson(nextUrl, creds, fetchImpl)
 		const results = Array.isArray(json?.results) ? json.results : []
 		for (const result of results) {
@@ -568,7 +575,7 @@ export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
 		nextUrl = typeof rawNext === 'string' ? `${confluenceBase}${rawNext}` : ''
 	}
 
-	return { comments }
+	return { comments, truncated }
 }
 
 /**

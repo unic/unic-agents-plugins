@@ -13,13 +13,17 @@
  * tests touch no real files; the function never throws. No CLI entry point.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+/**
+ * @typedef {'node:test' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'unknown'} TestRunner
+ */
 
 /**
  * @typedef {Object} LandscapeBrief
  * @property {string[]} stack - detected technologies and frameworks
- * @property {string} testRunner - primary test runner ('jest'|'vitest'|'node:test'|'playwright'|'pytest'|'unknown')
+ * @property {TestRunner} testRunner - primary test runner
  * @property {string[]} testFrameworks - additional testing libraries detected
  * @property {string[]} tooling - detected dev tools (linters, formatters, bundlers)
  * @property {boolean} reachableProd - true if E2E/prod-access tooling is detected
@@ -30,7 +34,6 @@ import { join } from 'node:path'
  * @typedef {Object} LandscapeDetectorDeps
  * @property {(path: string) => boolean} [existsSync]
  * @property {(path: string, encoding: 'utf8') => string} [readFileSync]
- * @property {(dir: string) => string[]} [readdirSync]
  */
 
 /**
@@ -69,19 +72,17 @@ function tryReadText(filePath, deps) {
 }
 
 /**
- * List files directly in a directory (non-recursively). Returns [] on error.
- * @param {string} dir
+ * Test whether a path exists. Returns false on any error; never throws.
+ * @param {string} filePath
  * @param {LandscapeDetectorDeps} deps
- * @returns {string[]}
+ * @returns {boolean}
  */
-function tryListDir(dir, deps) {
-	const list = deps.readdirSync ?? readdirSync
+function tryExists(filePath, deps) {
 	const exists = deps.existsSync ?? existsSync
 	try {
-		if (!exists(dir)) return []
-		return list(dir)
+		return exists(filePath)
 	} catch {
-		return []
+		return false
 	}
 }
 
@@ -105,7 +106,7 @@ function allDeps(pkg) {
  * Detect the primary test runner from a package.json and its dependency set.
  * @param {unknown} pkg
  * @param {Set<string>} deps
- * @returns {string}
+ * @returns {TestRunner}
  */
 function detectTestRunner(pkg, deps) {
 	const rawScripts = /** @type {any} */ (pkg)?.scripts
@@ -211,6 +212,7 @@ function detectTestFrameworks(deps) {
 export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 	/** @type {string[]} */
 	let stack = []
+	/** @type {TestRunner} */
 	let testRunner = 'unknown'
 	/** @type {string[]} */
 	let testFrameworks = []
@@ -218,15 +220,13 @@ export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 	let tooling = []
 	let reachableProd = false
 
-	const existsFn = deps.existsSync ?? existsSync
-
 	// Node.js project detection
 	const pkg = tryReadJson(join(repoRoot, 'package.json'), deps)
 	if (pkg !== null) {
 		const nodeDeps = allDeps(pkg)
 		stack = stackFromNodeDeps(nodeDeps)
 		// TypeScript: tsconfig.json OR typescript in deps
-		if (existsFn(join(repoRoot, 'tsconfig.json')) || nodeDeps.has('typescript')) {
+		if (tryExists(join(repoRoot, 'tsconfig.json'), deps) || nodeDeps.has('typescript')) {
 			stack.push('TypeScript')
 		}
 		testRunner = detectTestRunner(pkg, nodeDeps)
@@ -243,12 +243,12 @@ export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 			nodeDeps.has('@playwright/test') ||
 			nodeDeps.has('playwright') ||
 			nodeDeps.has('cypress') ||
-			playwrightConfigs.some((f) => existsFn(join(repoRoot, f)))
+			playwrightConfigs.some((f) => tryExists(join(repoRoot, f), deps))
 	}
 
 	// Python
-	const hasPyproject = existsFn(join(repoRoot, 'pyproject.toml'))
-	const hasRequirements = existsFn(join(repoRoot, 'requirements.txt'))
+	const hasPyproject = tryExists(join(repoRoot, 'pyproject.toml'), deps)
+	const hasRequirements = tryExists(join(repoRoot, 'requirements.txt'), deps)
 	if (hasPyproject || hasRequirements) {
 		if (!stack.includes('Python')) stack.push('Python')
 		if (hasPyproject) {
@@ -263,24 +263,24 @@ export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 	}
 
 	// Rust
-	if (existsFn(join(repoRoot, 'Cargo.toml'))) {
+	if (tryExists(join(repoRoot, 'Cargo.toml'), deps)) {
 		if (!stack.includes('Rust')) stack.push('Rust')
 	}
 
 	// Go
-	if (existsFn(join(repoRoot, 'go.mod'))) {
+	if (tryExists(join(repoRoot, 'go.mod'), deps)) {
 		if (!stack.includes('Go')) stack.push('Go')
 	}
 
 	// Ruby
-	if (existsFn(join(repoRoot, 'Gemfile'))) {
+	if (tryExists(join(repoRoot, 'Gemfile'), deps)) {
 		if (!stack.includes('Ruby')) stack.push('Ruby')
 		const gemfile = tryReadText(join(repoRoot, 'Gemfile'), deps)
 		if (gemfile?.includes('rails') && !stack.includes('Rails')) stack.push('Rails')
 	}
 
 	// Java
-	if (existsFn(join(repoRoot, 'pom.xml')) || existsFn(join(repoRoot, 'build.gradle'))) {
+	if (tryExists(join(repoRoot, 'pom.xml'), deps) || tryExists(join(repoRoot, 'build.gradle'), deps)) {
 		if (!stack.includes('Java')) stack.push('Java')
 	}
 
