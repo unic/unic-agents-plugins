@@ -15,6 +15,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 /**
  * @typedef {'node:test' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'unknown'} TestRunner
@@ -285,4 +286,12 @@ export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 	}
 
 	return { stack, testRunner, testFrameworks, tooling, reachableProd, adjacentSystems: [...adjacentSystems] }
+}
+
+// CLI entry: prints the LandscapeBrief as JSON to stdout.
+// argv[2] = repo root path (default '.').
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+	const repoRoot = process.argv[2] ?? '.'
+	const brief = detectLandscape(repoRoot)
+	process.stdout.write(`${JSON.stringify(brief)}\n`)
 }

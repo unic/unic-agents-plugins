@@ -3,7 +3,19 @@
     "name": "Unic AG",
     "url": "https://www.unic.com"
   },
-  "agents": ["./agents/gaps-agent.md"],
+  "agents": [
+    "./agents/gaps-agent.md",
+    "./agents/ambiguity-agent.md",
+    "./agents/spec-versus-design-agent.md",
+    "./agents/spec-versus-live-agent.md",
+    "./agents/internal-consistency-agent.md",
+    "./agents/testability-agent.md",
+    "./agents/feasibility-agent.md",
+    "./agents/non-functional-agent.md",
+    "./agents/green-agent.md",
+    "./agents/yellow-agent.md",
+    "./agents/red-agent.md"
+  ],
   "commands": ["./commands/review-spec.md", "./commands/spec-doctor.md", "./commands/setup-confluence.md"],
   "description": "Adversarial review of web specifications across Confluence pages & comments, Figma designs, and the live system. Produces Confidence-scored, Six-Hats-tagged Findings with an interactive Approval Loop that posts selected comments back to Confluence.",
   "homepage": "https://github.com/unic/unic-agents-plugins",
