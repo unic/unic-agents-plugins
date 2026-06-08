@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - (none)
 
+### Changed
+- Docs: reconcile `code-reviewer`'s spawn vocabulary across decision records (issue #225). ADR-0011's
+  Option A rejection no longer claims the spawn is "conditional" (which contradicted ADR-0008's
+  "Always — any non-empty diff"); it now states the spawn always fires on a reviewable diff and rests
+  the rejection on its two sound reasons (cross-agent merge logic, split ownership). Same correction
+  applied to the intent-check PRD. No behaviour change.
+
 ### Fixed
 - (none)
 

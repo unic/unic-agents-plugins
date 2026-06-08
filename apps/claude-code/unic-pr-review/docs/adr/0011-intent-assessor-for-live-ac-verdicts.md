@@ -8,7 +8,7 @@ The Intent Check block lists a per-Acceptance-Criterion verdict (`addressed` / `
 
 Producing live verdicts requires assessing each AC against the diff. Three placements were considered:
 
-- **Option A — the Code Reviewer emits an updated `intentCheck`.** Rejected. The Code Reviewer's spawn is conditional (ADR-0008): a diff that does not spawn `code-reviewer` would silently produce zero live verdicts. It also forces the orchestrator to reconcile a code-reviewer-authored array against the static one (and against other aspects' opinions) — cross-agent merge logic we want to avoid. And it splits ownership of the Intent Check away from the intent agents.
+- **Option A — the Code Reviewer emits an updated `intentCheck`.** Rejected. `code-reviewer` always runs on any non-empty diff (ADR-0008), and the orchestrator guards empty/unfetchable diffs before fan-out, so a reviewable diff always spawns it — spawn-conditionality is not the concern. The real problems: it forces the orchestrator to reconcile a code-reviewer-authored array against the static one (and against other aspects' opinions) — cross-agent merge logic we want to avoid — and it splits ownership of the Intent Check away from the intent agents.
 - **Option B1 — the Intent Checker assesses in-process.** Rejected. The Intent Checker owns the hard-stop decision on unreachable intent (ADR-0004), which it must make _before_ looking at any diff. Folding diff assessment into the same agent loads the full diff into the abort-decision agent and broadens its single responsibility from "gather intent" to "gather + assess."
 - **Option B2 — a dedicated assessment agent.** Accepted (see Decision).
 
