@@ -95,10 +95,10 @@ flowchart TD
   subgraph s7 ["Step 7: Parallel fan-out"]
     direction TB
     cr["code-reviewer <br>(always)"]
-    sfh["silent-failure-hunter <br>(if source files)"]
+    sfh["silent-failure-hunter <br>(if source files or error-handling changes)"]
     tda["type-design-analyzer <br>(if type files)"]
     pta["pr-test-analyzer <br>(if test files)"]
-    cma["comment-analyzer <br>(if docs)"]
+    cma["comment-analyzer <br>(if docs or comment changes)"]
     csi["code-simplifier <br>(if 3+ source files)"]
     ia["Intent Assessor <br>(if intentBrief present + skeleton non-empty)"]
   end

@@ -16,6 +16,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.6] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Content-aware errors gate (issue #214, ADR-0008 amendment): `silent-failure-hunter` now
+  *additionally* spawns whenever the diff adds or removes error-handling constructs
+  (`try`/`catch`/`finally`, `throw`, `.catch(`, `Promise.reject`, `error`/`err` identifiers) in
+  any file type — including non-source files the path classifier would otherwise skip. The
+  existing non-test-source-file path trigger is retained as the fast path (ADR-0008 keeps path
+  classification authoritative; content gating is additive, never subtractive), so a pure source
+  edit still spawns the agent. Gate is biased toward spawning on ambiguity per ADR-0008; marked
+  as the first Y-llm promotion candidate.
+- Regression tests pinning the errors-gate boundary behaviour: compound identifiers
+  (`errorMessage`/`errCount`) do NOT fire the `\b`-guarded `error`/`err` arm, and error tokens
+  on unchanged diff context lines do NOT spawn the agent.
+
+### Changed
+- ADR-0008 amendment corrected: content gating is documented as **additive-only** (path OR
+  content, never AND-narrowed). The prior text implied sampling would cure the errors/types
+  gates' over-firing vs the toolkit; that is structurally impossible under an additive contract.
+  The over-spawn is now recorded as an accepted divergence within the behavioural-parity
+  contract, with a per-gate table of what each content sample adds where the path trigger is
+  blind. CONTEXT.md gains a **Semantic Gate** glossary term.
+
+### Fixed
+- (none)
+
 ## [2.1.5] — 2026-06-08
 
 ### Breaking
