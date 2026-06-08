@@ -7,4 +7,4 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0003](0003-six-hats-lens-over-dimensions.md): Six Thinking Hats layered as a lens over technical dimensions
 - [0004](0004-inline-anchored-comments-footer-fallback.md): Inline-anchored Confluence comments with a footer fallback
 
-> Status: these ADRs record decisions locked during the design grilling for the [PRD](../issues/unic-spec-review/PRD.md). ADR-0001 (vendor self-containment) and ADR-0003 (six-hats lens + all eleven review agents) are implemented as of S4. ADR-0002 (similarity de-dup) and ADR-0004 (inline-anchored comments) remain pending, landing with the Approval Loop slice.
+> Status: these ADRs record decisions locked during the design grilling for the [PRD](../issues/unic-spec-review/PRD.md). ADR-0001 (vendor self-containment) and ADR-0003 (six-hats lens + all eleven review agents) are implemented as of S4. ADR-0004 (inline-anchored comments with footer fallback) is implemented as of S5 (`inline-anchor-resolver.mjs`, `attribution-footer.mjs`, `confluence-writer.mjs`). ADR-0002 (similarity de-dup) remains pending, landing with the full Approval Loop slice (S8).

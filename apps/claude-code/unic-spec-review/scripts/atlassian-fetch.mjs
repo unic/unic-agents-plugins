@@ -648,15 +648,19 @@ export async function fetchConfluencePageBody(pageIdOrUrl, creds, deps = {}) {
 /**
  * Post a Confluence comment via the v2 REST API. Supports both page-level
  * footer comments and inline comments anchored to a text selection.
+ * Pass anchor=null only when type==='footer'; passing null with type==='inline' throws.
  * @param {string} pageId
  * @param {string} body - comment body in wiki markup format
  * @param {'footer' | 'inline'} type
- * @param {InlineAnchor | null} anchor - required when type === 'inline'
+ * @param {InlineAnchor | null} anchor - required (non-null) when type === 'inline'
  * @param {AtlassianCreds} creds
  * @param {{ fetch?: FetchLike }} [deps]
  * @returns {Promise<PostedComment>}
  */
 export async function postConfluenceComment(pageId, body, type, anchor, creds, deps = {}) {
+	if (type === 'inline' && anchor === null) {
+		throw new Error('postConfluenceComment: anchor is required for type "inline"')
+	}
 	const fetchImpl = deps.fetch ?? globalThis.fetch
 	const confluenceBase = stripTrailingSlash(creds.url)
 	const endpoint =
@@ -673,10 +677,15 @@ export async function postConfluenceComment(pageId, body, type, anchor, creds, d
 		}
 	}
 	const json = await postJson(endpoint, payload, creds, fetchImpl)
-	return {
-		id: typeof json?.id === 'string' ? json.id : '',
-		created: json?.version?.createdAt ?? '',
+	const id = json?.id != null ? String(json.id) : ''
+	const created = json?.version?.createdAt ?? ''
+	if (!id) {
+		// Confluence returned 2xx but no comment id — response shape may have changed
+		process.stderr.write(
+			`postConfluenceComment: 2xx response missing id field; full response: ${JSON.stringify(json)}\n`
+		)
 	}
+	return { id, created }
 }
 
 /**

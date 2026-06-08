@@ -77,5 +77,8 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-	main()
+	main().catch((err) => {
+		process.stderr.write(`${JSON.stringify({ error: err instanceof Error ? err.message : String(err) })}\n`)
+		process.exit(1)
+	})
 }

@@ -549,6 +549,13 @@ describe('fetchConfluencePageBody', () => {
 			(err) => /** @type {any} */ (err).kind === 'not-found'
 		)
 	})
+
+	it('throws FetchError kind unreachable on network error', async () => {
+		await assert.rejects(
+			() => fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
 })
 
 describe('postConfluenceComment', () => {
@@ -624,6 +631,27 @@ describe('postConfluenceComment', () => {
 					fetch: fetchThrows(new TypeError('fetch failed')),
 				}),
 			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
+
+	it('throws FetchError kind not-found on 404', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(404) }),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError kind unreachable on 500', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(500) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
+
+	it('throws when type is inline and anchor is null', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'inline', null, CREDS, { fetch: postOk({}) }),
+			(err) => err instanceof Error && err.message.includes('anchor is required')
 		)
 	})
 

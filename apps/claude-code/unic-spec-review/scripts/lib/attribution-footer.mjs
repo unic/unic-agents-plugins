@@ -42,6 +42,7 @@ export function withFooter(commentBody, dimension, hat) {
  * @returns {FooterRecognition}
  */
 export function recognizeFooter(commentBody) {
+	// Hardcoded to match FOOTER_MARKER — if the marker changes, update here too (ADR-0002 migration)
 	const match = commentBody.match(/-- unic-spec-review \| dimension: ([^|\n]+) \| hat: ([^\n]+)/)
 	if (!match) return { recognized: false, dimension: undefined, hat: undefined }
 	return { recognized: true, dimension: match[1].trim(), hat: match[2].trim() }

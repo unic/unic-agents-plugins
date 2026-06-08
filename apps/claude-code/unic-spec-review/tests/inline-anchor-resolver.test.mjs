@@ -26,11 +26,17 @@ describe('resolveAnchor', () => {
 		assert.equal(/** @type {any} */ (r).textSelection, 'user clicks Submit')
 	})
 
-	it('returns the original anchor as textSelection (not normalized)', () => {
+	it('returns the normalized anchor as textSelection (whitespace collapsed)', () => {
 		const original = 'User  Clicks Submit'
 		const r = resolveAnchor(original, '<p>User  Clicks Submit</p>')
 		assert.equal(r.type, 'inline')
-		assert.equal(/** @type {any} */ (r).textSelection, original)
+		assert.equal(/** @type {any} */ (r).textSelection, 'User Clicks Submit')
+	})
+
+	it('returns footer/no-anchor when anchor is whitespace-only', () => {
+		const r = resolveAnchor('   ', '<p>some page content</p>')
+		assert.equal(r.type, 'footer')
+		assert.equal(/** @type {any} */ (r).reason, 'no-anchor')
 	})
 
 	it('returns footer/not-found when anchor text is absent from the page', () => {

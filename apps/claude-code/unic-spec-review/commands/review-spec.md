@@ -1,14 +1,14 @@
 ---
 allowed-tools: Agent, Bash(node *), Write
 argument-hint: '<confluence-url> [--post]'
-description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post enables the Approval Loop (inert in S4).
+description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post activates the single-Finding Approval Loop (inline-anchored comment or footer fallback).
 ---
 
-# /review-spec (S4 Blue Orchestrator)
+# /review-spec (S5 Blue Orchestrator)
 
 Runs a read-only adversarial review of one Confluence spec page using eleven parallel agents (eight Black-hat dimension agents plus Green, Yellow, Red perspective agents), ranks Findings by confidence \* severity, groups them by hat, prints a ranked hat-grouped triage, and writes a durable timestamped report under `.spec-review/`.
 
-> **S4 scope:** single Confluence page, eleven parallel agents, Landscape Brief injection into Testability/Feasibility/Spec-versus-Live/NFR. No Figma, no live-system, no posting. `--post` is recognised but inert.
+> **S5 scope:** single Confluence page, eleven parallel agents, Landscape Brief injection, single-Finding write path via `--post` (inline-anchored comment, footer fallback). No Figma, no live-system. Full multi-Finding Approval Loop and similarity de-dup land in S8.
 
 ## Step 1 - Parse arguments
 
