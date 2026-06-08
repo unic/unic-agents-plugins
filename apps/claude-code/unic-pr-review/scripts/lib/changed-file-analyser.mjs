@@ -26,6 +26,42 @@ const isTypeFile = (f) =>
 /** @param {string} f */
 const isDocFile = (f) => /\.(md|mdx)$/.test(f) || /(^|[/\\])docs?[/\\]/i.test(f)
 
+/** Lines matching SPDX / copyright boilerplate — excluded from comment detection */
+const SPDX_RE = /SPDX-License-Identifier:|Copyright\s+(?:[©&(C)0-9])/i
+
+// Tokens that identify a line as a comment in common languages.
+// The optional leading `{` admits JSX expression-wrapped block comments.
+// Anchored at line start (`^\s*`) by design: this matches comment-only lines and
+// deliberately ignores trailing comments on a code line (e.g. `const x = 1 // note`).
+// An unanchored `//` would match inside string/URL literals (`'https://…'`), producing
+// false positives; the Y-det contract (ADR-0008) favours that miss over the false match.
+const COMMENT_TOKEN_RE = /^\s*\{?\s*(?:\/\/|\/\*\*?|\*\/|\*[ \t]|#(?:[ \t!]|$)|<!--|-->)/
+
+/**
+ * Returns true when the unified diff adds or removes at least one comment line,
+ * excluding SPDX/license boilerplate. Per ADR-0008: the comments gate is biased
+ * toward spawning on ambiguity — a false-positive is a cheap empty result block,
+ * a false-negative silently omits a finding set (the PR #5612 miss).
+ *
+ * Detected tokens: `//`, `/**`, block-comment delimiters, `* ` (JSDoc continuation),
+ * `<!--` `-->` (HTML/JSX), `#` (shell/Python/YAML/Ruby — includes shebangs and YAML
+ * comments, intentionally broad per ADR-0008 spawning bias). SPDX/copyright lines excluded.
+ *
+ * @param {string} diff - unified diff string (may be empty)
+ * @returns {boolean}
+ */
+export function hasCommentChanges(diff) {
+	if (!diff) return false
+	for (const line of diff.split(/\r?\n/)) {
+		if (line.startsWith('+++') || line.startsWith('---')) continue
+		if (!line.startsWith('+') && !line.startsWith('-')) continue
+		const content = line.slice(1)
+		if (SPDX_RE.test(content)) continue
+		if (COMMENT_TOKEN_RE.test(content)) return true
+	}
+	return false
+}
+
 /**
  * Spawn-decision table (ADR-0008). Each entry maps an agent name to its spawn
  * predicate. The table is evaluated in order; code-reviewer is always first.
@@ -34,7 +70,7 @@ const isDocFile = (f) => /\.(md|mdx)$/.test(f) || /(^|[/\\])docs?[/\\]/i.test(f)
  * when Phase 1 yields no Critical/Important findings and ≥3 source files changed
  * (ADR-0013). Use shouldRunPhase2() to evaluate that gate. Never add it here.
  *
- * @type {Array<{ agent: string, predicate: (files: string[]) => boolean }>}
+ * @type {Array<{ agent: string, predicate: (files: string[], diff: string) => boolean }>}
  */
 // Intent Assessor is absent deliberately — spawned by intent presence, not file categories (ADR-0011). Never add it here.
 const SPAWN_TABLE = [
@@ -42,7 +78,7 @@ const SPAWN_TABLE = [
 	{ agent: 'silent-failure-hunter', predicate: (files) => files.some(isSourceFile) },
 	{ agent: 'type-design-analyzer', predicate: (files) => files.some(isTypeFile) },
 	{ agent: 'pr-test-analyzer', predicate: (files) => files.some(isTestFile) },
-	{ agent: 'comment-analyzer', predicate: (files) => files.some(isDocFile) },
+	{ agent: 'comment-analyzer', predicate: (files, diff) => files.some(isDocFile) || hasCommentChanges(diff) },
 ]
 
 /**
@@ -52,15 +88,16 @@ const SPAWN_TABLE = [
  * orchestrator should warn the user and skip spawning.
  *
  * @param {string[]} changedFiles - relative paths of files changed in the diff
+ * @param {string} [diffContent] - optional unified diff string for content-aware gates
  * @returns {Set<string>} agent names to spawn
  * @throws {Error} when changedFiles is not an array
  */
-export function decideSpawnSet(changedFiles) {
+export function decideSpawnSet(changedFiles, diffContent = '') {
 	if (!Array.isArray(changedFiles)) {
 		throw new Error(`decideSpawnSet: changedFiles must be an array, got ${typeof changedFiles}`)
 	}
 	if (changedFiles.length === 0) return new Set()
-	return new Set(SPAWN_TABLE.filter(({ predicate }) => predicate(changedFiles)).map(({ agent }) => agent))
+	return new Set(SPAWN_TABLE.filter(({ predicate }) => predicate(changedFiles, diffContent)).map(({ agent }) => agent))
 }
 
 /**
@@ -100,10 +137,33 @@ export function parseStdin(raw) {
 		.filter(Boolean)
 }
 
+/**
+ * Parse raw stdin into a structured analyser input.
+ *
+ * Accepts two formats:
+ * - JSON object `{"files":[...],"diff":"..."}` — new content-aware path
+ * - Plain newline-separated file paths — backward-compatible legacy path
+ *
+ * @param {string} raw - raw stdin contents
+ * @returns {{ files: string[], diff: string }}
+ * @throws {SyntaxError} when raw starts with '{' and is not valid JSON
+ */
+export function parseInput(raw) {
+	const trimmed = raw.trimStart()
+	if (trimmed.startsWith('{')) {
+		const parsed = JSON.parse(trimmed)
+		return {
+			files: Array.isArray(parsed.files) ? parsed.files : [],
+			diff: typeof parsed.diff === 'string' ? parsed.diff : '',
+		}
+	}
+	return { files: parseStdin(raw), diff: '' }
+}
+
 /** @param {unknown} err */
 const errMsg = (err) => (err instanceof Error ? err.message : String(err))
 
-// CLI entry — reads newline-separated file paths from stdin, writes JSON array to stdout.
+// CLI entry — reads stdin (plain file list or JSON {files,diff}), writes JSON array to stdout.
 // Only runs when executed directly: `node scripts/lib/changed-file-analyser.mjs`
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	/** @type {Buffer[]} */
@@ -112,8 +172,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 	process.stdin.on('end', () => {
 		try {
 			const raw = Buffer.concat(chunks).toString('utf8')
-			const files = parseStdin(raw)
-			const agents = [...decideSpawnSet(files)]
+			const { files, diff } = parseInput(raw)
+			const agents = [...decideSpawnSet(files, diff)]
 			process.stdout.write(`${JSON.stringify(agents)}\n`)
 		} catch (err) {
 			process.stderr.write(`changed-file-analyser: ${errMsg(err)}\n`)

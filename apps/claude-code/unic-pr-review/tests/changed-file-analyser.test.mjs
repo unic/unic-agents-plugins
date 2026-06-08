@@ -7,7 +7,13 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { decideSpawnSet, parseStdin, shouldRunPhase2 } from '../scripts/lib/changed-file-analyser.mjs'
+import {
+	decideSpawnSet,
+	hasCommentChanges,
+	parseInput,
+	parseStdin,
+	shouldRunPhase2,
+} from '../scripts/lib/changed-file-analyser.mjs'
 
 const SCRIPT = path.resolve(fileURLToPath(import.meta.url), '../../scripts/lib/changed-file-analyser.mjs')
 
@@ -127,6 +133,40 @@ describe('decideSpawnSet', () => {
 		it('is NOT spawned when only test files changed', () => {
 			assert.ok(!decideSpawnSet(['tests/service.test.mjs']).has('comment-analyzer'))
 		})
+
+		describe('content-aware gate (diff content)', () => {
+			it('spawns comment-analyzer for a code-only diff with an added inline comment (PR #5612 case)', () => {
+				const diff = `--- a/src/component.tsx\n+++ b/src/component.tsx\n@@ -1,3 +1,4 @@\n const x = 1\n+// TODO: fix this\n const y = 2\n`
+				const result = decideSpawnSet(['src/component.tsx'], diff)
+				assert.ok(result.has('comment-analyzer'))
+			})
+
+			it('does NOT spawn comment-analyzer for code-only diff with no comment changes', () => {
+				const diff = `--- a/src/component.tsx\n+++ b/src/component.tsx\n@@ -1,3 +1,3 @@\n const x = 1\n-const y = 2\n+const y = 3\n`
+				const result = decideSpawnSet(['src/component.tsx'], diff)
+				assert.ok(!result.has('comment-analyzer'))
+			})
+
+			it('still spawns comment-analyzer for doc-file path even with empty diff (path fast-path intact)', () => {
+				assert.ok(decideSpawnSet(['README.md'], '').has('comment-analyzer'))
+			})
+
+			it('backward-compatible: no diffContent arg keeps path-only logic unchanged', () => {
+				assert.ok(decideSpawnSet(['README.md']).has('comment-analyzer'))
+				assert.ok(!decideSpawnSet(['src/index.mjs']).has('comment-analyzer'))
+			})
+
+			it('other gates are unaffected by the diffContent arg', () => {
+				const diff = `--- a/src/index.tsx\n+++ b/src/index.tsx\n@@ -1 +1 @@\n-const x = 1\n+// now a comment\n`
+				const result = decideSpawnSet(['src/component.mjs'], diff)
+				assert.ok(result.has('code-reviewer'), 'code-reviewer always present')
+				assert.ok(result.has('silent-failure-hunter'), 'sfh: source file')
+				assert.ok(!result.has('type-design-analyzer'), 'no tsx/ts file')
+				assert.ok(!result.has('pr-test-analyzer'), 'no test file')
+				assert.ok(!result.has('code-simplifier'), 'only 1 source file')
+				assert.ok(result.has('comment-analyzer'), 'comment-analyzer via diff content')
+			})
+		})
 	})
 
 	describe('code-simplifier', () => {
@@ -214,6 +254,126 @@ describe('parseStdin', () => {
 	it('feeds clean paths into decideSpawnSet for CRLF input', () => {
 		const result = decideSpawnSet(parseStdin('src/service.mjs\r\n'))
 		assert.ok(result.has('silent-failure-hunter'))
+	})
+})
+
+describe('hasCommentChanges', () => {
+	it('returns true when a JS single-line comment line is added', () => {
+		const diff = `--- a/src/index.tsx\n+++ b/src/index.tsx\n@@ -1,3 +1,4 @@\n const x = 1\n+// added this comment\n const y = 2\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('returns true when a JS single-line comment line is removed', () => {
+		const diff = `--- a/src/index.tsx\n+++ b/src/index.tsx\n@@ -1,4 +1,3 @@\n const x = 1\n-// removed comment\n const y = 2\n const z = 3\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('returns true when a JSDoc block-comment line is added', () => {
+		const diff = `--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,2 +1,4 @@\n+/**\n+ * Returns the answer.\n+ */\n export function answer() { return 42 }\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('returns true when an HTML comment is added', () => {
+		const diff = `--- a/src/App.tsx\n+++ b/src/App.tsx\n@@ -1,2 +1,3 @@\n export default function App() {\n+  {/* render section */}\n   return <div />\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('returns false for a no-comment source edit (PR #5612 negative case)', () => {
+		const diff = `--- a/src/index.tsx\n+++ b/src/index.tsx\n@@ -1,3 +1,3 @@\n const x = 1\n-const y = 2\n+const y = 3\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns false for a doc-file change with no comment tokens', () => {
+		const diff = `--- a/README.md\n+++ b/README.md\n@@ -1,2 +1,2 @@\n # Title\n-old paragraph\n+new paragraph\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns false for an SPDX-only change (license boilerplate excluded)', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1,2 +1,2 @@\n-// SPDX-License-Identifier: MIT\n+// SPDX-License-Identifier: LGPL-3.0-or-later\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns false for a Copyright-only change', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1,2 +1,2 @@\n-// Copyright © 2025 Unic\n+// Copyright © 2026 Unic\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns false for empty diff', () => {
+		assert.ok(!hasCommentChanges(''))
+	})
+
+	it('ignores diff header lines (+++ / ---) even when they mention comment-like paths', () => {
+		const diff = `--- a/src/comments.ts\n+++ b/src/comments.ts\n@@ -1 +1 @@\n-export const x = 1\n+export const x = 2\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns true when a shell-style # comment line is added', () => {
+		const diff = `--- a/scripts/deploy.sh\n+++ b/scripts/deploy.sh\n@@ -1,2 +1,3 @@\n set -e\n+# TODO: add rollback step\n echo done\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('returns true when a shebang line is added', () => {
+		const diff = `--- /dev/null\n+++ b/scripts/new.sh\n@@ -0,0 +1,2 @@\n+#!/usr/bin/env node\n+console.log('hello')\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('handles CRLF-terminated diff lines correctly', () => {
+		const diff = '--- a/src/index.tsx\r\n+++ b/src/index.tsx\r\n@@ -1 +1 @@\r\n-const x = 1\r\n+// added comment\r\n'
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	// Pinned Y-det tradeoff (ADR-0008): the token regex is anchored at line start, so a
+	// trailing comment appended to a code line is NOT detected. This is deliberate — an
+	// unanchored `//` matches inside URL/string literals and over-fires. If the gate is
+	// ever extended to catch trailing comments, update these assertions intentionally.
+	it('returns false for a trailing comment on a code line (anchored-token tradeoff)', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1 +1 @@\n-const x = 1\n+const x = 1 // bump the counter\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns false for a URL literal containing // (the false positive the anchor prevents)', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1 +1 @@\n-const url = 'https://old.example.com'\n+const url = 'https://new.example.com'\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+})
+
+describe('parseInput', () => {
+	it('parses plain-text lines as files with empty diff (backward compat)', () => {
+		const result = parseInput('src/a.mjs\nsrc/b.ts\n')
+		assert.deepEqual(result.files, ['src/a.mjs', 'src/b.ts'])
+		assert.equal(result.diff, '')
+	})
+
+	it('parses JSON input and returns files + diff', () => {
+		const input = JSON.stringify({ files: ['src/a.mjs'], diff: '--- a\n+++ b\n+// comment\n' })
+		const result = parseInput(input)
+		assert.deepEqual(result.files, ['src/a.mjs'])
+		assert.ok(result.diff.includes('+// comment'))
+	})
+
+	it('parses JSON with missing diff field as empty diff', () => {
+		const input = JSON.stringify({ files: ['src/a.mjs'] })
+		const result = parseInput(input)
+		assert.equal(result.diff, '')
+	})
+
+	it('parses JSON with missing files field as empty files', () => {
+		const input = JSON.stringify({ diff: '--- a\n+++ b\n' })
+		const result = parseInput(input)
+		assert.deepEqual(result.files, [])
+	})
+
+	it('round-trips: JSON input flows into decideSpawnSet correctly', () => {
+		const diff = `--- a/src/c.tsx\n+++ b/src/c.tsx\n@@ -1 +1 @@\n-const x = 1\n+// now a comment\n`
+		const { files, diff: d } = parseInput(JSON.stringify({ files: ['src/c.tsx'], diff }))
+		assert.ok(decideSpawnSet(files, d).has('comment-analyzer'))
+	})
+
+	it('throws SyntaxError for malformed JSON input starting with {', () => {
+		assert.throws(
+			() => parseInput('{bad json}'),
+			(err) => err instanceof SyntaxError
+		)
 	})
 })
 
@@ -344,5 +504,23 @@ describe('shouldRunPhase2', () => {
 
 	it('returns false for an empty changed-files list', () => {
 		assert.ok(!shouldRunPhase2([], []))
+	})
+
+	it('accepts JSON stdin and applies content-aware comment gate', () => {
+		const diff = `--- a/src/c.tsx\n+++ b/src/c.tsx\n@@ -1 +1 @@\n-const x = 1\n+// now a comment\n`
+		const input = JSON.stringify({ files: ['src/component.tsx'], diff })
+		const result = spawnSync('node', [SCRIPT], { input, encoding: 'utf8' })
+		assert.equal(result.status, 0)
+		const agents = JSON.parse(result.stdout.trim())
+		assert.ok(agents.includes('comment-analyzer'), 'comment-analyzer spawned via content gate')
+	})
+
+	it('exits non-zero and writes to stderr for malformed JSON stdin', () => {
+		const result = spawnSync('node', [SCRIPT], {
+			input: '{invalid json}',
+			encoding: 'utf8',
+		})
+		assert.notEqual(result.status, 0)
+		assert.ok(result.stderr.includes('changed-file-analyser:'))
 	})
 })

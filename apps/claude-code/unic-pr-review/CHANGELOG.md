@@ -16,6 +16,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.4] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Content-aware comment gate (issue #213, ADR-0008 amendment): `comment-analyzer` now spawns
+  whenever the diff adds or removes comment lines in any file type (inline `//`, JSDoc `/**`,
+  block `/* */`, HTML `<!-- -->`, or shell `#` comments), not only when a `.md`/`.mdx`/`docs/`
+  file changes. This catches documentation comment changes inside source files (the PR #5612 miss).
+  The SPDX/copyright boilerplate is excluded so license-header edits do not trigger a false positive.
+- Diff-to-analyser plumbing: `decideSpawnSet(changedFiles, diffContent?)` now accepts an optional
+  unified diff string; the CLI accepts JSON stdin `{"files":[...],"diff":"..."}` alongside the
+  existing plain-text path list (backward-compatible). The orchestrator (Step 6 / Step 1.7) now
+  passes the full diff alongside the changed-files list. Establishes the contract the errors (#214)
+  and types (#215) content gates will reuse.
+
+### Fixed
+- (none)
+
 ## [2.1.3] — 2026-06-05
 
 ### Breaking

@@ -165,11 +165,13 @@ Wait for the agent to complete. It emits one of:
 
 #### Step 1.7 — Resolve spawn set
 
-Use `FETCHER_OUTPUT.changedFiles` instead of `git diff --name-only`. Pipe the newline-joined paths into the analyser:
+Use `FETCHER_OUTPUT.changedFiles` for the file list and the appropriate diff for content-aware gates (ADR-0008). In **first-review** and **first-review-fallback** modes use `FETCHER_OUTPUT.rawDiff`; in **re-review** mode use `FETCHER_OUTPUT.deltaRawDiff`. Build the analyser input object `{"files":[...paths...],"diff":"<unified diff string>"}` and write it to a temp file with Node (not `jq` — it is unavailable by default on Windows; a temp file also avoids shell-quoting the diff), then pipe the file in:
 
 ```sh
-printf '%s\n' "<each entry of FETCHER_OUTPUT.changedFiles>" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs" < "<temp file with {files,diff} JSON>"
 ```
+
+When `FETCHER_OUTPUT.diffUnavailable` is `true`, pass an empty string for `diff` — `hasCommentChanges('')` returns false and the gate falls back to path-only.
 
 - **Exit 0**: stdout is a JSON array of agent names. Store as `SPAWN_SET`.
 - **Exit non-zero**: relay stderr and stop.
@@ -548,10 +550,16 @@ Wait for the agent to complete. It emits exactly one of:
 
 ## Step 6 — Resolve the spawn set
 
-Run the changed-file-analyser to determine which Review Aspect agents apply to this diff:
+Run the changed-file-analyser with both the changed-files list and the full diff so the content-aware gates (ADR-0008) can fire. Build the `{"files":[...paths...],"diff":"..."}` input with Node (not `jq` — it is unavailable by default on Windows) and pipe it to the analyser:
 
 ```sh
-git diff "origin/${BASE_BRANCH}...HEAD" --name-only | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+node -e "
+const {execFileSync}=require('node:child_process')
+const range='origin/'+process.env.BASE_BRANCH+'...HEAD'
+const files=execFileSync('git',['diff',range,'--name-only'],{encoding:'utf8'}).split(/\r?\n/).filter(Boolean)
+const diff=execFileSync('git',['diff',range],{encoding:'utf8',maxBuffer:1e9})
+process.stdout.write(JSON.stringify({files,diff}))
+" BASE_BRANCH="${BASE_BRANCH}" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
 ```
 
 - **Exit 0**: stdout contains a JSON array of agent names, e.g. `["code-reviewer","silent-failure-hunter"]`. Store it as `SPAWN_SET`.
