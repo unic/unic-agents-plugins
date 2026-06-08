@@ -62,11 +62,6 @@ export function hasCommentChanges(diff) {
  * Spawn-decision table (ADR-0008). Each entry maps an agent name to its spawn
  * predicate. The table is evaluated in order; code-reviewer is always first.
  *
- * Predicates receive both the changed-files list (path fast path) and the unified
- * diff string. Per the 2026-06 amendment, the comment-analyzer gate OR-combines
- * its path heuristic with deterministic diff-content sampling (`hasCommentChanges`)
- * so comment changes inside non-doc source files still spawn it.
- *
  * @type {Array<{ agent: string, predicate: (files: string[], diff: string) => boolean }>}
  */
 // Intent Assessor is absent deliberately — spawned by intent presence, not file categories (ADR-0011). Never add it here.
