@@ -321,6 +321,20 @@ describe('hasCommentChanges', () => {
 		const diff = '--- a/src/index.tsx\r\n+++ b/src/index.tsx\r\n@@ -1 +1 @@\r\n-const x = 1\r\n+// added comment\r\n'
 		assert.ok(hasCommentChanges(diff))
 	})
+
+	// Pinned Y-det tradeoff (ADR-0008): the token regex is anchored at line start, so a
+	// trailing comment appended to a code line is NOT detected. This is deliberate — an
+	// unanchored `//` matches inside URL/string literals and over-fires. If the gate is
+	// ever extended to catch trailing comments, update these assertions intentionally.
+	it('returns false for a trailing comment on a code line (anchored-token tradeoff)', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1 +1 @@\n-const x = 1\n+const x = 1 // bump the counter\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
+
+	it('returns false for a URL literal containing // (the false positive the anchor prevents)', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1 +1 @@\n-const url = 'https://old.example.com'\n+const url = 'https://new.example.com'\n`
+		assert.ok(!hasCommentChanges(diff))
+	})
 })
 
 describe('parseInput', () => {

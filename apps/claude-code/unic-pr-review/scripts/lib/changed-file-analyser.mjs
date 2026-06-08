@@ -31,6 +31,10 @@ const SPDX_RE = /SPDX-License-Identifier:|Copyright\s+(?:[©&(C)0-9])/i
 
 // Tokens that identify a line as a comment in common languages.
 // The optional leading `{` admits JSX expression-wrapped block comments.
+// Anchored at line start (`^\s*`) by design: this matches comment-only lines and
+// deliberately ignores trailing comments on a code line (e.g. `const x = 1 // note`).
+// An unanchored `//` would match inside string/URL literals (`'https://…'`), producing
+// false positives; the Y-det contract (ADR-0008) favours that miss over the false match.
 const COMMENT_TOKEN_RE = /^\s*\{?\s*(?:\/\/|\/\*\*?|\*\/|\*[ \t]|#(?:[ \t!]|$)|<!--|-->)/
 
 /**
