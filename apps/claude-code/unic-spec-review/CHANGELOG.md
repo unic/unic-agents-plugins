@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.5] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
 - Extend `atlassian-fetch` with a Confluence comment write path: `postConfluenceComment` posts either a page-level footer comment or an inline-anchored comment via the Confluence v2 REST API (`/wiki/api/v2/footer-comments`, `/wiki/api/v2/inline-comments`) with injected fetch for unit testing. Add `fetchConfluencePageBody` to fetch the raw HTML of a page (used by the anchor resolver). Add `postJson` internal POST helper.
 - Add `inline-anchor-resolver` module: `resolveAnchor` resolves a Finding anchor text against page HTML into a unique `textSelection + matchCount` (for the Confluence v2 inline-comment API), or returns a footer-fallback decision when the text is absent or appears more than once. Pure function, no I/O.
 - Add `attribution-footer` module: `renderFooter` and `withFooter` append a visible provenance line to every posted comment; `recognizeFooter` identifies command-authored comments by that footer. No hidden marker (ADR-0002). Pure functions, no I/O.
