@@ -30,7 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests cover `inline-anchor-resolver` (resolveAnchor: unique/not-found/ambiguous/no-anchor/case-insensitive/regex-escaping), `attribution-footer` (renderFooter/withFooter/recognizeFooter round-trip, all dimension-hat combos), and the `atlassian-fetch` comment write path (`postConfluenceComment` footer/inline/error cases, `fetchConfluencePageBody` happy/error cases) with injected deps; no live services.
 
 ### Fixed
-- (none)
+- `confluence-writer` now treats a 2xx response without a comment id as a failed post (writes an error and exits non-zero) instead of reporting a phantom success with a blank id, which could not be located, verified, or de-duplicated against later.
+- `/review-spec --post` Step 10 now guards against an empty Finding list (prints `No findings to post.` and stops) and always states the anchoring outcome, so a degrade from inline to a page-level footer comment is never silent.
+- Replaced the backslash line-continuation in the Step 10 `confluence-writer` invocation with a single-line command for cross-platform shell compatibility (Windows `cmd`/PowerShell).
+- Added negative `recognizeFooter` tests pinning that recognition requires the full structured footer marker, not loose mentions of `dimension:`/`hat:` in human prose.
+- Removed em dashes from authored comments and a test regex (issue #206 acceptance criteria forbid em dashes in authored text).
 
 ## [0.1.4] — 2026-06-08
 

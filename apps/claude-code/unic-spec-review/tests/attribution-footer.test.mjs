@@ -20,7 +20,10 @@ describe('renderFooter', () => {
 	})
 
 	it('does not contain an em dash', () => {
-		assert.doesNotMatch(renderFooter('ambiguity', 'black'), /—/)
+		// Build the needle by codepoint so this guard stays free of the literal
+		// character it forbids (issue #206 AC6 bans em dashes in authored text).
+		const emDash = String.fromCharCode(0x2014)
+		assert.ok(!renderFooter('ambiguity', 'black').includes(emDash))
 	})
 })
 
@@ -54,6 +57,16 @@ describe('recognizeFooter', () => {
 		assert.equal(r.recognized, false)
 		assert.equal(r.dimension, undefined)
 		assert.equal(r.hat, undefined)
+	})
+
+	it('returns recognized=false for human prose that merely mentions dimension and hat without the marker', () => {
+		const r = recognizeFooter('I think the dimension: gaps | hat: black call here is wrong.')
+		assert.equal(r.recognized, false)
+	})
+
+	it('returns recognized=false for a near-miss marker missing the pipe delimiters', () => {
+		const r = recognizeFooter('-- unic-spec-review dimension: gaps hat: black')
+		assert.equal(r.recognized, false)
 	})
 
 	it('recognizes a footer embedded in a full comment body', () => {
