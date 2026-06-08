@@ -193,8 +193,42 @@ The script prints the path of the written file. Report it:
 Report written: .spec-review/spec-review-YYYY-MM-DD-HH-MM-SS.md
 ```
 
-If `IS_POST` was true, note:
+## Step 10 - Post a Finding (only when --post is active)
+
+Skip this step entirely if `IS_POST` is false. This keeps bare `/review-spec` strictly read-only.
+
+Present a numbered list of all findings in ranked order (same order as Step 8). For each:
 
 ```
-Note: --post is not yet active in S4. The report has been saved locally only.
+N. [<severity>] <title> (dimension: <dimension>, confidence: <X>%, anchor: <anchor or "none">)
 ```
+
+Ask the user:
+
+```
+Which Finding would you like to post as a Confluence comment? Enter a number, or 0 to post nothing.
+```
+
+If the user enters 0 or declines, print "Nothing posted." and stop. No writes are performed.
+
+For the selected Finding:
+
+1. Write the Finding object as JSON to `.spec-review/.post-finding.json` using the Write tool. Include all fields: `title`, `body`, `severity`, `confidence`, `dimension`, `hat`, `anchor`.
+
+2. Run the confluence-writer:
+
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/confluence-writer.mjs" \
+     --page-url "$TARGET_URL" \
+     --finding-file ".spec-review/.post-finding.json"
+   ```
+
+3. Parse the JSON from stdout. On success, report:
+
+   ```
+   Posted comment <id> to <TARGET_URL>
+   Comment type: <type> (<reason if footer-fallback>)
+   ```
+
+On error (non-zero exit or error JSON on stderr), report the error message and stop without retrying.
+

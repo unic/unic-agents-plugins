@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Extend `atlassian-fetch` with a Confluence comment write path: `postConfluenceComment` posts either a page-level footer comment or an inline-anchored comment via the Confluence v2 REST API (`/wiki/api/v2/footer-comments`, `/wiki/api/v2/inline-comments`) with injected fetch for unit testing. Add `fetchConfluencePageBody` to fetch the raw HTML of a page (used by the anchor resolver). Add `postJson` internal POST helper.
+- Add `inline-anchor-resolver` module: `resolveAnchor` resolves a Finding anchor text against page HTML into a unique `textSelection + matchCount` (for the Confluence v2 inline-comment API), or returns a footer-fallback decision when the text is absent or appears more than once. Pure function, no I/O.
+- Add `attribution-footer` module: `renderFooter` and `withFooter` append a visible provenance line to every posted comment; `recognizeFooter` identifies command-authored comments by that footer. No hidden marker (ADR-0002). Pure functions, no I/O.
+- Add `confluence-writer` thin CLI wrapper: orchestrates page-body fetch, anchor resolution, footer attachment, and comment posting; not unit-tested.
+- Activate `/review-spec --post`: after writing the report, present the ranked Finding list and prompt the user to pick one to post (or decline). A Finding is posted only after explicit user confirmation; declining posts nothing. Bare `/review-spec` (no `--post`) remains strictly read-only.
+- Unit tests cover `inline-anchor-resolver` (resolveAnchor: unique/not-found/ambiguous/no-anchor/case-insensitive/regex-escaping), `attribution-footer` (renderFooter/withFooter/recognizeFooter round-trip, all dimension-hat combos), and the `atlassian-fetch` comment write path (`postConfluenceComment` footer/inline/error cases, `fetchConfluencePageBody` happy/error cases) with injected deps; no live services.
 
 ### Fixed
 - (none)
