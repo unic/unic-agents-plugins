@@ -63,8 +63,9 @@ export function hasCommentChanges(diff) {
 }
 
 // Tokens that identify a line as touching error-handling control flow.
-// Arms: `try {`, `catch (`, `finally {`, bare `throw`, `.catch(` (Promise chain — the
-// explicit dot avoids matching the `catch` keyword arm, which `\b` cannot follow a `.`),
+// Arms: `try {`, `catch (`, `finally {`, bare `throw`, `.catch(` (Promise chain —
+// explicit arm for readability; `\bcatch\s*\(` already matches this since `.` creates
+// a word boundary before `c`, but the leading `.` makes the Promise-chain intent obvious),
 // `Promise.reject(`, and the broad `\b(?:error|err)\b` identifier arm.
 const ERROR_HANDLING_RE =
 	/\btry\s*\{|\bcatch\s*\(|\bfinally\s*\{|\bthrow\b|\.catch\s*\(|Promise\.reject\s*\(|\b(?:error|err)\b/
@@ -76,8 +77,10 @@ const ERROR_HANDLING_RE =
  *
  * Y-det gate for error-handling constructs (ADR-0008). This is the WEAKEST-FIDELITY
  * gate — "error handling changed" is genuinely semantic, not lexical. The
- * `\b(?:error|err)\b` arm over-fires on variable names that merely contain "error"/"err"
- * (`errorMessage`, `errCount`); the `.catch(` arm matches Promise chains regardless of
+ * `\b(?:error|err)\b` arm over-fires on standalone `error`/`err` variable names used
+ * in non-error-handling contexts (e.g. `const error = response.data`, `const err = count`);
+ * `\b` prevents matching compound identifiers like `errorMessage` or `errCount`. The
+ * `.catch(` arm matches Promise chains regardless of
  * whether they handle errors meaningfully. Both are deliberate per the ADR-0008 spawning
  * bias: a false-positive spawn is a cheap empty result block, a false-negative silently
  * omits a finding set. FIRST CANDIDATE FOR Y-llm PROMOTION (model-assisted gate

@@ -77,7 +77,7 @@ One specialised sub-agent lens applied to the whole diff — e.g. `code-reviewer
 _Avoid_: dimension, pass, check
 
 **Spawn Set**:
-The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008). The ADR-0008 amendment (ratified 2026-06) extends this to additionally be content-aware for the three semantic gates (`comment-analyzer`, `silent-failure-hunter`, `type-design-analyzer`) via deterministic diff-content sampling; that content gating is the ratified contract. The comments gate (`comment-analyzer`, issue #213) is implemented as of v2.1.4; the errors gate (`silent-failure-hunter`, issue #214) and types gate (`type-design-analyzer`, issue #215) are planned follow-ups.
+The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008). The ADR-0008 amendment (ratified 2026-06) extends this to additionally be content-aware for the three semantic gates (`comment-analyzer`, `silent-failure-hunter`, `type-design-analyzer`) via deterministic diff-content sampling; that content gating is the ratified contract. The comments gate (`comment-analyzer`, issue #213) is implemented as of v2.1.4; the errors gate (`silent-failure-hunter`, issue #214) is implemented as of v2.1.6; the types gate (`type-design-analyzer`, issue #215) is a planned follow-up.
 _Avoid_: agent list, run set, active agents
 
 ## Relationships
