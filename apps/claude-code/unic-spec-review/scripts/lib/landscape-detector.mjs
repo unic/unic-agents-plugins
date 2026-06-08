@@ -174,9 +174,9 @@ function collectHints(depKeys, hintMap) {
  */
 function detectStack(allDeps, rootEntries) {
 	const fromDeps = collectHints(Object.keys(allDeps ?? {}), STACK_HINTS)
-	const fromFiles = /** @type {string[]} */ (rootEntries
-		.map((e) => FILE_STACK_HINTS.get(e))
-		.filter((v) => v !== undefined))
+	const fromFiles = /** @type {string[]} */ (
+		rootEntries.map((e) => FILE_STACK_HINTS.get(e)).filter((v) => v !== undefined)
+	)
 	return dedupe([...fromDeps, ...fromFiles])
 }
 
@@ -197,17 +197,11 @@ function detectTestSetup(allDeps, rootEntries) {
  */
 function detectTooling(allDeps, packageManager, rootEntries) {
 	const fromDeps = collectHints(Object.keys(allDeps ?? {}), TOOLING_HINTS)
-	const fromFiles = /** @type {string[]} */ (rootEntries
-		.map((e) => FILE_TOOLING_HINTS.get(e))
-		.filter((v) => v !== undefined))
-	const pm = typeof packageManager === 'string'
-		? packageManager.split('@')[0]
-		: null
-	return dedupe([
-		...fromDeps,
-		...fromFiles,
-		...(pm ? [pm] : []),
-	])
+	const fromFiles = /** @type {string[]} */ (
+		rootEntries.map((e) => FILE_TOOLING_HINTS.get(e)).filter((v) => v !== undefined)
+	)
+	const pm = typeof packageManager === 'string' ? packageManager.split('@')[0] : null
+	return dedupe([...fromDeps, ...fromFiles, ...(pm ? [pm] : [])])
 }
 
 /**
@@ -259,7 +253,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		if (argv[i] === '--cwd' && argv[i + 1]) {
 			cwd = argv[++i]
 		} else if (argv[i] === '--adjacent' && argv[i + 1]) {
-			const systems = argv[++i].split(',').map((s) => s.trim()).filter(Boolean)
+			const systems = argv[++i]
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean)
 			adjacentSystems.push(...systems)
 		}
 	}

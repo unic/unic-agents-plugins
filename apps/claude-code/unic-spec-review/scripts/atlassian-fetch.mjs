@@ -726,9 +726,13 @@ export async function mainFetchComments(argv, deps = {}) {
 		stdout.write(`${JSON.stringify(result)}\n`)
 		return result
 	} catch (err) {
-		const error = err instanceof FetchError
-			? { kind: err.kind, message: err.message }
-			: { kind: /** @type {FetchErrorKind} */ ('parse-error'), message: err instanceof Error ? err.message : String(err) }
+		const error =
+			err instanceof FetchError
+				? { kind: err.kind, message: err.message }
+				: {
+						kind: /** @type {FetchErrorKind} */ ('parse-error'),
+						message: err instanceof Error ? err.message : String(err),
+					}
 		const result = { comments: [], error }
 		stdout.write(`${JSON.stringify(result)}\n`)
 		return result

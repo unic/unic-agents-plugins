@@ -427,7 +427,11 @@ describe('mainFetchComments', () => {
 
 	it('writes comments JSON to stdout and returns result', async () => {
 		const chunks = /** @type {string[]} */ ([])
-		const stdout = { write: (/** @type {string} */ s) => { chunks.push(s) } }
+		const stdout = {
+			write: (/** @type {string} */ s) => {
+				chunks.push(s)
+			},
+		}
 		const json = makeCommentsJson([makeRaw('1', 'footer', '<p>hi</p>', 'Alice')])
 		const result = await mainFetchComments(['--fetch-comments', '12345'], {
 			fetch: fetchJson(json),
@@ -444,7 +448,11 @@ describe('mainFetchComments', () => {
 
 	it('returns auth-error when credentials are missing', async () => {
 		const chunks = /** @type {string[]} */ ([])
-		const stdout = { write: (/** @type {string} */ s) => { chunks.push(s) } }
+		const stdout = {
+			write: (/** @type {string} */ s) => {
+				chunks.push(s)
+			},
+		}
 		const result = await mainFetchComments(['--fetch-comments', '12345'], {
 			loadCreds: () => null,
 			stdout,
@@ -456,9 +464,15 @@ describe('mainFetchComments', () => {
 
 	it('returns auth-error when credential load throws', async () => {
 		const chunks = /** @type {string[]} */ ([])
-		const stdout = { write: (/** @type {string} */ s) => { chunks.push(s) } }
+		const stdout = {
+			write: (/** @type {string} */ s) => {
+				chunks.push(s)
+			},
+		}
 		const result = await mainFetchComments(['--fetch-comments', '12345'], {
-			loadCreds: () => { throw new Error('bad JSON') },
+			loadCreds: () => {
+				throw new Error('bad JSON')
+			},
 			stdout,
 			stderr: { write: () => {} },
 		})
@@ -475,7 +489,11 @@ describe('mainFetchComments', () => {
 
 	it('returns parse-error for a non-2xx response from the comments endpoint', async () => {
 		const chunks = /** @type {string[]} */ ([])
-		const stdout = { write: (/** @type {string} */ s) => { chunks.push(s) } }
+		const stdout = {
+			write: (/** @type {string} */ s) => {
+				chunks.push(s)
+			},
+		}
 		const result = await mainFetchComments(['--fetch-comments', '12345'], {
 			fetch: fetchStatus(500),
 			loadCreds: () => CREDS,
