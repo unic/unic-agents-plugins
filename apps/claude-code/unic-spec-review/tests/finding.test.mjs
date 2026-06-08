@@ -56,6 +56,10 @@ describe('validateFinding', () => {
 		assert.match(/** @type {string} */ (validateFinding({ ...validRaw(), confidence: -1 })), /range/)
 	})
 
+	it('returns an error for NaN confidence', () => {
+		assert.match(/** @type {string} */ (validateFinding({ ...validRaw(), confidence: NaN })), /finite/)
+	})
+
 	it('returns an error for an invalid hat', () => {
 		assert.match(/** @type {string} */ (validateFinding({ ...validRaw(), hat: 'purple' })), /hat/)
 	})
@@ -122,6 +126,26 @@ describe('normalizeFinding', () => {
 	it('defaults body to empty string when neither body nor description present', () => {
 		const f = normalizeFinding({ title: 't' }, 'black', 'gaps')
 		assert.equal(f.body, '')
+	})
+
+	it('falls back to provided hat when raw.hat is invalid', () => {
+		const f = normalizeFinding({ title: 't', body: 'b', hat: 'purple' }, 'black', 'gaps')
+		assert.equal(f.hat, 'black')
+	})
+
+	it('falls back to provided dimension when raw.dimension is invalid', () => {
+		const f = normalizeFinding({ title: 't', body: 'b', dimension: 'unknown' }, 'black', 'ambiguity')
+		assert.equal(f.dimension, 'ambiguity')
+	})
+
+	it('falls back to minor when raw.severity is invalid', () => {
+		const f = normalizeFinding({ title: 't', body: 'b', severity: 'blocker' }, 'black', 'gaps')
+		assert.equal(f.severity, 'minor')
+	})
+
+	it('uses (untitled) when title is absent', () => {
+		const f = normalizeFinding({ body: 'b' }, 'black', 'gaps')
+		assert.equal(f.title, '(untitled)')
 	})
 })
 

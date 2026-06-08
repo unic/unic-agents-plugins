@@ -58,7 +58,7 @@ export function validateFinding(obj) {
 	if (typeof f.title !== 'string' || !f.title) return 'missing title'
 	if (typeof f.body !== 'string' || !f.body) return 'missing body'
 	if (!VALID_SEVERITIES.includes(/** @type {any} */ (f.severity))) return `invalid severity: ${f.severity}`
-	if (typeof f.confidence !== 'number') return 'confidence must be a number'
+	if (typeof f.confidence !== 'number' || !Number.isFinite(f.confidence)) return 'confidence must be a finite number'
 	if (f.confidence < 0 || f.confidence > 100) return `confidence out of range: ${f.confidence}`
 	if (f.anchor !== null && typeof f.anchor !== 'string') return 'anchor must be string or null'
 	if (!VALID_HATS.includes(/** @type {any} */ (f.hat))) return `invalid hat: ${f.hat}`
@@ -77,6 +77,7 @@ export function validateFinding(obj) {
  * @returns {Finding}
  */
 export function normalizeFinding(raw, hat, dimension) {
+	// Treat empty string as absent: prefer description over ''
 	const body =
 		typeof raw.body === 'string' && raw.body ? raw.body : typeof raw.description === 'string' ? raw.description : ''
 	return {
@@ -89,7 +90,7 @@ export function normalizeFinding(raw, hat, dimension) {
 			? /** @type {Severity} */ (raw.severity)
 			: 'minor',
 		anchor: typeof raw.anchor === 'string' ? raw.anchor : null,
-		title: typeof raw.title === 'string' ? raw.title : '',
+		title: typeof raw.title === 'string' && raw.title ? raw.title : '(untitled)',
 		body,
 	}
 }

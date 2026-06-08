@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { VALID_DIMENSIONS } from '../scripts/lib/finding.mjs'
-import { DIMENSION_HAT, dimensionToHat, groupByHat } from '../scripts/lib/hat-mapper.mjs'
+import { DIMENSION_HAT, dimensionToHat, groupByHat, HAT_LABELS, HAT_ORDER } from '../scripts/lib/hat-mapper.mjs'
 
 /**
  * Build a valid Finding, overriding selected fields.
@@ -107,5 +107,18 @@ describe('groupByHat', () => {
 			groups.get('black')?.map((f) => f.title),
 			['1', '2', '3']
 		)
+	})
+})
+
+describe('HAT_LABELS', () => {
+	it('has an entry for every hat in HAT_ORDER', () => {
+		for (const hat of HAT_ORDER) {
+			assert.ok(hat in HAT_LABELS, `HAT_LABELS missing entry for hat: ${hat}`)
+			assert.ok(typeof HAT_LABELS[hat] === 'string' && HAT_LABELS[hat].length > 0)
+		}
+	})
+
+	it('black label contains "Black Hat"', () => {
+		assert.ok(HAT_LABELS.black.includes('Black Hat'))
 	})
 })

@@ -155,6 +155,26 @@ describe('report-renderer CLI validation', () => {
 		assert.match(stderr, /pageUrl/)
 	})
 
+	it('exits 1 and mentions timestamp when timestamp is missing', () => {
+		const { status, stderr } = runCli({
+			pageTitle: 'My Spec',
+			pageUrl: 'https://x.atlassian.net/wiki/p/1',
+			findings: [],
+		})
+		assert.equal(status, 1)
+		assert.match(stderr, /timestamp/)
+	})
+
+	it('exits 1 and mentions findings when findings is missing', () => {
+		const { status, stderr } = runCli({
+			pageTitle: 'My Spec',
+			pageUrl: 'https://x.atlassian.net/wiki/p/1',
+			timestamp: '2026-06-05T13:45:09.123Z',
+		})
+		assert.equal(status, 1)
+		assert.match(stderr, /findings/)
+	})
+
 	it('exits 0 when all required fields are present', () => {
 		const { status } = runCli({
 			pageTitle: 'My Spec',

@@ -14,18 +14,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { HAT_LABELS, HAT_ORDER } from './hat-mapper.mjs'
+import { groupByHat, HAT_LABELS, HAT_ORDER } from './hat-mapper.mjs'
 
 /**
  * @typedef {Object} Finding
  * @property {string} title
- * @property {string} [description] - S1 compat (gaps-agent)
- * @property {string} [body]        - S4+; preferred over description
+ * @property {string} [description] - legacy gaps-agent field; use body instead
+ * @property {string} [body]        - preferred body field; falls back to description
  * @property {'critical' | 'important' | 'minor'} [severity]
  * @property {number} [confidence]
  * @property {string | null} [anchor]
- * @property {string} [hat]         - S4+; hat tag
- * @property {string} [dimension]   - S4+; dimension tag
+ * @property {string} [hat]         - hat tag (absent in gaps-agent output)
+ * @property {string} [dimension]   - dimension tag (absent in gaps-agent output)
  */
 
 /**
@@ -76,11 +76,7 @@ function renderFinding(f) {
  * @returns {string}
  */
 function renderHatSection(label, sectionFindings) {
-	const body =
-		sectionFindings.length > 0
-			? sectionFindings.map(renderFinding).join('\n\n')
-			: `_No ${label.toLowerCase()} findings._`
-	return `## ${label}\n\n${body}`
+	return `## ${label}\n\n${sectionFindings.map(renderFinding).join('\n\n')}`
 }
 
 /**
@@ -100,24 +96,17 @@ export function renderReport(input, outputDir, deps = {}) {
 	const filename = `spec-review-${slug}.md`
 	const path = join(outputDir, filename)
 
-	// Detect hat-tagged findings for S4+ grouped rendering.
+	// Detect hat-tagged findings for grouped hat rendering.
 	const hasHatTags = input.findings.length > 0 && input.findings.some((f) => f.hat)
 
 	let sections
 	if (hasHatTags) {
-		/** @type {Map<string, Finding[]>} */
-		const grouped = new Map()
-		for (const f of input.findings) {
-			const hat = f.hat ?? 'black'
-			const existing = grouped.get(hat)
-			if (existing) existing.push(f)
-			else grouped.set(hat, [f])
-		}
+		const grouped = groupByHat(/** @type {any} */ (input.findings))
 		sections = HAT_ORDER.filter((hat) => grouped.has(hat))
 			.map((hat) => renderHatSection(HAT_LABELS[hat] ?? hat, grouped.get(hat) ?? []))
 			.join('\n\n')
 	} else {
-		// S1 backward-compat path: flat "Gaps / Completeness" section.
+		// Backward-compat flat path: gaps-agent output carries no hat tags.
 		const body =
 			input.findings.length > 0 ? input.findings.map(renderFinding).join('\n\n') : '_No gaps or completeness findings._'
 		sections = `## Gaps / Completeness\n\n${body}`
