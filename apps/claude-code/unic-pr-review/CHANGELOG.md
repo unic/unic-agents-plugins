@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
-## [2.1.5] — 2026-06-08
+## [2.1.4] — 2026-06-08
 
 ### Breaking
 - (none)
@@ -32,6 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existing plain-text path list (backward-compatible). The orchestrator (Step 6 / Step 1.7) now
   passes the full diff alongside the changed-files list. Establishes the contract the errors (#214)
   and types (#215) content gates will reuse.
+
+### Fixed
+- (none)
+
+## [2.1.3] — 2026-06-05
+
+### Breaking
+- (none)
+
+### Added
+- Two-phase code-simplifier model (issue #216, ADR-0013): `code-simplifier` is removed from the initial parallel fan-out and runs as a second phase only when Phase 1 yields no Critical and no Important findings and ≥3 non-test source files changed; Phase 2 honours preview / `--dry-run` (computes and renders, posts nothing); new `shouldRunPhase2` pure helper in `changed-file-analyser.mjs` with full unit-test coverage
 
 ### Fixed
 - (none)

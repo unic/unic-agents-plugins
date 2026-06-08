@@ -6,7 +6,7 @@ Guidance for any AI agent working inside this Plugin directory. `CLAUDE.md` in t
 
 `unic-spec-review` is a Claude Code Plugin in the [`unic-agents-plugins`](../../../AGENTS.md) monorepo. It runs an adversarial review of web specifications across four sources (Confluence pages & comments, Figma designs via the Dev Mode MCP, the live production system via the Playwright MCP, and the local repo) and emits Confidence-scored, Six-Hats-tagged Findings. An interactive Approval Loop, gated behind `--post`, publishes selected Findings as Confluence comments.
 
-> Status: S1 skeleton implemented (URL classify → Confluence fetch → Gaps agent → report). Full design (traversal, Figma, live-system, Approval Loop, de-dup) is specified in the [PRD](docs/issues/unic-spec-review/PRD.md) and lands in later slices.
+> Status: S1–S3 implemented (URL classify → Confluence fetch → Gaps agent → report; Confluence comments read path; `LandscapeBrief` detection via `landscape-detector`). Full design (traversal, Figma, live-system, Approval Loop, de-dup, agent consumption of LandscapeBrief) is specified in the [PRD](docs/issues/unic-spec-review/PRD.md) and lands in later slices.
 
 ## Where to start
 

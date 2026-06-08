@@ -21,7 +21,7 @@
       "name": "unic-pr-review",
       "source": "./",
       "tags": ["productivity", "code-review", "azure-devops"],
-      "version": "2.1.5"
+      "version": "2.1.4"
     }
   ]
 }
