@@ -231,4 +231,3 @@ For the selected Finding:
    ```
 
 On error (non-zero exit or error JSON on stderr), report the error message and stop without retrying.
-

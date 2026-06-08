@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { renderFooter, recognizeFooter, withFooter, FOOTER_MARKER } from '../scripts/lib/attribution-footer.mjs'
+import { FOOTER_MARKER, recognizeFooter, renderFooter, withFooter } from '../scripts/lib/attribution-footer.mjs'
 
 describe('renderFooter', () => {
 	it('contains the FOOTER_MARKER prefix', () => {

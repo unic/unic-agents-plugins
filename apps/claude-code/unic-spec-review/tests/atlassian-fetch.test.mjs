@@ -542,7 +542,10 @@ describe('fetchConfluencePageBody', () => {
 
 	it('throws FetchError kind not-found when URL has no page ID', async () => {
 		await assert.rejects(
-			() => fetchConfluencePageBody('https://example.com/wiki/something', CREDS, { fetch: fetchThrows(new Error('unused')) }),
+			() =>
+				fetchConfluencePageBody('https://example.com/wiki/something', CREDS, {
+					fetch: fetchThrows(new Error('unused')),
+				}),
 			(err) => /** @type {any} */ (err).kind === 'not-found'
 		)
 	})
@@ -554,7 +557,9 @@ describe('postConfluenceComment', () => {
 
 	it('posts a footer comment and returns id and created', async () => {
 		const responseJson = { id: 'c-new', version: { createdAt: '2026-06-08T10:00:00.000Z' } }
-		const result = await postConfluenceComment('123', 'body text', 'footer', null, CREDS, { fetch: postOk(responseJson) })
+		const result = await postConfluenceComment('123', 'body text', 'footer', null, CREDS, {
+			fetch: postOk(responseJson),
+		})
 		assert.equal(result.id, 'c-new')
 		assert.equal(result.created, '2026-06-08T10:00:00.000Z')
 	})
@@ -614,7 +619,10 @@ describe('postConfluenceComment', () => {
 
 	it('throws FetchError kind unreachable on network error', async () => {
 		await assert.rejects(
-			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
+			() =>
+				postConfluenceComment('123', 'body', 'footer', null, CREDS, {
+					fetch: fetchThrows(new TypeError('fetch failed')),
+				}),
 			(err) => /** @type {any} */ (err).kind === 'unreachable'
 		)
 	})

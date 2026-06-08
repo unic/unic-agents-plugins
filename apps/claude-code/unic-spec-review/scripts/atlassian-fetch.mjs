@@ -436,7 +436,12 @@ async function postJson(url, body, creds, fetchImpl) {
 	}
 	let res
 	try {
-		res = await fetchImpl(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+		res = await fetchImpl(url, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+		})
 	} catch (err) {
 		throw new FetchError(url, 'unreachable', mapFetchError(err))
 	}
