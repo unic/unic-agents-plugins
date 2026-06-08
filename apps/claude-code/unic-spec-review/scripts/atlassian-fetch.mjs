@@ -496,6 +496,77 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 }
 
 /**
+ * @typedef {Object} ConfluenceComment
+ * @property {string} id
+ * @property {'footer' | 'inline' | 'unknown'} location
+ * @property {string} author
+ * @property {string} body
+ */
+
+/**
+ * @typedef {Object} CommentsResult
+ * @property {ConfluenceComment[]} comments
+ * @property {number} total
+ */
+
+/**
+ * @param {any} raw
+ * @returns {'footer' | 'inline' | 'unknown'}
+ */
+function extractCommentLocation(raw) {
+	const loc = raw?.extensions?.location
+	if (!loc) return 'footer'
+	if (typeof loc === 'string') {
+		if (loc === 'inline') return 'inline'
+		if (loc === 'footer') return 'footer'
+		return 'unknown'
+	}
+	if (typeof loc === 'object' && loc !== null) {
+		return loc.type === 'inline' ? 'inline' : 'footer'
+	}
+	return 'unknown'
+}
+
+/**
+ * @param {any} raw
+ * @returns {ConfluenceComment}
+ */
+function mapComment(raw) {
+	const location = extractCommentLocation(raw)
+	const htmlBody = raw?.body?.storage?.value ?? ''
+	const body = stripHtml(typeof htmlBody === 'string' ? htmlBody : '').slice(0, 500)
+	const author = raw?.version?.by?.displayName ?? ''
+	return {
+		id: typeof raw?.id === 'string' ? raw.id : String(raw?.id ?? ''),
+		location,
+		author,
+		body,
+	}
+}
+
+/**
+ * Fetch existing Confluence comments (footer and inline) for a page. Read-only.
+ * Uses Confluence v1 REST API child/comment endpoint with expand=body.storage,
+ * extensions.location,version.by to distinguish footer from inline comments.
+ * @param {string} pageId
+ * @param {AtlassianCreds} creds
+ * @param {{ fetch?: FetchLike, limit?: number }} [deps]
+ * @returns {Promise<CommentsResult>}
+ */
+export async function fetchConfluenceComments(pageId, creds, deps = {}) {
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const limit = deps.limit ?? 50
+	const base = stripTrailingSlash(creds.url)
+	const url = `${base}/wiki/rest/api/content/${encodeURIComponent(pageId)}/child/comment?expand=body.storage,extensions.location,version.by&limit=${limit}&start=0`
+	const json = await fetchJson(url, creds, fetchImpl)
+	const results = Array.isArray(json?.results) ? json.results : []
+	return {
+		comments: results.map(mapComment),
+		total: typeof json?.size === 'number' ? json.size : results.length,
+	}
+}
+
+/**
  * @typedef {Object} CollectDeps
  * @property {FetchLike} [fetch] - injectable fetch for tests
  * @property {string} [homedir] - override for os.homedir(); used in tests
@@ -618,18 +689,70 @@ export async function main(argv, deps = {}) {
 	return result
 }
 
+/**
+ * CLI handler for --fetch-comments <pageId>. Loads creds and calls
+ * fetchConfluenceComments; never throws - errors go into the JSON output.
+ * @param {string[]} argv
+ * @param {CollectDeps & { stdout?: { write: (s: string) => void } }} [deps]
+ * @returns {Promise<{ comments: ConfluenceComment[], error?: { kind: FetchErrorKind, message: string }, total?: number }>}
+ */
+export async function mainFetchComments(argv, deps = {}) {
+	const idx = argv.indexOf('--fetch-comments')
+	const pageId = argv[idx + 1]
+	if (!pageId || pageId.startsWith('--')) {
+		throw new Error('--fetch-comments requires a page ID argument')
+	}
+	const stderr = deps.stderr ?? process.stderr
+	const stdout = deps.stdout ?? process.stdout
+	const loadCreds = deps.loadCreds ?? loadAtlassianCreds
+	let creds
+	try {
+		creds = loadCreds(deps.homedir, deps.env)
+	} catch (err) {
+		const message = `credential file could not be read - ${err instanceof Error ? err.message : String(err)}`
+		stderr.write(`atlassian-fetch: ${message}\n`)
+		const result = { comments: [], error: { kind: /** @type {FetchErrorKind} */ ('auth-error'), message } }
+		stdout.write(`${JSON.stringify(result)}\n`)
+		return result
+	}
+	if (!creds) {
+		const message = 'No Atlassian credentials configured - run /unic-spec-review:setup-confluence'
+		const result = { comments: [], error: { kind: /** @type {FetchErrorKind} */ ('auth-error'), message } }
+		stdout.write(`${JSON.stringify(result)}\n`)
+		return result
+	}
+	try {
+		const result = await fetchConfluenceComments(pageId, creds, { fetch: deps.fetch })
+		stdout.write(`${JSON.stringify(result)}\n`)
+		return result
+	} catch (err) {
+		const error = err instanceof FetchError
+			? { kind: err.kind, message: err.message }
+			: { kind: /** @type {FetchErrorKind} */ ('parse-error'), message: err instanceof Error ? err.message : String(err) }
+		const result = { comments: [], error }
+		stdout.write(`${JSON.stringify(result)}\n`)
+		return result
+	}
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-	main(process.argv.slice(2))
-		.then((result) => {
-			// Exit 1 only when no credentials are configured at all (global auth-error,
-			// url === ''). Per-URL auth errors and not-found entries exit 0 so the
-			// gaps-agent can apply hard-stop logic by inspecting the errors array -
-			// not-found is soft, auth-error/unreachable per-URL is hard.
-			const credsMissing = result.errors.some((e) => e.kind === 'auth-error' && e.url === '')
-			process.exit(credsMissing ? 1 : 0)
-		})
-		.catch((err) => {
-			process.stderr.write(`atlassian-fetch: unexpected error: ${err?.stack ?? err?.message ?? String(err)}\n`)
-			process.exit(1)
-		})
+	const argv = process.argv.slice(2)
+	if (argv.includes('--fetch-comments')) {
+		mainFetchComments(argv)
+			.then(() => process.exit(0))
+			.catch((err) => {
+				process.stderr.write(`atlassian-fetch: unexpected error: ${err?.stack ?? err?.message ?? String(err)}\n`)
+				process.exit(1)
+			})
+	} else {
+		main(argv)
+			.then((result) => {
+				const credsMissing = result.errors.some((e) => e.kind === 'auth-error' && e.url === '')
+				process.exit(credsMissing ? 1 : 0)
+			})
+			.catch((err) => {
+				process.stderr.write(`atlassian-fetch: unexpected error: ${err?.stack ?? err?.message ?? String(err)}\n`)
+				process.exit(1)
+			})
+	}
 }

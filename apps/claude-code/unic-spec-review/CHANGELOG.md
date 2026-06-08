@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Extend `atlassian-fetch` with a Confluence comment-read path: `fetchConfluenceComments` reads footer and inline comments for a page via the Confluence v1 REST API, read-only with injected `fetch`; `mainFetchComments` provides the `--fetch-comments <pageId>` CLI entry point.
+- Add `scripts/lib/landscape-detector.mjs`: `detectLandscape` produces a `LandscapeBrief` (stack, testSetup, tooling, reachableProd, adjacentSystems) from repo manifests and root file listing plus user-declared out-of-repo adjacent systems; never hardcodes the stack; injectable `readFile`/`listDir` deps for tests; CLI entry via `--cwd` and `--adjacent` flags.
+- Unit tests for the new `fetchConfluenceComments` and `mainFetchComments` paths with stubbed fetch and injected credentials; no live services.
+- Unit tests for `detectLandscape` covering all Brief fields: stack/testSetup/tooling detection from package.json deps, file-based hints (Cargo.toml, pyproject.toml, Dockerfile, etc.), reachableProd inference, adjacent systems pass-through, and graceful handling of missing or malformed package.json.
 
 ### Fixed
 - (none)
