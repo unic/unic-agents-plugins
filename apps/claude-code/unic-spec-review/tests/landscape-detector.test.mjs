@@ -9,22 +9,42 @@ import { detectLandscape } from '../scripts/lib/landscape-detector.mjs'
 /** @import { LandscapeDetectorDeps } from '../scripts/lib/landscape-detector.mjs' */
 
 /**
- * Build a minimal in-memory filesystem stub. Keys are absolute paths; values
- * are file contents. readdirSync returns only entries directly within a dir.
+ * Normalise a path to forward slashes so the stub matches regardless of the
+ * platform separator. `detectLandscape` builds paths with `node:path` `join`,
+ * which emits backslashes on Windows; test keys use forward slashes.
+ * @param {string} p
+ * @returns {string}
+ */
+const norm = (p) => p.replace(/[\\/]+/g, '/')
+
+/**
+ * Build a minimal in-memory filesystem stub. Keys are absolute paths (forward
+ * slashes); values are file contents. Path matching is separator-insensitive so
+ * the same test runs on POSIX and Windows. readdirSync returns only entries
+ * directly within a dir.
  * @param {Record<string, string>} files
  * @returns {LandscapeDetectorDeps}
  */
 function stubFs(files) {
+	const keys = Object.keys(files)
 	return {
-		existsSync: (p) => Object.hasOwn(files, p) || Object.keys(files).some((f) => f.startsWith(`${p}/`)),
-		readFileSync: (p) => {
-			if (!Object.hasOwn(files, p)) throw new Error(`ENOENT: ${p}`)
-			return files[p]
+		existsSync: (p) => {
+			const np = norm(p)
+			return keys.some((k) => norm(k) === np || norm(k).startsWith(`${np}/`))
 		},
-		readdirSync: (dir) =>
-			Object.keys(files)
-				.filter((p) => p.startsWith(`${dir}/`) && !p.slice(dir.length + 1).includes('/'))
-				.map((p) => p.slice(dir.length + 1)),
+		readFileSync: (p) => {
+			const np = norm(p)
+			const match = keys.find((k) => norm(k) === np)
+			if (match === undefined) throw new Error(`ENOENT: ${p}`)
+			return files[match]
+		},
+		readdirSync: (dir) => {
+			const nd = norm(dir)
+			return keys
+				.map(norm)
+				.filter((k) => k.startsWith(`${nd}/`) && !k.slice(nd.length + 1).includes('/'))
+				.map((k) => k.slice(nd.length + 1))
+		},
 	}
 }
 
