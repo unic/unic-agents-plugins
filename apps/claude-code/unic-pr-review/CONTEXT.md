@@ -80,6 +80,10 @@ _Avoid_: dimension, pass, check
 The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008). The ADR-0008 amendment (ratified 2026-06) extends this to additionally be content-aware for the three semantic gates (`comment-analyzer`, `silent-failure-hunter`, `type-design-analyzer`) via deterministic diff-content sampling; that content gating is the ratified contract. The comments gate (`comment-analyzer`, issue #213) is implemented as of v2.1.4; the errors gate (`silent-failure-hunter`, issue #214) is implemented as of v2.1.6; the types gate (`type-design-analyzer`, issue #215) is a planned follow-up.
 _Avoid_: agent list, run set, active agents
 
+**Semantic Gate**:
+One of the three content-aware spawn conditions — comments (`comment-analyzer`), errors (`silent-failure-hunter`), types (`type-design-analyzer`) — that decides its Review Aspect by **both** a path trigger and a deterministic content sample of the diff. A Semantic Gate is **additive**: it spawns on the path trigger _or_ the content match, and content sampling only adds spawns the path trigger missed — it never narrows one away (ADR-0008). Contrast the path-only gates (`pr-test-analyzer`, `code-simplifier`) and the always-on `code-reviewer`.
+_Avoid_: content filter, semantic check, narrowing gate
+
 ## Relationships
 
 - A **Review** runs in exactly one **Mode**, decided at startup

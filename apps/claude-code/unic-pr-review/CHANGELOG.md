@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`errorMessage`/`errCount`) do NOT fire the `\b`-guarded `error`/`err` arm, and error tokens
   on unchanged diff context lines do NOT spawn the agent.
 
+### Changed
+- ADR-0008 amendment corrected: content gating is documented as **additive-only** (path OR
+  content, never AND-narrowed). The prior text implied sampling would cure the errors/types
+  gates' over-firing vs the toolkit; that is structurally impossible under an additive contract.
+  The over-spawn is now recorded as an accepted divergence within the behavioural-parity
+  contract, with a per-gate table of what each content sample adds where the path trigger is
+  blind. CONTEXT.md gains a **Semantic Gate** glossary term.
+
 ### Fixed
 - (none)
 
