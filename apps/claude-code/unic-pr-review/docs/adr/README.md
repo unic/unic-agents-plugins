@@ -14,3 +14,4 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0010](0010-provider-folder-bundle.md) — Provider as a folder bundle
 - [0011](0011-intent-assessor-for-live-ac-verdicts.md) — Intent Assessor as a dedicated agent for live AC verdicts
 - [0012](0012-checkout-free-first-review-diff.md) — First-review computes a checkout-free merge-base diff from ADO commit SHAs
+- [0013](0013-two-phase-code-simplifier.md) — `code-simplifier` runs as a conditional Phase 2 post-pass, not in the Phase 1 fan-out
