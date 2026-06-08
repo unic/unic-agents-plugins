@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [2.1.6] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
 - Content-aware errors gate (issue #214, ADR-0008 amendment): `silent-failure-hunter` now spawns
   whenever the diff adds or removes error-handling constructs (`try`/`catch`/`finally`, `throw`,
   `.catch(`, `Promise.reject`, `error`/`err` identifiers) in any file type, not only when a

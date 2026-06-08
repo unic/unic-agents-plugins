@@ -111,7 +111,10 @@ export function hasErrorHandlingChanges(diff) {
 // Intent Assessor is absent deliberately — spawned by intent presence, not file categories (ADR-0011). Never add it here.
 const SPAWN_TABLE = [
 	{ agent: 'code-reviewer', predicate: () => true },
-	{ agent: 'silent-failure-hunter', predicate: (files, diff) => files.some(isSourceFile) || hasErrorHandlingChanges(diff) },
+	{
+		agent: 'silent-failure-hunter',
+		predicate: (files, diff) => files.some(isSourceFile) || hasErrorHandlingChanges(diff),
+	},
 	{ agent: 'type-design-analyzer', predicate: (files) => files.some(isTypeFile) },
 	{ agent: 'pr-test-analyzer', predicate: (files) => files.some(isTestFile) },
 	{ agent: 'comment-analyzer', predicate: (files, diff) => files.some(isDocFile) || hasCommentChanges(diff) },
