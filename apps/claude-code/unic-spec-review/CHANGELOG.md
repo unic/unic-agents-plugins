@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.3] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
 - Extend `atlassian-fetch` with `fetchConfluenceComments`: reads all footer and inline Confluence comments for a page via the v1 REST API with injected fetch; paginated via `_links.next`; read-only, no writes. Inline comments carry the original selection text as `anchor`.
 - Add `landscape-detector` module: derives a `LandscapeBrief` (stack, test runner, test frameworks, tooling, reachable-prod flag, adjacent systems) from repo manifests (package.json, pyproject.toml, requirements.txt, Cargo.toml, go.mod, Gemfile, pom.xml, build.gradle) plus the file listing and user-declared out-of-repo adjacent systems; never hardcodes the technology stack. Computed once and exposed for injection into the review agents (consumed fully in S4).
 - Unit tests cover `fetchConfluenceComments` (footer, inline with anchor, empty page, pagination, HTML strip, author fallback, 401/404, bad URL) and `detectLandscape` (Node.js/TypeScript/React, jest/vitest/node:test runner selection, Playwright reachableProd, Biome/ESLint tooling, Python/pytest, Rust, Go, Ruby/Rails, Java, adjacentSystems passthrough, malformed JSON, readdir failure) with injected deps; no live services.
