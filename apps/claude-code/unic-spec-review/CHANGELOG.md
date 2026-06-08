@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.1.3] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Extend `atlassian-fetch` with `fetchConfluenceComments`: reads all footer and inline Confluence comments for a page via the v1 REST API with injected fetch; paginated via `_links.next`; read-only, no writes. Inline comments carry the original selection text as `anchor`.
+- Add `landscape-detector` module: derives a `LandscapeBrief` (stack, test runner, test frameworks, tooling, reachable-prod flag, adjacent systems) from repo manifests (package.json, pyproject.toml, requirements.txt, Cargo.toml, go.mod, Gemfile, pom.xml, build.gradle) plus the file listing and user-declared out-of-repo adjacent systems; never hardcodes the technology stack. Computed once and exposed for injection into the review agents (consumed fully in S4).
+- Unit tests cover `fetchConfluenceComments` (footer, inline with anchor, empty page, pagination, HTML strip, author fallback, 401/404, bad URL) and `detectLandscape` (Node.js/TypeScript/React, jest/vitest/node:test runner selection, Playwright reachableProd, Biome/ESLint tooling, Python/pytest, Rust, Go, Ruby/Rails, Java, adjacentSystems passthrough, malformed JSON, readdir failure) with injected deps; no live services.
+
+### Fixed
+- Address PR #224 multi-agent review findings: prefer the `node --test` script over a Playwright dependency when selecting the test runner; stop double-reporting Playwright in `testFrameworks` (already carried by `testRunner`); drop the non-existent `@vue/core` framework key; detect `reachableProd` Playwright configs with per-variant `existsSync` instead of a directory-listing glob (no false-negative when `readdir` fails); cap `fetchConfluenceComments` pagination at 50 pages as an infinite-loop guard; tighten the JSDoc on `detectLandscape` and the `ConfluenceComment.id` typedef; add unit tests for the secondary landscape branches (build.gradle, Django, FastAPI, Flask, Cypress, `@jest/core`, TypeScript-without-tsconfig, node:test-over-Playwright) and a `fetchConfluenceComments` transport-error case.
+- Address PR #224 re-review findings: make `detectLandscape` honour its never-throws contract by routing every existence check through a `tryExists` helper (a throwing `existsSync`, e.g. EACCES, no longer escapes); surface comment pagination truncation via a new `truncated` flag on `ConfluenceCommentsResult` so a hit cap is no longer a silent data loss; model `testRunner` as a `TestRunner` string-literal union instead of bare `string`; remove the now-dead `tryListDir` helper and its `readdirSync` dependency seam (orphaned by the `existsSync` reachableProd fix); cover all four `playwright.config.{js,ts,mjs,cjs}` variants and the pagination cap with tests.
+
 ## [0.1.2] — 2026-06-05
 
 ### Breaking
