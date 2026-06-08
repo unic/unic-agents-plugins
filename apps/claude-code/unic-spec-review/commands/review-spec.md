@@ -1,14 +1,14 @@
 ---
 allowed-tools: Agent, Bash(node *), Write
 argument-hint: '<confluence-url> [--post]'
-description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post enables the Approval Loop (inert in S4).
+description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post activates the single-Finding Approval Loop (inline-anchored comment or footer fallback).
 ---
 
-# /review-spec (S4 Blue Orchestrator)
+# /review-spec (S5 Blue Orchestrator)
 
 Runs a read-only adversarial review of one Confluence spec page using eleven parallel agents (eight Black-hat dimension agents plus Green, Yellow, Red perspective agents), ranks Findings by confidence \* severity, groups them by hat, prints a ranked hat-grouped triage, and writes a durable timestamped report under `.spec-review/`.
 
-> **S4 scope:** single Confluence page, eleven parallel agents, Landscape Brief injection into Testability/Feasibility/Spec-versus-Live/NFR. No Figma, no live-system, no posting. `--post` is recognised but inert.
+> **S5 scope:** single Confluence page, eleven parallel agents, Landscape Brief injection, single-Finding write path via `--post` (inline-anchored comment, footer fallback). No Figma, no live-system. Full multi-Finding Approval Loop and similarity de-dup land in S8.
 
 ## Step 1 - Parse arguments
 
@@ -193,8 +193,42 @@ The script prints the path of the written file. Report it:
 Report written: .spec-review/spec-review-YYYY-MM-DD-HH-MM-SS.md
 ```
 
-If `IS_POST` was true, note:
+## Step 10 - Post a Finding (only when --post is active)
+
+Skip this step entirely if `IS_POST` is false. This keeps bare `/review-spec` strictly read-only.
+
+If there are no findings, print `No findings to post.` and stop.
+
+Present a numbered list of all findings in ranked order (same order as Step 8). For each:
 
 ```
-Note: --post is not yet active in S4. The report has been saved locally only.
+N. [<severity>] <title> (dimension: <dimension>, confidence: <X>%, anchor: <anchor or "none">)
 ```
+
+Ask the user:
+
+```
+Which Finding would you like to post as a Confluence comment? Enter a number, or 0 to post nothing.
+```
+
+If the user enters 0 or declines, print "Nothing posted." and stop. No writes are performed.
+
+For the selected Finding:
+
+1. Write the Finding object as JSON to `.spec-review/.post-finding.json` using the Write tool. Include all fields: `title`, `body`, `severity`, `confidence`, `dimension`, `hat`, `anchor`.
+
+2. Run the confluence-writer:
+
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/confluence-writer.mjs" --page-url "$TARGET_URL" --finding-file ".spec-review/.post-finding.json"
+   ```
+
+3. Parse the JSON from stdout. On success, report (always state the anchoring outcome so a degrade from inline to a page-level footer is never silent):
+
+   ```
+   Posted comment <id> to <TARGET_URL>
+   Anchoring: inline-anchored   (when type is "inline")
+   Anchoring: footer fallback (<reason>)   (when type is "footer")
+   ```
+
+On error (non-zero exit or error JSON on stderr), report the error message and stop without retrying.

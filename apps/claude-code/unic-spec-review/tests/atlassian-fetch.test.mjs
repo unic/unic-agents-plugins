@@ -16,7 +16,9 @@ import {
 	FETCH_TIMEOUT_MS,
 	fetchConfluenceComments,
 	fetchConfluencePage,
+	fetchConfluencePageBody,
 	mapFetchError,
+	postConfluenceComment,
 	routeUrl,
 } from '../scripts/atlassian-fetch.mjs'
 
@@ -507,5 +509,155 @@ describe('fetchConfluenceComments', () => {
 			() => fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
 			(err) => /** @type {any} */ (err).kind === 'unreachable'
 		)
+	})
+})
+
+describe('fetchConfluencePageBody', () => {
+	const PAGE_URL = 'https://unic.atlassian.net/wiki/spaces/X/pages/123'
+
+	it('returns the raw HTML body string from the page response', async () => {
+		const json = { body: { storage: { value: '<p>Hello spec</p>' } } }
+		const result = await fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result, '<p>Hello spec</p>')
+	})
+
+	it('returns empty string when body is absent in the response', async () => {
+		const result = await fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchJson({}) })
+		assert.equal(result, '')
+	})
+
+	it('throws FetchError kind not-found on 404', async () => {
+		await assert.rejects(
+			() => fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchStatus(404) }),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError kind auth-error on 401', async () => {
+		await assert.rejects(
+			() => fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchStatus(401) }),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
+	it('throws FetchError kind not-found when URL has no page ID', async () => {
+		await assert.rejects(
+			() =>
+				fetchConfluencePageBody('https://example.com/wiki/something', CREDS, {
+					fetch: fetchThrows(new Error('unused')),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError kind unreachable on network error', async () => {
+		await assert.rejects(
+			() => fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
+})
+
+describe('postConfluenceComment', () => {
+	/** @param {any} json */
+	const postOk = (json) => async () => ({ ok: true, status: 201, json: async () => json })
+
+	it('posts a footer comment and returns id and created', async () => {
+		const responseJson = { id: 'c-new', version: { createdAt: '2026-06-08T10:00:00.000Z' } }
+		const result = await postConfluenceComment('123', 'body text', 'footer', null, CREDS, {
+			fetch: postOk(responseJson),
+		})
+		assert.equal(result.id, 'c-new')
+		assert.equal(result.created, '2026-06-08T10:00:00.000Z')
+	})
+
+	it('posts an inline comment with textSelection and matchCount', async () => {
+		const responseJson = { id: 'c-inline', version: { createdAt: '2026-06-08T11:00:00.000Z' } }
+		/** @type {any} */
+		let capturedBody
+		/** @param {string} _url @param {{ body: string }} opts */
+		const capturingFetch = async (_url, opts) => {
+			capturedBody = JSON.parse(opts.body)
+			return { ok: true, status: 201, json: async () => responseJson }
+		}
+		const anchor = { textSelection: 'user clicks Submit', matchCount: 1 }
+		await postConfluenceComment('123', 'inline body', 'inline', anchor, CREDS, { fetch: capturingFetch })
+		assert.equal(capturedBody.inlineCommentProperties.textSelection, 'user clicks Submit')
+		assert.equal(capturedBody.inlineCommentProperties.textSelectionMatchCount, 1)
+		assert.equal(capturedBody.inlineCommentProperties.textSelectionMatchIndex, 0)
+	})
+
+	it('uses the footer-comments endpoint for type footer', async () => {
+		let capturedUrl = ''
+		/** @param {string} url */
+		const capturingFetch = async (url) => {
+			capturedUrl = url
+			return { ok: true, status: 201, json: async () => ({ id: 'x', version: { createdAt: '' } }) }
+		}
+		await postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: capturingFetch })
+		assert.match(capturedUrl, /\/wiki\/api\/v2\/footer-comments$/)
+	})
+
+	it('uses the inline-comments endpoint for type inline', async () => {
+		let capturedUrl = ''
+		/** @param {string} url */
+		const capturingFetch = async (url) => {
+			capturedUrl = url
+			return { ok: true, status: 201, json: async () => ({ id: 'x', version: { createdAt: '' } }) }
+		}
+		const anchor = { textSelection: 'text', matchCount: 1 }
+		await postConfluenceComment('123', 'body', 'inline', anchor, CREDS, { fetch: capturingFetch })
+		assert.match(capturedUrl, /\/wiki\/api\/v2\/inline-comments$/)
+	})
+
+	it('throws FetchError kind auth-error on 401', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(401) }),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
+	it('throws FetchError kind auth-error on 403', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(403) }),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
+	it('throws FetchError kind unreachable on network error', async () => {
+		await assert.rejects(
+			() =>
+				postConfluenceComment('123', 'body', 'footer', null, CREDS, {
+					fetch: fetchThrows(new TypeError('fetch failed')),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
+
+	it('throws FetchError kind not-found on 404', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(404) }),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError kind unreachable on 500', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(500) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
+
+	it('throws when type is inline and anchor is null', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'inline', null, CREDS, { fetch: postOk({}) }),
+			(err) => err instanceof Error && err.message.includes('anchor is required')
+		)
+	})
+
+	it('returns empty strings when id or createdAt are absent from response', async () => {
+		const result = await postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: postOk({}) })
+		assert.equal(result.id, '')
+		assert.equal(result.created, '')
 	})
 })

@@ -114,6 +114,18 @@ export class FetchError extends Error {
 	}
 }
 
+/**
+ * @typedef {Object} InlineAnchor
+ * @property {string} textSelection - exact page text the inline comment anchors to
+ * @property {number} matchCount - total occurrences of the selection on the page (textSelectionMatchCount)
+ */
+
+/**
+ * @typedef {Object} PostedComment
+ * @property {string} id - the created comment id, or '' when absent from the response
+ * @property {string} created - ISO creation timestamp, or '' when unavailable
+ */
+
 export const FETCH_TIMEOUT_MS = 15_000
 
 /**
@@ -408,6 +420,48 @@ async function fetchJson(url, creds, fetchImpl) {
 }
 
 /**
+ * POST a JSON resource with Basic auth and a hard timeout. Classifies failures
+ * into FetchError kinds and throws - never returns a partial result.
+ * @param {string} url
+ * @param {any} body
+ * @param {AtlassianCreds} creds
+ * @param {FetchLike} fetchImpl
+ * @returns {Promise<any>}
+ */
+async function postJson(url, body, creds, fetchImpl) {
+	const headers = {
+		Authorization: `Basic ${buildBasicAuth(creds.username, creds.token)}`,
+		Accept: 'application/json',
+		'Content-Type': 'application/json',
+	}
+	let res
+	try {
+		res = await fetchImpl(url, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+		})
+	} catch (err) {
+		throw new FetchError(url, 'unreachable', mapFetchError(err))
+	}
+	if (res.status === 401 || res.status === 403) {
+		throw new FetchError(url, 'auth-error', `HTTP ${res.status} - credentials rejected`)
+	}
+	if (res.status === 404) {
+		throw new FetchError(url, 'not-found', `HTTP ${res.status} - resource not found`)
+	}
+	if (!res.ok) {
+		throw new FetchError(url, 'unreachable', `HTTP ${res.status}`)
+	}
+	try {
+		return await res.json()
+	} catch (err) {
+		throw new FetchError(url, 'parse-error', err instanceof Error ? err.message : String(err))
+	}
+}
+
+/**
  * Map a fetch rejection to a readable message, recognising the timeout abort.
  * @param {unknown} err
  * @returns {string}
@@ -566,6 +620,72 @@ export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
 	}
 
 	return { comments, truncated }
+}
+
+/**
+ * Fetch the raw HTML storage body of a Confluence page (for anchor resolution).
+ * @param {string} pageIdOrUrl
+ * @param {AtlassianCreds} creds
+ * @param {{ fetch?: FetchLike }} [deps]
+ * @returns {Promise<string>}
+ */
+export async function fetchConfluencePageBody(pageIdOrUrl, creds, deps = {}) {
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const confluenceBase = stripTrailingSlash(creds.url)
+	const pageId = extractConfluencePageId(pageIdOrUrl)
+	if (pageId === null) {
+		throw new FetchError(
+			pageIdOrUrl,
+			'not-found',
+			`could not extract a Confluence page ID from this URL format - only /pages/<id>/ and ?pageId=<id> are supported: ${pageIdOrUrl}`
+		)
+	}
+	const url = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}?expand=body.storage`
+	const json = await fetchJson(url, creds, fetchImpl)
+	return typeof json?.body?.storage?.value === 'string' ? json.body.storage.value : ''
+}
+
+/**
+ * Post a Confluence comment via the v2 REST API. Supports both page-level
+ * footer comments and inline comments anchored to a text selection.
+ * Pass anchor=null only when type==='footer'; passing null with type==='inline' throws.
+ * @param {string} pageId
+ * @param {string} body - comment body in wiki markup format
+ * @param {'footer' | 'inline'} type
+ * @param {InlineAnchor | null} anchor - required (non-null) when type === 'inline'
+ * @param {AtlassianCreds} creds
+ * @param {{ fetch?: FetchLike }} [deps]
+ * @returns {Promise<PostedComment>}
+ */
+export async function postConfluenceComment(pageId, body, type, anchor, creds, deps = {}) {
+	if (type === 'inline' && anchor === null) {
+		throw new Error('postConfluenceComment: anchor is required for type "inline"')
+	}
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const confluenceBase = stripTrailingSlash(creds.url)
+	const endpoint =
+		type === 'inline'
+			? `${confluenceBase}/wiki/api/v2/inline-comments`
+			: `${confluenceBase}/wiki/api/v2/footer-comments`
+	/** @type {any} */
+	const payload = { pageId, body: { representation: 'wiki', value: body } }
+	if (type === 'inline' && anchor !== null) {
+		payload.inlineCommentProperties = {
+			textSelection: anchor.textSelection,
+			textSelectionMatchCount: anchor.matchCount,
+			textSelectionMatchIndex: 0,
+		}
+	}
+	const json = await postJson(endpoint, payload, creds, fetchImpl)
+	const id = json?.id != null ? String(json.id) : ''
+	const created = json?.version?.createdAt ?? ''
+	if (!id) {
+		// Confluence returned 2xx but no comment id - response shape may have changed
+		process.stderr.write(
+			`postConfluenceComment: 2xx response missing id field; full response: ${JSON.stringify(json)}\n`
+		)
+	}
+	return { id, created }
 }
 
 /**
