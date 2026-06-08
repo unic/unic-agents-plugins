@@ -93,6 +93,7 @@ export function planTraversal(seeds, pageMetaMap) {
 			source: 'seed',
 		})
 	}
+	const seedCount = seen.size
 
 	// Children of each seed, in seed order.
 	for (const seedId of seeds) {
@@ -130,7 +131,6 @@ export function planTraversal(seeds, pageMetaMap) {
 	}
 
 	const total = pages.length
-	const seedCount = pages.filter((p) => p.source === 'seed').length
 	const needsConfirmation = total > seedCount || total > BUDGET_THRESHOLD
 	return { pages, needsConfirmation, total }
 }

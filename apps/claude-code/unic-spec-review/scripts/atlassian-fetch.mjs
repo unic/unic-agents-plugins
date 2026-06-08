@@ -744,10 +744,11 @@ export async function postConfluenceComment(pageId, body, type, anchor, creds, d
 			: `${confluenceBase}/wiki/api/v2/footer-comments`
 	/** @type {any} */
 	const payload = { pageId, body: { representation: 'wiki', value: body } }
-	if (type === 'inline' && anchor !== null) {
+	if (type === 'inline') {
+		const a = /** @type {InlineAnchor} */ (anchor)
 		payload.inlineCommentProperties = {
-			textSelection: anchor.textSelection,
-			textSelectionMatchCount: anchor.matchCount,
+			textSelection: a.textSelection,
+			textSelectionMatchCount: a.matchCount,
 			textSelectionMatchIndex: 0,
 		}
 	}
