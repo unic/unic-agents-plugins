@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Content-aware errors gate (issue #214, ADR-0008 amendment): `silent-failure-hunter` now spawns
+  whenever the diff adds or removes error-handling constructs (`try`/`catch`/`finally`, `throw`,
+  `.catch(`, `Promise.reject`, `error`/`err` identifiers) in any file type, not only when a
+  non-test source file path matches. Pure source edits with no error-handling changes (e.g.
+  rename, constant bump) no longer trigger the silent-failure audit. Gate is biased toward
+  spawning on ambiguity per ADR-0008; marked as the first Y-llm promotion candidate.
 
 ### Fixed
 - (none)

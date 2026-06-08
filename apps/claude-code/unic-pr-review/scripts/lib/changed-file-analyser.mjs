@@ -62,6 +62,42 @@ export function hasCommentChanges(diff) {
 	return false
 }
 
+// Tokens that identify a line as touching error-handling control flow.
+// Arms: `try {`, `catch (`, `finally {`, bare `throw`, `.catch(` (Promise chain — the
+// explicit dot avoids matching the `catch` keyword arm, which `\b` cannot follow a `.`),
+// `Promise.reject(`, and the broad `\b(?:error|err)\b` identifier arm.
+const ERROR_HANDLING_RE =
+	/\btry\s*\{|\bcatch\s*\(|\bfinally\s*\{|\bthrow\b|\.catch\s*\(|Promise\.reject\s*\(|\b(?:error|err)\b/
+
+/**
+ * Returns true when the unified diff adds or removes at least one error-handling
+ * construct. Mirrors hasCommentChanges: iterate `+`/`-` hunk lines, skip diff headers
+ * and context, test the line body against ERROR_HANDLING_RE.
+ *
+ * Y-det gate for error-handling constructs (ADR-0008). This is the WEAKEST-FIDELITY
+ * gate — "error handling changed" is genuinely semantic, not lexical. The
+ * `\b(?:error|err)\b` arm over-fires on variable names that merely contain "error"/"err"
+ * (`errorMessage`, `errCount`); the `.catch(` arm matches Promise chains regardless of
+ * whether they handle errors meaningfully. Both are deliberate per the ADR-0008 spawning
+ * bias: a false-positive spawn is a cheap empty result block, a false-negative silently
+ * omits a finding set. FIRST CANDIDATE FOR Y-llm PROMOTION (model-assisted gate
+ * classification) if this gate proves too noisy or too blind in practice. See
+ * ADR-0008 §Y-llm promotion caveat.
+ *
+ * @param {string} diff - unified diff string (may be empty)
+ * @returns {boolean}
+ */
+export function hasErrorHandlingChanges(diff) {
+	if (!diff) return false
+	for (const line of diff.split(/\r?\n/)) {
+		if (line.startsWith('+++') || line.startsWith('---')) continue
+		if (!line.startsWith('+') && !line.startsWith('-')) continue
+		const content = line.slice(1)
+		if (ERROR_HANDLING_RE.test(content)) return true
+	}
+	return false
+}
+
 /**
  * Spawn-decision table (ADR-0008). Each entry maps an agent name to its spawn
  * predicate. The table is evaluated in order; code-reviewer is always first.
@@ -75,7 +111,7 @@ export function hasCommentChanges(diff) {
 // Intent Assessor is absent deliberately — spawned by intent presence, not file categories (ADR-0011). Never add it here.
 const SPAWN_TABLE = [
 	{ agent: 'code-reviewer', predicate: () => true },
-	{ agent: 'silent-failure-hunter', predicate: (files) => files.some(isSourceFile) },
+	{ agent: 'silent-failure-hunter', predicate: (files, diff) => files.some(isSourceFile) || hasErrorHandlingChanges(diff) },
 	{ agent: 'type-design-analyzer', predicate: (files) => files.some(isTypeFile) },
 	{ agent: 'pr-test-analyzer', predicate: (files) => files.some(isTestFile) },
 	{ agent: 'comment-analyzer', predicate: (files, diff) => files.some(isDocFile) || hasCommentChanges(diff) },

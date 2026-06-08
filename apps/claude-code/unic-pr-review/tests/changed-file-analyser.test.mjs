@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import {
 	decideSpawnSet,
 	hasCommentChanges,
+	hasErrorHandlingChanges,
 	parseInput,
 	parseStdin,
 	shouldRunPhase2,
@@ -62,6 +63,46 @@ describe('decideSpawnSet', () => {
 
 		it('is spawned for a literal d.ts file (no dot before d — not a declaration file)', () => {
 			assert.ok(decideSpawnSet(['src/d.ts']).has('silent-failure-hunter'))
+		})
+
+		describe('content-aware gate (diff content)', () => {
+			it('spawns silent-failure-hunter when try/catch is added', () => {
+				const diff = `--- a/src/service.mjs\n+++ b/src/service.mjs\n@@ -1,3 +1,6 @@\n async function load() {\n+  try {\n     return await fetch('/api')\n+  } catch (err) {\n+    return null\n+  }\n }\n`
+				const result = decideSpawnSet(['src/service.mjs'], diff)
+				assert.ok(result.has('silent-failure-hunter'))
+			})
+
+			it('spawns silent-failure-hunter when .catch() is removed', () => {
+				const diff = `--- a/src/client.mjs\n+++ b/src/client.mjs\n@@ -1,3 +1,2 @@\n fetch('/api')\n-  .catch(err => console.error(err))\n   .then(r => r.json())\n`
+				const result = decideSpawnSet(['src/client.mjs'], diff)
+				assert.ok(result.has('silent-failure-hunter'))
+			})
+
+			it('spawns silent-failure-hunter for a bare throw', () => {
+				const diff = `--- a/src/validate.mjs\n+++ b/src/validate.mjs\n@@ -1,3 +1,4 @@\n function validate(x) {\n+  if (!x) throw new Error('required')\n   return x\n }\n`
+				const result = decideSpawnSet(['src/validate.mjs'], diff)
+				assert.ok(result.has('silent-failure-hunter'))
+			})
+
+			it('does NOT spawn silent-failure-hunter for a pure rename/constant change in a non-source file', () => {
+				const diff = `--- a/docs/only-doc-file.md\n+++ b/docs/only-doc-file.md\n@@ -1,3 +1,3 @@\n const MAX_RETRIES = 3\n-const TIMEOUT = 5000\n+const TIMEOUT = 10000\n const BASE_URL = '/api'\n`
+				const result = decideSpawnSet(['docs/only-doc-file.md'], diff)
+				assert.ok(!result.has('silent-failure-hunter'))
+			})
+
+			it('spawns silent-failure-hunter via content gate even for a non-source-path file (OR-combination)', () => {
+				const diff = `--- a/config/settings.json\n+++ b/config/settings.json\n@@ -1,2 +1,3 @@\n {\n+  "onError": "throw"\n }\n`
+				const result = decideSpawnSet(['config/settings.json'], diff)
+				assert.ok(result.has('silent-failure-hunter'))
+			})
+
+			it('still spawns silent-failure-hunter for a source-file path even with empty diff (path fast-path intact)', () => {
+				assert.ok(decideSpawnSet(['src/service.mjs'], '').has('silent-failure-hunter'))
+			})
+
+			it('does NOT spawn silent-failure-hunter for a doc-only path with empty diff', () => {
+				assert.ok(!decideSpawnSet(['docs/guide.md'], '').has('silent-failure-hunter'))
+			})
 		})
 	})
 
@@ -334,6 +375,62 @@ describe('hasCommentChanges', () => {
 	it('returns false for a URL literal containing // (the false positive the anchor prevents)', () => {
 		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1 +1 @@\n-const url = 'https://old.example.com'\n+const url = 'https://new.example.com'\n`
 		assert.ok(!hasCommentChanges(diff))
+	})
+})
+
+describe('hasErrorHandlingChanges', () => {
+	it('returns true when a try block is added', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  try {\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns true when a catch clause is added', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  } catch (err) {\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns true when a finally block is added', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  } finally {\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns true when a throw statement is added', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  throw new Error('oops')\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns true when a .catch() Promise handler is added', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  .catch(e => log(e))\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns true when a Promise.reject() is added', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  return Promise.reject(new Error('no'))\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns true when an error identifier is added (broad arm, ADR-0008 spawning bias)', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  const error = result.failure\n const x = 1\n`
+		assert.ok(hasErrorHandlingChanges(diff))
+	})
+
+	it('returns false for a pure numeric-constant change (no error-handling tokens)', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1 @@\n-const TIMEOUT = 5000\n+const TIMEOUT = 10000\n`
+		assert.ok(!hasErrorHandlingChanges(diff))
+	})
+
+	it('returns false for empty diff', () => {
+		assert.ok(!hasErrorHandlingChanges(''))
+	})
+
+	it('ignores diff header lines (+++ / ---) even when the path mentions error', () => {
+		const diff = `--- a/src/error-utils.mjs\n+++ b/src/error-utils.mjs\n@@ -1 +1 @@\n-export const x = 1\n+export const x = 2\n`
+		assert.ok(!hasErrorHandlingChanges(diff))
+	})
+
+	it('handles CRLF-terminated diff lines correctly', () => {
+		const diff = '--- a/src/a.mjs\r\n+++ b/src/a.mjs\r\n@@ -1 +1,2 @@\r\n+  } catch (err) {\r\n const x = 1\r\n'
+		assert.ok(hasErrorHandlingChanges(diff))
 	})
 })
 
