@@ -680,7 +680,7 @@ export async function postConfluenceComment(pageId, body, type, anchor, creds, d
 	const id = json?.id != null ? String(json.id) : ''
 	const created = json?.version?.createdAt ?? ''
 	if (!id) {
-		// Confluence returned 2xx but no comment id — response shape may have changed
+		// Confluence returned 2xx but no comment id - response shape may have changed
 		process.stderr.write(
 			`postConfluenceComment: 2xx response missing id field; full response: ${JSON.stringify(json)}\n`
 		)
