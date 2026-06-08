@@ -2,7 +2,7 @@
 
 Domain vocabulary for the `unic-spec-review` plugin. This is a single bounded context inside the [monorepo context map](../../../CONTEXT-MAP.md).
 
-> Status: S1–S3 implemented: classify → Confluence fetch → Gaps agent → report; Confluence comments read path (`fetchConfluenceComments`); `LandscapeBrief` detection (`landscape-detector`). The vocabulary below covers the full design; items not yet implemented are deferred to later slices.
+> Status: S1–S4 implemented: classify → Confluence fetch → all eleven dimension/perspective agents → ranked hat-grouped report; Confluence comments read path (`fetchConfluenceComments`); `LandscapeBrief` detection (`landscape-detector`) and injection into Testability, Feasibility, Spec-versus-Live, and Non-functional agents. The vocabulary below covers the full design; remaining slices (traversal, Figma, live-system, Approval Loop, de-dup) are deferred.
 
 ## Vocabulary
 

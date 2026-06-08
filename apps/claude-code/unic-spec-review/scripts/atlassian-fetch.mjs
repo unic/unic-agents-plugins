@@ -337,12 +337,7 @@ export function parseJiraBug(fields) {
  */
 export function extractConfluenceLinks(htmlBody) {
 	if (typeof htmlBody !== 'string') return []
-	/** @type {string[]} */
-	const out = []
-	for (const match of htmlBody.matchAll(/href="([^"]*\/wiki\/[^"]*)"/g)) {
-		if (!out.includes(match[1])) out.push(match[1])
-	}
-	return out
+	return [...new Set([...htmlBody.matchAll(/href="([^"]*\/wiki\/[^"]*)"/g)].map((m) => m[1]))]
 }
 
 /**
@@ -354,12 +349,7 @@ export function extractConfluenceLinks(htmlBody) {
  */
 function extractAbsoluteWikiUrls(text) {
 	if (typeof text !== 'string') return []
-	/** @type {string[]} */
-	const out = []
-	for (const match of text.matchAll(/https?:\/\/[^\s"'<>]+\/wiki\/[^\s"'<>]+/g)) {
-		if (!out.includes(match[0])) out.push(match[0])
-	}
-	return out
+	return [...new Set([...text.matchAll(/https?:\/\/[^\s"'<>]+\/wiki\/[^\s"'<>]+/g)].map((m) => m[0]))]
 }
 
 /**

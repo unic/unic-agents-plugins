@@ -10,11 +10,15 @@
  * structured LandscapeBrief (stack, test setup, tooling, reachable-prod flag,
  * adjacent systems). The technology landscape is never hardcoded - everything is
  * read from the repo. All filesystem access goes through injectable deps so unit
- * tests touch no real files; the function never throws. No CLI entry point.
+ * tests touch no real files; the function never throws.
+ *
+ * CLI entry: node landscape-detector.mjs [repo-root] — prints the LandscapeBrief
+ * as JSON to stdout. Default repo root is '.'.
  */
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 /**
  * @typedef {'node:test' | 'vitest' | 'jest' | 'playwright' | 'pytest' | 'unknown'} TestRunner
@@ -285,4 +289,17 @@ export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 	}
 
 	return { stack, testRunner, testFrameworks, tooling, reachableProd, adjacentSystems: [...adjacentSystems] }
+}
+
+// CLI entry: prints the LandscapeBrief as JSON to stdout.
+// argv[2] = repo root path (default '.').
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+	try {
+		const repoRoot = process.argv[2] ?? '.'
+		const brief = detectLandscape(repoRoot)
+		process.stdout.write(`${JSON.stringify(brief)}\n`)
+	} catch (err) {
+		process.stderr.write(`landscape-detector: unexpected error: ${err instanceof Error ? err.message : String(err)}\n`)
+		process.exit(1)
+	}
 }

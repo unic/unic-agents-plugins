@@ -1,14 +1,14 @@
 ---
 allowed-tools: Agent, Bash(node *), Write
 argument-hint: '<confluence-url> [--post]'
-description: Adversarial review of web specifications (Confluence). Read-only by default; --post enables the Approval Loop (inert in S1).
+description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post enables the Approval Loop (inert in S4).
 ---
 
-# /review-spec (S1 Skeleton)
+# /review-spec (S4 Blue Orchestrator)
 
-Runs a read-only Gaps/Completeness review of one Confluence spec page, prints ranked Findings, and writes a durable timestamped report under `.spec-review/`.
+Runs a read-only adversarial review of one Confluence spec page using eleven parallel agents (eight Black-hat dimension agents plus Green, Yellow, Red perspective agents), ranks Findings by confidence \* severity, groups them by hat, prints a ranked hat-grouped triage, and writes a durable timestamped report under `.spec-review/`.
 
-> **S1 scope:** one source, one page, one agent. No traversal, no comments, no Figma, no live-system, no posting. `--post` is recognised but inert.
+> **S4 scope:** single Confluence page, eleven parallel agents, Landscape Brief injection into Testability/Feasibility/Spec-versus-Live/NFR. No Figma, no live-system, no posting. `--post` is recognised but inert.
 
 ## Step 1 - Parse arguments
 
@@ -32,10 +32,8 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/link-classifier.mjs" "$TARGET_URL"
 Parse the JSON output. If `kind` is not `"confluence"`, stop with:
 
 ```
-S1 supports only Confluence page URLs.
+S4 supports only Confluence page URLs.
 Got kind: <kind> for <TARGET_URL>
-
-S1 recognises: /wiki/spaces/SPACE/pages/ID/Title or ?pageId=ID
 ```
 
 Store `PAGE_ID` from the output.
@@ -53,7 +51,7 @@ Parse the JSON from stdout. The fetch script writes its JSON to stdout **before*
   Confluence credentials not configured.
   Run /unic-spec-review:setup-confluence to add them.
   ```
-- Otherwise, if `errors` contains any entry whose `url === TARGET_URL` (or `url === ''`), stop and print that entry's `errors[0].kind` and `errors[0].message` verbatim, so the real cause (`parse-error` / `unreachable` / `not-found` / `auth-error`) is shown:
+- Otherwise, if `errors` contains any entry whose `url === TARGET_URL` (or `url === ''`), stop and print that entry's `kind` and `message` verbatim:
   ```
   Could not fetch the Confluence page.
   <errors[0].kind>: <errors[0].message>
@@ -65,9 +63,29 @@ Extract from `items[0]`:
 - `PAGE_TITLE` = `title`
 - `PAGE_CONTENT` = `excerpt` (first 800 chars of the page body, HTML-stripped)
 
-## Step 4 - Run the Gaps/Completeness agent
+## Step 4 - Detect technology landscape
 
-Use the Agent tool to spawn `unic-spec-review:gaps-agent`. Pass as its prompt input:
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/landscape-detector.mjs" "."
+```
+
+Parse the JSON output into `LANDSCAPE_BRIEF`. If the command fails or returns invalid JSON, set `LANDSCAPE_BRIEF = null` and continue - landscape injection is optional.
+
+## Step 5 - Fan out all eleven agents in parallel
+
+Use the Agent tool to spawn all eleven agents **simultaneously** (in the same turn, as parallel tool calls). Do not wait for one before spawning the next.
+
+**Agents that receive only page context** (no landscape):
+
+- `unic-spec-review:gaps-agent`
+- `unic-spec-review:ambiguity-agent`
+- `unic-spec-review:spec-versus-design-agent`
+- `unic-spec-review:internal-consistency-agent`
+- `unic-spec-review:green-agent`
+- `unic-spec-review:yellow-agent`
+- `unic-spec-review:red-agent`
+
+Pass as prompt:
 
 ```json
 {
@@ -77,36 +95,89 @@ Use the Agent tool to spawn `unic-spec-review:gaps-agent`. Pass as its prompt in
 }
 ```
 
-Wait for the agent. Parse its JSON response to get the `findings` array. If the response is not valid JSON, print the raw output plus the parse error and stop.
+**Agents that also receive the Landscape Brief** (inject when `LANDSCAPE_BRIEF` is not null):
 
-## Step 5 - Print findings conversationally
+- `unic-spec-review:spec-versus-live-agent`
+- `unic-spec-review:testability-agent`
+- `unic-spec-review:feasibility-agent`
+- `unic-spec-review:non-functional-agent`
 
-Sort findings by `confidence` descending (highest first).
+Pass as prompt:
 
-For each finding, present:
+```json
+{
+  "pageTitle": "<PAGE_TITLE>",
+  "pageUrl": "<TARGET_URL>",
+  "pageContent": "<PAGE_CONTENT>",
+  "landscapeBrief": <LANDSCAPE_BRIEF or null>
+}
+```
+
+Wait for all eleven agents to complete.
+
+## Step 6 - Collect and normalise findings
+
+For each agent response, parse the JSON and extract the `findings` array. If a response is not valid JSON or contains no `findings`, skip it with a warning and continue with the rest.
+
+For each finding, add `hat` and `dimension` if not already present in the response, using the agent that produced it. Map per ADR-0003:
+
+- gaps-agent -> hat: 'black', dimension: 'gaps'
+- ambiguity-agent -> hat: 'black', dimension: 'ambiguity'
+- spec-versus-design-agent -> hat: 'black', dimension: 'spec-versus-design'
+- spec-versus-live-agent -> hat: 'black', dimension: 'spec-versus-live'
+- internal-consistency-agent -> hat: 'black', dimension: 'internal-consistency'
+- testability-agent -> hat: 'black', dimension: 'testability'
+- feasibility-agent -> hat: 'black', dimension: 'feasibility'
+- non-functional-agent -> hat: 'black', dimension: 'non-functional'
+- green-agent -> hat: 'green', dimension: 'green'
+- yellow-agent -> hat: 'yellow', dimension: 'yellow'
+- red-agent -> hat: 'red', dimension: 'red'
+
+Also map the legacy `description` field to `body` if `body` is absent (gaps-agent backward compat).
+
+## Step 7 - Rank and group findings
+
+**Rank** all collected findings by `confidence * severity_weight` descending:
+
+- critical = weight 3
+- important = weight 2
+- minor = weight 1
+
+**Group** by hat in this display order: black, green, yellow, red.
+
+## Step 8 - Print findings conversationally (hat-grouped)
+
+Print a header: `Found <N> findings across <K> agents.`
+
+For each hat group (in order: black, green, yellow, red), print:
 
 ```
-[severity] Finding: <title> (confidence: X%)
-<description>
+--- <Hat Label> ---
+[<severity>] <title> (confidence: <X>%, dimension: <dimension>)
+<body>
 Anchor: <anchor text, if present>
 ```
 
-If `findings` is empty:
+Hat labels: Black = "Critical Analysis", Green = "Alternatives", Yellow = "Value & Justification", Red = "User Reaction".
+
+If a hat group has no findings, skip it.
+
+If all findings are empty:
 
 ```
-No gaps or completeness issues found in this spec.
+No issues found in this spec.
 ```
 
-## Step 6 - Write the report
+## Step 9 - Write the report
 
-Construct the report input object:
+Construct the report input object (include `hat` and `dimension` fields on each finding):
 
 ```json
 {
   "pageTitle": "<PAGE_TITLE>",
   "pageUrl": "<TARGET_URL>",
   "timestamp": "<current ISO timestamp>",
-  "findings": [<findings array>]
+  "findings": [<all ranked findings, hat and dimension fields included>]
 }
 ```
 
@@ -116,14 +187,14 @@ Use the **Write tool** to write this JSON to `.spec-review/.report-input.json` (
 REPORT_OUTPUT_DIR=".spec-review" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/report-renderer.mjs" .spec-review/.report-input.json
 ```
 
-The script prints the path to the written file. Report it to the user:
+The script prints the path of the written file. Report it:
 
 ```
-Report written: .spec-review/spec-review-YYYY-MM-DDTHH-MM-SS.md
+Report written: .spec-review/spec-review-YYYY-MM-DD-HH-MM-SS.md
 ```
 
 If `IS_POST` was true, note:
 
 ```
-Note: --post is not yet active in S1. The report has been saved locally only.
+Note: --post is not yet active in S4. The report has been saved locally only.
 ```

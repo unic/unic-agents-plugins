@@ -14,14 +14,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { groupByHat, HAT_LABELS, HAT_ORDER } from './hat-mapper.mjs'
 
 /**
  * @typedef {Object} Finding
  * @property {string} title
- * @property {string} description
+ * @property {string} [description] - legacy gaps-agent field; use body instead
+ * @property {string} [body]        - preferred body field; falls back to description
  * @property {'critical' | 'important' | 'minor'} [severity]
  * @property {number} [confidence]
- * @property {string} [anchor]
+ * @property {string | null} [anchor]
+ * @property {string} [hat]         - hat tag (absent in gaps-agent output)
+ * @property {string} [dimension]   - dimension tag (absent in gaps-agent output)
  */
 
 /**
@@ -61,7 +65,18 @@ function renderFinding(f) {
 	const badge = f.severity ? ` \`${f.severity}\`` : ''
 	const conf = typeof f.confidence === 'number' ? ` (${f.confidence}%)` : ''
 	const anchor = f.anchor ? `\n\n> Anchor: \`${f.anchor}\`` : ''
-	return `### ${f.title}${badge}${conf}\n\n${f.description}${anchor}`
+	const bodyText = f.body ?? f.description ?? ''
+	return `### ${f.title}${badge}${conf}\n\n${bodyText}${anchor}`
+}
+
+/**
+ * Render one hat section with a heading and its findings.
+ * @param {string} label
+ * @param {Finding[]} sectionFindings
+ * @returns {string}
+ */
+function renderHatSection(label, sectionFindings) {
+	return `## ${label}\n\n${sectionFindings.map(renderFinding).join('\n\n')}`
 }
 
 /**
@@ -81,8 +96,21 @@ export function renderReport(input, outputDir, deps = {}) {
 	const filename = `spec-review-${slug}.md`
 	const path = join(outputDir, filename)
 
-	const body =
-		input.findings.length > 0 ? input.findings.map(renderFinding).join('\n\n') : '_No gaps or completeness findings._'
+	// Detect hat-tagged findings for grouped hat rendering.
+	const hasHatTags = input.findings.length > 0 && input.findings.some((f) => f.hat)
+
+	let sections
+	if (hasHatTags) {
+		const grouped = groupByHat(/** @type {any} */ (input.findings))
+		sections = HAT_ORDER.filter((hat) => grouped.has(hat))
+			.map((hat) => renderHatSection(HAT_LABELS[hat] ?? hat, grouped.get(hat) ?? []))
+			.join('\n\n')
+	} else {
+		// Backward-compat flat path: gaps-agent output carries no hat tags.
+		const body =
+			input.findings.length > 0 ? input.findings.map(renderFinding).join('\n\n') : '_No gaps or completeness findings._'
+		sections = `## Gaps / Completeness\n\n${body}`
+	}
 
 	const markdown = [
 		`# Spec Review: ${input.pageTitle}`,
@@ -92,9 +120,7 @@ export function renderReport(input, outputDir, deps = {}) {
 		'',
 		'---',
 		'',
-		'## Gaps / Completeness',
-		'',
-		body,
+		sections,
 		'',
 	].join('\n')
 
@@ -141,17 +167,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		process.stderr.write('report-renderer: REPORT_JSON missing required field: findings\n')
 		process.exit(1)
 	}
-	if (typeof input.timestamp !== 'string') {
-		process.stderr.write('report-renderer: REPORT_JSON missing required field: timestamp\n')
-		process.exit(1)
-	}
-	if (typeof input.pageTitle !== 'string') {
-		process.stderr.write('report-renderer: REPORT_JSON missing required field: pageTitle\n')
-		process.exit(1)
-	}
-	if (typeof input.pageUrl !== 'string') {
-		process.stderr.write('report-renderer: REPORT_JSON missing required field: pageUrl\n')
-		process.exit(1)
+	for (const field of ['timestamp', 'pageTitle', 'pageUrl']) {
+		if (typeof input[field] !== 'string') {
+			process.stderr.write(`report-renderer: REPORT_JSON missing required field: ${field}\n`)
+			process.exit(1)
+		}
 	}
 	const outputDir = process.env.REPORT_OUTPUT_DIR ?? '.spec-review'
 	let result

@@ -155,6 +155,26 @@ describe('report-renderer CLI validation', () => {
 		assert.match(stderr, /pageUrl/)
 	})
 
+	it('exits 1 and mentions timestamp when timestamp is missing', () => {
+		const { status, stderr } = runCli({
+			pageTitle: 'My Spec',
+			pageUrl: 'https://x.atlassian.net/wiki/p/1',
+			findings: [],
+		})
+		assert.equal(status, 1)
+		assert.match(stderr, /timestamp/)
+	})
+
+	it('exits 1 and mentions findings when findings is missing', () => {
+		const { status, stderr } = runCli({
+			pageTitle: 'My Spec',
+			pageUrl: 'https://x.atlassian.net/wiki/p/1',
+			timestamp: '2026-06-05T13:45:09.123Z',
+		})
+		assert.equal(status, 1)
+		assert.match(stderr, /findings/)
+	})
+
 	it('exits 0 when all required fields are present', () => {
 		const { status } = runCli({
 			pageTitle: 'My Spec',
@@ -163,5 +183,107 @@ describe('report-renderer CLI validation', () => {
 			findings: [],
 		})
 		assert.equal(status, 0)
+	})
+})
+
+describe('renderReport - hat-grouped rendering', () => {
+	it('renders a black hat section when findings have hat tags', () => {
+		const { deps, calls } = stubDeps()
+		renderReport(
+			{
+				...BASE_INPUT,
+				findings: [
+					{
+						hat: 'black',
+						dimension: 'gaps',
+						title: 'Missing logout',
+						body: 'No end state.',
+						severity: 'critical',
+						confidence: 92,
+						anchor: null,
+					},
+				],
+			},
+			'/tmp/out',
+			deps
+		)
+		assert.ok(calls.data.includes('Black Hat'))
+		assert.ok(calls.data.includes('Missing logout'))
+		assert.ok(calls.data.includes('No end state.'))
+	})
+
+	it('renders multiple hat sections in order when findings span hats', () => {
+		const { deps, calls } = stubDeps()
+		renderReport(
+			{
+				...BASE_INPUT,
+				findings: [
+					{
+						hat: 'green',
+						dimension: 'green',
+						title: 'Consider PWA',
+						body: 'PWA approach overlooked.',
+						severity: 'important',
+						confidence: 78,
+						anchor: null,
+					},
+					{
+						hat: 'black',
+						dimension: 'gaps',
+						title: 'Missing state',
+						body: 'No error state.',
+						severity: 'critical',
+						confidence: 91,
+						anchor: null,
+					},
+				],
+			},
+			'/tmp/out',
+			deps
+		)
+		const blackIdx = calls.data.indexOf('Black Hat')
+		const greenIdx = calls.data.indexOf('Green Hat')
+		assert.ok(blackIdx > -1, 'Black Hat section missing')
+		assert.ok(greenIdx > -1, 'Green Hat section missing')
+		assert.ok(blackIdx < greenIdx, 'Black Hat should appear before Green Hat')
+	})
+
+	it('falls back to Gaps / Completeness section for findings without hat', () => {
+		const { deps, calls } = stubDeps()
+		renderReport(
+			{
+				...BASE_INPUT,
+				findings: [{ title: 'Legacy finding', description: 'No hat field.', severity: 'minor', confidence: 65 }],
+			},
+			'/tmp/out',
+			deps
+		)
+		assert.ok(calls.data.includes('## Gaps / Completeness'))
+		assert.ok(!calls.data.includes('Black Hat'))
+	})
+
+	it('prefers body over description when rendering', () => {
+		const { deps, calls } = stubDeps()
+		renderReport(
+			{
+				...BASE_INPUT,
+				findings: [
+					{
+						hat: 'black',
+						dimension: 'ambiguity',
+						title: 'Vague wording',
+						body: 'Body text wins.',
+						description: 'Should not appear.',
+						severity: 'important',
+						confidence: 80,
+						anchor: null,
+					},
+				],
+			},
+			'/tmp/out',
+			deps
+		)
+		assert.ok(calls.data.includes('Body text wins.'))
+		assert.ok(!calls.data.includes('Should not appear.'))
 	})
 })

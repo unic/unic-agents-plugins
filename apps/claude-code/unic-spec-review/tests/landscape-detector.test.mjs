@@ -3,8 +3,12 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { detectLandscape } from '../scripts/lib/landscape-detector.mjs'
+
+const DETECTOR_PATH = fileURLToPath(new URL('../scripts/lib/landscape-detector.mjs', import.meta.url))
 
 /** @import { LandscapeDetectorDeps } from '../scripts/lib/landscape-detector.mjs' */
 
@@ -253,5 +257,22 @@ describe('detectLandscape', () => {
 		})
 		const brief = detectLandscape('/repo', [], stubFs({ '/repo/package.json': pkg }))
 		assert.equal(brief.testRunner, 'node:test')
+	})
+})
+
+describe('landscape-detector CLI', () => {
+	it('exits 0 and writes valid JSON to stdout', () => {
+		const res = spawnSync(process.execPath, [DETECTOR_PATH, '.'], { encoding: 'utf8' })
+		assert.equal(res.status, 0)
+		const brief = JSON.parse(res.stdout)
+		assert.ok(Array.isArray(brief.stack))
+		assert.ok(Array.isArray(brief.adjacentSystems))
+		assert.ok(typeof brief.reachableProd === 'boolean')
+	})
+
+	it('uses "." as repoRoot when no arg given', () => {
+		const res = spawnSync(process.execPath, [DETECTOR_PATH], { encoding: 'utf8' })
+		assert.equal(res.status, 0)
+		assert.doesNotThrow(() => JSON.parse(res.stdout))
 	})
 })
