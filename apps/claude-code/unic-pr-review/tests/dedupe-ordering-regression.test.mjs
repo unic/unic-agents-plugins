@@ -33,14 +33,17 @@ import { bucketBySeverity } from '../scripts/lib/severity-bucketer.mjs'
  * early-return guard, so on a same-key re-entry the dedupe key is already
  * wiped when the guard is checked, allowing a duplicate emission.
  *
- * AnalyticsTracker.tsx (simplified, structure preserved):
+ * AnalyticsTracker.tsx (simplified, structure preserved; line numbers refer to
+ * the original PR #5612 source, not to this fixture):
  *
  *   38:  lastFiredPathRef.current = null   // ← unconditional reset, in the effect-setup body
  *   ...
- *   46:  if (cancelled) return             // ← guard, inside the routeChangeComplete callback
- *   47:  if (url === lastFiredPathRef.current) return
- *   48:  lastFiredPathRef.current = url
- *   49:  trackPageView(url)
+ *        router.events.on('routeChangeComplete', (url) => {
+ *   46:    if (cancelled) return           // ← guard, inside the callback (runs after setup)
+ *   47:    if (url === lastFiredPathRef.current) return
+ *   48:    lastFiredPathRef.current = url
+ *   49:    trackPageView(url)
+ *        })
  *
  * The reset is intentionally in the effect-setup body, not inside the callback:
  * setup runs before the callback ever fires, so the dedupe key is already wiped
