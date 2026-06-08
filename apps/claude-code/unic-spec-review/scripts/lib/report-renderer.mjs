@@ -167,17 +167,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		process.stderr.write('report-renderer: REPORT_JSON missing required field: findings\n')
 		process.exit(1)
 	}
-	if (typeof input.timestamp !== 'string') {
-		process.stderr.write('report-renderer: REPORT_JSON missing required field: timestamp\n')
-		process.exit(1)
-	}
-	if (typeof input.pageTitle !== 'string') {
-		process.stderr.write('report-renderer: REPORT_JSON missing required field: pageTitle\n')
-		process.exit(1)
-	}
-	if (typeof input.pageUrl !== 'string') {
-		process.stderr.write('report-renderer: REPORT_JSON missing required field: pageUrl\n')
-		process.exit(1)
+	for (const field of ['timestamp', 'pageTitle', 'pageUrl']) {
+		if (typeof input[field] !== 'string') {
+			process.stderr.write(`report-renderer: REPORT_JSON missing required field: ${field}\n`)
+			process.exit(1)
+		}
 	}
 	const outputDir = process.env.REPORT_OUTPUT_DIR ?? '.spec-review'
 	let result

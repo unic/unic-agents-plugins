@@ -78,8 +78,9 @@ export function validateFinding(obj) {
  */
 export function normalizeFinding(raw, hat, dimension) {
 	// Treat empty string as absent: prefer description over ''
-	const body =
-		typeof raw.body === 'string' && raw.body ? raw.body : typeof raw.description === 'string' ? raw.description : ''
+	let body = ''
+	if (typeof raw.body === 'string' && raw.body) body = raw.body
+	else if (typeof raw.description === 'string') body = raw.description
 	return {
 		hat: VALID_HATS.includes(/** @type {any} */ (raw.hat)) ? /** @type {Hat} */ (raw.hat) : hat,
 		dimension: VALID_DIMENSIONS.includes(/** @type {any} */ (raw.dimension))
