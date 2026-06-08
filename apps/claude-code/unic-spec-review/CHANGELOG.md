@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.4] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
 - Add `finding` module: defines the Finding schema (`hat`, `dimension`, `confidence`, `severity`, `anchor`, `title`, `body`); exports `validateFinding` and `normalizeFinding` helpers (maps legacy `description` to `body`, assigns hat and dimension when absent).
 - Add `finding-ranker` module: `rankFindings` sorts by `confidence * severity_weight` (critical=3, important=2, minor=1) descending, stable.
 - Add `hat-mapper` module: `DIMENSION_HAT` mapping (eight Black-hat dimensions plus Green/Yellow/Red), `HAT_LABELS` and `HAT_ORDER` for report rendering, `dimensionToHat` and `groupByHat` helpers.
