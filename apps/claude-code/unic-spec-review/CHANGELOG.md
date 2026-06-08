@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Add `traversal-planner` module: `planTraversal(seeds, pageMetaMap)` discovers child pages and in-body Confluence links from seed page metadata, deduplicates by page id, and returns a `TraversalPlan` with an ordered expansion list and a `needsConfirmation` flag (set when expansion exceeds just the seeds or total pages exceed the budget threshold). Pure function, no I/O.
+- Add `fetchChildPages` to `atlassian-fetch`: fetches the first-level child pages of a Confluence page via the v1 REST API (`/content/{id}/child/page`) with `_links.next` pagination, returning `ChildPageRef[]` and a `truncated` flag. Follows the same injected-fetch pattern as `fetchConfluenceComments`. Accessible via `--child-pages <url>` CLI mode.
+- Extend `/review-spec` Step 3 with page traversal: after fetching the seed page(s), the command discovers child pages and in-body Confluence links, presents the discovered page set and count, and asks the reviewer to confirm or trim before any bulk fetch. The confirmed set is fetched and fed to the review engine. The run remains strictly read-only.
+- Unit tests cover `traversal-planner` (expansion + budget-gate logic, deduplication, ordering, edge cases) and `fetchChildPages` (happy path, pagination, truncation, and error cases); no live services.
 
 ### Fixed
 - (none)
