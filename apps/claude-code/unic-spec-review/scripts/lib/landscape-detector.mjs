@@ -182,7 +182,7 @@ function detectStack(allDeps, rootEntries) {
 
 /**
  * @param {Record<string, string> | null | undefined} allDeps
- * @param {string[]} rootEntries
+ * @param {string[]} _rootEntries
  * @returns {string[]}
  */
 function detectTestSetup(allDeps, _rootEntries) {
