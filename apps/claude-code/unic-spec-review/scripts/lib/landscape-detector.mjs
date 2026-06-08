@@ -185,7 +185,7 @@ function detectStack(allDeps, rootEntries) {
  * @param {string[]} rootEntries
  * @returns {string[]}
  */
-function detectTestSetup(allDeps, rootEntries) {
+function detectTestSetup(allDeps, _rootEntries) {
 	return dedupe(collectHints(Object.keys(allDeps ?? {}), TEST_HINTS))
 }
 
