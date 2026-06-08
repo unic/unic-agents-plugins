@@ -38,6 +38,25 @@ const SPDX_RE = /SPDX-License-Identifier:|Copyright\s+(?:[©&(C)0-9])/i
 const COMMENT_TOKEN_RE = /^\s*\{?\s*(?:\/\/|\/\*\*?|\*\/|\*[ \t]|#(?:[ \t!]|$)|<!--|-->)/
 
 /**
+ * Iterate over the added/removed hunk lines of a unified diff, calling predicate
+ * for each line's content (the `+`/`-` prefix stripped). Returns true on the first
+ * match, false when the diff is empty or no line matches.
+ *
+ * @param {string} diff
+ * @param {(content: string) => boolean} predicate
+ * @returns {boolean}
+ */
+function scanDiffLines(diff, predicate) {
+	if (!diff) return false
+	for (const line of diff.split(/\r?\n/)) {
+		if (line.startsWith('+++') || line.startsWith('---')) continue
+		if (!line.startsWith('+') && !line.startsWith('-')) continue
+		if (predicate(line.slice(1))) return true
+	}
+	return false
+}
+
+/**
  * Returns true when the unified diff adds or removes at least one comment line,
  * excluding SPDX/license boilerplate. Per ADR-0008: the comments gate is biased
  * toward spawning on ambiguity — a false-positive is a cheap empty result block,
@@ -51,15 +70,7 @@ const COMMENT_TOKEN_RE = /^\s*\{?\s*(?:\/\/|\/\*\*?|\*\/|\*[ \t]|#(?:[ \t!]|$)|<
  * @returns {boolean}
  */
 export function hasCommentChanges(diff) {
-	if (!diff) return false
-	for (const line of diff.split(/\r?\n/)) {
-		if (line.startsWith('+++') || line.startsWith('---')) continue
-		if (!line.startsWith('+') && !line.startsWith('-')) continue
-		const content = line.slice(1)
-		if (SPDX_RE.test(content)) continue
-		if (COMMENT_TOKEN_RE.test(content)) return true
-	}
-	return false
+	return scanDiffLines(diff, (c) => !SPDX_RE.test(c) && COMMENT_TOKEN_RE.test(c))
 }
 
 // Tokens that identify a line as touching error-handling control flow.
@@ -72,8 +83,7 @@ const ERROR_HANDLING_RE =
 
 /**
  * Returns true when the unified diff adds or removes at least one error-handling
- * construct. Mirrors hasCommentChanges: iterate `+`/`-` hunk lines, skip diff headers
- * and context, test the line body against ERROR_HANDLING_RE.
+ * construct. Uses scanDiffLines to walk `+`/`-` hunk lines.
  *
  * Y-det gate for error-handling constructs (ADR-0008). This is the WEAKEST-FIDELITY
  * gate — "error handling changed" is genuinely semantic, not lexical. The
@@ -91,14 +101,7 @@ const ERROR_HANDLING_RE =
  * @returns {boolean}
  */
 export function hasErrorHandlingChanges(diff) {
-	if (!diff) return false
-	for (const line of diff.split(/\r?\n/)) {
-		if (line.startsWith('+++') || line.startsWith('---')) continue
-		if (!line.startsWith('+') && !line.startsWith('-')) continue
-		const content = line.slice(1)
-		if (ERROR_HANDLING_RE.test(content)) return true
-	}
-	return false
+	return scanDiffLines(diff, (c) => ERROR_HANDLING_RE.test(c))
 }
 
 /**
