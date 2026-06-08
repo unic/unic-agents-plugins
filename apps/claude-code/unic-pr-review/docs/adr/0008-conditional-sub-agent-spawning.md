@@ -51,3 +51,5 @@ Semantic gates are **biased toward spawning on ambiguity**: a false-positive spa
 ### Y-llm promotion caveat
 
 The **errors gate** (`silent-failure-hunter`) is the weakest of the three as a deterministic predicate — "error handling changed" is genuinely semantic and the hardest to capture reliably with regex over diff hunks. It is the **first candidate to promote to Y-llm** (model-assisted gate classification) if Y-det proves too noisy or too blind for that gate in practice.
+
+**Implementation status**: comments gate live as of v2.1.5 (PR #226, issue #213); errors gate (#214) and types gate (#215) are planned follow-ups.

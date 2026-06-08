@@ -152,11 +152,13 @@ describe('decideSpawnSet', () => {
 
 			it('other gates are unaffected by the diffContent arg', () => {
 				const diff = `--- a/src/index.tsx\n+++ b/src/index.tsx\n@@ -1 +1 @@\n-const x = 1\n+// now a comment\n`
-				const result = decideSpawnSet(['src/component.tsx'], diff)
+				const result = decideSpawnSet(['src/component.mjs'], diff)
 				assert.ok(result.has('code-reviewer'), 'code-reviewer always present')
 				assert.ok(result.has('silent-failure-hunter'), 'sfh: source file')
+				assert.ok(!result.has('type-design-analyzer'), 'no tsx/ts file')
 				assert.ok(!result.has('pr-test-analyzer'), 'no test file')
 				assert.ok(!result.has('code-simplifier'), 'only 1 source file')
+				assert.ok(result.has('comment-analyzer'), 'comment-analyzer via diff content')
 			})
 		})
 	})
@@ -317,6 +319,21 @@ describe('hasCommentChanges', () => {
 		const diff = `--- a/src/comments.ts\n+++ b/src/comments.ts\n@@ -1 +1 @@\n-export const x = 1\n+export const x = 2\n`
 		assert.ok(!hasCommentChanges(diff))
 	})
+
+	it('returns true when a shell-style # comment line is added', () => {
+		const diff = `--- a/scripts/deploy.sh\n+++ b/scripts/deploy.sh\n@@ -1,2 +1,3 @@\n set -e\n+# TODO: add rollback step\n echo done\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('returns true when a shebang line is added', () => {
+		const diff = `--- /dev/null\n+++ b/scripts/new.sh\n@@ -0,0 +1,2 @@\n+#!/usr/bin/env node\n+console.log('hello')\n`
+		assert.ok(hasCommentChanges(diff))
+	})
+
+	it('handles CRLF-terminated diff lines correctly', () => {
+		const diff = '--- a/src/index.tsx\r\n+++ b/src/index.tsx\r\n@@ -1 +1 @@\r\n-const x = 1\r\n+// added comment\r\n'
+		assert.ok(hasCommentChanges(diff))
+	})
 })
 
 describe('parseInput', () => {
@@ -349,6 +366,13 @@ describe('parseInput', () => {
 		const diff = `--- a/src/c.tsx\n+++ b/src/c.tsx\n@@ -1 +1 @@\n-const x = 1\n+// now a comment\n`
 		const { files, diff: d } = parseInput(JSON.stringify({ files: ['src/c.tsx'], diff }))
 		assert.ok(decideSpawnSet(files, d).has('comment-analyzer'))
+	})
+
+	it('throws SyntaxError for malformed JSON input starting with {', () => {
+		assert.throws(
+			() => parseInput('{bad json}'),
+			(err) => err instanceof SyntaxError
+		)
 	})
 })
 
@@ -422,5 +446,14 @@ describe('CLI entry point', () => {
 		assert.equal(result.status, 0)
 		const agents = JSON.parse(result.stdout.trim())
 		assert.ok(agents.includes('comment-analyzer'), 'comment-analyzer spawned via content gate')
+	})
+
+	it('exits non-zero and writes to stderr for malformed JSON stdin', () => {
+		const result = spawnSync('node', [SCRIPT], {
+			input: '{invalid json}',
+			encoding: 'utf8',
+		})
+		assert.notEqual(result.status, 0)
+		assert.ok(result.stderr.includes('changed-file-analyser:'))
 	})
 })

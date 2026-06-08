@@ -39,6 +39,10 @@ const COMMENT_TOKEN_RE = /^\s*\{?\s*(?:\/\/|\/\*\*?|\*\/|\*[ \t]|#(?:[ \t!]|$)|<
  * toward spawning on ambiguity — a false-positive is a cheap empty result block,
  * a false-negative silently omits a finding set (the PR #5612 miss).
  *
+ * Detected tokens: `//`, `/**`, block-comment delimiters, `* ` (JSDoc continuation),
+ * `<!--` `-->` (HTML/JSX), `#` (shell/Python/YAML/Ruby — includes shebangs and YAML
+ * comments, intentionally broad per ADR-0008 spawning bias). SPDX/copyright lines excluded.
+ *
  * @param {string} diff - unified diff string (may be empty)
  * @returns {boolean}
  */
@@ -120,6 +124,7 @@ export function parseStdin(raw) {
  *
  * @param {string} raw - raw stdin contents
  * @returns {{ files: string[], diff: string }}
+ * @throws {SyntaxError} when raw starts with '{' and is not valid JSON
  */
 export function parseInput(raw) {
 	const trimmed = raw.trimStart()
