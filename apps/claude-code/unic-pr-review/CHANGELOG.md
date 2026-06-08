@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   classification authoritative; content gating is additive, never subtractive), so a pure source
   edit still spawns the agent. Gate is biased toward spawning on ambiguity per ADR-0008; marked
   as the first Y-llm promotion candidate.
+- Regression tests pinning the errors-gate boundary behaviour: compound identifiers
+  (`errorMessage`/`errCount`) do NOT fire the `\b`-guarded `error`/`err` arm, and error tokens
+  on unchanged diff context lines do NOT spawn the agent.
 
 ### Fixed
 - (none)

@@ -419,6 +419,16 @@ describe('hasErrorHandlingChanges', () => {
 		assert.ok(!hasErrorHandlingChanges(diff))
 	})
 
+	it('returns false for compound identifiers errorMessage / errCount (\\b boundary guard)', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1 +1,2 @@\n+  const errorMessage = response.data\n+  let errCount = 0\n`
+		assert.ok(!hasErrorHandlingChanges(diff))
+	})
+
+	it('returns false when an error token appears only on an unchanged context line', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,3 +1,3 @@\n   throw new Error('untouched')\n-const x = 1\n+const x = 2\n`
+		assert.ok(!hasErrorHandlingChanges(diff))
+	})
+
 	it('returns false for empty diff', () => {
 		assert.ok(!hasErrorHandlingChanges(''))
 	})
