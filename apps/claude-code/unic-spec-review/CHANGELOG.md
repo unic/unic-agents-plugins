@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests cover `fetchConfluenceComments` (footer, inline with anchor, empty page, pagination, HTML strip, author fallback, 401/404, bad URL) and `detectLandscape` (Node.js/TypeScript/React, jest/vitest/node:test runner selection, Playwright reachableProd, Biome/ESLint tooling, Python/pytest, Rust, Go, Ruby/Rails, Java, adjacentSystems passthrough, malformed JSON, readdir failure) with injected deps; no live services.
 
 ### Fixed
-- (none)
+- Address PR #224 multi-agent review findings: prefer the `node --test` script over a Playwright dependency when selecting the test runner; stop double-reporting Playwright in `testFrameworks` (already carried by `testRunner`); drop the non-existent `@vue/core` framework key; detect `reachableProd` Playwright configs with per-variant `existsSync` instead of a directory-listing glob (no false-negative when `readdir` fails); cap `fetchConfluenceComments` pagination at 50 pages as an infinite-loop guard; tighten the JSDoc on `detectLandscape` and the `ConfluenceComment.id` typedef; add unit tests for the secondary landscape branches (build.gradle, Django, FastAPI, Flask, Cypress, `@jest/core`, TypeScript-without-tsconfig, node:test-over-Playwright) and a `fetchConfluenceComments` transport-error case.
 
 ## [0.1.2] — 2026-06-05
 

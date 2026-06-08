@@ -472,4 +472,11 @@ describe('fetchConfluenceComments', () => {
 			(err) => /** @type {any} */ (err).kind === 'not-found'
 		)
 	})
+
+	it('throws FetchError with kind unreachable on transport error', async () => {
+		await assert.rejects(
+			() => fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
 })

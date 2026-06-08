@@ -112,10 +112,11 @@ function detectTestRunner(pkg, deps) {
 	const scripts = rawScripts && typeof rawScripts === 'object' ? /** @type {Record<string, string>} */ (rawScripts) : {}
 	const testScript = scripts.test ?? ''
 
+	// Script is the most authoritative signal — check before dep presence
+	if (typeof testScript === 'string' && testScript.includes('node --test')) return 'node:test'
 	if (deps.has('vitest')) return 'vitest'
 	if (deps.has('jest') || deps.has('@jest/core')) return 'jest'
 	if (deps.has('@playwright/test')) return 'playwright'
-	if (typeof testScript === 'string' && testScript.includes('node --test')) return 'node:test'
 	return 'unknown'
 }
 
@@ -130,7 +131,7 @@ function stackFromNodeDeps(deps) {
 	/** @type {[string[], string][]} */
 	const frameworkMap = [
 		[['react', 'react-dom'], 'React'],
-		[['vue', '@vue/core'], 'Vue'],
+		[['vue'], 'Vue'],
 		[['svelte'], 'Svelte'],
 		[['@angular/core'], 'Angular'],
 		[['next'], 'Next.js'],
@@ -189,7 +190,6 @@ function detectTestFrameworks(deps) {
 	const map = [
 		[['@testing-library/react', '@testing-library/dom', '@testing-library/vue'], 'Testing Library'],
 		[['cypress'], 'Cypress'],
-		[['@playwright/test', 'playwright'], 'Playwright'],
 		[['msw'], 'MSW'],
 		[['supertest'], 'Supertest'],
 		[['nock'], 'Nock'],
@@ -202,7 +202,7 @@ function detectTestFrameworks(deps) {
 
 /**
  * Detect the technology landscape from a repository root.
- * Pure function with injectable deps - never throws.
+ * Stateless, injectable — all I/O goes through deps; never throws.
  * @param {string} repoRoot - absolute path to the repo root
  * @param {string[]} [adjacentSystems] - user-declared out-of-repo systems
  * @param {LandscapeDetectorDeps} [deps]
@@ -233,11 +233,17 @@ export function detectLandscape(repoRoot, adjacentSystems = [], deps = {}) {
 		testFrameworks = detectTestFrameworks(nodeDeps)
 		tooling = detectTooling(nodeDeps)
 		// reachableProd: E2E tooling that could reach a production-like environment
+		const playwrightConfigs = [
+			'playwright.config.js',
+			'playwright.config.ts',
+			'playwright.config.mjs',
+			'playwright.config.cjs',
+		]
 		reachableProd =
 			nodeDeps.has('@playwright/test') ||
 			nodeDeps.has('playwright') ||
 			nodeDeps.has('cypress') ||
-			tryListDir(repoRoot, deps).some((f) => /^playwright\.config\.(js|ts|mjs|cjs)$/.test(f))
+			playwrightConfigs.some((f) => existsFn(join(repoRoot, f)))
 	}
 
 	// Python

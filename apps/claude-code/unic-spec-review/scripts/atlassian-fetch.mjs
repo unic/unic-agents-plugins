@@ -64,7 +64,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
 
 /**
  * @typedef {Object} ConfluenceComment
- * @property {string} id
+ * @property {string} id - always non-empty for real API responses
  * @property {'footer' | 'inline'} type
  * @property {string} body - plain text from the HTML-stripped comment body
  * @property {string} [anchor] - original selection text (inline comments only)
@@ -537,9 +537,12 @@ export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
 	/** @type {ConfluenceComment[]} */
 	const comments = []
 	const limit = 100
+	const MAX_PAGES = 50
+	let page = 0
 	let nextUrl = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}/child/comment?expand=body.storage,extensions.inlineProperties,history&limit=${limit}&start=0`
 
 	while (nextUrl) {
+		if (++page > MAX_PAGES) break
 		const json = await fetchJson(nextUrl, creds, fetchImpl)
 		const results = Array.isArray(json?.results) ? json.results : []
 		for (const result of results) {

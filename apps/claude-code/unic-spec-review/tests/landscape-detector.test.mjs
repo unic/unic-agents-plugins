@@ -101,7 +101,9 @@ describe('detectLandscape', () => {
 		const pkg = JSON.stringify({ devDependencies: { '@playwright/test': '1.40.0' } })
 		const brief = detectLandscape('/repo', [], stubFs({ '/repo/package.json': pkg }))
 		assert.equal(brief.reachableProd, true)
-		assert.ok(brief.testFrameworks.includes('Playwright'))
+		assert.equal(brief.testRunner, 'playwright')
+		// Playwright is carried in testRunner; it should NOT also appear in testFrameworks
+		assert.ok(!brief.testFrameworks.includes('Playwright'))
 	})
 
 	it('detects playwright.config.js and sets reachableProd=true', () => {
@@ -194,5 +196,64 @@ describe('detectLandscape', () => {
 			},
 		}
 		assert.doesNotThrow(() => detectLandscape('/repo', [], deps))
+	})
+
+	it('detects Java from build.gradle', () => {
+		const brief = detectLandscape('/repo', [], stubFs({ '/repo/build.gradle': 'apply plugin: "java"' }))
+		assert.ok(brief.stack.includes('Java'))
+	})
+
+	it('detects Django from pyproject.toml', () => {
+		const brief = detectLandscape(
+			'/repo',
+			[],
+			stubFs({ '/repo/pyproject.toml': '[tool.poetry.dependencies]\ndjango = "^4.2"' })
+		)
+		assert.ok(brief.stack.includes('Django'))
+	})
+
+	it('detects FastAPI from pyproject.toml', () => {
+		const brief = detectLandscape(
+			'/repo',
+			[],
+			stubFs({ '/repo/pyproject.toml': '[tool.poetry.dependencies]\nfastapi = "^0.100.0"' })
+		)
+		assert.ok(brief.stack.includes('FastAPI'))
+	})
+
+	it('detects Flask from pyproject.toml', () => {
+		const brief = detectLandscape(
+			'/repo',
+			[],
+			stubFs({ '/repo/pyproject.toml': '[tool.poetry.dependencies]\nflask = "^3.0.0"' })
+		)
+		assert.ok(brief.stack.includes('Flask'))
+	})
+
+	it('detects Cypress and sets reachableProd=true', () => {
+		const pkg = JSON.stringify({ devDependencies: { cypress: '13.0.0' } })
+		const brief = detectLandscape('/repo', [], stubFs({ '/repo/package.json': pkg }))
+		assert.equal(brief.reachableProd, true)
+	})
+
+	it('detects TypeScript from typescript dep alone (no tsconfig.json)', () => {
+		const pkg = JSON.stringify({ devDependencies: { typescript: '5.0.0' } })
+		const brief = detectLandscape('/repo', [], stubFs({ '/repo/package.json': pkg }))
+		assert.ok(brief.stack.includes('TypeScript'))
+	})
+
+	it('detects jest via @jest/core dep', () => {
+		const pkg = JSON.stringify({ devDependencies: { '@jest/core': '29.0.0' } })
+		const brief = detectLandscape('/repo', [], stubFs({ '/repo/package.json': pkg }))
+		assert.equal(brief.testRunner, 'jest')
+	})
+
+	it('prefers node:test script over playwright dep', () => {
+		const pkg = JSON.stringify({
+			scripts: { test: 'node --test tests/*.test.mjs' },
+			devDependencies: { '@playwright/test': '1.40.0' },
+		})
+		const brief = detectLandscape('/repo', [], stubFs({ '/repo/package.json': pkg }))
+		assert.equal(brief.testRunner, 'node:test')
 	})
 })
