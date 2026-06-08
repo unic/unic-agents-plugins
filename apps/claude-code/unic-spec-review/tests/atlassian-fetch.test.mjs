@@ -10,14 +10,17 @@ import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import {
 	buildBasicAuth,
+	collectChildPages,
 	collectIntent,
 	extractConfluenceLinks,
 	extractConfluencePageId,
 	FETCH_TIMEOUT_MS,
+	fetchChildPages,
 	fetchConfluenceComments,
 	fetchConfluencePage,
 	fetchConfluencePageBody,
 	mapFetchError,
+	parseChildPagesArg,
 	postConfluenceComment,
 	routeUrl,
 } from '../scripts/atlassian-fetch.mjs'
@@ -555,6 +558,174 @@ describe('fetchConfluencePageBody', () => {
 			() => fetchConfluencePageBody(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
 			(err) => /** @type {any} */ (err).kind === 'unreachable'
 		)
+	})
+})
+
+describe('fetchChildPages', () => {
+	const PAGE_URL = 'https://unic.atlassian.net/wiki/spaces/X/pages/123'
+
+	it('returns child pages with absolute URLs from _links.webui', async () => {
+		const json = {
+			results: [
+				{ id: '201', title: 'Data Model', _links: { webui: '/wiki/spaces/X/pages/201/Data+Model' } },
+				{ id: '202', title: 'Edge Cases', _links: { webui: '/wiki/spaces/X/pages/202/Edge+Cases' } },
+			],
+			_links: {},
+		}
+		const result = await fetchChildPages(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.truncated, false)
+		assert.equal(result.childPages.length, 2)
+		assert.deepEqual(result.childPages[0], {
+			id: '201',
+			title: 'Data Model',
+			url: 'https://unic.atlassian.net/wiki/spaces/X/pages/201/Data+Model',
+		})
+	})
+
+	it('falls back to a /wiki/pages/<id> URL when _links.webui is absent', async () => {
+		const json = { results: [{ id: '301', title: 'No Webui' }], _links: {} }
+		const result = await fetchChildPages(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.childPages[0].url, 'https://unic.atlassian.net/wiki/pages/301')
+	})
+
+	it('skips results that have no id', async () => {
+		const json = { results: [{ title: 'orphan' }, { id: '201', title: 'Real' }], _links: {} }
+		const result = await fetchChildPages(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.deepEqual(
+			result.childPages.map((c) => c.id),
+			['201']
+		)
+	})
+
+	it('follows _links.next pagination to fetch all child pages', async () => {
+		let call = 0
+		const pagingFetch = async () => {
+			call++
+			if (call === 1) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						results: [{ id: '201', title: 'One', _links: { webui: '/wiki/spaces/X/pages/201/One' } }],
+						_links: { next: '/wiki/rest/api/content/123/child/page?start=100&limit=100' },
+					}),
+				}
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					results: [{ id: '202', title: 'Two', _links: { webui: '/wiki/spaces/X/pages/202/Two' } }],
+					_links: {},
+				}),
+			}
+		}
+		const result = await fetchChildPages(PAGE_URL, CREDS, { fetch: pagingFetch })
+		assert.equal(call, 2)
+		assert.equal(result.childPages.length, 2)
+		assert.deepEqual(
+			result.childPages.map((c) => c.id),
+			['201', '202']
+		)
+		assert.equal(result.truncated, false)
+	})
+
+	it('caps pagination at 50 pages and flags truncated on a runaway _links.next', async () => {
+		let call = 0
+		const runawayFetch = async () => {
+			call++
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					results: [{ id: `c${call}`, title: 'x', _links: { webui: `/wiki/spaces/X/pages/c${call}/x` } }],
+					_links: { next: '/wiki/rest/api/content/123/child/page?start=0&limit=100' },
+				}),
+			}
+		}
+		const result = await fetchChildPages(PAGE_URL, CREDS, { fetch: runawayFetch })
+		assert.equal(call, 50)
+		assert.equal(result.childPages.length, 50)
+		assert.equal(result.truncated, true)
+	})
+
+	it('throws FetchError kind not-found on 404', async () => {
+		await assert.rejects(
+			() => fetchChildPages(PAGE_URL, CREDS, { fetch: fetchStatus(404) }),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError kind auth-error on 401', async () => {
+		await assert.rejects(
+			() => fetchChildPages(PAGE_URL, CREDS, { fetch: fetchStatus(401) }),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
+	it('throws FetchError kind not-found when URL has no page ID', async () => {
+		await assert.rejects(
+			() =>
+				fetchChildPages('https://example.com/wiki/something', CREDS, {
+					fetch: fetchThrows(new Error('unused')),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError kind unreachable on transport error', async () => {
+		await assert.rejects(
+			() => fetchChildPages(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
+	})
+})
+
+describe('parseChildPagesArg', () => {
+	it('returns the URL following --child-pages', () => {
+		assert.equal(parseChildPagesArg(['--child-pages', 'https://x/wiki/pages/1']), 'https://x/wiki/pages/1')
+	})
+
+	it('returns null when the flag is absent', () => {
+		assert.equal(parseChildPagesArg(['--urls', 'https://x']), null)
+	})
+
+	it('returns null when the flag has no value', () => {
+		assert.equal(parseChildPagesArg(['--child-pages']), null)
+	})
+})
+
+describe('collectChildPages', () => {
+	const PAGE_URL = 'https://unic.atlassian.net/wiki/spaces/X/pages/123'
+
+	/** @returns {import('../scripts/lib/credentials.mjs').AtlassianCreds} */
+	const stubCreds = () => CREDS
+
+	it('returns child pages and no errors on success', async () => {
+		const json = {
+			results: [{ id: '201', title: 'Child', _links: { webui: '/wiki/spaces/X/pages/201/Child' } }],
+			_links: {},
+		}
+		const result = await collectChildPages(PAGE_URL, { fetch: fetchJson(json), loadCreds: stubCreds })
+		assert.equal(result.errors.length, 0)
+		assert.equal(result.childPages.length, 1)
+		assert.equal(result.truncated, false)
+	})
+
+	it('reports an auth-error with url "" when no credentials are configured', async () => {
+		const result = await collectChildPages(PAGE_URL, { fetch: fetchJson({}), loadCreds: () => null })
+		assert.equal(result.childPages.length, 0)
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'auth-error')
+		assert.equal(result.errors[0].url, '')
+	})
+
+	it('collects a per-page FetchError instead of throwing', async () => {
+		const result = await collectChildPages(PAGE_URL, { fetch: fetchStatus(404), loadCreds: stubCreds })
+		assert.equal(result.childPages.length, 0)
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'not-found')
+		assert.equal(result.errors[0].url, PAGE_URL)
 	})
 })
 
