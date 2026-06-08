@@ -27,7 +27,7 @@ A pure-function helper `shouldRunPhase2(changedFiles, findings)` is exported fro
 - **Preview / no `--post`**: Phase 2 always runs (when conditions are met) and its findings appear in the terminal preview. Nothing is posted to ADO — this is unchanged from the default dry-run behaviour.
 - **`--post` (first-review)**: Phase 2 runs before the Approval Loop. Its findings enter the same loop as Phase 1 findings — they are not distinguished from Phase 1 findings in the Approval Loop or in the ADO threads.
 - **`--post --yes`**: same as above, bulk-accepted without prompting.
-- **Re-review mode**: Phase 2 runs (when conditions are met) after the Re-review Coordinator produces its plan. Phase 2 findings are treated as fresh findings and follow the same write path as other fresh findings.
+- **Re-review mode**: Phase 2 runs (when conditions are met) after Phase 1 but **before** the Re-review Coordinator. `code-simplifier`'s findings are merged into the aspect findings passed to the Coordinator, so they are classified and routed (reply / new Thread) exactly like every other fresh finding (ADR-0007).
 - **`diffUnavailable` guard**: when the ADO Fetcher sets `diffUnavailable: true`, neither Phase 1 nor Phase 2 spawns agents — the existing guard in Step 1.8 covers both phases.
 
 ## Consequences
