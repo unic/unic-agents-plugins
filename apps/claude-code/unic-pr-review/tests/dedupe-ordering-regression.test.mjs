@@ -17,7 +17,7 @@
  * the destination `routeChangeComplete` handler re-fires a duplicate
  * `page_view` for the same URL.
  *
- * unic-pr-review graded this Minor (confidence ~70) — correct, low-frequency
+ * unic-pr-review graded this Minor (confidence ~70), correct for a low-frequency
  * path. pr-review v1.4.0 produced a false negative on the same diff.
  */
 
@@ -35,12 +35,17 @@ import { bucketBySeverity } from '../scripts/lib/severity-bucketer.mjs'
  *
  * AnalyticsTracker.tsx (simplified, structure preserved):
  *
- *   38:  lastFiredPathRef.current = null   // ← unconditional reset
+ *   38:  lastFiredPathRef.current = null   // ← unconditional reset, in the effect-setup body
  *   ...
- *   46:  if (cancelled) return             // ← guard is TOO LATE
+ *   46:  if (cancelled) return             // ← guard, inside the routeChangeComplete callback
  *   47:  if (url === lastFiredPathRef.current) return
  *   48:  lastFiredPathRef.current = url
  *   49:  trackPageView(url)
+ *
+ * The reset is intentionally in the effect-setup body, not inside the callback:
+ * setup runs before the callback ever fires, so the dedupe key is already wiped
+ * by the time the guard is checked. The fix is to move the reset into the
+ * cleanup teardown, not to relocate it inside the callback.
  */
 const DEDUPE_ORDERING_DIFF = `\
 +  useEffect(() => {
@@ -69,8 +74,8 @@ const DEDUPE_ORDERING_DIFF = `\
  * breaks this finding, the regression fixture will fail.
  *
  * Note: REFERENCE_FINDING is the expected output shape for this pattern. It is
- * not derived from DEDUPE_ORDERING_DIFF by any runtime logic in this file —
- * the fixture validates the validator, not the detector.
+ * not derived from DEDUPE_ORDERING_DIFF by any runtime logic in this file: the
+ * fixture validates the validator, not the detector.
  */
 const REFERENCE_FINDING = {
 	confidence: 70,
@@ -82,7 +87,7 @@ const REFERENCE_FINDING = {
 		' On an SSP-redirect-back-to-same-page the dedupe key is wiped, so the destination' +
 		' `routeChangeComplete` handler re-fires a duplicate `page_view` for the same URL.',
 	suggestion:
-		'Move the reset into the cleanup function after `cancelled = true`, so it only fires on unmount—not on every render cycle.',
+		'Move the reset into the cleanup function after `cancelled = true`, so it fires only on teardown rather than on every effect run.',
 }
 
 describe('dedupe-ordering regression fixture (PR #5612 parity guard)', () => {
