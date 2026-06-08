@@ -16,22 +16,11 @@
       "description": "AI-powered PR review with intent checking against Azure Boards and Jira work items, Confidence-scored Findings filtered by confidence threshold, and an interactive per-Finding Approval Loop.",
       "displayName": "Unic PR Review",
       "homepage": "https://github.com/unic/unic-agents-plugins",
-      "keywords": [
-        "pr-review",
-        "azure-devops",
-        "jira",
-        "confluence",
-        "code-review",
-        "unic"
-      ],
+      "keywords": ["pr-review", "azure-devops", "jira", "confluence", "code-review", "unic"],
       "license": "LGPL-3.0-or-later",
       "name": "unic-pr-review",
       "source": "./",
-      "tags": [
-        "productivity",
-        "code-review",
-        "azure-devops"
-      ],
+      "tags": ["productivity", "code-review", "azure-devops"],
       "version": "2.1.4"
     }
   ]

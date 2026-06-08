@@ -14,6 +14,7 @@ import {
 	extractConfluenceLinks,
 	extractConfluencePageId,
 	FETCH_TIMEOUT_MS,
+	fetchConfluenceComments,
 	fetchConfluencePage,
 	mapFetchError,
 	routeUrl,
@@ -309,5 +310,202 @@ describe('mapFetchError', () => {
 
 	it('stringifies a non-Error value', () => {
 		assert.equal(mapFetchError('oops'), 'oops')
+	})
+})
+
+describe('fetchConfluenceComments', () => {
+	const PAGE_URL = 'https://unic.atlassian.net/wiki/spaces/X/pages/123'
+
+	it('returns a footer comment with body, author, and created', async () => {
+		const json = {
+			results: [
+				{
+					id: 'comment-1',
+					body: { storage: { value: '<p>This is a comment</p>' } },
+					extensions: { location: 'footer', inlineProperties: null },
+					history: { createdBy: { displayName: 'Jane Doe' }, createdDate: '2026-01-15T10:00:00.000Z' },
+				},
+			],
+			_links: {},
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.comments.length, 1)
+		const c = result.comments[0]
+		assert.equal(c.id, 'comment-1')
+		assert.equal(c.type, 'footer')
+		assert.equal(c.body, 'This is a comment')
+		assert.equal(c.author, 'Jane Doe')
+		assert.equal(c.created, '2026-01-15T10:00:00.000Z')
+		assert.equal(c.anchor, undefined)
+	})
+
+	it('returns an inline comment with type=inline and anchor text', async () => {
+		const json = {
+			results: [
+				{
+					id: 'comment-2',
+					body: { storage: { value: '<p>Inline note</p>' } },
+					extensions: {
+						location: 'inline',
+						inlineProperties: { selection: { originalSelection: 'The user clicks Submit' } },
+					},
+					history: { createdBy: { displayName: 'John Doe' }, createdDate: '2026-01-16T14:00:00.000Z' },
+				},
+			],
+			_links: {},
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.comments.length, 1)
+		const c = result.comments[0]
+		assert.equal(c.type, 'inline')
+		assert.equal(c.anchor, 'The user clicks Submit')
+	})
+
+	it('returns empty comments array when the page has no comments', async () => {
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchJson({ results: [], _links: {} }) })
+		assert.deepEqual(result.comments, [])
+	})
+
+	it('falls back to accountId then empty string when createdBy lacks a display name', async () => {
+		const json = {
+			results: [
+				{
+					id: 'c-acct',
+					body: { storage: { value: '<p>x</p>' } },
+					extensions: { location: 'footer', inlineProperties: null },
+					history: { createdBy: { accountId: 'acc-42' }, createdDate: '' },
+				},
+				{
+					id: 'c-null',
+					body: { storage: { value: '<p>y</p>' } },
+					extensions: { location: 'footer', inlineProperties: null },
+					history: { createdBy: null, createdDate: '' },
+				},
+			],
+			_links: {},
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.comments[0].author, 'acc-42')
+		assert.equal(result.comments[1].author, '')
+	})
+
+	it('follows _links.next pagination to fetch all pages', async () => {
+		let call = 0
+		const pagingFetch = async () => {
+			call++
+			if (call === 1) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						results: [
+							{
+								id: 'c1',
+								body: { storage: { value: 'p1' } },
+								extensions: { location: 'footer', inlineProperties: null },
+								history: { createdBy: { displayName: 'A' }, createdDate: '' },
+							},
+						],
+						_links: { next: '/wiki/rest/api/content/123/child/comment?start=100&limit=100' },
+					}),
+				}
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					results: [
+						{
+							id: 'c2',
+							body: { storage: { value: 'p2' } },
+							extensions: { location: 'footer', inlineProperties: null },
+							history: { createdBy: { displayName: 'B' }, createdDate: '' },
+						},
+					],
+					_links: {},
+				}),
+			}
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: pagingFetch })
+		assert.equal(result.comments.length, 2)
+		assert.equal(result.comments[0].id, 'c1')
+		assert.equal(result.comments[1].id, 'c2')
+		assert.equal(call, 2)
+		assert.equal(result.truncated, false)
+	})
+
+	it('caps pagination at 50 pages and flags truncated on a runaway _links.next', async () => {
+		let call = 0
+		// Always returns a non-empty self-referential next link, so without the cap
+		// this would loop forever.
+		const runawayFetch = async () => {
+			call++
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					results: [
+						{
+							id: `c${call}`,
+							body: { storage: { value: 'x' } },
+							extensions: { location: 'footer', inlineProperties: null },
+							history: { createdBy: { displayName: 'A' }, createdDate: '' },
+						},
+					],
+					_links: { next: '/wiki/rest/api/content/123/child/comment?start=0&limit=100' },
+				}),
+			}
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: runawayFetch })
+		assert.equal(call, 50)
+		assert.equal(result.comments.length, 50)
+		assert.equal(result.truncated, true)
+	})
+
+	it('strips HTML tags from the comment body', async () => {
+		const json = {
+			results: [
+				{
+					id: 'c-html',
+					body: { storage: { value: '<p>Hello <strong>world</strong></p>' } },
+					extensions: { location: 'footer', inlineProperties: null },
+					history: { createdBy: { displayName: 'A' }, createdDate: '' },
+				},
+			],
+			_links: {},
+		}
+		const result = await fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.comments[0].body, 'Hello world')
+	})
+
+	it('throws FetchError with kind not-found on 404', async () => {
+		await assert.rejects(
+			() => fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchStatus(404) }),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError with kind auth-error on 401', async () => {
+		await assert.rejects(
+			() => fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchStatus(401) }),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+	})
+
+	it('throws FetchError with kind not-found when URL has no page ID', async () => {
+		await assert.rejects(
+			() =>
+				fetchConfluenceComments('https://example.com/wiki/something', CREDS, {
+					fetch: fetchThrows(new Error('unused')),
+				}),
+			(err) => /** @type {any} */ (err).kind === 'not-found'
+		)
+	})
+
+	it('throws FetchError with kind unreachable on transport error', async () => {
+		await assert.rejects(
+			() => fetchConfluenceComments(PAGE_URL, CREDS, { fetch: fetchThrows(new TypeError('fetch failed')) }),
+			(err) => /** @type {any} */ (err).kind === 'unreachable'
+		)
 	})
 })

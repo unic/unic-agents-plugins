@@ -63,6 +63,22 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  */
 
 /**
+ * @typedef {Object} ConfluenceComment
+ * @property {string} id - always non-empty for real API responses
+ * @property {'footer' | 'inline'} type
+ * @property {string} body - plain text from the HTML-stripped comment body
+ * @property {string} [anchor] - original selection text (inline comments only)
+ * @property {string} author - display name or account id of the commenter
+ * @property {string} created - ISO creation timestamp, or '' when unavailable
+ */
+
+/**
+ * @typedef {Object} ConfluenceCommentsResult
+ * @property {ConfluenceComment[]} comments
+ * @property {boolean} truncated - true if the page-count cap was hit and the comment set is incomplete
+ */
+
+/**
  * @typedef {'unreachable' | 'not-found' | 'auth-error' | 'parse-error' | 'unsupported'} FetchErrorKind
  */
 
@@ -493,6 +509,73 @@ export async function fetchConfluencePage(pageIdOrUrl, creds, deps = {}) {
 			href.startsWith('http') ? href : `${confluenceBase}${href}`
 		),
 	}
+}
+
+/**
+ * Fetch all footer and inline comments on a Confluence page. Read-only.
+ *
+ * Uses the v1 REST API child/comment endpoint, following `_links.next` for
+ * pagination. The `_links.next` value is a path-relative string (e.g.
+ * `/wiki/rest/api/...`), so it is prefixed with the credentials base to form an
+ * absolute URL. Each comment is normalised to plain text (HTML stripped); inline
+ * comments additionally carry the original selected text as `anchor`.
+ * @param {string} pageIdOrUrl
+ * @param {AtlassianCreds} creds
+ * @param {{ fetch?: FetchLike }} [deps]
+ * @returns {Promise<ConfluenceCommentsResult>}
+ */
+export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const confluenceBase = stripTrailingSlash(creds.url)
+	const pageId = extractConfluencePageId(pageIdOrUrl)
+	if (pageId === null) {
+		throw new FetchError(
+			pageIdOrUrl,
+			'not-found',
+			`could not extract a Confluence page ID from this URL format - only /pages/<id>/ and ?pageId=<id> are supported: ${pageIdOrUrl}`
+		)
+	}
+	/** @type {ConfluenceComment[]} */
+	const comments = []
+	const limit = 100
+	const MAX_PAGES = 50
+	let page = 0
+	let truncated = false
+	let nextUrl = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}/child/comment?expand=body.storage,extensions.inlineProperties,history&limit=${limit}&start=0`
+
+	while (nextUrl) {
+		// Cap pagination to guard against a misbehaving self-referential `_links.next`.
+		// Hitting the cap means the comment set is incomplete, surfaced via `truncated`.
+		if (++page > MAX_PAGES) {
+			truncated = true
+			break
+		}
+		const json = await fetchJson(nextUrl, creds, fetchImpl)
+		const results = Array.isArray(json?.results) ? json.results : []
+		for (const result of results) {
+			const htmlBody = result?.body?.storage?.value ?? ''
+			const body = stripHtml(typeof htmlBody === 'string' ? htmlBody : '')
+			const location = result?.extensions?.location
+			const type = location === 'inline' ? 'inline' : 'footer'
+			const anchor = result?.extensions?.inlineProperties?.selection?.originalSelection
+			const author = result?.history?.createdBy?.displayName ?? result?.history?.createdBy?.accountId ?? ''
+			const created = result?.history?.createdDate ?? ''
+			/** @type {ConfluenceComment} */
+			const comment = {
+				id: typeof result?.id === 'string' ? result.id : String(result?.id ?? ''),
+				type,
+				body,
+				author,
+				created,
+			}
+			if (anchor) comment.anchor = anchor
+			comments.push(comment)
+		}
+		const rawNext = json?._links?.next
+		nextUrl = typeof rawNext === 'string' ? `${confluenceBase}${rawNext}` : ''
+	}
+
+	return { comments, truncated }
 }
 
 /**

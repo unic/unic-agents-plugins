@@ -165,11 +165,13 @@ Wait for the agent to complete. It emits one of:
 
 #### Step 1.7 — Resolve spawn set
 
-Use `FETCHER_OUTPUT.changedFiles` instead of `git diff --name-only`. Pipe the newline-joined paths into the analyser:
+Use `FETCHER_OUTPUT.changedFiles` for the file list and the appropriate diff for content-aware gates (ADR-0008). In **first-review** and **first-review-fallback** modes use `FETCHER_OUTPUT.rawDiff`; in **re-review** mode use `FETCHER_OUTPUT.deltaRawDiff`. Build the analyser input object `{"files":[...paths...],"diff":"<unified diff string>"}` and write it to a temp file with Node (not `jq` — it is unavailable by default on Windows; a temp file also avoids shell-quoting the diff), then pipe the file in:
 
 ```sh
-printf '%s\n' "<each entry of FETCHER_OUTPUT.changedFiles>" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs" < "<temp file with {files,diff} JSON>"
 ```
+
+When `FETCHER_OUTPUT.diffUnavailable` is `true`, pass an empty string for `diff` — `hasCommentChanges('')` returns false and the gate falls back to path-only.
 
 - **Exit 0**: stdout is a JSON array of agent names. Store as `SPAWN_SET`.
 - **Exit non-zero**: relay stderr and stop.
@@ -186,6 +188,8 @@ Print the spawn set to the terminal.
 - Continue to Step 1.9 to render the preview, then Step 1.10.
 
 Otherwise (`rawDiff` non-empty), proceed as in Step 7 (Pre-PR): launch every agent in `SPAWN_SET` simultaneously, seeding each with the diff (and `intentBrief` as a preamble when it is defined). Spawn the Intent Assessor in the **same parallel batch** when `intentBrief` is defined **and** the `intentCheck` skeleton is non-empty (ADR-0011) — it is never added to `SPAWN_SET`.
+
+After all Phase 1 agents finish, evaluate and run the **Phase 2 gate** exactly as described in the Pre-PR Step 7 "Phase 2 — Code Simplifier" section (ADR-0013): call `shouldRunPhase2` with `FETCHER_OUTPUT.changedFiles` and the flattened Phase 1 findings; if true, launch `agents/code-simplifier.md` sequentially with the same diff input (and `intentBrief` preamble when defined), wait for it, and merge its output into the full findings set before proceeding to Step 1.9.
 
 #### Step 1.9 — Merge findings and render (ADO mode)
 
@@ -362,6 +366,8 @@ Prior Findings to re-assess:
 ```
 
 The aspect agents use `priorFindings` to emit `priorFindingVerdicts` in their output. Store the full aspect-agent response map as `ASPECT_RESPONSES` (keyed by agent name).
+
+After the Phase 1 aspect agents complete, evaluate and run the **Phase 2 gate** (ADR-0013) using `FETCHER_OUTPUT.changedFiles` and the flattened Phase 1 findings from `ASPECT_RESPONSES`. If `shouldRunPhase2` returns true, launch `agents/code-simplifier.md` sequentially (with the delta diff and `intentBrief` preamble when defined), wait for it, and store its response alongside `ASPECT_RESPONSES` so the Coordinator receives the full finding set.
 
 #### Step 1.8a — Invoke Re-review Coordinator (re-review mode only)
 
@@ -544,10 +550,16 @@ Wait for the agent to complete. It emits exactly one of:
 
 ## Step 6 — Resolve the spawn set
 
-Run the changed-file-analyser to determine which Review Aspect agents apply to this diff:
+Run the changed-file-analyser with both the changed-files list and the full diff so the content-aware gates (ADR-0008) can fire. Build the `{"files":[...paths...],"diff":"..."}` input with Node (not `jq` — it is unavailable by default on Windows) and pipe it to the analyser:
 
 ```sh
-git diff "origin/${BASE_BRANCH}...HEAD" --name-only | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+node -e "
+const {execFileSync}=require('node:child_process')
+const range='origin/'+process.env.BASE_BRANCH+'...HEAD'
+const files=execFileSync('git',['diff',range,'--name-only'],{encoding:'utf8'}).split(/\r?\n/).filter(Boolean)
+const diff=execFileSync('git',['diff',range],{encoding:'utf8',maxBuffer:1e9})
+process.stdout.write(JSON.stringify({files,diff}))
+" BASE_BRANCH="${BASE_BRANCH}" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
 ```
 
 - **Exit 0**: stdout contains a JSON array of agent names, e.g. `["code-reviewer","silent-failure-hunter"]`. Store it as `SPAWN_SET`.
@@ -626,6 +638,24 @@ Before waiting for agent completion, when `intentBrief` is defined **and** `inte
 The Intent Assessor is **not** a Review Aspect and is **not** in the spawn set returned by the changed-file analyser. Do not add it to SPAWN_SET. It runs because intent is present, not because of changed-file categories (ADR-0011).
 
 Store the Assessor's response separately as `ASSESSOR_RESPONSE`.
+
+### Phase 2 — Code Simplifier (conditional, sequential, after Phase 1 completes)
+
+After all Phase 1 agents finish, evaluate the Phase 2 gate (ADR-0013). The gate is implemented by `shouldRunPhase2` in `scripts/lib/changed-file-analyser.mjs` — call it via an inline Node.js one-liner:
+
+```sh
+FILES='<JSON.stringify(changedFiles from Step 6)>' FINDINGS='<JSON.stringify(all Phase 1 findings flattened)>' node -e "
+const {shouldRunPhase2}=await import('${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs')
+const files=JSON.parse(process.env.FILES)
+const findings=JSON.parse(process.env.FINDINGS)
+process.stdout.write(shouldRunPhase2(files,findings)?'true':'false')
+"
+```
+
+- **Output `true`**: launch `agents/code-simplifier.md` sequentially (wait for it before Step 8). Provide the same diff (and `intentBrief` preamble when defined) as in the Phase 1 fan-out. Wait for it to complete and merge its `findings` and `positiveObservations` into the full set alongside the Phase 1 results.
+- **Output `false`**: skip Phase 2 entirely and proceed to Step 8.
+
+Phase 2 honours the preview / `--dry-run` principle from ADR-0003: it always computes and renders, but nothing in Phase 2 changes the write path — if `IS_POST` is false the preview is terminal-only regardless.
 
 ## Step 8 — Merge findings and render the Review Summary
 

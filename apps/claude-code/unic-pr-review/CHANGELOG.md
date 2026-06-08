@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- `silent-failure-hunter` agent now detects lost-signal / observability gaps: fallback branches, early-return guards, and cancellation handlers that exit without emitting the analytics event, telemetry call, structured log, or Sentry capture that the normal execution path emits (issue #217)
+- `silent-failure-hunter` agent recognises missing event-emission APIs (`trackEvent`, `analytics.page`, `reportError`, APM spans, Sentry breadcrumbs) on non-success paths (issue #217)
+- `silent-failure-hunter` agent flags logging or diagnostic calls unconditionally gated on a development / debug flag, making them invisible in production (issue #217)
+- False-positive guards: symmetric exclusions prevent over-flagging intentional conditional telemetry, different-event traces on error paths, and telemetry disabled by design (issue #217)
 
 ### Fixed
 - (none)
@@ -22,10 +25,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- `silent-failure-hunter` agent now detects lost-signal / observability gaps: fallback branches, early-return guards, and cancellation handlers that exit without emitting the analytics event, telemetry call, structured log, or Sentry capture that the normal execution path emits (issue #217)
-- `silent-failure-hunter` agent recognises missing event-emission APIs (`trackEvent`, `analytics.page`, `reportError`, APM spans, Sentry breadcrumbs) on non-success paths (issue #217)
-- `silent-failure-hunter` agent flags logging or diagnostic calls unconditionally gated on a development / debug flag, making them invisible in production (issue #217)
-- False-positive guards: symmetric exclusions prevent over-flagging intentional conditional telemetry, different-event traces on error paths, and telemetry disabled by design (issue #217)
+- Content-aware comment gate (issue #213, ADR-0008 amendment): `comment-analyzer` now spawns
+  whenever the diff adds or removes comment lines in any file type (inline `//`, JSDoc `/**`,
+  block `/* */`, HTML `<!-- -->`, or shell `#` comments), not only when a `.md`/`.mdx`/`docs/`
+  file changes. This catches documentation comment changes inside source files (the PR #5612 miss).
+  The SPDX/copyright boilerplate is excluded so license-header edits do not trigger a false positive.
+- Diff-to-analyser plumbing: `decideSpawnSet(changedFiles, diffContent?)` now accepts an optional
+  unified diff string; the CLI accepts JSON stdin `{"files":[...],"diff":"..."}` alongside the
+  existing plain-text path list (backward-compatible). The orchestrator (Step 6 / Step 1.7) now
+  passes the full diff alongside the changed-files list. Establishes the contract the errors (#214)
+  and types (#215) content gates will reuse.
+
+### Fixed
+- (none)
+
+## [2.1.3] — 2026-06-05
+
+### Breaking
+- (none)
+
+### Added
+- Two-phase code-simplifier model (issue #216, ADR-0013): `code-simplifier` is removed from the initial parallel fan-out and runs as a second phase only when Phase 1 yields no Critical and no Important findings and ≥3 non-test source files changed; Phase 2 honours preview / `--dry-run` (computes and renders, posts nothing); new `shouldRunPhase2` pure helper in `changed-file-analyser.mjs` with full unit-test coverage
 
 ### Fixed
 - (none)
