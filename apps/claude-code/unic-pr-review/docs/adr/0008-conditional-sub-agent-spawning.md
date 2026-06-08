@@ -13,7 +13,7 @@ Two alternatives were considered:
 
 ## Decision
 
-The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents in parallel, each handling the whole diff under one lens. Spawning is conditional on what the diff contains — `code-reviewer` always runs; `pr-test-analyzer` runs only when test files changed; `silent-failure-hunter` runs when at least one non-test source file changed (a path/extension heuristic, not diff-content inspection — see amendment 2026-06 for the three semantic gates); etc. The Plugin does NOT split the diff into per-file chunks.
+The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents in parallel, each handling the whole diff under one lens. Spawning is conditional on what the diff contains — `code-reviewer` always runs; `pr-test-analyzer` runs only when test files changed; `silent-failure-hunter` runs when at least one non-test source file changed; etc. At acceptance (2026-05) every gate was a pure path/extension heuristic with no diff-content inspection; the 2026-06 amendment below adds deterministic content sampling for the three semantic gates. The Plugin does NOT split the diff into per-file chunks.
 
 ## Consequences
 
@@ -32,7 +32,7 @@ The Plugin reviews a PR by fanning out to specialised Review Aspect sub-agents i
 | `comment-analyzer`      | † At least one `.md` / `.mdx` file or file under `docs/`                                              |
 | `code-simplifier`       | Three or more non-test source files (excluding `.d.ts`)                                               |
 
-† Path classification is the fast path; additionally gated by deterministic diff-content sampling per the amendment below.
+† Path classification is the fast path, not a prerequisite: for these three gates the classifier _also_ spawns when deterministic diff-content sampling detects the gate's semantic pattern even if the path heuristic does not match (e.g. a documentation comment added inside a `.tsx`). Path and content are OR-combined, never AND-narrowed. See the amendment below.
 
 ## Content-gated spawning for semantic gates (amended 2026-06, issue #212)
 
