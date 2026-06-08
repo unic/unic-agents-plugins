@@ -61,6 +61,15 @@ async function main() {
 				? { textSelection: resolution.textSelection, matchCount: resolution.matchCount }
 				: null
 		const result = await postConfluenceComment(pageId, bodyWithFooter, type, anchor, creds, { fetch: globalThis.fetch })
+		if (!result.id) {
+			// A 2xx with no comment id means the write is unverifiable (response shape drift,
+			// proxy, etc.). Treat it as a failure rather than report a phantom success: a
+			// blank id cannot be located, verified, or de-duplicated against later (S8).
+			process.stderr.write(
+				`${JSON.stringify({ error: 'Confluence returned success but no comment id - the comment is unverifiable; check the page manually before retrying' })}\n`
+			)
+			process.exit(1)
+		}
 		process.stdout.write(
 			`${JSON.stringify({
 				id: result.id,

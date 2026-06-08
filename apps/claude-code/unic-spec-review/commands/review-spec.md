@@ -197,6 +197,8 @@ Report written: .spec-review/spec-review-YYYY-MM-DD-HH-MM-SS.md
 
 Skip this step entirely if `IS_POST` is false. This keeps bare `/review-spec` strictly read-only.
 
+If there are no findings, print `No findings to post.` and stop.
+
 Present a numbered list of all findings in ranked order (same order as Step 8). For each:
 
 ```
@@ -218,16 +220,15 @@ For the selected Finding:
 2. Run the confluence-writer:
 
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/confluence-writer.mjs" \
-     --page-url "$TARGET_URL" \
-     --finding-file ".spec-review/.post-finding.json"
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/confluence-writer.mjs" --page-url "$TARGET_URL" --finding-file ".spec-review/.post-finding.json"
    ```
 
-3. Parse the JSON from stdout. On success, report:
+3. Parse the JSON from stdout. On success, report (always state the anchoring outcome so a degrade from inline to a page-level footer is never silent):
 
    ```
    Posted comment <id> to <TARGET_URL>
-   Comment type: <type> (<reason if footer-fallback>)
+   Anchoring: inline-anchored   (when type is "inline")
+   Anchoring: footer fallback (<reason>)   (when type is "footer")
    ```
 
 On error (non-zero exit or error JSON on stderr), report the error message and stop without retrying.
