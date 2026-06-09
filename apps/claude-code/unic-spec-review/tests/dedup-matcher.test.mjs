@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -279,16 +279,20 @@ describe('matchDedup - threshold boundaries', () => {
  */
 function runDedupCli(findings, commentsObj) {
 	const dir = mkdtempSync(join(tmpdir(), 'dedup-cli-'))
-	const findingsFile = join(dir, 'findings.json')
-	const commentsFile = join(dir, 'comments.json')
-	writeFileSync(findingsFile, JSON.stringify(findings))
-	writeFileSync(commentsFile, JSON.stringify(commentsObj))
-	const res = spawnSync(
-		process.execPath,
-		[DEDUP_PATH, '--findings-file', findingsFile, '--comments-file', commentsFile],
-		{ encoding: 'utf8' }
-	)
-	return { status: res.status, stdout: res.stdout, stderr: res.stderr }
+	try {
+		const findingsFile = join(dir, 'findings.json')
+		const commentsFile = join(dir, 'comments.json')
+		writeFileSync(findingsFile, JSON.stringify(findings))
+		writeFileSync(commentsFile, JSON.stringify(commentsObj))
+		const res = spawnSync(
+			process.execPath,
+			[DEDUP_PATH, '--findings-file', findingsFile, '--comments-file', commentsFile],
+			{ encoding: 'utf8' }
+		)
+		return { status: res.status, stdout: res.stdout, stderr: res.stderr }
+	} finally {
+		rmSync(dir, { recursive: true, force: true })
+	}
 }
 
 describe('dedup-matcher CLI envelope', () => {
@@ -349,10 +353,29 @@ describe('dedup-matcher CLI envelope', () => {
 
 	it('exits 1 with an error JSON on stderr when --findings-file is missing', () => {
 		const dir = mkdtempSync(join(tmpdir(), 'dedup-cli-'))
-		const commentsFile = join(dir, 'comments.json')
-		writeFileSync(commentsFile, JSON.stringify({ comments: [], truncated: false }))
-		const res = spawnSync(process.execPath, [DEDUP_PATH, '--comments-file', commentsFile], { encoding: 'utf8' })
-		assert.equal(res.status, 1)
-		assert.ok(res.stderr.includes('Usage'))
+		try {
+			const commentsFile = join(dir, 'comments.json')
+			writeFileSync(commentsFile, JSON.stringify({ comments: [], truncated: false }))
+			const res = spawnSync(process.execPath, [DEDUP_PATH, '--comments-file', commentsFile], { encoding: 'utf8' })
+			assert.equal(res.status, 1)
+			const err = JSON.parse(res.stderr)
+			assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
+		} finally {
+			rmSync(dir, { recursive: true, force: true })
+		}
+	})
+
+	it('exits 1 with an error JSON on stderr when --comments-file is missing', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'dedup-cli-'))
+		try {
+			const findingsFile = join(dir, 'findings.json')
+			writeFileSync(findingsFile, JSON.stringify([]))
+			const res = spawnSync(process.execPath, [DEDUP_PATH, '--findings-file', findingsFile], { encoding: 'utf8' })
+			assert.equal(res.status, 1)
+			const err = JSON.parse(res.stderr)
+			assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
+		} finally {
+			rmSync(dir, { recursive: true, force: true })
+		}
 	})
 })

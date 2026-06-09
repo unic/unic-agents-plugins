@@ -426,7 +426,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/dedup-matcher.mjs" \
 
 Parse the JSON object from stdout. Set `DEDUP_RESULTS = parsed.results` - one `DedupResult` per finding, in the same ranked order. Each entry has `decision` (`'post'`, `'skip'`, or `'flag'`) and `nearDuplicates` (sorted by similarity descending). The envelope also carries `truncated`, but `COMPARISON_INCOMPLETE` was already computed in Step 10a from the comments fetch result - do not re-read it from the envelope here.
 
-If the command fails (non-zero exit or parse error), warn `Warning: dedup-matcher failed - posting without deduplication.` and treat every finding's decision as `'post'` (proceed without dedup rather than blocking the entire post flow). The `COMPARISON_INCOMPLETE` flag computed in 10a remains in effect even on failure.
+If the command fails (non-zero exit, parse error, or `parsed.results` is not an array), warn `Warning: dedup-matcher failed - posting without deduplication.` and treat every finding's decision as `'post'` (proceed without dedup rather than blocking the entire post flow). The `COMPARISON_INCOMPLETE` flag computed in 10a remains in effect even on failure.
 
 ### 10c - Present the annotated Findings list
 
@@ -510,7 +510,11 @@ Post anyway? [y/N]:
 
 If the user answers anything other than `y` or `Y`, print `Skipped.` and move to the next selected Finding.
 
-#### If decision is `'post'` (or an override was approved above):
+#### If an override was approved above (skip or flag, user said y):
+
+Post the Finding using steps 1–3 below. The run-level `SKIP_CLEAN_POSTS` flag does not apply — the reviewer explicitly consented to post despite the near-duplicate.
+
+#### If decision is `'post'` (clean post, no duplicate found):
 
 When `SKIP_CLEAN_POSTS` is true (run-level confirm was declined), print `Skipped (incomplete comparison).` and move to the next selected Finding.
 
