@@ -597,6 +597,60 @@ describe('fetchChildPages', () => {
 		)
 	})
 
+	it('coerces a numeric id to a string', async () => {
+		const json = {
+			results: [{ id: 201, title: 'Numeric', _links: { webui: '/wiki/spaces/X/pages/201/N' } }],
+			_links: {},
+		}
+		const result = await fetchChildPages(PAGE_URL, CREDS, { fetch: fetchJson(json) })
+		assert.equal(result.childPages[0].id, '201')
+	})
+
+	it('prefixes a path-relative _links.next with the credentials base on the follow-up request', async () => {
+		/** @type {string[]} */
+		const requested = []
+		let call = 0
+		/** @param {string} url */
+		const capturingFetch = async (url) => {
+			requested.push(url)
+			call++
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					results: [{ id: `c${call}`, title: 'x', _links: { webui: `/wiki/spaces/X/pages/c${call}/x` } }],
+					_links: call === 1 ? { next: '/wiki/rest/api/content/123/child/page?start=100&limit=100' } : {},
+				}),
+			}
+		}
+		await fetchChildPages(PAGE_URL, CREDS, { fetch: capturingFetch })
+		assert.equal(requested.length, 2)
+		assert.equal(requested[1], 'https://unic.atlassian.net/wiki/rest/api/content/123/child/page?start=100&limit=100')
+	})
+
+	it('propagates a FetchError raised mid-pagination, discarding the partial set', async () => {
+		let call = 0
+		const failOnSecond = async () => {
+			call++
+			if (call === 1) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						results: [{ id: '201', title: 'One', _links: { webui: '/wiki/spaces/X/pages/201/One' } }],
+						_links: { next: '/wiki/rest/api/content/123/child/page?start=100&limit=100' },
+					}),
+				}
+			}
+			return { ok: false, status: 401, json: async () => ({}) }
+		}
+		await assert.rejects(
+			() => fetchChildPages(PAGE_URL, CREDS, { fetch: failOnSecond }),
+			(err) => /** @type {any} */ (err).kind === 'auth-error'
+		)
+		assert.equal(call, 2)
+	})
+
 	it('follows _links.next pagination to fetch all child pages', async () => {
 		let call = 0
 		const pagingFetch = async () => {

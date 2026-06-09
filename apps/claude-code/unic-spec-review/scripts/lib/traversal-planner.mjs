@@ -41,7 +41,7 @@ import { classifyUrl } from './link-classifier.mjs'
  * @typedef {Object} TraversalPage
  * @property {string} pageId
  * @property {string} url
- * @property {string} title
+ * @property {string} title - empty for 'linked' pages (only the URL/pageId is known before fetch)
  * @property {TraversalSource} source
  */
 
@@ -70,7 +70,8 @@ export const BUDGET_THRESHOLD = 5
  * already-seen page id (including a seed's own id) is dropped.
  *
  * needsConfirmation is true when the plan expanded beyond the seeds
- * (pages.length > seeds.length) OR the total page count exceeds BUDGET_THRESHOLD.
+ * (total > the number of unique seed ids) OR the total page count exceeds
+ * BUDGET_THRESHOLD.
  *
  * @param {string[]} seeds - seed page ids
  * @param {Map<string, PageMeta>} pageMetaMap - metadata per seed id; a seed missing here is treated as seed-only

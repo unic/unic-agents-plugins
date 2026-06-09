@@ -642,7 +642,7 @@ export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
  * pagination exactly like {@link fetchConfluenceComments}. The `_links.next`
  * value is a path-relative string, so it is prefixed with the credentials base
  * to form an absolute URL. Each child's `_links.webui` (also path-relative) is
- * likewise made absolute; when absent it falls back to a `/wiki/.../pages/<id>`
+ * likewise made absolute; when absent it falls back to a `<base>/wiki/pages/<id>`
  * URL so callers always get a usable link. Only one level of children is
  * fetched - this is not recursive.
  * @param {string} pageIdOrUrl

@@ -28,7 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests cover `traversal-planner` (expansion + budget-gate logic, deduplication, ordering, edge cases) and `fetchChildPages` (happy path, pagination, truncation, and error cases); no live services.
 
 ### Fixed
-- (none)
+- `/review-spec` Step 3b no longer skips assembling `PAGE_CONTENT` on the seed-only path (when no expansion is discovered), so the review agents always receive the page content.
+- Step 3b now surfaces coverage gaps instead of hiding them: it carries the child-page `truncated` flag into the confirmation prompt, falls back to a seed-only review when the traversal planner exits non-zero, and prints an aggregate `Fetched M of N` summary (with an explicit warning if every additional page fails).
+- Correct `traversal-planner` and `fetchChildPages` JSDoc: the `needsConfirmation` rule is stated against the unique-seed count (not raw `seeds.length`), the child-page fallback URL shape is documented as `<base>/wiki/pages/<id>`, and `TraversalPage.title` is noted as empty for `linked` pages.
+- Add `fetchChildPages` tests for numeric-id coercion, `_links.next` base-prefixing on the follow-up request, and mid-pagination error propagation.
 
 ## [0.1.5] — 2026-06-08
 
