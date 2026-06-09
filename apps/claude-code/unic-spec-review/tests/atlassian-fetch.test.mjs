@@ -876,6 +876,13 @@ describe('postConfluenceComment', () => {
 		)
 	})
 
+	it('throws FetchError kind rejected on 400', async () => {
+		await assert.rejects(
+			() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(400) }),
+			(err) => /** @type {any} */ (err).kind === 'rejected'
+		)
+	})
+
 	it('throws when type is inline and anchor is null', async () => {
 		await assert.rejects(
 			() => postConfluenceComment('123', 'body', 'inline', null, CREDS, { fetch: postOk({}) }),
@@ -900,6 +907,27 @@ describe('postConfluenceComment', () => {
 		await postConfluenceComment('123', '<p>storage body</p>', 'footer', null, CREDS, { fetch: capturingFetch })
 		assert.equal(capturedPayload.body.representation, 'storage')
 	})
+})
+
+describe('HTTP status classification', () => {
+	// The full status→FetchErrorKind map, asserted in one place so the reactive
+	// footer-fallback (#232) keys off a stable contract: only 400 is 'rejected'.
+	/** @type {Array<[number, string]>} */
+	const cases = [
+		[400, 'rejected'],
+		[401, 'auth-error'],
+		[403, 'auth-error'],
+		[404, 'not-found'],
+		[500, 'unreachable'],
+	]
+	for (const [status, kind] of cases) {
+		it(`maps HTTP ${status} to FetchError kind ${kind}`, async () => {
+			await assert.rejects(
+				() => postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: fetchStatus(status) }),
+				(err) => /** @type {any} */ (err).kind === kind
+			)
+		})
+	}
 })
 
 describe('parseCommentsArg', () => {

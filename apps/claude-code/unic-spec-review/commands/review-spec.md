@@ -533,7 +533,8 @@ Otherwise:
    ```
    Posted comment <id> to <TARGET_URL>
    Anchoring: inline-anchored   (when type is "inline")
-   Anchoring: footer fallback (<reason>)   (when type is "footer")
+   Anchoring: footer fallback (inline rejected by Confluence)   (when type is "footer" and reason is "inline-rejected")
+   Anchoring: footer fallback (<reason>)   (when type is "footer" and reason is not "inline-rejected")
    ```
 
    On error (non-zero exit or error JSON on stderr), report the error message and continue to the next selected Finding without retrying.
