@@ -1,14 +1,14 @@
 ---
 allowed-tools: Agent, Bash(node *), Write
 argument-hint: '<confluence-url> [--post]'
-description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post activates the single-Finding Approval Loop (inline-anchored comment or footer fallback).
+description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post activates the multi-Finding Approval Loop with similarity-based deduplication (inline-anchored comments or footer fallback).
 ---
 
-# /review-spec (S5 Blue Orchestrator)
+# /review-spec (S8 Blue Orchestrator)
 
 Runs a read-only adversarial review of one Confluence spec page using eleven parallel agents (eight Black-hat dimension agents plus Green, Yellow, Red perspective agents), ranks Findings by confidence \* severity, groups them by hat, prints a ranked hat-grouped triage, and writes a durable timestamped report under `.spec-review/`.
 
-> **S5 scope:** Confluence page traversal (seed page plus its child pages and in-body `/wiki/` links, gated behind reviewer confirmation), eleven parallel agents, Landscape Brief injection, single-Finding write path via `--post` (inline-anchored comment, footer fallback). No Figma, no live-system. Full multi-Finding Approval Loop and similarity de-dup land in S8.
+> **S8 scope:** Confluence page traversal (seed page plus its child pages and in-body `/wiki/` links, gated behind reviewer confirmation), eleven parallel agents, Landscape Brief injection, and a multi-Finding Approval Loop via `--post` with similarity-based deduplication (inline-anchored comments, footer fallback). No Figma, no live-system - those land in a later slice.
 
 ## Step 1 - Parse arguments
 
@@ -269,27 +269,111 @@ The script prints the path of the written file. Report it:
 Report written: .spec-review/spec-review-YYYY-MM-DD-HH-MM-SS.md
 ```
 
-## Step 10 - Post a Finding (only when --post is active)
+## Step 10 - Approval Loop (only when --post is active)
 
 Skip this step entirely if `IS_POST` is false. This keeps bare `/review-spec` strictly read-only.
 
 If there are no findings, print `No findings to post.` and stop.
 
-Present a numbered list of all findings in ranked order (same order as Step 8). For each:
+### 10a - Fetch existing comments for deduplication
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/atlassian-fetch.mjs" --comments "$TARGET_URL"
+```
+
+Parse the JSON output. Store it as `COMMENTS_RESULT`.
+
+- If `errors` contains an entry where `kind === 'auth-error'` AND `url === ''`, stop with:
+
+  ```
+  Confluence credentials not configured - cannot de-duplicate safely.
+  Run /unic-spec-review:setup-confluence to add them.
+  ```
+
+- If `errors` is non-empty (but not the global auth error above), warn `Warning: could not fully read existing comments (<kind>: <message>). Near-duplicate detection may be incomplete.` and continue with whatever comments were returned (`comments` may be empty).
+
+Record `COMMENTS_TRUNCATED` from `truncated`. When true, append `(comment list may be incomplete - deduplication is best-effort)` to the summary line in 10c.
+
+### 10b - Run dedup-matcher
+
+Use the **Write tool** to write all ranked findings as a JSON array to `.spec-review/.all-findings.json` (include all fields per finding: `title`, `body`, `severity`, `confidence`, `dimension`, `hat`, `anchor`).
+
+Use the **Write tool** to write `COMMENTS_RESULT` as JSON to `.spec-review/.existing-comments.json` (the full object: `{ comments: [...], truncated: ... }`).
+
+Run:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/dedup-matcher.mjs" \
+  --findings-file ".spec-review/.all-findings.json" \
+  --comments-file ".spec-review/.existing-comments.json"
+```
+
+Parse the JSON array from stdout as `DEDUP_RESULTS` - one `DedupResult` per finding, in the same ranked order. Each entry has `decision` (`'post'`, `'skip'`, or `'flag'`) and `nearDuplicates` (sorted by similarity descending).
+
+If the command fails (non-zero exit or parse error), warn `Warning: dedup-matcher failed - posting without deduplication.` and treat every finding's decision as `'post'` (proceed without dedup rather than blocking the entire post flow).
+
+### 10c - Present the annotated Findings list
+
+Print:
 
 ```
-N. [<severity>] <title> (dimension: <dimension>, confidence: <X>%, anchor: <anchor or "none">)
+Existing page comments checked for near-duplicates. <N> findings ready for review.
 ```
+
+Present a numbered list of all findings in ranked order. For each:
+
+```
+0. Cancel (post nothing)
+N. [<severity>] <title> (dimension: <dimension>, confidence: <X>%, anchor: <anchor or "none">)<dedup_badge>
+```
+
+Where `<dedup_badge>` is:
+
+- ``(empty) - decision is`'post'`
+- `  [~near-dup]` - decision is `'flag'` (borderline; tiebreak required)
+- `  [~likely-dup]` - decision is `'skip'` (likely duplicate; override required)
 
 Ask the user:
 
 ```
-Which Finding would you like to post as a Confluence comment? Enter a number, or 0 to post nothing.
+Select Finding numbers to post (comma-separated, e.g. 1,3), or 0 to cancel:
 ```
 
-If the user enters 0 or declines, print "Nothing posted." and stop. No writes are performed.
+If the user enters `0` or an empty/blank response, print `Nothing posted.` and stop. No writes are performed.
 
-For the selected Finding:
+### 10d - Process each selected Finding (selection is not commitment)
+
+For each selected number, in ranked order, look up its `DedupResult`:
+
+#### If decision is `'skip'`:
+
+Print the top near-duplicate's excerpt and score:
+
+```
+[~likely-dup] <title>
+Closest existing comment (similarity: <XX>%):
+  "<first 120 chars of matching comment body>…"
+
+Override and post anyway? [y/N]:
+```
+
+If the user answers anything other than `y` or `Y`, print `Skipped (likely duplicate).` and move to the next selected Finding.
+
+#### If decision is `'flag'`:
+
+Print the top near-duplicate's excerpt and score:
+
+```
+[~near-dup] <title>
+Near-duplicate found (similarity: <XX>%):
+  "<first 120 chars of matching comment body>…"
+
+Post anyway? [y/N]:
+```
+
+If the user answers anything other than `y` or `Y`, print `Skipped.` and move to the next selected Finding.
+
+#### If decision is `'post'` (or an override was approved above):
 
 1. Write the Finding object as JSON to `.spec-review/.post-finding.json` using the Write tool. Include all fields: `title`, `body`, `severity`, `confidence`, `dimension`, `hat`, `anchor`.
 
@@ -307,4 +391,14 @@ For the selected Finding:
    Anchoring: footer fallback (<reason>)   (when type is "footer")
    ```
 
-On error (non-zero exit or error JSON on stderr), report the error message and stop without retrying.
+   On error (non-zero exit or error JSON on stderr), report the error message and continue to the next selected Finding without retrying.
+
+### 10e - Final summary
+
+After processing all selected Findings:
+
+```
+Done. Posted <X> of <Y> selected Findings.
+```
+
+Where `Y` is the count of numbers the user selected and `X` is those actually posted (not skipped at a tiebreak and not failed at write). If the "Nothing posted." exit in 10c was taken, this line is not printed.

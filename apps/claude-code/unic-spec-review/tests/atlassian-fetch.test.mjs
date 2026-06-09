@@ -11,6 +11,7 @@ import { describe, it } from 'node:test'
 import {
 	buildBasicAuth,
 	collectChildPages,
+	collectComments,
 	collectIntent,
 	extractConfluenceLinks,
 	extractConfluencePageId,
@@ -21,6 +22,7 @@ import {
 	fetchConfluencePageBody,
 	mapFetchError,
 	parseChildPagesArg,
+	parseCommentsArg,
 	postConfluenceComment,
 	routeUrl,
 } from '../scripts/atlassian-fetch.mjs'
@@ -884,5 +886,75 @@ describe('postConfluenceComment', () => {
 		const result = await postConfluenceComment('123', 'body', 'footer', null, CREDS, { fetch: postOk({}) })
 		assert.equal(result.id, '')
 		assert.equal(result.created, '')
+	})
+})
+
+describe('parseCommentsArg', () => {
+	it('returns the URL following --comments', () => {
+		assert.equal(parseCommentsArg(['--comments', 'https://x/wiki/pages/1']), 'https://x/wiki/pages/1')
+	})
+
+	it('returns null when the flag is absent', () => {
+		assert.equal(parseCommentsArg(['--urls', 'https://x']), null)
+	})
+
+	it('returns null when the flag has no value', () => {
+		assert.equal(parseCommentsArg(['--comments']), null)
+	})
+})
+
+describe('collectComments', () => {
+	const PAGE_URL = 'https://unic.atlassian.net/wiki/spaces/X/pages/123'
+
+	/** @returns {import('../scripts/lib/credentials.mjs').AtlassianCreds} */
+	const stubCreds = () => CREDS
+
+	it('returns comments and no errors on success', async () => {
+		const json = {
+			results: [
+				{
+					id: 'c1',
+					body: { storage: { value: '<p>Hello</p>' } },
+					extensions: { location: 'footer', inlineProperties: null },
+					history: { createdBy: { displayName: 'Reviewer' }, createdDate: '2024-01-01T00:00:00Z' },
+				},
+			],
+			_links: {},
+		}
+		const result = await collectComments(PAGE_URL, { fetch: fetchJson(json), loadCreds: stubCreds })
+		assert.equal(result.errors.length, 0)
+		assert.equal(result.comments.length, 1)
+		assert.equal(result.comments[0].id, 'c1')
+		assert.equal(result.truncated, false)
+	})
+
+	it('reports an auth-error with url "" when no credentials are configured', async () => {
+		const result = await collectComments(PAGE_URL, { fetch: fetchJson({}), loadCreds: () => null })
+		assert.equal(result.comments.length, 0)
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'auth-error')
+		assert.equal(result.errors[0].url, '')
+	})
+
+	it('collects a per-page FetchError instead of throwing', async () => {
+		const result = await collectComments(PAGE_URL, { fetch: fetchStatus(404), loadCreds: stubCreds })
+		assert.equal(result.comments.length, 0)
+		assert.ok(result.errors.length > 0)
+		assert.equal(result.errors[0].kind, 'not-found')
+		assert.equal(result.errors[0].url, PAGE_URL)
+	})
+
+	it('converts a credential load exception into a global auth-error', async () => {
+		const result = await collectComments(PAGE_URL, {
+			fetch: fetchJson({}),
+			loadCreds: () => {
+				throw new Error('invalid JSON')
+			},
+		})
+		assert.equal(result.comments.length, 0)
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'auth-error')
+		assert.equal(result.errors[0].url, '')
+		assert.match(result.errors[0].message, /could not be read/)
 	})
 })

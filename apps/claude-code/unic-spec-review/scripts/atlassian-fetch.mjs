@@ -935,18 +935,91 @@ export function parseChildPagesArg(argv) {
 }
 
 /**
+ * @typedef {Object} CommentsOutput
+ * @property {ConfluenceComment[]} comments
+ * @property {boolean} truncated - true if the comment-list pagination cap (`MAX_PAGES`) was hit and the comment set is incomplete
+ * @property {FetchErrorJson[]} errors
+ */
+
+/**
+ * Read all footer and inline comments on a single Confluence page for the
+ * `--comments <url>` CLI mode. Never throws - credential and per-page failures
+ * are collected into `errors` so the caller decides whether to hard-stop,
+ * matching {@link collectChildPages}'s contract.
+ * @param {string} url
+ * @param {CollectDeps} [deps]
+ * @returns {Promise<CommentsOutput>}
+ */
+export async function collectComments(url, deps = {}) {
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const stderr = deps.stderr ?? process.stderr
+	const loadCreds = deps.loadCreds ?? loadAtlassianCreds
+	/** @type {AtlassianCreds | null} */
+	let creds
+	try {
+		creds = loadCreds(deps.homedir, deps.env)
+	} catch (err) {
+		const message = `credential file could not be read - ${err instanceof Error ? err.message : String(err)}`
+		stderr.write(`atlassian-fetch: ${message}\n`)
+		return { comments: [], truncated: false, errors: [{ url: '', kind: 'auth-error', message }] }
+	}
+	if (!creds) {
+		return {
+			comments: [],
+			truncated: false,
+			errors: [
+				{
+					url: '',
+					kind: 'auth-error',
+					message: 'No Atlassian credentials configured - run /unic-spec-review:setup-confluence',
+				},
+			],
+		}
+	}
+	try {
+		const { comments, truncated } = await fetchConfluenceComments(url, creds, { fetch: fetchImpl })
+		return { comments, truncated, errors: [] }
+	} catch (err) {
+		if (err instanceof FetchError) {
+			return { comments: [], truncated: false, errors: [{ url, kind: err.kind, message: err.message }] }
+		}
+		const msg = err instanceof Error ? (err.stack ?? err.message) : String(err)
+		stderr.write(`atlassian-fetch: internal error fetching comments for ${url}: ${msg}\n`)
+		return { comments: [], truncated: false, errors: [{ url, kind: 'parse-error', message: msg }] }
+	}
+}
+
+/**
+ * Read the value following `--comments` in argv, or null when absent or empty.
+ * @param {string[]} argv
+ * @returns {string | null}
+ */
+export function parseCommentsArg(argv) {
+	const idx = argv.indexOf('--comments')
+	if (idx < 0) return null
+	const raw = (argv[idx + 1] ?? '').trim()
+	return raw || null
+}
+
+/**
  * CLI entry: parse argv, collect intent (or child pages in `--child-pages`
- * mode), write the result as JSON to stdout. Returns the result so tests can
- * assert on it without spawning.
+ * mode, or comments in `--comments` mode), write the result as JSON to stdout.
+ * Returns the result so tests can assert on it without spawning.
  * @param {string[]} argv
  * @param {CollectDeps & { stdout?: { write: (s: string) => void } }} [deps]
- * @returns {Promise<FetchOutput | ChildPagesOutput>}
+ * @returns {Promise<FetchOutput | ChildPagesOutput | CommentsOutput>}
  */
 export async function main(argv, deps = {}) {
 	const childPagesUrl = parseChildPagesArg(argv)
-	const result = childPagesUrl
-		? await collectChildPages(childPagesUrl, deps)
-		: await collectIntent(parseUrlsArg(argv), deps)
+	const commentsUrl = parseCommentsArg(argv)
+	let result
+	if (childPagesUrl) {
+		result = await collectChildPages(childPagesUrl, deps)
+	} else if (commentsUrl) {
+		result = await collectComments(commentsUrl, deps)
+	} else {
+		result = await collectIntent(parseUrlsArg(argv), deps)
+	}
 	let serialised
 	try {
 		serialised = JSON.stringify(result)
