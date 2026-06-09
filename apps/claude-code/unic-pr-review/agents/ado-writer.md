@@ -23,11 +23,17 @@ You run in one of two modes. In **first-review** mode (default) you consume appr
   "repo": "myrepo",
   "prId": 42,
   "approvedPath": "/tmp/unic-pr-review-approved-abc123.json",
-  "iteration": 1
+  "iteration": 1,
+  "alreadyPostedFindingIds": [],
+  "summaryAlreadyPosted": false
 }
 ```
 
 `mode` absent or `"first-review"` → run Steps 1–4 (existing path).
+
+`alreadyPostedFindingIds` — optional array of Finding ids (default: absent / `[]`). Each id named here already posted its inline Review Thread in a prior partially-successful `--post` attempt (the Write Retry path, ADR-0015); skip Step 2 for those Findings so they are not duplicated. `approvedPath` still carries the **full** approved set, so the Review Summary (Step 3a) is unaffected. When absent or empty (the default / first-review path) every approved Finding is posted.
+
+`summaryAlreadyPosted` — optional boolean (default: absent / false). When `true`, the Review Summary thread already landed in a prior partially-successful `--post` attempt (the Write Retry path, ADR-0015); skip Steps 3a–3d entirely. No other behaviour changes.
 
 ### Re-review mode
 
@@ -77,11 +83,11 @@ Read and parse the JSON array at `approvedPath`. Each element carries:
 
 **If the file cannot be read or does not parse to a JSON array**, emit `{ "inlineResults": [], "summaryResult": null, "success": false, "error": "approved-read-failed: <message>" }` and stop — do not proceed to Steps 2–3. Reporting `success: true` here would trigger the state-directory cleanup in the calling command and silently drop every Finding the user just approved.
 
-If the array is empty, skip Steps 2 and 3a–3d; emit a success result with an empty `inlineResults` array and `summaryResult: null`. (An empty array is the legitimate "user approved zero Findings" case, distinct from the read-failure case above.)
+If the array is empty, skip Steps 2 and 3a–3d; emit a success result with an empty `inlineResults` array and `summaryResult: null`. (An empty array is the legitimate "user approved zero Findings" case, distinct from the read-failure case above. On a Write Retry the array is always the **full** approved set — never empty — so this short-circuit is a first-review-only path; a Write Retry where every Finding already posted inline reaches Step 2, skips them all via `alreadyPostedFindingIds`, and still runs Step 3 to post a not-yet-landed Summary.)
 
 ### Step 2 — Post inline Review Threads
 
-For **each** approved Finding, execute Steps 2a–2d in order.
+For **each** approved Finding whose `id` is **not** listed in `alreadyPostedFindingIds`, execute Steps 2a–2d in order. Skip any Finding whose `id` **is** in `alreadyPostedFindingIds` — do not post it and do not add it to `inlineResults`; it already landed in a prior attempt (Write Retry, ADR-0015), and its prior outcome is preserved in `state.json`. When `alreadyPostedFindingIds` is absent or empty, every approved Finding is posted.
 
 #### 2a — Render the Inline Comment
 
@@ -158,9 +164,11 @@ Failure here is silent — continue with the next Finding regardless.
 
 ### Step 3 — Post the Review Summary
 
+**Write Retry guard:** if `summaryAlreadyPosted` is `true`, skip Steps 3a–3d entirely and set `summaryResult = { "success": true, "threadId": null, "error": null }` — the Summary already landed in a prior attempt, so treat it as a success and let the top-level `success` (Step 4) be `true` when every inline Finding also posted. Then proceed to Step 4.
+
 #### 3a — Render the Review Summary
 
-Build `FINDINGS_JSON` from **all** approved Findings — include the full Finding shape required by `parseFinding` inside `render-summary.mjs`: at minimum `confidence`, `filePath`, `startLine`, `title`, `body`, and optionally `suggestion`. Include `severity` too (already on the approved Finding). Pass an empty `positiveObservations` array:
+Build `FINDINGS_JSON` from **all** approved Findings — the entire `approvedPath` array, including any whose inline Thread was skipped via `alreadyPostedFindingIds`, so the Summary reflects every Finding regardless of which inline Threads were (re)posted this attempt. Include the full Finding shape required by `parseFinding` inside `render-summary.mjs`: at minimum `confidence`, `filePath`, `startLine`, `title`, `body`, and optionally `suggestion`. Include `severity` too (already on the approved Finding). Pass an empty `positiveObservations` array:
 
 ```sh
 FINDINGS_JSON='{"findings":[<full approved Finding objects>],"positiveObservations":[]}' \

@@ -124,7 +124,7 @@ flowchart TD
   w2 --> posted
 ```
 
-Read-only by default. The `--post` path writes only what you accept in the Approval Loop, and the Bot Signature in every comment lets the next run recognise its own prior work without any local state ([ADR-0006](docs/adr/0006-iteration-state-in-pr.md)).
+Read-only by default. The `--post` path writes only what you accept in the Approval Loop. Bot Signature detection lets the next run recognise its own prior work and increment the Iteration ([ADR-0006](docs/adr/0006-iteration-state-in-pr.md)); if a `--post` partially fails, the local state directory (`<cwd>/.unic-pr-review/<key>/`) lets a re-run on the same machine finish the partial Iteration instead of starting a new one ([ADR-0015](docs/adr/0015-write-retry-completes-partial-iteration.md)).
 
 ## Commands
 

@@ -26,7 +26,9 @@ Introduce **Write Retry**: a re-run of `--post` that finishes a partially-writte
 
 3. **Short-circuit routing.** When the state directory is present and HEAD matches, the orchestrator skips the Fetcher, mode detection, and the aspect fan-out entirely. It resumes the Approval Loop (which re-prompts nothing — all decisions are already saved) at the **same** Iteration number stored in `state.json`.
 
-4. **Dedup is local; the Writer stays mostly dumb.** After a write, each Finding's post outcome (`threadId` / success) and a `summaryPosted` flag are persisted into `state.json`. On retry the orchestrator passes the Writer only the Findings that did not already post, and sets `summaryAlreadyPosted` so the Writer skips the Summary (Step 3) when it already landed. On a first attempt the posted-map is empty, so behaviour is unchanged. A fully-successful retry then deletes the state directory per ADR-0014.
+4. **Dedup is local; the Writer stays mostly dumb.** After a write, each Finding's post outcome (`threadId` / success) and a `summaryPosted` flag are persisted into `state.json`. On retry the orchestrator passes the Writer the **full** approved set plus two skip signals: `alreadyPostedFindingIds` (the ids that already posted inline) and `summaryAlreadyPosted`. The Writer skips the inline Thread for each listed id and skips the Summary (Step 3) when it already landed — but the Summary (Step 3a) is always rendered from the full approved set, so a Summary that failed in the prior attempt is re-posted complete, never from the reduced re-post subset. On a first attempt both signals are empty/false, so behaviour is unchanged. A fully-successful retry then deletes the state directory per ADR-0014.
+
+   > The skip-list is passed to the Writer rather than pruning its input file because a single `approvedPath` feeds both the inline Threads (Step 2) and the Review Summary (Step 3a). Pruning that file to the un-posted Findings — the original design here — would have rendered an incomplete Summary, or, when every inline Thread had already landed, dropped a still-failed Summary entirely (the array would be empty and the Writer's zero-Findings short-circuit would skip Step 3). Keeping the file full and skipping by id keeps the inline-dedup local while letting the Summary stay complete.
 
 ## Considered alternatives
 
@@ -37,7 +39,8 @@ Introduce **Write Retry**: a re-run of `--post` that finishes a partially-writte
 ## Consequences
 
 - `state.json` gains a per-Finding post outcome and a `summaryPosted` flag (written by the orchestrator after the Writer returns, via a small tested helper).
-- The ADO Writer's first-review input gains an optional `summaryAlreadyPosted` flag; everything else is unchanged.
+- The ADO Writer's first-review input gains an optional `alreadyPostedFindingIds` array (inline-skip list) and an optional `summaryAlreadyPosted` flag; everything else is unchanged. The Writer never prunes its own input, so the Summary always reflects the full approved set.
 - The orchestrator gains a top-of-flow Write Retry check (state directory present + `headSha` match) before the Fetcher.
 - Cross-machine retry is **not** covered: without the local state directory the re-run still routes to re-review. Acceptable given the resume contract was already local (ADR-0014).
+- A surviving-but-unreadable `state.json` is classified `corrupt` (distinct from `none`): the orchestrator prints a Notice and runs a normal review, rather than silently re-entering the empty-delta re-review path that drops Findings. This keeps the staleness guard's "discard + Notice" posture symmetric across the stale and corrupt cases.
 - The Step 1.12 warning is rewritten to describe Write Retry accurately and to state the cross-machine and HEAD-moved caveats.
