@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
+- (none)
+
+## [0.1.11] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 - Reactive footer fallback: when Confluence rejects an inline anchor (HTTP 400), the Finding is retried as a page-level footer comment instead of erroring out, restoring the ADR-0004 "never dropped" guarantee end-to-end. A new `FetchError` kind `'rejected'` (HTTP 400) is distinct from `'unreachable'` (network/timeout/5xx), so only an anchor rejection triggers the retry while auth (401/403), not-found (404), and genuine errors still fail loud. A successful retry reports `Anchoring: footer fallback (inline rejected by Confluence)` (writer reason `inline-rejected`). Writer orchestration is extracted into an injectable, tested `postFinding` export of `confluence-writer`. Resolves #232.
 
 ## [0.1.10] — 2026-06-09
