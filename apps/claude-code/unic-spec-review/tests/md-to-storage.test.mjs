@@ -4,8 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { recognizeFooter } from '../scripts/lib/attribution-footer.mjs'
-import { FOOTER_MARKER } from '../scripts/lib/attribution-footer.mjs'
+import { FOOTER_MARKER, recognizeFooter } from '../scripts/lib/attribution-footer.mjs'
 import { convertInline, escapeHtml, mdToStorage } from '../scripts/lib/md-to-storage.mjs'
 
 describe('escapeHtml', () => {
@@ -222,12 +221,25 @@ describe('footer round-trip', () => {
 	})
 
 	it('footer round-trip is stable across all dimension+hat combinations', () => {
-		const dimensions = ['gaps', 'ambiguity', 'testability', 'feasibility', 'consistency', 'nfr', 'alternatives', 'value', 'ux']
+		const dimensions = [
+			'gaps',
+			'ambiguity',
+			'testability',
+			'feasibility',
+			'consistency',
+			'nfr',
+			'alternatives',
+			'value',
+			'ux',
+		]
 		const hats = ['black', 'white', 'red', 'yellow', 'green', 'blue']
 		for (const dimension of dimensions) {
 			for (const hat of hats) {
 				const footerLine = `<p>${FOOTER_MARKER} | dimension: ${escapeHtml(dimension)} | hat: ${escapeHtml(hat)}</p>`
-				const stripped = footerLine.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+				const stripped = footerLine
+					.replace(/<[^>]+>/g, ' ')
+					.replace(/\s+/g, ' ')
+					.trim()
 				const r = recognizeFooter(stripped)
 				assert.equal(r.recognized, true, `failed for dim=${dimension} hat=${hat}: ${stripped}`)
 				assert.equal(r.dimension, dimension, `wrong dimension for dim=${dimension} hat=${hat}`)

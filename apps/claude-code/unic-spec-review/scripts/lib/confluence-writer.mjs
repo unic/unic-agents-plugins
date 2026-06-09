@@ -7,9 +7,9 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { extractConfluencePageId, fetchConfluencePageBody, postConfluenceComment } from '../atlassian-fetch.mjs'
 import { FOOTER_MARKER } from './attribution-footer.mjs'
-import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
 import { loadAtlassianCreds } from './credentials.mjs'
 import { resolveAnchor } from './inline-anchor-resolver.mjs'
+import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
 
 async function main() {
 	const argv = process.argv.slice(2)
