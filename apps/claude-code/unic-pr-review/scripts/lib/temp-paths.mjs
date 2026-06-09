@@ -10,8 +10,8 @@
  * Takes arguments positionally so the env-vs-argv class cannot recur.
  */
 
-import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**

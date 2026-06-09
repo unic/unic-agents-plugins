@@ -853,10 +853,7 @@ describe('atomic & best-effort I/O', () => {
 		const out = approvedPath(dir)
 		const key = sha16('test-pr-url') // same default key used by loop()
 
-		await loop(
-			{ findingsPath: fp, approvedPath: out, isYes: true, cwd: dir },
-			{ isTTY: false, cwd: dir },
-		)
+		await loop({ findingsPath: fp, approvedPath: out, isYes: true, cwd: dir }, { isTTY: false, cwd: dir })
 
 		// The approval landed and the state dir is still present for the orchestrator.
 		assert.equal(JSON.parse(readFileSync(out, 'utf8')).length, 1)

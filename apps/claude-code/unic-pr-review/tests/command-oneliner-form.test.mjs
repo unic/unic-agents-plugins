@@ -25,9 +25,10 @@ const COMMANDS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../commands'
 function extractShBlocks(content) {
 	const blocks = /** @type {string[]} */ ([])
 	const re = /```sh\n([\s\S]*?)```/g
-	let m
-	while ((m = re.exec(content)) !== null) {
+	let m = re.exec(content)
+	while (m !== null) {
 		blocks.push(m[1])
+		m = re.exec(content)
 	}
 	return blocks
 }
@@ -77,7 +78,7 @@ describe('command one-liner env form', () => {
 			assert.deepEqual(
 				violations,
 				[],
-				`Env assignments must precede node (see AGENTS.md Conventions):\n${violations.join('\n')}`,
+				`Env assignments must precede node (see AGENTS.md Conventions):\n${violations.join('\n')}`
 			)
 		})
 	}

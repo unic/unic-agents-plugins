@@ -38,13 +38,24 @@ describe('cleanupFile', () => {
 	it('rethrows non-ENOENT errors (e.g. EPERM)', () => {
 		const eperm = Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' })
 		assert.throws(
-			() => cleanupFile('/some/path', { unlinkSync: () => { throw eperm } }),
-			(e) => e === eperm,
+			() =>
+				cleanupFile('/some/path', {
+					unlinkSync: () => {
+						throw eperm
+					},
+				}),
+			(e) => e === eperm
 		)
 	})
 
 	it('does not rethrow ENOENT from injected unlinkSync', () => {
 		const enoent = Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' })
-		assert.doesNotThrow(() => cleanupFile('/some/path', { unlinkSync: () => { throw enoent } }))
+		assert.doesNotThrow(() =>
+			cleanupFile('/some/path', {
+				unlinkSync: () => {
+					throw enoent
+				},
+			})
+		)
 	})
 })
