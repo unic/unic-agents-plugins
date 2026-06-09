@@ -623,6 +623,81 @@ export async function fetchConfluenceComments(pageIdOrUrl, creds, deps = {}) {
 }
 
 /**
+ * @typedef {Object} ChildPageRef
+ * @property {string} id - the child page id
+ * @property {string} title - the child page title
+ * @property {string} url - an absolute Confluence URL to the child page
+ */
+
+/**
+ * @typedef {Object} ChildPagesResult
+ * @property {ChildPageRef[]} childPages
+ * @property {boolean} truncated - true if the page-count cap was hit and the child set is incomplete
+ */
+
+/**
+ * Fetch the first-level child pages of a Confluence page. Read-only.
+ *
+ * Uses the v1 REST API child/page endpoint, following `_links.next` for
+ * pagination exactly like {@link fetchConfluenceComments}. The `_links.next`
+ * value is a path-relative string, so it is prefixed with the credentials base
+ * to form an absolute URL. Each child's `_links.webui` (also path-relative) is
+ * likewise made absolute; when absent it falls back to a `<base>/wiki/pages/<id>`
+ * URL so callers always get a usable link. Only one level of children is
+ * fetched - this is not recursive.
+ * @param {string} pageIdOrUrl
+ * @param {AtlassianCreds} creds
+ * @param {{ fetch?: FetchLike }} [deps]
+ * @returns {Promise<ChildPagesResult>}
+ */
+export async function fetchChildPages(pageIdOrUrl, creds, deps = {}) {
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const confluenceBase = stripTrailingSlash(creds.url)
+	const pageId = extractConfluencePageId(pageIdOrUrl)
+	if (pageId === null) {
+		throw new FetchError(
+			pageIdOrUrl,
+			'not-found',
+			`could not extract a Confluence page ID from this URL format - only /pages/<id>/ and ?pageId=<id> are supported: ${pageIdOrUrl}`
+		)
+	}
+	/** @type {ChildPageRef[]} */
+	const childPages = []
+	const limit = 100
+	const MAX_PAGES = 50
+	let page = 0
+	let truncated = false
+	let nextUrl = `${confluenceBase}/wiki/rest/api/content/${encodeURIComponent(pageId)}/child/page?limit=${limit}&start=0`
+
+	while (nextUrl) {
+		// Cap pagination to guard against a misbehaving self-referential `_links.next`.
+		// Hitting the cap means the child set is incomplete, surfaced via `truncated`.
+		if (++page > MAX_PAGES) {
+			truncated = true
+			break
+		}
+		const json = await fetchJson(nextUrl, creds, fetchImpl)
+		const results = Array.isArray(json?.results) ? json.results : []
+		for (const result of results) {
+			const id = typeof result?.id === 'string' ? result.id : String(result?.id ?? '')
+			if (!id) continue
+			const webui = result?._links?.webui
+			const url =
+				typeof webui === 'string' && webui ? `${confluenceBase}${webui}` : `${confluenceBase}/wiki/pages/${id}`
+			childPages.push({
+				id,
+				title: typeof result?.title === 'string' ? result.title : '',
+				url,
+			})
+		}
+		const rawNext = json?._links?.next
+		nextUrl = typeof rawNext === 'string' ? `${confluenceBase}${rawNext}` : ''
+	}
+
+	return { childPages, truncated }
+}
+
+/**
  * Fetch the raw HTML storage body of a Confluence page (for anchor resolution).
  * @param {string} pageIdOrUrl
  * @param {AtlassianCreds} creds
@@ -669,10 +744,11 @@ export async function postConfluenceComment(pageId, body, type, anchor, creds, d
 			: `${confluenceBase}/wiki/api/v2/footer-comments`
 	/** @type {any} */
 	const payload = { pageId, body: { representation: 'wiki', value: body } }
-	if (type === 'inline' && anchor !== null) {
+	if (type === 'inline') {
+		const a = /** @type {InlineAnchor} */ (anchor)
 		payload.inlineCommentProperties = {
-			textSelection: anchor.textSelection,
-			textSelectionMatchCount: anchor.matchCount,
+			textSelection: a.textSelection,
+			textSelectionMatchCount: a.matchCount,
 			textSelectionMatchIndex: 0,
 		}
 	}
@@ -792,15 +868,85 @@ export function parseUrlsArg(argv) {
 }
 
 /**
- * CLI entry: parse argv, collect intent, write the FetchOutput as JSON to
- * stdout. Returns the result so tests can assert on it without spawning.
+ * @typedef {Object} ChildPagesOutput
+ * @property {ChildPageRef[]} childPages
+ * @property {boolean} truncated
+ * @property {FetchErrorJson[]} errors
+ */
+
+/**
+ * Discover the first-level child pages of a single Confluence page for the
+ * `--child-pages <url>` CLI mode. Never throws - credential and per-page
+ * failures are collected into `errors` so the caller decides whether to
+ * hard-stop, matching {@link collectIntent}'s contract.
+ * @param {string} url
+ * @param {CollectDeps} [deps]
+ * @returns {Promise<ChildPagesOutput>}
+ */
+export async function collectChildPages(url, deps = {}) {
+	const fetchImpl = deps.fetch ?? globalThis.fetch
+	const stderr = deps.stderr ?? process.stderr
+	const loadCreds = deps.loadCreds ?? loadAtlassianCreds
+	/** @type {AtlassianCreds | null} */
+	let creds
+	try {
+		creds = loadCreds(deps.homedir, deps.env)
+	} catch (err) {
+		const message = `credential file could not be read - ${err instanceof Error ? err.message : String(err)}`
+		stderr.write(`atlassian-fetch: ${message}\n`)
+		return { childPages: [], truncated: false, errors: [{ url: '', kind: 'auth-error', message }] }
+	}
+	if (!creds) {
+		return {
+			childPages: [],
+			truncated: false,
+			errors: [
+				{
+					url: '',
+					kind: 'auth-error',
+					message: 'No Atlassian credentials configured - run /unic-spec-review:setup-confluence',
+				},
+			],
+		}
+	}
+	try {
+		const { childPages, truncated } = await fetchChildPages(url, creds, { fetch: fetchImpl })
+		return { childPages, truncated, errors: [] }
+	} catch (err) {
+		if (err instanceof FetchError) {
+			return { childPages: [], truncated: false, errors: [{ url, kind: err.kind, message: err.message }] }
+		}
+		const msg = err instanceof Error ? (err.stack ?? err.message) : String(err)
+		stderr.write(`atlassian-fetch: internal error fetching child pages for ${url}: ${msg}\n`)
+		return { childPages: [], truncated: false, errors: [{ url, kind: 'parse-error', message: msg }] }
+	}
+}
+
+/**
+ * Read the value following `--child-pages` in argv, or null when absent.
+ * @param {string[]} argv
+ * @returns {string | null}
+ */
+export function parseChildPagesArg(argv) {
+	const idx = argv.indexOf('--child-pages')
+	if (idx < 0) return null
+	const raw = (argv[idx + 1] ?? '').trim()
+	return raw || null
+}
+
+/**
+ * CLI entry: parse argv, collect intent (or child pages in `--child-pages`
+ * mode), write the result as JSON to stdout. Returns the result so tests can
+ * assert on it without spawning.
  * @param {string[]} argv
  * @param {CollectDeps & { stdout?: { write: (s: string) => void } }} [deps]
- * @returns {Promise<FetchOutput>}
+ * @returns {Promise<FetchOutput | ChildPagesOutput>}
  */
 export async function main(argv, deps = {}) {
-	const urls = parseUrlsArg(argv)
-	const result = await collectIntent(urls, deps)
+	const childPagesUrl = parseChildPagesArg(argv)
+	const result = childPagesUrl
+		? await collectChildPages(childPagesUrl, deps)
+		: await collectIntent(parseUrlsArg(argv), deps)
 	let serialised
 	try {
 		serialised = JSON.stringify(result)

@@ -8,7 +8,7 @@ description: Adversarial review of web specifications (Confluence). Parallel ele
 
 Runs a read-only adversarial review of one Confluence spec page using eleven parallel agents (eight Black-hat dimension agents plus Green, Yellow, Red perspective agents), ranks Findings by confidence \* severity, groups them by hat, prints a ranked hat-grouped triage, and writes a durable timestamped report under `.spec-review/`.
 
-> **S5 scope:** single Confluence page, eleven parallel agents, Landscape Brief injection, single-Finding write path via `--post` (inline-anchored comment, footer fallback). No Figma, no live-system. Full multi-Finding Approval Loop and similarity de-dup land in S8.
+> **S5 scope:** Confluence page traversal (seed page plus its child pages and in-body `/wiki/` links, gated behind reviewer confirmation), eleven parallel agents, Landscape Brief injection, single-Finding write path via `--post` (inline-anchored comment, footer fallback). No Figma, no live-system. Full multi-Finding Approval Loop and similarity de-dup land in S8.
 
 ## Step 1 - Parse arguments
 
@@ -61,7 +61,83 @@ Parse the JSON from stdout. The fetch script writes its JSON to stdout **before*
 Extract from `items[0]`:
 
 - `PAGE_TITLE` = `title`
-- `PAGE_CONTENT` = `excerpt` (first 800 chars of the page body, HTML-stripped)
+- `SEED_ITEM` = `items[0]` (keep the whole item; you need its `id` and `linkedUrls` for traversal)
+
+## Step 3b - Discover and confirm the page set
+
+The pasted page is only the seed. A spec is usually a parent page with child pages plus cross-linked pages, so discover them and let the reviewer decide what to fetch. **No bulk fetch happens before the reviewer confirms.** The whole step is read-only.
+
+1. **Fetch the seed's child pages** (GET-only):
+
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/atlassian-fetch.mjs" --child-pages "$TARGET_URL"
+   ```
+
+   Parse the JSON: `{ childPages: [{ id, title, url }], truncated, errors }`. If `errors` is non-empty, warn with the first entry's `kind` and `message` but continue with whatever children were returned. Record `truncated` as `CHILDREN_TRUNCATED`; when `true`, warn `Child page list may be incomplete (hit API limit).` and carry the flag into the confirmation prompt (sub-step 4) so the reviewer knows the discovered total is a lower bound.
+
+2. **Build the planner input.** Use the **Write tool** to write `.spec-review/.traversal-input.json`:
+
+   ```json
+   {
+     "seeds": ["<SEED_ITEM.id>"],
+     "pageMeta": [
+       {
+         "id": "<SEED_ITEM.id>",
+         "url": "<SEED_ITEM.url>",
+         "title": "<PAGE_TITLE>",
+         "linkedUrls": <SEED_ITEM.linkedUrls>,
+         "childPages": <childPages from step 1>
+       }
+     ]
+   }
+   ```
+
+3. **Run the traversal planner** (pure, no I/O):
+
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/traversal-planner.mjs" --plan-file ".spec-review/.traversal-input.json"
+   ```
+
+   Parse the JSON `TraversalPlan`: `{ pages: [{ pageId, url, title, source }], needsConfirmation, total }`. Pages are ordered seeds first, then `child`, then `linked`, deduplicated by `pageId`. If the planner exits non-zero or prints no JSON, warn `Traversal planning failed; reviewing the seed page alone.` and fall back to `CONFIRMED_PAGES = [the seed]`, then continue at sub-step 6 (do not abort the review).
+
+4. **Decide whether to confirm.** If `needsConfirmation` is `false` (only the seed, no expansion), set `CONFIRMED_PAGES = plan.pages` and continue at sub-step 6 to assemble the seed-only `PAGE_CONTENT` (skip the confirmation prompt and the non-seed fetch in sub-step 5).
+
+   If `needsConfirmation` is `true`, print the discovered set grouped by source and ask the reviewer. When `CHILDREN_TRUNCATED` is `true`, render the total as `<total>+` and add the line `(child page list incomplete - hit API limit; more pages may exist)`:
+
+   ```
+   Discovered <total> pages for this spec:
+   Seeds (already fetched):
+     1. <title> - <url>
+   Child pages:
+     2. <title> - <url>
+   Linked pages:
+     N. <title> - <url>
+
+   Fetch all <total> pages for review? [Y]es / [n]o / enter numbers to exclude (e.g. 2,5):
+   ```
+
+   - Empty input or `Y`/`y`: confirm the full set.
+   - `n`/`N`/`0`: print `Review cancelled.` and stop. Nothing is fetched.
+   - Comma-separated numbers: remove those entries (seeds cannot be removed; ignore a number that points at a seed). Then print the trimmed set and `Confirmed: <M> pages. Proceeding to fetch and review.`
+
+   Set `CONFIRMED_PAGES` to the confirmed list.
+
+5. **Fetch the confirmed non-seed pages.** Collect the `url` of every `CONFIRMED_PAGES` entry whose `source` is not `seed` into a comma-separated list and fetch them:
+
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/atlassian-fetch.mjs" --urls "<comma-separated confirmed non-seed urls>"
+   ```
+
+   Parse the `items` array. If any page errors, warn with its `kind`/`message` but do not abort the whole review - review the pages that did fetch. After fetching, print an aggregate summary line `Fetched <M> of <N> confirmed non-seed pages (<K> failed).` so a partial fetch is never silent. If every non-seed page failed (`M === 0`), warn `All additional pages failed to fetch; reviewing the seed page alone.` before continuing - so a wholesale failure does not masquerade as a complete multi-page review.
+
+6. **Assemble the multi-page content.** Build `PAGE_CONTENT` by concatenating the seed item plus every successfully fetched page, each block prefixed with a header line so agents can attribute findings to a page:
+
+   ```
+   --- <title> (<url>) ---
+   <excerpt>
+   ```
+
+   Join blocks with a blank line. When only the seed is in `CONFIRMED_PAGES`, `PAGE_CONTENT` is just the seed's `excerpt` with its header line.
 
 ## Step 4 - Detect technology landscape
 

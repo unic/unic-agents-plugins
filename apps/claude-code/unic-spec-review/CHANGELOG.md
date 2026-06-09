@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.1.6] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Add `traversal-planner` module: `planTraversal(seeds, pageMetaMap)` discovers child pages and in-body Confluence links from seed page metadata, deduplicates by page id, and returns a `TraversalPlan` with an ordered expansion list and a `needsConfirmation` flag (set when expansion exceeds just the seeds or total pages exceed the budget threshold). Pure function, no I/O.
+- Add `fetchChildPages` to `atlassian-fetch`: fetches the first-level child pages of a Confluence page via the v1 REST API (`/content/{id}/child/page`) with `_links.next` pagination, returning `ChildPageRef[]` and a `truncated` flag. Follows the same injected-fetch pattern as `fetchConfluenceComments`. Accessible via `--child-pages <url>` CLI mode.
+- Extend `/review-spec` Step 3 with page traversal: after fetching the seed page(s), the command discovers child pages and in-body Confluence links, presents the discovered page set and count, and asks the reviewer to confirm or trim before any bulk fetch. The confirmed set is fetched and fed to the review engine. The run remains strictly read-only.
+- Unit tests cover `traversal-planner` (expansion + budget-gate logic, deduplication, ordering, edge cases) and `fetchChildPages` (happy path, pagination, truncation, and error cases); no live services.
+
+### Fixed
+- `/review-spec` Step 3b no longer skips assembling `PAGE_CONTENT` on the seed-only path (when no expansion is discovered), so the review agents always receive the page content.
+- Step 3b now surfaces coverage gaps instead of hiding them: it carries the child-page `truncated` flag into the confirmation prompt, falls back to a seed-only review when the traversal planner exits non-zero, and prints an aggregate `Fetched M of N` summary (with an explicit warning if every additional page fails).
+- Correct `traversal-planner` and `fetchChildPages` JSDoc: the `needsConfirmation` rule is stated against the unique-seed count (not raw `seeds.length`), the child-page fallback URL shape is documented as `<base>/wiki/pages/<id>`, and `TraversalPage.title` is noted as empty for `linked` pages.
+- Add `fetchChildPages` tests for numeric-id coercion, `_links.next` base-prefixing on the follow-up request, and mid-pagination error propagation.
+
 ## [0.1.5] — 2026-06-08
 
 ### Breaking
