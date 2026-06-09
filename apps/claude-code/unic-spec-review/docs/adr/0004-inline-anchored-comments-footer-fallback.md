@@ -27,3 +27,23 @@ For each approved Finding, attempt to anchor an inline comment to the exact spec
 - Inline anchoring is fragile across edits: if the anchored text changes between the review and the post, or between runs, the match can fail and the Finding falls back to a footer comment. This is acceptable and is why the fallback exists.
 - The anchor-resolution logic (`inline-anchor-resolver`) is a pure module with its own unit tests, since matching `textSelection` and `matchCount` correctly is the riskiest part of posting.
 - Every posted comment, inline or footer, carries the visible attribution footer from [ADR-0002](0002-dedup-by-similarity-not-marker.md).
+
+## Update (2026-06): body representation and reactive fallback
+
+Two refinements to the posting path, grilled against issues #231 (rendering) and #232 (fallback completeness). The inline-versus-footer decision above is unchanged; these pin how the body is encoded and close a gap in the "never dropped" guarantee.
+
+### Body representation: convert Markdown to storage format
+
+The Confluence v2 comment API accepts a `representation` of `storage`, `atlas_doc_format`, or `wiki` only; Markdown is not a valid value. Finding bodies are agent-authored Markdown, but were being posted with `representation: 'wiki'`, so lists, code blocks, and links rendered as raw markup.
+
+Posting now converts the Finding body to **storage format** (XHTML) via a vendored, dependency-free converter (per [ADR-0001](0001-vendor-shared-code-for-self-containment.md)). Storage was chosen over wiki (semi-deprecated by Atlassian) and ADF (heaviest; a JSON document tree) because it is the modern, fully-supported representation and is already the format the read path fetches (`body.storage`), so the plugin works in one representation end to end.
+
+- The converter handles the subset Findings actually contain: HTML-escaping (mandatory for valid XHTML, unlike wiki), bold/italic, inline code, links, bullet and ordered lists, and fenced code blocks (`ac:structured-macro`). Any unrecognised construct (headings, tables, raw HTML) degrades to HTML-escaped literal text rather than malformed XHTML. The guarantee is that a posted comment is never malformed; worst case it reads as plain text.
+- Only the agent-authored Finding body is converted. The title line and attribution footer are emitted as storage fragments directly, with interpolated values escaped, so the footer marker text stays byte-exact and `recognizeFooter` keeps working.
+- De-dup ([ADR-0002](0002-dedup-by-similarity-not-marker.md)) is unaffected: the read path strips HTML to plain text before tokenising, so the comparison runs on stripped text regardless of the write representation.
+
+### Reactive footer fallback on inline rejection
+
+The fallback above is predictive: our resolver falls back to a footer when it cannot match the anchor uniquely. But our resolver counts over `stripHtml(page)` while Confluence validates the `textSelection`/`matchCount` against its own stored-body model, so the two can disagree. When they do, Confluence rejects the inline POST and the Finding was erroring out, posted nowhere, breaking the guarantee.
+
+The fallback is now also reactive: an inline POST rejected by Confluence (HTTP 400, surfaced as the new `FetchError` kind `rejected`) retries the same body as a page-level footer comment and reports `footer fallback (inline rejected by Confluence)`. Genuine auth (401/403), not-found (404), and network/timeout/5xx failures still fail loudly and are never silently retried. This restores the "no Finding is ever dropped" guarantee end to end.
