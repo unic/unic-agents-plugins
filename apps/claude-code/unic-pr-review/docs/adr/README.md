@@ -16,3 +16,4 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0012](0012-checkout-free-first-review-diff.md) — First-review computes a checkout-free merge-base diff from ADO commit SHAs
 - [0013](0013-two-phase-code-simplifier.md) — `code-simplifier` runs as a conditional Phase 2 post-pass, not in the Phase 1 fan-out
 - [0014](0014-orchestrator-owns-state-dir-cleanup.md) — Orchestrator owns Approval Loop state-directory cleanup, gated on ADO write success
+- [0015](0015-write-retry-completes-partial-iteration.md) — Write Retry completes a partially-written Iteration (same iteration, posts only what failed) instead of routing to re-review

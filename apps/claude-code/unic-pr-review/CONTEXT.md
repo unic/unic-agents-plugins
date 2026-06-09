@@ -60,6 +60,10 @@ _Avoid_: confirmation, prompt, gate
 One of `pre-pr`, `first-review`, `re-review`, `first-review-fallback`. Selected at runtime by URL presence and Bot Signature detection (ADR-0009).
 _Avoid_: state, phase, kind
 
+**Write Retry**:
+A re-run of `--post` that _finishes_ a partially-written Iteration instead of starting a new one. Triggered when the local Approval Loop state directory survived a prior write (the write did not fully succeed, ADR-0014) **and** HEAD is unchanged; it reuses the **same** Iteration number and posts only the Findings — and the Review Summary — that did not already land. Distinct from a **Re-review**, which increments the Iteration after the author pushes new changes (ADR-0015).
+_Avoid_: re-review, resume, second pass
+
 **Provider**:
 A folder bundle at `providers/<name>/` implementing the Source Platform contract (`parsePrUrl`, `agents.{fetcher, writer}`, `discoverWorkItems`). v2 ships `providers/azure_devops/`; later releases may add GitHub or GitLab.
 _Avoid_: adapter, backend, driver
@@ -94,6 +98,7 @@ _Avoid_: content filter, semantic check, narrowing gate
 - Each **Finding** carries a **Confidence** score that determines its **Severity** bucket
 - The **Approval Loop** mediates between **Findings** and PR write-back
 - The **Bot Signature** records the **Iteration** and lets the next Review detect prior runs
+- A **Write Retry** finishes a partial write at the same **Iteration**; a **Re-review** starts the next **Iteration**
 - A **Notice** can appear above the **Intent Check** when something needs the reviewer's attention
 
 ## Example dialogue
@@ -106,3 +111,6 @@ _Avoid_: content filter, semantic check, narrowing gate
 
 > **Dev:** "A Finding came back with Confidence 55. Why didn't I see it in the Summary?"
 > **Domain expert:** "Anything below 60 is filtered out per ADR-0002. That's the noise floor — Minor starts at 60."
+
+> **Dev:** "My `--post` failed halfway — three threads posted, two didn't. I re-ran `--post` and it didn't duplicate the three, but it also didn't bump to Iteration 2. Bug?"
+> **Domain expert:** "No — that's a Write Retry, not a Re-review. The state directory survived because the prior write wasn't fully successful (ADR-0014), and HEAD hadn't moved, so the re-run finished Iteration 1: it posted only the two missing threads and left the three alone. You only get a new Iteration once you push changes and re-review (ADR-0015)."
