@@ -143,7 +143,7 @@ export function buildInitialState(rawFindings, params, createdAt) {
 	/** @type {LoopFinding[]} */
 	const findings = rawFindings.map((r) => {
 		const raw = /** @type {Record<string, unknown>} */ (r)
-		const finding = /** @type {LoopFinding} */ ({
+		return /** @type {LoopFinding} */ ({
 			id: deriveId({
 				filePath: String(raw.filePath ?? ''),
 				startLine: Number(raw.startLine ?? 0),
@@ -159,7 +159,6 @@ export function buildInitialState(rawFindings, params, createdAt) {
 			...(raw.suggestion !== undefined && { suggestion: String(raw.suggestion) }),
 			decision: 'pending',
 		})
-		return finding
 	})
 
 	return {

@@ -26,14 +26,7 @@ const COMMANDS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../commands'
  * @returns {string[]}
  */
 function extractShBlocks(content) {
-	const blocks = /** @type {string[]} */ ([])
-	const re = /```sh\n([\s\S]*?)```/g
-	let m = re.exec(content)
-	while (m !== null) {
-		blocks.push(m[1])
-		m = re.exec(content)
-	}
-	return blocks
+	return [...content.matchAll(/```sh\n([\s\S]*?)```/g)].map((m) => m[1])
 }
 
 /**
