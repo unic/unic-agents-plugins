@@ -71,6 +71,7 @@ flowchart TD
   s1 -->|"no URL"| prepr["Pre-PR"]
   s1 -->|"URL, no prior signature"| first["first-review"]
   s1 -->|"URL, prior signature found"| rere["re-review"]
+  s1 -->|"URL + --post, surviving local state, HEAD matches (ADR-0015)"| wr["Write Retry: resume saved Approval state,<br/>skip review, re-post only the failed Findings/Summary"]
 
   prepr --> s2
   first --> s2
@@ -96,15 +97,17 @@ flowchart TD
     direction TB
     cr["code-reviewer <br>(always)"]
     sfh["silent-failure-hunter <br>(if source files or error-handling changes)"]
-    tda["type-design-analyzer <br>(if type files)"]
+    tda["type-design-analyzer <br>(if type files or type-level changes)"]
     pta["pr-test-analyzer <br>(if test files)"]
     cma["comment-analyzer <br>(if docs or comment changes)"]
-    csi["code-simplifier <br>(if 3+ source files)"]
     ia["Intent Assessor <br>(if intentBrief present + skeleton non-empty)"]
   end
   s6 --> s7
 
-  s7 --> coord{"re-review?"}
+  s7 --> phase2{"Phase 2 gate (ADR-0013)<br/>0 Critical/Important findings AND ≥3 source files?"}
+  phase2 -->|"yes"| csi["Phase 2: code-simplifier post-pass<br/>(sequential, after Phase 1; honours --dry-run / preview)"]
+  phase2 -->|"no"| coord{"re-review?"}
+  csi --> coord
   coord -->|"yes"| rrc["Re-review Coordinator<br>Merges priorVerdicts + Thread state<br>Emits threadActions, persistentUnaddressed, freshFindings"]
   coord -->|"no"| s8
   rrc --> s8
@@ -117,6 +120,7 @@ flowchart TD
   postq -->|"non-TTY without yes flag"| stop(["Abort exit 2: ADR-0003 guard"])
   postq -->|"TTY or yes flag"| loop["Approval Loop<br>Walk Findings: accept / edit / skip"]
 
+  wr --> loop
   loop --> w["ADO Writer"]
   w -->|"first-review"| w1["Post Threads + Summary General Comment"]
   w -->|"re-review"| w2["Reply on Threads / auto-resolve addressed /<br>Rewrite Summary in place / Persistent Unaddressed Notice"]
