@@ -16,10 +16,11 @@ import { fileURLToPath } from 'node:url'
 
 /**
  * @param {'findings' | 'approved'} kind
- * @param {string} key - 16-char hex PR key
+ * @param {string} key - hex PR key (e.g. from `sha16(prUrl)`)
  * @returns {string}
  */
 export function tempFilePath(kind, key) {
+	if (!key) throw new Error('temp-paths: missing key')
 	return join(tmpdir(), `unic-pr-review-${kind}-${key}.json`)
 }
 

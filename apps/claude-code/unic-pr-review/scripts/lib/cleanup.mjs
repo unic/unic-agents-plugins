@@ -20,6 +20,9 @@ import { fileURLToPath } from 'node:url'
  */
 
 /**
+ * Delete `filePath`, tolerating only ENOENT (already-gone = success).
+ * Rethrows EPERM, EBUSY, and any other error unchanged.
+ *
  * @param {string} filePath
  * @param {CleanupDeps} [deps]
  * @returns {void}

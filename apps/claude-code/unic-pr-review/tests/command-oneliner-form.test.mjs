@@ -7,6 +7,9 @@
  *
  * IDENT='...' tokens that appear after `node` are positional argv, NOT process.env —
  * they produce undefined reads and silent failures (see issue #227 and AGENTS.md Conventions).
+ *
+ * Limitation: only detects trailing env on the same line as `node`.
+ * A multi-line sh block where an env var trails the closing `"` on a separate line is not caught here.
  */
 
 import assert from 'node:assert/strict'

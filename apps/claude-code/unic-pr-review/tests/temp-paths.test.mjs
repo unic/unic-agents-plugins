@@ -34,4 +34,12 @@ describe('tempFilePath', () => {
 	it('findings and approved paths are distinct', () => {
 		assert.notEqual(tempFilePath('findings', KEY), tempFilePath('approved', KEY))
 	})
+
+	it('throws on empty key', () => {
+		assert.throws(() => tempFilePath('findings', ''), /temp-paths: missing key/)
+	})
+
+	it('throws on undefined key', () => {
+		assert.throws(() => tempFilePath('findings', /** @type {any} */ (undefined)), /temp-paths: missing key/)
+	})
 })
