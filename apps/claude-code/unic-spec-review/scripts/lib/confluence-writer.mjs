@@ -57,7 +57,7 @@ async function main() {
 		const bodyWithFooter = withFooter(commentBody, finding.dimension, finding.hat)
 		const type = resolution.type
 		const anchor =
-			resolution.type === 'inline'
+			type === 'inline'
 				? { textSelection: resolution.textSelection, matchCount: resolution.matchCount }
 				: null
 		const result = await postConfluenceComment(pageId, bodyWithFooter, type, anchor, creds, { fetch: globalThis.fetch })
@@ -75,7 +75,7 @@ async function main() {
 				id: result.id,
 				created: result.created,
 				type,
-				reason: resolution.type === 'footer' ? resolution.reason : null,
+				reason: type === 'footer' ? resolution.reason : null,
 			})}\n`
 		)
 		process.exit(0)
