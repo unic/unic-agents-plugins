@@ -48,15 +48,17 @@ describe('checkWriteRetry', () => {
 		assert.deepEqual(checkWriteRetry(path, HEAD), { mode: 'stale' })
 	})
 
-	it('returns {mode:"none"} when state file exists but is malformed JSON', () => {
+	it('returns {mode:"corrupt"} when state file exists but is malformed JSON', () => {
+		// The dir survived (prior --post did not complete) but state.json is garbage:
+		// not "no prior attempt" — the orchestrator must warn, not silently re-review.
 		const path = join(tempDir(), 'state.json')
 		writeFileSync(path, '{not json', 'utf8')
-		assert.deepEqual(checkWriteRetry(path, HEAD), { mode: 'none' })
+		assert.deepEqual(checkWriteRetry(path, HEAD), { mode: 'corrupt' })
 	})
 
-	it('returns {mode:"none"} when state file exists but headSha is not a string', () => {
+	it('returns {mode:"corrupt"} when state file exists but headSha is not a string', () => {
 		const path = writeState({ iteration: 2 }) // no headSha
-		assert.deepEqual(checkWriteRetry(path, HEAD), { mode: 'none' })
+		assert.deepEqual(checkWriteRetry(path, HEAD), { mode: 'corrupt' })
 	})
 
 	it('uses injected deps without touching the real filesystem', () => {
@@ -126,6 +128,14 @@ describe('recordOutcomes', () => {
 		const state = JSON.parse(readFileSync(path, 'utf8'))
 		assert.equal(state.postedMap.f1.threadId, 101)
 		assert.equal(state.summaryPosted, true)
+	})
+
+	it('throws a clear TypeError when inlineResults is not an array (malformed Writer result)', () => {
+		const path = writeState({ headSha: HEAD })
+		assert.throws(
+			() => recordOutcomes(path, /** @type {any} */ ({ not: 'an array' }), null),
+			/inlineResults must be an array/
+		)
 	})
 
 	it('writes atomically via tmp + rename', () => {

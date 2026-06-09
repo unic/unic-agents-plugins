@@ -9,8 +9,8 @@
  * partially-written Iteration). Three pure-ish helpers, all path-based so they
  * are unit-testable without mocking the module system:
  *
- *   - `checkWriteRetry`  — classify a re-run as none / retry / stale by comparing
- *                          the saved `headSha` to the current HEAD.
+ *   - `checkWriteRetry`  — classify a re-run as none / retry / stale / corrupt by
+ *                          comparing the saved `headSha` to the current HEAD.
  *   - `recordOutcomes`   — after a write, persist each Finding's post outcome and
  *                          a `summaryPosted` flag into `state.json` (atomic write),
  *                          run BEFORE the success-gated cleanup (ADR-0014).
@@ -80,7 +80,7 @@ import { approvalStateDirPath } from './cache-paths.mjs'
  * @param {string} statePath - absolute path to `<stateDir>/state.json`
  * @param {string} currentHead - current `git rev-parse HEAD`
  * @param {WriteOutcomeDeps} [deps]
- * @returns {{ mode: 'none' } | { mode: 'retry', state: WriteRetryState } | { mode: 'stale' }}
+ * @returns {{ mode: 'none' } | { mode: 'retry', state: WriteRetryState } | { mode: 'stale' } | { mode: 'corrupt' }}
  */
 export function checkWriteRetry(statePath, currentHead, deps = {}) {
 	const existsSync = deps.existsSync ?? realExistsSync
@@ -88,15 +88,19 @@ export function checkWriteRetry(statePath, currentHead, deps = {}) {
 
 	if (!existsSync(statePath)) return { mode: 'none' }
 
+	// The state file exists, so a prior --post left resumable state behind. If it
+	// is unreadable or invalid we cannot resume it — but that is NOT "no prior
+	// attempt". Surface `corrupt` so the orchestrator can warn the user instead of
+	// silently re-entering the empty-delta re-review path that drops Findings (#236).
 	let state
 	try {
 		state = JSON.parse(readFile(statePath, 'utf8'))
 	} catch {
-		return { mode: 'none' }
+		return { mode: 'corrupt' }
 	}
 
 	if (!state || typeof state !== 'object' || typeof state.headSha !== 'string') {
-		return { mode: 'none' }
+		return { mode: 'corrupt' }
 	}
 
 	if (state.headSha === currentHead) return { mode: 'retry', state }
@@ -122,6 +126,10 @@ export function recordOutcomes(statePath, inlineResults, summaryResult, deps = {
 	const readFile = deps.readFile ?? realReadFile
 	const writeFile = deps.writeFile ?? realWriteFile
 	const renameSync = deps.renameSync ?? realRenameSync
+
+	if (!Array.isArray(inlineResults)) {
+		throw new TypeError('recordOutcomes: inlineResults must be an array')
+	}
 
 	let state = /** @type {Record<string, unknown>} */ ({})
 	try {

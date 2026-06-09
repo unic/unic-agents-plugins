@@ -73,12 +73,22 @@ HEAD_SHA="<HEAD_SHA>" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs
 
 stdout is a JSON object. Route on its `mode`:
 
-- **`{ "mode": "none" }`** → no prior state (or it was unreadable); proceed to Step 1.3 (normal review).
+- **`{ "mode": "none" }`** → no state directory at all (no prior `--post` attempt); proceed to Step 1.3 (normal review).
 - **`{ "mode": "retry", "state": … }`** → **Write Retry**: set `IS_WRITE_RETRY = true`, store `state` as `WRITE_RETRY_STATE`, and set `CURRENT_ITERATION = WRITE_RETRY_STATE.iteration ?? 1`. Skip Steps 1.3–1.10 entirely (no Fetcher, no mode detection, no aspect fan-out) and go straight to Step 1.11 — the saved approval decisions are reused, nothing is re-prompted.
 - **`{ "mode": "stale" }`** → the partial attempt is from a different HEAD (force-push / rebase). Print the Notice, discard the stale state directory, then proceed to Step 1.3 (normal review against the new HEAD):
 
   ```
   Notice: Prior --post state is stale (saved HEAD differs from current HEAD). Discarding saved state and running a normal review against the new HEAD.
+  ```
+
+  ```sh
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/clear-state-dir.mjs" "<PR_KEY>"
+  ```
+
+- **`{ "mode": "corrupt" }`** → a state directory survived (the prior `--post` did **not** complete) but its `state.json` is unreadable or invalid, so the failed Findings cannot be auto-resumed. Print the Notice, discard the unusable state directory, then proceed to Step 1.3 (normal review). Unlike `none`, this is **not** silent — the user must know a prior attempt's failed comments will not be re-posted automatically:
+
+  ```
+  Notice: A prior --post state directory exists but its state.json is unreadable or invalid. Discarding it and running a normal review against the current HEAD — any Findings that failed to post in the prior attempt are NOT auto-resumed, so re-check the PR for missing comments.
   ```
 
   ```sh
@@ -387,7 +397,7 @@ If `success` is `false` (any thread failed), warn the user:
 
 Caveats:
 - Cross-machine: Write Retry is local. A retry from a different clone has no state directory and falls back to re-review, which sees an empty delta and produces zero Findings.
-- HEAD moved: if the branch is force-pushed or rebased between the failed attempt and the retry, the stale state is discarded and a normal re-review runs instead.
+- HEAD moved: if the branch is force-pushed or rebased between the failed attempt and the retry, the stale state is discarded and a normal review runs instead (re-review if a prior comment already carried the Iteration Marker, first-review otherwise).
 - Do not use --yes: --post --yes bypasses the Approval Loop entirely and re-posts all approved Findings, creating duplicate comments for the ones that already succeeded.
 ```
 

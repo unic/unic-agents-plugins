@@ -42,4 +42,5 @@ Introduce **Write Retry**: a re-run of `--post` that finishes a partially-writte
 - The ADO Writer's first-review input gains an optional `alreadyPostedFindingIds` array (inline-skip list) and an optional `summaryAlreadyPosted` flag; everything else is unchanged. The Writer never prunes its own input, so the Summary always reflects the full approved set.
 - The orchestrator gains a top-of-flow Write Retry check (state directory present + `headSha` match) before the Fetcher.
 - Cross-machine retry is **not** covered: without the local state directory the re-run still routes to re-review. Acceptable given the resume contract was already local (ADR-0014).
+- A surviving-but-unreadable `state.json` is classified `corrupt` (distinct from `none`): the orchestrator prints a Notice and runs a normal review, rather than silently re-entering the empty-delta re-review path that drops Findings. This keeps the staleness guard's "discard + Notice" posture symmetric across the stale and corrupt cases.
 - The Step 1.12 warning is rewritten to describe Write Retry accurately and to state the cross-machine and HEAD-moved caveats.
