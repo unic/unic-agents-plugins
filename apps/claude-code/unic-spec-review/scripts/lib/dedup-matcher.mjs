@@ -161,6 +161,10 @@ function main() {
 		process.exit(1)
 	}
 
+	// Strict `=== true`: a missing/non-boolean `truncated` reports `false` here. The
+	// envelope flag is advisory; Step 10a of review-spec.md is the authoritative source
+	// for COMPARISON_INCOMPLETE (computed from the fetch result + read errors), so the
+	// CLI never has to fail toward the gate on an ambiguous shape.
 	const truncated = !Array.isArray(commentsRaw) && commentsRaw?.truncated === true
 	const comments = Array.isArray(commentsRaw) ? commentsRaw : (commentsRaw?.comments ?? [])
 	const findingsList = Array.isArray(findings) ? findings : []

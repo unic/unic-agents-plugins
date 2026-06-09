@@ -454,7 +454,7 @@ N. [<severity>] <title> (dimension: <dimension>, confidence: <X>%, anchor: <anch
 
 Where `<dedup_badge>` is:
 
-- ``(empty) - decision is `'post'`AND`COMPARISON_INCOMPLETE` is false (complete run, no duplicate found)
+- _(no badge)_ - decision is `'post'` AND `COMPARISON_INCOMPLETE` is false (complete run, no duplicate found)
 - `  [?incomplete]` - decision is `'post'` AND `COMPARISON_INCOMPLETE` is true (comparison was partial; no duplicate found in what was checked)
 - `  [~near-dup]` - decision is `'flag'` (borderline; tiebreak required)
 - `  [~likely-dup]` - decision is `'skip'` (likely duplicate; override required)

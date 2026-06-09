@@ -334,6 +334,16 @@ describe('dedup-matcher CLI envelope', () => {
 		assert.ok(Array.isArray(envelope.results))
 	})
 
+	it('emits truncated: false when the comments object omits the truncated key', () => {
+		// Realistic payload from an older/partial collectComments: object with comments but no truncated field.
+		const { status, stdout } = runDedupCli([FINDING], { comments: [] })
+		assert.equal(status, 0)
+		const envelope = JSON.parse(stdout)
+		assert.equal(envelope.truncated, false)
+		assert.ok(Array.isArray(envelope.results))
+		assert.equal(envelope.results.length, 1)
+	})
+
 	it('still runs matchDedup against injected comments inside the envelope', () => {
 		const comment = {
 			id: 'c1',
