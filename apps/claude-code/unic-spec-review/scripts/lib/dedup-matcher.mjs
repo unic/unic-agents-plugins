@@ -115,14 +115,17 @@ export function matchDedup(finding, existingComments) {
 }
 
 /**
- * CLI entry: read findings and comments from JSON files, print a DedupResult[]
- * (indexed by findings position) to stdout. Exits 1 on missing args or parse error.
+ * CLI entry: read findings and comments from JSON files, print a run-level
+ * envelope `{ truncated, results }` to stdout where `results` is a DedupResult[]
+ * (indexed by findings position). Exits 1 on missing args or parse error.
  *
  * Usage: node dedup-matcher.mjs --findings-file <path> --comments-file <path>
  *
  * The findings file is a JSON array of Finding objects. The comments file is the
- * `{ comments: ConfluenceComment[] }` object emitted by `collectComments` (the CLI
- * reads `.comments`), or a bare `ConfluenceComment[]` array; either shape is accepted.
+ * `{ comments: ConfluenceComment[], truncated: boolean }` object emitted by
+ * `collectComments` (the CLI reads `.comments` and `.truncated`), or a bare
+ * `ConfluenceComment[]` array; either shape is accepted. `truncated` is read from
+ * the object shape (a bare array reports `truncated: false`).
  */
 function main() {
 	const argv = process.argv.slice(2)
@@ -158,10 +161,15 @@ function main() {
 		process.exit(1)
 	}
 
+	// Strict `=== true`: a missing/non-boolean `truncated` reports `false` here. The
+	// envelope flag is advisory; Step 10a of review-spec.md is the authoritative source
+	// for COMPARISON_INCOMPLETE (computed from the fetch result + read errors), so the
+	// CLI never has to fail toward the gate on an ambiguous shape.
+	const truncated = !Array.isArray(commentsRaw) && commentsRaw?.truncated === true
 	const comments = Array.isArray(commentsRaw) ? commentsRaw : (commentsRaw?.comments ?? [])
 	const findingsList = Array.isArray(findings) ? findings : []
 	const results = findingsList.map((finding) => matchDedup(finding, comments))
-	process.stdout.write(`${JSON.stringify(results)}\n`)
+	process.stdout.write(`${JSON.stringify({ truncated, results })}\n`)
 	process.exit(0)
 }
 

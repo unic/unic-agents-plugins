@@ -3,8 +3,15 @@
 // Copyright © 2026 Unic
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { FLAG_THRESHOLD, jaccard, matchDedup, SKIP_THRESHOLD, tokenize } from '../scripts/lib/dedup-matcher.mjs'
+
+const DEDUP_PATH = fileURLToPath(new URL('../scripts/lib/dedup-matcher.mjs', import.meta.url))
 
 /**
  * Build a valid Finding, overriding selected fields.
@@ -261,5 +268,111 @@ describe('matchDedup - threshold boundaries', () => {
 		assert.ok(Math.abs(result.nearDuplicates[0].similarity - 4 / 7) < 1e-9)
 		assert.ok(result.nearDuplicates[0].similarity < SKIP_THRESHOLD)
 		assert.equal(result.decision, 'flag')
+	})
+})
+
+/**
+ * Run the dedup-matcher CLI with injected JSON files.
+ * @param {unknown} findings
+ * @param {unknown} commentsObj
+ * @returns {{ status: number | null, stdout: string, stderr: string }}
+ */
+function runDedupCli(findings, commentsObj) {
+	const dir = mkdtempSync(join(tmpdir(), 'dedup-cli-'))
+	try {
+		const findingsFile = join(dir, 'findings.json')
+		const commentsFile = join(dir, 'comments.json')
+		writeFileSync(findingsFile, JSON.stringify(findings))
+		writeFileSync(commentsFile, JSON.stringify(commentsObj))
+		const res = spawnSync(
+			process.execPath,
+			[DEDUP_PATH, '--findings-file', findingsFile, '--comments-file', commentsFile],
+			{ encoding: 'utf8' }
+		)
+		return { status: res.status, stdout: res.stdout, stderr: res.stderr }
+	} finally {
+		rmSync(dir, { recursive: true, force: true })
+	}
+}
+
+describe('dedup-matcher CLI envelope', () => {
+	const FINDING = {
+		hat: 'black',
+		dimension: 'gaps',
+		title: 'Missing error handling',
+		body: 'The spec does not describe how errors are handled.',
+		severity: 'important',
+		confidence: 80,
+		anchor: null,
+	}
+
+	it('emits { truncated: false, results } when comments object has truncated: false', () => {
+		const { status, stdout } = runDedupCli([FINDING], { comments: [], truncated: false })
+		assert.equal(status, 0)
+		const envelope = JSON.parse(stdout)
+		assert.equal(envelope.truncated, false)
+		assert.ok(Array.isArray(envelope.results))
+		assert.equal(envelope.results.length, 1)
+		assert.equal(envelope.results[0].decision, 'post')
+	})
+
+	it('emits { truncated: true, results } when comments object has truncated: true', () => {
+		const { status, stdout } = runDedupCli([FINDING], { comments: [], truncated: true })
+		assert.equal(status, 0)
+		const envelope = JSON.parse(stdout)
+		assert.equal(envelope.truncated, true)
+		assert.ok(Array.isArray(envelope.results))
+		assert.equal(envelope.results.length, 1)
+		assert.equal(envelope.results[0].decision, 'post')
+	})
+
+	it('emits truncated: false when comments is a bare array (legacy shape)', () => {
+		const { status, stdout } = runDedupCli([FINDING], [])
+		assert.equal(status, 0)
+		const envelope = JSON.parse(stdout)
+		assert.equal(envelope.truncated, false)
+		assert.ok(Array.isArray(envelope.results))
+	})
+
+	it('emits truncated: false when the comments object omits the truncated key', () => {
+		// Realistic payload from an older/partial collectComments: object with comments but no truncated field.
+		const { status, stdout } = runDedupCli([FINDING], { comments: [] })
+		assert.equal(status, 0)
+		const envelope = JSON.parse(stdout)
+		assert.equal(envelope.truncated, false)
+		assert.ok(Array.isArray(envelope.results))
+		assert.equal(envelope.results.length, 1)
+	})
+
+	it('still runs matchDedup against injected comments inside the envelope', () => {
+		const comment = {
+			id: 'c1',
+			type: 'footer',
+			body: 'Missing error handling the spec does not describe how errors are handled',
+			author: 'reviewer',
+			created: '',
+		}
+		const { status, stdout } = runDedupCli([FINDING], { comments: [comment], truncated: true })
+		assert.equal(status, 0)
+		const envelope = JSON.parse(stdout)
+		assert.equal(envelope.truncated, true)
+		// High similarity - expect skip or flag, not post
+		assert.ok(envelope.results[0].decision === 'skip' || envelope.results[0].decision === 'flag')
+		assert.ok(envelope.results[0].nearDuplicates.length > 0)
+	})
+
+	it('exits 1 with an error JSON on stderr when --findings-file is missing', () => {
+		// CLI validates both flags before reading files, so the file path need not exist.
+		const res = spawnSync(process.execPath, [DEDUP_PATH, '--comments-file', 'dummy.json'], { encoding: 'utf8' })
+		assert.equal(res.status, 1)
+		const err = JSON.parse(res.stderr)
+		assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
+	})
+
+	it('exits 1 with an error JSON on stderr when --comments-file is missing', () => {
+		const res = spawnSync(process.execPath, [DEDUP_PATH, '--findings-file', 'dummy.json'], { encoding: 'utf8' })
+		assert.equal(res.status, 1)
+		const err = JSON.parse(res.stderr)
+		assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
 	})
 })

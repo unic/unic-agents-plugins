@@ -398,9 +398,17 @@ Parse the JSON output. Store it as `COMMENTS_RESULT`.
   Run /unic-spec-review:setup-confluence to add them.
   ```
 
-- If `errors` is non-empty (but not the global auth error above), warn `Warning: could not fully read existing comments (<kind>: <message>). Near-duplicate detection may be incomplete.` and continue with whatever comments were returned (`comments` may be empty).
+- If `errors` is non-empty (but not the global auth error above), warn `Warning: could not fully read existing comments (<kind>: <message>).` and continue with whatever comments were returned (`comments` may be empty). (The incompleteness signal now drives `COMPARISON_INCOMPLETE` and is surfaced structurally in 10c/10d, not just as advisory prose.)
 
-Record `COMMENTS_TRUNCATED` from `truncated`. When true, append `(comment list may be incomplete - deduplication is best-effort)` to the summary line in 10c.
+Record `COMMENTS_TRUNCATED` from `truncated`.
+
+Compute `COMPARISON_INCOMPLETE`:
+
+```
+COMPARISON_INCOMPLETE = COMMENTS_TRUNCATED OR (errors non-empty after the auth-stop check above)
+```
+
+Both truncation and partial read errors mean the same thing to the reviewer: the comparison ran against a partial comment set. The specific cause will be named in the preamble printed in Step 10c.
 
 ### 10b - Run dedup-matcher
 
@@ -416,9 +424,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/dedup-matcher.mjs" \
   --comments-file ".spec-review/.existing-comments.json"
 ```
 
-Parse the JSON array from stdout as `DEDUP_RESULTS` - one `DedupResult` per finding, in the same ranked order. Each entry has `decision` (`'post'`, `'skip'`, or `'flag'`) and `nearDuplicates` (sorted by similarity descending).
+Parse the JSON object from stdout. Set `DEDUP_RESULTS = parsed.results` - one `DedupResult` per finding, in the same ranked order. Each entry has `decision` (`'post'`, `'skip'`, or `'flag'`) and `nearDuplicates` (sorted by similarity descending). The envelope also carries `truncated`, but `COMPARISON_INCOMPLETE` was already computed in Step 10a from the comments fetch result - do not re-read it from the envelope here.
 
-If the command fails (non-zero exit or parse error), warn `Warning: dedup-matcher failed - posting without deduplication.` and treat every finding's decision as `'post'` (proceed without dedup rather than blocking the entire post flow).
+If the command fails (non-zero exit, parse error, or `parsed.results` is not an array), warn `Warning: dedup-matcher failed - posting without deduplication.` and treat every finding's decision as `'post'` (proceed without dedup rather than blocking the entire post flow). The `COMPARISON_INCOMPLETE` flag computed in 10a remains in effect even on failure.
 
 ### 10c - Present the annotated Findings list
 
@@ -427,6 +435,15 @@ Print:
 ```
 Existing page comments checked for near-duplicates. <N> findings ready for review.
 ```
+
+When `COMPARISON_INCOMPLETE` is true, print a warning block before the numbered list:
+
+```
+⚠ Comparison incomplete - the existing comment set was [truncated (pagination cap hit) | partially unreadable (<kind>: <message>)].
+  Clean posts are marked [?incomplete]: the comparison could not rule out duplicates beyond what was loaded.
+```
+
+Use "truncated (pagination cap hit)" when `COMMENTS_TRUNCATED`, otherwise "partially unreadable (<kind>: <message>)" with the first non-auth error's details.
 
 Present a numbered list of all findings in ranked order. For each:
 
@@ -437,7 +454,8 @@ N. [<severity>] <title> (dimension: <dimension>, confidence: <X>%, anchor: <anch
 
 Where `<dedup_badge>` is:
 
-- ``(empty) - decision is`'post'`
+- _(no badge)_ - decision is `'post'` AND `COMPARISON_INCOMPLETE` is false (complete run, no duplicate found)
+- `  [?incomplete]` - decision is `'post'` AND `COMPARISON_INCOMPLETE` is true (comparison was partial; no duplicate found in what was checked)
 - `  [~near-dup]` - decision is `'flag'` (borderline; tiebreak required)
 - `  [~likely-dup]` - decision is `'skip'` (likely duplicate; override required)
 
@@ -450,6 +468,17 @@ Select Finding numbers to post (comma-separated, e.g. 1,3), or 0 to cancel:
 If the user enters `0` or an empty/blank response, print `Nothing posted.` and stop. No writes are performed.
 
 ### 10d - Process each selected Finding (selection is not commitment)
+
+**Run-level confirmation (incomplete runs only):** Before processing any selected Finding, when `COMPARISON_INCOMPLETE` is true AND the user selected at least one Finding whose `decision` is `'post'`, ask:
+
+```
+Comparison incomplete - post the selected [?incomplete] Findings anyway? [y/N]:
+```
+
+- If the user answers `y` or `Y`: proceed normally. All selected clean-post Findings will be written.
+- If the user answers anything else: set `SKIP_CLEAN_POSTS = true`. Clean-post Findings will be skipped during processing below; `skip` and `flag` Findings keep their existing per-Finding gates and are unaffected.
+
+This confirmation is asked **once** (run-level), not once per Finding. The reviewer already exercised per-Finding judgement at selection.
 
 For each selected number, in ranked order, look up its `DedupResult`:
 
@@ -481,7 +510,15 @@ Post anyway? [y/N]:
 
 If the user answers anything other than `y` or `Y`, print `Skipped.` and move to the next selected Finding.
 
-#### If decision is `'post'` (or an override was approved above):
+#### If an override was approved above (skip or flag, user said y):
+
+Post the Finding using steps 1–3 below. The run-level `SKIP_CLEAN_POSTS` flag does not apply - the reviewer explicitly consented to post despite the near-duplicate.
+
+#### If decision is `'post'` (clean post, no duplicate found):
+
+When `SKIP_CLEAN_POSTS` is true (run-level confirm was declined), print `Skipped (incomplete comparison).` and move to the next selected Finding.
+
+Otherwise:
 
 1. Write the Finding object as JSON to `.spec-review/.post-finding.json` using the Write tool. Include all fields: `title`, `body`, `severity`, `confidence`, `dimension`, `hat`, `anchor`.
 
