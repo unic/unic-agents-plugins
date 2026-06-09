@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Add `dedup-matcher` module: `matchDedup(finding, existingComments)` compares a candidate Finding against all existing page comments by Jaccard word-token similarity (no hidden marker, no local state file; multi-user and multi-run safe). Returns a `DedupResult` with a `post`/`skip`/`flag` decision plus near-duplicate candidates sorted by similarity. Pure function, no I/O. Exports `tokenize` and `jaccard` helpers and `SKIP_THRESHOLD`/`FLAG_THRESHOLD` constants, and a `--findings-file`/`--comments-file` CLI mode for command integration.
+- Add `--comments <url>` CLI mode to `atlassian-fetch`: wraps `fetchConfluenceComments` in the same never-throws `collectComments` pattern as `--child-pages`, returning `{ comments, truncated, errors }`. Used by the Approval Loop to read existing page comments for deduplication.
+- Upgrade `/review-spec --post` from a single-Finding pick to a multi-Finding Approval Loop (S8): present all ranked Findings annotated with near-duplicate flags (`[~near-dup]`, `[~likely-dup]`), accept a comma-separated selection, surface borderline matches for an explicit human tiebreak (never silently dropped or re-raised), and post each approved Finding via the S7 write path with anchors and attribution footers. The loop is cancellable at every step, including a final post-none exit after selection. Bare `/review-spec` remains strictly read-only.
+- Unit tests cover `dedup-matcher` (`tokenize`, `jaccard`, `matchDedup`) with injected comment sets and threshold values; no live services.
 
 ### Fixed
 - (none)
