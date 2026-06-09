@@ -19,6 +19,7 @@ export function renderFooter(dimension, hat) {
 
 /**
  * Append the attribution footer to a comment body, separated by a blank line.
+ * Used by the reactive wiki fallback (#232).
  * @param {string} commentBody
  * @param {string} dimension
  * @param {string} hat

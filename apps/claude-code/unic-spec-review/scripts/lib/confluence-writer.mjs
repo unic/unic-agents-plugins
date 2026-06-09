@@ -6,9 +6,10 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { extractConfluencePageId, fetchConfluencePageBody, postConfluenceComment } from '../atlassian-fetch.mjs'
-import { withFooter } from './attribution-footer.mjs'
+import { FOOTER_MARKER } from './attribution-footer.mjs'
 import { loadAtlassianCreds } from './credentials.mjs'
 import { resolveAnchor } from './inline-anchor-resolver.mjs'
+import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
 
 async function main() {
 	const argv = process.argv.slice(2)
@@ -36,6 +37,11 @@ async function main() {
 		process.exit(1)
 	}
 
+	if (typeof finding.body !== 'string') {
+		process.stderr.write(`${JSON.stringify({ error: 'finding.body must be a string — malformed finding file' })}\n`)
+		process.exit(1)
+	}
+
 	const creds = loadAtlassianCreds()
 	if (!creds) {
 		process.stderr.write(
@@ -53,8 +59,10 @@ async function main() {
 	try {
 		const pageHtml = await fetchConfluencePageBody(pageUrl, creds, { fetch: globalThis.fetch })
 		const resolution = resolveAnchor(finding.anchor ?? null, pageHtml)
-		const commentBody = `*${finding.title}* (${finding.severity}, ${finding.confidence}%, ${finding.dimension})\n\n${finding.body}`
-		const bodyWithFooter = withFooter(commentBody, finding.dimension, finding.hat)
+		const titleLine = `<p><strong>${escapeHtml(finding.title)}</strong> (${escapeHtml(finding.severity)}, ${escapeHtml(String(finding.confidence))}%, ${escapeHtml(finding.dimension)})</p>`
+		const convertedBody = mdToStorage(finding.body)
+		const footerLine = `<p>${FOOTER_MARKER} | dimension: ${escapeHtml(finding.dimension)} | hat: ${escapeHtml(finding.hat)}</p>`
+		const bodyWithFooter = `${titleLine}\n${convertedBody}\n${footerLine}`
 		const type = resolution.type
 		const anchor =
 			resolution.type === 'inline'

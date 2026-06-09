@@ -888,6 +888,18 @@ describe('postConfluenceComment', () => {
 		assert.equal(result.id, '')
 		assert.equal(result.created, '')
 	})
+
+	it('sends representation storage (not wiki)', async () => {
+		/** @type {any} */
+		let capturedPayload
+		/** @param {string} _url @param {{ body: string }} opts */
+		const capturingFetch = async (_url, opts) => {
+			capturedPayload = JSON.parse(opts.body)
+			return { ok: true, status: 201, json: async () => ({ id: 'x', version: { createdAt: '' } }) }
+		}
+		await postConfluenceComment('123', '<p>storage body</p>', 'footer', null, CREDS, { fetch: capturingFetch })
+		assert.equal(capturedPayload.body.representation, 'storage')
+	})
 })
 
 describe('parseCommentsArg', () => {

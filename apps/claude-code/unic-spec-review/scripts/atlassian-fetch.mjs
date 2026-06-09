@@ -723,7 +723,7 @@ export async function fetchConfluencePageBody(pageIdOrUrl, creds, deps = {}) {
  * footer comments and inline comments anchored to a text selection.
  * Pass anchor=null only when type==='footer'; passing null with type==='inline' throws.
  * @param {string} pageId
- * @param {string} body - comment body in wiki markup format
+ * @param {string} body - comment body in Confluence storage format (XHTML)
  * @param {'footer' | 'inline'} type
  * @param {InlineAnchor | null} anchor - required (non-null) when type === 'inline'
  * @param {AtlassianCreds} creds
@@ -741,7 +741,7 @@ export async function postConfluenceComment(pageId, body, type, anchor, creds, d
 			? `${confluenceBase}/wiki/api/v2/inline-comments`
 			: `${confluenceBase}/wiki/api/v2/footer-comments`
 	/** @type {any} */
-	const payload = { pageId, body: { representation: 'wiki', value: body } }
+	const payload = { pageId, body: { representation: 'storage', value: body } }
 	if (type === 'inline') {
 		const a = /** @type {InlineAnchor} */ (anchor)
 		payload.inlineCommentProperties = {
