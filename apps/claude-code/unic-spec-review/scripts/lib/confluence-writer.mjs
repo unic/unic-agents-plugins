@@ -6,8 +6,8 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import {
-	FetchError,
 	extractConfluencePageId,
+	FetchError,
 	fetchConfluencePageBody,
 	postConfluenceComment,
 } from '../atlassian-fetch.mjs'
