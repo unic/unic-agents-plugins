@@ -133,12 +133,7 @@ export function convertInline(text) {
 			}
 		}
 
-		// Unrecognised character — HTML-escape and pass through
-		if (ch === '&') out += '&amp;'
-		else if (ch === '<') out += '&lt;'
-		else if (ch === '>') out += '&gt;'
-		else if (ch === '"') out += '&quot;'
-		else out += ch
+		out += escapeHtml(ch)
 		i++
 	}
 	return out
@@ -207,13 +202,9 @@ export function mdToStorage(markdown) {
 
 		// Paragraph: gather non-empty, non-special lines
 		const paraLines = []
-		while (
-			i < lines.length &&
-			lines[i].trim() !== '' &&
-			!lines[i].trim().startsWith('```') &&
-			!/^[-*] /.test(lines[i].trim()) &&
-			!/^\d+\. /.test(lines[i].trim())
-		) {
+		while (i < lines.length) {
+			const t = lines[i].trim()
+			if (t === '' || t.startsWith('```') || /^[-*] /.test(t) || /^\d+\. /.test(t)) break
 			paraLines.push(lines[i])
 			i++
 		}
