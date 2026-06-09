@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "description": "Adversarial review of web specifications across Confluence, Figma, and the live system",
+    "homepage": "https://github.com/unic/unic-agents-plugins"
+  },
+  "name": "unic-spec-review",
+  "owner": {
+    "name": "Unic AG"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "Unic AG"
+      },
+      "category": "productivity",
+      "description": "Adversarial review of web specifications across Confluence pages & comments, Figma designs, and the live system. Produces Confidence-scored, Six-Hats-tagged Findings with an interactive Approval Loop that posts selected comments back to Confluence.",
+      "displayName": "Unic Spec Review",
+      "homepage": "https://github.com/unic/unic-agents-plugins",
+      "keywords": ["spec-review", "confluence", "figma", "adversarial-review", "six-hats", "unic"],
+      "license": "LGPL-3.0-or-later",
+      "name": "unic-spec-review",
+      "source": "./",
+      "tags": ["productivity", "quality"],
+      "version": "0.1.11"
+    }
+  ]
+}

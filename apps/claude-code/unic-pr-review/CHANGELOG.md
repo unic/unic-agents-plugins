@@ -16,6 +16,142 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.9] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- (none)
+
+### Fixed
+- Write Retry completes a partial `--post` Iteration — a re-run with a surviving state directory and unchanged HEAD now resumes the saved Approval Loop and posts only the inline Threads that failed, re-posts the Review Summary (rendered from the full approved set) only when it did not already land, and never increments the Iteration. Prior behaviour silently dropped all failed Findings by routing the retry to re-review with an empty delta. Adds the tested `scripts/lib/write-outcomes.mjs` helper (`checkWriteRetry` / `recordOutcomes` / `postedFindingIds`) and `alreadyPostedFindingIds` + `summaryAlreadyPosted` inputs on the ADO Writer. (#236, ADR-0015)
+
+## [2.1.8] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/lib/temp-paths.mjs` — tested argv helper that prints the findings/approved temp-file path (replaces the inline `PR_KEY=...` approved-path one-liner in Step 1.11 §2).
+- `scripts/lib/cleanup.mjs` — tested argv helper that deletes a temp file, tolerating only ENOENT and rethrowing everything else (replaces the masked-catch `F=...` one-liners in Steps 1.11 §6 and 1.13).
+- `scripts/lib/clear-state-dir.mjs` — tested argv helper that deletes the `.unic-pr-review/<key>/` state directory (replaces the Step 1.13 state-dir one-liner); computes the path via the new side-effect-free `approvalStateDirPath()` so it never re-creates the directory it removes.
+- `tests/command-oneliner-form.test.mjs` — lint-style regression guard for the env-vs-argv class: fails if any `sh` block in `commands/*.md` places an env assignment after `node`, or if an inline `node -e`/`--eval` block reads `process.argv` (which is off-by-one for inline eval).
+- AGENTS.md Conventions: env assignments must precede `node` in command-prompt one-liners.
+
+### Changed
+- `commands/review-pr.md` Steps 1.11–1.13: all six env-after-`node` one-liners corrected — data-heavy reads have assignments reordered before `node`; leak-prone snippets extracted to `temp-paths.mjs` / `cleanup.mjs` / `clear-state-dir.mjs`, each invoked as a real script file (`node "…​.mjs" <args>`) so positional args and Windows paths both work (issue #227).
+- `scripts/lib/cache-paths.mjs`: extracted `approvalStateDirPath()` — the side-effect-free path computation now shared by `getApprovalStateDir()` (create) and `clear-state-dir.mjs` (delete).
+- `scripts/approval-loop.mjs`: removed unconditional `rmSync(stateDir)` — the Approval Loop no longer deletes its own state directory (ADR-0014); tests updated accordingly.
+
+### Fixed
+- `--post` path was aborting before the Approval Loop started because `FINDINGS_JSON` and `PR_KEY` were passed as argv (not env) to the findings-write one-liner.
+- Approved-Findings temp file was mis-named `unic-pr-review-approved-undefined.json`, collapsing all PRs to the same file.
+- Plugin-version read was throwing because `PLUGIN_JSON` was passed as argv instead of env.
+- Masked-catch one-liners for temp-file cleanup were silently leaking `os.tmpdir()` files and `.unic-pr-review/<key>/` state dirs on every `--post` run.
+- State-dir ownership violation: `approval-loop.mjs` was unconditionally deleting `.unic-pr-review/<key>/` before the ADO Writer ran, breaking the retry-resume guarantee on write failure (ADR-0014).
+
+## [2.1.7] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- Content-aware types gate (issue #215, ADR-0008 amendment): `type-design-analyzer` now
+  *additionally* spawns whenever the diff adds or removes a JSDoc type construct (`@typedef`,
+  `@type {T}`, `@param {T}`, `@returns {T}`, `@satisfies`, inline JSDoc casts) in non-`.ts`
+  source files (`.mjs`/`.js`). The existing `.ts`/`.tsx`/`.d.ts`/`types|schemas|interfaces/`
+  path trigger is retained as the unconditional fast path (ADR-0008: content gating is additive,
+  never subtractive). A pure `.mjs` edit with no JSDoc type constructs and no type-file path
+  does not spawn the agent. Gate is biased toward spawning on ambiguity per ADR-0008.
+
+### Changed
+- Docs: reconcile `code-reviewer`'s spawn vocabulary across decision records (issue #225). ADR-0011's
+  Option A rejection no longer claims the spawn is "conditional" (which contradicted ADR-0008's
+  "Always — any non-empty diff"); it now states the spawn always fires on a reviewable diff and rests
+  the rejection on its two sound reasons (cross-agent merge logic, split ownership). Same correction
+  applied to the intent-check PRD. No behaviour change.
+
+### Fixed
+- (none)
+
+## [2.1.6] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Content-aware errors gate (issue #214, ADR-0008 amendment): `silent-failure-hunter` now
+  *additionally* spawns whenever the diff adds or removes error-handling constructs
+  (`try`/`catch`/`finally`, `throw`, `.catch(`, `Promise.reject`, `error`/`err` identifiers) in
+  any file type — including non-source files the path classifier would otherwise skip. The
+  existing non-test-source-file path trigger is retained as the fast path (ADR-0008 keeps path
+  classification authoritative; content gating is additive, never subtractive), so a pure source
+  edit still spawns the agent. Gate is biased toward spawning on ambiguity per ADR-0008; marked
+  as the first Y-llm promotion candidate.
+- Regression tests pinning the errors-gate boundary behaviour: compound identifiers
+  (`errorMessage`/`errCount`) do NOT fire the `\b`-guarded `error`/`err` arm, and error tokens
+  on unchanged diff context lines do NOT spawn the agent.
+
+### Changed
+- ADR-0008 amendment corrected: content gating is documented as **additive-only** (path OR
+  content, never AND-narrowed). The prior text implied sampling would cure the errors/types
+  gates' over-firing vs the toolkit; that is structurally impossible under an additive contract.
+  The over-spawn is now recorded as an accepted divergence within the behavioural-parity
+  contract, with a per-gate table of what each content sample adds where the path trigger is
+  blind. CONTEXT.md gains a **Semantic Gate** glossary term.
+
+### Fixed
+- (none)
+
+## [2.1.5] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- `silent-failure-hunter` agent now detects lost-signal / observability gaps: fallback branches, early-return guards, and cancellation handlers that exit without emitting the analytics event, telemetry call, structured log, or Sentry capture that the normal execution path emits (issue #217)
+- `silent-failure-hunter` agent recognises missing event-emission APIs (`trackEvent`, `analytics.page`, `reportError`, APM spans, Sentry breadcrumbs) on non-success paths (issue #217)
+- `silent-failure-hunter` agent flags logging or diagnostic calls unconditionally gated on a development / debug flag, making them invisible in production (issue #217)
+- False-positive guards: symmetric exclusions prevent over-flagging intentional conditional telemetry, different-event traces on error paths, and telemetry disabled by design (issue #217)
+
+### Fixed
+- (none)
+
+## [2.1.4] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Content-aware comment gate (issue #213, ADR-0008 amendment): `comment-analyzer` now spawns
+  whenever the diff adds or removes comment lines in any file type (inline `//`, JSDoc `/**`,
+  block `/* */`, HTML `<!-- -->`, or shell `#` comments), not only when a `.md`/`.mdx`/`docs/`
+  file changes. This catches documentation comment changes inside source files (the PR #5612 miss).
+  The SPDX/copyright boilerplate is excluded so license-header edits do not trigger a false positive.
+- Diff-to-analyser plumbing: `decideSpawnSet(changedFiles, diffContent?)` now accepts an optional
+  unified diff string; the CLI accepts JSON stdin `{"files":[...],"diff":"..."}` alongside the
+  existing plain-text path list (backward-compatible). The orchestrator (Step 6 / Step 1.7) now
+  passes the full diff alongside the changed-files list. Establishes the contract the errors (#214)
+  and types (#215) content gates will reuse.
+
+### Fixed
+- (none)
+
+## [2.1.3] — 2026-06-05
+
+### Breaking
+- (none)
+
+### Added
+- Two-phase code-simplifier model (issue #216, ADR-0013): `code-simplifier` is removed from the initial parallel fan-out and runs as a second phase only when Phase 1 yields no Critical and no Important findings and ≥3 non-test source files changed; Phase 2 honours preview / `--dry-run` (computes and renders, posts nothing); new `shouldRunPhase2` pure helper in `changed-file-analyser.mjs` with full unit-test coverage
+
+### Fixed
+- (none)
+
 ## [2.1.2] — 2026-06-04
 
 ### Breaking

@@ -60,6 +60,10 @@ _Avoid_: confirmation, prompt, gate
 One of `pre-pr`, `first-review`, `re-review`, `first-review-fallback`. Selected at runtime by URL presence and Bot Signature detection (ADR-0009).
 _Avoid_: state, phase, kind
 
+**Write Retry**:
+A re-run of `--post` that _finishes_ a partially-written Iteration instead of starting a new one. Triggered when the local Approval Loop state directory survived a prior write (the write did not fully succeed, ADR-0014) **and** HEAD is unchanged; it reuses the **same** Iteration number and posts only the Findings — and the Review Summary — that did not already land. Distinct from a **Re-review**, which increments the Iteration after the author pushes new changes (ADR-0015).
+_Avoid_: re-review, resume, second pass
+
 **Provider**:
 A folder bundle at `providers/<name>/` implementing the Source Platform contract (`parsePrUrl`, `agents.{fetcher, writer}`, `discoverWorkItems`). v2 ships `providers/azure_devops/`; later releases may add GitHub or GitLab.
 _Avoid_: adapter, backend, driver
@@ -77,8 +81,12 @@ One specialised sub-agent lens applied to the whole diff — e.g. `code-reviewer
 _Avoid_: dimension, pass, check
 
 **Spawn Set**:
-The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008).
+The `Set<string>` of Review Aspect agent names returned by `decideSpawnSet()` in `scripts/lib/changed-file-analyser.mjs`. Computed once before any agent runs, based on changed-file categories (ADR-0008). The ADR-0008 amendment (ratified 2026-06) extends this to additionally be content-aware for the three semantic gates (`comment-analyzer`, `silent-failure-hunter`, `type-design-analyzer`) via deterministic diff-content sampling; that content gating is the ratified contract. The comments gate (`comment-analyzer`, issue #213) is implemented as of v2.1.4; the errors gate (`silent-failure-hunter`, issue #214) is implemented as of v2.1.6; the types gate (`type-design-analyzer`, issue #215) is implemented as of v2.1.7.
 _Avoid_: agent list, run set, active agents
+
+**Semantic Gate**:
+One of the three content-aware spawn conditions — comments (`comment-analyzer`), errors (`silent-failure-hunter`), types (`type-design-analyzer`) — that decides its Review Aspect by **both** a path trigger and a deterministic content sample of the diff. A Semantic Gate is **additive**: it spawns on the path trigger _or_ the content match, and content sampling only adds spawns the path trigger missed — it never narrows one away (ADR-0008). Contrast the path-only gates (`pr-test-analyzer`, `code-simplifier`) and the always-on `code-reviewer`.
+_Avoid_: content filter, semantic check, narrowing gate
 
 ## Relationships
 
@@ -90,6 +98,7 @@ _Avoid_: agent list, run set, active agents
 - Each **Finding** carries a **Confidence** score that determines its **Severity** bucket
 - The **Approval Loop** mediates between **Findings** and PR write-back
 - The **Bot Signature** records the **Iteration** and lets the next Review detect prior runs
+- A **Write Retry** finishes a partial write at the same **Iteration**; a **Re-review** starts the next **Iteration**
 - A **Notice** can appear above the **Intent Check** when something needs the reviewer's attention
 
 ## Example dialogue
@@ -102,3 +111,6 @@ _Avoid_: agent list, run set, active agents
 
 > **Dev:** "A Finding came back with Confidence 55. Why didn't I see it in the Summary?"
 > **Domain expert:** "Anything below 60 is filtered out per ADR-0002. That's the noise floor — Minor starts at 60."
+
+> **Dev:** "My `--post` failed halfway — three threads posted, two didn't. I re-ran `--post` and it didn't duplicate the three, but it also didn't bump to Iteration 2. Bug?"
+> **Domain expert:** "No — that's a Write Retry, not a Re-review. The state directory survived because the prior write wasn't fully successful (ADR-0014), and HEAD hadn't moved, so the re-run finished Iteration 1: it posted only the two missing threads and left the three alone. You only get a new Iteration once you push changes and re-review (ADR-0015)."

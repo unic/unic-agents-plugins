@@ -62,7 +62,7 @@ Two changes are required — both are mandatory; omitting either causes the agen
 
 ## Plugin doctrines
 
-Load-bearing invariants captured as ADRs. All twelve must be understood before editing:
+Load-bearing invariants captured as ADRs. All fifteen must be understood before editing:
 
 - **ADR-0001** — Multi-source intent gathering with shared Atlassian credentials (`.unic-confluence.json` covers both Confluence and Jira)
 - **ADR-0002** — Confidence-scored Findings with explicit Severity thresholds (Critical 90-100, Important 80-89, Minor 60-79; drop below 60)
@@ -76,6 +76,9 @@ Load-bearing invariants captured as ADRs. All twelve must be understood before e
 - **ADR-0010** — Provider as a folder bundle (`providers/<name>/`); accepted, landed with issue #148 (ADO first-review preview)
 - **ADR-0011** — Intent Assessor is a dedicated agent for live AC verdicts; spawned by intent presence, not changed-file categories; never added to SPAWN_TABLE
 - **ADR-0012** — First-review computes a checkout-free merge-base diff (`commonRefCommit→sourceRefCommit`) from ADO commit SHAs, guarded by a remote-URL match; REST diff fallback deferred
+- **ADR-0013** — `code-simplifier` runs as a conditional Phase 2 post-pass (zero Critical/Important Phase 1 findings AND ≥3 non-test source files), not in the Phase 1 SPAWN_TABLE; gate is the pure function `shouldRunPhase2()`
+- **ADR-0014** — The Approval Loop never deletes its own state directory; cleanup is owned by the `review-pr` orchestrator (Step 1.13), gated on ADO write `success: true`, so a failed write stays resumable
+- **ADR-0015** — A surviving state directory + unchanged HEAD triggers a **Write Retry**: the re-run finishes the same Iteration (resumes saved approval state, posts only the Findings/Summary that failed) instead of routing to re-review; dedup is local (per-Finding post outcome persisted in `state.json`)
 
 ## Conventions
 
@@ -85,6 +88,7 @@ Load-bearing invariants captured as ADRs. All twelve must be understood before e
 - Tabs for indentation, single quotes, no semicolons (Biome)
 - No external runtime npm dependencies — every ADO read/write goes through `az`, every Atlassian call uses `node:https` or global `fetch`
 - Tests use `node:test` + `node:assert/strict`; predicates accept injectable executor / fetch parameters so they are unit-testable without mocking the module system
+- **In command-prompt one-liners, env assignments must precede `node`** — `VAR=value node -e "..."` is correct; `node -e "..." VAR=value` makes `VAR` an argv token, not `process.env.VAR`. Enforced by `tests/command-oneliner-form.test.mjs`.
 
 ## Clean-slate doctrine
 

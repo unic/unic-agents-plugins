@@ -54,3 +54,4 @@ jobs:
           tag_if_changed "apps/claude-code/unic-confluence"
           tag_if_changed "apps/claude-code/unic-archon-dlc"
           tag_if_changed "apps/claude-code/unic-pr-review"
+          tag_if_changed "apps/claude-code/unic-spec-review"

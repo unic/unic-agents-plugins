@@ -15,5 +15,5 @@
   "keywords": ["pr-review", "azure-devops", "jira", "confluence", "code-review", "unic"],
   "license": "LGPL-3.0-or-later",
   "name": "unic-pr-review",
-  "version": "2.1.2"
+  "version": "2.1.9"
 }

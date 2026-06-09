@@ -71,6 +71,7 @@ flowchart TD
   s1 -->|"no URL"| prepr["Pre-PR"]
   s1 -->|"URL, no prior signature"| first["first-review"]
   s1 -->|"URL, prior signature found"| rere["re-review"]
+  s1 -->|"URL + --post, surviving local state, HEAD matches (ADR-0015)"| wr["Write Retry: resume saved Approval state,<br/>skip review, re-post only the failed Findings/Summary"]
 
   prepr --> s2
   first --> s2
@@ -95,16 +96,18 @@ flowchart TD
   subgraph s7 ["Step 7: Parallel fan-out"]
     direction TB
     cr["code-reviewer <br>(always)"]
-    sfh["silent-failure-hunter <br>(if source files)"]
-    tda["type-design-analyzer <br>(if type files)"]
+    sfh["silent-failure-hunter <br>(if source files or error-handling changes)"]
+    tda["type-design-analyzer <br>(if type files or type-level changes)"]
     pta["pr-test-analyzer <br>(if test files)"]
-    cma["comment-analyzer <br>(if docs)"]
-    csi["code-simplifier <br>(if 3+ source files)"]
+    cma["comment-analyzer <br>(if docs or comment changes)"]
     ia["Intent Assessor <br>(if intentBrief present + skeleton non-empty)"]
   end
   s6 --> s7
 
-  s7 --> coord{"re-review?"}
+  s7 --> phase2{"Phase 2 gate (ADR-0013)<br/>0 Critical/Important findings AND ≥3 source files?"}
+  phase2 -->|"yes"| csi["Phase 2: code-simplifier post-pass<br/>(sequential, after Phase 1; honours --dry-run / preview)"]
+  phase2 -->|"no"| coord{"re-review?"}
+  csi --> coord
   coord -->|"yes"| rrc["Re-review Coordinator<br>Merges priorVerdicts + Thread state<br>Emits threadActions, persistentUnaddressed, freshFindings"]
   coord -->|"no"| s8
   rrc --> s8
@@ -117,6 +120,7 @@ flowchart TD
   postq -->|"non-TTY without yes flag"| stop(["Abort exit 2: ADR-0003 guard"])
   postq -->|"TTY or yes flag"| loop["Approval Loop<br>Walk Findings: accept / edit / skip"]
 
+  wr --> loop
   loop --> w["ADO Writer"]
   w -->|"first-review"| w1["Post Threads + Summary General Comment"]
   w -->|"re-review"| w2["Reply on Threads / auto-resolve addressed /<br>Rewrite Summary in place / Persistent Unaddressed Notice"]
@@ -124,7 +128,7 @@ flowchart TD
   w2 --> posted
 ```
 
-Read-only by default. The `--post` path writes only what you accept in the Approval Loop, and the Bot Signature in every comment lets the next run recognise its own prior work without any local state ([ADR-0006](docs/adr/0006-iteration-state-in-pr.md)).
+Read-only by default. The `--post` path writes only what you accept in the Approval Loop. Bot Signature detection lets the next run recognise its own prior work and increment the Iteration ([ADR-0006](docs/adr/0006-iteration-state-in-pr.md)); if a `--post` partially fails, the local state directory (`<cwd>/.unic-pr-review/<key>/`) lets a re-run on the same machine finish the partial Iteration instead of starting a new one ([ADR-0015](docs/adr/0015-write-retry-completes-partial-iteration.md)).
 
 ## Commands
 

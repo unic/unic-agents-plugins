@@ -24,6 +24,10 @@
     {
       "name": "unic-pr-review",
       "source": "./apps/claude-code/unic-pr-review"
+    },
+    {
+      "name": "unic-spec-review",
+      "source": "./apps/claude-code/unic-spec-review"
     }
   ]
 }

@@ -53,6 +53,48 @@ process.stdout.write(createHash('sha256').update('<URL>','utf8').digest('hex').s
 
 Store the output as `PR_KEY`.
 
+#### Step 1.2a — Check for Write Retry (ADR-0015)
+
+Default `IS_WRITE_RETRY = false`. This step only applies when `IS_POST` is true and the provider is ADO (Write Retry has no meaning in a preview or Pre-PR run); when `IS_POST` is false, skip directly to Step 1.3.
+
+A surviving Approval Loop state directory means the prior `--post` attempt did not complete (it is deleted only on a fully-successful write — ADR-0014). Before invoking the Fetcher, classify the re-run by comparing the saved `headSha` to the current HEAD.
+
+Get the current HEAD:
+
+```sh
+git rev-parse HEAD
+```
+
+Capture as `HEAD_SHA`, then classify:
+
+```sh
+HEAD_SHA="<HEAD_SHA>" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" check "<PR_KEY>"
+```
+
+stdout is a JSON object. Route on its `mode`:
+
+- **`{ "mode": "none" }`** → no state directory at all (no prior `--post` attempt); proceed to Step 1.3 (normal review).
+- **`{ "mode": "retry", "state": … }`** → **Write Retry**: set `IS_WRITE_RETRY = true`, store `state` as `WRITE_RETRY_STATE`, and set `CURRENT_ITERATION = WRITE_RETRY_STATE.iteration ?? 1`. Skip Steps 1.3–1.10 entirely (no Fetcher, no mode detection, no aspect fan-out) and go straight to Step 1.11 — the saved approval decisions are reused, nothing is re-prompted.
+- **`{ "mode": "stale" }`** → the partial attempt is from a different HEAD (force-push / rebase). Print the Notice, discard the stale state directory, then proceed to Step 1.3 (normal review against the new HEAD):
+
+  ```
+  Notice: Prior --post state is stale (saved HEAD differs from current HEAD). Discarding saved state and running a normal review against the new HEAD.
+  ```
+
+  ```sh
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/clear-state-dir.mjs" "<PR_KEY>"
+  ```
+
+- **`{ "mode": "corrupt" }`** → a state directory survived (the prior `--post` did **not** complete) but its `state.json` is unreadable or invalid, so the failed Findings cannot be auto-resumed. Print the Notice, discard the unusable state directory, then proceed to Step 1.3 (normal review). Unlike `none`, this is **not** silent — the user must know a prior attempt's failed comments will not be re-posted automatically:
+
+  ```
+  Notice: A prior --post state directory exists but its state.json is unreadable or invalid. Discarding it and running a normal review against the current HEAD — any Findings that failed to post in the prior attempt are NOT auto-resumed, so re-check the PR for missing comments.
+  ```
+
+  ```sh
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/clear-state-dir.mjs" "<PR_KEY>"
+  ```
+
 #### Step 1.3 — Invoke the ADO Fetcher agent
 
 Use the Agent tool to launch the agent identified by `FETCHER_AGENT` (e.g. `unic-pr-review:ado-fetcher`). Provide:
@@ -165,11 +207,13 @@ Wait for the agent to complete. It emits one of:
 
 #### Step 1.7 — Resolve spawn set
 
-Use `FETCHER_OUTPUT.changedFiles` instead of `git diff --name-only`. Pipe the newline-joined paths into the analyser:
+Use `FETCHER_OUTPUT.changedFiles` for the file list and the appropriate diff for content-aware gates (ADR-0008). In **first-review** and **first-review-fallback** modes use `FETCHER_OUTPUT.rawDiff`; in **re-review** mode use `FETCHER_OUTPUT.deltaRawDiff`. Build the analyser input object `{"files":[...paths...],"diff":"<unified diff string>"}` and write it to a temp file with Node (not `jq` — it is unavailable by default on Windows; a temp file also avoids shell-quoting the diff), then pipe the file in:
 
 ```sh
-printf '%s\n' "<each entry of FETCHER_OUTPUT.changedFiles>" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs" < "<temp file with {files,diff} JSON>"
 ```
+
+When `FETCHER_OUTPUT.diffUnavailable` is `true`, pass an empty string for `diff` — `hasCommentChanges('')` returns false and the gate falls back to path-only.
 
 - **Exit 0**: stdout is a JSON array of agent names. Store as `SPAWN_SET`.
 - **Exit non-zero**: relay stderr and stop.
@@ -186,6 +230,8 @@ Print the spawn set to the terminal.
 - Continue to Step 1.9 to render the preview, then Step 1.10.
 
 Otherwise (`rawDiff` non-empty), proceed as in Step 7 (Pre-PR): launch every agent in `SPAWN_SET` simultaneously, seeding each with the diff (and `intentBrief` as a preamble when it is defined). Spawn the Intent Assessor in the **same parallel batch** when `intentBrief` is defined **and** the `intentCheck` skeleton is non-empty (ADR-0011) — it is never added to `SPAWN_SET`.
+
+After all Phase 1 agents finish, evaluate and run the **Phase 2 gate** exactly as described in the Pre-PR Step 7 "Phase 2 — Code Simplifier" section (ADR-0013): call `shouldRunPhase2` with `FETCHER_OUTPUT.changedFiles` and the flattened Phase 1 findings; if true, launch `agents/code-simplifier.md` sequentially with the same diff input (and `intentBrief` preamble when defined), wait for it, and merge its output into the full findings set before proceeding to Step 1.9.
 
 #### Step 1.9 — Merge findings and render (ADO mode)
 
@@ -219,26 +265,34 @@ Otherwise:
 Extract the `findings` array from `FINDINGS_JSON` and write it to a temp file for the Approval Loop:
 
 ```sh
-node -e "
+PR_KEY="<PR_KEY>" FINDINGS_JSON='<FINDINGS_JSON>' node -e "
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path')
 const {findings}=JSON.parse(process.env.FINDINGS_JSON)
 const f=path.join(os.tmpdir(),'unic-pr-review-findings-'+process.env.PR_KEY+'.json')
 fs.writeFileSync(f,JSON.stringify(findings??[]))
 process.stdout.write(f)
-" PR_KEY="<PR_KEY>" FINDINGS_JSON='<FINDINGS_JSON>'
+"
 ```
 
 Capture the output path as `FINDINGS_FILE`.
+
+**Write Retry delta (`IS_WRITE_RETRY` is true):** `FINDINGS_JSON` was never computed (Steps 1.3–1.10 were skipped). Write an empty JSON array to `FINDINGS_FILE` instead — the Approval Loop ignores it and reuses `state.json` because the saved `headSha` matches the current HEAD and `--reset` is absent:
+
+```sh
+PR_KEY="<PR_KEY>" node -e "
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path')
+const f=path.join(os.tmpdir(),'unic-pr-review-findings-'+process.env.PR_KEY+'.json')
+fs.writeFileSync(f,'[]')
+process.stdout.write(f)
+"
+```
 
 **If the `node -e` script exits non-zero**, print the stderr verbatim and stop. Do not proceed with an empty or invalid findings path.
 
 **2. Determine the approved-Findings path.**
 
 ```sh
-node -e "
-const os=require('node:os'),path=require('node:path')
-process.stdout.write(path.join(os.tmpdir(),'unic-pr-review-approved-'+process.env.PR_KEY+'.json'))
-" PR_KEY="<PR_KEY>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/temp-paths.mjs" approved "<PR_KEY>"
 ```
 
 Capture as `APPROVED_FILE`.
@@ -254,10 +308,10 @@ Capture as `HEAD_SHA`.
 **4. Get the plugin version.**
 
 ```sh
-node -e "
+PLUGIN_JSON="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" node -e "
 const {version}=JSON.parse(require('node:fs').readFileSync(process.env.PLUGIN_JSON,'utf8'))
 process.stdout.write(version)
-" PLUGIN_JSON="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+"
 ```
 
 Capture as `PLUGIN_VERSION`.
@@ -280,10 +334,18 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/approval-loop.mjs" \
 - **Exit 2** (non-TTY without --yes): print `"approval-loop: --post requires an interactive terminal or --yes."` and stop.
 - **Any other non-zero exit**: relay stderr verbatim and stop.
 
+**Write Retry post-loop (`IS_WRITE_RETRY` is true):** after the Approval Loop writes `APPROVED_FILE`, leave that file **intact** — the Writer renders the Review Summary from the **full** approved set (`ado-writer.md` Step 3a), so pruning it would drop already-posted Findings from the Summary. Instead, collect the ids of the Findings that already posted successfully in the prior attempt, from the `postedMap` persisted in `state.json`:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" posted-ids "<PR_KEY>"
+```
+
+stdout is a JSON array of Finding ids. Capture it as `ALREADY_POSTED_IDS` (default `[]`); the Writer skips the inline Thread for each of these so only the Findings that failed are re-posted, while the Summary still reflects every approved Finding. Then set `SUMMARY_ALREADY_POSTED = WRITE_RETRY_STATE.summaryPosted === true` for the Writer input in Step 1.12.
+
 **6. Clean up the findings temp file.**
 
 ```sh
-node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<FINDINGS_FILE>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/cleanup.mjs" "<FINDINGS_FILE>"
 ```
 
 #### Step 1.12 — Spawn ADO Writer
@@ -298,6 +360,21 @@ Use the Agent tool to launch `unic-pr-review:ado-writer`. Provide:
   "prId":         <PR_REF.prId>,
   "approvedPath": "<APPROVED_FILE>",
   "iteration":    1
+}
+```
+
+**Write Retry delta (`IS_WRITE_RETRY` is true):** use `CURRENT_ITERATION` (from `WRITE_RETRY_STATE.iteration`) instead of `1`, add `alreadyPostedFindingIds` so the Writer skips the inline Threads that already landed, and add `summaryAlreadyPosted` so the Writer skips the Summary when it already landed. `approvedPath` stays the **full** approved set so the Summary still reflects every Finding:
+
+```json
+{
+  "orgUrl":                  "<PR_REF.orgUrl>",
+  "project":                 "<PR_REF.project>",
+  "repo":                    "<PR_REF.repo>",
+  "prId":                    <PR_REF.prId>,
+  "approvedPath":            "<APPROVED_FILE>",
+  "iteration":               <CURRENT_ITERATION>,
+  "alreadyPostedFindingIds": <ALREADY_POSTED_IDS>,
+  "summaryAlreadyPosted":    <SUMMARY_ALREADY_POSTED>
 }
 ```
 
@@ -316,25 +393,40 @@ Print the summary: how many inline threads were posted, how many failed, and the
 If `success` is `false` (any thread failed), warn the user:
 
 ```
-⚠ Some threads could not be posted. Check the errors above and re-run with --post (not --post --yes) once the issues are resolved — the Approval Loop resumes from saved state and re-posts only the threads that failed. Using --yes would re-post the threads that already succeeded, creating duplicate comments.
+⚠ Some threads could not be posted. The failed Findings are recorded in the local state directory — re-run with --post (not --post --yes) from the same machine and checkout to trigger Write Retry: the review is skipped and only the threads that failed are re-posted; the Summary is skipped if it already landed.
+
+Caveats:
+- Cross-machine: Write Retry is local. A retry from a different clone has no state directory and falls back to re-review, which sees an empty delta and produces zero Findings.
+- HEAD moved: if the branch is force-pushed or rebased between the failed attempt and the retry, the stale state is discarded and a normal review runs instead (re-review if a prior comment already carried the Iteration Marker, first-review otherwise).
+- Do not use --yes: --post --yes bypasses the Approval Loop entirely and re-posts all approved Findings, creating duplicate comments for the ones that already succeeded.
 ```
+
+#### Step 1.12a — Persist post outcomes (ADR-0015)
+
+After the ADO Writer returns, and **before** the success-gated state-directory cleanup in Step 1.13, persist each Finding's post outcome and the Summary-posted flag into `state.json`. This is what lets a subsequent `--post` re-run use Write Retry (Step 1.2a) instead of silently dropping the failed Findings.
+
+Pass the Writer's returned JSON object through `WRITER_RESULT`:
+
+```sh
+WRITER_RESULT='<writerResult JSON>' node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" record "<PR_KEY>"
+```
+
+If the script exits non-zero, print a warning (`outcomes not persisted — a retry will re-post all Findings`) and continue to Step 1.13. Do not stop the run.
+
+**This step applies to both the first-review path and the Write Retry path.** On a first attempt the resulting `postedMap` simply seeds the dedup state; on a fully-successful write Step 1.13 then deletes the whole state directory anyway, so the persisted outcomes are discarded together with it.
 
 #### Step 1.13 — Cleanup
 
 Delete the approved-Findings temp file (always — it is not needed for retries):
 
 ```sh
-node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<APPROVED_FILE>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/cleanup.mjs" "<APPROVED_FILE>"
 ```
 
 **Only if the ADO Writer reported `success: true`**, delete the Approval Loop state directory:
 
 ```sh
-node -e "
-const fs=require('node:fs'),path=require('node:path')
-const d=path.join(process.cwd(),'.unic-pr-review',process.env.PR_KEY)
-try{fs.rmSync(d,{recursive:true,force:true})}catch{}
-" PR_KEY="<PR_KEY>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/clear-state-dir.mjs" "<PR_KEY>"
 ```
 
 If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.
@@ -362,6 +454,8 @@ Prior Findings to re-assess:
 ```
 
 The aspect agents use `priorFindings` to emit `priorFindingVerdicts` in their output. Store the full aspect-agent response map as `ASPECT_RESPONSES` (keyed by agent name).
+
+After the Phase 1 aspect agents complete, evaluate and run the **Phase 2 gate** (ADR-0013) using `FETCHER_OUTPUT.changedFiles` and the flattened Phase 1 findings from `ASPECT_RESPONSES`. If `shouldRunPhase2` returns true, launch `agents/code-simplifier.md` sequentially (with the delta diff and `intentBrief` preamble when defined), wait for it, and store its response alongside `ASPECT_RESPONSES` so the Coordinator receives the full finding set.
 
 #### Step 1.8a — Invoke Re-review Coordinator (re-review mode only)
 
@@ -544,10 +638,16 @@ Wait for the agent to complete. It emits exactly one of:
 
 ## Step 6 — Resolve the spawn set
 
-Run the changed-file-analyser to determine which Review Aspect agents apply to this diff:
+Run the changed-file-analyser with both the changed-files list and the full diff so the content-aware gates (ADR-0008) can fire. Build the `{"files":[...paths...],"diff":"..."}` input with Node (not `jq` — it is unavailable by default on Windows) and pipe it to the analyser:
 
 ```sh
-git diff "origin/${BASE_BRANCH}...HEAD" --name-only | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
+node -e "
+const {execFileSync}=require('node:child_process')
+const range='origin/'+process.env.BASE_BRANCH+'...HEAD'
+const files=execFileSync('git',['diff',range,'--name-only'],{encoding:'utf8'}).split(/\r?\n/).filter(Boolean)
+const diff=execFileSync('git',['diff',range],{encoding:'utf8',maxBuffer:1e9})
+process.stdout.write(JSON.stringify({files,diff}))
+" BASE_BRANCH="${BASE_BRANCH}" | node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs"
 ```
 
 - **Exit 0**: stdout contains a JSON array of agent names, e.g. `["code-reviewer","silent-failure-hunter"]`. Store it as `SPAWN_SET`.
@@ -626,6 +726,24 @@ Before waiting for agent completion, when `intentBrief` is defined **and** `inte
 The Intent Assessor is **not** a Review Aspect and is **not** in the spawn set returned by the changed-file analyser. Do not add it to SPAWN_SET. It runs because intent is present, not because of changed-file categories (ADR-0011).
 
 Store the Assessor's response separately as `ASSESSOR_RESPONSE`.
+
+### Phase 2 — Code Simplifier (conditional, sequential, after Phase 1 completes)
+
+After all Phase 1 agents finish, evaluate the Phase 2 gate (ADR-0013). The gate is implemented by `shouldRunPhase2` in `scripts/lib/changed-file-analyser.mjs` — call it via an inline Node.js one-liner:
+
+```sh
+FILES='<JSON.stringify(changedFiles from Step 6)>' FINDINGS='<JSON.stringify(all Phase 1 findings flattened)>' node -e "
+const {shouldRunPhase2}=await import('${CLAUDE_PLUGIN_ROOT}/scripts/lib/changed-file-analyser.mjs')
+const files=JSON.parse(process.env.FILES)
+const findings=JSON.parse(process.env.FINDINGS)
+process.stdout.write(shouldRunPhase2(files,findings)?'true':'false')
+"
+```
+
+- **Output `true`**: launch `agents/code-simplifier.md` sequentially (wait for it before Step 8). Provide the same diff (and `intentBrief` preamble when defined) as in the Phase 1 fan-out. Wait for it to complete and merge its `findings` and `positiveObservations` into the full set alongside the Phase 1 results.
+- **Output `false`**: skip Phase 2 entirely and proceed to Step 8.
+
+Phase 2 honours the preview / `--dry-run` principle from ADR-0003: it always computes and renders, but nothing in Phase 2 changes the write path — if `IS_POST` is false the preview is terminal-only regardless.
 
 ## Step 8 — Merge findings and render the Review Summary
 

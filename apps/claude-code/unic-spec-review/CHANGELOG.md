@@ -1,0 +1,198 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.11] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- Reactive footer fallback: when Confluence rejects an inline anchor (HTTP 400), the Finding is retried as a page-level footer comment instead of erroring out, restoring the ADR-0004 "never dropped" guarantee end-to-end. A new `FetchError` kind `'rejected'` (HTTP 400) is distinct from `'unreachable'` (network/timeout/5xx), so only an anchor rejection triggers the retry while auth (401/403), not-found (404), and genuine errors still fail loud. A successful retry reports `Anchoring: footer fallback (inline rejected by Confluence)` (writer reason `inline-rejected`). Writer orchestration is extracted into an injectable, tested `postFinding` export of `confluence-writer`. CLI stdout now emits `{id, type, reason}` (the `created` field previously present is no longer included). Resolves #232.
+
+## [0.1.10] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- Convert Finding body Markdown to Confluence storage format (XHTML) before posting via `--post`. Adds a vendored, dependency-free `md-to-storage` converter supporting bold/italic, inline code, links, bullet/ordered lists, and fenced code blocks (`ac:structured-macro`). Unrecognised constructs (headings, tables, raw HTML) degrade to HTML-escaped literal text — never malformed XHTML. The title line and attribution footer are emitted as storage fragments with escaped interpolated values, keeping the footer marker byte-exact for `recognizeFooter()` (ADR-0002 de-dup unaffected). Resolves #231.
+
+### Fixed
+- (none)
+
+## [0.1.9] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- Gate dedup posts when the comparison basis is incomplete. The `dedup-matcher` CLI now emits a run-level `{ truncated, results }` envelope instead of a bare `DedupResult[]`; `matchDedup`'s signature and purity are unchanged. `/review-spec` computes `COMPARISON_INCOMPLETE = truncated OR (read-errors, excluding the hard auth-stop)`, converging two advisory warnings into one structural gate. In an incomplete run each clean `post` Finding shows a `[?incomplete]` badge and a single run-level confirmation precedes the first clean-post write; `skip`/`flag` keep their existing per-Finding gates. Implements ADR-0005 and resolves the silent-failure-hunter CRITICAL finding from PR #237.
+
+### Fixed
+- (none)
+
+## [0.1.8] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- Add `figma-gatherer` module: pure helper for shaping Figma Dev Mode MCP output into agent-ready context. `buildFigmaContext(results)` formats an array of URL+MCP-data pairs into a readable summary; `extractAnnotations(data)` recursively pulls annotation texts from the Figma node tree defensively; `formatFigmaNodeSummary(url, data)` renders a single node. CLI entry: `--input <path>` reads a JSON array and prints the formatted context. Unit-tested with injected data; no live Figma access in tests.
+- Add `live-gatherer` module: pure helper for shaping Playwright MCP observations into agent-ready context. `buildLiveContext(observations)` formats an array of URL+title+content records; `formatLivePageSummary(url, obs)` renders a single page with content capped at 2000 chars (`CONTENT_LIMIT`). CLI entry matches figma-gatherer. Unit-tested; no live browser in tests.
+- Add Figma and live-system source gathering to `/review-spec`: Step 1.5 classifies ALL pasted URLs (Confluence, Figma, live) via `link-classifier`; Step 1.6 checks MCP availability and fails loud if the Figma Dev Mode MCP or Playwright MCP is absent when the corresponding URL kind was provided (explicit remediation guidance, never a silent skip); Step 3.5 gathers Figma designs and annotations via the Figma Dev Mode MCP and formats them with `figma-gatherer`; Step 3.6 gathers live page observations via the Playwright MCP and formats them with `live-gatherer`; the formatted context strings are injected into `spec-versus-design-agent` and `spec-versus-live-agent` respectively. Figma and the live system are read-only inputs; nothing is posted to either.
+- Update `spec-versus-design-agent`: accept optional `figmaContext` (real Figma data when Figma links were provided); use it as authoritative design intent for spec-vs-design comparison; fall back to text-based inference when null.
+- Update `spec-versus-live-agent`: accept optional `liveContext` (real Playwright observations when live URLs were provided); compare spec behaviour directly against observed live behaviour; fall back to landscape-based inference when null.
+
+### Fixed
+- Fail loud when a gatherer receives a parseable but non-array MCP payload instead of silently treating it as empty.
+
+## [0.1.7] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- Add `dedup-matcher` module: `matchDedup(finding, existingComments)` compares a candidate Finding against all existing page comments by Jaccard word-token similarity (no hidden marker, no local state file; multi-user and multi-run safe). Returns a `DedupResult` with a `post`/`skip`/`flag` decision plus near-duplicate candidates sorted by similarity. Pure function, no I/O. Exports `tokenize` and `jaccard` helpers and `SKIP_THRESHOLD`/`FLAG_THRESHOLD` constants, and a `--findings-file`/`--comments-file` CLI mode for command integration.
+- Add `--comments <url>` CLI mode to `atlassian-fetch`: wraps `fetchConfluenceComments` in the same never-throws `collectComments` pattern as `--child-pages`, returning `{ comments, truncated, errors }`. Used by the Approval Loop to read existing page comments for deduplication.
+- Upgrade `/review-spec --post` from a single-Finding pick to a multi-Finding Approval Loop (S8): present all ranked Findings annotated with near-duplicate flags (`[~near-dup]`, `[~likely-dup]`), accept a comma-separated selection, surface borderline matches for an explicit human tiebreak (never silently dropped or re-raised), and post each approved Finding via the S7 write path with anchors and attribution footers. The loop is cancellable at every step, including a final post-none exit after selection. Bare `/review-spec` remains strictly read-only.
+- Unit tests cover `dedup-matcher` (`tokenize`, `jaccard`, `matchDedup`) with injected comment sets and threshold values; no live services.
+- Add deterministic threshold-boundary tests for `matchDedup` (exact Jaccard scores at and just below `FLAG_THRESHOLD` and `SKIP_THRESHOLD`) plus null-field finding/comment cases, and a credential-load-exception test for `collectComments`.
+
+### Fixed
+- Guard `matchDedup` against a Finding with `null`/`undefined` `title` or `body` so candidate text never tokenizes the literal `"undefined"`.
+- Correct the `CommentsOutput.truncated` JSDoc to describe the comment-list pagination cap (`MAX_PAGES`) rather than a page-count cap, and document that the `dedup-matcher` CLI accepts a bare `ConfluenceComment[]` array as well as the `collectComments` envelope.
+
+## [0.1.6] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Add `traversal-planner` module: `planTraversal(seeds, pageMetaMap)` discovers child pages and in-body Confluence links from seed page metadata, deduplicates by page id, and returns a `TraversalPlan` with an ordered expansion list and a `needsConfirmation` flag (set when expansion exceeds just the seeds or total pages exceed the budget threshold). Pure function, no I/O.
+- Add `fetchChildPages` to `atlassian-fetch`: fetches the first-level child pages of a Confluence page via the v1 REST API (`/content/{id}/child/page`) with `_links.next` pagination, returning `ChildPageRef[]` and a `truncated` flag. Follows the same injected-fetch pattern as `fetchConfluenceComments`. Accessible via `--child-pages <url>` CLI mode.
+- Extend `/review-spec` Step 3 with page traversal: after fetching the seed page(s), the command discovers child pages and in-body Confluence links, presents the discovered page set and count, and asks the reviewer to confirm or trim before any bulk fetch. The confirmed set is fetched and fed to the review engine. The run remains strictly read-only.
+- Unit tests cover `traversal-planner` (expansion + budget-gate logic, deduplication, ordering, edge cases) and `fetchChildPages` (happy path, pagination, truncation, and error cases); no live services.
+
+### Fixed
+- `/review-spec` Step 3b no longer skips assembling `PAGE_CONTENT` on the seed-only path (when no expansion is discovered), so the review agents always receive the page content.
+- Step 3b now surfaces coverage gaps instead of hiding them: it carries the child-page `truncated` flag into the confirmation prompt, falls back to a seed-only review when the traversal planner exits non-zero, and prints an aggregate `Fetched M of N` summary (with an explicit warning if every additional page fails).
+- Correct `traversal-planner` and `fetchChildPages` JSDoc: the `needsConfirmation` rule is stated against the unique-seed count (not raw `seeds.length`), the child-page fallback URL shape is documented as `<base>/wiki/pages/<id>`, and `TraversalPage.title` is noted as empty for `linked` pages.
+- Add `fetchChildPages` tests for numeric-id coercion, `_links.next` base-prefixing on the follow-up request, and mid-pagination error propagation.
+
+## [0.1.5] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Extend `atlassian-fetch` with a Confluence comment write path: `postConfluenceComment` posts either a page-level footer comment or an inline-anchored comment via the Confluence v2 REST API (`/wiki/api/v2/footer-comments`, `/wiki/api/v2/inline-comments`) with injected fetch for unit testing. Add `fetchConfluencePageBody` to fetch the raw HTML of a page (used by the anchor resolver). Add `postJson` internal POST helper.
+- Add `inline-anchor-resolver` module: `resolveAnchor` resolves a Finding anchor text against page HTML into a unique `textSelection + matchCount` (for the Confluence v2 inline-comment API), or returns a footer-fallback decision when the text is absent or appears more than once. Pure function, no I/O.
+- Add `attribution-footer` module: `renderFooter` and `withFooter` append a visible provenance line to every posted comment; `recognizeFooter` identifies command-authored comments by that footer. No hidden marker (ADR-0002). Pure functions, no I/O.
+- Add `confluence-writer` thin CLI wrapper: orchestrates page-body fetch, anchor resolution, footer attachment, and comment posting; not unit-tested.
+- Activate `/review-spec --post`: after writing the report, present the ranked Finding list and prompt the user to pick one to post (or decline). A Finding is posted only after explicit user confirmation; declining posts nothing. Bare `/review-spec` (no `--post`) remains strictly read-only.
+- Unit tests cover `inline-anchor-resolver` (resolveAnchor: unique/not-found/ambiguous/no-anchor/case-insensitive/regex-escaping), `attribution-footer` (renderFooter/withFooter/recognizeFooter round-trip, all dimension-hat combos), and the `atlassian-fetch` comment write path (`postConfluenceComment` footer/inline/error cases, `fetchConfluencePageBody` happy/error cases) with injected deps; no live services.
+
+### Fixed
+- `confluence-writer` now treats a 2xx response without a comment id as a failed post (writes an error and exits non-zero) instead of reporting a phantom success with a blank id, which could not be located, verified, or de-duplicated against later.
+- `/review-spec --post` Step 10 now guards against an empty Finding list (prints `No findings to post.` and stops) and always states the anchoring outcome, so a degrade from inline to a page-level footer comment is never silent.
+- Replaced the backslash line-continuation in the Step 10 `confluence-writer` invocation with a single-line command for cross-platform shell compatibility (Windows `cmd`/PowerShell).
+- Added negative `recognizeFooter` tests pinning that recognition requires the full structured footer marker, not loose mentions of `dimension:`/`hat:` in human prose.
+- Removed em dashes from authored comments and a test regex (issue #206 acceptance criteria forbid em dashes in authored text).
+
+## [0.1.4] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Add `finding` module: defines the Finding schema (`hat`, `dimension`, `confidence`, `severity`, `anchor`, `title`, `body`); exports `validateFinding` and `normalizeFinding` helpers (maps legacy `description` to `body`, assigns hat and dimension when absent).
+- Add `finding-ranker` module: `rankFindings` sorts by `confidence * severity_weight` (critical=3, important=2, minor=1) descending, stable.
+- Add `hat-mapper` module: `DIMENSION_HAT` mapping (eight Black-hat dimensions plus Green/Yellow/Red), `HAT_LABELS` and `HAT_ORDER` for report rendering, `dimensionToHat` and `groupByHat` helpers.
+- Add seven Black-hat dimension agents: `ambiguity-agent`, `spec-versus-design-agent`, `spec-versus-live-agent`, `internal-consistency-agent`, `testability-agent`, `feasibility-agent`, `non-functional-agent`.
+- Add three perspective agents: `green-agent` (alternatives), `yellow-agent` (value/justification), `red-agent` (user reaction).
+- Extend `report-renderer` to render hat-grouped sections (`## Black Hat - Critical Analysis`, etc.) when findings carry `hat` tags; backward-compatible flat rendering when hat tags are absent; `renderFinding` uses `body ?? description` for the S1/S4 transition.
+- Add CLI entry to `landscape-detector`: `node scripts/lib/landscape-detector.mjs [repo-root]` prints the `LandscapeBrief` as JSON; used by the Blue orchestrator to inject the Landscape Brief into Testability, Feasibility, Spec-versus-Live, and Non-functional agents.
+- Upgrade `/review-spec` to the S4 Blue orchestrator: detect landscape, fan out all eleven agents in parallel, rank and hat-group Findings, write hat-grouped report.
+- Unit tests cover `finding` schema helpers, `finding-ranker`, `hat-mapper` (`dimensionToHat`, `groupByHat`), and `report-renderer` hat-grouped rendering with injected deps.
+
+### Fixed
+- (none)
+
+## [0.1.3] — 2026-06-08
+
+### Breaking
+- (none)
+
+### Added
+- Extend `atlassian-fetch` with `fetchConfluenceComments`: reads all footer and inline Confluence comments for a page via the v1 REST API with injected fetch; paginated via `_links.next`; read-only, no writes. Inline comments carry the original selection text as `anchor`.
+- Add `landscape-detector` module: derives a `LandscapeBrief` (stack, test runner, test frameworks, tooling, reachable-prod flag, adjacent systems) from repo manifests (package.json, pyproject.toml, requirements.txt, Cargo.toml, go.mod, Gemfile, pom.xml, build.gradle) plus the file listing and user-declared out-of-repo adjacent systems; never hardcodes the technology stack. Computed once and exposed for injection into the review agents (consumed fully in S4).
+- Unit tests cover `fetchConfluenceComments` (footer, inline with anchor, empty page, pagination, HTML strip, author fallback, 401/404, bad URL) and `detectLandscape` (Node.js/TypeScript/React, jest/vitest/node:test runner selection, Playwright reachableProd, Biome/ESLint tooling, Python/pytest, Rust, Go, Ruby/Rails, Java, adjacentSystems passthrough, malformed JSON, readdir failure) with injected deps; no live services.
+
+### Fixed
+- Address PR #224 multi-agent review findings: prefer the `node --test` script over a Playwright dependency when selecting the test runner; stop double-reporting Playwright in `testFrameworks` (already carried by `testRunner`); drop the non-existent `@vue/core` framework key; detect `reachableProd` Playwright configs with per-variant `existsSync` instead of a directory-listing glob (no false-negative when `readdir` fails); cap `fetchConfluenceComments` pagination at 50 pages as an infinite-loop guard; tighten the JSDoc on `detectLandscape` and the `ConfluenceComment.id` typedef; add unit tests for the secondary landscape branches (build.gradle, Django, FastAPI, Flask, Cypress, `@jest/core`, TypeScript-without-tsconfig, node:test-over-Playwright) and a `fetchConfluenceComments` transport-error case.
+- Address PR #224 re-review findings: make `detectLandscape` honour its never-throws contract by routing every existence check through a `tryExists` helper (a throwing `existsSync`, e.g. EACCES, no longer escapes); surface comment pagination truncation via a new `truncated` flag on `ConfluenceCommentsResult` so a hit cap is no longer a silent data loss; model `testRunner` as a `TestRunner` string-literal union instead of bare `string`; remove the now-dead `tryListDir` helper and its `readdirSync` dependency seam (orphaned by the `existsSync` reachableProd fix); cover all four `playwright.config.{js,ts,mjs,cjs}` variants and the pagination cap with tests.
+
+## [0.1.2] — 2026-06-05
+
+### Breaking
+- (none)
+
+### Added
+- Cover two previously untested paths flagged in PR #210 review: `loadAtlassianCreds` preferring env vars over a present credentials file, and `fetchConfluencePage` capping the stripped excerpt at 800 characters.
+- Add `/setup-confluence` command: interactive credential wizard writing `~/.unic-confluence.json`, vendored by copying from `unic-pr-review` (ADR-0001 self-containment, no cross-import).
+- Add `/spec-doctor` command: preflight checks for Confluence credentials and connectivity, Figma Dev Mode MCP, and Playwright MCP; absent MCPs are reported as explicit loud failures with remediation, never a silent skip.
+- Add `parseArgs` to the `args` module (CLI parser shared by the setup wizard) alongside the existing `parseReviewSpecArgs`.
+- Unit tests for the vendored `setup-confluence` wizard (`writeConfluenceCreds`, `isEnvConfigured`) and the Confluence preflight logic (`checkConfluence`, `runSpecDoctorCredentials`, `mapPingError`, `realPing`) with injected `homedir`/`platform`/`fetch`/`loadCreds`; no live services.
+- Cover two more pure-logic branches flagged in PR #211 review: `isEnvConfigured` rejecting an env var that is present but empty, and `checkConfluence` falling back to the raw url string when the configured url is unparseable.
+
+### Fixed
+- Reject non-http(s) URLs in arg parsing, link classification, and validate `pageTitle`/`pageUrl` in the report-renderer CLI entry, so ftp/file/mailto inputs no longer slip through and missing report fields no longer render as literal `undefined`.
+- Make `/review-spec` orchestration portable: write the scratch report JSON into the gitignored `.spec-review/` directory instead of the POSIX-only `/tmp` path (broke on Windows CI), and surface the structured `errors[].kind`/`errors[].message` from the fetch script so the real failure cause is shown.
+
+### Documentation
+- Correct stale cross-plugin references in code comments (drop the `render-summary.mjs`, `doctor.mjs`, and inaccurate `ADR-0001` citations), reword the `CONTEXT.md` status line so it no longer promises an unused `(S1)` per-term marking convention, and replace em dashes with hyphens in authored comments, command docs, user-facing script output, and test descriptions, per this slice's acceptance criterion (no em dash in authored text except the mandated CHANGELOG version header).
+- Reword the `writeConfluenceCreds` JSDoc to drop a stale `:setup-jira` reference (a command that exists in `unic-pr-review` but not in this plugin); the `jiraUrl` preservation behavior is unchanged.
+
+## [0.1.1] — 2026-06-05
+
+### Breaking
+
+- (none)
+
+### Added
+
+- Vendor `atlassian-fetch.mjs` and `credentials.mjs` from `unic-pr-review` (ADR-0001 self-containment); only the Confluence page-read path is used in this slice.
+- Add `link-classifier` module: routes a pasted URL to `confluence` / `figma-page` / `figma-frame` / `live` / `unknown` and extracts the Confluence page id.
+- Add `args` module: parses `/review-spec` arguments (URL list + `--post` flag recognition).
+- Add `report-renderer` module: renders a timestamped markdown report and writes it to `.spec-review/` (gitignored).
+- Add `gaps-agent` (Gaps/Completeness dimension agent): inspects a Confluence page for missing states, undefined behaviour, and absent acceptance criteria.
+- Implement `/review-spec` S1 skeleton: classify URL, fetch one Confluence page, run Gaps agent, print findings, write report.
+- Restore test harness: `pnpm test` and `pnpm typecheck` scripts, `tsconfig.json`, `scripts/` and `tests/` directories.
+
+### Fixed
+
+- (none)
+
+## [0.1.0] — 2026-06-05
+
+### Added
+
+- Scaffold the unic-spec-review plugin: `/review-spec`, `/spec-doctor`, and `/setup-confluence` command stubs; PRD (#200); ADRs 0001 to 0004; `CONTEXT.md` domain vocabulary; `app:unic-spec-review` area label; CI and release-workflow registration. Command and agent logic pending implementation.
