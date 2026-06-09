@@ -52,23 +52,30 @@ Run each `archon workflow run` in the **background** (`run_in_background: true`)
 Dispatch command shape (fill the bracketed clauses from Step 1; drop clauses that don't apply):
 
 ```sh
-archon workflow run archon-fix-github-issue --branch feature/<scope>/<n>-<slug> "Fix issue #<n> in repo unic/unic-agents-plugins. Read the issue body carefully — the acceptance criteria are exhaustive. Source of truth: <derived paths>. [IF unic-pr-review: CLEAN-SLATE DOCTRINE — write every module fresh from the PRD and ADRs; do NOT load, copy, or pattern-match anything from apps/claude-code/pr-review/.] [IF guarded: run 'pnpm --filter <name> bump patch' and add a CHANGELOG bullet under the new version.] After 'pnpm --filter <name> test' and 'pnpm --filter <name> typecheck' are green, push and open a PR targeting develop titled '<PR title>'."
+archon workflow run archon-fix-github-issue --branch feature/<scope>/<n>-<slug> "Fix issue #<n> in repo unic/unic-agents-plugins. Read the issue body carefully — the acceptance criteria are exhaustive. Source of truth: <derived paths>. [IF unic-pr-review: CLEAN-SLATE DOCTRINE — write every module fresh from the PRD and ADRs; do NOT load, copy, or pattern-match anything from apps/claude-code/pr-review/.] [IF guarded: run 'pnpm --filter <name> bump patch' and add a CHANGELOG bullet under the new version.] VERIFICATION DISCIPLINE: after EVERY edit, including any self-fix/simplify/format commit, re-run BOTH 'pnpm --filter <name> typecheck' AND 'pnpm --filter <name> test' and confirm both pass — the CI Test job runs test THEN typecheck, so passing tests alone is not a green build. If you rename or remove a function parameter, update its JSDoc @param to match or tsc fails (TS8024/TS7006). Do not report the issue done unless 'gh pr checks' shows every check passing. After both typecheck and tests are green, push and open a PR targeting develop titled '<PR title>'."
 ```
 
 ## Step 5 — Arm the monitor
 
-Grab the 32-char run IDs (`archon workflow status`, ~5–10s after dispatch), then launch one deduped `Monitor` (persistent; exits when all watched runs leave the active list). One `LABEL:logpath` entry per run in `RUNS`:
+Grab the 32-char run IDs (`archon workflow status`, ~5–10s after dispatch), then launch one `Monitor` (persistent). **Key completion on the watched run IDs, never on a global active count** — other rollouts may run concurrently, and the global count both misfires (`[done]` waits on unrelated runs) and lingers (a brief empty gap between serial slices blanks the state and the monitor silently re-attaches to the next run). One `<n>:<run-id>` entry per watched run in `RUNS`.
+
+First confirm the workspace path casing — the org dir mirrors your local checkout and may be `UNIC`, not `unic`:
+
+```sh
+ls -d "$HOME/.archon/workspaces/"*/unic-agents-plugins
+```
 
 ```bash
 STATE=/tmp/archon-mon-$$
 mkdir -p "$STATE"; touch "$STATE/prev-status"
+WS="$HOME/.archon/workspaces/UNIC/unic-agents-plugins"   # <- casing from the ls above
 RUNS=(
-  "<n>:$HOME/.archon/workspaces/unic/unic-agents-plugins/logs/<run-id>.jsonl"
+  "<n>:<run-id>"
 )
 
 emit_new() {
-  local label=$1 pattern=$2 file=$3 prefix=$4
-  local seenfile="$STATE/seen-$label"; touch "$seenfile"
+  local label="$1" pattern="$2" file="$3" prefix="$4"
+  local seenfile="$STATE/seen-$label-$prefix"; touch "$seenfile"
   [ -f "$file" ] || return
   grep -Eo "$pattern" "$file" 2>/dev/null | sort -u | while read -r line; do
     [ -z "$line" ] && continue
@@ -80,33 +87,37 @@ emit_new() {
 }
 
 while true; do
-  status_now=$(archon workflow status 2>/dev/null \
-    | awk '/^  ID:/{id=substr($2,1,8)} /^  Status:/{s=$2} /^  Age:/{print id"="s"@"$2}' \
-    | sort | tr '\n' ' ')
-  status_key=$(printf '%s' "$status_now"          | sed -E 's/@[^ ]*//g')
-  prev_key=$(cat "$STATE/prev-status" 2>/dev/null | sed -E 's/@[^ ]*//g')
-  if [ "$status_key" != "$prev_key" ]; then
-    echo "[status] ${status_now:-no active workflows}"
-    printf '%s' "$status_now" > "$STATE/prev-status"
-  fi
+  # Status of ONLY our watched runs, keyed by id — ignores unrelated rollouts.
+  active_ids=$(archon workflow status 2>/dev/null \
+    | awk '/^  ID:/{id=$2} /^  Status:/{print id"="$2}')
+  mystat=""; any_active=0
   for entry in "${RUNS[@]}"; do
-    label="${entry%%:*}"; file="${entry#*:}"
-    emit_new "$label" "Block: apps/claude-code/pr-review[^\"]*" "$file" "HOOK-TRIP"
-    emit_new "$label" "gh pr create[^\"\\\\]{0,400}"             "$file" "PR-CREATE"
-    emit_new "$label" "git push -u origin [a-zA-Z0-9/_-]+"       "$file" "PUSH"
-    emit_new "$label" "(opened|Created) PR #[0-9]+"              "$file" "PR-OPENED"
+    n="${entry%%:*}"; rid="${entry#*:}"
+    st=$(printf '%s\n' "$active_ids" | awk -F= -v id="$rid" '$1==id{print $2}')
+    if [ -z "$st" ]; then st="absent"; else any_active=1; fi
+    mystat="$mystat #$n=$st"
+    file="$WS/logs/$rid.jsonl"
+    emit_new "$n" "session limit[^\"]*"                            "$file" "LIMIT"
+    emit_new "$n" "Block: apps/claude-code/pr-review[^\"]*"        "$file" "HOOK-TRIP"
+    emit_new "$n" "verify-pr-base[^\"]*(failed|timeout|TLS)[^\"]*" "$file" "VERIFY-SKIP"
+    emit_new "$n" "git push -u origin [a-zA-Z0-9/_-]+"             "$file" "PUSH"
+    emit_new "$n" "(opened|Created) PR #[0-9]+"                    "$file" "PR-OPENED"
   done
-  active=$(archon workflow status 2>/dev/null | grep -cE "^  Status:.*running" || echo 0)
-  if [ "$active" = "0" ] && [ -s "$STATE/prev-status" ]; then
-    echo "[done] no active workflows"; rm -rf "$STATE"; break
+  if [ "$mystat" != "$(cat "$STATE/prev-status" 2>/dev/null)" ]; then
+    echo "[status]$mystat"; printf '%s' "$mystat" > "$STATE/prev-status"
   fi
-  sleep 120
+  [ "$any_active" = 1 ] && touch "$STATE/was-active"
+  # Fire only after a watched run has gone active -> absent (avoids the just-dispatched race).
+  if [ "$any_active" = 0 ] && [ -f "$STATE/was-active" ]; then
+    echo "[done] all watched runs left the active list"; rm -rf "$STATE"; break
+  fi
+  sleep 90
 done
 ```
 
-Set `persistent: true` and a `description` naming the watched issues. **One monitor per active batch** — when dispatching the next serial slice, `TaskStop` the prior monitor (its `[done]` won't have fired for the new run) and arm a fresh one.
+Set `persistent: true` and a `description` naming the watched issues. The keyed `[done]` now fires correctly per batch, but it is still good practice to `TaskStop` a finished slice's monitor before arming the next.
 
-Monitor signals: `HOOK-TRIP` (clean-slate violation — always investigate) · `PUSH` (confirm PR base is `develop`) · `PR-CREATE`/`PR-OPENED` (fetch, check guardrails + CI, surface for review) · `[status]` (real transitions only) · `[done]` (all runs left the active list).
+Monitor signals: `LIMIT` (Claude usage cap tripped mid-run — external, re-run after reset) · `HOOK-TRIP` (clean-slate violation — always investigate) · `VERIFY-SKIP` (`verify-pr-base` failed, so the review/self-fix/simplify pipeline was cascade-skipped — the PR is unreviewed, do a clean re-run) · `PUSH` (confirm PR base is `develop`) · `PR-OPENED` (verify on GitHub: `gh pr checks` all green AND the review steps actually ran, then surface for review) · `[status]` (per-run transitions) · `[done]` (all watched runs left the active list).
 
 ## Standing rules (always apply)
 
@@ -114,13 +125,17 @@ Monitor signals: `HOOK-TRIP` (clean-slate violation — always investigate) · `
 2. **Foundation on `develop` first** (Step 2). Never dispatch a dependent before its contract is on `develop`.
 3. **Clean-slate for `unic-pr-review`.** Issues scoped to `apps/claude-code/unic-pr-review/` share no code/prompts/fixtures/dependency with `apps/claude-code/pr-review/` (deprecated, hook-protected by `.claude/hooks/block-pr-review.mjs`). Put the clean-slate clause in those dispatch prompts verbatim. Other scopes are exempt.
 4. **`verify:changelog` merge-gate.** Guarded-file PRs need a version bump + CHANGELOG bullet or CI fails. If a rollout itself introduces/tightens this gate, merge that PR **last**.
-5. **Never auto-merge.** Archon opens PRs; the maintainer reviews and merges each. Don't merge while the run is still active (`archon-fix-github-issue` keeps working post-PR). An issue is done only when its PR is **merged to `develop`** and CI is green there.
+5. **Never auto-merge, and verify CI on GitHub — not the workflow's word.** Archon opens PRs; the maintainer reviews and merges each. Don't merge while the run is still active (`archon-fix-github-issue` keeps working post-PR). The workflow's completion summary and its exit code are **both unreliable**: a run has reported "all checks green, mergeable" while CI typecheck was red, and has reported failure when only a transient network node (`verify-pr-base`) failed. Always confirm with `gh pr view <n>` (base `develop`, mergeable) + `gh pr checks <n>` (every check passing, none pending) before calling a slice ready. An issue is done only when its PR is **merged to `develop`** and CI is green there.
 6. **Never create or delete `LICENSE` files.**
 
 ## When something goes sideways
 
 - **Run off-script** (copied from a forbidden source, ignored an ADR): `archon workflow reject <run-id> "<sharper reminder>"`, then re-dispatch. Read the log at `~/.archon/workspaces/unic/unic-agents-plugins/logs/<run-id>.jsonl`.
 - **CI fails on a guarded-file PR:** almost certainly the bump gate — add a bump + CHANGELOG bullet. Expected, not a regression.
+- **CI Test job red but tests passed:** the Test job runs `test` then `typecheck`; a green test run with `exit code 2` means `tsc` failed afterwards. Read the log for `error TS####` (a self-fix param rename leaving a stale JSDoc `@param` is a known cause). For a one-line deterministic fix, patch it directly on the branch and push; otherwise clean re-run.
+- **Run died on the Claude usage limit** (log: `You've hit your session limit`): external, not a code or workflow defect. Wait for the reset, then re-dispatch — work committed in the worktree before the cap may be recoverable, but a clean re-run is safer.
+- **`verify-pr-base` failed (TLS/network):** Archon then **cascade-skips the entire review → self-fix → simplify → report pipeline**, leaving an unreviewed PR that may still be CI-green. Archon **cannot resume a failed run**, so the only way to get those steps is a clean re-run (below). Do not accept the PR just because CI passes.
+- **Clean re-run runbook** (botched/partial run, unreviewed PR, or to start fresh): `gh pr close <n> --delete-branch` → `git worktree remove --force <worktree-path>` → `git worktree prune` → `git branch -D <branch>` (local ref survives worktree removal) → confirm `develop` is untouched (`git rev-parse --short origin/develop`) → re-dispatch. Archon forks fresh from `develop` only if the old worktree and branch are gone.
 - **An issue's ACs are wrong:** fix the body via `gh issue edit <n>`, re-dispatch.
 - **PR landed on `main`:** `gh pr edit <n> --base develop`.
 - **Issue state is ground truth** — a slice is done iff its issue is closed / PR merged. `TaskStop` on the monitor does not kill the Archon run.
