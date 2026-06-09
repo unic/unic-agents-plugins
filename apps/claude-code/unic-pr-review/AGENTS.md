@@ -88,6 +88,7 @@ Load-bearing invariants captured as ADRs. All fifteen must be understood before 
 - Tabs for indentation, single quotes, no semicolons (Biome)
 - No external runtime npm dependencies — every ADO read/write goes through `az`, every Atlassian call uses `node:https` or global `fetch`
 - Tests use `node:test` + `node:assert/strict`; predicates accept injectable executor / fetch parameters so they are unit-testable without mocking the module system
+- **In command-prompt one-liners, env assignments must precede `node`** — `VAR=value node -e "..."` is correct; `node -e "..." VAR=value` makes `VAR` an argv token, not `process.env.VAR`. Enforced by `tests/command-oneliner-form.test.mjs`.
 
 ## Clean-slate doctrine
 
