@@ -47,6 +47,17 @@ function routingFetch(routes) {
 const PAGE_OK = { status: 200, json: { body: { storage: { value: PAGE_HTML } } } }
 
 describe('postFinding', () => {
+	it('inline anchor resolves and inline post succeeds — returns type:inline reason:null', async () => {
+		const fetch = routingFetch({
+			[CONTENT]: PAGE_OK,
+			[INLINE]: { status: 201, json: { id: 'inline-1', version: { createdAt: '' } } },
+		})
+		const result = await postFinding({ pageId: '123', finding: FINDING, creds: CREDS, fetch })
+		assert.equal(result.type, 'inline')
+		assert.equal(result.reason, null)
+		assert.equal(result.id, 'inline-1')
+	})
+
 	it('inline-400 falls back to footer with type:footer and reason:inline-rejected', async () => {
 		const fetch = routingFetch({
 			[CONTENT]: PAGE_OK,

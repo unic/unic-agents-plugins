@@ -21,9 +21,20 @@ import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
 
 /**
  * @typedef {Object} PostFindingResult
- * @property {string} id - Confluence comment id
+ * @property {string} id - Confluence comment id, or '' when absent from the response
  * @property {'inline' | 'footer'} type - how the comment was anchored
  * @property {string | null} reason - footer reason (resolver reason or 'inline-rejected'); null for inline
+ */
+
+/**
+ * @typedef {Object} FindingInput
+ * @property {string} title
+ * @property {string} body
+ * @property {string} severity
+ * @property {number} confidence
+ * @property {string} dimension
+ * @property {string} hat
+ * @property {string | null | undefined} [anchor]
  */
 
 /**
@@ -34,7 +45,7 @@ import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
  * footer comment and the result is reported as `type:'footer', reason:'inline-rejected'`.
  * Every other failure (auth, not-found, network/timeout/5xx) propagates unchanged so the
  * caller fails loud — only an anchor rejection triggers a retry.
- * @param {{ pageId: string, finding: any, creds: AtlassianCreds, fetch?: FetchLike }} opts
+ * @param {{ pageId: string, finding: FindingInput, creds: AtlassianCreds, fetch?: FetchLike }} opts
  * @returns {Promise<PostFindingResult>}
  */
 export async function postFinding({ pageId, finding, creds, fetch: fetchImpl = globalThis.fetch }) {
