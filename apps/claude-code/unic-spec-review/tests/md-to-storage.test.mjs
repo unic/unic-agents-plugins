@@ -7,6 +7,32 @@ import { describe, it } from 'node:test'
 import { FOOTER_MARKER, recognizeFooter } from '../scripts/lib/attribution-footer.mjs'
 import { convertInline, escapeHtml, mdToStorage } from '../scripts/lib/md-to-storage.mjs'
 
+describe('escapeHtml — edge cases', () => {
+	it('returns empty string for empty input', () => {
+		assert.equal(escapeHtml(''), '')
+	})
+})
+
+describe('convertInline — edge cases', () => {
+	it('returns empty string for empty input', () => {
+		assert.equal(convertInline(''), '')
+	})
+
+	it('converts link with parenthesised URL (balanced-paren scan)', () => {
+		const out = convertInline('[Foo](https://en.wikipedia.org/wiki/Foo_(bar))')
+		assert.equal(out, '<a href="https://en.wikipedia.org/wiki/Foo_(bar)">Foo</a>')
+	})
+})
+
+describe('convertInline — word-internal underscores (known limitation)', () => {
+	it('word-internal _ are treated as italic delimiters (CommonMark word-boundary rule not applied)', () => {
+		// Known limitation: snake_case_names become snake<em>case</em>names.
+		// Wrap identifiers in backticks to avoid: `snake_case_name`
+		const out = convertInline('snake_case_name')
+		assert.ok(out.includes('<em>case</em>'), `expected italic wrap around middle segment: ${out}`)
+	})
+})
+
 describe('escapeHtml', () => {
 	const cases = [
 		{ input: 'plain text', expected: 'plain text' },
@@ -170,6 +196,28 @@ describe('mdToStorage — per-construct block cases', () => {
 		const out = mdToStorage('first paragraph\n\nsecond paragraph')
 		assert.match(out, /<p>first paragraph<\/p>/)
 		assert.match(out, /<p>second paragraph<\/p>/)
+	})
+
+	it('converts bold inside a bullet list item', () => {
+		const out = mdToStorage('- **important** item\n- plain item')
+		assert.ok(out.includes('<li><strong>important</strong> item</li>'), out)
+		assert.ok(out.includes('<li>plain item</li>'), out)
+	})
+
+	it('converts inline code inside an ordered list item', () => {
+		const out = mdToStorage('1. run `npm install`\n2. then `npm test`')
+		assert.ok(out.includes('<li>run <code>npm install</code></li>'), out)
+		assert.ok(out.includes('<li>then <code>npm test</code></li>'), out)
+	})
+
+	it('handles CRLF line endings (Windows)', () => {
+		const out = mdToStorage('first\r\nsecond')
+		assert.ok(!out.includes('\r'), `CRLF must not appear in output: ${JSON.stringify(out)}`)
+		assert.match(out, /<p>first second<\/p>/)
+	})
+
+	it('returns empty string for empty input', () => {
+		assert.equal(mdToStorage(''), '')
 	})
 })
 

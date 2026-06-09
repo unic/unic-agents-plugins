@@ -26,12 +26,16 @@ export function escapeHtml(text) {
 
 /**
  * Find the closing position of a single-character inline delimiter
- * starting from `from`. Returns -1 if not found on the same line or
+ * starting from `from` (inclusive). Returns the index of the closing
+ * delimiter on success. Returns -1 if not found on the same line or
  * if the closing delimiter would form a double-delimiter (** / __).
+ * Known limitation: `*italic***bold**` abutted (no space between italic close
+ * and bold open) mismatch — the closing `*` is skipped because `text[j+1]` is
+ * also `*`. AI-generated content virtually never produces this pattern.
  * @param {string} text
  * @param {string} delim - single character: '*' or '_'
- * @param {number} from
- * @returns {number}
+ * @param {number} from - start of search (inclusive); typically i+1 to skip the opener
+ * @returns {number} index of closing delimiter, or -1
  */
 function findInlineEnd(text, delim, from) {
 	for (let j = from; j < text.length; j++) {
@@ -103,11 +107,22 @@ export function convertInline(text) {
 			}
 		}
 
-		// Link: [text](url)
+		// Link: [text](url) — balanced-paren scan handles URLs like Wikipedia's Foo_(bar)
 		if (ch === '[') {
 			const closeBracket = text.indexOf(']', i + 1)
 			if (closeBracket > i && text[closeBracket + 1] === '(') {
-				const closeParen = text.indexOf(')', closeBracket + 2)
+				let closeParen = -1
+				let depth = 0
+				for (let k = closeBracket + 2; k < text.length; k++) {
+					if (text[k] === '(') depth++
+					else if (text[k] === ')') {
+						if (depth === 0) {
+							closeParen = k
+							break
+						}
+						depth--
+					}
+				}
 				if (closeParen > closeBracket + 1) {
 					const linkText = text.slice(i + 1, closeBracket)
 					const url = text.slice(closeBracket + 2, closeParen)
@@ -135,7 +150,7 @@ export function convertInline(text) {
  * @returns {string}
  */
 export function mdToStorage(markdown) {
-	const lines = markdown.split('\n')
+	const lines = markdown.replace(/\r\n/g, '\n').split('\n')
 	const chunks = []
 	let i = 0
 

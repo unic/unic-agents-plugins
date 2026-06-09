@@ -37,6 +37,11 @@ async function main() {
 		process.exit(1)
 	}
 
+	if (typeof finding.body !== 'string') {
+		process.stderr.write(`${JSON.stringify({ error: 'finding.body must be a string — malformed finding file' })}\n`)
+		process.exit(1)
+	}
+
 	const creds = loadAtlassianCreds()
 	if (!creds) {
 		process.stderr.write(
@@ -54,7 +59,7 @@ async function main() {
 	try {
 		const pageHtml = await fetchConfluencePageBody(pageUrl, creds, { fetch: globalThis.fetch })
 		const resolution = resolveAnchor(finding.anchor ?? null, pageHtml)
-		const titleLine = `<p><strong>${escapeHtml(finding.title)}</strong> (${escapeHtml(finding.severity)}, ${finding.confidence}%, ${escapeHtml(finding.dimension)})</p>`
+		const titleLine = `<p><strong>${escapeHtml(finding.title)}</strong> (${escapeHtml(finding.severity)}, ${escapeHtml(String(finding.confidence))}%, ${escapeHtml(finding.dimension)})</p>`
 		const convertedBody = mdToStorage(finding.body)
 		const footerLine = `<p>${FOOTER_MARKER} | dimension: ${escapeHtml(finding.dimension)} | hat: ${escapeHtml(finding.hat)}</p>`
 		const bodyWithFooter = `${titleLine}\n${convertedBody}\n${footerLine}`
