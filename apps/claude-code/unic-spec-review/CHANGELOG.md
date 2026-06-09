@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Convert Finding body Markdown to Confluence storage format (XHTML) before posting via `--post`. Adds a vendored, dependency-free `md-to-storage` converter supporting bold/italic, inline code, links, bullet/ordered lists, and fenced code blocks (`ac:structured-macro`). Unrecognised constructs (headings, tables, raw HTML) degrade to HTML-escaped literal text — never malformed XHTML. The title line and attribution footer are emitted as storage fragments with escaped interpolated values, keeping the footer marker byte-exact for `recognizeFooter()` (ADR-0002 de-dup unaffected). Resolves #231.
 
 ### Fixed
 - (none)

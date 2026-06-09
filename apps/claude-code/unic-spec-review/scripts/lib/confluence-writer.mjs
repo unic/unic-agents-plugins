@@ -6,7 +6,8 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { extractConfluencePageId, fetchConfluencePageBody, postConfluenceComment } from '../atlassian-fetch.mjs'
-import { withFooter } from './attribution-footer.mjs'
+import { FOOTER_MARKER } from './attribution-footer.mjs'
+import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
 import { loadAtlassianCreds } from './credentials.mjs'
 import { resolveAnchor } from './inline-anchor-resolver.mjs'
 
@@ -53,8 +54,10 @@ async function main() {
 	try {
 		const pageHtml = await fetchConfluencePageBody(pageUrl, creds, { fetch: globalThis.fetch })
 		const resolution = resolveAnchor(finding.anchor ?? null, pageHtml)
-		const commentBody = `*${finding.title}* (${finding.severity}, ${finding.confidence}%, ${finding.dimension})\n\n${finding.body}`
-		const bodyWithFooter = withFooter(commentBody, finding.dimension, finding.hat)
+		const titleLine = `<p><strong>${escapeHtml(finding.title)}</strong> (${escapeHtml(finding.severity)}, ${finding.confidence}%, ${escapeHtml(finding.dimension)})</p>`
+		const convertedBody = mdToStorage(finding.body)
+		const footerLine = `<p>${FOOTER_MARKER} | dimension: ${escapeHtml(finding.dimension)} | hat: ${escapeHtml(finding.hat)}</p>`
+		const bodyWithFooter = `${titleLine}\n${convertedBody}\n${footerLine}`
 		const type = resolution.type
 		const anchor =
 			resolution.type === 'inline'
