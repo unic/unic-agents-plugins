@@ -11,6 +11,7 @@ import {
 	decideSpawnSet,
 	hasCommentChanges,
 	hasErrorHandlingChanges,
+	hasJsDocTypeChanges,
 	parseInput,
 	parseStdin,
 	shouldRunPhase2,
@@ -125,6 +126,59 @@ describe('decideSpawnSet', () => {
 
 		it('is NOT spawned when only markdown files changed', () => {
 			assert.ok(!decideSpawnSet(['README.md']).has('type-design-analyzer'))
+		})
+
+		describe('content-aware gate (diff content)', () => {
+			it('spawns type-design-analyzer when @typedef is added in a .mjs file', () => {
+				const diff = `--- a/src/utils.mjs\n+++ b/src/utils.mjs\n@@ -1,3 +1,6 @@\n // @ts-check\n+/**\n+ * @typedef {Object} Config\n+ * @property {string} name\n+ */\n export function load() {}\n`
+				const result = decideSpawnSet(['src/utils.mjs'], diff)
+				assert.ok(result.has('type-design-analyzer'))
+			})
+
+			it('spawns type-design-analyzer when @type {T} annotation is removed', () => {
+				const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1,3 +1,2 @@\n-/** @type {string[]} */\n const items = []\n`
+				const result = decideSpawnSet(['src/lib.mjs'], diff)
+				assert.ok(result.has('type-design-analyzer'))
+			})
+
+			it('spawns type-design-analyzer when an inline JSDoc cast is added', () => {
+				const diff = `--- a/src/handler.mjs\n+++ b/src/handler.mjs\n@@ -1,2 +1,3 @@\n+const cfg = /** @type {Config} */ (rawConfig)\n return cfg\n`
+				const result = decideSpawnSet(['src/handler.mjs'], diff)
+				assert.ok(result.has('type-design-analyzer'))
+			})
+
+			it('spawns type-design-analyzer when @param with type is added', () => {
+				const diff = `--- a/src/format.mjs\n+++ b/src/format.mjs\n@@ -1,3 +1,4 @@\n /**\n+ * @param {number} n\n  */\n export function fmt(n) {}\n`
+				const result = decideSpawnSet(['src/format.mjs'], diff)
+				assert.ok(result.has('type-design-analyzer'))
+			})
+
+			it('spawns type-design-analyzer when @returns with type is added', () => {
+				const diff = `--- a/src/parse.mjs\n+++ b/src/parse.mjs\n@@ -1,3 +1,4 @@\n /**\n+ * @returns {boolean}\n  */\n export function isValid() {}\n`
+				const result = decideSpawnSet(['src/parse.mjs'], diff)
+				assert.ok(result.has('type-design-analyzer'))
+			})
+
+			it('spawns type-design-analyzer when @satisfies is added', () => {
+				const diff = `--- a/src/config.mjs\n+++ b/src/config.mjs\n@@ -1,2 +1,3 @@\n+/** @satisfies {Options} */\n const opts = { debug: false }\n`
+				const result = decideSpawnSet(['src/config.mjs'], diff)
+				assert.ok(result.has('type-design-analyzer'))
+			})
+
+			it('does NOT spawn type-design-analyzer for a pure logic edit in a .mjs file with no JSDoc types', () => {
+				const diff = `--- a/src/math.mjs\n+++ b/src/math.mjs\n@@ -1,3 +1,3 @@\n export function add(a, b) {\n-  return a + b\n+  return b + a\n }\n`
+				const result = decideSpawnSet(['src/math.mjs'], diff)
+				assert.ok(!result.has('type-design-analyzer'))
+			})
+
+			it('still spawns type-design-analyzer for a .ts path edit even with empty diff (path fast-path intact)', () => {
+				assert.ok(decideSpawnSet(['src/auth.ts'], '').has('type-design-analyzer'))
+			})
+
+			it('spawns type-design-analyzer via content gate for a non-type-path .mjs (OR-combination)', () => {
+				const diff = `--- a/src/service.mjs\n+++ b/src/service.mjs\n@@ -1,2 +1,3 @@\n+/** @type {ServiceConfig} */\n const config = {}\n`
+				assert.ok(decideSpawnSet(['src/service.mjs'], diff).has('type-design-analyzer'))
+			})
 		})
 	})
 
@@ -444,6 +498,83 @@ describe('hasErrorHandlingChanges', () => {
 	})
 })
 
+describe('hasJsDocTypeChanges', () => {
+	it('returns true when @typedef is added', () => {
+		const diff = `--- a/src/utils.mjs\n+++ b/src/utils.mjs\n@@ -1,2 +1,5 @@\n // @ts-check\n+/**\n+ * @typedef {Object} Config\n+ */\n export {}\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns true when @type annotation is removed', () => {
+		const diff = `--- a/src/lib.mjs\n+++ b/src/lib.mjs\n@@ -1,3 +1,2 @@\n-/** @type {string[]} */\n const items = []\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns true when an inline JSDoc cast is added', () => {
+		const diff = `--- a/src/handler.mjs\n+++ b/src/handler.mjs\n@@ -1,2 +1,3 @@\n+const cfg = /** @type {Config} */ (rawConfig)\n return cfg\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns true when @param with type is added', () => {
+		const diff = `--- a/src/fmt.mjs\n+++ b/src/fmt.mjs\n@@ -1,3 +1,4 @@\n /**\n+ * @param {number} n\n  */\n export function fmt(n) {}\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns true when @returns with type is added', () => {
+		const diff = `--- a/src/parse.mjs\n+++ b/src/parse.mjs\n@@ -1,3 +1,4 @@\n /**\n+ * @returns {boolean}\n  */\n export function isValid() {}\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns true when @return (singular) with type is added', () => {
+		const diff = `--- a/src/parse.mjs\n+++ b/src/parse.mjs\n@@ -1,3 +1,4 @@\n /**\n+ * @return {boolean}\n  */\n export function isValid() {}\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns true when @satisfies is added', () => {
+		const diff = `--- a/src/config.mjs\n+++ b/src/config.mjs\n@@ -1,2 +1,3 @@\n+/** @satisfies {Options} */\n const opts = { debug: false }\n`
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false for a pure logic edit with no JSDoc type constructs', () => {
+		const diff = `--- a/src/math.mjs\n+++ b/src/math.mjs\n@@ -1,3 +1,3 @@\n export function add(a, b) {\n-  return a + b\n+  return b + a\n }\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false for a plain comment without type braces', () => {
+		const diff = `--- a/src/service.mjs\n+++ b/src/service.mjs\n@@ -1,2 +1,3 @@\n+// @param name — name of the user\n const x = 1\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false for empty diff', () => {
+		assert.ok(!hasJsDocTypeChanges(''))
+	})
+
+	it('ignores diff header lines (+++ / ---) even when they mention @typedef', () => {
+		const diff = `--- a/src/typedef-utils.mjs\n+++ b/src/typedef-utils.mjs\n@@ -1 +1 @@\n-export const x = 1\n+export const x = 2\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+
+	it('handles CRLF-terminated diff lines correctly', () => {
+		const diff =
+			'--- a/src/a.mjs\r\n+++ b/src/a.mjs\r\n@@ -1 +1,2 @@\r\n+/** @typedef {Object} Foo */\r\n export {}\r\n'
+		assert.ok(hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false when @type appears only on an unchanged context line', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,3 +1,3 @@\n   /** @type {string} */\n-const x = 'old'\n+const x = 'new'\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false for the word "satisfies" without @ prefix', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,2 +1,2 @@\n-const x = schema\n+const x = schema // satisfies the contract\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false when @satisfies appears only on an unchanged context line', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,3 +1,3 @@\n   /** @satisfies {Options} */\n-const opts = { debug: false }\n+const opts = { debug: true }\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+})
+
 describe('parseInput', () => {
 	it('parses plain-text lines as files with empty diff (backward compat)', () => {
 		const result = parseInput('src/a.mjs\nsrc/b.ts\n')
@@ -620,6 +751,15 @@ describe('shouldRunPhase2', () => {
 		assert.equal(result.status, 0)
 		const agents = JSON.parse(result.stdout.trim())
 		assert.ok(agents.includes('comment-analyzer'), 'comment-analyzer spawned via content gate')
+	})
+
+	it('emits type-design-analyzer for a JSON stdin diff with @typedef (content gate)', () => {
+		const diff = `--- a/src/utils.mjs\n+++ b/src/utils.mjs\n@@ -1,2 +1,5 @@\n // @ts-check\n+/**\n+ * @typedef {Object} Config\n+ */\n export {}\n`
+		const input = JSON.stringify({ files: ['src/utils.mjs'], diff })
+		const result = spawnSync('node', [SCRIPT], { input, encoding: 'utf8' })
+		assert.equal(result.status, 0)
+		const agents = JSON.parse(result.stdout.trim())
+		assert.ok(agents.includes('type-design-analyzer'), 'type-design-analyzer via JSDoc content gate')
 	})
 
 	it('exits non-zero and writes to stderr for malformed JSON stdin', () => {

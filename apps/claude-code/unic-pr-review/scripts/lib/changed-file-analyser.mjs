@@ -8,8 +8,9 @@ import { pathToFileURL } from 'node:url'
  * changed-file-analyser.mjs — determine which Review Aspect agents to spawn
  * based on the changed-files list (ADR-0008: conditional sub-agent spawning).
  *
- * Classification is path/extension-based. code-reviewer always runs for any
- * non-empty diff; the other five aspects are conditional on file categories.
+ * Classification is path/extension-based and content-aware (ADR-0008: conditional
+ * sub-agent spawning). code-reviewer always runs for any non-empty diff;
+ * the other five aspects use path/extension predicates OR content-aware gates.
  */
 
 /** @param {string} f */
@@ -73,6 +74,30 @@ export function hasCommentChanges(diff) {
 	return scanDiffLines(diff, (c) => !SPDX_RE.test(c) && COMMENT_TOKEN_RE.test(c))
 }
 
+// Tokens that identify a line as containing a JSDoc type construct.
+// Targets @typedef, @type {T}, @param {T}, @return/@returns {T}, and @satisfies —
+// the JSDoc-in-.mjs surface that isTypeFile is blind to. Inline JSDoc casts
+// (/** @type {T} */ (x)) are caught by the @type arm. Additive content gate
+// for the types row in ADR-0008 (path trigger is fast path, this is additive).
+const JSDOC_TYPE_RE = /@typedef\b|@type\s*\{|@param\s*\{|@returns?\s*\{|@satisfies\b/
+
+/**
+ * Returns true when the unified diff adds or removes at least one JSDoc type
+ * construct (`@typedef`, `@type {T}`, `@param {T}`, `@returns {T}`, `@return {T}`,
+ * `@satisfies`,
+ * or inline JSDoc cast) in any file. Used as the additive content gate for
+ * `type-design-analyzer` — the path trigger (`isTypeFile`) already covers
+ * `.ts`/`.tsx`/`.d.ts` files; this gate catches JSDoc-typed `.mjs`/`.js` files
+ * the path classifier is blind to (ADR-0008 types row). Biased toward spawning
+ * on ambiguity per ADR-0008.
+ *
+ * @param {string} diff - unified diff string (may be empty)
+ * @returns {boolean}
+ */
+export function hasJsDocTypeChanges(diff) {
+	return scanDiffLines(diff, (c) => JSDOC_TYPE_RE.test(c))
+}
+
 // Tokens that identify a line as touching error-handling control flow.
 // Arms: `try {`, `catch (`, `finally {`, bare `throw`, `.catch(` (Promise chain —
 // explicit arm for readability; `\bcatch\s*\(` already matches this since `.` creates
@@ -121,7 +146,7 @@ const SPAWN_TABLE = [
 		agent: 'silent-failure-hunter',
 		predicate: (files, diff) => files.some(isSourceFile) || hasErrorHandlingChanges(diff),
 	},
-	{ agent: 'type-design-analyzer', predicate: (files) => files.some(isTypeFile) },
+	{ agent: 'type-design-analyzer', predicate: (files, diff) => files.some(isTypeFile) || hasJsDocTypeChanges(diff) },
 	{ agent: 'pr-test-analyzer', predicate: (files) => files.some(isTestFile) },
 	{ agent: 'comment-analyzer', predicate: (files, diff) => files.some(isDocFile) || hasCommentChanges(diff) },
 ]

@@ -14,6 +14,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Changed
+- (none)
+
+### Fixed
+- (none)
+
+## [2.1.7] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- Content-aware types gate (issue #215, ADR-0008 amendment): `type-design-analyzer` now
+  *additionally* spawns whenever the diff adds or removes a JSDoc type construct (`@typedef`,
+  `@type {T}`, `@param {T}`, `@returns {T}`, `@satisfies`, inline JSDoc casts) in non-`.ts`
+  source files (`.mjs`/`.js`). The existing `.ts`/`.tsx`/`.d.ts`/`types|schemas|interfaces/`
+  path trigger is retained as the unconditional fast path (ADR-0008: content gating is additive,
+  never subtractive). A pure `.mjs` edit with no JSDoc type constructs and no type-file path
+  does not spawn the agent. Gate is biased toward spawning on ambiguity per ADR-0008.
+
+### Changed
 - Docs: reconcile `code-reviewer`'s spawn vocabulary across decision records (issue #225). ADR-0011's
   Option A rejection no longer claims the spawn is "conditional" (which contradicted ADR-0008's
   "Always — any non-empty diff"); it now states the spawn always fires on a reviewable diff and rests
