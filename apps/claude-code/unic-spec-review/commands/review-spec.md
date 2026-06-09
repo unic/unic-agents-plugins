@@ -512,7 +512,7 @@ If the user answers anything other than `y` or `Y`, print `Skipped.` and move to
 
 #### If an override was approved above (skip or flag, user said y):
 
-Post the Finding using steps 1–3 below. The run-level `SKIP_CLEAN_POSTS` flag does not apply — the reviewer explicitly consented to post despite the near-duplicate.
+Post the Finding using steps 1–3 below. The run-level `SKIP_CLEAN_POSTS` flag does not apply - the reviewer explicitly consented to post despite the near-duplicate.
 
 #### If decision is `'post'` (clean post, no duplicate found):
 
