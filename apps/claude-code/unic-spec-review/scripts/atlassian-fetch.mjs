@@ -1012,11 +1012,14 @@ export function parseCommentsArg(argv) {
 export async function main(argv, deps = {}) {
 	const childPagesUrl = parseChildPagesArg(argv)
 	const commentsUrl = parseCommentsArg(argv)
-	const result = childPagesUrl
-		? await collectChildPages(childPagesUrl, deps)
-		: commentsUrl
-			? await collectComments(commentsUrl, deps)
-			: await collectIntent(parseUrlsArg(argv), deps)
+	let result
+	if (childPagesUrl) {
+		result = await collectChildPages(childPagesUrl, deps)
+	} else if (commentsUrl) {
+		result = await collectComments(commentsUrl, deps)
+	} else {
+		result = await collectIntent(parseUrlsArg(argv), deps)
+	}
 	let serialised
 	try {
 		serialised = JSON.stringify(result)
