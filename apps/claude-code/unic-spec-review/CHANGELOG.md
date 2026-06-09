@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.1.8] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
 - Add `figma-gatherer` module: pure helper for shaping Figma Dev Mode MCP output into agent-ready context. `buildFigmaContext(results)` formats an array of URL+MCP-data pairs into a readable summary; `extractAnnotations(data)` recursively pulls annotation texts from the Figma node tree defensively; `formatFigmaNodeSummary(url, data)` renders a single node. CLI entry: `--input <path>` reads a JSON array and prints the formatted context. Unit-tested with injected data; no live Figma access in tests.
 - Add `live-gatherer` module: pure helper for shaping Playwright MCP observations into agent-ready context. `buildLiveContext(observations)` formats an array of URL+title+content records; `formatLivePageSummary(url, obs)` renders a single page with content capped at 2000 chars (`CONTENT_LIMIT`). CLI entry matches figma-gatherer. Unit-tested; no live browser in tests.
 - Add Figma and live-system source gathering to `/review-spec`: Step 1.5 classifies ALL pasted URLs (Confluence, Figma, live) via `link-classifier`; Step 1.6 checks MCP availability and fails loud if the Figma Dev Mode MCP or Playwright MCP is absent when the corresponding URL kind was provided (explicit remediation guidance, never a silent skip); Step 3.5 gathers Figma designs and annotations via the Figma Dev Mode MCP and formats them with `figma-gatherer`; Step 3.6 gathers live page observations via the Playwright MCP and formats them with `live-gatherer`; the formatted context strings are injected into `spec-versus-design-agent` and `spec-versus-live-agent` respectively. Figma and the live system are read-only inputs; nothing is posted to either.
