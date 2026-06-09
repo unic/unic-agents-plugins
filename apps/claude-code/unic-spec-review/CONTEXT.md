@@ -22,5 +22,6 @@ Domain vocabulary for the `unic-spec-review` plugin. This is a single bounded co
 - **Approval Loop:** the interactive selection-and-post flow, enabled only by `--post`. Cancellable at every step, including a final "post none" exit.
 - **Attribution Footer:** the visible provenance line on every comment the command posts, so any later Review (by anyone) can recognise prior Findings.
 - **Near-duplicate:** an existing comment (a prior run's, a colleague's, or a human's) that resembles a candidate Finding closely enough to flag for a human tiebreak in the Approval Loop.
+- **Complete comparison:** a de-dup pass that compared a Finding against _all_ existing page comments. When the comment set was truncated or partially failed to load, the comparison is _incomplete_: a clean "post" no longer means "no duplicate exists", only "none seen in a partial set", so the run is surfaced as incomplete and its clean posts require a tiebreak.
 
 See [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) for the locked design and [`docs/issues/unic-spec-review/PRD.md`](docs/issues/unic-spec-review/PRD.md) for the full specification.
