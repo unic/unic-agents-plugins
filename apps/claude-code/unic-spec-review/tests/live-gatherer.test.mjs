@@ -27,6 +27,16 @@ describe('formatLivePageSummary', () => {
 		assert.ok(out.includes('Title: (untitled)'))
 	})
 
+	it('shows (untitled) when title is an empty string', () => {
+		const out = formatLivePageSummary('url', { title: '', content: 'x' })
+		assert.ok(out.includes('Title: (untitled)'))
+	})
+
+	it('shows (no content captured) when content is an empty string', () => {
+		const out = formatLivePageSummary('url', { title: 'T', content: '' })
+		assert.ok(out.includes('(no content captured)'))
+	})
+
 	it('shows content when present', () => {
 		const out = formatLivePageSummary('url', { title: 'T', content: 'Visible body text' })
 		assert.ok(out.includes('Visible body text'))

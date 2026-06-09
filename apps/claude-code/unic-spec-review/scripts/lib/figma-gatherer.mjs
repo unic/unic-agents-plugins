@@ -79,17 +79,16 @@ export function extractAnnotations(data) {
 
 /**
  * Render a single Figma node into a readable multi-line summary. Defensive
- * against missing names, descriptions, and annotations.
+ * against missing names, descriptions, and annotations. Falls back to
+ * `data.node` and `data.document` wrapper shapes for name and description.
  * @param {string} url
  * @param {unknown} data
  * @returns {string}
  */
 export function formatFigmaNodeSummary(url, data) {
-	const name =
-		readString(data, 'name') ??
-		readString(/** @type {any} */ (data)?.node, 'name') ??
-		readString(/** @type {any} */ (data)?.document, 'name')
-	const description = readString(data, 'description') ?? readString(/** @type {any} */ (data)?.node, 'description')
+	const obj = typeof data === 'object' && data !== null ? /** @type {Record<string, unknown>} */ (data) : null
+	const name = readString(data, 'name') ?? readString(obj?.node, 'name') ?? readString(obj?.document, 'name')
+	const description = readString(data, 'description') ?? readString(obj?.node, 'description')
 	const annotations = extractAnnotations(data)
 
 	const lines = [
@@ -129,7 +128,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		process.stderr.write('figma-gatherer: --input <path> required\n')
 		process.exit(1)
 	}
-	const raw = JSON.parse(readFileSync(process.argv[inputFlag + 1], 'utf8'))
+	let raw
+	try {
+		raw = JSON.parse(readFileSync(process.argv[inputFlag + 1], 'utf8'))
+	} catch (err) {
+		process.stderr.write(
+			`figma-gatherer: failed to read/parse input: ${err instanceof Error ? err.message : String(err)}\n`
+		)
+		process.exit(1)
+	}
 	const results = Array.isArray(raw) ? raw : []
 	process.stdout.write(`${buildFigmaContext(results)}\n`)
 }

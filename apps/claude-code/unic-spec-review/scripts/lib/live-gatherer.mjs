@@ -70,7 +70,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		process.stderr.write('live-gatherer: --input <path> required\n')
 		process.exit(1)
 	}
-	const raw = JSON.parse(readFileSync(process.argv[inputFlag + 1], 'utf8'))
+	let raw
+	try {
+		raw = JSON.parse(readFileSync(process.argv[inputFlag + 1], 'utf8'))
+	} catch (err) {
+		process.stderr.write(
+			`live-gatherer: failed to read/parse input: ${err instanceof Error ? err.message : String(err)}\n`
+		)
+		process.exit(1)
+	}
 	const observations = Array.isArray(raw) ? raw : []
 	process.stdout.write(`${buildLiveContext(observations)}\n`)
 }

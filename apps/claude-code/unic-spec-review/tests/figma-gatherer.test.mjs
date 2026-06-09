@@ -63,6 +63,11 @@ describe('formatFigmaNodeSummary', () => {
 		assert.ok(out.includes('Frame/Page: Nested Frame'))
 	})
 
+	it('shows the name from a nested document wrapper', () => {
+		const out = formatFigmaNodeSummary('url', { document: { name: 'Doc Frame' } })
+		assert.ok(out.includes('Frame/Page: Doc Frame'))
+	})
+
 	it('shows (unnamed) when name is absent', () => {
 		const out = formatFigmaNodeSummary('url', {})
 		assert.ok(out.includes('Frame/Page: (unnamed)'))
