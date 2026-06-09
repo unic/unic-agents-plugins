@@ -563,6 +563,16 @@ describe('hasJsDocTypeChanges', () => {
 		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,3 +1,3 @@\n   /** @type {string} */\n-const x = 'old'\n+const x = 'new'\n`
 		assert.ok(!hasJsDocTypeChanges(diff))
 	})
+
+	it('returns false for the word "satisfies" without @ prefix', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,2 +1,2 @@\n-const x = schema\n+const x = schema // satisfies the contract\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
+
+	it('returns false when @satisfies appears only on an unchanged context line', () => {
+		const diff = `--- a/src/a.mjs\n+++ b/src/a.mjs\n@@ -1,3 +1,3 @@\n   /** @satisfies {Options} */\n-const opts = { debug: false }\n+const opts = { debug: true }\n`
+		assert.ok(!hasJsDocTypeChanges(diff))
+	})
 })
 
 describe('parseInput', () => {
@@ -741,6 +751,15 @@ describe('shouldRunPhase2', () => {
 		assert.equal(result.status, 0)
 		const agents = JSON.parse(result.stdout.trim())
 		assert.ok(agents.includes('comment-analyzer'), 'comment-analyzer spawned via content gate')
+	})
+
+	it('emits type-design-analyzer for a JSON stdin diff with @typedef (content gate)', () => {
+		const diff = `--- a/src/utils.mjs\n+++ b/src/utils.mjs\n@@ -1,2 +1,5 @@\n // @ts-check\n+/**\n+ * @typedef {Object} Config\n+ */\n export {}\n`
+		const input = JSON.stringify({ files: ['src/utils.mjs'], diff })
+		const result = spawnSync('node', [SCRIPT], { input, encoding: 'utf8' })
+		assert.equal(result.status, 0)
+		const agents = JSON.parse(result.stdout.trim())
+		assert.ok(agents.includes('type-design-analyzer'), 'type-design-analyzer via JSDoc content gate')
 	})
 
 	it('exits non-zero and writes to stderr for malformed JSON stdin', () => {

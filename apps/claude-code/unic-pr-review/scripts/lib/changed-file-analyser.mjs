@@ -8,8 +8,9 @@ import { pathToFileURL } from 'node:url'
  * changed-file-analyser.mjs — determine which Review Aspect agents to spawn
  * based on the changed-files list (ADR-0008: conditional sub-agent spawning).
  *
- * Classification is path/extension-based. code-reviewer always runs for any
- * non-empty diff; the other five aspects are conditional on file categories.
+ * Classification is path/extension-based and content-aware (ADR-0008: conditional
+ * sub-agent spawning). code-reviewer always runs for any non-empty diff;
+ * the other five aspects use path/extension predicates OR content-aware gates.
  */
 
 /** @param {string} f */
@@ -74,7 +75,7 @@ export function hasCommentChanges(diff) {
 }
 
 // Tokens that identify a line as containing a JSDoc type construct.
-// Targets @typedef, @type {T}, @param {T}, @returns?{T}, and @satisfies —
+// Targets @typedef, @type {T}, @param {T}, @return/@returns {T}, and @satisfies —
 // the JSDoc-in-.mjs surface that isTypeFile is blind to. Inline JSDoc casts
 // (/** @type {T} */ (x)) are caught by the @type arm. Additive content gate
 // for the types row in ADR-0008 (path trigger is fast path, this is additive).
@@ -82,7 +83,8 @@ const JSDOC_TYPE_RE = /@typedef\b|@type\s*\{|@param\s*\{|@returns?\s*\{|@satisfi
 
 /**
  * Returns true when the unified diff adds or removes at least one JSDoc type
- * construct (`@typedef`, `@type {T}`, `@param {T}`, `@returns {T}`, `@satisfies`,
+ * construct (`@typedef`, `@type {T}`, `@param {T}`, `@returns {T}`, `@return {T}`,
+ * `@satisfies`,
  * or inline JSDoc cast) in any file. Used as the additive content gate for
  * `type-design-analyzer` — the path trigger (`isTypeFile`) already covers
  * `.ts`/`.tsx`/`.d.ts` files; this gate catches JSDoc-typed `.mjs`/`.js` files
