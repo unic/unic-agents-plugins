@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Gate dedup posts when the comparison basis is incomplete. The `dedup-matcher` CLI now emits a run-level `{ truncated, results }` envelope instead of a bare `DedupResult[]`; `matchDedup`'s signature and purity are unchanged. `/review-spec` computes `COMPARISON_INCOMPLETE = truncated OR (read-errors, excluding the hard auth-stop)`, converging two advisory warnings into one structural gate. In an incomplete run each clean `post` Finding shows a `[?incomplete]` badge and a single run-level confirmation precedes the first clean-post write; `skip`/`flag` keep their existing per-Finding gates. Implements ADR-0005 and resolves the silent-failure-hunter CRITICAL finding from PR #237.
 
 ### Fixed
 - (none)
