@@ -68,6 +68,14 @@ describe('tokenize', () => {
 		const tokens = tokenize('one    two\t\nthree')
 		assert.deepEqual([...tokens].sort(), ['one', 'three', 'two'])
 	})
+
+	it('returns an empty set for null input', () => {
+		assert.equal(tokenize(/** @type {any} */ (null)).size, 0)
+	})
+
+	it('returns an empty set for undefined input', () => {
+		assert.equal(tokenize(/** @type {any} */ (undefined)).size, 0)
+	})
 })
 
 describe('jaccard', () => {
@@ -84,12 +92,12 @@ describe('jaccard', () => {
 	})
 
 	it('returns the exact fraction for partial overlap', () => {
-		// |{a,b} ∩ {a,b,c,d}| = 2, |union| = 4 -> 0.5
+		// |{aa,bb} ∩ {aa,bb,cc,dd}| = 2, |union| = 4 → 0.5
 		assert.equal(jaccard(new Set(['aa', 'bb']), new Set(['aa', 'bb', 'cc', 'dd'])), 0.5)
 	})
 
 	it('returns 1/3 for half-overlapping two-element sets', () => {
-		// |{a,b} ∩ {b,c}| = 1, |union {a,b,c}| = 3 -> 0.333...
+		// |{aa,bb} ∩ {bb,cc}| = 1, |union {aa,bb,cc}| = 3 → 1/3
 		assert.ok(Math.abs(jaccard(new Set(['aa', 'bb']), new Set(['bb', 'cc'])) - 1 / 3) < 1e-9)
 	})
 
@@ -195,6 +203,12 @@ describe('matchDedup', () => {
 
 	it('returns post when the comment body is an empty string', () => {
 		const result = matchDedup(makeFinding({}), [makeComment({ body: '' })])
+		assert.equal(result.decision, 'post')
+		assert.deepEqual(result.nearDuplicates, [])
+	})
+
+	it('returns post when existingComments is null', () => {
+		const result = matchDedup(makeFinding({}), /** @type {any} */ (null))
 		assert.equal(result.decision, 'post')
 		assert.deepEqual(result.nearDuplicates, [])
 	})

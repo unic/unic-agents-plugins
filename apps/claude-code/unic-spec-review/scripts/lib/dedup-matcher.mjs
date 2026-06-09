@@ -74,7 +74,6 @@ export function jaccard(a, b) {
 		if (b.has(token)) intersection += 1
 	}
 	const union = a.size + b.size - intersection
-	if (union === 0) return 0
 	return intersection / union
 }
 
@@ -140,13 +139,21 @@ function main() {
 	}
 
 	let findings
-	let commentsRaw
 	try {
 		findings = JSON.parse(readFileSync(findingsFile, 'utf8'))
+	} catch (err) {
+		process.stderr.write(
+			`${JSON.stringify({ error: `Failed to read findings file: ${err instanceof Error ? err.message : String(err)}` })}\n`
+		)
+		process.exit(1)
+	}
+
+	let commentsRaw
+	try {
 		commentsRaw = JSON.parse(readFileSync(commentsFile, 'utf8'))
 	} catch (err) {
 		process.stderr.write(
-			`${JSON.stringify({ error: `Failed to read input file: ${err instanceof Error ? err.message : String(err)}` })}\n`
+			`${JSON.stringify({ error: `Failed to read comments file: ${err instanceof Error ? err.message : String(err)}` })}\n`
 		)
 		process.exit(1)
 	}

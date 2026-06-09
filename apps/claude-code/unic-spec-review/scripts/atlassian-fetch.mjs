@@ -937,7 +937,7 @@ export function parseChildPagesArg(argv) {
 /**
  * @typedef {Object} CommentsOutput
  * @property {ConfluenceComment[]} comments
- * @property {boolean} truncated - true if the page-count cap was hit
+ * @property {boolean} truncated - true if the page-count cap was hit and the comment set is incomplete
  * @property {FetchErrorJson[]} errors
  */
 
@@ -990,7 +990,7 @@ export async function collectComments(url, deps = {}) {
 }
 
 /**
- * Read the value following `--comments` in argv, or null when absent.
+ * Read the value following `--comments` in argv, or null when absent or empty.
  * @param {string[]} argv
  * @returns {string | null}
  */
