@@ -331,12 +331,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/cleanup.mjs" "<APPROVED_FILE>"
 **Only if the ADO Writer reported `success: true`**, delete the Approval Loop state directory:
 
 ```sh
-node --input-type=module --eval "
-import {getApprovalStateDir} from '${CLAUDE_PLUGIN_ROOT}/scripts/lib/cache-paths.mjs'
-import {rmSync} from 'node:fs'
-const d=getApprovalStateDir(process.argv[2])
-try{rmSync(d,{recursive:true,force:true})}catch(e){if(e.code!=='ENOENT')throw e}
-" -- "<PR_KEY>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/clear-state-dir.mjs" "<PR_KEY>"
 ```
 
 If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.

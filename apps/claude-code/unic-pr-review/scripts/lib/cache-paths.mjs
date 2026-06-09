@@ -40,6 +40,23 @@ export function sha16(input) {
 }
 
 /**
+ * Compute the per-key state directory path with no side effects.
+ *
+ * This is the single source of truth for `<cwd>/.unic-pr-review/<key>/`, shared
+ * by `getApprovalStateDir` (which also ensures the dir exists) and the
+ * orchestrator's cleanup helper (which deletes it). Use this — not
+ * `getApprovalStateDir` — whenever you only need the path, e.g. to delete it,
+ * so you don't accidentally re-create the directory you are about to remove.
+ *
+ * @param {string} key - 16-char hex directory name (from sha16)
+ * @param {string} [cwd] - working directory override; defaults to process.cwd()
+ * @returns {string} absolute path to `<cwd>/.unic-pr-review/<key>/`
+ */
+export function approvalStateDirPath(key, cwd = process.cwd()) {
+	return join(cwd, '.unic-pr-review', key)
+}
+
+/**
  * Return the per-key state directory path and ensure:
  *   1. `<cwd>/.unic-pr-review/.gitignore` (containing `*`) exists so the
  *      entire directory tree is never tracked.
@@ -61,7 +78,7 @@ export function getApprovalStateDir(key, deps = {}) {
 
 	const root = join(cwd, '.unic-pr-review')
 	const gitignorePath = join(root, '.gitignore')
-	const stateDir = join(root, key)
+	const stateDir = approvalStateDirPath(key, cwd)
 
 	if (!existsSync(gitignorePath)) {
 		mkdirSync(root, { recursive: true })

@@ -27,11 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `scripts/lib/temp-paths.mjs` — tested argv helper that prints the findings/approved temp-file path (replaces the inline `PR_KEY=...` approved-path one-liner in Step 1.11 §2).
 - `scripts/lib/cleanup.mjs` — tested argv helper that deletes a temp file, tolerating only ENOENT and rethrowing everything else (replaces the masked-catch `F=...` one-liners in Steps 1.11 §6 and 1.13).
-- `tests/command-oneliner-form.test.mjs` — lint-style regression guard that fails if any `sh` block in `commands/*.md` places an env assignment after `node`.
+- `scripts/lib/clear-state-dir.mjs` — tested argv helper that deletes the `.unic-pr-review/<key>/` state directory (replaces the Step 1.13 state-dir one-liner); computes the path via the new side-effect-free `approvalStateDirPath()` so it never re-creates the directory it removes.
+- `tests/command-oneliner-form.test.mjs` — lint-style regression guard for the env-vs-argv class: fails if any `sh` block in `commands/*.md` places an env assignment after `node`, or if an inline `node -e`/`--eval` block reads `process.argv` (which is off-by-one for inline eval).
 - AGENTS.md Conventions: env assignments must precede `node` in command-prompt one-liners.
 
 ### Changed
-- `commands/review-pr.md` Steps 1.11–1.13: all six env-after-`node` one-liners corrected — data-heavy reads have assignments reordered before `node`; leak-prone snippets extracted to `temp-paths.mjs` / `cleanup.mjs`; state-dir delete uses `getApprovalStateDir()` via ESM `--input-type=module` with key as positional argv (issue #227).
+- `commands/review-pr.md` Steps 1.11–1.13: all six env-after-`node` one-liners corrected — data-heavy reads have assignments reordered before `node`; leak-prone snippets extracted to `temp-paths.mjs` / `cleanup.mjs` / `clear-state-dir.mjs`, each invoked as a real script file (`node "…​.mjs" <args>`) so positional args and Windows paths both work (issue #227).
+- `scripts/lib/cache-paths.mjs`: extracted `approvalStateDirPath()` — the side-effect-free path computation now shared by `getApprovalStateDir()` (create) and `clear-state-dir.mjs` (delete).
 - `scripts/approval-loop.mjs`: removed unconditional `rmSync(stateDir)` — the Approval Loop no longer deletes its own state directory (ADR-0014); tests updated accordingly.
 
 ### Fixed

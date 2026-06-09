@@ -3,12 +3,20 @@
 // Copyright © 2026 Unic
 
 /**
- * Regression guard: env assignments must precede `node` in command-prompt one-liners.
+ * Regression guard for the issue #227 env-vs-argv defect class in command-prompt one-liners.
  *
- * IDENT='...' tokens that appear after `node` are positional argv, NOT process.env —
- * they produce undefined reads and silent failures (see issue #227 and AGENTS.md Conventions).
+ * Two rules, both rooted in the same trap — getting `process.env` vs `process.argv` wrong:
  *
- * Limitation: only detects trailing env on the same line as `node`.
+ *  1. Env assignments must precede `node`. `IDENT='...'` tokens after `node` are positional
+ *     argv, NOT process.env — they produce undefined reads and silent failures.
+ *  2. Inline `node -e`/`--eval` blocks must not read `process.argv`. Inline eval has no
+ *     script-path slot, so the first user arg lands at `process.argv[1]`, not `[2]` — the
+ *     exact bug that shipped on the Step 1.13 state-dir one-liner. Pass data via env
+ *     (vars-before-node) or extract to a tested `scripts/lib/*.mjs` file (where argv works).
+ *
+ * See issue #227 and AGENTS.md Conventions.
+ *
+ * Limitation (rule 1 only): trailing env is detected only on the same line as `node`.
  * A multi-line sh block where an env var trails the closing `"` on a separate line is not caught here.
  */
 
@@ -56,6 +64,19 @@ function trailingEnvAssignment(line) {
 	return m ? m[1] : null
 }
 
+/**
+ * True if a block runs an inline `node -e`/`--eval` AND reads `process.argv`.
+ * Inline eval has no script-path argv slot, so positional indices are off-by-one
+ * (the first arg is argv[1], not argv[2]) — the issue #227 trap. The `node`+flag
+ * detection is line-scoped; `process.argv` is searched across the whole block.
+ * @param {string} block
+ * @returns {boolean}
+ */
+function evalBlockReadsArgv(block) {
+	const hasInlineEval = /\bnode\b[^\n]*?(?:--eval\b|\s-e\b)/.test(block)
+	return hasInlineEval && /process\.argv\b/.test(block)
+}
+
 describe('command one-liner env form', () => {
 	const files = readdirSync(COMMANDS_DIR).filter((f) => f.endsWith('.md'))
 
@@ -75,6 +96,18 @@ describe('command one-liner env form', () => {
 				violations,
 				[],
 				`Env assignments must precede node (see AGENTS.md Conventions):\n${violations.join('\n')}`
+			)
+		})
+
+		it(`${file}: no inline node -e/--eval block reads process.argv`, () => {
+			const content = readFileSync(join(COMMANDS_DIR, file), 'utf8')
+			const violations = extractShBlocks(content)
+				.filter(evalBlockReadsArgv)
+				.map((b) => b.trim())
+			assert.deepEqual(
+				violations,
+				[],
+				`Inline node -e/--eval must not read process.argv — pass via env or a tested scripts/lib/*.mjs file (issue #227):\n${violations.join('\n---\n')}`
 			)
 		})
 	}
