@@ -7,7 +7,7 @@
  *
  * Implements the local-dedup half of ADR-0015 (Write Retry completes a
  * partially-written Iteration). Three pure-ish helpers, all path-based so they
- * are unit-testable without touching the module system:
+ * are unit-testable without mocking the module system:
  *
  *   - `checkWriteRetry`  — classify a re-run as none / retry / stale by comparing
  *                          the saved `headSha` to the current HEAD.
@@ -165,7 +165,7 @@ export function filterUnposted(approvedFindings, postedMap) {
 /* ------------------------------------------------------------------ CLI ---- */
 
 /**
- * Read a required env var or exit non-zero with a usage message.
+ * Read a required env var or exit non-zero with an error message.
  * @param {string} name
  * @returns {string}
  */
@@ -201,7 +201,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 			process.stderr.write(`write-outcomes: WRITER_RESULT is not valid JSON: ${String(err)}\n`)
 			process.exit(1)
 		}
-		recordOutcomes(statePath, writer.inlineResults ?? [], writer.summaryResult ?? null)
+		try {
+			recordOutcomes(statePath, writer.inlineResults ?? [], writer.summaryResult ?? null)
+		} catch (err) {
+			process.stderr.write(`write-outcomes: outcomes not persisted: ${String(err)}\n`)
+			process.exit(1)
+		}
 	} else if (subcommand === 'filter') {
 		// env APPROVED_FILE (path) → rewrite it in place to the un-posted Findings
 		const approvedFile = requireEnv('APPROVED_FILE')
@@ -213,9 +218,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		} catch {
 			// no readable state → empty posted-map → filter is a no-op
 		}
-		const approved = JSON.parse(realReadFile(approvedFile, 'utf8'))
-		const unposted = filterUnposted(approved, postedMap)
-		realWriteFile(approvedFile, JSON.stringify(unposted), 'utf8')
+		/** @type {unknown} */
+		let approved
+		try {
+			approved = JSON.parse(realReadFile(approvedFile, 'utf8'))
+		} catch (err) {
+			process.stderr.write(`write-outcomes: could not read APPROVED_FILE: ${String(err)}\n`)
+			process.exit(1)
+		}
+		const unposted = filterUnposted(/** @type {any[]} */ (approved), postedMap)
+		const tmp = `${approvedFile}.tmp`
+		realWriteFile(tmp, JSON.stringify(unposted), 'utf8')
+		realRenameSync(tmp, approvedFile)
 	} else {
 		process.stderr.write(`write-outcomes: unknown subcommand '${subcommand}'\n`)
 		process.exit(1)

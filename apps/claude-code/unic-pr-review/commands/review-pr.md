@@ -74,7 +74,7 @@ HEAD_SHA="<HEAD_SHA>" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs
 stdout is a JSON object. Route on its `mode`:
 
 - **`{ "mode": "none" }`** → no prior state (or it was unreadable); proceed to Step 1.3 (normal review).
-- **`{ "mode": "retry", "state": … }`** → **Write Retry**: set `IS_WRITE_RETRY = true`, store `state` as `WRITE_RETRY_STATE`, and set `CURRENT_ITERATION = WRITE_RETRY_STATE.iteration`. Skip Steps 1.3–1.10 entirely (no Fetcher, no mode detection, no aspect fan-out) and go straight to Step 1.11 — the saved approval decisions are reused, nothing is re-prompted.
+- **`{ "mode": "retry", "state": … }`** → **Write Retry**: set `IS_WRITE_RETRY = true`, store `state` as `WRITE_RETRY_STATE`, and set `CURRENT_ITERATION = WRITE_RETRY_STATE.iteration ?? 1`. Skip Steps 1.3–1.10 entirely (no Fetcher, no mode detection, no aspect fan-out) and go straight to Step 1.11 — the saved approval decisions are reused, nothing is re-prompted.
 - **`{ "mode": "stale" }`** → the partial attempt is from a different HEAD (force-push / rebase). Print the Notice, discard the stale state directory, then proceed to Step 1.3 (normal review against the new HEAD):
 
   ```
