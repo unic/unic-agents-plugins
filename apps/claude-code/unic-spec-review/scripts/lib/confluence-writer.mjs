@@ -49,8 +49,9 @@ import { escapeHtml, mdToStorage } from './md-to-storage.mjs'
  * @returns {Promise<PostFindingResult>}
  */
 export async function postFinding({ pageId, finding, creds, fetch: fetchImpl = globalThis.fetch }) {
+	const fetchOpts = { fetch: fetchImpl }
 	const pageUrl = `${creds.url}/wiki/pages/${pageId}`
-	const pageHtml = await fetchConfluencePageBody(pageUrl, creds, { fetch: fetchImpl })
+	const pageHtml = await fetchConfluencePageBody(pageUrl, creds, fetchOpts)
 	const resolution = resolveAnchor(finding.anchor ?? null, pageHtml)
 	const titleLine = `<p><strong>${escapeHtml(finding.title)}</strong> (${escapeHtml(finding.severity)}, ${escapeHtml(String(finding.confidence))}%, ${escapeHtml(finding.dimension)})</p>`
 	const convertedBody = mdToStorage(finding.body)
@@ -60,18 +61,18 @@ export async function postFinding({ pageId, finding, creds, fetch: fetchImpl = g
 	if (resolution.type === 'inline') {
 		const anchor = { textSelection: resolution.textSelection, matchCount: resolution.matchCount }
 		try {
-			const result = await postConfluenceComment(pageId, bodyWithFooter, 'inline', anchor, creds, { fetch: fetchImpl })
+			const result = await postConfluenceComment(pageId, bodyWithFooter, 'inline', anchor, creds, fetchOpts)
 			return { id: result.id, type: 'inline', reason: null }
 		} catch (err) {
 			if (err instanceof FetchError && err.kind === 'rejected') {
-				const result = await postConfluenceComment(pageId, bodyWithFooter, 'footer', null, creds, { fetch: fetchImpl })
+				const result = await postConfluenceComment(pageId, bodyWithFooter, 'footer', null, creds, fetchOpts)
 				return { id: result.id, type: 'footer', reason: 'inline-rejected' }
 			}
 			throw err
 		}
 	}
 
-	const result = await postConfluenceComment(pageId, bodyWithFooter, 'footer', null, creds, { fetch: fetchImpl })
+	const result = await postConfluenceComment(pageId, bodyWithFooter, 'footer', null, creds, fetchOpts)
 	return { id: result.id, type: 'footer', reason: resolution.reason }
 }
 
