@@ -352,30 +352,17 @@ describe('dedup-matcher CLI envelope', () => {
 	})
 
 	it('exits 1 with an error JSON on stderr when --findings-file is missing', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'dedup-cli-'))
-		try {
-			const commentsFile = join(dir, 'comments.json')
-			writeFileSync(commentsFile, JSON.stringify({ comments: [], truncated: false }))
-			const res = spawnSync(process.execPath, [DEDUP_PATH, '--comments-file', commentsFile], { encoding: 'utf8' })
-			assert.equal(res.status, 1)
-			const err = JSON.parse(res.stderr)
-			assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
-		} finally {
-			rmSync(dir, { recursive: true, force: true })
-		}
+		// CLI validates both flags before reading files, so the file path need not exist.
+		const res = spawnSync(process.execPath, [DEDUP_PATH, '--comments-file', 'dummy.json'], { encoding: 'utf8' })
+		assert.equal(res.status, 1)
+		const err = JSON.parse(res.stderr)
+		assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
 	})
 
 	it('exits 1 with an error JSON on stderr when --comments-file is missing', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'dedup-cli-'))
-		try {
-			const findingsFile = join(dir, 'findings.json')
-			writeFileSync(findingsFile, JSON.stringify([]))
-			const res = spawnSync(process.execPath, [DEDUP_PATH, '--findings-file', findingsFile], { encoding: 'utf8' })
-			assert.equal(res.status, 1)
-			const err = JSON.parse(res.stderr)
-			assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
-		} finally {
-			rmSync(dir, { recursive: true, force: true })
-		}
+		const res = spawnSync(process.execPath, [DEDUP_PATH, '--findings-file', 'dummy.json'], { encoding: 'utf8' })
+		assert.equal(res.status, 1)
+		const err = JSON.parse(res.stderr)
+		assert.ok(typeof err.error === 'string' && err.error.includes('Usage'))
 	})
 })
