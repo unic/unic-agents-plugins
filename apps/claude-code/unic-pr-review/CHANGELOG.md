@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
-- (none)
+- Write Retry completes a partial `--post` Iteration — a re-run with a surviving state directory and unchanged HEAD now resumes the saved Approval Loop and posts only the inline Threads that failed, skips the Summary when it already landed, and never increments the Iteration. Prior behaviour silently dropped all failed Findings by routing the retry to re-review with an empty delta. Adds the tested `scripts/lib/write-outcomes.mjs` helper (`checkWriteRetry` / `recordOutcomes` / `filterUnposted`) and a `summaryAlreadyPosted` input on the ADO Writer. (#236, ADR-0015)
 
 ## [2.1.8] — 2026-06-09
 

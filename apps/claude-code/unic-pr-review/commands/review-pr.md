@@ -53,6 +53,38 @@ process.stdout.write(createHash('sha256').update('<URL>','utf8').digest('hex').s
 
 Store the output as `PR_KEY`.
 
+#### Step 1.2a — Check for Write Retry (ADR-0015)
+
+Default `IS_WRITE_RETRY = false`. This step only applies when `IS_POST` is true and the provider is ADO (Write Retry has no meaning in a preview or Pre-PR run); when `IS_POST` is false, skip directly to Step 1.3.
+
+A surviving Approval Loop state directory means the prior `--post` attempt did not complete (it is deleted only on a fully-successful write — ADR-0014). Before invoking the Fetcher, classify the re-run by comparing the saved `headSha` to the current HEAD.
+
+Get the current HEAD:
+
+```sh
+git rev-parse HEAD
+```
+
+Capture as `HEAD_SHA`, then classify:
+
+```sh
+HEAD_SHA="<HEAD_SHA>" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" check "<PR_KEY>"
+```
+
+stdout is a JSON object. Route on its `mode`:
+
+- **`{ "mode": "none" }`** → no prior state (or it was unreadable); proceed to Step 1.3 (normal review).
+- **`{ "mode": "retry", "state": … }`** → **Write Retry**: set `IS_WRITE_RETRY = true`, store `state` as `WRITE_RETRY_STATE`, and set `CURRENT_ITERATION = WRITE_RETRY_STATE.iteration`. Skip Steps 1.3–1.10 entirely (no Fetcher, no mode detection, no aspect fan-out) and go straight to Step 1.11 — the saved approval decisions are reused, nothing is re-prompted.
+- **`{ "mode": "stale" }`** → the partial attempt is from a different HEAD (force-push / rebase). Print the Notice, discard the stale state directory, then proceed to Step 1.3 (normal review against the new HEAD):
+
+  ```
+  Notice: Prior --post state is stale (saved HEAD differs from current HEAD). Discarding saved state and running a normal review against the new HEAD.
+  ```
+
+  ```sh
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/clear-state-dir.mjs" "<PR_KEY>"
+  ```
+
 #### Step 1.3 — Invoke the ADO Fetcher agent
 
 Use the Agent tool to launch the agent identified by `FETCHER_AGENT` (e.g. `unic-pr-review:ado-fetcher`). Provide:
@@ -234,6 +266,17 @@ process.stdout.write(f)
 
 Capture the output path as `FINDINGS_FILE`.
 
+**Write Retry delta (`IS_WRITE_RETRY` is true):** `FINDINGS_JSON` was never computed (Steps 1.3–1.10 were skipped). Write an empty JSON array to `FINDINGS_FILE` instead — the Approval Loop ignores it and reuses `state.json` because the saved `headSha` matches the current HEAD and `--reset` is absent:
+
+```sh
+PR_KEY="<PR_KEY>" node -e "
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path')
+const f=path.join(os.tmpdir(),'unic-pr-review-findings-'+process.env.PR_KEY+'.json')
+fs.writeFileSync(f,'[]')
+process.stdout.write(f)
+"
+```
+
 **If the `node -e` script exits non-zero**, print the stderr verbatim and stop. Do not proceed with an empty or invalid findings path.
 
 **2. Determine the approved-Findings path.**
@@ -281,6 +324,14 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/approval-loop.mjs" \
 - **Exit 2** (non-TTY without --yes): print `"approval-loop: --post requires an interactive terminal or --yes."` and stop.
 - **Any other non-zero exit**: relay stderr verbatim and stop.
 
+**Write Retry post-loop (`IS_WRITE_RETRY` is true):** after the Approval Loop writes `APPROVED_FILE`, filter it down to only the Findings that were **not** already successfully posted, using the `postedMap` persisted in `state.json`:
+
+```sh
+APPROVED_FILE="<APPROVED_FILE>" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" filter "<PR_KEY>"
+```
+
+Then set `SUMMARY_ALREADY_POSTED = WRITE_RETRY_STATE.summaryPosted === true` for the Writer input in Step 1.12.
+
 **6. Clean up the findings temp file.**
 
 ```sh
@@ -302,6 +353,20 @@ Use the Agent tool to launch `unic-pr-review:ado-writer`. Provide:
 }
 ```
 
+**Write Retry delta (`IS_WRITE_RETRY` is true):** use `CURRENT_ITERATION` (from `WRITE_RETRY_STATE.iteration`) instead of `1`, and add `summaryAlreadyPosted` so the Writer skips the Summary when it already landed:
+
+```json
+{
+  "orgUrl":               "<PR_REF.orgUrl>",
+  "project":              "<PR_REF.project>",
+  "repo":                 "<PR_REF.repo>",
+  "prId":                 <PR_REF.prId>,
+  "approvedPath":         "<APPROVED_FILE>",
+  "iteration":            <CURRENT_ITERATION>,
+  "summaryAlreadyPosted": <SUMMARY_ALREADY_POSTED>
+}
+```
+
 Wait for the agent to complete. It returns:
 
 ```json
@@ -317,8 +382,27 @@ Print the summary: how many inline threads were posted, how many failed, and the
 If `success` is `false` (any thread failed), warn the user:
 
 ```
-⚠ Some threads could not be posted. Check the errors above and re-run with --post (not --post --yes) once the issues are resolved — the Approval Loop resumes from saved state and re-posts only the threads that failed. Using --yes would re-post the threads that already succeeded, creating duplicate comments.
+⚠ Some threads could not be posted. The failed Findings are recorded in the local state directory — re-run with --post (not --post --yes) from the same machine and checkout to trigger Write Retry: the review is skipped and only the threads that failed are re-posted; the Summary is skipped if it already landed.
+
+Caveats:
+- Cross-machine: Write Retry is local. A retry from a different clone has no state directory and falls back to re-review, which sees an empty delta and produces zero Findings.
+- HEAD moved: if the branch is force-pushed or rebased between the failed attempt and the retry, the stale state is discarded and a normal re-review runs instead.
+- Do not use --yes: --post --yes bypasses the Approval Loop entirely and re-posts all approved Findings, creating duplicate comments for the ones that already succeeded.
 ```
+
+#### Step 1.12a — Persist post outcomes (ADR-0015)
+
+After the ADO Writer returns, and **before** the success-gated state-directory cleanup in Step 1.13, persist each Finding's post outcome and the Summary-posted flag into `state.json`. This is what lets a subsequent `--post` re-run use Write Retry (Step 1.2a) instead of silently dropping the failed Findings.
+
+Pass the Writer's returned JSON object through `WRITER_RESULT`:
+
+```sh
+WRITER_RESULT='<writerResult JSON>' node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" record "<PR_KEY>"
+```
+
+If the script exits non-zero, print a warning (`outcomes not persisted — a retry will re-post all Findings`) and continue to Step 1.13. Do not stop the run.
+
+**This step applies to both the first-review path and the Write Retry path.** On a first attempt the resulting `postedMap` simply seeds the dedup state; on a fully-successful write Step 1.13 then deletes the whole state directory anyway, so the persisted outcomes are discarded together with it.
 
 #### Step 1.13 — Cleanup
 

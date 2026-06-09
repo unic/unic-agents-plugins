@@ -23,11 +23,14 @@ You run in one of two modes. In **first-review** mode (default) you consume appr
   "repo": "myrepo",
   "prId": 42,
   "approvedPath": "/tmp/unic-pr-review-approved-abc123.json",
-  "iteration": 1
+  "iteration": 1,
+  "summaryAlreadyPosted": false
 }
 ```
 
 `mode` absent or `"first-review"` → run Steps 1–4 (existing path).
+
+`summaryAlreadyPosted` — optional boolean (default: absent / false). When `true`, the Review Summary thread already landed in a prior partially-successful `--post` attempt (the Write Retry path, ADR-0015); skip Steps 3a–3d entirely. No other behaviour changes.
 
 ### Re-review mode
 
@@ -157,6 +160,8 @@ node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<BODY_FILE
 Failure here is silent — continue with the next Finding regardless.
 
 ### Step 3 — Post the Review Summary
+
+**Write Retry guard:** if `summaryAlreadyPosted` is `true`, skip Steps 3a–3d entirely and set `summaryResult = { "success": true, "threadId": null, "error": null }` — the Summary already landed in a prior attempt, so treat it as a success and let the top-level `success` (Step 4) be `true` when every inline Finding also posted. Then proceed to Step 4.
 
 #### 3a — Render the Review Summary
 
