@@ -79,7 +79,7 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  */
 
 /**
- * @typedef {'unreachable' | 'not-found' | 'auth-error' | 'parse-error' | 'unsupported'} FetchErrorKind
+ * @typedef {'unreachable' | 'not-found' | 'auth-error' | 'parse-error' | 'unsupported' | 'rejected'} FetchErrorKind
  */
 
 /**
@@ -99,6 +99,9 @@ import { loadAtlassianCreds } from './lib/credentials.mjs'
  * Structured fetch failure. The `kind` discriminator lets the caller (Gaps agent /
  * `/review-spec` command) decide whether to hard-stop: `unreachable` and
  * `auth-error` on a promised source abort the review; `not-found` is softer.
+ * `rejected` (HTTP 400) means the server was reachable but refused our request
+ * body (e.g. an inline-anchor match-count mismatch); the writer retries as a
+ * footer only on this kind, while all other kinds fail loud.
  */
 export class FetchError extends Error {
 	/**
@@ -397,6 +400,9 @@ async function parseJsonResponse(url, res) {
 	}
 	if (res.status === 404) {
 		throw new FetchError(url, 'not-found', `HTTP ${res.status} - resource not found`)
+	}
+	if (res.status === 400) {
+		throw new FetchError(url, 'rejected', `HTTP 400 - request rejected`)
 	}
 	if (!res.ok) {
 		throw new FetchError(url, 'unreachable', `HTTP ${res.status}`)
