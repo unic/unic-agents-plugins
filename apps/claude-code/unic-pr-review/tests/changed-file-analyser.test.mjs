@@ -554,7 +554,8 @@ describe('hasJsDocTypeChanges', () => {
 	})
 
 	it('handles CRLF-terminated diff lines correctly', () => {
-		const diff = '--- a/src/a.mjs\r\n+++ b/src/a.mjs\r\n@@ -1 +1,2 @@\r\n+/** @typedef {Object} Foo */\r\n export {}\r\n'
+		const diff =
+			'--- a/src/a.mjs\r\n+++ b/src/a.mjs\r\n@@ -1 +1,2 @@\r\n+/** @typedef {Object} Foo */\r\n export {}\r\n'
 		assert.ok(hasJsDocTypeChanges(diff))
 	})
 
