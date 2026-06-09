@@ -6,7 +6,7 @@
 
 The Approval Loop persists its per-PR decisions under `.unic-pr-review/<key>/state.json` so a run is resumable (ADR-0003), and the `review-pr` orchestrator deletes that directory at the end of the `--post` path (Step 1.13) **only when the ADO Writer reports `success: true`** — leaving it intact on a failed write so a `--post` (not `--yes`) re-run resumes the saved decisions. ADR-0006 and `agents/ado-writer.md` both rely on this "keep-on-failure-for-retry" promise.
 
-But `approval-loop.mjs` also ran an **unconditional** `rmSync(stateDir)` as soon as it finished capturing decisions — *before* the ADO Writer runs. The loop's self-cleanup therefore contradicted the orchestrator's success-gated cleanup: on an ADO write failure the state directory was already gone, so the documented retry-resume could never actually resume. (The bug was masked in practice because the Step 1.13 cleanup one-liner crashed on an undefined env var — see #227 — so neither deleter behaved as documented.)
+But `approval-loop.mjs` also ran an **unconditional** `rmSync(stateDir)` as soon as it finished capturing decisions — _before_ the ADO Writer runs. The loop's self-cleanup therefore contradicted the orchestrator's success-gated cleanup: on an ADO write failure the state directory was already gone, so the documented retry-resume could never actually resume. (The bug was masked in practice because the Step 1.13 cleanup one-liner crashed on an undefined env var — see #227 — so neither deleter behaved as documented.)
 
 Two approaches were considered:
 
@@ -24,4 +24,4 @@ Deletion of `.unic-pr-review/<key>/` is owned **solely** by the `review-pr` orch
 - The unconditional `rmSync(stateDir)` block in `approval-loop.mjs` is removed; `approval-loop.test.mjs` is updated to assert the loop no longer deletes the state directory.
 - A genuine error that stops the orchestrator before Step 1.13 (e.g. the Approval Loop exits non-zero) leaves the state directory behind — acceptable, since that is exactly the resumable case.
 - The keep-on-failure-for-retry promise in ADR-0006 and `ado-writer.md:78` is now actually honoured by the code, not just documented.
-- This ADR does **not** address the separate concern that first-review re-posting re-sends *all* approved Findings on retry (risking duplicate ADO comments); that is tracked as its own issue.
+- This ADR does **not** address the separate concern that first-review re-posting re-sends _all_ approved Findings on retry (risking duplicate ADO comments); that is tracked as its own issue.
