@@ -385,6 +385,30 @@ function stripHtml(html) {
 }
 
 /**
+ * Classify a fetch Response by status and parse its JSON body, throwing a
+ * FetchError on auth/not-found/other failures or an unparseable body.
+ * @param {string} url
+ * @param {{ ok: boolean, status: number, json: () => Promise<any> }} res
+ * @returns {Promise<any>}
+ */
+async function parseJsonResponse(url, res) {
+	if (res.status === 401 || res.status === 403) {
+		throw new FetchError(url, 'auth-error', `HTTP ${res.status} - credentials rejected`)
+	}
+	if (res.status === 404) {
+		throw new FetchError(url, 'not-found', `HTTP ${res.status} - resource not found`)
+	}
+	if (!res.ok) {
+		throw new FetchError(url, 'unreachable', `HTTP ${res.status}`)
+	}
+	try {
+		return await res.json()
+	} catch (err) {
+		throw new FetchError(url, 'parse-error', err instanceof Error ? err.message : String(err))
+	}
+}
+
+/**
  * GET a JSON resource with Basic auth and a hard timeout. Classifies failures
  * into FetchError kinds and throws - never returns a partial result.
  * @param {string} url
@@ -403,20 +427,7 @@ async function fetchJson(url, creds, fetchImpl) {
 	} catch (err) {
 		throw new FetchError(url, 'unreachable', mapFetchError(err))
 	}
-	if (res.status === 401 || res.status === 403) {
-		throw new FetchError(url, 'auth-error', `HTTP ${res.status} - credentials rejected`)
-	}
-	if (res.status === 404) {
-		throw new FetchError(url, 'not-found', `HTTP ${res.status} - resource not found`)
-	}
-	if (!res.ok) {
-		throw new FetchError(url, 'unreachable', `HTTP ${res.status}`)
-	}
-	try {
-		return await res.json()
-	} catch (err) {
-		throw new FetchError(url, 'parse-error', err instanceof Error ? err.message : String(err))
-	}
+	return parseJsonResponse(url, res)
 }
 
 /**
@@ -445,20 +456,7 @@ async function postJson(url, body, creds, fetchImpl) {
 	} catch (err) {
 		throw new FetchError(url, 'unreachable', mapFetchError(err))
 	}
-	if (res.status === 401 || res.status === 403) {
-		throw new FetchError(url, 'auth-error', `HTTP ${res.status} - credentials rejected`)
-	}
-	if (res.status === 404) {
-		throw new FetchError(url, 'not-found', `HTTP ${res.status} - resource not found`)
-	}
-	if (!res.ok) {
-		throw new FetchError(url, 'unreachable', `HTTP ${res.status}`)
-	}
-	try {
-		return await res.json()
-	} catch (err) {
-		throw new FetchError(url, 'parse-error', err instanceof Error ? err.message : String(err))
-	}
+	return parseJsonResponse(url, res)
 }
 
 /**

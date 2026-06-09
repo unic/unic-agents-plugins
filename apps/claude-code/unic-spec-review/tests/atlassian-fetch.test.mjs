@@ -20,6 +20,7 @@ import {
 	fetchConfluenceComments,
 	fetchConfluencePage,
 	fetchConfluencePageBody,
+	main,
 	mapFetchError,
 	parseChildPagesArg,
 	parseCommentsArg,
@@ -956,5 +957,24 @@ describe('collectComments', () => {
 		assert.equal(result.errors[0].kind, 'auth-error')
 		assert.equal(result.errors[0].url, '')
 		assert.match(result.errors[0].message, /could not be read/)
+	})
+})
+
+describe('main --comments dispatch', () => {
+	const PAGE_URL = 'https://unic.atlassian.net/wiki/spaces/X/pages/99'
+
+	/** @returns {import('../scripts/lib/credentials.mjs').AtlassianCreds} */
+	const stubCreds = () => CREDS
+
+	it('routes --comments to collectComments and returns a CommentsOutput', async () => {
+		const json = { results: [], _links: {} }
+		const result = await main(['--comments', PAGE_URL], {
+			fetch: fetchJson(json),
+			loadCreds: stubCreds,
+			stdout: { write: () => {} },
+		})
+		assert.ok('comments' in result)
+		assert.ok('truncated' in result)
+		assert.ok('errors' in result)
 	})
 })

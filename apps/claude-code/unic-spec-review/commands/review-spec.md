@@ -1,14 +1,14 @@
 ---
-allowed-tools: Agent, Bash(node *), Write
-argument-hint: '<confluence-url> [--post]'
-description: Adversarial review of web specifications (Confluence). Parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post activates the multi-Finding Approval Loop with similarity-based deduplication (inline-anchored comments or footer fallback).
+allowed-tools: Agent, Bash(node *), Write, mcp__figma*, mcp__playwright*
+argument-hint: '<confluence-url> [figma-url ...] [live-url ...] [--post]'
+description: Adversarial review of web specifications. Classify pasted Confluence, Figma, and live URLs; gather designs via Figma Dev Mode MCP and live observations via Playwright MCP; parallel eleven-agent fan-out, ranked hat-grouped triage. Read-only by default; --post activates the Approval Loop.
 ---
 
-# /review-spec (S8 Blue Orchestrator)
+# /review-spec (Blue Orchestrator)
 
 Runs a read-only adversarial review of one Confluence spec page using eleven parallel agents (eight Black-hat dimension agents plus Green, Yellow, Red perspective agents), ranks Findings by confidence \* severity, groups them by hat, prints a ranked hat-grouped triage, and writes a durable timestamped report under `.spec-review/`.
 
-> **S8 scope:** Confluence page traversal (seed page plus its child pages and in-body `/wiki/` links, gated behind reviewer confirmation), eleven parallel agents, Landscape Brief injection, and a multi-Finding Approval Loop via `--post` with similarity-based deduplication (inline-anchored comments, footer fallback). No Figma, no live-system - those land in a later slice.
+> **Scope:** Confluence page traversal (seed page plus child pages and in-body `/wiki/` links, gated behind reviewer confirmation), eleven parallel agents (including Spec-versus-Design via Figma Dev Mode MCP and Spec-versus-Live via Playwright MCP), Landscape Brief injection, and a multi-Finding Approval Loop via `--post` with similarity-based deduplication. Figma and live system are read-only sources; nothing is posted to either. If the Figma or Playwright MCP is absent when a pasted link demands it, the run fails loudly.
 
 ## Step 1 - Parse arguments
 
@@ -17,26 +17,71 @@ Split `$ARGUMENTS` on whitespace. Collect tokens that parse as valid `http://` o
 If `URLS` is empty, stop with:
 
 ```
-Usage: /review-spec <confluence-page-url> [--post]
-Example: /review-spec https://yoursite.atlassian.net/wiki/spaces/X/pages/123456/Title
+Usage: /review-spec <confluence-url> [figma-url ...] [live-url ...] [--post]
+Example: /review-spec https://yoursite.atlassian.net/wiki/spaces/X/pages/123456/Title https://www.figma.com/design/abc/Flow https://prod.example.com
 ```
 
-Use `URLS[0]` as `TARGET_URL`.
+## Step 1.5 - Classify all pasted URLs
 
-## Step 2 - Classify the URL
+Run the link-classifier once per URL in `URLS`:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/link-classifier.mjs" "$TARGET_URL"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/link-classifier.mjs" "$URL"
 ```
 
-Parse the JSON output. If `kind` is not `"confluence"`, stop with:
+Run them in a loop (one fast synchronous Bash call per URL; do not spawn agents for classification), collect all results, then group by `kind`:
+
+- `CONFLUENCE_URLS` = URLs whose `kind` is `'confluence'`
+- `FIGMA_URLS` = URLs whose `kind` is `'figma-page'` or `'figma-frame'` (keep the `kind` so Step 3.5 picks the right tool)
+- `LIVE_URLS` = URLs whose `kind` is `'live'`
+
+URLs with `kind` `'unknown'` are ignored (warn once, listing them, but do not abort).
+
+If `CONFLUENCE_URLS` is empty, stop with:
 
 ```
-S4 supports only Confluence page URLs.
-Got kind: <kind> for <TARGET_URL>
+No Confluence page URL found in the pasted links.
+Usage: /review-spec <confluence-url> [figma-url ...] [live-url ...] [--post]
+At least one Confluence page URL is required as the spec source.
 ```
 
-Store `PAGE_ID` from the output.
+Set `TARGET_URL = CONFLUENCE_URLS[0]` and extract `PAGE_ID` from that URL's classified result.
+
+## Step 1.6 - MCP availability checks (fail loud)
+
+Check MCP availability by inspecting the active tool set in this Claude Code session. These checks fail loud: a pasted link of a kind whose MCP is absent stops the run with remediation guidance. The source is never silently skipped or degraded.
+
+**Figma check** - only when `FIGMA_URLS` is non-empty:
+
+Determine whether a Figma Dev Mode MCP tool is available by checking the active tool set for tools whose names match `mcp__figma*` or are otherwise clearly from a Figma Dev Mode MCP server.
+
+If the Figma Dev Mode MCP is NOT available, stop with:
+
+```
+Figma Dev Mode MCP not connected.
+Figma links were provided but the Figma Dev Mode MCP is not available in this session.
+Run /unic-spec-review:spec-doctor to check all prerequisites.
+Remediation: Enable the Figma Dev Mode MCP in your Claude Code MCP settings.
+See https://help.figma.com/hc/en-us/articles/32132100888087 for setup instructions.
+```
+
+**Playwright check** - only when `LIVE_URLS` is non-empty:
+
+Determine whether a Playwright MCP tool is available by checking the active tool set for tools whose names match `mcp__playwright*` or are otherwise clearly from a Playwright MCP server.
+
+If the Playwright MCP is NOT available, stop with:
+
+```
+Playwright MCP not connected.
+Live URLs were provided but the Playwright MCP is not available in this session.
+Run /unic-spec-review:spec-doctor to check all prerequisites.
+Remediation: Enable the Playwright MCP in your Claude Code MCP settings.
+Example config: https://github.com/microsoft/playwright-mcp
+```
+
+## Step 2 - Set the primary Confluence target
+
+`TARGET_URL` and `PAGE_ID` were set in Step 1.5 from the first Confluence URL. No additional classification is needed here.
 
 ## Step 3 - Fetch the Confluence page
 
@@ -139,6 +184,44 @@ The pasted page is only the seed. A spec is usually a parent page with child pag
 
    Join blocks with a blank line. When only the seed is in `CONFIRMED_PAGES`, `PAGE_CONTENT` is just the seed's `excerpt` with its header line.
 
+## Step 3.5 - Gather Figma context (only when FIGMA_URLS is non-empty)
+
+Skip this step if `FIGMA_URLS` is empty: set `FIGMA_CONTEXT = null` and continue. Figma is a read-only source; only read tools are used and nothing is written back to Figma.
+
+For each URL in `FIGMA_URLS`, use the available Figma Dev Mode MCP tools to read the design:
+
+- `figma-frame` URLs (a `node-id` is present): use the frame-level tool to read the specific frame and its annotations.
+- `figma-page` URLs: use the file/page-level tool to read the page with its frames and annotations.
+
+Collect the raw MCP results into a JSON array of `{ "url": "<url>", "data": <raw-mcp-result> }`. Use the **Write tool** to write this array to `.spec-review/.figma-data.json` (exactly one `JSON.stringify` level; do not double-stringify the raw `data`).
+
+Then format it:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/figma-gatherer.mjs" --input ".spec-review/.figma-data.json"
+```
+
+Store stdout as `FIGMA_CONTEXT`. If the script exits non-zero or produces no output, print `Warning: figma-gatherer failed; Spec-versus-Design will run without Figma context.` and set `FIGMA_CONTEXT = null`. Do not abort the review.
+
+## Step 3.6 - Gather live context (only when LIVE_URLS is non-empty)
+
+Skip this step if `LIVE_URLS` is empty: set `LIVE_CONTEXT = null` and continue. The live system is a read-only source; only navigation and read tools are used and nothing is submitted to it.
+
+For each URL in `LIVE_URLS`, use the available Playwright MCP tools to:
+
+1. Navigate to the URL.
+2. Collect the page title and the visible text content of the page.
+
+Collect results into a JSON array of `{ "url": "<url>", "title": "<title or null>", "content": "<text or null>" }`. Use the **Write tool** to write this array to `.spec-review/.live-data.json`.
+
+Then format it:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/live-gatherer.mjs" --input ".spec-review/.live-data.json"
+```
+
+Store stdout as `LIVE_CONTEXT`. If the script exits non-zero or produces no output, print `Warning: live-gatherer failed; Spec-versus-Live will run without live context.` and set `LIVE_CONTEXT = null`. Do not abort the review.
+
 ## Step 4 - Detect technology landscape
 
 ```bash
@@ -151,11 +234,10 @@ Parse the JSON output into `LANDSCAPE_BRIEF`. If the command fails or returns in
 
 Use the Agent tool to spawn all eleven agents **simultaneously** (in the same turn, as parallel tool calls). Do not wait for one before spawning the next.
 
-**Agents that receive only page context** (no landscape):
+**Agents that receive only page context** (no landscape, no extra source):
 
 - `unic-spec-review:gaps-agent`
 - `unic-spec-review:ambiguity-agent`
-- `unic-spec-review:spec-versus-design-agent`
 - `unic-spec-review:internal-consistency-agent`
 - `unic-spec-review:green-agent`
 - `unic-spec-review:yellow-agent`
@@ -171,9 +253,21 @@ Pass as prompt:
 }
 ```
 
+**Spec-versus-Design** receives the Figma context (`FIGMA_CONTEXT`, which is `null` when no Figma links were provided):
+
+- `unic-spec-review:spec-versus-design-agent`
+
+```json
+{
+  "pageTitle": "<PAGE_TITLE>",
+  "pageUrl": "<TARGET_URL>",
+  "pageContent": "<PAGE_CONTENT>",
+  "figmaContext": "<FIGMA_CONTEXT or null>"
+}
+```
+
 **Agents that also receive the Landscape Brief** (inject when `LANDSCAPE_BRIEF` is not null):
 
-- `unic-spec-review:spec-versus-live-agent`
 - `unic-spec-review:testability-agent`
 - `unic-spec-review:feasibility-agent`
 - `unic-spec-review:non-functional-agent`
@@ -186,6 +280,20 @@ Pass as prompt:
   "pageUrl": "<TARGET_URL>",
   "pageContent": "<PAGE_CONTENT>",
   "landscapeBrief": <LANDSCAPE_BRIEF or null>
+}
+```
+
+**Spec-versus-Live** receives both the Landscape Brief and the live context (`LIVE_CONTEXT`, which is `null` when no live URLs were provided):
+
+- `unic-spec-review:spec-versus-live-agent`
+
+```json
+{
+  "pageTitle": "<PAGE_TITLE>",
+  "pageUrl": "<TARGET_URL>",
+  "pageContent": "<PAGE_CONTENT>",
+  "landscapeBrief": <LANDSCAPE_BRIEF or null>,
+  "liveContext": "<LIVE_CONTEXT or null>"
 }
 ```
 
