@@ -26,9 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--comments <url>` CLI mode to `atlassian-fetch`: wraps `fetchConfluenceComments` in the same never-throws `collectComments` pattern as `--child-pages`, returning `{ comments, truncated, errors }`. Used by the Approval Loop to read existing page comments for deduplication.
 - Upgrade `/review-spec --post` from a single-Finding pick to a multi-Finding Approval Loop (S8): present all ranked Findings annotated with near-duplicate flags (`[~near-dup]`, `[~likely-dup]`), accept a comma-separated selection, surface borderline matches for an explicit human tiebreak (never silently dropped or re-raised), and post each approved Finding via the S7 write path with anchors and attribution footers. The loop is cancellable at every step, including a final post-none exit after selection. Bare `/review-spec` remains strictly read-only.
 - Unit tests cover `dedup-matcher` (`tokenize`, `jaccard`, `matchDedup`) with injected comment sets and threshold values; no live services.
+- Add deterministic threshold-boundary tests for `matchDedup` (exact Jaccard scores at and just below `FLAG_THRESHOLD` and `SKIP_THRESHOLD`) plus null-field finding/comment cases, and a credential-load-exception test for `collectComments`.
 
 ### Fixed
-- (none)
+- Guard `matchDedup` against a Finding with `null`/`undefined` `title` or `body` so candidate text never tokenizes the literal `"undefined"`.
+- Correct the `CommentsOutput.truncated` JSDoc to describe the comment-list pagination cap (`MAX_PAGES`) rather than a page-count cap, and document that the `dedup-matcher` CLI accepts a bare `ConfluenceComment[]` array as well as the `collectComments` envelope.
 
 ## [0.1.6] — 2026-06-08
 

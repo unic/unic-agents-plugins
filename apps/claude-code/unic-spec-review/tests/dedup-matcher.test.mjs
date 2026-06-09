@@ -212,4 +212,54 @@ describe('matchDedup', () => {
 		assert.equal(result.decision, 'post')
 		assert.deepEqual(result.nearDuplicates, [])
 	})
+
+	it('does not crash and returns post when the finding has null title and body', () => {
+		const finding = makeFinding({ title: /** @type {any} */ (null), body: /** @type {any} */ (null) })
+		const result = matchDedup(finding, [makeComment({ body: 'aa bb cc dd ee ff' })])
+		assert.equal(result.decision, 'post')
+		assert.deepEqual(result.nearDuplicates, [])
+	})
+
+	it('does not crash when a comment body is null', () => {
+		const result = matchDedup(makeFinding({}), [makeComment({ body: /** @type {any} */ (null) })])
+		assert.equal(result.decision, 'post')
+		assert.deepEqual(result.nearDuplicates, [])
+	})
+})
+
+describe('matchDedup - threshold boundaries', () => {
+	// Token-controlled fixtures: title/body are bare two-char tokens so the Jaccard
+	// score is exact and pins the `>=` comparisons at each threshold constant.
+	// jaccard = |candidate ∩ comment| / |candidate ∪ comment|.
+
+	it('flags at exactly FLAG_THRESHOLD (0.25)', () => {
+		// candidate {aa,bb}, comment {aa,cc,dd}: ∩=1, ∪=4 → 0.25
+		const result = matchDedup(makeFinding({ title: 'aa bb', body: '' }), [makeComment({ body: 'aa cc dd' })])
+		assert.equal(result.nearDuplicates[0].similarity, FLAG_THRESHOLD)
+		assert.equal(result.decision, 'flag')
+	})
+
+	it('posts just below FLAG_THRESHOLD (0.2) with no nearDuplicates', () => {
+		// candidate {aa,bb,ee}, comment {aa,cc,dd}: ∩=1, ∪=5 → 0.2
+		const result = matchDedup(makeFinding({ title: 'aa bb ee', body: '' }), [makeComment({ body: 'aa cc dd' })])
+		assert.equal(result.decision, 'post')
+		assert.deepEqual(result.nearDuplicates, [])
+	})
+
+	it('skips at exactly SKIP_THRESHOLD (0.6)', () => {
+		// candidate {aa,bb,cc,dd}, comment {aa,bb,cc,ee}: ∩=3, ∪=5 → 0.6
+		const result = matchDedup(makeFinding({ title: 'aa bb cc dd', body: '' }), [makeComment({ body: 'aa bb cc ee' })])
+		assert.equal(result.nearDuplicates[0].similarity, SKIP_THRESHOLD)
+		assert.equal(result.decision, 'skip')
+	})
+
+	it('flags (does not skip) just below SKIP_THRESHOLD (~0.571)', () => {
+		// candidate {aa,bb,cc,dd}, comment {aa,bb,cc,dd,ee,ff,gg}: ∩=4, ∪=7 → 4/7 ≈ 0.571
+		const result = matchDedup(makeFinding({ title: 'aa bb cc dd', body: '' }), [
+			makeComment({ body: 'aa bb cc dd ee ff gg' }),
+		])
+		assert.ok(Math.abs(result.nearDuplicates[0].similarity - 4 / 7) < 1e-9)
+		assert.ok(result.nearDuplicates[0].similarity < SKIP_THRESHOLD)
+		assert.equal(result.decision, 'flag')
+	})
 })

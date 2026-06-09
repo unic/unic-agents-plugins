@@ -943,4 +943,18 @@ describe('collectComments', () => {
 		assert.equal(result.errors[0].kind, 'not-found')
 		assert.equal(result.errors[0].url, PAGE_URL)
 	})
+
+	it('converts a credential load exception into a global auth-error', async () => {
+		const result = await collectComments(PAGE_URL, {
+			fetch: fetchJson({}),
+			loadCreds: () => {
+				throw new Error('invalid JSON')
+			},
+		})
+		assert.equal(result.comments.length, 0)
+		assert.equal(result.errors.length, 1)
+		assert.equal(result.errors[0].kind, 'auth-error')
+		assert.equal(result.errors[0].url, '')
+		assert.match(result.errors[0].message, /could not be read/)
+	})
 })

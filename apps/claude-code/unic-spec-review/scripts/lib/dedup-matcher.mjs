@@ -89,7 +89,7 @@ export function jaccard(a, b) {
  * @returns {DedupResult}
  */
 export function matchDedup(finding, existingComments) {
-	const candidateText = `${finding.title} ${finding.body}`.trim()
+	const candidateText = `${finding.title ?? ''} ${finding.body ?? ''}`.trim()
 	const candidateTokens = tokenize(candidateText)
 	const comments = Array.isArray(existingComments) ? existingComments : []
 
@@ -122,7 +122,7 @@ export function matchDedup(finding, existingComments) {
  *
  * The findings file is a JSON array of Finding objects. The comments file is the
  * `{ comments: ConfluenceComment[] }` object emitted by `collectComments` (the CLI
- * reads `.comments`, so it accepts the collectComments output shape directly).
+ * reads `.comments`), or a bare `ConfluenceComment[]` array; either shape is accepted.
  */
 function main() {
 	const argv = process.argv.slice(2)

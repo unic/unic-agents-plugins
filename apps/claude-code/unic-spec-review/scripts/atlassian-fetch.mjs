@@ -937,7 +937,7 @@ export function parseChildPagesArg(argv) {
 /**
  * @typedef {Object} CommentsOutput
  * @property {ConfluenceComment[]} comments
- * @property {boolean} truncated - true if the page-count cap was hit and the comment set is incomplete
+ * @property {boolean} truncated - true if the comment-list pagination cap (`MAX_PAGES`) was hit and the comment set is incomplete
  * @property {FetchErrorJson[]} errors
  */
 
