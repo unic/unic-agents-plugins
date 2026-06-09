@@ -45,7 +45,7 @@ A verdict reflects **coverage** — "does the diff contain changes that implemen
 
 **Architecture (ADR-0011)**
 
-- A new **Intent Assessor** agent (`agents/intent-assessor.md`) owns live AC verdicts. Rejected alternatives, recorded in ADR-0011: Option A (Code Reviewer emits verdicts — conditional-spawn hole, cross-agent merge logic, split ownership); Option B1 (Intent Checker assesses in-process — couples the diff into the hard-stop agent, broadens its responsibility).
+- A new **Intent Assessor** agent (`agents/intent-assessor.md`) owns live AC verdicts. Rejected alternatives, recorded in ADR-0011: Option A (Code Reviewer emits verdicts — cross-agent merge logic, split ownership); Option B1 (Intent Checker assesses in-process — couples the diff into the hard-stop agent, broadens its responsibility).
 - The Assessor runs in the **same parallel fan-out batch** as the Review Aspect agents — zero added latency. It is **not** a Review Aspect.
 - **`addressed` = coverage, not quality.** The Assessor needs only the diff, never the aspect agents' Findings, so full parallelism is correct. Folding quality in would force serialization, re-introduce cross-agent merge, double-count bugs, and leak through the confidence floor (ADR-0002).
 
