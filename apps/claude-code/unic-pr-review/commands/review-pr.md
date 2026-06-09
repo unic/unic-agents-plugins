@@ -223,13 +223,13 @@ Otherwise:
 Extract the `findings` array from `FINDINGS_JSON` and write it to a temp file for the Approval Loop:
 
 ```sh
-node -e "
+PR_KEY="<PR_KEY>" FINDINGS_JSON='<FINDINGS_JSON>' node -e "
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path')
 const {findings}=JSON.parse(process.env.FINDINGS_JSON)
 const f=path.join(os.tmpdir(),'unic-pr-review-findings-'+process.env.PR_KEY+'.json')
 fs.writeFileSync(f,JSON.stringify(findings??[]))
 process.stdout.write(f)
-" PR_KEY="<PR_KEY>" FINDINGS_JSON='<FINDINGS_JSON>'
+"
 ```
 
 Capture the output path as `FINDINGS_FILE`.
@@ -239,10 +239,7 @@ Capture the output path as `FINDINGS_FILE`.
 **2. Determine the approved-Findings path.**
 
 ```sh
-node -e "
-const os=require('node:os'),path=require('node:path')
-process.stdout.write(path.join(os.tmpdir(),'unic-pr-review-approved-'+process.env.PR_KEY+'.json'))
-" PR_KEY="<PR_KEY>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/temp-paths.mjs" approved "<PR_KEY>"
 ```
 
 Capture as `APPROVED_FILE`.
@@ -258,10 +255,10 @@ Capture as `HEAD_SHA`.
 **4. Get the plugin version.**
 
 ```sh
-node -e "
+PLUGIN_JSON="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" node -e "
 const {version}=JSON.parse(require('node:fs').readFileSync(process.env.PLUGIN_JSON,'utf8'))
 process.stdout.write(version)
-" PLUGIN_JSON="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+"
 ```
 
 Capture as `PLUGIN_VERSION`.
@@ -287,7 +284,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/approval-loop.mjs" \
 **6. Clean up the findings temp file.**
 
 ```sh
-node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<FINDINGS_FILE>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/cleanup.mjs" "<FINDINGS_FILE>"
 ```
 
 #### Step 1.12 — Spawn ADO Writer
@@ -328,17 +325,18 @@ If `success` is `false` (any thread failed), warn the user:
 Delete the approved-Findings temp file (always — it is not needed for retries):
 
 ```sh
-node -e "try{require('node:fs').unlinkSync(process.env.F)}catch{}" F="<APPROVED_FILE>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/cleanup.mjs" "<APPROVED_FILE>"
 ```
 
 **Only if the ADO Writer reported `success: true`**, delete the Approval Loop state directory:
 
 ```sh
-node -e "
-const fs=require('node:fs'),path=require('node:path')
-const d=path.join(process.cwd(),'.unic-pr-review',process.env.PR_KEY)
-try{fs.rmSync(d,{recursive:true,force:true})}catch{}
-" PR_KEY="<PR_KEY>"
+node --input-type=module --eval "
+import {getApprovalStateDir} from '${CLAUDE_PLUGIN_ROOT}/scripts/lib/cache-paths.mjs'
+import {rmSync} from 'node:fs'
+const d=getApprovalStateDir(process.argv[2])
+try{rmSync(d,{recursive:true,force:true})}catch(e){if(e.code!=='ENOENT')throw e}
+" -- "<PR_KEY>"
 ```
 
 If the writer reported `success: false`, leave the state directory in place so the user can retry with `--post` (not `--post --yes`) and the Approval Loop will resume from the saved state.

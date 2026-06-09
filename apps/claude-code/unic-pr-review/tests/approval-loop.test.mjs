@@ -332,11 +332,11 @@ describe('--yes bulk-accept', () => {
 			lastState.findings.every(/** @param {any} f */ (f) => f.decision === 'accept'),
 			'every decision persisted as accept'
 		)
-		// State dir should be deleted after success
-		assert.ok(!existsSync(statePath), 'state dir deleted after successful run')
+		// State dir must survive — orchestrator owns cleanup (ADR-0014)
+		assert.ok(existsSync(stateDir), 'state dir survives for orchestrator to gate deletion on ADO write success')
 	})
 
-	it('--yes with real temp dirs: state file written then deleted', async () => {
+	it('--yes with real temp dirs: state file written, state dir survives for orchestrator', async () => {
 		const dir = tempDir()
 		const fp = writeFindingsFile(SAMPLE_FINDINGS, dir)
 		const key = sha16('yes-cleanup-test')
@@ -345,8 +345,8 @@ describe('--yes bulk-accept', () => {
 
 		await loop({ findingsPath: fp, approvedPath: out, isYes: true, key, cwd: dir }, { cwd: dir })
 
-		// State dir should be deleted after success
-		assert.ok(!existsSync(stateDir), 'state dir deleted on success')
+		// State dir must survive — orchestrator owns cleanup (ADR-0014)
+		assert.ok(existsSync(stateDir), 'state dir survives for orchestrator to gate deletion on ADO write success')
 		// approved.json must exist
 		assert.ok(existsSync(out))
 	})
@@ -608,7 +608,7 @@ describe('state persistence', () => {
 		assert.ok(stateWrites.length >= 3)
 	})
 
-	it('state.json directory is cleaned up on successful completion', async () => {
+	it('state.json directory persists after completion (orchestrator owns cleanup — ADR-0014)', async () => {
 		const dir = tempDir()
 		const key = sha16('cleanup-test')
 		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
@@ -617,7 +617,7 @@ describe('state persistence', () => {
 
 		await loop({ findingsPath: fp, approvedPath: out, key, cwd: dir }, { stdin: scriptedStdin('a\n'), cwd: dir })
 
-		assert.ok(!existsSync(stateDir), 'state dir removed after success')
+		assert.ok(existsSync(stateDir), 'state dir survives for orchestrator to gate deletion on ADO write success')
 	})
 
 	it('gitignore is created in .unic-pr-review/ root on first use', async () => {
@@ -847,27 +847,21 @@ describe('atomic & best-effort I/O', () => {
 		assert.equal(JSON.parse(readFileSync(out, 'utf8')).length, 1)
 	})
 
-	it('treats a state-dir cleanup failure as non-fatal', async () => {
+	it('does NOT delete the state directory (ADR-0014: orchestrator owns cleanup)', async () => {
 		const dir = tempDir()
 		const fp = writeFindingsFile([SAMPLE_FINDINGS[0]], dir)
 		const out = approvedPath(dir)
-		const stderrLines = /** @type {string[]} */ ([])
+		const key = sha16('test-pr-url') // same default key used by loop()
 
 		await loop(
 			{ findingsPath: fp, approvedPath: out, isYes: true, cwd: dir },
-			{
-				isTTY: false,
-				cwd: dir,
-				stderr: { write: (s) => stderrLines.push(s) },
-				rmSync: () => {
-					throw new Error('EPERM: operation not permitted')
-				},
-			}
+			{ isTTY: false, cwd: dir },
 		)
 
-		// The approval still landed and the run did not throw.
+		// The approval landed and the state dir is still present for the orchestrator.
 		assert.equal(JSON.parse(readFileSync(out, 'utf8')).length, 1)
-		assert.ok(stderrLines.some((l) => /could not remove state dir/.test(l)))
+		const stateDir = join(dir, '.unic-pr-review', key)
+		assert.ok(existsSync(stateDir), 'state dir must survive so orchestrator can gate deletion on ADO write success')
 	})
 })
 

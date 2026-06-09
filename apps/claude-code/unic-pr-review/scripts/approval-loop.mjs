@@ -32,7 +32,6 @@ import {
 	mkdirSync as realMkdirSync,
 	readFileSync as realReadFile,
 	renameSync as realRename,
-	rmSync as realRmSync,
 	writeFileSync as realWriteFile,
 } from 'node:fs'
 import { join } from 'node:path'
@@ -87,7 +86,6 @@ import { SEVERITY_ORDER } from './lib/severity-bucketer.mjs'
  * @property {(path: string, encoding: BufferEncoding) => string} [readFile]
  * @property {(path: string, data: string, encoding: BufferEncoding) => void} [writeFile]
  * @property {(from: string, to: string) => void} [renameSync]
- * @property {(path: string, options: { recursive: boolean, force: boolean }) => void} [rmSync]
  * @property {string} [cwd] - override for process.cwd() used in state dir
  * @property {() => string} [now] - override for new Date().toISOString()
  */
@@ -242,7 +240,6 @@ export async function runApprovalLoop(params, deps = {}) {
 	const readFile = deps.readFile ?? realReadFile
 	const writeFile = deps.writeFile ?? realWriteFile
 	const renameSync = deps.renameSync ?? realRename
-	const rmSync = deps.rmSync ?? realRmSync
 	const cwd = deps.cwd ?? process.cwd()
 	const now = deps.now ?? (() => new Date().toISOString())
 
@@ -372,18 +369,6 @@ export async function runApprovalLoop(params, deps = {}) {
 
 	const approved = state.findings.filter((f) => f.decision === 'accept' || f.decision === 'edit')
 	writeJsonAtomic(approvedPath, approved, { writeFile, renameSync })
-
-	// State-dir cleanup is best-effort: the approval already landed durably, so a
-	// removal failure (e.g. EPERM/EBUSY on Windows) must not masquerade as a fatal
-	// error and make the reviewer re-run a successful review.
-	try {
-		rmSync(stateDir, { recursive: true, force: true })
-	} catch (err) {
-		stderr.write(
-			`approval-loop: warning: could not remove state dir ${stateDir}: ` +
-				`${err instanceof Error ? err.message : String(err)}\n`
-		)
-	}
 
 	stdout.write(`\napproval-loop: done. ${approved.length} Finding(s) approved → ${approvedPath}\n`)
 }

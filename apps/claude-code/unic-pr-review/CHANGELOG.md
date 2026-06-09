@@ -19,6 +19,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.8] — 2026-06-09
+
+### Breaking
+- (none)
+
+### Added
+- `scripts/lib/temp-paths.mjs` — tested argv helper that prints the findings/approved temp-file path (replaces the inline `PR_KEY=...` approved-path one-liner in Step 1.11 §2).
+- `scripts/lib/cleanup.mjs` — tested argv helper that deletes a temp file, tolerating only ENOENT and rethrowing everything else (replaces the masked-catch `F=...` one-liners in Steps 1.11 §6 and 1.13).
+- `tests/command-oneliner-form.test.mjs` — lint-style regression guard that fails if any `sh` block in `commands/*.md` places an env assignment after `node`.
+- AGENTS.md Conventions: env assignments must precede `node` in command-prompt one-liners.
+
+### Changed
+- `commands/review-pr.md` Steps 1.11–1.13: all six env-after-`node` one-liners corrected — data-heavy reads have assignments reordered before `node`; leak-prone snippets extracted to `temp-paths.mjs` / `cleanup.mjs`; state-dir delete uses `getApprovalStateDir()` via ESM `--input-type=module` with key as positional argv (issue #227).
+- `scripts/approval-loop.mjs`: removed unconditional `rmSync(stateDir)` — the Approval Loop no longer deletes its own state directory (ADR-0014); tests updated accordingly.
+
+### Fixed
+- `--post` path was aborting before the Approval Loop started because `FINDINGS_JSON` and `PR_KEY` were passed as argv (not env) to the findings-write one-liner.
+- Approved-Findings temp file was mis-named `unic-pr-review-approved-undefined.json`, collapsing all PRs to the same file.
+- Plugin-version read was throwing because `PLUGIN_JSON` was passed as argv instead of env.
+- Masked-catch one-liners for temp-file cleanup were silently leaking `os.tmpdir()` files and `.unic-pr-review/<key>/` state dirs on every `--post` run.
+- State-dir ownership violation: `approval-loop.mjs` was unconditionally deleting `.unic-pr-review/<key>/` before the ADO Writer ran, breaking the retry-resume guarantee on write failure (ADR-0014).
+
 ## [2.1.7] — 2026-06-09
 
 ### Breaking
