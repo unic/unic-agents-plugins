@@ -324,13 +324,13 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/approval-loop.mjs" \
 - **Exit 2** (non-TTY without --yes): print `"approval-loop: --post requires an interactive terminal or --yes."` and stop.
 - **Any other non-zero exit**: relay stderr verbatim and stop.
 
-**Write Retry post-loop (`IS_WRITE_RETRY` is true):** after the Approval Loop writes `APPROVED_FILE`, filter it down to only the Findings that were **not** already successfully posted, using the `postedMap` persisted in `state.json`:
+**Write Retry post-loop (`IS_WRITE_RETRY` is true):** after the Approval Loop writes `APPROVED_FILE`, leave that file **intact** — the Writer renders the Review Summary from the **full** approved set (`ado-writer.md` Step 3a), so pruning it would drop already-posted Findings from the Summary. Instead, collect the ids of the Findings that already posted successfully in the prior attempt, from the `postedMap` persisted in `state.json`:
 
 ```sh
-APPROVED_FILE="<APPROVED_FILE>" node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" filter "<PR_KEY>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/write-outcomes.mjs" posted-ids "<PR_KEY>"
 ```
 
-Then set `SUMMARY_ALREADY_POSTED = WRITE_RETRY_STATE.summaryPosted === true` for the Writer input in Step 1.12.
+stdout is a JSON array of Finding ids. Capture it as `ALREADY_POSTED_IDS` (default `[]`); the Writer skips the inline Thread for each of these so only the Findings that failed are re-posted, while the Summary still reflects every approved Finding. Then set `SUMMARY_ALREADY_POSTED = WRITE_RETRY_STATE.summaryPosted === true` for the Writer input in Step 1.12.
 
 **6. Clean up the findings temp file.**
 
@@ -353,17 +353,18 @@ Use the Agent tool to launch `unic-pr-review:ado-writer`. Provide:
 }
 ```
 
-**Write Retry delta (`IS_WRITE_RETRY` is true):** use `CURRENT_ITERATION` (from `WRITE_RETRY_STATE.iteration`) instead of `1`, and add `summaryAlreadyPosted` so the Writer skips the Summary when it already landed:
+**Write Retry delta (`IS_WRITE_RETRY` is true):** use `CURRENT_ITERATION` (from `WRITE_RETRY_STATE.iteration`) instead of `1`, add `alreadyPostedFindingIds` so the Writer skips the inline Threads that already landed, and add `summaryAlreadyPosted` so the Writer skips the Summary when it already landed. `approvedPath` stays the **full** approved set so the Summary still reflects every Finding:
 
 ```json
 {
-  "orgUrl":               "<PR_REF.orgUrl>",
-  "project":              "<PR_REF.project>",
-  "repo":                 "<PR_REF.repo>",
-  "prId":                 <PR_REF.prId>,
-  "approvedPath":         "<APPROVED_FILE>",
-  "iteration":            <CURRENT_ITERATION>,
-  "summaryAlreadyPosted": <SUMMARY_ALREADY_POSTED>
+  "orgUrl":                  "<PR_REF.orgUrl>",
+  "project":                 "<PR_REF.project>",
+  "repo":                    "<PR_REF.repo>",
+  "prId":                    <PR_REF.prId>,
+  "approvedPath":            "<APPROVED_FILE>",
+  "iteration":               <CURRENT_ITERATION>,
+  "alreadyPostedFindingIds": <ALREADY_POSTED_IDS>,
+  "summaryAlreadyPosted":    <SUMMARY_ALREADY_POSTED>
 }
 ```
 

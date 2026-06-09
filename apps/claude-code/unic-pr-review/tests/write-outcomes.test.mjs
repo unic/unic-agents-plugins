@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
-import { checkWriteRetry, filterUnposted, recordOutcomes } from '../scripts/lib/write-outcomes.mjs'
+import { checkWriteRetry, postedFindingIds, recordOutcomes } from '../scripts/lib/write-outcomes.mjs'
 
 const HEAD = 'a'.repeat(40)
 const OTHER = 'b'.repeat(40)
@@ -146,29 +146,27 @@ describe('recordOutcomes', () => {
 	})
 })
 
-describe('filterUnposted', () => {
-	const findings = [{ id: 'f1' }, { id: 'f2' }, { id: 'f3' }]
-
-	it('returns all Findings when postedMap is empty (first-attempt no-op)', () => {
-		assert.deepEqual(filterUnposted(findings, {}), findings)
+describe('postedFindingIds', () => {
+	it('returns [] when postedMap is empty (first-attempt no-op)', () => {
+		assert.deepEqual(postedFindingIds({}), [])
 	})
 
-	it('returns all Findings when postedMap is undefined', () => {
-		assert.deepEqual(filterUnposted(findings, undefined), findings)
+	it('returns [] when postedMap is undefined', () => {
+		assert.deepEqual(postedFindingIds(undefined), [])
 	})
 
-	it('filters out Findings with postedMap[id].success === true (retry reduces set)', () => {
+	it('returns ids with success === true (retry skips these inline)', () => {
 		const postedMap = { f1: { success: true, threadId: 1 }, f2: { success: true, threadId: 2 } }
-		assert.deepEqual(filterUnposted(findings, postedMap), [{ id: 'f3' }])
+		assert.deepEqual(postedFindingIds(postedMap).sort(), ['f1', 'f2'])
 	})
 
-	it('keeps Findings where postedMap[id].success === false (failed → retry)', () => {
+	it('omits ids with success === false (failed → still re-posted inline)', () => {
+		const postedMap = { f1: { success: false, threadId: null }, f2: { success: true, threadId: 2 } }
+		assert.deepEqual(postedFindingIds(postedMap), ['f2'])
+	})
+
+	it('returns [] when every entry failed (nothing posted yet)', () => {
 		const postedMap = { f1: { success: false, threadId: null } }
-		assert.deepEqual(filterUnposted(findings, postedMap), findings)
-	})
-
-	it('keeps Findings with no entry in postedMap (missing entry → un-posted)', () => {
-		const postedMap = { f1: { success: true, threadId: 1 } }
-		assert.deepEqual(filterUnposted(findings, postedMap), [{ id: 'f2' }, { id: 'f3' }])
+		assert.deepEqual(postedFindingIds(postedMap), [])
 	})
 })

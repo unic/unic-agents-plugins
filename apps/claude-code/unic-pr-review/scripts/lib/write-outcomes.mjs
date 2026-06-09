@@ -14,8 +14,8 @@
  *   - `recordOutcomes`   — after a write, persist each Finding's post outcome and
  *                          a `summaryPosted` flag into `state.json` (atomic write),
  *                          run BEFORE the success-gated cleanup (ADR-0014).
- *   - `filterUnposted`   — drop Findings that already posted so a retry re-posts
- *                          only the ones that failed (first attempt → no-op).
+ *   - `postedFindingIds`  — list the Finding ids that already posted so a retry can
+ *                          skip re-posting them inline (first attempt → empty list).
  *
  * Owned by the `review-pr` orchestrator (Steps 1.2a, 1.11, 1.12a). The CLI
  * dispatcher at the bottom exposes the three helpers as a real script file so
@@ -148,18 +148,17 @@ export function recordOutcomes(statePath, inlineResults, summaryResult, deps = {
 }
 
 /**
- * Drop Findings that already posted successfully so a retry re-posts only the
- * failures. An empty or absent posted-map returns the input unchanged — the
- * first-attempt no-op that keeps normal behaviour intact.
+ * List the Finding ids that already posted successfully, so a retry can skip
+ * re-posting them as inline Threads while the Review Summary is still rendered
+ * from the full approved set (ADR-0015). An empty or absent posted-map returns
+ * an empty list — the first-attempt no-op that keeps normal behaviour intact.
  *
- * @template {{ id?: string }} F
- * @param {F[]} approvedFindings
  * @param {PostedMap} [postedMap]
- * @returns {F[]}
+ * @returns {string[]}
  */
-export function filterUnposted(approvedFindings, postedMap) {
-	if (!postedMap || Object.keys(postedMap).length === 0) return approvedFindings
-	return approvedFindings.filter((f) => postedMap[/** @type {string} */ (f.id)]?.success !== true)
+export function postedFindingIds(postedMap) {
+	if (!postedMap) return []
+	return Object.keys(postedMap).filter((id) => postedMap[id]?.success === true)
 }
 
 /* ------------------------------------------------------------------ CLI ---- */
@@ -207,29 +206,19 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 			process.stderr.write(`write-outcomes: outcomes not persisted: ${String(err)}\n`)
 			process.exit(1)
 		}
-	} else if (subcommand === 'filter') {
-		// env APPROVED_FILE (path) → rewrite it in place to the un-posted Findings
-		const approvedFile = requireEnv('APPROVED_FILE')
+	} else if (subcommand === 'posted-ids') {
+		// reads state.postedMap → stdout: JSON array of already-posted Finding ids.
+		// The orchestrator passes these to the Writer as an inline-skip list while
+		// the APPROVED_FILE stays full so the Summary still renders every Finding.
 		/** @type {PostedMap} */
 		let postedMap = {}
 		try {
 			const state = JSON.parse(realReadFile(statePath, 'utf8'))
 			if (state && typeof state === 'object' && state.postedMap) postedMap = state.postedMap
 		} catch {
-			// no readable state → empty posted-map → filter is a no-op
+			// no readable state → empty posted-map → empty id list (retry re-posts all)
 		}
-		/** @type {unknown} */
-		let approved
-		try {
-			approved = JSON.parse(realReadFile(approvedFile, 'utf8'))
-		} catch (err) {
-			process.stderr.write(`write-outcomes: could not read APPROVED_FILE: ${String(err)}\n`)
-			process.exit(1)
-		}
-		const unposted = filterUnposted(/** @type {any[]} */ (approved), postedMap)
-		const tmp = `${approvedFile}.tmp`
-		realWriteFile(tmp, JSON.stringify(unposted), 'utf8')
-		realRenameSync(tmp, approvedFile)
+		process.stdout.write(JSON.stringify(postedFindingIds(postedMap)))
 	} else {
 		process.stderr.write(`write-outcomes: unknown subcommand '${subcommand}'\n`)
 		process.exit(1)
