@@ -4,7 +4,12 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { buildLiveContext, CONTENT_LIMIT, formatLivePageSummary } from '../scripts/lib/live-gatherer.mjs'
+import {
+	asObservationsArray,
+	buildLiveContext,
+	CONTENT_LIMIT,
+	formatLivePageSummary,
+} from '../scripts/lib/live-gatherer.mjs'
 
 describe('formatLivePageSummary', () => {
 	it('includes the URL', () => {
@@ -94,5 +99,45 @@ describe('buildLiveContext', () => {
 		assert.ok(out.includes('\n\n---\n\n'))
 		assert.ok(out.includes('Live page: https://a.com'))
 		assert.ok(out.includes('Live page: https://b.com'))
+	})
+})
+
+describe('asObservationsArray', () => {
+	it('returns the same array for a non-empty array', () => {
+		const input = [{ url: 'https://prod.example.com', title: 'Home', content: 'Body' }]
+		assert.equal(asObservationsArray(input), input)
+	})
+
+	it('returns the same array for an empty array', () => {
+		const input = /** @type {any[]} */ ([])
+		assert.equal(asObservationsArray(input), input)
+	})
+
+	it('throws TypeError for a plain object', () => {
+		assert.throws(() => asObservationsArray({ error: 'rate limited' }), TypeError)
+	})
+
+	it('throws TypeError for null', () => {
+		assert.throws(() => asObservationsArray(null), TypeError)
+	})
+
+	it('throws TypeError for a string', () => {
+		assert.throws(() => asObservationsArray('nope'), TypeError)
+	})
+
+	it('throws TypeError for a number', () => {
+		assert.throws(() => asObservationsArray(42), TypeError)
+	})
+
+	it('message mentions object for a plain object', () => {
+		assert.throws(() => asObservationsArray({ error: 'rate limited' }), /object/)
+	})
+
+	it('message mentions null for null', () => {
+		assert.throws(() => asObservationsArray(null), /null/)
+	})
+
+	it('message mentions string for a string', () => {
+		assert.throws(() => asObservationsArray('nope'), /string/)
 	})
 })

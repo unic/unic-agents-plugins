@@ -4,7 +4,12 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { buildFigmaContext, extractAnnotations, formatFigmaNodeSummary } from '../scripts/lib/figma-gatherer.mjs'
+import {
+	asResultsArray,
+	buildFigmaContext,
+	extractAnnotations,
+	formatFigmaNodeSummary,
+} from '../scripts/lib/figma-gatherer.mjs'
 
 describe('extractAnnotations', () => {
 	it('returns empty array for null input', () => {
@@ -128,5 +133,45 @@ describe('buildFigmaContext', () => {
 		assert.ok(out.includes('\n\n---\n\n'))
 		assert.ok(out.includes('Frame/Page: A'))
 		assert.ok(out.includes('Frame/Page: B'))
+	})
+})
+
+describe('asResultsArray', () => {
+	it('returns the same array for a non-empty array', () => {
+		const input = [{ url: 'https://figma.com/x', data: {} }]
+		assert.equal(asResultsArray(input), input)
+	})
+
+	it('returns the same array for an empty array', () => {
+		const input = /** @type {any[]} */ ([])
+		assert.equal(asResultsArray(input), input)
+	})
+
+	it('throws TypeError for a plain object', () => {
+		assert.throws(() => asResultsArray({ error: 'rate limited' }), TypeError)
+	})
+
+	it('throws TypeError for null', () => {
+		assert.throws(() => asResultsArray(null), TypeError)
+	})
+
+	it('throws TypeError for a string', () => {
+		assert.throws(() => asResultsArray('nope'), TypeError)
+	})
+
+	it('throws TypeError for a number', () => {
+		assert.throws(() => asResultsArray(42), TypeError)
+	})
+
+	it('message mentions object for a plain object', () => {
+		assert.throws(() => asResultsArray({ error: 'rate limited' }), /object/)
+	})
+
+	it('message mentions null for null', () => {
+		assert.throws(() => asResultsArray(null), /null/)
+	})
+
+	it('message mentions string for a string', () => {
+		assert.throws(() => asResultsArray('nope'), /string/)
 	})
 })

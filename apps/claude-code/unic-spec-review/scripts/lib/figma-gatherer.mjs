@@ -121,6 +121,20 @@ export function buildFigmaContext(results) {
 	return results.map((result) => formatFigmaNodeSummary(result.url, result.data)).join('\n\n---\n\n')
 }
 
+/**
+ * Validate that parsed CLI input is an array of results. Throws a TypeError
+ * with a descriptive message otherwise, so the CLI entry fails loud instead of
+ * silently coercing a malformed-but-parseable MCP payload to an empty result.
+ * @param {unknown} raw
+ * @returns {FigmaUrlResult[]}
+ */
+export function asResultsArray(raw) {
+	if (!Array.isArray(raw)) {
+		throw new TypeError(`expected a JSON array, got ${raw === null ? 'null' : typeof raw}`)
+	}
+	return raw
+}
+
 // CLI entry: read a JSON array of FigmaUrlResult from --input, print the context.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	const inputFlag = process.argv.indexOf('--input')
@@ -128,15 +142,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		process.stderr.write('figma-gatherer: --input <path> required\n')
 		process.exit(1)
 	}
-	let raw
+	let results
 	try {
-		raw = JSON.parse(readFileSync(process.argv[inputFlag + 1], 'utf8'))
+		results = asResultsArray(JSON.parse(readFileSync(process.argv[inputFlag + 1], 'utf8')))
 	} catch (err) {
 		process.stderr.write(
 			`figma-gatherer: failed to read/parse input: ${err instanceof Error ? err.message : String(err)}\n`
 		)
 		process.exit(1)
 	}
-	const results = Array.isArray(raw) ? raw : []
 	process.stdout.write(`${buildFigmaContext(results)}\n`)
 }

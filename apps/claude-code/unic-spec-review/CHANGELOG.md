@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `spec-versus-live-agent`: accept optional `liveContext` (real Playwright observations when live URLs were provided); compare spec behaviour directly against observed live behaviour; fall back to landscape-based inference when null.
 
 ### Fixed
-- (none)
+- Fail loud when a gatherer receives a parseable but non-array MCP payload instead of silently treating it as empty.
 
 ## [0.1.7] — 2026-06-09
 
