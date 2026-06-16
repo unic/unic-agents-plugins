@@ -84,3 +84,32 @@ describe('discoverWorkItems', () => {
 		}
 	})
 })
+
+// Fetcher contract: the ADO Fetcher (Step 1.5) must populate workItemRefs on prMetadata
+// from the pullrequestworkitems endpoint. These tests assert that the fixtures reflect
+// real fetcher output shape — workItemRefs is always present (never absent) because the
+// fetcher sets it explicitly (to [] when no WIs are linked or the fetch fails).
+describe('fetcher contract — prMetadata.workItemRefs is always fetcher-populated', () => {
+	it('pr-with-work-items fixture has workItemRefs with at least one entry', () => {
+		const meta = fixture('pr-with-work-items.json')
+		assert.ok(Array.isArray(meta.workItemRefs), 'workItemRefs must be an array (fetcher-populated)')
+		assert.ok(meta.workItemRefs.length > 0, 'fixture must have at least one work item ref')
+	})
+	it('pr-with-multiple-work-items fixture has workItemRefs with multiple entries', () => {
+		const meta = fixture('pr-with-multiple-work-items.json')
+		assert.ok(Array.isArray(meta.workItemRefs), 'workItemRefs must be an array (fetcher-populated)')
+		assert.ok(meta.workItemRefs.length > 1, 'fixture must have more than one work item ref')
+	})
+	it('pr-without-work-items fixture has workItemRefs as empty array (not absent)', () => {
+		const meta = fixture('pr-without-work-items.json')
+		assert.ok(Array.isArray(meta.workItemRefs), 'workItemRefs must be present even when empty')
+		assert.equal(meta.workItemRefs.length, 0)
+	})
+	it('each workItemRef has string id and url', () => {
+		const meta = fixture('pr-with-work-items.json')
+		for (const ref of meta.workItemRefs) {
+			assert.equal(typeof ref.id, 'string', 'workItemRef.id must be a string')
+			assert.equal(typeof ref.url, 'string', 'workItemRef.url must be a string')
+		}
+	})
+})

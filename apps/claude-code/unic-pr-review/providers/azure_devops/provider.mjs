@@ -41,8 +41,9 @@ export const agents = {
 }
 
 /**
- * Read the PR's native Work Item field (`workItemRefs`). Never regex-scrapes the
- * description — this is the ADR-0001 amendment contract.
+ * Read the Work Item refs that the ADO Fetcher populated on `prMetadata` from the
+ * PR's linked work-item endpoint (`pullrequestworkitems`, Step 1.5). Never
+ * regex-scrapes the description — this is the ADR-0001 amendment contract.
  *
  * @param {{ workItemRefs?: Array<{ id: string, url: string }> }} prMetadata
  * @returns {Array<{ id: string, type: string, url: string, raw: object }>}
