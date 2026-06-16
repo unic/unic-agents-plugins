@@ -235,6 +235,24 @@ describe('renderNotices', () => {
 		assert.ok(!out.includes('…'))
 	})
 
+	it('does not truncate excerpt of exactly 80 chars', () => {
+		const exactExcerpt = 'A'.repeat(80)
+		const out = renderNotices({
+			humanThreadsNotice: [{ threadId: 1, filePath: 'src/x.ts', startLine: 1, excerpt: exactExcerpt }],
+		})
+		assert.ok(out.includes(exactExcerpt))
+		assert.ok(!out.includes('…'))
+	})
+
+	it('renders empty excerpt string when excerpt is undefined', () => {
+		const out = renderNotices({
+			humanThreadsNotice: [/** @type {any} */ ({ threadId: 1, filePath: 'src/x.ts', startLine: 1 })],
+		})
+		assert.ok(out.includes('Thread #1'))
+		assert.ok(out.includes('""'))
+		assert.ok(!out.includes('undefined'))
+	})
+
 	it('renders humanThreadsNotice after diffUnavailable when both set', () => {
 		const out = renderNotices({
 			diffUnavailable: true,

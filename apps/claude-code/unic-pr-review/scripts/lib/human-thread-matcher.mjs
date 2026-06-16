@@ -2,6 +2,8 @@
 // @ts-check
 // Copyright © 2026 Unic
 
+import { pathToFileURL } from 'node:url'
+
 /**
  * human-thread-matcher.mjs — post-fan-out matching of Findings against Human Threads.
  *
@@ -64,6 +66,9 @@ const RESOLVED_STATUSES = new Set(['fixed', 'wontFix', 'closed', 'byDesign'])
  * @returns {MatchResult}
  */
 export function matchHumanThreadsToFindings(findings, humanThreads) {
+	if (!Array.isArray(findings)) {
+		return { annotatedFindings: [], unmatchedUnresolved: [] }
+	}
 	if (!Array.isArray(humanThreads) || humanThreads.length === 0) {
 		return { annotatedFindings: findings.slice(), unmatchedUnresolved: [] }
 	}
@@ -101,10 +106,7 @@ export function matchHumanThreadsToFindings(findings, humanThreads) {
 }
 
 // CLI entry point
-const isMain =
-	typeof process !== 'undefined' &&
-	process.argv[1] !== undefined &&
-	(process.argv[1].endsWith('human-thread-matcher.mjs') || process.argv[1].endsWith('human-thread-matcher'))
+const isMain = process.argv[1] != null && import.meta.url === pathToFileURL(process.argv[1]).href
 
 if (isMain) {
 	const findingsRaw = process.env['FINDINGS_JSON'] ?? '[]'

@@ -87,7 +87,7 @@ export function renderNotices(ctx) {
 			`> **Human Thread notice:** ${count} unresolved reviewer comment${count !== 1 ? 's' : ''} have no matching Finding:`
 		)
 		for (const t of ctx.humanThreadsNotice) {
-			const location = t.filePath !== null ? `\`${t.filePath}:${t.startLine}\`` : '(general comment)'
+			const location = t.filePath != null ? `\`${t.filePath}:${t.startLine}\`` : '(general comment)'
 			const raw = t.excerpt ?? ''
 			const excerpt = raw.length > 80 ? raw.slice(0, 80) + '…' : raw
 			lines.push(`> - Thread #${t.threadId} on ${location} — "${excerpt}"`)
