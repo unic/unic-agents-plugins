@@ -64,6 +64,8 @@ Then reinstall plugins from the Claude Code command palette.
 
 The `review-pr` command runs the orchestrator in [`commands/review-pr.md`](commands/review-pr.md) through nine steps. The Intent Assessor and Re-review Coordinator are dedicated agents — not Review Aspects — spawned by mode/intent presence, never by changed-file categories ([ADR-0008](docs/adr/0008-conditional-sub-agent-spawning.md), [ADR-0011](docs/adr/0011-intent-assessor-for-live-ac-verdicts.md)).
 
+ADO Threads are classified three ways in the Fetcher: **Bot** (carries the Iteration Marker), **System** (`comments[0].commentType === "system"` — platform events like ref updates), and **Human** (everything else — reviewer discussion). Human Threads are **read-only review context** ([ADR-0016](docs/adr/0016-human-threads-as-read-only-context.md)): after the parallel fan-out completes, a deterministic matcher annotates any Finding that overlaps an open Human Thread (by `filePath` + line proximity), and lists unresolved Threads with no matching Finding — including non-inline general comments — in a Notice above the Intent Check. A resolved Thread that still matches a Finding is annotated "marked fixed but issue still present — re-verify". Human Threads never suppress or down-rank a Finding (Confidence < 60 stays the sole filter, [ADR-0002](docs/adr/0002-confidence-scored-findings.md)), and the ADO Writer never posts to a Human Thread in any Mode — it only ever targets Bot Threads. System Threads never reach the reviewer.
+
 ```mermaid
 flowchart TD
   start(["/unic-pr-review:review-pr  URL?  --post?  --yes?"])
@@ -106,13 +108,15 @@ flowchart TD
 
   s7 --> phase2{"Phase 2 gate (ADR-0013)<br/>0 Critical/Important findings AND ≥3 source files?"}
   phase2 -->|"yes"| csi["Phase 2: code-simplifier post-pass<br/>(sequential, after Phase 1; honours --dry-run / preview)"]
-  phase2 -->|"no"| coord{"re-review?"}
-  csi --> coord
-  coord -->|"yes"| rrc["Re-review Coordinator<br>Merges priorVerdicts + Thread state<br>Emits threadActions, persistentUnaddressed, freshFindings"]
+  phase2 -->|"no"| htmatch
+  csi --> htmatch
+  htmatch["Step 7b: Human Thread matcher (ADR-0016)<br/>classify Threads Bot / System / Human<br/>annotate Findings overlapping an open Human Thread<br/>unmatched unresolved → Notice above Intent Check"]
+  htmatch --> coord{"re-review?"}
+  coord -->|"yes"| rrc["Re-review Coordinator<br>Merges priorVerdicts + Thread state + humanThreads (read-only)<br>Emits threadActions, persistentUnaddressed, freshFindings<br>(no threadActions for Human Threads)"]
   coord -->|"no"| s8
   rrc --> s8
 
-  s8["Step 8: Merge findings + render Review Summary<br>Intent-check-merger.mjs overlays Assessor verdicts<br>Bot Signature footer (ADR-0006)"]
+  s8["Step 8: Merge findings + render Review Summary<br>Human Thread Notice above Intent Check (ADR-0016)<br>Intent-check-merger.mjs overlays Assessor verdicts<br>Bot Signature footer (ADR-0006)"]
   s8 --> s9["Step 9: Print preview in terminal"]
 
   s9 --> postq{"post flag set?"}
@@ -123,7 +127,7 @@ flowchart TD
   wr --> loop
   loop --> w["ADO Writer"]
   w -->|"first-review"| w1["Post Threads + Summary General Comment"]
-  w -->|"re-review"| w2["Reply on Threads / auto-resolve addressed /<br>Rewrite Summary in place / Persistent Unaddressed Notice"]
+  w -->|"re-review"| w2["Reply on Bot Threads only — never Human (ADR-0016) /<br>auto-resolve addressed / Rewrite Summary in place /<br>Persistent Unaddressed Notice"]
   w1 --> posted(["Done: posted"])
   w2 --> posted
 ```

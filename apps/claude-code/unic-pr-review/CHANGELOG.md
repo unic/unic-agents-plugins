@@ -16,6 +16,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [2.1.11] — 2026-06-16
+
+### Breaking
+- (none)
+
+### Added
+- Human Threads (reviewer comments) are now surfaced as read-only review context (ADR-0016, #248): the post-fan-out matcher annotates Findings that overlap an open Human Thread by `filePath` + line proximity, and lists unresolved unmatched threads — including non-inline general comments — in a Notice above the Intent Check. A resolved thread that still matches a Finding is annotated "marked fixed but issue still present — re-verify". The Re-review Coordinator receives the threads as read-only input and emits no `threadActions` for them. No Finding is suppressed or down-ranked; Confidence < 60 (ADR-0002) remains the sole filter, and the ADO Writer never posts to a Human Thread in any Mode
+
+### Fixed
+- Human Thread Notice now reads "1 unresolved reviewer comment **has** no matching Finding" for a single thread; the verb previously did not agree with the singular noun
+- Step 1.8b (first-review and re-review) now relays the matcher's own stderr verbatim on a non-zero exit, so a JSON parse or type error behind the "skipping thread annotations" notice is no longer discarded
+
+## [2.1.10] — 2026-06-16
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- ADO Fetcher now fetches linked Work Items via `pullrequestworkitems` endpoint (Step 1.5) and populates `prMetadata.workItemRefs`; previously the fetcher never called this endpoint so `discoverWorkItems()` always returned `[]` and the Intent Check was silently skipped on every PR with linked Work Items (#247). Step 1.5 discriminates three fetch outcomes so a zero-exit-but-malformed response can no longer masquerade as "no Work Items linked"
+
 ## [2.1.9] — 2026-06-09
 
 ### Breaking

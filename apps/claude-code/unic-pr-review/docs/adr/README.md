@@ -17,3 +17,4 @@ Plugin-scoped ADRs. Monorepo-wide decisions live in `../../../../../docs/adr/`.
 - [0013](0013-two-phase-code-simplifier.md) — `code-simplifier` runs as a conditional Phase 2 post-pass, not in the Phase 1 fan-out
 - [0014](0014-orchestrator-owns-state-dir-cleanup.md) — Orchestrator owns Approval Loop state-directory cleanup, gated on ADO write success
 - [0015](0015-write-retry-completes-partial-iteration.md) — Write Retry completes a partially-written Iteration (same iteration, posts only what failed) instead of routing to re-review
+- [0016](0016-human-threads-as-read-only-context.md) — Human Threads are read-only review context (post-fan-out Notice + annotation), never a Finding-suppression signal, never written to

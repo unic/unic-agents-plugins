@@ -62,7 +62,7 @@ Two changes are required — both are mandatory; omitting either causes the agen
 
 ## Plugin doctrines
 
-Load-bearing invariants captured as ADRs. All fifteen must be understood before editing:
+Load-bearing invariants captured as ADRs. All sixteen must be understood before editing:
 
 - **ADR-0001** — Multi-source intent gathering with shared Atlassian credentials (`.unic-confluence.json` covers both Confluence and Jira)
 - **ADR-0002** — Confidence-scored Findings with explicit Severity thresholds (Critical 90-100, Important 80-89, Minor 60-79; drop below 60)
@@ -79,6 +79,7 @@ Load-bearing invariants captured as ADRs. All fifteen must be understood before 
 - **ADR-0013** — `code-simplifier` runs as a conditional Phase 2 post-pass (zero Critical/Important Phase 1 findings AND ≥3 non-test source files), not in the Phase 1 SPAWN_TABLE; gate is the pure function `shouldRunPhase2()`
 - **ADR-0014** — The Approval Loop never deletes its own state directory; cleanup is owned by the `review-pr` orchestrator (Step 1.13), gated on ADO write `success: true`, so a failed write stays resumable
 - **ADR-0015** — A surviving state directory + unchanged HEAD triggers a **Write Retry**: the re-run finishes the same Iteration (resumes saved approval state, posts only the Findings/Summary that failed) instead of routing to re-review; dedup is local (per-Finding post outcome persisted in `state.json`)
+- **ADR-0016** — Human Threads (neither Iteration Marker nor system `commentType`) are **read-only** review context: surfaced post-fan-out as a Notice (unresolved) and Finding annotations (matched by `filePath`+line), never suppress/down-rank a Finding (Confidence stays the sole filter, ADR-0002), and never written to in any Mode; applies to first-review and re-review (the Coordinator gets them but emits no `threadActions` for them)
 
 ## Conventions
 
