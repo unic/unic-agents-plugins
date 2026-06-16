@@ -98,6 +98,20 @@ If the command exits non-zero, emit this error and stop:
 
 Filter `THREADS.value` to keep only threads where `thread.comments[0].content` contains `<!-- unic-pr-review:iteration=`. Store as `BOT_THREADS`. This ensures human comments (which never carry the Iteration Marker) are never mistaken for a prior review (ADR-0006).
 
+### Step 3b — Classify remaining threads as System or Human
+
+For every thread in `THREADS.value` that is **not** in `BOT_THREADS`:
+
+- **System Thread**: `thread.comments[0].commentType === "system"` (ref updates, votes, policy events). Discard — never surfaced.
+- **Human Thread**: everything else. Extract for each:
+  - `threadId` from `thread.id`
+  - `filePath` from `thread.threadContext.filePath` with the leading `/` stripped; `null` if no `threadContext` (general comment)
+  - `startLine` from `thread.threadContext.rightFileStart.line`; `null` if no `threadContext`
+  - `status` from `thread.status` (ADO field: `"active"`, `"pending"`, `"fixed"`, `"wontFix"`, `"closed"`, `"byDesign"`)
+  - `excerpt`: first 150 characters of `thread.comments[0].content`
+
+Store as `HUMAN_THREADS` (array; may be empty).
+
 Serialize `BOT_THREADS` as a JSON array of `{ comments: [{ content }] }` objects, then run:
 
 ```sh
@@ -270,10 +284,14 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
   "priorIteration": null,
   "deltaRawDiff": "",
   "priorFindings": [],
+  "humanThreads": [
+    { "threadId": 63474, "filePath": "src/foo.ts", "startLine": 42, "status": "active", "excerpt": "..." },
+    { "threadId": 63477, "filePath": null, "startLine": null, "status": "active", "excerpt": "General comment..." }
+  ],
   "warnings": []
 }
 ```
 
 `prMetadata` is the raw ADO `pullrequests` response enriched with `workItemRefs` from Step 1.5. `workItemRefs` is always an array (empty `[]` when no Work Items are linked or the fetch failed).
 
-`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit or sourceRefCommit, git diff failure, or an empty diff despite a non-empty changedFiles). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.
+`mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `humanThreads` is an array of `{ threadId, filePath, startLine, status, excerpt }` objects — Human Threads classified in Step 3b (ADR-0016). `filePath` and `startLine` are `null` for non-inline (general comment) threads. Always emitted; empty `[]` when no Human Threads exist. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit or sourceRefCommit, git diff failure, or an empty diff despite a non-empty changedFiles). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.

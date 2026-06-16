@@ -36,6 +36,9 @@ You receive raw ADO Thread data, the delta diff, prior Findings, and the Review 
       ]
     }
   ],
+  "humanThreads": [
+    { "threadId": 200, "filePath": "src/bar.mjs", "startLine": 15, "status": "active", "excerpt": "Please fix this." }
+  ],
   "aspectFindings": {
     "code-reviewer": {
       "findings": [...],
@@ -45,6 +48,8 @@ You receive raw ADO Thread data, the delta diff, prior Findings, and the Review 
   }
 }
 ```
+
+`humanThreads` is a **read-only** list of Human Threads (ADR-0016) classified by the ADO Fetcher. You may use it for informational context, but you must **never** emit a `threadAction` referencing a `threadId` from `humanThreads`. The ADO Writer only writes to Bot Threads; Human Threads are never touched in any Mode.
 
 ## Classification Rules
 

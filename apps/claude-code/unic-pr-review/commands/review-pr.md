@@ -233,6 +233,26 @@ Otherwise (`rawDiff` non-empty), proceed as in Step 7 (Pre-PR): launch every age
 
 After all Phase 1 agents finish, evaluate and run the **Phase 2 gate** exactly as described in the Pre-PR Step 7 "Phase 2 — Code Simplifier" section (ADR-0013): call `shouldRunPhase2` with `FETCHER_OUTPUT.changedFiles` and the flattened Phase 1 findings; if true, launch `agents/code-simplifier.md` sequentially with the same diff input (and `intentBrief` preamble when defined), wait for it, and merge its output into the full findings set before proceeding to Step 1.9.
 
+#### Step 1.8b — Match Human Threads to Findings (first-review and first-review-fallback)
+
+After Phase 1 (and Phase 2 when it ran) complete, run the Human Thread matcher against all Findings. **Skip this step entirely** when `FETCHER_OUTPUT.humanThreads` is empty (`[]`).
+
+Collect every Finding from the fan-out into a flat JSON array `ALL_FINDINGS` (the same flat `findings` array that Step 1.9 merges before rendering — not the `{ findings, positiveObservations }` wrapper). Then run the matcher (env assignments precede `node`, ADR convention):
+
+```sh
+FINDINGS_JSON='<JSON.stringify(ALL_FINDINGS)>' \
+  HUMAN_THREADS_JSON='<JSON.stringify(FETCHER_OUTPUT.humanThreads)>' \
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/human-thread-matcher.mjs"
+```
+
+Parse stdout as `{ annotatedFindings, unmatchedUnresolved }`:
+
+- **On non-zero exit**: write `unic-pr-review: human-thread-matcher failed — skipping thread annotations` to stderr and continue with the original `ALL_FINDINGS` unchanged. Do **not** stop the run — Human Threads are read-only context, never a hard stop (ADR-0016).
+- Replace `ALL_FINDINGS` with `annotatedFindings` for Step 1.9 rendering (same array shape; matched bodies now carry a `>`-prefixed thread annotation line).
+- Add `humanThreadsNotice: unmatchedUnresolved` to `NOTICES_CONTEXT`. `renderNotices` skips the block when the array is empty, and lists unresolved unmatched Human Threads (including non-inline general comments) above the Intent Check.
+
+This step never suppresses or down-ranks a Finding — Confidence < 60 (ADR-0002) stays the sole filter. It only annotates matched Findings and surfaces unmatched unresolved Threads as a Notice.
+
 #### Step 1.9 — Merge findings and render (ADO mode)
 
 Same as Step 8 (Pre-PR): merge all agents' findings and positive observations, run the overlay merger when the Assessor was spawned, and pass `FINDINGS_JSON`, `INTENT_CHECK_JSON` (if applicable), and `NOTICES_JSON` (if applicable) to `render-summary.mjs`. Always relay the helper's stderr; stop on a non-zero exit.
@@ -472,6 +492,7 @@ After all aspect agents complete, use the Agent tool to launch `unic-pr-review:r
   "priorIteration":   <FETCHER_OUTPUT.priorIteration>,
   "currentIteration": <CURRENT_ITERATION>,
   "rawThreadsJson":   <FETCHER_OUTPUT.threads.value>,
+  "humanThreads":     <FETCHER_OUTPUT.humanThreads>,
   "aspectFindings":   <ASPECT_RESPONSES>
 }
 ```
@@ -489,6 +510,24 @@ Wait for the Coordinator to complete. It returns:
 Store as `COORDINATOR_PLAN`.
 
 On error (non-JSON output or an `"error"` field present): print the error verbatim and stop. Do not proceed to an ADO write without a valid plan.
+
+#### Step 1.8b extension — Re-review: match Human Threads to freshFindings
+
+After the Coordinator emits `COORDINATOR_PLAN`, run the Human Thread matcher against `freshFindings` (the only brand-new Findings that reach the Review Summary). **Skip this step entirely** when `FETCHER_OUTPUT.humanThreads` is empty.
+
+```sh
+FINDINGS_JSON='<JSON.stringify(COORDINATOR_PLAN.freshFindings)>' \
+  HUMAN_THREADS_JSON='<JSON.stringify(FETCHER_OUTPUT.humanThreads)>' \
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/lib/human-thread-matcher.mjs"
+```
+
+Parse stdout as `{ annotatedFindings, unmatchedUnresolved }`:
+
+- **On non-zero exit**: write `unic-pr-review: human-thread-matcher failed — skipping thread annotations` to stderr and continue with `COORDINATOR_PLAN.freshFindings` unchanged. Do **not** stop the run.
+- Replace `COORDINATOR_PLAN.freshFindings` with `annotatedFindings` before building `FINDINGS_JSON` in the Step 1.9 extension below.
+- Add `humanThreadsNotice: unmatchedUnresolved` to `NOTICES_CONTEXT`.
+
+The Coordinator already receives `humanThreads` as read-only input (Step 1.8a) and emits **zero** `threadActions` for them — the matcher only annotates `freshFindings` and surfaces a Notice; the ADO Writer never posts to a Human Thread (ADR-0016).
 
 #### Step 1.9 extension — Re-review: build NoticesContext with persistentUnaddressed
 

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Added
-- (none)
+- Human Threads (reviewer comments) are now surfaced as read-only review context (ADR-0016, #248): the post-fan-out matcher annotates Findings that overlap an open Human Thread by `filePath` + line proximity, and lists unresolved unmatched threads — including non-inline general comments — in a Notice above the Intent Check. A resolved thread that still matches a Finding is annotated "marked fixed but issue still present — re-verify". The Re-review Coordinator receives the threads as read-only input and emits no `threadActions` for them. No Finding is suppressed or down-ranked; Confidence < 60 (ADR-0002) remains the sole filter, and the ADO Writer never posts to a Human Thread in any Mode
 
 ### Fixed
 - (none)

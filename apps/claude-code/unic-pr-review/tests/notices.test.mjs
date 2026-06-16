@@ -183,4 +183,79 @@ describe('renderNotices', () => {
 		assert.ok(reReviewIdx >= 0)
 		assert.ok(diffIdx < reReviewIdx, 'diffUnavailable notice must precede priorVerdictSummary')
 	})
+
+	it('returns empty string when humanThreadsNotice is an empty array', () => {
+		assert.equal(renderNotices({ humanThreadsNotice: [] }), '')
+	})
+
+	it('renders humanThreadsNotice with one inline thread', () => {
+		const out = renderNotices({
+			humanThreadsNotice: [{ threadId: 63474, filePath: 'src/foo.ts', startLine: 42, excerpt: 'Fix this null check.' }],
+		})
+		assert.ok(out.includes('> **Human Thread notice:**'))
+		assert.ok(out.includes('1 unresolved reviewer comment'))
+		assert.ok(out.includes('Thread #63474'))
+		assert.ok(out.includes('`src/foo.ts:42`'))
+		assert.ok(out.includes('"Fix this null check."'))
+	})
+
+	it('renders humanThreadsNotice with plural wording when count > 1', () => {
+		const out = renderNotices({
+			humanThreadsNotice: [
+				{ threadId: 1, filePath: 'src/a.ts', startLine: 10, excerpt: 'A' },
+				{ threadId: 2, filePath: 'src/b.ts', startLine: 20, excerpt: 'B' },
+			],
+		})
+		assert.ok(out.includes('2 unresolved reviewer comments'))
+	})
+
+	it('renders (general comment) for non-inline threads in humanThreadsNotice', () => {
+		const out = renderNotices({
+			humanThreadsNotice: [{ threadId: 63477, filePath: null, startLine: null, excerpt: 'Please add docs.' }],
+		})
+		assert.ok(out.includes('(general comment)'))
+		assert.ok(!out.includes('null'))
+	})
+
+	it('truncates excerpt to 80 chars with ellipsis', () => {
+		const longExcerpt = 'A'.repeat(100)
+		const out = renderNotices({
+			humanThreadsNotice: [{ threadId: 1, filePath: 'src/x.ts', startLine: 1, excerpt: longExcerpt }],
+		})
+		assert.ok(out.includes('A'.repeat(80) + '…'))
+		assert.ok(!out.includes('A'.repeat(100)))
+	})
+
+	it('does not truncate excerpt shorter than 80 chars', () => {
+		const shortExcerpt = 'Short excerpt.'
+		const out = renderNotices({
+			humanThreadsNotice: [{ threadId: 1, filePath: 'src/x.ts', startLine: 1, excerpt: shortExcerpt }],
+		})
+		assert.ok(out.includes('"Short excerpt."'))
+		assert.ok(!out.includes('…'))
+	})
+
+	it('renders humanThreadsNotice after diffUnavailable when both set', () => {
+		const out = renderNotices({
+			diffUnavailable: true,
+			humanThreadsNotice: [{ threadId: 1, filePath: 'src/x.ts', startLine: 1, excerpt: 'x' }],
+		})
+		const diffIdx = out.indexOf('Line-level diff')
+		const humanIdx = out.indexOf('Human Thread notice')
+		assert.ok(diffIdx >= 0, 'Missing diffUnavailable notice')
+		assert.ok(humanIdx >= 0, 'Missing humanThreadsNotice')
+		assert.ok(diffIdx < humanIdx, 'diffUnavailable must precede humanThreadsNotice')
+	})
+
+	it('renders priorVerdictSummary after humanThreadsNotice when both set', () => {
+		const out = renderNotices({
+			humanThreadsNotice: [{ threadId: 1, filePath: 'src/x.ts', startLine: 1, excerpt: 'x' }],
+			priorVerdictSummary: { fixed: 1, partial: 0, ignored: 0 },
+		})
+		const humanIdx = out.indexOf('Human Thread notice')
+		const reReviewIdx = out.indexOf('Re-review:')
+		assert.ok(humanIdx >= 0, 'Missing humanThreadsNotice')
+		assert.ok(reReviewIdx >= 0, 'Missing priorVerdictSummary')
+		assert.ok(humanIdx < reReviewIdx, 'humanThreadsNotice must precede priorVerdictSummary')
+	})
 })

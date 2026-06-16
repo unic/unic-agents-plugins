@@ -20,6 +20,14 @@
  */
 
 /**
+ * @typedef {Object} HumanThreadEntry
+ * @property {number} threadId - ADO Thread id
+ * @property {string | null} filePath - file path for inline threads; null for general comment threads
+ * @property {number | null} startLine - line for inline threads; null for general comment threads
+ * @property {string} excerpt - first ~150 chars of the thread's first comment
+ */
+
+/**
  * @typedef {Object} NoticesContext
  * @property {boolean} [fallbackToFirstReview] - true when force-push caused the prior
  *   Revision to disappear from the PR's Revision history (ADR-0006)
@@ -29,6 +37,8 @@
  *   applied zero verdicts (assessed missing, non-array, or all-zero applied count)
  * @property {boolean} [diffUnavailable] - true when line-level diff could not be fetched;
  *   diff-driven aspect agents were not run and an empty Findings list does not mean clean
+ * @property {HumanThreadEntry[]} [humanThreadsNotice] - unresolved Human Threads that no
+ *   Finding matched (ADR-0016); rendered above the Intent Check
  * @property {{ fixed: number, partial: number, ignored: number }} [priorVerdictSummary] - verdicts
  *   aggregated across all aspect agents in re-review mode; omit in first-review mode
  */
@@ -69,6 +79,18 @@ export function renderNotices(ctx) {
 			'> **Notice:** Line-level diff was unavailable in this preview, so diff-driven Review Aspect agents did not run. ' +
 				'An empty Findings list does **not** mean the PR is clean.'
 		)
+	}
+
+	if (Array.isArray(ctx.humanThreadsNotice) && ctx.humanThreadsNotice.length > 0) {
+		const count = ctx.humanThreadsNotice.length
+		lines.push(
+			`> **Human Thread notice:** ${count} unresolved reviewer comment${count !== 1 ? 's' : ''} have no matching Finding:`
+		)
+		for (const t of ctx.humanThreadsNotice) {
+			const location = t.filePath !== null ? `\`${t.filePath}:${t.startLine}\`` : '(general comment)'
+			const excerpt = t.excerpt.length > 80 ? t.excerpt.slice(0, 80) + '…' : t.excerpt
+			lines.push(`> - Thread #${t.threadId} on ${location} — "${excerpt}"`)
+		}
 	}
 
 	if (ctx.priorVerdictSummary) {
