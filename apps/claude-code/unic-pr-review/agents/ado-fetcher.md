@@ -48,12 +48,16 @@ az devops invoke --area git --resource pullrequestworkitems \
   --http-method GET --api-version 7.0 --output json
 ```
 
-Store stdout as `WI_LIST`. Set `PR_METADATA.workItemRefs = WI_LIST.value ?? []`.
+Store stdout as `WI_LIST` and capture the exit code. Distinguish three outcomes — never let a failure masquerade as the legitimate "no Work Items linked" case (the silent false negative this step exists to prevent):
 
-If the command exits non-zero, set `PR_METADATA.workItemRefs = []` and add a warning:
+- **Exit zero and stdout parses to an object with a `value` array** → set `PR_METADATA.workItemRefs = WI_LIST.value`. An empty `value` legitimately means no Work Items are linked — no warning.
+- **Exit non-zero** → set `PR_METADATA.workItemRefs = []` and add the warning below (`<reason>` = `Error: <stderr>`).
+- **Exit zero but stdout is empty, unparseable, or has no `value` array** → treat as a fetch failure, not zero Work Items: set `PR_METADATA.workItemRefs = []` and add the warning below (`<reason>` = `unexpected response shape — do not assume zero Work Items`).
+
+In both failure branches add this warning (it belongs to the same `warnings` array emitted in Step 6):
 
 ```
-"pullrequestworkitems fetch failed — Work Item discovery skipped, Intent Check will be omitted. Error: <stderr>"
+"pullrequestworkitems fetch failed — Work Item discovery skipped, Intent Check will be omitted. <reason>"
 ```
 
 Do not stop; continue to Step 2.

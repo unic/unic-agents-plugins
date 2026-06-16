@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
-- ADO Fetcher now fetches linked Work Items via `pullrequestworkitems` endpoint (Step 1.5) and populates `prMetadata.workItemRefs`; previously the fetcher never called this endpoint so `discoverWorkItems()` always returned `[]` and the Intent Check was silently skipped on every PR with linked Work Items (#247)
+- ADO Fetcher now fetches linked Work Items via `pullrequestworkitems` endpoint (Step 1.5) and populates `prMetadata.workItemRefs`; previously the fetcher never called this endpoint so `discoverWorkItems()` always returned `[]` and the Intent Check was silently skipped on every PR with linked Work Items (#247). Step 1.5 discriminates three fetch outcomes so a zero-exit-but-malformed response can no longer masquerade as "no Work Items linked"
 
 ## [2.1.9] — 2026-06-09
 
