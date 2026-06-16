@@ -193,7 +193,7 @@ describe('renderNotices', () => {
 			humanThreadsNotice: [{ threadId: 63474, filePath: 'src/foo.ts', startLine: 42, excerpt: 'Fix this null check.' }],
 		})
 		assert.ok(out.includes('> **Human Thread notice:**'))
-		assert.ok(out.includes('1 unresolved reviewer comment'))
+		assert.ok(out.includes('1 unresolved reviewer comment has no matching Finding'))
 		assert.ok(out.includes('Thread #63474'))
 		assert.ok(out.includes('`src/foo.ts:42`'))
 		assert.ok(out.includes('"Fix this null check."'))
@@ -206,7 +206,7 @@ describe('renderNotices', () => {
 				{ threadId: 2, filePath: 'src/b.ts', startLine: 20, excerpt: 'B' },
 			],
 		})
-		assert.ok(out.includes('2 unresolved reviewer comments'))
+		assert.ok(out.includes('2 unresolved reviewer comments have no matching Finding'))
 	})
 
 	it('renders (general comment) for non-inline threads in humanThreadsNotice', () => {

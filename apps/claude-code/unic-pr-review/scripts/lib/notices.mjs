@@ -84,7 +84,7 @@ export function renderNotices(ctx) {
 	if (Array.isArray(ctx.humanThreadsNotice) && ctx.humanThreadsNotice.length > 0) {
 		const count = ctx.humanThreadsNotice.length
 		lines.push(
-			`> **Human Thread notice:** ${count} unresolved reviewer comment${count !== 1 ? 's' : ''} have no matching Finding:`
+			`> **Human Thread notice:** ${count} unresolved reviewer comment${count !== 1 ? 's' : ''} ${count !== 1 ? 'have' : 'has'} no matching Finding:`
 		)
 		for (const t of ctx.humanThreadsNotice) {
 			const location = t.filePath != null ? `\`${t.filePath}:${t.startLine}\`` : '(general comment)'

@@ -247,7 +247,7 @@ FINDINGS_JSON='<JSON.stringify(ALL_FINDINGS)>' \
 
 Parse stdout as `{ annotatedFindings, unmatchedUnresolved }`:
 
-- **On non-zero exit**: write `unic-pr-review: human-thread-matcher failed — skipping thread annotations` to stderr and continue with the original `ALL_FINDINGS` unchanged. Do **not** stop the run — Human Threads are read-only context, never a hard stop (ADR-0016).
+- **On non-zero exit**: write `unic-pr-review: human-thread-matcher failed — skipping thread annotations` to stderr, followed by the matcher's own stderr verbatim (so the underlying cause — a JSON parse or type error — is not lost), and continue with the original `ALL_FINDINGS` unchanged. Do **not** stop the run — Human Threads are read-only context, never a hard stop (ADR-0016).
 - Replace `ALL_FINDINGS` with `annotatedFindings` for Step 1.9 rendering (same array shape; matched bodies now carry a `>`-prefixed thread annotation line).
 - Add `humanThreadsNotice: unmatchedUnresolved` to `NOTICES_CONTEXT`. `renderNotices` skips the block when the array is empty, and lists unresolved unmatched Human Threads (including non-inline general comments) above the Intent Check.
 
@@ -523,7 +523,7 @@ FINDINGS_JSON='<JSON.stringify(COORDINATOR_PLAN.freshFindings)>' \
 
 Parse stdout as `{ annotatedFindings, unmatchedUnresolved }`:
 
-- **On non-zero exit**: write `unic-pr-review: human-thread-matcher failed — skipping thread annotations` to stderr and continue with `COORDINATOR_PLAN.freshFindings` unchanged. Do **not** stop the run.
+- **On non-zero exit**: write `unic-pr-review: human-thread-matcher failed — skipping thread annotations` to stderr, followed by the matcher's own stderr verbatim (so the underlying cause — a JSON parse or type error — is not lost), and continue with `COORDINATOR_PLAN.freshFindings` unchanged. Do **not** stop the run.
 - Replace `COORDINATOR_PLAN.freshFindings` with `annotatedFindings` before building `FINDINGS_JSON` in the Step 1.9 extension below.
 - Add `humanThreadsNotice: unmatchedUnresolved` to `NOTICES_CONTEXT`.
 
