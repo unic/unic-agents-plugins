@@ -38,6 +38,30 @@ If the command exits non-zero, emit this error and stop:
 { "error": "fetch-failed", "step": 1, "resource": "pullrequests", "message": "<stderr>" }
 ```
 
+### Step 1.5 — Fetch linked Work Items
+
+The `pullrequests` endpoint does not include Work Item links. Fetch them from the dedicated endpoint:
+
+```sh
+az devops invoke --area git --resource pullrequestworkitems \
+  --route-parameters organization="<orgUrl>" project="<project>" repositoryId="<repo>" pullRequestId="<prId>" \
+  --http-method GET --api-version 7.0 --output json
+```
+
+Store stdout as `WI_LIST` and capture the exit code. Distinguish three outcomes — never let a failure masquerade as the legitimate "no Work Items linked" case (the silent false negative this step exists to prevent):
+
+- **Exit zero and stdout parses to an object with a `value` array** → set `PR_METADATA.workItemRefs = WI_LIST.value`. An empty `value` legitimately means no Work Items are linked — no warning.
+- **Exit non-zero** → set `PR_METADATA.workItemRefs = []` and add the warning below (`<reason>` = `Error: <stderr>`).
+- **Exit zero but stdout is empty, unparseable, or has no `value` array** → treat as a fetch failure, not zero Work Items: set `PR_METADATA.workItemRefs = []` and add the warning below (`<reason>` = `unexpected response shape — do not assume zero Work Items`).
+
+In both failure branches add this warning (it belongs to the same `warnings` array emitted in Step 6):
+
+```
+"pullrequestworkitems fetch failed — Work Item discovery skipped, Intent Check will be omitted. <reason>"
+```
+
+Do not stop; continue to Step 2.
+
 ### Step 2 — Fetch Revisions (iterations)
 
 ```sh
@@ -232,7 +256,10 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
 
 ```json
 {
-  "prMetadata": "<PR_METADATA object>",
+  "prMetadata": {
+    "pullRequestId": 42,
+    "workItemRefs": [{ "id": "101", "url": "https://dev.azure.com/org/project/_apis/wit/workitems/101" }]
+  },
   "revisions": "<REVISIONS object>",
   "threads": "<THREADS object>",
   "changedFiles": ["path/to/file.ts"],
@@ -246,5 +273,7 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
   "warnings": []
 }
 ```
+
+`prMetadata` is the raw ADO `pullrequests` response enriched with `workItemRefs` from Step 1.5. `workItemRefs` is always an array (empty `[]` when no Work Items are linked or the fetch failed).
 
 `mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit or sourceRefCommit, git diff failure, or an empty diff despite a non-empty changedFiles). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.

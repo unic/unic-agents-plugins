@@ -6,15 +6,15 @@
 
 The ADO Fetcher fetches every PR Thread but classifies them on a single axis: does `comments[0].content` carry the Iteration Marker (a Bot Thread, ADR-0006) or not. In `first-review` mode the fetched Threads are then dropped — no step reads them — and in `re-review` only Bot Threads feed the Re-review Coordinator's `priorFindings`. Human review discussion is invisible to a Review in every Mode.
 
-This surfaced in a head-to-head against the legacy `pr-review` plugin on ADO PR #5570. That plugin read the five Human Threads on the PR, cross-referenced a Finding to a still-open one, and noted a Thread marked *fixed* whose issue was in fact still present ("re-verify before merge"). `unic-pr-review` could surface none of this — a structural gap, not a fetch failure.
+This surfaced in a head-to-head against the legacy `pr-review` plugin on ADO PR #5570. That plugin read the five Human Threads on the PR, cross-referenced a Finding to a still-open one, and noted a Thread marked _fixed_ whose issue was in fact still present ("re-verify before merge"). `unic-pr-review` could surface none of this — a structural gap, not a fetch failure.
 
-The tempting fix — let a resolved Human Thread suppress or down-rank a matching Finding — is the mirror image of the work-item-discovery false negative (issue #247): where that bug made the Plugin *under-gather intent*, suppression would make it *under-report code issues*. A wrongly-resolved Thread would silently hide a real defect.
+The tempting fix — let a resolved Human Thread suppress or down-rank a matching Finding — is the mirror image of the work-item-discovery false negative (issue #247): where that bug made the Plugin _under-gather intent_, suppression would make it _under-report code issues_. A wrongly-resolved Thread would silently hide a real defect.
 
 ## Decision
 
 Human Threads are **read-only context**, surfaced after the aspect fan-out and never used to suppress a Finding.
 
-1. **Classification.** The Fetcher gains a human/system split alongside the existing bot detection: *Bot Thread* = Iteration Marker (ADR-0006); *System Thread* = `comments[0].commentType === "system"` (ref updates, votes, policy); *Human Thread* = neither. Only Human Threads are surfaced; System Threads are never shown to the Reviewer.
+1. **Classification.** The Fetcher gains a human/system split alongside the existing bot detection: _Bot Thread_ = Iteration Marker (ADR-0006); _System Thread_ = `comments[0].commentType === "system"` (ref updates, votes, policy); _Human Thread_ = neither. Only Human Threads are surfaced; System Threads are never shown to the Reviewer.
 
 2. **Context-only, never suppress.** A Finding is never dropped or down-ranked because a Human Thread exists. Confidence < 60 remains the sole filter (ADR-0002).
 

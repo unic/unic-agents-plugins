@@ -3,6 +3,12 @@
     { "area": "git", "resource": "pullrequests", "httpMethod": "GET", "description": "PR metadata" },
     {
       "area": "git",
+      "resource": "pullrequestworkitems",
+      "httpMethod": "GET",
+      "description": "Work Items linked to the PR (Step 1.5 — separate endpoint, not in pullrequests response)"
+    },
+    {
+      "area": "git",
       "resource": "pullrequestiterations",
       "httpMethod": "GET",
       "description": "PR Revisions (iterations)"

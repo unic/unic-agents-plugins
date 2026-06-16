@@ -83,4 +83,49 @@ describe('discoverWorkItems', () => {
 			assert.equal(item.type, 'ado-work-item')
 		}
 	})
+	it('normalises integer wire-format ids to strings', () => {
+		// The live pullrequestworkitems endpoint returns integer ids; fixtures use strings.
+		// discoverWorkItems must coerce via String(ref.id) so downstream id handling is stable
+		// regardless of wire shape — this exercises the integer branch the JSDoc `id: string | number`
+		// widening opened, which the fixture-shape tests below cannot reach.
+		const items = discoverWorkItems({
+			workItemRefs: [{ id: 42622, url: 'https://dev.azure.com/FZAG/_apis/wit/workitems/42622' }],
+		})
+		assert.equal(items.length, 1)
+		assert.equal(items[0].id, '42622')
+		assert.equal(typeof items[0].id, 'string')
+	})
+})
+
+// Fetcher contract: the ADO Fetcher (Step 1.5) must populate workItemRefs on prMetadata
+// from the pullrequestworkitems endpoint. These tests assert that the fixtures reflect
+// real fetcher output shape — workItemRefs is always present (never absent) because the
+// fetcher sets it explicitly (to [] when no WIs are linked or the fetch fails).
+describe('fetcher contract — prMetadata.workItemRefs is always fetcher-populated', () => {
+	it('pr-with-work-items fixture has workItemRefs with at least one entry', () => {
+		const meta = fixture('pr-with-work-items.json')
+		assert.ok(Array.isArray(meta.workItemRefs), 'workItemRefs must be an array (fetcher-populated)')
+		assert.ok(meta.workItemRefs.length > 0, 'fixture must have at least one work item ref')
+	})
+	it('pr-with-multiple-work-items fixture has workItemRefs with multiple entries', () => {
+		const meta = fixture('pr-with-multiple-work-items.json')
+		assert.ok(Array.isArray(meta.workItemRefs), 'workItemRefs must be an array (fetcher-populated)')
+		assert.ok(meta.workItemRefs.length > 1, 'fixture must have more than one work item ref')
+	})
+	it('pr-without-work-items fixture has workItemRefs as empty array (not absent)', () => {
+		const meta = fixture('pr-without-work-items.json')
+		assert.ok(Array.isArray(meta.workItemRefs), 'workItemRefs must be present even when empty')
+		assert.equal(meta.workItemRefs.length, 0)
+	})
+	it('each workItemRef has string id and url', () => {
+		// Note: fixtures use synthetic string ids ("101") for simplicity.
+		// The real ADO pullrequestworkitems endpoint returns integer ids (101).
+		// discoverWorkItems normalises both via String(ref.id), so runtime is safe;
+		// this assertion matches the fixture shape, not the wire format.
+		const meta = fixture('pr-with-work-items.json')
+		for (const ref of meta.workItemRefs) {
+			assert.equal(typeof ref.id, 'string', 'workItemRef.id must be a string')
+			assert.equal(typeof ref.url, 'string', 'workItemRef.url must be a string')
+		}
+	})
 })
