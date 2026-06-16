@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
+- (none)
+
+## [2.1.10] — 2026-06-16
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 - ADO Fetcher now fetches linked Work Items via `pullrequestworkitems` endpoint (Step 1.5) and populates `prMetadata.workItemRefs`; previously the fetcher never called this endpoint so `discoverWorkItems()` always returned `[]` and the Intent Check was silently skipped on every PR with linked Work Items (#247)
 
 ## [2.1.9] — 2026-06-09
