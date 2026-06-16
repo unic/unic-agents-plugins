@@ -83,6 +83,18 @@ describe('discoverWorkItems', () => {
 			assert.equal(item.type, 'ado-work-item')
 		}
 	})
+	it('normalises integer wire-format ids to strings', () => {
+		// The live pullrequestworkitems endpoint returns integer ids; fixtures use strings.
+		// discoverWorkItems must coerce via String(ref.id) so downstream id handling is stable
+		// regardless of wire shape — this exercises the integer branch the JSDoc `id: string | number`
+		// widening opened, which the fixture-shape tests below cannot reach.
+		const items = discoverWorkItems({
+			workItemRefs: [{ id: 42622, url: 'https://dev.azure.com/FZAG/_apis/wit/workitems/42622' }],
+		})
+		assert.equal(items.length, 1)
+		assert.equal(items[0].id, '42622')
+		assert.equal(typeof items[0].id, 'string')
+	})
 })
 
 // Fetcher contract: the ADO Fetcher (Step 1.5) must populate workItemRefs on prMetadata

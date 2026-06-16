@@ -25,7 +25,9 @@ Throws `Not an ADO PR URL: <url>` when the URL does not match `prUrlPattern`.
 
 ## `discoverWorkItems(prMetadata)`
 
-Reads the PR's **native** `workItemRefs` field and normalises each entry to
+Reads the `workItemRefs` that the ADO Fetcher populates on `prMetadata` from the
+dedicated `pullrequestworkitems` endpoint (Step 1.5 — the `pullrequests` response
+does not carry Work Item links), and normalises each entry to
 `{ id, type: "ado-work-item", url, raw }`. It never regex-scrapes the PR
 description — work-item discovery is a Provider contract (ADR-0001 amendment).
 Returns `[]` when `workItemRefs` is empty or absent.
@@ -39,8 +41,9 @@ Returns `[]` when `workItemRefs` is empty or absent.
 
 ## Adding fixtures
 
-PR-metadata fixtures live in `fixtures/`. They mirror the shape returned by
-`az devops invoke --area git --resource pullrequests`. Add a new fixture file and
+PR-metadata fixtures live in `fixtures/`. They mirror the enriched `prMetadata`
+shape — the `az devops invoke --area git --resource pullrequests` response with
+`workItemRefs` grafted on by the Fetcher (Step 1.5). Add a new fixture file and
 reference it from `tests/provider.test.mjs` via the `fixture(name)` helper. The
 `fixtures/ado-cli-inventory.json` file catalogues every `az devops invoke` call
 the ADO Fetcher agent emits; the root `tests/ado-cli-smoke.test.mjs` asserts the
