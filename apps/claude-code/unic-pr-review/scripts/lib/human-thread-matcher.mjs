@@ -77,6 +77,7 @@ export function matchHumanThreadsToFindings(findings, humanThreads) {
 				t.filePath !== null &&
 				t.filePath === finding.filePath &&
 				t.startLine !== null &&
+				typeof finding.startLine === 'number' &&
 				Math.abs(t.startLine - finding.startLine) <= LINE_PROXIMITY
 		)
 
@@ -115,6 +116,15 @@ if (isMain) {
 		humanThreads = JSON.parse(threadsRaw)
 	} catch (err) {
 		process.stderr.write(`human-thread-matcher: JSON parse error — ${/** @type {Error} */ (err).message}\n`)
+		process.exit(1)
+	}
+
+	if (!Array.isArray(findings)) {
+		process.stderr.write(`human-thread-matcher: FINDINGS_JSON must be a JSON array, got ${typeof findings}\n`)
+		process.exit(1)
+	}
+	if (!Array.isArray(humanThreads)) {
+		process.stderr.write(`human-thread-matcher: HUMAN_THREADS_JSON must be a JSON array, got ${typeof humanThreads}\n`)
 		process.exit(1)
 	}
 

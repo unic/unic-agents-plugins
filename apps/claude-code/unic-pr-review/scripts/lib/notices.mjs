@@ -88,7 +88,8 @@ export function renderNotices(ctx) {
 		)
 		for (const t of ctx.humanThreadsNotice) {
 			const location = t.filePath !== null ? `\`${t.filePath}:${t.startLine}\`` : '(general comment)'
-			const excerpt = t.excerpt.length > 80 ? t.excerpt.slice(0, 80) + '…' : t.excerpt
+			const raw = t.excerpt ?? ''
+			const excerpt = raw.length > 80 ? raw.slice(0, 80) + '…' : raw
 			lines.push(`> - Thread #${t.threadId} on ${location} — "${excerpt}"`)
 		}
 	}
