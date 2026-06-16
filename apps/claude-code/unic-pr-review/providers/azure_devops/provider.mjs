@@ -45,7 +45,7 @@ export const agents = {
  * PR's linked work-item endpoint (`pullrequestworkitems`, Step 1.5). Never
  * regex-scrapes the description — this is the ADR-0001 amendment contract.
  *
- * @param {{ workItemRefs?: Array<{ id: string, url: string }> }} prMetadata
+ * @param {{ workItemRefs?: Array<{ id: string | number, url: string }> }} prMetadata
  * @returns {Array<{ id: string, type: string, url: string, raw: object }>}
  * @throws {Error} when `prMetadata` is not a PR-metadata object (guards against a
  *   malformed stdin payload silently yielding zero Work Items)

@@ -106,6 +106,10 @@ describe('fetcher contract — prMetadata.workItemRefs is always fetcher-populat
 		assert.equal(meta.workItemRefs.length, 0)
 	})
 	it('each workItemRef has string id and url', () => {
+		// Note: fixtures use synthetic string ids ("101") for simplicity.
+		// The real ADO pullrequestworkitems endpoint returns integer ids (101).
+		// discoverWorkItems normalises both via String(ref.id), so runtime is safe;
+		// this assertion matches the fixture shape, not the wire format.
 		const meta = fixture('pr-with-work-items.json')
 		for (const ref of meta.workItemRefs) {
 			assert.equal(typeof ref.id, 'string', 'workItemRef.id must be a string')
