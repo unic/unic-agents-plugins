@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Fixed
+- (none)
+
+## [2.1.12] — 2026-06-17
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 - Linked Work Items silently dropped on large PRs: `discoverWorkItems` now takes the refs array directly (hoisted to top-level `FETCHER_OUTPUT.workItemRefs`), throws on absent/non-array input, and `review-pr.md` Step 1.5 surfaces a loud Notice when the key is absent (data-loss path) instead of silently treating it as a no-WI PR (#252)
 
 ## [2.1.11] — 2026-06-16
