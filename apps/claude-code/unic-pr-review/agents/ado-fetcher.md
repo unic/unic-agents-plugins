@@ -266,14 +266,16 @@ Otherwise the command exited zero. `git diff` exits zero on success whether or n
 
 ### Step 6 — Emit result
 
+**Authoritative-channel rule**: the single inline JSON object you emit here is the **only** authoritative output channel. Never offload required fields to a disk file — the orchestrator never reads a Fetcher-written file. On large PRs, keep the summary-tier fields (`workItemRefs`, `mode`, `changedFiles`, `diffUnavailable`, `warnings`) inline and small; the bulky `prMetadata` blob (full ADO response) may abbreviate as needed, because the orchestrator reads `workItemRefs` from the top-level field, not from `prMetadata`.
+
 Emit exactly one JSON object — no prose, no markdown, no footer (replace each `<…>` placeholder with the real value it names; `prMetadata`, `revisions`, and `threads` are objects, not strings):
 
 ```json
 {
   "prMetadata": {
-    "pullRequestId": 42,
-    "workItemRefs": [{ "id": "101", "url": "https://dev.azure.com/org/project/_apis/wit/workitems/101" }]
+    "pullRequestId": 42
   },
+  "workItemRefs": [{ "id": "101", "url": "https://dev.azure.com/org/project/_apis/wit/workitems/101" }],
   "revisions": "<REVISIONS object>",
   "threads": "<THREADS object>",
   "changedFiles": ["path/to/file.ts"],
@@ -292,6 +294,6 @@ Emit exactly one JSON object — no prose, no markdown, no footer (replace each 
 }
 ```
 
-`prMetadata` is the raw ADO `pullrequests` response enriched with `workItemRefs` from Step 1.5. `workItemRefs` is always an array (empty `[]` when no Work Items are linked or the fetch failed).
+`workItemRefs` is a **top-level** field — a small array of `{ id, url }` pairs from Step 1.5, always present (empty `[]` when no Work Items are linked or the fetch failed). It is **not** nested inside `prMetadata` so it survives inline even when the raw `prMetadata` blob is large. `prMetadata` is the raw ADO `pullrequests` response; the orchestrator reads `workItemRefs` from the top-level field, never from `prMetadata.workItemRefs`.
 
 `mode` is one of `"first-review"`, `"re-review"`, `"first-review-fallback"`. `priorRevisionId` and `priorIteration` are `null` except in `re-review` mode (where they carry `PRIOR_SIG.priorRevisionId` / `PRIOR_SIG.priorIteration`). `deltaRawDiff` is the delta diff string (empty in first-review modes). `priorFindings` is an array of `{ threadId, filePath, startLine, severity, title }` objects (empty except in `re-review` mode), where `threadId` is the number id of the ADO Thread carrying that prior finding's bot comment — it is what the Re-review Coordinator keys all thread mapping on. `humanThreads` is an array of `{ threadId, filePath, startLine, status, excerpt }` objects — Human Threads classified in Step 3b (ADR-0016). `filePath` and `startLine` are `null` for non-inline (general comment) threads. Always emitted; empty `[]` when no Human Threads exist. `diffUnavailable` is `false` when a real diff was computed (re-review always, first-review/first-review-fallback when inside a matching clone and the git diff succeeds) and `true` when a diff could not be obtained (no matching clone, missing commonRefCommit or sourceRefCommit, git diff failure, or an empty diff despite a non-empty changedFiles). `warnings` is an array of strings for any non-fatal issues. Never emit `hardStop` — the orchestrator handles all write decisions.

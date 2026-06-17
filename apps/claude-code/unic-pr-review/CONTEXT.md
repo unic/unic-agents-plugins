@@ -77,7 +77,7 @@ A folder bundle at `providers/<name>/` implementing the Source Platform contract
 _Avoid_: adapter, backend, driver
 
 **Work Item**:
-A normalised task record `{ id, type, url, raw }` returned by `provider.discoverWorkItems(prMetadata)` — an Azure Boards Work Item, a Jira issue, or a manually pasted URL in Pre-PR Mode.
+A normalised task record `{ id, type, url, raw }` returned by `provider.discoverWorkItems(workItemRefs)` — takes the refs array hoisted to `FETCHER_OUTPUT.workItemRefs` (top-level, not nested in `prMetadata`) directly. Covers an Azure Boards Work Item, a Jira issue, or a manually pasted URL in Pre-PR Mode.
 _Avoid_: ticket, story, task
 
 **Notice**:
