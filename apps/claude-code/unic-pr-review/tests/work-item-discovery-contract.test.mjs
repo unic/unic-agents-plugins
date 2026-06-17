@@ -73,7 +73,7 @@ describe('Work Item discovery contract', () => {
 	describe('ado-fetcher.md Step 6: workItemRefs is a top-level field in the output schema', () => {
 		it('Step 6 JSON example has workItemRefs at top-level indent (2 spaces)', () => {
 			const jsonBlocks = extractJsonBlocks(adoFetcher)
-			// The Step 6 output schema is the only json block in the file
+			// Identified by its two distinguishing fields; other json blocks in the file lack both
 			const step6Block = jsonBlocks.find((b) => b.includes('"prMetadata"') && b.includes('"mode"'))
 			assert.ok(step6Block, 'ado-fetcher.md must contain a Step 6 JSON output schema block')
 
@@ -91,7 +91,11 @@ describe('Work Item discovery contract', () => {
 			assert.ok(step6Block, 'ado-fetcher.md must contain a Step 6 JSON output schema block')
 
 			const lines = step6Block.split('\n')
-			// Find the prMetadata block range and check workItemRefs does not appear inside it
+			// Find the prMetadata block range and check workItemRefs does not appear inside it.
+			// Assumption: the Step 6 JSON is multi-line formatted. A single-line prMetadata
+			// block (e.g. `"prMetadata": { "pullRequestId": 42 }`) would exit insideMetadata
+			// before the violation check runs — acceptable because the ado-fetcher.md schema
+			// is always formatted with one key per line.
 			let insideMetadata = false
 			let depth = 0
 			const nestedViolations = /** @type {string[]} */ ([])

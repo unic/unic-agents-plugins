@@ -59,12 +59,17 @@ export function discoverWorkItems(workItemRefs) {
 	if (!Array.isArray(workItemRefs)) {
 		throw new Error(`Expected workItemRefs array, got ${describeType(workItemRefs)}`)
 	}
-	return workItemRefs.map((ref) => ({
-		id: String(ref.id),
-		type: 'ado-work-item',
-		url: ref.url,
-		raw: ref,
-	}))
+	return workItemRefs.map((ref, i) => {
+		if (ref.id == null) throw new Error(`workItemRefs[${i}].id is missing or null`)
+		if (typeof ref.url !== 'string')
+			throw new Error(`workItemRefs[${i}].url must be a string, got ${describeType(ref.url)}`)
+		return {
+			id: String(ref.id),
+			type: 'ado-work-item',
+			url: ref.url,
+			raw: ref,
+		}
+	})
 }
 
 /** Default export — the full Provider bundle for `providers/index.mjs`. */

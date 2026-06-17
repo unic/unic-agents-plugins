@@ -24,10 +24,12 @@ Reuse `~/.unic-confluence.json` as the shared Atlassian Credential File for both
 ## Amendment (2026-06)
 
 Work-item discovery is a **Provider contract**. Each Source Platform Provider exposes
-`discoverWorkItems(prMetadata) → [{ id, type, url, raw }]`. For ADO, the Fetcher
-populates `prMetadata.workItemRefs` from the dedicated `pullrequestworkitems` endpoint
-(Step 1.5 of the ADO Fetcher — the `pullrequests` response does not include Work Item
-links); `discoverWorkItems` then reads that field (never regex-scraping the description).
+`discoverWorkItems(workItemRefs) → [{ id, type, url, raw }]` — takes the refs array
+directly (hoisted to `FETCHER_OUTPUT.workItemRefs` top-level, not nested in `prMetadata`).
+For ADO, the Fetcher fetches `workItemRefs` from the `pullrequestworkitems` endpoint
+(Step 1.5) and emits them as a top-level field; `discoverWorkItems` receives that array
+and never regex-scrapes the description. See ADR-0010 amendment (2026-06) for the full
+rationale behind the signature change.
 For future GitHub/GitLab Providers it will use their respective native linkage endpoints.
 The Intent Checker stays Source-Platform-agnostic: it consumes the normalised list
 regardless of origin. This separates "where did the Work Items come from?" (Provider

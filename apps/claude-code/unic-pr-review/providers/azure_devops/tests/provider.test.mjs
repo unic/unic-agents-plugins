@@ -94,6 +94,24 @@ describe('discoverWorkItems', () => {
 		assert.equal(items[0].id, '42622')
 		assert.equal(typeof items[0].id, 'string')
 	})
+	it('throws on ref with missing id', () => {
+		// @ts-expect-error — deliberately omitting id to assert per-ref guard fires
+		assert.throws(
+			() => discoverWorkItems([{ url: 'https://dev.azure.com/o/p/_apis/wit/workitems/1' }]),
+			/workItemRefs\[0\]\.id is missing or null/
+		)
+	})
+	it('throws on ref with null id', () => {
+		// @ts-expect-error — deliberately passing null id to assert per-ref guard fires
+		assert.throws(
+			() => discoverWorkItems([{ id: null, url: 'https://dev.azure.com/o/p/_apis/wit/workitems/1' }]),
+			/workItemRefs\[0\]\.id is missing or null/
+		)
+	})
+	it('throws on ref with non-string url', () => {
+		// @ts-expect-error — deliberately passing undefined url to assert per-ref guard fires
+		assert.throws(() => discoverWorkItems([{ id: '1' }]), /workItemRefs\[0\]\.url must be a string/)
+	})
 })
 
 // Fetcher contract: the ADO Fetcher (Step 1.5) fetches workItemRefs from pullrequestworkitems
