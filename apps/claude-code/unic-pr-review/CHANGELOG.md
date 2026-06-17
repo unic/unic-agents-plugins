@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Linked Work Items silently dropped on large PRs: `discoverWorkItems` now takes the refs array directly (hoisted to top-level `FETCHER_OUTPUT.workItemRefs`), throws on absent/non-array input, and `review-pr.md` Step 1.5 surfaces a loud Notice when the key is absent (data-loss path) instead of silently treating it as a no-WI PR (#252)
+- `renderNotices` now emits the data-loss Summary Notice for `lostInHandoff`, so the durable notice set by `review-pr.md` Step 1.5 actually renders at the top of the Review Summary (and posts to the PR) rather than being silently dropped (#252)
 
 ## [2.1.11] — 2026-06-16
 

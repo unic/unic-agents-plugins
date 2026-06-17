@@ -106,6 +106,26 @@ describe('renderNotices', () => {
 		assert.equal(renderNotices({ unassessedIntentCheck: false }), '')
 	})
 
+	it('renders the lost-in-handoff notice when lostInHandoff is true', () => {
+		const out = renderNotices({ lostInHandoff: true })
+		assert.ok(out.includes('> **Notice:**'))
+		assert.ok(out.includes('data gap'))
+		assert.ok(out.includes('Intent Check was skipped'))
+	})
+
+	it('returns empty string when lostInHandoff is false', () => {
+		assert.equal(renderNotices({ lostInHandoff: false }), '')
+	})
+
+	it('renders lost-in-handoff notice after unassessedIntentCheck when both are set', () => {
+		const out = renderNotices({ unassessedIntentCheck: true, lostInHandoff: true })
+		const unassessedIdx = out.indexOf('Intent Check block')
+		const handoffIdx = out.indexOf('data gap')
+		assert.ok(unassessedIdx >= 0, 'Missing unassessed notice')
+		assert.ok(handoffIdx >= 0, 'Missing lost-in-handoff notice')
+		assert.ok(unassessedIdx < handoffIdx, 'unassessed notice must precede lost-in-handoff notice')
+	})
+
 	it('renders unassessed-intent-check notice after fallbackToFirstReview when both are set', () => {
 		const out = renderNotices({ fallbackToFirstReview: true, unassessedIntentCheck: true })
 		const fallbackIdx = out.indexOf('force-push detected')
