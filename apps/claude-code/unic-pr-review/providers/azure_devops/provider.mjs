@@ -41,20 +41,25 @@ export const agents = {
 }
 
 /**
- * Read the Work Item refs that the ADO Fetcher populated on `prMetadata` from the
- * PR's linked work-item endpoint (`pullrequestworkitems`, Step 1.5). Never
- * regex-scrapes the description — this is the ADR-0001 amendment contract.
+ * Normalise the Work Item refs array hoisted by the ADO Fetcher to `FETCHER_OUTPUT.workItemRefs`
+ * (top-level, never nested in `prMetadata`). Never regex-scrapes the PR description —
+ * this is the ADR-0001 amendment contract.
  *
- * @param {{ workItemRefs?: Array<{ id: string | number, url: string }> }} prMetadata
+ * Throws on `undefined` or any non-array input so a data-loss handoff (absent key on
+ * `FETCHER_OUTPUT`) is never silently collapsed into the legitimate "no Work Items linked"
+ * case (an explicit `[]` from the Fetcher). The caller must distinguish the two states and
+ * handle absent-key via the loud Notice + continue path (review-pr.md Step 1.5, ADR-0004).
+ *
+ * @param {Array<{ id: string | number, url: string }>} workItemRefs
  * @returns {Array<{ id: string, type: string, url: string, raw: object }>}
- * @throws {Error} when `prMetadata` is not a PR-metadata object (guards against a
- *   malformed stdin payload silently yielding zero Work Items)
+ * @throws {Error} when `workItemRefs` is not an array (guards against a malformed or
+ *   absent payload silently yielding zero Work Items)
  */
-export function discoverWorkItems(prMetadata) {
-	if (prMetadata === null || typeof prMetadata !== 'object' || Array.isArray(prMetadata)) {
-		throw new Error(`Expected PR metadata object with optional workItemRefs[], got ${describeType(prMetadata)}`)
+export function discoverWorkItems(workItemRefs) {
+	if (!Array.isArray(workItemRefs)) {
+		throw new Error(`Expected workItemRefs array, got ${describeType(workItemRefs)}`)
 	}
-	return (prMetadata.workItemRefs ?? []).map((ref) => ({
+	return workItemRefs.map((ref) => ({
 		id: String(ref.id),
 		type: 'ado-work-item',
 		url: ref.url,
@@ -88,7 +93,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		}
 	} else if (subcommand === 'discover-work-items') {
 		if (process.stdin.isTTY) {
-			process.stderr.write('discover-work-items expects PR metadata JSON on stdin (pipe it in)\n')
+			process.stderr.write('discover-work-items expects a workItemRefs JSON array on stdin (pipe it in)\n')
 			process.exit(1)
 		}
 		/** @type {Buffer[]} */
@@ -96,8 +101,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		process.stdin.on('data', (c) => chunks.push(c))
 		process.stdin.on('end', () => {
 			try {
-				const meta = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-				process.stdout.write(`${JSON.stringify(discoverWorkItems(meta))}\n`)
+				const refs = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+				process.stdout.write(`${JSON.stringify(discoverWorkItems(refs))}\n`)
 			} catch (err) {
 				process.stderr.write(`${errMsg(err)}\n`)
 				process.exit(1)
@@ -109,7 +114,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		})
 	} else {
 		process.stderr.write(
-			'Usage:\n  node provider.mjs parse-url <url>\n  node provider.mjs discover-work-items   (reads PR metadata JSON from stdin)\n'
+			'Usage:\n  node provider.mjs parse-url <url>\n  node provider.mjs discover-work-items   (reads workItemRefs JSON array from stdin)\n'
 		)
 		process.exit(1)
 	}

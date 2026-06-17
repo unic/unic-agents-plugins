@@ -25,3 +25,16 @@ If a fetched Work Item links to a Confluence page and the Confluence Credential 
 Work Items discovered natively by a Source Platform Provider (e.g. ADO `workItemRefs` linked to a PR) are **promised intent** and follow the same reachability doctrine as pasted Jira / Confluence URLs. If a linked Work Item is unreachable or returns an auth error, the Plugin halts with a hard-stop. `not-found` remains a soft note — matching the pasted-URL rule — because it signals that the Work Item was genuinely absent from the system (deleted or never created), not that a configuration or credentials problem prevents the Plugin from reaching ADO. Auth errors and unreachable URLs indicate a broken setup the reviewer must fix; a missing Work Item is recoverable missing context.
 
 Org-URL extraction failures (malformed or unrecognised Work Item URL shapes) are treated as unreachable: the Plugin halts and surfaces the offending URL rather than silently passing a wrong `--org` flag to `az boards work-item show`.
+
+## Amendment (2026-06) — Third intent-state: lost-in-handoff → loud Notice + continue
+
+Two existing intent states: (1) **legitimate empty** — no Work Items linked (`workItemRefs = []`) — silent, the Intent Check is simply omitted; (2) **unreachable** — a linked source cannot be fetched — hard-stop. A third state is now recognised:
+
+**(3) Lost-in-handoff** — `workItemRefs` key is **absent** from `FETCHER_OUTPUT` (the field existed in the ADO Fetcher's output contract but was not delivered to the orchestrator, e.g. because the Fetcher agent abbreviated its large inline return on a big PR and dropped the field). This is **not** a legitimate no-WI case and **not** a hard-stop: the PR may well have linked Work Items, but the data did not survive the Fetcher→orchestrator handoff.
+
+Behaviour for the lost-in-handoff state (`review-pr.md` Step 1.5):
+1. **Early terminal notice** (before the aspect fan-out): loud print telling the Reviewer that Work Item data was not delivered, the Intent Check will be skipped, and they can Ctrl-C to abort and re-run for intent coverage.
+2. **Summary Notice** (durable): a `lostInHandoff: true` flag is added to `NOTICES_CONTEXT` so the renderer emits a Notice at the top of the Review Summary — also posted to the PR when `--post` is used — creating a durable record that intent coverage was absent due to a data gap, not a deliberate design choice.
+3. **Continue** — do not stop the run; proceed with `WORK_ITEMS = []` (no Intent Check, no hard-stop).
+
+This state is distinct from legitimate-empty (silent) and unreachable (hard-stop), and is detected by checking `'workItemRefs' in FETCHER_OUTPUT` before inspecting its value.

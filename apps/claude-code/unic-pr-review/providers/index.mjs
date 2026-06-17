@@ -17,7 +17,7 @@ import { pathToFileURL } from 'node:url'
  *   prUrlPattern: RegExp,
  *   parsePrUrl: (url: string) => { orgUrl: string, project: string, repo: string, prId: number },
  *   agents: { fetcher: string, writer: string },
- *   discoverWorkItems: (prMetadata: object) => Array<{ id: string, type: string, url: string, raw: object }>,
+ *   discoverWorkItems: (workItemRefs: Array<{ id: string | number, url: string }>) => Array<{ id: string, type: string, url: string, raw: object }>,
  * }} ProviderModule
  */
 
@@ -90,7 +90,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 				process.exit(1)
 			}
 			if (process.stdin.isTTY) {
-				process.stderr.write('discover-work-items expects PR metadata JSON on stdin (pipe it in)\n')
+				process.stderr.write('discover-work-items expects a workItemRefs JSON array on stdin (pipe it in)\n')
 				process.exit(1)
 			}
 			/** @type {Buffer[]} */
@@ -98,8 +98,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			process.stdin.on('data', (c) => chunks.push(c))
 			process.stdin.on('end', () => {
 				try {
-					const meta = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-					process.stdout.write(`${JSON.stringify(provider.discoverWorkItems(meta))}\n`)
+					const refs = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+					process.stdout.write(`${JSON.stringify(provider.discoverWorkItems(refs))}\n`)
 				} catch (err) {
 					process.stderr.write(`${errMsg(err)}\n`)
 					process.exit(1)
@@ -115,7 +115,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		}
 	} else {
 		process.stderr.write(
-			'Usage:\n  node providers/index.mjs detect <url>\n  node providers/index.mjs parse-url <url>\n  node providers/index.mjs discover-work-items <url>   (reads PR metadata JSON from stdin)\n'
+			'Usage:\n  node providers/index.mjs detect <url>\n  node providers/index.mjs parse-url <url>\n  node providers/index.mjs discover-work-items <url>   (reads workItemRefs JSON array from stdin)\n'
 		)
 		process.exit(1)
 	}

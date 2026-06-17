@@ -21,7 +21,13 @@ Each Source Platform Provider ships as a folder bundle `providers/<name>/` conta
 - `fixtures/` — test fixtures co-located with the provider
 - `tests/` — the bundle's unit tests
 
-The bundle exports `name`, `label`, `prUrlPattern`, `parsePrUrl(url) → { orgUrl, project, repo, prId }`, `agents.{ fetcher, writer }` (in the `unic-pr-review:*` namespace), and `discoverWorkItems(prMetadata) → [{ id, type, url, raw }]`. `providers/index.mjs` exposes `detectProvider(url) → ProviderModule | null` by testing each registered provider's `prUrlPattern` in first-match-wins order.
+The bundle exports `name`, `label`, `prUrlPattern`, `parsePrUrl(url) → { orgUrl, project, repo, prId }`, `agents.{ fetcher, writer }` (in the `unic-pr-review:*` namespace), and `discoverWorkItems(workItemRefs) → [{ id, type, url, raw }]`. `providers/index.mjs` exposes `detectProvider(url) → ProviderModule | null` by testing each registered provider's `prUrlPattern` in first-match-wins order.
+
+## Amendment (2026-06) — discoverWorkItems signature: refs array, not prMetadata blob
+
+`discoverWorkItems` was originally specified as `discoverWorkItems(prMetadata)` — taking the raw PR-metadata object and extracting `prMetadata.workItemRefs` internally. This was changed to `discoverWorkItems(workItemRefs)` — taking the refs array directly — because `workItemRefs` buried inside the large `prMetadata` blob was silently dropped by the ADO Fetcher agent on large PRs (agent improvisation to keep inline output small; the `?? []` fallback then collapsed data-loss into the legitimate "no Work Items linked" state, bypassing the silent-false-negative guard in Fetcher Step 1.5).
+
+The fix decouples the two: the ADO Fetcher now emits `workItemRefs` as a **top-level** field on `FETCHER_OUTPUT` (small summary-tier data, always kept inline), and the orchestrator (`review-pr.md` Step 1.5) reads `FETCHER_OUTPUT.workItemRefs` directly and passes the array to `discoverWorkItems`. The raw `prMetadata` blob is no longer on the discovery data path. `discoverWorkItems` throws on any non-array input — including `undefined` from an absent key — so a handoff data-loss can never be silently swallowed.
 
 ## Consequences
 
