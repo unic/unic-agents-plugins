@@ -72,9 +72,7 @@ describe('Work Item discovery contract', () => {
 
 	describe('ado-fetcher.md Step 6: workItemRefs is a top-level field in the output schema', () => {
 		// Identified by its two distinguishing fields; other json blocks in the file lack both
-		const step6Block = extractJsonBlocks(adoFetcher).find(
-			(b) => b.includes('"prMetadata"') && b.includes('"mode"')
-		)
+		const step6Block = extractJsonBlocks(adoFetcher).find((b) => b.includes('"prMetadata"') && b.includes('"mode"'))
 
 		it('Step 6 JSON example has workItemRefs at top-level indent (2 spaces)', () => {
 			assert.ok(step6Block, 'ado-fetcher.md must contain a Step 6 JSON output schema block')
