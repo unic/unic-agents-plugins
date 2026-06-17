@@ -24,8 +24,9 @@ import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const reviewPr = readFileSync(join(ROOT, 'commands/review-pr.md'), 'utf8')
-const adoFetcher = readFileSync(join(ROOT, 'agents/ado-fetcher.md'), 'utf8')
+// Normalise CRLF → LF so regex patterns work on Windows and Unix identically.
+const reviewPr = readFileSync(join(ROOT, 'commands/review-pr.md'), 'utf8').replace(/\r\n/g, '\n')
+const adoFetcher = readFileSync(join(ROOT, 'agents/ado-fetcher.md'), 'utf8').replace(/\r\n/g, '\n')
 
 /**
  * Extract all fenced `sh` code blocks from a markdown string.
