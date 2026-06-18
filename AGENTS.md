@@ -16,7 +16,8 @@ apps/
 │   ├── unic-confluence/
 │   ├── unic-archon-dlc/
 │   ├── unic-pr-review/
-│   └── unic-spec-review/
+│   ├── unic-spec-review/
+│   └── unic-ticket-specification/
 └── copilot/                  # GitHub Copilot plugins (future)
 packages/
 ├── biome-config/             # @unic/biome-config
