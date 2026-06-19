@@ -28,6 +28,10 @@
     {
       "name": "unic-spec-review",
       "source": "./apps/claude-code/unic-spec-review"
+    },
+    {
+      "name": "unic-ticket-specification",
+      "source": "./apps/claude-code/unic-ticket-specification"
     }
   ]
 }

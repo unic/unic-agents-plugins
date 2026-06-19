@@ -130,6 +130,12 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
+  apps/claude-code/unic-ticket-specification:
+    devDependencies:
+      '@unic/release-tools':
+        specifier: workspace:*
+        version: link:../../../packages/release-tools
+
   packages/biome-config: {}
 
   packages/release-tools:

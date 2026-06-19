@@ -14,6 +14,7 @@ Each context maps to an `app:` area label on the issue tracker (see [Area labels
 - [unic-archon-dlc](./apps/claude-code/unic-archon-dlc/CONTEXT.md): Archon-powered AI development lifecycle DLC (`app:unic-archon-dlc`)
 - [unic-pr-review](./apps/claude-code/unic-pr-review/CONTEXT.md): AI-powered PR review with intent checking and Confidence-scored Findings (`app:unic-pr-review`)
 - [unic-spec-review](./apps/claude-code/unic-spec-review/CONTEXT.md): adversarial review of web specifications across Confluence, Figma, and the live system (`app:unic-spec-review`)
+- [unic-ticket-specification](./apps/claude-code/unic-ticket-specification/CONTEXT.md): portable Archon workflow that grooms a tracker ticket (Jira/Azure DevOps/GitHub) to ready-for-implementation (`app:unic-ticket-specification`)
 
 ## Workspace packages
 
@@ -36,7 +37,8 @@ This tier is a repo convention: hand-applied and maintained here, not generated 
 ## Relationships
 
 - All Plugin contexts share the vocabulary defined in the monorepo context
-- **auto-format**, **pr-review**, **unic-archon-dlc**, **unic-pr-review**, and **unic-spec-review** are Claude Code Plugins with no runtime dependencies on each other (`unic-spec-review` vendors shared code from `unic-pr-review` rather than importing it)
+- **auto-format**, **pr-review**, **unic-archon-dlc**, **unic-pr-review**, **unic-spec-review**, and **unic-ticket-specification** are Claude Code Plugins with no runtime dependencies on each other (`unic-spec-review` vendors shared code from `unic-pr-review` rather than importing it)
+- **unic-ticket-specification** ships a portable Archon workflow bundle (like **unic-archon-dlc**) rather than runtime code; it requires the Archon workflow engine in the target project and a tracker (Jira/Azure DevOps/GitHub) reachable via MCP or CLI
 - **unic-confluence** can be installed as a git dependency for use outside Claude Code.
 - **pr-review** has a soft dependency on the `pr-review-toolkit` plugin from `anthropics/claude-plugins-official`
 - **unic-archon-dlc** requires the Archon workflow engine (version ≥ 0.10) in the target project; it has no runtime dependencies on any other plugin in this repo
