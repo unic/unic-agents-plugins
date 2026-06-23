@@ -13,22 +13,22 @@ This directory drives the refactor of `unic-archon-dlc` into a Matt-Pocock-align
 
 ## Invocation prompts (one per step, in order)
 
-| # | Step | Paste this into a fresh session |
-|---|------|--------------------------------|
-| 00 | Archon schema pre-work | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/00-prework-archon-schema.md to the letter. Start in plan mode.` |
-| 01 | Foundations (PRD + ADRs + doc edits) | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/01-foundations.md to the letter. Start in plan mode.` |
-| 02 | `/handoff` workflow | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/02-handoff.md to the letter. Start in plan mode.` |
-| 03 | `/setup` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/03-setup.md to the letter. Start in plan mode.` |
-| 04 | `/specs` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/04-specs.md to the letter. Start in plan mode.` |
-| 05 | `/tickets` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/05-tickets.md to the letter. Start in plan mode.` |
-| 06 | `/build` (keystone) | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/06-build.md to the letter. Start in plan mode.` |
-| 07 | `/triage` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/07-triage.md to the letter. Start in plan mode.` |
-| 08 | `/qa` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/08-qa.md to the letter. Start in plan mode.` |
-| 09 | `/pr-review` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/09-pr-review.md to the letter. Start in plan mode.` |
-| 10 | `/improve-architecture` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/10-improve-architecture.md to the letter. Start in plan mode.` |
-| 11 | `/cleanup` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/11-cleanup.md to the letter. Start in plan mode.` |
-| 12 | `/explore` | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/12-explore.md to the letter. Start in plan mode.` |
-| 13 | Finalize diagram + docs | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/13-finalize.md to the letter. Start in plan mode.` |
+| #   | Step                                 | Paste this into a fresh session                                                                                        |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| 00  | Archon schema pre-work               | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/00-prework-archon-schema.md to the letter. Start in plan mode.` |
+| 01  | Foundations (PRD + ADRs + doc edits) | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/01-foundations.md to the letter. Start in plan mode.`           |
+| 02  | `/handoff` workflow                  | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/02-handoff.md to the letter. Start in plan mode.`               |
+| 03  | `/setup`                             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/03-setup.md to the letter. Start in plan mode.`                 |
+| 04  | `/specs`                             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/04-specs.md to the letter. Start in plan mode.`                 |
+| 05  | `/tickets`                           | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/05-tickets.md to the letter. Start in plan mode.`               |
+| 06  | `/build` (keystone)                  | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/06-build.md to the letter. Start in plan mode.`                 |
+| 07  | `/triage`                            | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/07-triage.md to the letter. Start in plan mode.`                |
+| 08  | `/qa`                                | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/08-qa.md to the letter. Start in plan mode.`                    |
+| 09  | `/pr-review`                         | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/09-pr-review.md to the letter. Start in plan mode.`             |
+| 10  | `/improve-architecture`              | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/10-improve-architecture.md to the letter. Start in plan mode.`  |
+| 11  | `/cleanup`                           | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/11-cleanup.md to the letter. Start in plan mode.`               |
+| 12  | `/explore`                           | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/12-explore.md to the letter. Start in plan mode.`               |
+| 13  | Finalize diagram + docs              | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/13-finalize.md to the letter. Start in plan mode.`              |
 
 ## Shared context (every step assumes this)
 

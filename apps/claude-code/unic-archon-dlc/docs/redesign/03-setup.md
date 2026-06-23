@@ -3,9 +3,11 @@
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Do this before the main-line workflows — they read this config.
 
 ## Goal
+
 Extend the existing `/unic-archon-dlc:setup` command + `lib/install-runner.mjs` + `lib/config-loader.mjs` to carry the new config the redesigned workflows depend on. Keep it idempotent and the sole config entry point (ADR-0001).
 
 ## Task — add config keys
+
 - `gates.<workflow>: hitl | afk` — per-workflow gate mode (default `hitl`). Workflows read this to decide whether a gate blocks for a human or runs autonomously (contract A).
 - `build.fresh_context_red_green: true` (default on) — toggles contract B's strict separation.
 - slice-granularity guidance / threshold consumed by `/tickets`.
@@ -14,11 +16,14 @@ Extend the existing `/unic-archon-dlc:setup` command + `lib/install-runner.mjs` 
 - Add "re-run after plugin update" guidance to the command doc.
 
 ## Open questions to grill first
+
 - Exact config schema shape for `gates` (flat map vs nested per-workflow object). Migration of existing `.archon/unic-dlc.config.json` in already-configured consumers (this repo is one).
 - Should `gates` defaults differ per workflow, or uniformly `hitl`?
 
 ## Done when
+
 Setup writes + round-trips the new keys, remains idempotent (fresh/partial/full states), migrates an existing config without data loss, and `lib/` tests cover the new fields. PR to `develop`.
 
 ## Suggested skills
+
 `/archon`, `/tdd` (config-loader/install-runner are pure modules — test-first), `/domain-modeling`.
