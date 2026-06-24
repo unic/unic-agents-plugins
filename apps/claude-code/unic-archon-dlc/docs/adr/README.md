@@ -8,7 +8,7 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | ---- | ---------------------------------------------------------------------------------------- | ---------------------- |
 | 0001 | Setup is a slash command delegating to `lib/install-runner.mjs`                          | Accepted               |
 | 0002 | Each plugin has its own Ralph loop with its own ralph.yml and PROMPT.md                  | Superseded by ADR-0009 |
-| 0003 | Spec template format for Ralph-executable specs                                          | Accepted               |
+| 0003 | Spec template format for Ralph-executable specs                                          | Superseded by ADR-0009 |
 | 0004 | Ralph implements one spec per iteration, then commits and stops                          | Superseded by ADR-0009 |
 | 0005 | `/tdd` for behavioral specs, direct for structural ones, dispatched by `Version impact:` | Accepted               |
 | 0006 | Feature Runner injects a scoped context bundle into every `/tdd` sub-agent invocation    | Superseded by ADR-0010 |
@@ -16,3 +16,4 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0008 | Feature Runner invokes `/tdd` non-interactively; acceptance criteria replace planning    | Superseded by ADR-0010 |
 | 0009 | Retire ralph-orchestrator; adopt unic-archon-dlc as the Feature Runner                   | Accepted               |
 | 0010 | Retire the `/implement-feature` skill; Feature Runner backed solely by `unic-dlc-build`  | Accepted               |
+| 0011 | Archon version target (≥ 0.3.12) and key-discriminated node-schema conventions           | Accepted               |
