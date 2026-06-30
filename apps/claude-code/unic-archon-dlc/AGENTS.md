@@ -62,7 +62,7 @@ Load-bearing invariants. These either originate in a Plugin ADR or are policy de
 
 ## External dependencies
 
-- **Archon workflow engine, version ≥ 0.3.12** (0.4.1 schema-compatible, not yet brew-installable), present in the Consumer project. Setup verifies this before writing any artefacts. Workflows follow the key-discriminated node schema — see [ADR-0011](docs/adr/0011-archon-schema-target.md).
+- **Archon workflow engine, version ≥ 0.5.0** (the 0.x line churns fast — 0.3.12 → 0.5.0 inside a week; the node schema is the stable contract, not the release number), present in the Consumer project. Setup verifies this before writing any artefacts. Workflows follow the key-discriminated node schema — see [ADR-0011](docs/adr/0011-archon-schema-target.md).
 
 ## Do not add
 

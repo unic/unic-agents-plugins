@@ -1,6 +1,6 @@
 # 0011. Archon version target and node-schema conventions
 
-**Status:** Accepted (2026-06-23)
+**Status:** Accepted (2026-06-23; version facts refreshed 2026-06-30 for the 0.3.12 → 0.5.0 bump — schema conventions unchanged)
 
 ## Context
 
@@ -8,24 +8,24 @@ The redesign of this plugin's workflows ([`docs/redesign/PLAN.md`](../redesign/P
 
 ### Version claim was fictional
 
-`AGENTS.md` declared the external dependency as **"Archon ≥ 0.10"**. No such version line exists. The installed CLI is **v0.3.12** (`archon version`), and the homebrew tap formula caps there: `brew … coleam00/archon/archon` reports `0.3.12 already installed`. The "update available → v0.4.1" notice points at GitHub Releases, not an installable brew upgrade — so 0.4.1 is not reachable through the normal install path on a developer machine today.
+`AGENTS.md` declared the external dependency as **"Archon ≥ 0.10"**. No such version line exists. Archon is on a fast-moving 0.x line — during this pre-work alone the installed CLI moved **v0.3.12 → v0.5.0 within a week** (both via the homebrew tap; `brew list --versions archon` → `0.5.0`). The takeaway is not a specific number but that **the version floor is a moving target and the stable contract is the node schema, not the release number** — so this ADR pins the floor to "the current installed release, verified behaviourally" rather than hard-coding a narrow version.
 
 ### Shipped workflows use a schema the CLI does not honour — silently
 
 The shipped YAMLs use a `type:` discriminator (`type: prompt|loop|interactive|bash`) plus node-level `fresh_context:`, a top-level `inputs:` block, and `{{ inputs.slug }}` / `{{ workflow.x | default(…) }}` Jinja templating.
 
-The actual Archon node schema (documented in the `/archon` skill's `references/workflow-dag.md`, honoured by both 0.3.12 and the 0.4.1 docs) is **key-discriminated**: a node's type is decided by _which_ of `command | prompt | bash | script | loop | approval | cancel` it carries (exactly one), and unknown fields are ignored. Variable substitution is `$`-style (`$ARGUMENTS`, `$nodeId.output`, `$ARTIFACTS_DIR`), not Jinja.
+The actual Archon node schema (documented in the `/archon` skill's `references/workflow-dag.md`; verified unchanged across 0.3.12, 0.4.x, and 0.5.0) is **key-discriminated**: a node's type is decided by _which_ of `command | prompt | bash | script | loop | approval | cancel` it carries (exactly one), and unknown fields are ignored. Variable substitution is `$`-style (`$ARGUMENTS`, `$nodeId.output`, `$ARTIFACTS_DIR`), not Jinja.
 
-Crucially, **`archon validate workflows <name>` passes "ok" on all seven shipped workflows** — because every node happens to carry a recognised content key (`prompt:`, `script:`, …) and the stray `type:` field is simply ignored. Validation success masks a set of silent semantic failures:
+Crucially, **`archon validate workflows <name>` passes "ok" on all seven shipped workflows** (re-confirmed on v0.5.0) — because every node happens to carry a recognised content key (`prompt:`, `script:`, …) and the stray `type:` field is simply ignored. Validation success masks a set of silent semantic failures:
 
-| Shipped form                                            | Dispatched on v0.3.12 as | Defect                                                     |
-| ------------------------------------------------------- | ------------------------ | ---------------------------------------------------------- |
-| `type: prompt` + `prompt:`                              | prompt node              | works by accident                                          |
-| `type: bash` + `runtime: bun` + `script:`               | script node              | works (mislabeled — a real bash node uses `bash:`)         |
-| `type: interactive` + `fresh_context: true` + `prompt:` | plain prompt node        | 🔴 HITL gate never pauses                                  |
-| `type: loop` + `prompt:` (no `loop:`/`until:`)          | single-shot prompt node  | 🔴 loop never iterates (e.g. plan's adversarial interview) |
-| node-level `fresh_context: true`                        | unknown field, ignored   | 🔴 anti-cheat context isolation never applied              |
-| `inputs:` block + `{{ inputs.slug }}`                   | literal passthrough      | 🔴 slug never substituted; artifact paths break            |
+| Shipped form                                            | Dispatched on v0.5.0 as | Defect                                                     |
+| ------------------------------------------------------- | ----------------------- | ---------------------------------------------------------- |
+| `type: prompt` + `prompt:`                              | prompt node             | works by accident                                          |
+| `type: bash` + `runtime: bun` + `script:`               | script node             | works (mislabeled — a real bash node uses `bash:`)         |
+| `type: interactive` + `fresh_context: true` + `prompt:` | plain prompt node       | 🔴 HITL gate never pauses                                  |
+| `type: loop` + `prompt:` (no `loop:`/`until:`)          | single-shot prompt node | 🔴 loop never iterates (e.g. plan's adversarial interview) |
+| node-level `fresh_context: true`                        | unknown field, ignored  | 🔴 anti-cheat context isolation never applied              |
+| `inputs:` block + `{{ inputs.slug }}`                   | literal passthrough     | 🔴 slug never substituted; artifact paths break            |
 
 This is worse than a parse failure: gates, loops, fresh-context isolation, and slug substitution are all inert while the CLI reports success.
 
@@ -33,8 +33,8 @@ This is worse than a parse failure: gates, loops, fresh-context isolation, and s
 
 ### Version target
 
-- **Pin the floor at Archon ≥ 0.3.12** — the installed, brew-capped, validation-verified version.
-- 0.4.1 is **schema-compatible per the published docs but unverified here** (not yet brew-installable). Treat it as forward-compatible, not as a tested target.
+- **Pin the floor at Archon ≥ 0.5.0** — the current installed, brew-shipped, behaviourally-verified release (re-validated 2026-06-30 after the 0.3.12 → 0.5.0 bump).
+- **Do not hard-pin a narrow version.** The 0.x line churns fast; the durable contract is the key-discriminated node schema below, which has held across 0.3.12 → 0.5.0. Re-validate behaviourally on each bump (gates pause, loops iterate, slugs substitute) rather than trusting the version number.
 - Correct the "≥ 0.10" claim in `AGENTS.md` (and its `CLAUDE.md` symlink) accordingly.
 
 ### Node-schema conventions (all workflows MUST follow)
@@ -50,5 +50,5 @@ This is worse than a parse failure: gates, loops, fresh-context isolation, and s
 
 - **All seven shipped workflows require a blocking migration** off the `type:`-style schema before the redesign can build on them. This migration is owned by the per-workflow redesign steps (02 onward), not this pre-work step.
 - The `$ARGUMENTS`-based slug change touches every workflow's prompts and the `lib/` path constants that assume `inputs.slug` — this is the same surface as redesign pre-work #3 (`docs/workflow/<slug>/` → `workflows/<slug>/` move) and should be sequenced with it.
-- The `/setup` runtime version-check (whatever currently asserts `0.10`) must be corrected to assert `≥ 0.3.12`; flagged as follow-up for redesign step 03 (`/setup`), since this step does not touch `lib/`.
+- The `/setup` runtime version-check (whatever currently asserts `0.10`) must be corrected to assert `≥ 0.5.0`; flagged as follow-up for redesign step 03 (`/setup`), since this step does not touch `lib/`. Given the churn, prefer a behavioural/min-floor check over an exact-version assertion.
 - This ADR records the schema conventions that all subsequent redesign steps depend on; the "Archon schema" line in the redesign shared-context is satisfied by this decision.

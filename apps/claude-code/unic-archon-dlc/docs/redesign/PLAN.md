@@ -115,13 +115,13 @@ Handled by the existing `lib/tracker-adapter.mjs` (github/ado/jira/local-markdow
 
 ## Open risks / pre-work (do before refactoring workflows)
 
-1. **★ Archon version + YAML-schema reconciliation — RESOLVED (2026-06-23). See [ADR-0011](../adr/0011-archon-schema-target.md).**
+1. **★ Archon version + YAML-schema reconciliation — RESOLVED (2026-06-23; version refreshed 2026-06-30). See [ADR-0011](../adr/0011-archon-schema-target.md).**
 
-   **Version (confirmed):** installed CLI is **v0.3.12**; the homebrew tap formula caps there (`brew … coleam00/archon/archon` → `0.3.12 already installed`). The "update available → v0.4.1" notice points at GitHub Releases, not an installable brew upgrade. The plugin's `AGENTS.md` "≥ 0.10" claim was **fictional** (no such version line) — corrected to **≥ 0.3.12** (0.4.1 schema-compatible but unverified). Target floor: **0.3.12**.
+   **Version (confirmed):** the 0.x line churns fast — installed CLI moved **v0.3.12 → v0.5.0 within a week** (both brew-shipped; `brew list --versions archon` → `0.5.0`). The plugin's `AGENTS.md` "≥ 0.10" claim was **fictional** (no such version line) — corrected to **≥ 0.5.0**. Don't hard-pin: the **node schema is the stable contract, not the release number** (it held across 0.3.12 → 0.5.0); re-validate behaviourally on each bump. Target floor: **≥ 0.5.0**.
 
    **Schema (confirmed):** Archon is **key-discriminated**, not `type:`-discriminated. Each node carries exactly one of `command | prompt | bash | script | loop | approval | cancel`; unknown fields (incl. `type:`) are silently ignored. Variables are `$`-style (`$ARGUMENTS`, `$nodeId.output`, `$ARTIFACTS_DIR`) — there is **no `inputs:` block and no `{{ }}` Jinja**.
 
-   **Silent-failure finding (the trap):** `archon validate workflows <name>` reports **"ok" on all 7 shipped workflows** — because each node carries a recognised content key and the stray `type:` is ignored. But validation success masks inert semantics. Translation table (today → target, and what actually happens on v0.3.12 now):
+   **Silent-failure finding (the trap):** `archon validate workflows <name>` reports **"ok" on all 7 shipped workflows** (re-confirmed on v0.5.0) — because each node carries a recognised content key and the stray `type:` is ignored. But validation success masks inert semantics. Translation table (today → target, and what actually happens on the installed CLI now):
 
    | Shipped (`type:`-style)                                 | Target (key-discriminated)                                                                  | Runs today as                                   |
    | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
@@ -132,7 +132,7 @@ Handled by the existing `lib/tracker-adapter.mjs` (github/ado/jira/local-markdow
    | node-level `fresh_context: true`                        | `context: fresh` (cmd/prompt) or `loop.fresh_context`                                       | 🔴 ignored — isolation never applied            |
    | `inputs:` block + `{{ inputs.slug }}`                   | slug via `$ARGUMENTS`, parsed in an early node                                              | 🔴 literal passthrough — slug never substituted |
 
-   **⚠ BLOCKING MIGRATION:** all 7 workflows must be ported off the `type:`-style schema before the redesign builds on them. Validation alone will not catch the regressions — gates, loops, fresh-context, and slug substitution must be confirmed **behaviourally**. Owned by the per-workflow steps (02+), not this pre-work step. The `$ARGUMENTS`-based slug change touches every workflow's prompts and the `lib/` path constants that assume `inputs.slug` — sequence it with pre-work #3 below. The `/setup` runtime version-check that asserts `0.10` must be corrected to `≥ 0.3.12` in step 03.
+   **⚠ BLOCKING MIGRATION:** all 7 workflows must be ported off the `type:`-style schema before the redesign builds on them. Validation alone will not catch the regressions — gates, loops, fresh-context, and slug substitution must be confirmed **behaviourally**. Owned by the per-workflow steps (02+), not this pre-work step. The `$ARGUMENTS`-based slug change touches every workflow's prompts and the `lib/` path constants that assume `inputs.slug` — sequence it with pre-work #3 below. The `/setup` runtime version-check that asserts `0.10` must be corrected to `≥ 0.5.0` in step 03 (prefer a min-floor/behavioural check over an exact-version assertion, given the churn).
 
 2. **Nested `archon workflow run` is fragile.** `/build`'s `run-build` node shells out to `archon workflow run` from _inside_ a workflow; the skill warns about `CLAUDECODE=1` nested-Claude hangs.
 3. **`docs/workflow/<slug>/` → `workflows/<slug>/` move** touches every workflow's prompts and `lib/` path constants.
