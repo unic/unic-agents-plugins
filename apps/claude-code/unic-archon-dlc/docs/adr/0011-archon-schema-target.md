@@ -49,6 +49,6 @@ This is worse than a parse failure: gates, loops, fresh-context isolation, and s
 ## Consequences
 
 - **All seven shipped workflows require a blocking migration** off the `type:`-style schema before the redesign can build on them. This migration is owned by the per-workflow redesign steps (02 onward), not this pre-work step.
-- The `$ARGUMENTS`-based slug change touches every workflow's prompts and the `lib/` path constants that assume `inputs.slug` — this is the same surface as redesign pre-work #3 (`docs/workflow/<slug>/` → `workflows/<slug>/` move) and should be sequenced with it.
+- The `$ARGUMENTS`-based slug change touches every workflow's prompts and the `lib/` path constants that assume `inputs.slug` — this is the same surface as redesign pre-work #3 (`docs/workflow/<slug>/` → `workflows/<slug>/` move, now recorded in [ADR-0015](0015-workflows-slug-artifact-home.md)) and should be sequenced with it.
 - The `/setup` runtime version-check (whatever currently asserts `0.10`) must be corrected to assert `≥ 0.5.0`; flagged as follow-up for redesign step 03 (`/setup`), since this step does not touch `lib/`. Given the churn, prefer a behavioural/min-floor check over an exact-version assertion.
 - This ADR records the schema conventions that all subsequent redesign steps depend on; the "Archon schema" line in the redesign shared-context is satisfied by this decision.

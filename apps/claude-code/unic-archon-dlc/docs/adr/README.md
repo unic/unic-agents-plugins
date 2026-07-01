@@ -16,4 +16,8 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0008 | Feature Runner invokes `/tdd` non-interactively; acceptance criteria replace planning    | Superseded by ADR-0010 |
 | 0009 | Retire ralph-orchestrator; adopt unic-archon-dlc as the Feature Runner                   | Accepted               |
 | 0010 | Retire the `/implement-feature` skill; Feature Runner backed solely by `unic-dlc-build`  | Accepted               |
-| 0011 | Archon version target (≥ 0.3.12) and key-discriminated node-schema conventions           | Accepted               |
+| 0011 | Archon version target (≥ 0.5.0) and key-discriminated node-schema conventions            | Accepted               |
+| 0012 | Fresh-context red/green separation for anti-cheating                                     | Accepted               |
+| 0013 | Issue tracker is the single source of truth; HANDOFF.md/ROADMAP.md dropped               | Accepted               |
+| 0014 | Workflow-per-box decomposition                                                           | Accepted               |
+| 0015 | `workflows/<slug>/` is the artifact home                                                 | Accepted               |
