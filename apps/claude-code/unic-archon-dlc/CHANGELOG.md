@@ -11,6 +11,18 @@
 ### Fixed
 - (none)
 
+## [0.5.0] — 2026-07-02
+
+### Breaking
+- **Dissolved `lib/dag-builder.mjs`** (+ `test/dag-builder.test.mjs`, and its entry in the `test` script) per ADR-0023. `/build` no longer executes a generated per-slug `.archon/workflows/build-<slug>.yaml`; it consumes the dependency-ordered `issues.json` from `/tickets` directly via one generic loop. Codegen was the least-generic artefact in a generic-core plugin (ADR-0018).
+
+### Added
+- **`/build` ported to the key-discriminated Archon schema (ADR-0011) as one generic red/green/refactor loop** (ADR-0023). A single `loop:` node (`fresh_context: true`) advances every slice through three SEPARATE fresh-context phases — RED (write a provably-failing test, committed only when `test_command` exits non-zero), GREEN (minimum impl reading only the committed test, never RED's session), REFACTOR (clean up under a green suite) — serially in dependency order, with on-disk `build-state.json` as the baton. Preserves the anti-cheat contract (ADR-0012); retires the nested-`archon workflow run` risk (the loop runs inline).
+- **New ADR-0023** recording the loop shape, the RED exit-code proof, refactor-as-third-fresh-phase, the dag-builder dissolution, gate honoring, and the self-contained-script convention for shipped Archon workflow nodes (no plugin-`lib/` import, since `/setup` installs only YAMLs + command stubs).
+
+### Fixed
+- (none)
+
 ## [0.4.0] — 2026-07-02
 
 ### Breaking
