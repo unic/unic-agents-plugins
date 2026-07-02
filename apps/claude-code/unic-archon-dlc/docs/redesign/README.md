@@ -4,6 +4,29 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 
 > **Two-axis update (2026-07-02):** the step-doc bodies below were written before the two-axis pivot. Where a body still says "one Archon workflow per box", **PLAN.md + ADRs 0016–0021 win.** Each step's **container** (Archon workflow vs Claude Code command/skill) is shown in the table.
 
+## Progress — update after each step
+
+> **Every step's Definition of Done includes updating this table** (Status + PR) **with the maintainer**, before the step's PR is opened. This table is the single source of truth for progress; the invocation table below is only _how to launch_.
+>
+> Legend: ✅ done · ⏭️ skip (not a build) · ▶️ next · ⬜ todo
+
+| #   | Step                    | Container   | Status  | PR / notes                                                           |
+| --- | ----------------------- | ----------- | ------- | -------------------------------------------------------------------- |
+| 00  | Archon schema pre-work  | —           | ✅ done | ADR-0011 (#262)                                                      |
+| 01  | Foundations             | —           | ✅ done | ADRs 0012–0021 + AGENTS/CONTEXT sweep (#262)                         |
+| 02  | `/handoff`              | Matt's, ref | ⏭️ skip | referenced verbatim, not shipped; dependency declared in `/setup`    |
+| 03  | `/setup`                | skill       | ▶️ next | linchpin — skill-discovery + registry every other box reads          |
+| 04  | `/specs`                | skill       | ⬜ todo | branch-on-input                                                      |
+| 05  | `/tickets`              | skill       | ⬜ todo | + dag-builder / nyquist lib                                          |
+| 06  | `/build`                | Archon      | ⬜ todo | keystone — anti-cheat red/green                                      |
+| 07  | `/triage`               | skill       | ⬜ todo | intake on-ramp                                                       |
+| 08  | `/qa`                   | Archon      | ⬜ todo | pipeline + approval gate                                             |
+| 09  | `/pr-review`            | Archon      | ⬜ todo | new — harvest unic-pr-review learnings                               |
+| 10  | `/improve-architecture` | skill       | ⬜ todo | + ADR superseding                                                    |
+| 11  | `/cleanup`              | command     | ⬜ todo | new — repo-global janitor                                            |
+| 12  | `/explore`              | Archon      | ⬜ todo | `/prototype` NOT built (Matt's referenced skill)                     |
+| 13  | Finalize                | —           | ⬜ todo | reduced — `Unic-dlc.mmd` diagram + dogfood dry-run only (sweep done) |
+
 ## How to run a step
 
 1. Start a **fresh** Claude Code session at the repo root (`unic-agents-plugins`).
@@ -15,22 +38,22 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 
 ## Invocation prompts (one per step, in order)
 
-| #   | Step (container)                         | Paste this into a fresh session                                                                                        |
-| --- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 00  | Archon schema pre-work — DONE (ADR-0011) | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/00-prework-archon-schema.md to the letter. Start in plan mode.` |
-| 01  | Foundations — DONE (ADRs 0012–0020)      | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/01-foundations.md to the letter. Start in plan mode.`           |
-| 02  | `/handoff` **(Matt's, ref)**             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/02-handoff.md to the letter. Start in plan mode.`               |
-| 03  | `/setup` **(skill)**                     | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/03-setup.md to the letter. Start in plan mode.`                 |
-| 04  | `/specs` **(skill)**                     | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/04-specs.md to the letter. Start in plan mode.`                 |
-| 05  | `/tickets` **(skill)**                   | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/05-tickets.md to the letter. Start in plan mode.`               |
-| 06  | `/build` **(Archon)** — keystone         | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/06-build.md to the letter. Start in plan mode.`                 |
-| 07  | `/triage` **(skill)**                    | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/07-triage.md to the letter. Start in plan mode.`                |
-| 08  | `/qa` **(Archon)**                       | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/08-qa.md to the letter. Start in plan mode.`                    |
-| 09  | `/pr-review` **(Archon)**                | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/09-pr-review.md to the letter. Start in plan mode.`             |
-| 10  | `/improve-architecture` **(skill)**      | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/10-improve-architecture.md to the letter. Start in plan mode.`  |
-| 11  | `/cleanup` **(skill)**                   | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/11-cleanup.md to the letter. Start in plan mode.`               |
-| 12  | `/explore` **(Archon)**                  | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/12-explore.md to the letter. Start in plan mode.`               |
-| 13  | Finalize diagram + docs                  | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/13-finalize.md to the letter. Start in plan mode.`              |
+| #   | Step (container)                    | Paste this into a fresh session                                                                                        |
+| --- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 00  | Archon schema pre-work              | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/00-prework-archon-schema.md to the letter. Start in plan mode.` |
+| 01  | Foundations                         | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/01-foundations.md to the letter. Start in plan mode.`           |
+| 02  | `/handoff` **(Matt's, ref)**        | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/02-handoff.md to the letter. Start in plan mode.`               |
+| 03  | `/setup` **(skill)**                | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/03-setup.md to the letter. Start in plan mode.`                 |
+| 04  | `/specs` **(skill)**                | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/04-specs.md to the letter. Start in plan mode.`                 |
+| 05  | `/tickets` **(skill)**              | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/05-tickets.md to the letter. Start in plan mode.`               |
+| 06  | `/build` **(Archon)** — keystone    | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/06-build.md to the letter. Start in plan mode.`                 |
+| 07  | `/triage` **(skill)**               | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/07-triage.md to the letter. Start in plan mode.`                |
+| 08  | `/qa` **(Archon)**                  | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/08-qa.md to the letter. Start in plan mode.`                    |
+| 09  | `/pr-review` **(Archon)**           | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/09-pr-review.md to the letter. Start in plan mode.`             |
+| 10  | `/improve-architecture` **(skill)** | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/10-improve-architecture.md to the letter. Start in plan mode.`  |
+| 11  | `/cleanup` **(skill)**              | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/11-cleanup.md to the letter. Start in plan mode.`               |
+| 12  | `/explore` **(Archon)**             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/12-explore.md to the letter. Start in plan mode.`               |
+| 13  | Finalize diagram + docs             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/13-finalize.md to the letter. Start in plan mode.`              |
 
 ## Shared context (every step assumes this — LOCKED; PLAN.md + ADRs have detail)
 
@@ -52,6 +75,7 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 - Add/edit ADRs in `apps/claude-code/unic-archon-dlc/docs/adr/` as the step notes.
 - `pnpm --filter unic-archon-dlc typecheck` + `test` green; `pnpm bump` + CHANGELOG entry if shipping.
 - Open a PR to `develop` (per repo Gitflow). One PR per step.
+- **Update the [Progress](#progress--update-after-each-step) table** with the maintainer — set the row's Status (→ ✅) and add the PR link — as part of the step's Definition of Done, before opening the PR.
 
 ## Suggested skills per step
 
