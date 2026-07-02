@@ -82,6 +82,7 @@ export function defaultConfig() {
 		classification: { labels: getDefaultLabels('') },
 		specs: { discuss_mode: 'discuss', gate: 'open-pr' },
 		tickets: { gate: 'open-pr' },
+		triage: { out_of_scope_dir: '.out-of-scope', external_prs: 'auto' },
 		gates: { build: 'hitl', qa: 'hitl', 'pr-review': 'hitl', explore: 'hitl' },
 		build: {
 			fresh_context_red_green: true,
