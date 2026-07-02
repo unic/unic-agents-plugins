@@ -3,10 +3,15 @@
 ## [Unreleased]
 
 ### Breaking
-- (none)
+- **Deleted the legacy `.archon/workflows/unic-dlc-plan.yaml` + `.archon/commands/unic-dlc-plan.md`** (ADR-0022). The monolithic plan workflow is fully superseded by `/specs` (PRD) + `/tickets` (issues); it also used the inert `type:`-style schema (ADR-0011).
+- **Dissolved `lib/tracker-adapter.mjs`** (+ `test/tracker-adapter.test.mjs`, and its entry in the `test` script) per ADR-0018. Tracker CLI-string generation is no longer a lib: `/tickets` (and other boxes) compose the configured tracker system-skill (MCP-first) or `gh`/`az`/`jira` CLI from config in prose (ADR-0016).
 
 ### Added
-- (none)
+- **`commands/tickets.md`** — the `/tickets` box (ADR-0022, ADR-0017): an in-session command that decomposes an approved PRD into independently-grabbable **vertical tracer-bullet slices**, attaches a test seam per slice (nyquist-map), validates the set in a single conversational pass (dependency integrity, PRD-criteria coverage, mandatory fields via `issues-schema`, test-seam presence), writes a dependency-ordered `<artifacts_dir>/<slug>/issues.json`, publishes the issues to the configured tracker (intent on the issue — contract C), and opens a HITL tickets gate. Composes Matt Pocock's `/to-issues`. Runs the definitive estimation wave when `estimations` is `definitive | both`.
+- **`tickets` config block** — `tickets.gate` (`open-pr` | `stage-only`, default `open-pr`), mirroring `specs.gate`. See ADR-0022.
+
+### Changed
+- **`/tickets` stops at a build-ready `issues.json`; it does NOT generate a build DAG** (ADR-0022). `/build` (step 06) will consume `issues.json` via a generic loop rather than a per-slug generated workflow — so `lib/dag-builder.mjs` is off the main path and left untouched pending the `/build` step. Contract B (fresh-context red/green, ADR-0012) is preserved; its delivery mechanism moves from codegen to a runtime loop. The step-06 redesign handoff doc is updated accordingly.
 
 ### Fixed
 - (none)

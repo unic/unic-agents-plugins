@@ -195,16 +195,17 @@ nodes:
            - local-markdown: check for docs/issues/<slug>-spike/index.md
            - Other trackers: search by title containing slug.
       7a. If NO existing ticket:
-           Call buildCreateCommand(tracker, title, 'spike', 'p2', labels) where
-           title = "Spike: <slug> — <one-line verdict summary>".
+           Compose the tracker skill/CLI from config (MCP-first, else gh/az/jira per
+           tracker.access — ADR-0016/0018) to create a 'spike'/'p2' ticket titled
+           "Spike: <slug> — <one-line verdict summary>".
            The body should include:
              - Link to docs/workflow/<slug>/findings.md
              - The full ## Spike verdicts section text
-           Execute or print the generated command.
+           Execute or print the composed command.
       7b. If ticket EXISTS:
-           Call buildUpdateCommand(tracker, issueId, 'needs-triage', labels)
-           and additionally update the body to append the new verdict summary.
-           Execute or print the generated command.
+           Compose the tracker skill/CLI from config to set the 'needs-triage' label on
+           <issueId> and append the new verdict summary to the body.
+           Execute or print the composed command.
       8. Print one of:
            "Spike ticket created: <title>"
            "Spike ticket updated: <issueId>"

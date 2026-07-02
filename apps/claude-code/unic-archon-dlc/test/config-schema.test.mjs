@@ -196,6 +196,11 @@ test('defaultConfig ships specs defaults: discuss_mode=discuss, gate=open-pr', (
 	assert.equal(specs.gate, 'open-pr')
 })
 
+test('defaultConfig ships tickets defaults: gate=open-pr', () => {
+	const tickets = /** @type {any} */ (defaultConfig().tickets)
+	assert.equal(tickets.gate, 'open-pr')
+})
+
 test('mergeConfig preserves a team override of specs and templates.prd, filling gaps', () => {
 	const merged = mergeConfig({ specs: { gate: 'stage-only' }, templates: { prd: '# Custom\n## Goal\n' } }, {})
 	const specs = /** @type {any} */ (merged.specs)
