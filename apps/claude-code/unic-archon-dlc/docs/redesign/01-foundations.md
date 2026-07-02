@@ -1,6 +1,6 @@
 # Step 01 — Foundations: cross-cutting ADRs + doc edits
 
-> **✓ Largely done.** Decisions recorded as ADRs 0012–0020; `AGENTS.md`/`CONTEXT.md`/PLAN.md swept to the two-axis model. This doc's original list is superseded by those ADRs — see [PLAN.md](./PLAN.md).
+> **✓ Largely done.** Decisions recorded as ADRs 0012–0021; `AGENTS.md`/`CONTEXT.md`/PLAN.md swept to the two-axis model. This doc's original list is superseded by those ADRs — see [PLAN.md](./PLAN.md).
 
 > **Read [PLAN.md](./PLAN.md), [README.md](./README.md), and step 00's ADR first.** This step records the locked cross-cutting decisions durably in the repo so every later step builds on them. No workflow YAML changes here.
 

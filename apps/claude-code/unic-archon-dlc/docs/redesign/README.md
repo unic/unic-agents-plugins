@@ -51,7 +51,7 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 | 08  | `/qa` **(Archon)**                  | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/08-qa.md to the letter. Start in plan mode.`                    |
 | 09  | `/pr-review` **(Archon)**           | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/09-pr-review.md to the letter. Start in plan mode.`             |
 | 10  | `/improve-architecture` **(skill)** | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/10-improve-architecture.md to the letter. Start in plan mode.`  |
-| 11  | `/cleanup` **(skill)**              | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/11-cleanup.md to the letter. Start in plan mode.`               |
+| 11  | `/cleanup` **(command)**            | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/11-cleanup.md to the letter. Start in plan mode.`               |
 | 12  | `/explore` **(Archon)**             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/12-explore.md to the letter. Start in plan mode.`               |
 | 13  | Finalize diagram + docs             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/13-finalize.md to the letter. Start in plan mode.`              |
 

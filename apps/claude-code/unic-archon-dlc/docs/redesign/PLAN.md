@@ -1,6 +1,6 @@
 # Refining `unic-archon-dlc` into a thin, Matt-aligned, config-driven lifecycle
 
-> Durable in-repo copy of the redesign plan. Grilled + approved 2026-06-23; **two-axis architecture added 2026-07-02** (grill-with-docs). Canonical reference for the redesign handoff sessions in this directory. Decisions are recorded as ADRs 0011–0020 in [`../adr/`](../adr/).
+> Durable in-repo copy of the redesign plan. Grilled + approved 2026-06-23; **two-axis architecture added 2026-07-02** (grill-with-docs). Canonical reference for the redesign handoff sessions in this directory. Decisions are recorded as ADRs 0011–0021 in [`../adr/`](../adr/).
 
 ## Context
 

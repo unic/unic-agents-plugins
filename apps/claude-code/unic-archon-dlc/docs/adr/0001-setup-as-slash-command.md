@@ -1,8 +1,6 @@
 # Setup is a slash command delegating to `lib/install-runner.mjs`
 
-**Status:** Accepted (2025-05)
-
-**Status:** Superseded by [ADR-0019](0019-conversational-setup.md) (2026-07-02). Setup stays a slash command, but the delegation to `lib/install-runner.mjs` is replaced by a conversational flow that composes system-skills and keeps only a thin config schema-validate/merge lib.
+**Status:** Superseded by [ADR-0019](0019-conversational-setup.md) (2026-07-02); originally Accepted (2025-05). Setup stays a slash command, but the delegation to `lib/install-runner.mjs` is replaced by a conversational flow that composes system-skills and keeps only a thin config schema-validate/merge lib.
 
 The user-facing entry point for configuring unic-archon-dlc in a target project is the
 `/unic-archon-dlc:setup` slash command (`commands/setup.md`), not a Node CLI hook. The
