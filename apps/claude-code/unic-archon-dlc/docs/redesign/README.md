@@ -19,8 +19,8 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 | 04  | `/specs`                | skill       | ✅ done | branch-on-input command; template → `templates.prd`; `specs.{discuss_mode,gate}` (#264)                                                            |
 | 05  | `/tickets`              | skill       | ✅ done | command; stops at build-ready `issues.json` (no DAG gen); `tickets` config; ADR-0022 (#265)                                                        |
 | 06  | `/build`                | Archon      | ✅ done | keystone — ported to key-discriminated schema as one generic red/green/refactor loop over `issues.json`; dag-builder dissolved; ADR-0023 (PR #266) |
-| 07  | `/triage`               | skill       | ▶️ next | intake on-ramp                                                                                                                                     |
-| 08  | `/qa`                   | Archon      | ⬜ todo | pipeline + approval gate                                                                                                                           |
+| 07  | `/triage`               | skill       | ✅ done | thin wrapper over Matt's `triage` method; single-source label binding (DLC config); retires old triage workflow; ADR-0024 (PR #267)                |
+| 08  | `/qa`                   | Archon      | ▶️ next | pipeline + approval gate                                                                                                                           |
 | 09  | `/pr-review`            | Archon      | ⬜ todo | new — harvest unic-pr-review learnings                                                                                                             |
 | 10  | `/improve-architecture` | skill       | ⬜ todo | + ADR superseding                                                                                                                                  |
 | 11  | `/cleanup`              | command     | ⬜ todo | new — repo-global janitor                                                                                                                          |
