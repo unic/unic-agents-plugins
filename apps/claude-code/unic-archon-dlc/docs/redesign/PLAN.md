@@ -125,7 +125,7 @@ No `tracker-adapter` lib. Command/prompt templates read config and compose the t
 1. **Archon schema migration — RESOLVED as a decision ([ADR-0011](../adr/0011-archon-schema-target.md)), but a BLOCKING implementation for Archon boxes.** Shipped `type:`-style workflows validate "ok" yet run inert (gates don't pause, loops run once, `fresh_context` ignored, `{{ }}`/`inputs:` never substitute). Port `/build`, `/qa`, `/pr-review`, `/explore` to the key-discriminated schema; confirm gates/loops/fresh-context **behaviourally**, not via `archon validate`.
 2. **Nested `archon workflow run`** from inside `/build` is fragile under `CLAUDECODE=1`; decide nested vs inlined vs sibling.
 3. **JSON → YAML config migration** handled by the conversational `/setup` (read old → write rich `.yaml` → backup).
-4. **Docs sweep debt:** `AGENTS.md` still says "workflow-per-box set" and references ADR-0001/0014 as canonical; `CONTEXT.md` vocabulary predates the two axes. Both are updated in the step-docs/AGENTS/CONTEXT sweep PR (not the decisions PR).
+4. **Docs sweep — DONE in this PR.** `AGENTS.md`, `CONTEXT.md`, this `README`/step-doc set, and the ADR index are aligned to the two axes. What remains is the per-box **implementation** (workflow YAML / command builds) in each box's own session, plus updating the vision diagram (`../Unic-dlc.mmd`) in step 13.
 
 ---
 
@@ -138,5 +138,5 @@ No `tracker-adapter` lib. Command/prompt templates read config and compose the t
 
 ## Per-workflow handoff stubs
 
-The numbered docs `00`–`13` in this directory predate the two-axis pivot and are **rewritten in the follow-up sweep PR** to reflect containers (skill vs Archon), composition, and the config substrate. Recommended order unchanged:
+The numbered docs `00`–`13` carry a two-axis banner and a container tag (done in this PR); their full per-box bodies are finalised in each box's own session. Recommended order unchanged:
 `00 pre-work` → `01 foundations` → `02 /handoff` → `03 /setup` → `04 /specs` → `05 /tickets` → `06 /build` → `07 /triage` → `08 /qa` → `09 /pr-review` → `10 /improve-architecture` → `11 /cleanup` → `12 /explore` → `13 finalize diagram + docs`.
