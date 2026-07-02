@@ -9,9 +9,9 @@ import { join } from 'node:path'
  */
 
 /**
- * The seven canonical PRD section headings. Used as the default `validatePrdSections` contract and
- * as the fallback structure when `templates.prd` is absent. These match the `##` headings in
- * `DEFAULT_PRD_TEMPLATE` (config-schema.mjs) — keep the two in sync.
+ * The seven canonical PRD section headings — the default `validatePrdSections` heading-set (the
+ * validation contract) used when the caller passes no explicit headings. These match the `##`
+ * headings in `DEFAULT_PRD_TEMPLATE` (config-schema.mjs) — keep the two in sync.
  * @type {readonly string[]}
  */
 export const DEFAULT_PRD_HEADINGS = [
@@ -64,15 +64,23 @@ export function readPrd(projectDir, slug, artifactsDir = 'workflows') {
 }
 
 /**
- * Validate that a PRD string contains every required section heading. Generic: the caller passes
- * the headings to enforce (derived from the active `templates.prd`), defaulting to the seven
- * canonical PRD headings.
+ * Validate that a PRD string carries every required section as a real markdown heading. Generic:
+ * the caller passes the headings to enforce (derived from the active `templates.prd`), defaulting
+ * to the seven canonical PRD headings. Matches ATX heading lines (`^#{1,6} <heading>$`) rather than
+ * a bare substring, so body prose that merely mentions "Solution" does not satisfy the gate.
  * @param {string} content
  * @param {readonly string[]} [requiredHeadings]
  * @returns {PrdValidationResult}
  */
 export function validatePrdSections(content, requiredHeadings = DEFAULT_PRD_HEADINGS) {
-	const missingSections = requiredHeadings.filter((heading) => !content.includes(heading))
+	const present = new Set(
+		content
+			.split(/\r?\n/)
+			.map((line) => line.match(/^#{1,6}\s+(.+?)\s*$/))
+			.filter((m) => m !== null)
+			.map((m) => /** @type {RegExpMatchArray} */ (m)[1])
+	)
+	const missingSections = requiredHeadings.filter((heading) => !present.has(heading))
 	return {
 		valid: missingSections.length === 0,
 		missingSections,

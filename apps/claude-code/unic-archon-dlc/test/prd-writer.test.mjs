@@ -137,6 +137,20 @@ test('validatePrdSections returns valid=false with all 7 default headings missin
 	assert.equal(result.missingSections.length, 7, 'all 7 sections should be missing')
 })
 
+test('validatePrdSections requires a real heading line, not a substring in body prose', () => {
+	// "Solution" appears in body text but there is no `## Solution` heading — must still be missing.
+	const content = `# Product Requirements Document
+
+## Problem Statement
+Our proposed Solution and Testing Decisions are described inline, but not as headings.
+`
+	const result = validatePrdSections(content)
+	assert.equal(result.valid, false, 'body mentions must not satisfy the heading gate')
+	assert.ok(result.missingSections.includes('Solution'), 'Solution heading is genuinely missing')
+	assert.ok(result.missingSections.includes('Testing Decisions'), 'Testing Decisions heading is genuinely missing')
+	assert.ok(!result.missingSections.includes('Problem Statement'), 'the real heading is detected')
+})
+
 test('validatePrdSections accepts a custom heading set', () => {
 	const content = '# Spec\n\n## Goal\nDo the thing.\n\n## Risks\nNone.\n'
 	const ok = validatePrdSections(content, ['Goal', 'Risks'])
