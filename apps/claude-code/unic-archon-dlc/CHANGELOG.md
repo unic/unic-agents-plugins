@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.3.0] — 2026-07-02
+
+### Breaking
 - **`lib/prd-writer.mjs` reshaped (ADR-0018).** The hardcoded 7-section template is gone: `writePrd(projectDir, slug, content, artifactsDir = 'workflows')` now persists an already-rendered PRD string (was `writePrd(projectDir, slug, sections)`), and `readPrd` takes the same `artifactsDir`. The PRD now lands at **`<artifacts_dir>/<slug>/PRD.md`** (default `workflows/<slug>/`), not `docs/workflow/<slug>/`. `validatePrdSections(content, requiredHeadings = DEFAULT_PRD_HEADINGS)` is now generic (headings passed in). The legacy `.archon/workflows/unic-dlc-plan.yaml` is superseded by `/specs` + `/tickets` and left untouched until step 05.
 
 ### Added
