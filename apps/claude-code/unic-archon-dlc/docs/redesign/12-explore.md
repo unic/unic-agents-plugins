@@ -1,5 +1,7 @@
 # Step 12 — `/explore` (off-line, optional)
 
+> **⚠ Two-axis update (2026-07-02):** `/explore` **stays an Archon workflow** (AFK research/spike → `findings.md`); interactive prototyping stays Matt's `/prototype` skill (ADR-0017). Keep it generic + config-driven. **[PLAN.md](./PLAN.md) is canonical.**
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Off the main line; optional precursor to `/specs`.
 
 ## Goal

@@ -1,5 +1,7 @@
 # Step 03 — `/setup` (config foundation)
 
+> **⚠ Two-axis update (2026-07-02):** `/setup` is a **conversational command/skill** (ADR-0019, supersedes 0001) — it composes team system-skills to detect/register the stack and writes rich `.archon/unic-dlc.config.yaml`; only a thin tested lib does schema-validate + idempotent merge (install-runner/setup-explorer/agent-docs-writer dissolved). **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where the body below differs.
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Do this before the main-line workflows — they read this config.
 
 ## Goal

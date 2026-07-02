@@ -1,5 +1,7 @@
 # Step 13 — Finalize: vision diagram + docs sweep
 
+> **⚠ Two-axis update (2026-07-02):** the diagram + docs must reflect the **two-axis architecture** (ADRs 0016–0020: container per box, thin process layer, compose team system-skills, `config.yaml`), not just the box set. **[PLAN.md](./PLAN.md) is canonical.**
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Last step — reconcile the docs with what was actually built.
 
 ## Goal

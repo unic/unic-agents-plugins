@@ -1,4 +1,6 @@
-# Step 02 — `/handoff` workflow (NEW)
+# Step 02 — `/handoff` (NEW skill)
+
+> **⚠ Two-axis update (2026-07-02):** `/handoff` is a **Claude Code command/skill**, NOT an Archon workflow — it compacts the live conversation, which an isolated Archon worktree structurally cannot do (that realisation triggered the whole two-axis pivot; ADR-0017). Compose Matt's `handoff`. The body below predates the pivot; **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where it differs.
 
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Smallest unit — a good warm-up that exercises the new conventions end-to-end.
 

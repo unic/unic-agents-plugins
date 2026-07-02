@@ -1,5 +1,7 @@
 # Step 05 — `/tickets` (slice PRD → issues)
 
+> **⚠ Two-axis update (2026-07-02):** `/tickets` is a **command/skill** (interactive slicing) that composes the team's tracker system-skill to publish issues, and runs the tested `dag-builder`/nyquist/schema lib to emit `build-<slug>.yaml`. No `tracker-adapter` lib (ADR-0018). **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where the body below differs.
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Second half carved out of `plan`. Feeds `/build`. **Upstream guarantor of contract B.**
 
 ## Goal

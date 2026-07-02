@@ -1,5 +1,7 @@
 # Step 00 — Pre-work: Archon schema & version reconciliation
 
+> **✓ Done (schema recorded in ADR-0011).** Still valid and it gates the Archon boxes. See [PLAN.md](./PLAN.md).
+
 > **Read [PLAN.md](./PLAN.md) and [README.md](./README.md) first.** This step GATES every other step. Mostly research; the only edits are to PLAN.md and one ADR.
 
 ## Why

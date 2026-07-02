@@ -1,5 +1,7 @@
 # Step 10 — `/improve-architecture` (off-line, from `cleanup` part A)
 
+> **⚠ Two-axis update (2026-07-02):** `/improve-architecture` is a **command/skill** composing Matt's `improve-codebase-architecture` (design grilling needs the live conversation; ADR-0017). It also supersedes stale ADRs. **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where the body below differs.
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Off the main line — periodic / on demand, not per-feature.
 
 ## Goal
