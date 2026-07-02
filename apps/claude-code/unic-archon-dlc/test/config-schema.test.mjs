@@ -207,6 +207,29 @@ test('defaultConfig ships triage defaults: out_of_scope_dir=.out-of-scope, exter
 	assert.equal(triage.external_prs, 'auto')
 })
 
+test('defaultConfig ships qa defaults: e2e_command=null, coverage_threshold=null (fall back to build.*)', () => {
+	const qa = /** @type {any} */ (defaultConfig().qa)
+	assert.equal(qa.e2e_command, null)
+	assert.equal(qa.coverage_threshold, null)
+})
+
+test('mergeConfig auto-fills the qa block for an existing config that predates it', () => {
+	// A config written before the qa block existed (e.g. the triage-era dogfood config).
+	const merged = mergeConfig(
+		{ tracker: { type: 'github' }, project: { branching: 'gitflow', pr_strategy: 'merge' } },
+		{}
+	)
+	const qa = /** @type {any} */ (merged.qa)
+	assert.deepEqual(qa, { e2e_command: null, coverage_threshold: null }, 'qa block filled from default')
+})
+
+test('mergeConfig preserves a team override of qa, filling untouched sub-keys', () => {
+	const merged = mergeConfig({ qa: { e2e_command: 'pnpm test:e2e' } }, {})
+	const qa = /** @type {any} */ (merged.qa)
+	assert.equal(qa.e2e_command, 'pnpm test:e2e', 'existing override wins')
+	assert.equal(qa.coverage_threshold, null, 'untouched sub-key filled from default')
+})
+
 test('mergeConfig preserves a team override of triage, filling untouched sub-keys', () => {
 	const merged = mergeConfig({ triage: { external_prs: 'never' } }, {})
 	const triage = /** @type {any} */ (merged.triage)
