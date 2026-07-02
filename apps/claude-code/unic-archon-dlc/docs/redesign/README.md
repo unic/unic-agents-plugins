@@ -1,8 +1,8 @@
 # unic-archon-dlc redesign — handoff sessions
 
-This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-aligned, config-driven lifecycle** (two-axis architecture). Read **[PLAN.md](./PLAN.md)** first — it is the canonical spec, alongside ADRs **0011–0020**. Each numbered file below is a **self-contained prompt** for one fresh Claude Code session. Do them **in order**; each commits durable artifacts (workflow YAML or command/skill, ADRs, lib changes) that later steps read from the repo, so a cold session always picks up cleanly.
+This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-aligned, config-driven lifecycle** (two-axis architecture). Read **[PLAN.md](./PLAN.md)** first — it is the canonical spec, alongside ADRs **0011–0021**. Each numbered file below is a **self-contained prompt** for one fresh Claude Code session. Do them **in order**; each commits durable artifacts (workflow YAML or command/skill, ADRs, lib changes) that later steps read from the repo, so a cold session always picks up cleanly.
 
-> **Two-axis update (2026-07-02):** the step-doc bodies below were written before the two-axis pivot. Where a body still says "one Archon workflow per box", **PLAN.md + ADRs 0016–0020 win.** Each step's **container** (Archon workflow vs Claude Code command/skill) is shown in the table.
+> **Two-axis update (2026-07-02):** the step-doc bodies below were written before the two-axis pivot. Where a body still says "one Archon workflow per box", **PLAN.md + ADRs 0016–0021 win.** Each step's **container** (Archon workflow vs Claude Code command/skill) is shown in the table.
 
 ## How to run a step
 
@@ -19,7 +19,7 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 | --- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 00  | Archon schema pre-work — DONE (ADR-0011) | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/00-prework-archon-schema.md to the letter. Start in plan mode.` |
 | 01  | Foundations — DONE (ADRs 0012–0020)      | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/01-foundations.md to the letter. Start in plan mode.`           |
-| 02  | `/handoff` **(skill)**                   | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/02-handoff.md to the letter. Start in plan mode.`               |
+| 02  | `/handoff` **(Matt's, ref)**             | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/02-handoff.md to the letter. Start in plan mode.`               |
 | 03  | `/setup` **(skill)**                     | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/03-setup.md to the letter. Start in plan mode.`                 |
 | 04  | `/specs` **(skill)**                     | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/04-specs.md to the letter. Start in plan mode.`                 |
 | 05  | `/tickets` **(skill)**                   | `Follow apps/claude-code/unic-archon-dlc/docs/redesign/05-tickets.md to the letter. Start in plan mode.`               |

@@ -2,6 +2,8 @@
 
 **Status:** Accepted (2026-07-02)
 
+> **Amended (2026-07-02):** per the earns-its-place test ([ADR-0021](0021-earns-its-place-compose-verbatim.md)), `/handoff` and `/prototype` are **referenced Matt skills, not shipped** (verbatim wrappers add nothing). Matt's skill suite is a declared dependency that `/setup` verifies.
+
 ## Context
 
 [ADR-0014](0014-workflow-per-box-decomposition.md) fixed the **box set** but framed every box as an _Archon workflow_ ("one Archon workflow per box"). Building `/handoff` exposed the flaw: an Archon workflow runs in an **isolated git worktree with fresh context** and has **no access to the live conversation** — yet `/handoff`'s entire job is compacting the current conversation. It is _structurally impossible_ as an Archon workflow. That is not a `/handoff` quirk; it is a test that classifies every box. Matt Pocock's skills — the process we're honouring — use **zero Archon**; they are all in-session skills because they are conversation-driven.

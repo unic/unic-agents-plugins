@@ -2,6 +2,12 @@
 
 **Status:** Accepted (2026-07-02)
 
+> **Amended (2026-07-02):**
+>
+> - **PRD destination:** repo floor always (`<artifacts_dir>/<slug>/PRD.md`); **docs-publish is opt-in** (`docs.publish`, default off) and **composes the configured docs system-skill** (e.g. `unic-confluence` for Confluence), whose injection markers guarantee the human-authored source is never overwritten.
+> - **Estimations:** the DLC **composes** an estimator (e.g. #257, or a team estimation skill) — it never builds one ([ADR-0021](0021-earns-its-place-compose-verbatim.md)). Two optional config-gated waves: **provisional @ `/specs`** (coarse, client sign-off) and **definitive @ `/tickets`** (per-slice). `estimations = off | provisional | definitive | both`.
+> - **`/prototype`** (interactive design-question tool) is **Matt's referenced skill**, not a `/specs` sub-step; the AFK spike lives in `/explore`.
+
 ## Context
 
 Two spec-building philosophies were in tension for `/specs`:

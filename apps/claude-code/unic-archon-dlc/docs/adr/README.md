@@ -25,4 +25,5 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0017 | Container follows structural need (Archon for AFK, commands/skills for interactive)      | Accepted                      |
 | 0018 | Generic core + per-project config; tested lib only for tracker-agnostic deterministic IP | Accepted                      |
 | 0019 | Conversational `/setup` + one thin tested schema lib                                     | Accepted                      |
-| 0020 | `/specs` reaches an aligned PRD by branch-on-input                                       | Accepted                      |
+| 0020 | `/specs` reaches an aligned PRD by branch-on-input                                       | Accepted (amended)            |
+| 0021 | A box ships only if it adds value; reference verbatim skills                             | Accepted                      |

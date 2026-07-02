@@ -4,6 +4,8 @@
 
 **Supersedes** [ADR-0001](0001-setup-as-slash-command.md).
 
+> **Amended (2026-07-02):** `/setup` also **discovers and registers the team's system-skills** into config — a capability→tool mapping (tracker/docs/design → `mcp | cli | skill`, MCP-first), not a presence snapshot. Discovery is **verify-only** (introspect installed skills/MCP + bash CLI probes; never installs). A missing **required** capability (incl. Matt's suite, [ADR-0021](0021-earns-its-place-compose-verbatim.md)) → **warn + degrade, non-blocking**: setup completes, records it unavailable, and lists the blocked boxes; boxes **re-probe at runtime** (MCP-first, CLI-fallback) and fail with a clear "install X".
+
 ## Context
 
 [ADR-0001](0001-setup-as-slash-command.md) had `/setup` delegate all filesystem writes to a tested `lib/install-runner.mjs` (merge `defaults < existing < answers`, marker-delimited `CLAUDE.md` update, `docs/agents/*.md` generation). Under [ADR-0016](0016-dlc-thin-process-layer.md)/[ADR-0018](0018-generic-core-config-compose.md), setup is **tracker/tenant/OS wiring** — the archetypal _how_ — so it belongs in config + composition, not a bespoke lib. Pesche's `unic-ticket-specification` (PR #257) makes setup fully conversational (markdown + bash, no lib). But one genuinely deterministic, error-prone concern hides in setup: **idempotent config read-merge-write + schema validation** (a re-run must not clobber a partial config).

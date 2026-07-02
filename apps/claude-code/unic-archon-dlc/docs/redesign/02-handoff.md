@@ -1,6 +1,6 @@
 # Step 02 — `/handoff` (NEW skill)
 
-> **⚠ Two-axis update (2026-07-02):** `/handoff` is a **Claude Code command/skill**, NOT an Archon workflow — it compacts the live conversation, which an isolated Archon worktree structurally cannot do (that realisation triggered the whole two-axis pivot; ADR-0017). Compose Matt's `handoff`. The body below predates the pivot; **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where it differs.
+> **⚠ Two-axis update (2026-07-02):** `/handoff` is a **Claude Code command/skill**, NOT an Archon workflow — it compacts the live conversation, which an isolated Archon worktree structurally cannot do (that realisation triggered the whole two-axis pivot; ADR-0017). **Not shipped** — reference Matt's `handoff` verbatim (earns-its-place test, [ADR-0021](../adr/0021-earns-its-place-compose-verbatim.md)); it's a declared dependency `/setup` verifies. The body below (which says "build a workflow/skill") is superseded; **[PLAN.md](./PLAN.md) + ADRs 0016–0021 win**. This step shrinks to: document the reference + ensure the dependency.
 
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** Smallest unit — a good warm-up that exercises the new conventions end-to-end.
 

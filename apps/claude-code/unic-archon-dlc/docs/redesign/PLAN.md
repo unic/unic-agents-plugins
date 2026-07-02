@@ -56,6 +56,19 @@ AXIS 2 — GENERICITY & COMPOSITION (applies to BOTH containers)                
 
 ---
 
+## Round-2 refinements (2026-07-02)
+
+Grill-with-docs pass 2 refined the two axes (ADRs 0016–0021):
+
+- **Earns-its-place (ADR-0021):** ship a box only if it adds value over the raw composed skill. `/handoff` and `/prototype` are **referenced Matt skills, not shipped**; Matt's skill suite is a declared dependency `/setup` verifies.
+- **`/explore` vs `/prototype`:** `/explore` is one Archon box (research + AFK spike → findings); interactive `/prototype` is Matt's referenced skill. ("prototype" was overloaded: AFK spike ≠ interactive prototype.)
+- **`/setup` skill-discovery (ADR-0019 amend):** verify-only discovery (introspect skills/MCP + CLI probes); registers a capability→tool mapping (not a presence snapshot); missing required → warn + degrade, non-blocking; boxes re-probe at runtime (MCP-first/CLI-fallback).
+- **PRD destination (ADR-0020 amend):** repo floor always (`<artifacts_dir>/<slug>/PRD.md`; `artifacts_dir` config-driven per ADR-0015 amend); docs-publish opt-in, composed via the configured docs system-skill (`unic-confluence` for Confluence — a composition layer whose injection markers guarantee non-overwrite).
+- **Estimations (ADR-0020 amend):** composed, never built; two optional waves — provisional @ `/specs`, definitive @ `/tickets` (`estimations = off | provisional | definitive | both`).
+- **#257 feedback:** it bundles two separable concerns (spec + estimate; one-way dependency). Recommend splitting, keeping the spec artifact rich enough to be the estimator's baton (avoid re-analysis).
+
+---
+
 ## Target architecture
 
 ```
@@ -65,7 +78,7 @@ MAIN LINE   /specs ──► /tickets ──► /build ──► /pr-review ─�
 ON-RAMPS    /triage ──────┤   (raw bugs/requests → agent-ready issues)   [skill]
             /qa findings ─┤
             humans ───────┘
-OFF-LINE    /setup(skill) · /explore(Archon) · /improve-architecture(skill) · /cleanup(skill) · /handoff(skill)
+OFF-LINE    /setup(skill) · /explore(Archon) · /improve-architecture(skill) · /cleanup(skill) · /handoff(Matt's, ref) · /prototype(Matt's, ref)
 ```
 
 ### Mapping from the shipped 7
