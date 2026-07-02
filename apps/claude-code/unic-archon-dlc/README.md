@@ -89,8 +89,6 @@ flowchart TD
 
 | Workflow | Node                  | Type        | Human gate |
 | -------- | --------------------- | ----------- | ---------- |
-| triage   | read-state            | prompt      | —          |
-| triage   | produce-handoff       | prompt      | —          |
 | explore  | research-stack        | prompt      | —          |
 | explore  | research-features     | prompt      | —          |
 | explore  | research-architecture | prompt      | —          |
@@ -122,7 +120,34 @@ flowchart TD
 | qa       | merge                 | bash        | —          |
 | cleanup  | arch-review           | prompt      | —          |
 | cleanup  | adr-consolidation     | interactive | ✓          |
-| cleanup  | run-triage            | bash        | —          |
+
+---
+
+## Dependencies
+
+Beyond the Archon workflow engine (see [Configuration reference](#configuration-reference)), the interactive boxes (`/specs`,
+`/tickets`, `/triage`, …) **compose [Matt Pocock's engineering skill _methods_](https://github.com/mattpocock/skills)**
+as a declared dependency — they don't reimplement them. Install the skill suite so the following are
+available to Claude Code (typically under `.agents/skills/`):
+
+| Skill method      | Composed by         |
+| ----------------- | ------------------- |
+| `grill-with-docs` | `/specs`            |
+| `to-prd`          | `/specs`            |
+| `to-issues`       | `/tickets`          |
+| `triage`          | `/triage`           |
+| `grilling`        | `/specs`, `/triage` |
+| `domain-modeling` | `/specs`, `/triage` |
+
+`/unic-archon-dlc:setup` **verifies the suite is present** and warns (non-blocking) if any method is
+missing — quality degrades but the boxes still run.
+
+> **Do _not_ run Matt's `setup-matt-pocock-skills`.** That skill writes its own tracker/label config
+> (`docs/agents/triage-labels.md`, `docs/agents/issue-tracker.md`). The DLC deliberately does not use
+> it: `/unic-archon-dlc:setup` is the **single** config source, and each box injects that config into
+> Matt's methods at invocation. Running both setups would create a second label file that can drift
+> from `.archon/unic-dlc.config.yaml` (what `/tickets` and `/build` read). Only Matt's skill
+> _methods_ are a dependency — never his setup. See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md).
 
 ---
 
@@ -149,13 +174,17 @@ Kick off research on any new problem space:
 
 **Step 3 — Triage**
 
-Check current project state and produce a HANDOFF.md at any time:
+Turn raw incoming work (a bug report, feature request, QA finding, or external PR) into an
+agent-ready issue on your tracker — the intake on-ramp into the backlog:
 
 ```
-/unic-dlc-triage
+/unic-archon-dlc:triage 42
+/unic-archon-dlc:triage "what needs my attention"
 ```
 
-From here, the full lifecycle is: explore → plan → build → qa → cleanup → triage.
+`/triage` is a thin wrapper over Matt Pocock's `triage` method, bound to your DLC config as the
+single source of truth for labels (see [Dependencies](#dependencies)). A `ready-for-agent` issue
+flows into `/tickets` next.
 
 ---
 
@@ -181,6 +210,8 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | `specs.discuss_mode`                                     | `discuss`          | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `/grill-with-docs`; `assumptions` enumerates upfront (ADR-0020)                         |
 | `specs.gate`                                             | `open-pr`          | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops                        |
 | `tickets.gate`                                           | `open-pr`          | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022) |
+| `triage.out_of_scope_dir`                                | `.out-of-scope`    | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                      |
+| `triage.external_prs`                                    | `auto`             | `auto` · `always` · `never`                   | Whether `/triage` treats external PRs as a request surface; `auto` = infer from `tracker.type` (github→yes) (ADR-0024)              |
 | `gates.{build,qa,pr-review,explore}`                     | `hitl`             | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL                                                                     |
 | `build.fresh_context_red_green`                          | `true`             | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)                                                                            |
 | `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`             | `true` · `false`                              | Build discipline toggles                                                                                                            |

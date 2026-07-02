@@ -3,13 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
-- (none)
+- **Retired the old `unic-dlc-triage` Archon workflow + command stub** (`.archon/workflows/unic-dlc-triage.yaml`, `.archon/commands/unic-dlc-triage.md`). Its state-snapshot role (writing `HANDOFF.md` / `ROADMAP.md`) was already retired by ADR-0013, and it used the inert `type:`-style schema (ADR-0011). `/triage` now means the intake on-ramp (ADR-0024).
 
 ### Added
-- (none)
+- **`/triage` intake on-ramp command** (`commands/triage.md`, ADR-0024) — a thin wrapper that turns raw work (bugs, requests, QA findings, external PRs) into agent-ready tracker issues feeding `/tickets`. It **composes Matt Pocock's `triage` method but injects `classification.labels` from `.archon/unic-dlc.config.yaml` as the single source of truth** for labels (forbidding Matt's `docs/agents/triage-labels.md` / `issue-tracker.md`), so labels can't drift from what `/tickets` + `/build` read. Consequently `setup-matt-pocock-skills` is not a plugin dependency — only Matt's skill _methods_ are. Best-effort verification, no config knob; inherently HITL (writes directly, no PR gate); produces no `issues.json`/PRD.
+- **`triage` config block** in `defaultConfig()` — `{ out_of_scope_dir: '.out-of-scope', external_prs: 'auto' }`, the DLC-config home for the two knobs Matt's setup would otherwise write to `docs/agents/*`. `mergeConfig` auto-fills them for existing configs (no `/setup` change).
+- **New ADR-0024** recording the intake-on-ramp meaning, the thin-wrapper delegation, the single-source compose rule, the 8-state↔Matt-5-role mapping (`needs-specs`→`/specs`), and the retirement.
+- **README `## Dependencies` section** documenting how to install Matt's skill-method suite and why `setup-matt-pocock-skills` must not be run.
 
 ### Fixed
-- (none)
+- **De-referenced the retired triage workflow from `unic-dlc-cleanup`** — removed cleanup's dangling terminal `run-triage` node (which invoked `archon workflow run unic-dlc-triage`) and its `HANDOFF.md` / `ROADMAP.md` output rows. Surgical reference cleanup only; the full `/cleanup` redesign is step 11.
+- **Added the missing ADR-0023 + ADR-0024 rows** to `docs/adr/README.md` index.
 
 ## [0.5.0] — 2026-07-02
 

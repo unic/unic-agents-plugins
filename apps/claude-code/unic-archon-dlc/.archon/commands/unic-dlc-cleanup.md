@@ -1,7 +1,6 @@
 # /unic-dlc-cleanup
 
-Post-merge cleanup for a planning session: architecture review, ADR consolidation, and a
-triage pass to refresh project state.
+Post-merge cleanup for a planning session: architecture review and ADR consolidation.
 
 ## Usage
 
@@ -34,11 +33,6 @@ Where `<slug>` is the session identifier used throughout the plan → build → 
    Each ADR is shown with Context, Decision, and Consequences. The user accepts (A),
    rejects (R), or edits (E) each candidate. Only accepted ADRs are written to `docs/adr/`.
 
-3. **`run-triage` node** — invokes the shared triage workflow by name via
-   `archon workflow run unic-dlc-triage`. No triage logic is duplicated in the cleanup
-   workflow. This produces `HANDOFF.md` and updates `docs/workflow/ROADMAP.md` exactly
-   once per cleanup run.
-
 ## Prerequisites
 
 - The build and QA cycles for `<slug>` must be complete (build PR merged, QA approved)
@@ -51,8 +45,6 @@ Where `<slug>` is the session identifier used throughout the plan → build → 
 | ------------------------------------- | ----------------------------------------------- |
 | `docs/workflow/<slug>/arch-review.md` | Architecture review with drift findings         |
 | `docs/adr/NNNN-*.md`                  | Accepted ADRs (one file per accepted candidate) |
-| `HANDOFF.md`                          | Updated handoff snapshot (from triage)          |
-| `docs/workflow/ROADMAP.md`            | Updated project phase (from triage)             |
 
 ## Runs
 

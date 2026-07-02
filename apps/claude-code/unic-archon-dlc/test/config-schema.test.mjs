@@ -201,6 +201,19 @@ test('defaultConfig ships tickets defaults: gate=open-pr', () => {
 	assert.equal(tickets.gate, 'open-pr')
 })
 
+test('defaultConfig ships triage defaults: out_of_scope_dir=.out-of-scope, external_prs=auto', () => {
+	const triage = /** @type {any} */ (defaultConfig().triage)
+	assert.equal(triage.out_of_scope_dir, '.out-of-scope')
+	assert.equal(triage.external_prs, 'auto')
+})
+
+test('mergeConfig preserves a team override of triage, filling untouched sub-keys', () => {
+	const merged = mergeConfig({ triage: { external_prs: 'never' } }, {})
+	const triage = /** @type {any} */ (merged.triage)
+	assert.equal(triage.external_prs, 'never', 'existing override wins')
+	assert.equal(triage.out_of_scope_dir, '.out-of-scope', 'untouched sub-key filled from default')
+})
+
 test('mergeConfig preserves a team override of specs and templates.prd, filling gaps', () => {
 	const merged = mergeConfig({ specs: { gate: 'stage-only' }, templates: { prd: '# Custom\n## Goal\n' } }, {})
 	const specs = /** @type {any} */ (merged.specs)
