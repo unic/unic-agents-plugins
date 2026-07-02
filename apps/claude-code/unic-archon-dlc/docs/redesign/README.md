@@ -18,7 +18,7 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 | 03  | `/setup`                | skill       | ✅ done | conversational skill + `config-schema` lib; rich YAML config (#263)                                                                                |
 | 04  | `/specs`                | skill       | ✅ done | branch-on-input command; template → `templates.prd`; `specs.{discuss_mode,gate}` (#264)                                                            |
 | 05  | `/tickets`              | skill       | ✅ done | command; stops at build-ready `issues.json` (no DAG gen); `tickets` config; ADR-0022 (#265)                                                        |
-| 06  | `/build`                | Archon      | ✅ done | keystone — ported to key-discriminated schema as one generic red/green/refactor loop over `issues.json`; dag-builder dissolved; ADR-0023 (PR #TBD) |
+| 06  | `/build`                | Archon      | ✅ done | keystone — ported to key-discriminated schema as one generic red/green/refactor loop over `issues.json`; dag-builder dissolved; ADR-0023 (PR #266) |
 | 07  | `/triage`               | skill       | ▶️ next | intake on-ramp                                                                                                                                     |
 | 08  | `/qa`                   | Archon      | ⬜ todo | pipeline + approval gate                                                                                                                           |
 | 09  | `/pr-review`            | Archon      | ⬜ todo | new — harvest unic-pr-review learnings                                                                                                             |
