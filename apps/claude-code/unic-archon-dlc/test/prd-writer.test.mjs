@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { readPrd, validatePrdSections, writePrd } from '../lib/prd-writer.mjs'
+import { DEFAULT_PRD_HEADINGS, readPrd, validatePrdSections, writePrd } from '../lib/prd-writer.mjs'
 
 let _seq = 0
 function tempDir() {
@@ -14,116 +14,111 @@ function tempDir() {
 	return p
 }
 
-const FULL_SECTIONS = {
-	problemStatement: 'The current setup requires manual steps.',
-	solution: 'Automate via a workflow YAML DAG.',
-	userStories: 'As a developer, I want to run a single command.',
-	implementationDecisions: 'Use pure ESM modules, no external deps.',
-	testingDecisions: 'node:test with tmp dirs; no mocks.',
-	outOfScope: 'GUI tooling, cloud deployments.',
-	furtherNotes: 'Revisit after v1 ships.',
-}
+const FULL_PRD = `# Product Requirements Document
+
+## Problem Statement
+The current setup requires manual steps.
+
+## Solution
+Automate via a workflow YAML DAG.
+
+## User Stories
+As a developer, I want to run a single command.
+
+## Implementation Decisions
+Use pure ESM modules, no external deps.
+
+## Testing Decisions
+node:test with tmp dirs; no mocks.
+
+## Out of Scope
+GUI tooling, cloud deployments.
+
+## Further Notes
+Revisit after v1 ships.
+`
 
 // --- writePrd ---
 
-test('writePrd creates docs/workflow/<slug>/PRD.md with all 7 sections', () => {
+test('writePrd creates <artifacts_dir>/<slug>/PRD.md (default workflows/)', () => {
 	const projectDir = tempDir()
-	writePrd(projectDir, 'my-feature', FULL_SECTIONS)
+	writePrd(projectDir, 'my-feature', FULL_PRD)
 
-	const prdPath = join(projectDir, 'docs', 'workflow', 'my-feature', 'PRD.md')
-	assert.ok(existsSync(prdPath), 'PRD.md must exist after writePrd')
-
-	const content = readFileSync(prdPath, 'utf8')
-
-	assert.ok(content.includes('Problem Statement'), 'should contain Problem Statement heading')
-	assert.ok(content.includes('Solution'), 'should contain Solution heading')
-	assert.ok(content.includes('User Stories'), 'should contain User Stories heading')
-	assert.ok(content.includes('Implementation Decisions'), 'should contain Implementation Decisions heading')
-	assert.ok(content.includes('Testing Decisions'), 'should contain Testing Decisions heading')
-	assert.ok(content.includes('Out of Scope'), 'should contain Out of Scope heading')
-	assert.ok(content.includes('Further Notes'), 'should contain Further Notes heading')
+	const prdPath = join(projectDir, 'workflows', 'my-feature', 'PRD.md')
+	assert.ok(existsSync(prdPath), 'PRD.md must exist under workflows/<slug>/')
 })
 
-test('writePrd writes actual section content into PRD.md', () => {
+test('writePrd writes the exact content it is given', () => {
 	const projectDir = tempDir()
-	writePrd(projectDir, 'content-check', FULL_SECTIONS)
+	writePrd(projectDir, 'content-check', FULL_PRD)
 
-	const prdPath = join(projectDir, 'docs', 'workflow', 'content-check', 'PRD.md')
-	const content = readFileSync(prdPath, 'utf8')
-
-	assert.ok(content.includes('The current setup requires manual steps.'), 'problemStatement body present')
-	assert.ok(content.includes('Automate via a workflow YAML DAG.'), 'solution body present')
-	assert.ok(content.includes('As a developer, I want to run a single command.'), 'userStories body present')
-	assert.ok(content.includes('Use pure ESM modules, no external deps.'), 'implementationDecisions body present')
-	assert.ok(content.includes('node:test with tmp dirs; no mocks.'), 'testingDecisions body present')
-	assert.ok(content.includes('GUI tooling, cloud deployments.'), 'outOfScope body present')
-	assert.ok(content.includes('Revisit after v1 ships.'), 'furtherNotes body present')
+	const content = readFileSync(join(projectDir, 'workflows', 'content-check', 'PRD.md'), 'utf8')
+	assert.equal(content, FULL_PRD, 'PRD.md content should match the string passed to writePrd')
 })
 
 test('writePrd creates intermediate directories if absent', () => {
 	const projectDir = tempDir()
 	const slug = 'deep-feature'
-	// Directory does not exist yet
-	assert.ok(!existsSync(join(projectDir, 'docs', 'workflow', slug)), 'dir should not exist before call')
+	assert.ok(!existsSync(join(projectDir, 'workflows', slug)), 'dir should not exist before call')
 
-	writePrd(projectDir, slug, FULL_SECTIONS)
+	writePrd(projectDir, slug, FULL_PRD)
 
-	const prdPath = join(projectDir, 'docs', 'workflow', slug, 'PRD.md')
-	assert.ok(existsSync(prdPath), 'PRD.md should be created including intermediate dirs')
+	assert.ok(
+		existsSync(join(projectDir, 'workflows', slug, 'PRD.md')),
+		'PRD.md should be created with intermediate dirs'
+	)
+})
+
+test('writePrd honours a custom artifactsDir', () => {
+	const projectDir = tempDir()
+	writePrd(projectDir, 'custom-dir', FULL_PRD, 'artifacts')
+
+	assert.ok(
+		existsSync(join(projectDir, 'artifacts', 'custom-dir', 'PRD.md')),
+		'PRD.md should land under the custom dir'
+	)
+	assert.ok(!existsSync(join(projectDir, 'workflows', 'custom-dir', 'PRD.md')), 'default dir should not be used')
 })
 
 // --- readPrd ---
 
 test('readPrd returns null if PRD.md does not exist', () => {
 	const projectDir = tempDir()
-	const result = readPrd(projectDir, 'no-prd')
-	assert.equal(result, null, 'should return null when PRD.md is absent')
+	assert.equal(readPrd(projectDir, 'no-prd'), null, 'should return null when PRD.md is absent')
 })
 
 test('readPrd returns PRD.md content if it exists', () => {
 	const projectDir = tempDir()
 	const slug = 'existing-prd'
-	const prdDir = join(projectDir, 'docs', 'workflow', slug)
-	mkdirSync(prdDir, { recursive: true })
+	const dir = join(projectDir, 'workflows', slug)
+	mkdirSync(dir, { recursive: true })
 	const expected = '# PRD\n\nSome content.'
-	writeFileSync(join(prdDir, 'PRD.md'), expected)
+	writeFileSync(join(dir, 'PRD.md'), expected)
 
-	const result = readPrd(projectDir, slug)
-	assert.equal(result, expected, 'should return exact PRD.md content')
+	assert.equal(readPrd(projectDir, slug), expected, 'should return exact PRD.md content')
+})
+
+test('readPrd honours a custom artifactsDir', () => {
+	const projectDir = tempDir()
+	writePrd(projectDir, 'roundtrip', FULL_PRD, 'artifacts')
+
+	assert.equal(readPrd(projectDir, 'roundtrip', 'artifacts'), FULL_PRD, 'read should mirror the custom write dir')
+	assert.equal(readPrd(projectDir, 'roundtrip'), null, 'default dir should not find the custom-dir PRD')
 })
 
 // --- validatePrdSections ---
 
-test('validatePrdSections returns valid=true for a PRD with all 7 headings', () => {
-	const content = `# Product Requirements Document
+test('DEFAULT_PRD_HEADINGS exposes the seven canonical headings', () => {
+	assert.equal(DEFAULT_PRD_HEADINGS.length, 7, 'there should be seven canonical PRD headings')
+})
 
-## Problem Statement
-The current setup is manual.
-
-## Solution
-Automate it.
-
-## User Stories
-As a user...
-
-## Implementation Decisions
-Use ESM modules.
-
-## Testing Decisions
-Use node:test.
-
-## Out of Scope
-GUI tooling.
-
-## Further Notes
-Revisit later.
-`
-	const result = validatePrdSections(content)
+test('validatePrdSections returns valid=true for a PRD with all 7 default headings', () => {
+	const result = validatePrdSections(FULL_PRD)
 	assert.equal(result.valid, true, 'should be valid')
 	assert.deepEqual(result.missingSections, [], 'no missing sections')
 })
 
-test('validatePrdSections returns valid=false and lists missing sections when headings absent', () => {
+test('validatePrdSections returns valid=false and lists missing default headings', () => {
 	const content = `# Product Requirements Document
 
 ## Problem Statement
@@ -132,16 +127,22 @@ Only this section.
 	const result = validatePrdSections(content)
 	assert.equal(result.valid, false, 'should not be valid')
 	assert.ok(result.missingSections.includes('Solution'), 'Solution should be missing')
-	assert.ok(result.missingSections.includes('User Stories'), 'User Stories should be missing')
-	assert.ok(result.missingSections.includes('Implementation Decisions'), 'Implementation Decisions should be missing')
-	assert.ok(result.missingSections.includes('Testing Decisions'), 'Testing Decisions should be missing')
-	assert.ok(result.missingSections.includes('Out of Scope'), 'Out of Scope should be missing')
 	assert.ok(result.missingSections.includes('Further Notes'), 'Further Notes should be missing')
 	assert.ok(!result.missingSections.includes('Problem Statement'), 'Problem Statement should not be listed as missing')
 })
 
-test('validatePrdSections returns valid=false with all sections missing for empty content', () => {
+test('validatePrdSections returns valid=false with all 7 default headings missing for empty content', () => {
 	const result = validatePrdSections('')
 	assert.equal(result.valid, false, 'empty content is not valid')
 	assert.equal(result.missingSections.length, 7, 'all 7 sections should be missing')
+})
+
+test('validatePrdSections accepts a custom heading set', () => {
+	const content = '# Spec\n\n## Goal\nDo the thing.\n\n## Risks\nNone.\n'
+	const ok = validatePrdSections(content, ['Goal', 'Risks'])
+	assert.equal(ok.valid, true, 'custom headings present → valid')
+
+	const bad = validatePrdSections(content, ['Goal', 'Rollback'])
+	assert.equal(bad.valid, false, 'a missing custom heading → invalid')
+	assert.deepEqual(bad.missingSections, ['Rollback'], 'lists the missing custom heading')
 })

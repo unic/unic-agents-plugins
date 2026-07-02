@@ -3,10 +3,15 @@
 ## [Unreleased]
 
 ### Breaking
-- (none)
+- **`lib/prd-writer.mjs` reshaped (ADR-0018).** The hardcoded 7-section template is gone: `writePrd(projectDir, slug, content, artifactsDir = 'workflows')` now persists an already-rendered PRD string (was `writePrd(projectDir, slug, sections)`), and `readPrd` takes the same `artifactsDir`. The PRD now lands at **`<artifacts_dir>/<slug>/PRD.md`** (default `workflows/<slug>/`), not `docs/workflow/<slug>/`. `validatePrdSections(content, requiredHeadings = DEFAULT_PRD_HEADINGS)` is now generic (headings passed in). The legacy `.archon/workflows/unic-dlc-plan.yaml` is superseded by `/specs` + `/tickets` and left untouched until step 05.
 
 ### Added
-- (none)
+- **`commands/specs.md`** — the `/specs` box (ADR-0020, ADR-0017): an in-session command that turns an idea (or an existing spec / Figma / UX / issue) into one human-approved PRD by **branch-on-input** (converse / ingest / hybrid), composing Matt Pocock's `/grill-with-docs` + `/to-prd` and the configured docs/design/tracker system-skill (MCP-first, CLI-fallback). Adds a seam-design approval step, config-gated provisional estimation, opt-in docs publishing, and a HITL PRD gate.
+- **`templates.prd` default** — the 7-section PRD scaffold now ships in config (`DEFAULT_PRD_TEMPLATE` in `config-schema.mjs`, ADR-0018); teams override it to change the PRD shape.
+- **`specs` config block** — `specs.discuss_mode` (`discuss` | `assumptions`, default `discuss`) and `specs.gate` (`open-pr` | `stage-only`, default `open-pr`). See the amended ADR-0020.
+
+### Changed
+- **`README.md`** configuration reference: `templates.prd` now defaults to the scaffold; added `specs.discuss_mode` and `specs.gate` rows.
 
 ### Fixed
 - (none)

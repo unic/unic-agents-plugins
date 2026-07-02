@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { parse as parseYaml } from 'yaml'
 import {
+	DEFAULT_PRD_TEMPLATE,
 	defaultConfig,
 	isLegacyConfig,
 	loadConfig,
@@ -15,6 +16,7 @@ import {
 	toYaml,
 	validateConfig,
 } from '../lib/config-schema.mjs'
+import { DEFAULT_PRD_HEADINGS } from '../lib/prd-writer.mjs'
 
 let _seq = 0
 function tempDir() {
@@ -177,4 +179,29 @@ test('toYaml validates then serializes; round-trips through loadConfig', () => {
 test('toYaml refuses to serialize an invalid config', () => {
 	const emitted = toYaml(defaultConfig()) // mandatory leaves still null
 	assert.ok('error' in emitted && emitted.error === true)
+})
+
+test('defaultConfig ships the PRD template in config (ADR-0018), carrying every canonical heading', () => {
+	const templates = /** @type {any} */ (defaultConfig().templates)
+	assert.equal(typeof templates.prd, 'string', 'templates.prd is the default scaffold, not null')
+	for (const heading of DEFAULT_PRD_HEADINGS) {
+		assert.ok(templates.prd.includes(`## ${heading}`), `scaffold should carry the "${heading}" heading`)
+	}
+	assert.equal(templates.prd, DEFAULT_PRD_TEMPLATE, 'default templates.prd is DEFAULT_PRD_TEMPLATE')
+})
+
+test('defaultConfig ships specs defaults: discuss_mode=discuss, gate=open-pr', () => {
+	const specs = /** @type {any} */ (defaultConfig().specs)
+	assert.equal(specs.discuss_mode, 'discuss')
+	assert.equal(specs.gate, 'open-pr')
+})
+
+test('mergeConfig preserves a team override of specs and templates.prd, filling gaps', () => {
+	const merged = mergeConfig({ specs: { gate: 'stage-only' }, templates: { prd: '# Custom\n## Goal\n' } }, {})
+	const specs = /** @type {any} */ (merged.specs)
+	const templates = /** @type {any} */ (merged.templates)
+	assert.equal(specs.gate, 'stage-only', 'existing override wins')
+	assert.equal(specs.discuss_mode, 'discuss', 'untouched sub-key filled from default')
+	assert.equal(templates.prd, '# Custom\n## Goal\n', 'a custom PRD template replaces the default wholesale')
+	assert.equal(templates.issue, null, 'sibling template default retained')
 })
