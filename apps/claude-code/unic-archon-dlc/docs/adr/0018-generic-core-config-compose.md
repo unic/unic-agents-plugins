@@ -17,13 +17,17 @@
 **Tested lib survives only for novel, deterministic, tracker-agnostic IP** that has no existing tool to compose:
 
 ```
-KEEP as tested lib:  dag-builder · slopcheck · stub-detector · issues+PRD schema-validation
+KEEP as tested lib:  slopcheck · stub-detector · issues+PRD schema-validation
                      · thin config validate/merge · tiny archon version-guard
 DISSOLVE into config + prose composition:
                      tracker-adapter · labels-config · prd-writer(templates) · install-runner
                      · setup-explorer · agent-docs-writer · handoff-generator · findings-writer
                      · spike-verdicts · config-loader (absorbed into the thin config lib)
 ```
+
+> `dag-builder` was originally in the KEEP list here; it was later dissolved by
+> [ADR-0023](0023-build-generic-red-green-refactor-loop.md) (see the amendment note above) once
+> `/build` moved from per-slug DAG codegen to a generic runtime loop.
 
 **The config substrate** becomes a rich per-project **`.archon/unic-dlc.config.yaml`** (replacing the thin `.archon/unic-dlc.config.json`), deliberately **converged with `unic-ticket-specification`'s schema** so the two plugins share a config philosophy. It carries: `project`, `tracker` (`type`, `access:{mcp,cli}`, per-tracker coords), `docs` (`type`), `repos`, **`templates`** (PRD/issue/bug — dissolving `prd-writer`'s hardcoded sections into a generic, config-driven validator), `classification`, plus the DLC's own `gates` and `build` keys.
 
