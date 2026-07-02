@@ -1,14 +1,41 @@
 # unic-archon-dlc
 
-An Archon-powered AI development lifecycle DLC that scaffolds a workflow-per-box set — main line
+A **thin process layer** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
-off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff` — plus agent-skill
-docs into any target project. Configuration is performed once via the `/unic-archon-dlc:setup`
-slash command. See `docs/adr/0014-workflow-per-box-decomposition.md` for the box set.
+off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) and **composes the
+team's system-skills for the _how_**. Each box's container follows its structural need: Archon
+workflows for the AFK-isolated legs, Claude Code commands/skills for the interactive ones.
+Configured via the `/unic-archon-dlc:setup` slash command. See `docs/adr/0016`–`0018` for the
+two-axis architecture and `docs/adr/0014` for the box set.
 
 Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
 
 ## Language
+
+### Architecture
+
+**Thin process layer**:
+The DLC owns the _what_ (the lifecycle and artefact shapes) and composes the team's system-skills
+for the _how_. See `docs/adr/0016-dlc-thin-process-layer.md`.
+_Avoid_: framework, integration layer
+
+**System-skill**:
+A team-provided capability that talks to one of their systems (a Confluence skill, the
+`azure-devops-cli` skill, the Figma MCP, `gh`/`az`/`jira`). Boxes compose these; the plugin never
+reimplements them.
+_Avoid_: integration, adapter, provider
+
+**Container**:
+How a box is packaged — an **Archon workflow** (AFK-isolated: `/build`, `/qa`, `/pr-review`,
+`/explore`) or a **Claude Code command/skill** (interactive/repo-global: the rest). Container
+follows structural need. See `docs/adr/0017-container-follows-structural-need.md`.
+_Avoid_: using "workflow" as a synonym for a box
+
+**config.yaml**:
+The rich per-project `.archon/unic-dlc.config.yaml` (converged with `unic-ticket-specification`)
+holding all tracker/tenant/OS/template specifics; boxes read it and compose accordingly (MCP-first,
+CLI-fallback). See `docs/adr/0018-generic-core-config-compose.md`.
+_Avoid_: config.json (the retired thin form)
 
 ### Session lifecycle
 
@@ -32,8 +59,9 @@ _Avoid_: ticket, ready ticket, groomed issue
 ### Planning artifacts
 
 **PRD**:
-Product Requirements Document produced by the `to-prd` node in the `/specs` workflow and stored at
-`workflows/<slug>/PRD.md`. Must contain exactly the seven mandatory sections.
+Product Requirements Document produced by the `/specs` command (branch-on-input; via Matt's
+`to-prd`) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
+and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
 **Findings**:
@@ -47,9 +75,9 @@ Each entry carries a `test_command` required for Nyquist validation.
 _Avoid_: tickets, tasks list
 
 **Nyquist map**:
-The node in the `/tickets` workflow that validates every issue in Issues JSON has a `test_command`
-before yaml-gen runs. Named after the Nyquist sampling theorem analogy: you must observe
-behaviour at twice the frequency to reconstruct it faithfully.
+The validation the `/tickets` command runs (via tested lib) to ensure every issue in Issues JSON
+has a `test_command` before `dag-builder` generates the build DAG. Named after the Nyquist sampling
+theorem analogy: you must observe behaviour at twice the frequency to reconstruct it faithfully.
 _Avoid_: validation node, test-command check
 
 ### Build discipline
@@ -77,17 +105,18 @@ Packages that fail the check are flagged `[ASSUMED]` and require explicit human 
 _Avoid_: package check, dependency audit
 
 **yaml-gen**:
-The bash node in the `/tickets` workflow that generates `.archon/workflows/build-<slug>.yaml` — a DAG
-of `code-red` and `code-green` nodes for every issue, with correct `depends_on` edges derived
-from the `blocked_by` fields in Issues JSON.
+The tested `dag-builder` lib step the `/tickets` command runs to generate
+`.archon/workflows/build-<slug>.yaml` — a DAG of `code-red` and `code-green` nodes for every issue,
+with `depends_on` edges derived from the `blocked_by` fields in Issues JSON.
 _Avoid_: build generator, workflow generator
 
 ### Plugin entry points
 
 **Setup**:
 The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
-`/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.json`, generates `docs/agents/*.md`,
-and refreshes the marker-delimited `## Agent skills` block in `CLAUDE.md`. Idempotent: re-running
+`/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.yaml`, discovers and registers the team's system-skills,
+and refreshes the marker-delimited `## Agent skills` block in `CLAUDE.md`. Idempotent (a thin tested
+lib does schema-validate + merge): re-running
 with no arguments prints the current config when fully populated, asks only for missing fields
 when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
 re-prompt; pass free-form intent (e.g. "change branching to github-flow") for targeted tweaks.
@@ -108,13 +137,13 @@ _Avoid_: slash command, workflow command (ambiguous)
 
 **arch-review**:
 The architecture review output at `workflows/<slug>/arch-review.md`, produced by the
-`arch-review` node in the `/improve-architecture` workflow. Identifies technical drift, intent
-drift, and deepening opportunities.
+`/improve-architecture` command/skill (which composes Matt's `improve-codebase-architecture`).
+Identifies technical drift, intent drift, and deepening opportunities.
 _Avoid_: architecture report, code review
 
 **ADR**:
 Architecture Decision Record. Written to `docs/adr/NNNN-*.md` only after explicit human
-approval in the `adr-consolidation` interactive node of the `/improve-architecture` workflow.
+approval in the `/improve-architecture` command/skill (which also supersedes stale ADRs).
 _Avoid_: decision doc, architecture note
 
 ## Relationships
@@ -125,4 +154,4 @@ _Avoid_: decision doc, architecture note
 - **code-green** depends on **code-red** within the same issue; independent issues run in parallel
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`
-- The **Setup** slash command writes `.archon/unic-dlc.config.json`, `docs/agents/*.md`, and the `## Agent skills` block in `CLAUDE.md` into the target project
+- The **Setup** slash command writes `.archon/unic-dlc.config.yaml`, registers the team's system-skills, and refreshes the `## Agent skills` block in `CLAUDE.md` in the target project

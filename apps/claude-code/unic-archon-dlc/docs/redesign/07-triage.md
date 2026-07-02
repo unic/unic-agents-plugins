@@ -1,5 +1,7 @@
 # Step 07 — `/triage` (intake on-ramp, NEW meaning)
 
+> **⚠ Two-axis update (2026-07-02):** `/triage` is a **command/skill** (interactive classification) composing Matt's `triage` + the team's tracker system-skill. Not an Archon workflow (ADR-0017). **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where the body below differs.
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** The old `triage` workflow (state snapshot) was dropped in step 01. This is the brand-new Matt-style intake.
 
 ## Goal

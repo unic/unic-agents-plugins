@@ -2,6 +2,8 @@
 
 **Status:** Accepted (2026-06-30)
 
+> **Amended (2026-07-02):** the artifact base dir is **config-driven** (`artifacts_dir`, default `workflows`), so a team can relocate `<base>/<slug>/` (e.g. `docs/specs/`) — #257-aligned. Slug-scoping and the `docs/`-separation rule are unchanged.
+
 ## Context
 
 Session artefacts (the PRD, issues JSON, findings, plan-checker report, run report) were written under **`docs/workflow/<slug>/`**. That places generated, machine-owned, per-Session output inside `docs/` — the tree humans browse for hand-written documentation. The two concerns are different: `docs/` is curated and durable; Session artefacts are slug-scoped, regenerated on re-run, and pruned when the Session is done.

@@ -1,5 +1,7 @@
 # Step 04 — `/specs` (grill → PRD)
 
+> **⚠ Two-axis update (2026-07-02):** `/specs` is a **command/skill** that **branches on input** (ADR-0020): raw idea → converse (Matt grill-with-docs + to-prd); existing spec/Figma/UX → ingest + synthesise (+ estimate) → review (#257); partial → ingest + grill gaps. One PRD approval gate. Composes team system-skills to read the source. **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where the body below differs.
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** First main-line box. Carved out of the existing `plan` workflow (first half).
 
 ## Goal

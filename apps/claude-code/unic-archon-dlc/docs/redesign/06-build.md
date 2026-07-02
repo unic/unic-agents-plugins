@@ -1,5 +1,7 @@
 # Step 06 — `/build` (KEYSTONE: anti-cheating red/green)
 
+> **⚠ Two-axis update (2026-07-02):** `/build` **stays an Archon workflow** (AFK-isolated — where Archon earns its keep). Port it to the key-discriminated schema (ADR-0011) and keep it generic + config-driven (ADR-0016/0018). The red/green contract is unchanged (ADR-0012). **[PLAN.md](./PLAN.md) is canonical.**
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md), especially contract B.** The most important step. Depends on step 05 (generated `build-<slug>.yaml`).
 
 ## Goal

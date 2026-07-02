@@ -1,6 +1,6 @@
 # 0014. Workflow-per-box decomposition
 
-**Status:** Accepted (2026-06-30)
+**Status:** Accepted (2026-06-30). Container assumption revised by [ADR-0017](0017-container-follows-structural-need.md) (2026-07-02) — the box set below stands, but boxes are no longer all Archon workflows (some are commands/skills).
 
 ## Context
 

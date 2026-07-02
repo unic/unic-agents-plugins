@@ -1,5 +1,7 @@
 # Step 11 — `/cleanup` (NEW: operational janitor)
 
+> **⚠ Two-axis update (2026-07-02):** `/cleanup` is a **command** (it prunes repo-global git state — sibling worktrees/branches/PRs — so it cannot run inside an isolated worktree; ADR-0017). Composes `archon isolation`/`gh`/`az`. **[PLAN.md](./PLAN.md) is canonical.**
+
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).** The name `cleanup` is REPOINTED — the old `cleanup` content moved to `/improve-architecture` (step 10). This is the maintainer's original intent: git/Archon hygiene. No Matt analog.
 
 ## Goal

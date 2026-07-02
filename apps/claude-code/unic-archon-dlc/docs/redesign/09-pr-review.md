@@ -1,4 +1,6 @@
-# Step 09 — `/pr-review` (rename of `review`)
+# Step 09 — `/pr-review` (NEW generic Archon workflow)
+
+> **⚠ Two-axis update (2026-07-02):** `/pr-review` is a **new generic Archon workflow** built the #257 way, **harvesting `unic-pr-review`'s review-aspect learnings** (code quality, tests, silent-failure, type-design, comment-rot, intent-check, re-review) — NOT its ADO code, NOT a dependency (ADR-0016/0017). `unic-pr-review` is a donor; its fate is deferred. **[PLAN.md](./PLAN.md) + ADRs 0016–0020 win** where the body below differs.
 
 > **Read [PLAN.md](./PLAN.md) + [README.md](./README.md).**
 

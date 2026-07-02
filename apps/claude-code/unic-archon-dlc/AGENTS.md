@@ -4,7 +4,7 @@ Guidance for any AI agent working inside this Plugin directory. `CLAUDE.md` in t
 
 ## What this Plugin is
 
-`unic-archon-dlc` is a Claude Code Plugin in the [`unic-agents-plugins`](../../../AGENTS.md) monorepo. It scaffolds an Archon-powered AI development lifecycle — a workflow-per-box set (main line `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` + `/qa` findings; off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) plus agent-skill docs — into any Consumer project. Configuration is performed once via the `/unic-archon-dlc:setup` slash command. See [ADR-0014](docs/adr/0014-workflow-per-box-decomposition.md) for the box set and [`CONTEXT.md`](CONTEXT.md) for the domain vocabulary (Session, Slug, PRD, Findings, Issues JSON, Nyquist map, yaml-gen, Setup).
+`unic-archon-dlc` is a Claude Code Plugin in the [`unic-agents-plugins`](../../../AGENTS.md) monorepo. It scaffolds a **thin process layer** for an AI development lifecycle: it owns the _what_ (the box set — main line `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` + `/qa` findings; off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) and **composes the team's system-skills for the _how_** (tracker/docs/design access). Each box's **container follows its structural need** — Archon workflows for the AFK-isolated legs (`/build`, `/qa`, `/pr-review`, `/explore`), Claude Code commands/skills for the interactive/repo-global ones (the rest, composing Matt Pocock's skills rather than reimplementing them). Configuration is via the `/unic-archon-dlc:setup` slash command. See [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)–[ADR-0018](docs/adr/0018-generic-core-config-compose.md) for the two-axis architecture, [ADR-0014](docs/adr/0014-workflow-per-box-decomposition.md) for the box set, and [`CONTEXT.md`](CONTEXT.md) for the vocabulary.
 
 ## Where to start
 
@@ -40,8 +40,8 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 ```tree
 .archon/                  # Archon assets installed into Consumer projects — workflow YAMLs and command stubs
 .claude-plugin/           # Plugin manifest (plugin.json) and marketplace listing
-commands/                 # Claude Code slash command definitions — only setup.md today
-lib/                      # Pure helper modules consumed by the setup command (ESM, // @ts-check)
+commands/                 # Claude Code slash command / skill definitions (setup + the interactive boxes)
+lib/                      # Tested helper modules — tracker-agnostic deterministic IP only (ESM, // @ts-check)
 test/                     # node:test suites covering lib/ and command behaviour
 CONTEXT.md                # Domain vocabulary for the Archon-powered AI development lifecycle
 docs/                     # Plugin-specific documentation
@@ -52,13 +52,16 @@ docs/                     # Plugin-specific documentation
 
 Load-bearing invariants. These either originate in a Plugin ADR or are policy decisions that are not obvious from the code.
 
-- **Setup is the sole entry point and is idempotent.** The `/unic-archon-dlc:setup` slash command is the one and only user-facing surface. Re-running it on a fully configured Consumer prints the current config; on a partial config it asks only for missing fields; on a fresh project it prompts for everything. See [ADR-0001](docs/adr/0001-setup-as-slash-command.md).
+- **Setup is the sole configuration entry point — conversational and idempotent.** The `/unic-archon-dlc:setup` slash command is the one user-facing config surface. It conducts the conversation, **composes the team's system-skills** to detect/register their stack, and writes `.archon/unic-dlc.config.yaml`; only a thin tested lib does schema-validate + idempotent merge (a re-run prints/patches, never clobbers). See [ADR-0019](docs/adr/0019-conversational-setup.md) (supersedes [ADR-0001](docs/adr/0001-setup-as-slash-command.md)).
+- **The DLC owns the _what_; it composes team system-skills for the _how_.** No box hardcodes a tracker/docs/design system; each reads `.archon/unic-dlc.config.yaml` and composes the configured skill/CLI/MCP (MCP-first, CLI-fallback). See [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md).
+- **Container follows structural need.** Archon workflows only for AFK-isolated, no-live-conversation work (`/build`, `/qa`, `/pr-review`, `/explore`); Claude Code commands/skills for interactive or repo-global work, composing Matt's originals. See [ADR-0017](docs/adr/0017-container-follows-structural-need.md).
+- **Tested lib only for tracker-agnostic deterministic IP** (dag-builder, slopcheck, stub-detector, issues/PRD schema-validation, thin config validate/merge). Everything tracker/tenant/OS-specific lives in config + composition, never bespoke lib. See [ADR-0018](docs/adr/0018-generic-core-config-compose.md).
 - **Session is scoped by Slug.** Every Session artefact (Findings, PRD, Issues JSON, `build-<slug>.yaml`) is keyed by a single Slug. No cross-Session bleed. See [CONTEXT.md](CONTEXT.md).
-- **The issue tracker is the single source of truth for "where are we."** `HANDOFF.md` and `ROADMAP.md` are dropped, and the old state-snapshot `triage` workflow is retired — no workflow writes either file. Per-thread continuity is handled by the `/handoff` workflow, which writes a throwaway file, not a durable repo snapshot. See [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md).
+- **The issue tracker is the single source of truth for "where are we."** `HANDOFF.md` and `ROADMAP.md` are dropped, and the old state-snapshot `triage` workflow is retired — no workflow writes either file. Per-thread continuity is handled by the `/handoff` command/skill (it compacts the live conversation, so it cannot be an Archon workflow — see [ADR-0017](docs/adr/0017-container-follows-structural-need.md)), which writes a throwaway file, not a durable repo snapshot. See [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md).
 - **The `## Agent skills` block in a Consumer's `CLAUDE.md` is auto-managed.** Setup writes content between `<!-- unic-archon-dlc:begin -->` and `<!-- unic-archon-dlc:end -->` markers. Everything outside the markers is preserved verbatim across re-runs.
 - **Slopcheck before build.** Every new package referenced in `package.json` is verified against the npm registry before any `code-red`/`code-green` node runs. Packages that fail are flagged `[ASSUMED]` and require explicit human approval.
 - **Nyquist map gates yaml-gen.** Every issue in Issues JSON must carry a `test_command` before the `yaml-gen` node generates `.archon/workflows/build-<slug>.yaml`.
-- **Dogfooding note.** This monorepo has had Setup run against it; the generated artefacts live under [`docs/agents/`](../../../docs/agents/) at the repo root and are managed by the marker-delimited block in the root [`AGENTS.md`](../../../AGENTS.md). Those files describe the target workflow-per-box set (see [ADR-0014](docs/adr/0014-workflow-per-box-decomposition.md)) with the tracker as the single source of truth, and should be treated as the canonical agent guidance for this repo, not as a current-practice snapshot.
+- **Dogfooding note.** This monorepo has had Setup run against it; the generated artefacts live under [`docs/agents/`](../../../docs/agents/) at the repo root and are managed by the marker-delimited block in the root [`AGENTS.md`](../../../AGENTS.md). Those files describe the target two-axis architecture (see [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)–[ADR-0018](docs/adr/0018-generic-core-config-compose.md)) with the tracker as the single source of truth, and should be treated as the canonical agent guidance for this repo, not as a current-practice snapshot.
 
 ## External dependencies
 
@@ -68,7 +71,8 @@ Load-bearing invariants. These either originate in a Plugin ADR or are policy de
 
 - **Parallel-runner support before the linear path is operational.** The current happy path runs one Session at a time. Until that is rock-solid in real Consumers, do not add parallel-Session orchestration.
 - **Per-plugin variants of the Slug scheme.** Slug is monorepo-wide vocabulary; do not introduce a Plugin-specific Slug format.
-- **Consumer-side opt-out flags for individual workflow boxes.** Until a real Consumer asks for it with a concrete use case, the workflow-per-box set ships as one bundle. See [ADR-0014](docs/adr/0014-workflow-per-box-decomposition.md).
+- **Consumer-side opt-out flags for individual boxes.** Until a real Consumer asks with a concrete use case, the box set ships as one bundle. See [ADR-0014](docs/adr/0014-workflow-per-box-decomposition.md).
+- **Hardcoded tracker/tenant/OS specifics, or bespoke lib for what a team system-skill already does.** Read config and compose (MCP-first, CLI-fallback); keep tested lib to tracker-agnostic deterministic IP. See [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md) / [ADR-0018](docs/adr/0018-generic-core-config-compose.md).
 - **`HANDOFF.md` / `ROADMAP.md` revival, or any workflow that writes durable repo-state snapshots.** The tracker is the single source of truth. See [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md).
 
 ## Plugin ADRs
