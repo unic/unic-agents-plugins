@@ -163,29 +163,29 @@ From here, the full lifecycle is: explore → plan → build → qa → cleanup 
 
 The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the single config substrate every box reads; setup is its sole writer, is idempotent (a re-run merges, never clobbers), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). Top-level sections:
 
-| Path                          | Default                | Valid values                                 | Description                                                       |
-| ----------------------------- | ---------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
-| `project.name`                | asked                  | any string                                   | Project name                                                      |
-| `project.repo_layout`         | auto-detected          | `single-context` · `multi-context`           | Whether `CONTEXT-MAP.md` is present                               |
-| `project.branching`           | asked                  | `gitflow` · `github-flow`                    | Branching model (mandatory)                                       |
-| `project.pr_strategy`         | asked                  | `squash` · `merge` · `rebase`                | PR merge strategy (mandatory)                                     |
-| `tracker.type`                | auto-detected          | `github` · `ado` · `jira` · `local-markdown` | Issue tracker backend (mandatory)                                 |
-| `tracker.access`              | discovered             | `{ mcp, cli }`                               | Capability→tool for the tracker (MCP-first, CLI-fallback)         |
-| `tracker.coords`              | asked                  | tracker-specific map                         | e.g. `{ owner, repo }` (github) / `{ org, project, repo }` (ado)  |
-| `docs.type`                   | `markdown`             | `confluence` · `markdown` · `none`           | Where the team's product specs live (drives `/specs` publishing)  |
-| `docs.publish`                | `false`                | `true` · `false`                             | Opt-in publishing of the PRD to the docs system                   |
-| `design.type`                 | `none`                 | `figma` · `none`                             | Design system source                                              |
-| `templates.{prd,issue,bug}`   | `null`                 | template string                              | Config-driven artifact templates (ADR-0018)                       |
-| `classification.labels.*`     | canonical              | any string                                   | 3-tier label mapping (state · type · priority)                    |
-| `gates.{build,qa,pr-review,explore}` | `hitl`          | `hitl` · `afk`                               | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL   |
-| `build.fresh_context_red_green` | `true`               | `true` · `false`                             | Anti-cheat fresh-context red/green separation (ADR-0012)          |
-| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true` | `true` · `false`                     | Build discipline toggles                                          |
-| `build.e2e_command`           | `null`                 | shell command string                         | Full e2e suite command                                            |
-| `build.coverage_threshold`    | `null`                 | number (0–100) or `null`                     | Minimum % coverage; `null` skips the check                        |
-| `estimations`                 | `off`                  | `off` · `provisional` · `definitive` · `both`| Estimation waves (ADR-0020)                                       |
-| `artifacts_dir`               | `workflows`            | dir name                                     | Session artifact home base (`<artifacts_dir>/<slug>/`)            |
-| `model_profile`               | `balanced`             | `fast` · `balanced` · `max`                  | Model tier for workflow nodes                                     |
-| `skills.matt_suite`           | discovered             | `{ present, missing }`                       | Verify-only discovery result for Matt Pocock's declared skill suite |
+| Path                                                     | Default       | Valid values                                  | Description                                                         |
+| -------------------------------------------------------- | ------------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| `project.name`                                           | asked         | any string                                    | Project name                                                        |
+| `project.repo_layout`                                    | auto-detected | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                 |
+| `project.branching`                                      | asked         | `gitflow` · `github-flow`                     | Branching model (mandatory)                                         |
+| `project.pr_strategy`                                    | asked         | `squash` · `merge` · `rebase`                 | PR merge strategy (mandatory)                                       |
+| `tracker.type`                                           | auto-detected | `github` · `ado` · `jira` · `local-markdown`  | Issue tracker backend (mandatory)                                   |
+| `tracker.access`                                         | discovered    | `{ mcp, cli }`                                | Capability→tool for the tracker (MCP-first, CLI-fallback)           |
+| `tracker.coords`                                         | asked         | tracker-specific map                          | e.g. `{ owner, repo }` (github) / `{ org, project, repo }` (ado)    |
+| `docs.type`                                              | `markdown`    | `confluence` · `markdown` · `none`            | Where the team's product specs live (drives `/specs` publishing)    |
+| `docs.publish`                                           | `false`       | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                     |
+| `design.type`                                            | `none`        | `figma` · `none`                              | Design system source                                                |
+| `templates.{prd,issue,bug}`                              | `null`        | template string                               | Config-driven artifact templates (ADR-0018)                         |
+| `classification.labels.*`                                | canonical     | any string                                    | 3-tier label mapping (state · type · priority)                      |
+| `gates.{build,qa,pr-review,explore}`                     | `hitl`        | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL     |
+| `build.fresh_context_red_green`                          | `true`        | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)            |
+| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`        | `true` · `false`                              | Build discipline toggles                                            |
+| `build.e2e_command`                                      | `null`        | shell command string                          | Full e2e suite command                                              |
+| `build.coverage_threshold`                               | `null`        | number (0–100) or `null`                      | Minimum % coverage; `null` skips the check                          |
+| `estimations`                                            | `off`         | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                         |
+| `artifacts_dir`                                          | `workflows`   | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)              |
+| `model_profile`                                          | `balanced`    | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                       |
+| `skills.matt_suite`                                      | discovered    | `{ present, missing }`                        | Verify-only discovery result for Matt Pocock's declared skill suite |
 
 Label canonical names: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
