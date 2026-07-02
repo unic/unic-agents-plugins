@@ -1,37 +1,58 @@
-# Refining `unic-archon-dlc` into a Matt-Pocock-aligned workflow set
+# Refining `unic-archon-dlc` into a thin, Matt-aligned, config-driven lifecycle
 
-> Durable in-repo copy of the approved umbrella plan (grilled + approved 2026-06-23).
-> Original drafted at `~/.claude/plans/functional-wishing-shannon.md`. This copy is the canonical reference for the redesign handoff sessions in this directory.
+> Durable in-repo copy of the redesign plan. Grilled + approved 2026-06-23; **two-axis architecture added 2026-07-02** (grill-with-docs). Canonical reference for the redesign handoff sessions in this directory. Decisions are recorded as ADRs 0011–0020 in [`../adr/`](../adr/).
 
 ## Context
 
-`unic-archon-dlc` already ships 7 Archon workflows (`explore, plan, build, qa, cleanup, triage, review`). They were scaffolded but the design has drifted from two reference points the maintainer wants to honour:
+`unic-archon-dlc` shipped 7 bundled Archon workflows. Two reference points drive the redesign:
 
-1. **Matt Pocock's skills** (installed in this repo under `.agents/skills/`) — the "idea → ship" methodology: grill → PRD → vertical-slice issues → test-first build → review, with durable artifacts as the contract between phases.
-2. **The Unic-DLC vision diagram** (`../Unic-dlc.mmd`) — a per-command pipeline with HITL/AFK gates, written using Prism (a Figma→React design-system pipeline) as the worked example.
+1. **Matt Pocock's skills** (`.agents/skills/`) — the "idea → ship" methodology: grill → PRD → vertical-slice issues → test-first build → review, with durable artifacts as the baton between phases.
+2. **Pesche's `unic-ticket-specification`** (PR #257) — the config-driven genericity model: generic workflow/command templates, all tracker/tenant/OS specifics in per-project config, MCP-first/CLI-fallback, compose don't reimplement. `unic-pr-review` is the **cautionary tale** (hardcoded ADO, ~830 lines, expensive).
 
-The driver is **both**: workflows are too _coarse_ (the `plan` workflow alone bundles grill + PRD + gate + issue-decomposition + test-mapping + validation + a second gate) **and** their internals don't faithfully implement Matt's discipline. The fix for coarseness — splitting into separate, independently-runnable, gated commands — is _also_ what makes Matt-fidelity natural, because each fresh command IS the fresh context Matt's discipline relies on.
+The original driver was coarseness + Matt-fidelity; a second grilling pass (2026-07-02) added the deeper architectural axis: **genericity + composition**.
 
-**North-star constraint:** the workflows must stay **generic, installable, and tweakable per project** (web-first is an acceptable initial constraint). Prism is a _consumer_, not the spec — no Prism/Figma/Storybook/design-system specifics may leak into the generic workflows.
+**North-star:** generic, installable, tweakable per project. Prism/Confluence/ADO are _consumers_, never the spec.
+
+---
+
+## The two axes (the heart of the design)
+
+```
+AXIS 1 — CONTAINER follows structural need                                    [ADR-0017, revises 0014]
+  ARCHON (AFK, isolated, fresh-context):   /build · /qa(+approval gate) · /pr-review · /explore
+  COMMANDS / SKILLS (live conversation):   /specs · /tickets · /triage · /improve-architecture · /handoff · /cleanup · /setup
+                                           └─ compose Matt's originals, don't reimplement
+  Litmus: needs the live conversation or repo-global state → command/skill; else AFK-isolated → Archon.
+
+AXIS 2 — GENERICITY & COMPOSITION (applies to BOTH containers)                 [ADR-0016, 0018]
+  The DLC owns the WHAT (process + artifact shapes). It composes team system-skills for the HOW
+  (Confluence / ADO / Jira / GitHub / GitLab / Figma / …). Thin process layer over composable system-skills.
+  TESTED LIB (tracker-agnostic, deterministic, no tool to compose):
+      dag-builder · slopcheck · stub-detector · issues+PRD schema-validation · thin config validate/merge · archon guard
+  COMPOSE + CONFIG (everything else):
+      tracker → az/gh/jira + azure-devops-cli skill (prose, no adapter lib) · docs → MCP-first/CLI-fallback · interactive → Matt's skills
+  SUBSTRATE:  rich .archon/unic-dlc.config.yaml (converged with #257) — ALL tracker/tenant/OS/template specifics live here.
+```
 
 ---
 
 ## Locked decisions
 
-| #   | Decision                                                                                                                                                                                                                                                                                                                |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **One Archon workflow per box.** Each is independently runnable + resumable; the written artifact is the baton handed to the next box.                                                                                                                                                                                  |
-| 2   | **Box set** (below) reconciles the diagram, Matt, and the existing 7 workflows.                                                                                                                                                                                                                                         |
-| 3   | **`/explore` and `/setup` are OFF the main line.** Setup is one-time (+ re-run after plugin updates). Explore is optional research/prototype; its findings _may_ feed `/specs` but it is never required. (Corrects the diagram, which marked research/prototype "out of scope.")                                        |
-| 4   | **`/triage` = Matt's on-ramp** (raw incoming work → agent-ready issues). It is _not_ a stage between specs and tickets (diagram was wrong there).                                                                                                                                                                       |
-| 5   | **Tickets are a convergence point**: agent-ready issues are produced by PRD-slicing (`/tickets`), the `/triage` on-ramp, `/qa` findings, AND humans. `/build` consumes them regardless of producer.                                                                                                                     |
-| 6   | **The old `triage` workflow is dropped entirely.** Its only job was generating `HANDOFF.md`/`ROADMAP.md`; those are **dropped** — the **issue tracker is the single source of truth** for "where are we." The doctrine "HANDOFF.md/ROADMAP.md written exclusively by triage" is retired.                                |
-| 7   | **`/handoff` is ADDED** as a new standalone — Matt's per-thread conversation→throwaway-file session bridge.                                                                                                                                                                                                             |
-| 8   | **`cleanup` splits into two**: **`/improve-architecture`** (Matt's arch-health: drift review + deepening + ADR consolidation incl. _superseding_ old ADRs) and a new **`/cleanup`** (operational janitor: prune merged/stale worktrees, branches, PRs — `archon isolation cleanup --merged`, `archon complete`, gh/az). |
-| 9   | **The "Component Assets → deterministic output" loop needs NO new workflow.** Emergent: each fresh slice/session reads the _committed repo state_ (the baton on disk), so prior slices' output is automatically context for later ones. Documented as the stakeholder explanation; not built.                           |
-| 10  | **Gates: HITL by default, AFK opt-in** via `/setup` config, per workflow.                                                                                                                                                                                                                                               |
-| 11  | **Build red/green = anti-cheating fresh-context separation** (contract B). Faithful to Matt on _slicing_ and the _red→green→refactor rhythm_; deliberately stricter on _context isolation_ because the loop can run unattended (AFK).                                                                                   |
-| 12  | **Integration contract** (C): intent in the tracker, artifacts in slug-scoped `workflows/<slug>/` (NOT under `docs/`), code in the worktree; nothing relies on conversation memory.                                                                                                                                     |
+| #   | Decision                                                                                                                                                                                                                                                                                            | ADR        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| 1   | **Container follows structural need** — Archon for AFK-isolated legs (`/build`, `/qa`, `/pr-review`, `/explore`); commands/skills for interactive/repo-global (`/specs`, `/tickets`, `/triage`, `/improve-architecture`, `/handoff`, `/cleanup`, `/setup`). Replaces "one Archon workflow per box." | 0017       |
+| 2   | **DLC = thin process layer; compose team system-skills for the _how_.** No box hardcodes a tracker/docs/design system.                                                                                                                                                                              | 0016       |
+| 3   | **Generic core + per-project config; tested lib only for tracker-agnostic deterministic IP.** Dissolve tracker-adapter, labels-config, prd-writer(templates), install-runner, setup-explorer, agent-docs-writer, handoff-generator, findings-writer, spike-verdicts, config-loader.                 | 0018       |
+| 4   | **Config substrate = rich `.archon/unic-dlc.config.yaml`** converged with #257; MCP-first/CLI-fallback; templates in config.                                                                                                                                                                        | 0018       |
+| 5   | **`/setup` = conversational + one thin schema lib** (validate/merge); discovers & registers the team's system-skills; supersedes ADR-0001.                                                                                                                                                          | 0019       |
+| 6   | **`/specs` = branch-on-input**: raw idea → converse (Matt); existing spec/Figma/UX → ingest+synthesise(+estimate)→review (#257); partial → ingest + grill gaps. One PRD approval gate.                                                                                                              | 0020       |
+| 7   | **`/pr-review` = new generic Archon workflow**, #257-style, harvesting `unic-pr-review`'s review-aspect _learnings_ (not its ADO code, not a dependency); its fate deferred.                                                                                                                        | 0017       |
+| 8   | **Box set + revised meanings stand** (from 0014): `/triage` = intake on-ramp; `/cleanup` = operational janitor; `/improve-architecture` = arch-health + ADR superseding; `/handoff` added; `/explore` off-line/optional; tickets = convergence point (slicing + triage + qa findings + humans).     | 0014       |
+| 9   | **Build red/green = anti-cheating fresh-context separation**; slice intent fed to both fresh nodes.                                                                                                                                                                                                 | 0012       |
+| 10  | **Integration contract**: intent → tracker; artifacts → `workflows/<slug>/`; code → worktree; no conversation-memory reliance.                                                                                                                                                                      | 0013, 0015 |
+| 11  | **Gates: HITL by default, AFK opt-in** per box via config (Archon boxes); interactive boxes are inherently HITL.                                                                                                                                                                                    | 0017       |
+| 12  | **"Component Assets → deterministic output" needs NO new workflow** — emergent from fresh-slice-reads-committed-repo. Stakeholder explanation, not built.                                                                                                                                           | —          |
+| 13  | **Archon schema** = key-discriminated, ≥ 0.5.0; the shipped `type:`-style workflows are a **blocking migration**.                                                                                                                                                                                   | 0011       |
 
 ---
 
@@ -39,27 +60,28 @@ The driver is **both**: workflows are too _coarse_ (the `plan` workflow alone bu
 
 ```
 MAIN LINE   /specs ──► /tickets ──► /build ──► /pr-review ──► /qa
+            (skill)     (skill)     (Archon)    (Archon)     (Archon)
                           ▲
-ON-RAMPS    /triage ──────┤   (raw bugs/requests → agent-ready issues)
+ON-RAMPS    /triage ──────┤   (raw bugs/requests → agent-ready issues)   [skill]
             /qa findings ─┤
             humans ───────┘
-OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /handoff
+OFF-LINE    /setup(skill) · /explore(Archon) · /improve-architecture(skill) · /cleanup(skill) · /handoff(skill)
 ```
 
-### Mapping from the existing 7
+### Mapping from the shipped 7
 
-| Existing          | → Target                                         | Disposition                                                                                                                                                     |
-| ----------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `setup` (command) | `/setup`                                         | keep; add config flags (gates, red/green, model profile); re-runnable after plugin updates                                                                      |
-| `explore`         | `/explore`                                       | keep, **moved off-line**; optional; emits `findings.md` that may feed `/specs`                                                                                  |
-| `plan`            | **split** → `/specs` + `/tickets`                | `/specs` = grill→PRD (load-context, specs-loop, to-prd, prd-gate). `/tickets` = decompose→issues (to-issues, nyquist-map, plan-checker, yaml-gen, plan-pr-gate) |
-| `triage`          | **dropped**                                      | state-snapshot concept retired (decision #6)                                                                                                                    |
-| (new)             | `/triage`                                        | Matt's intake on-ramp → agent-ready issues                                                                                                                      |
-| `build`           | `/build`                                         | keep; rework to enforce anti-cheating red/green + intent injection (contract B)                                                                                 |
-| `review`          | `/pr-review`                                     | rename; keep 4-aspect review                                                                                                                                    |
-| `qa`              | `/qa`                                            | keep; also recognised as an issue-producing on-ramp                                                                                                             |
-| `cleanup`         | **split** → `/improve-architecture` + `/cleanup` | arch-health (incl. ADR consolidation/superseding) vs operational janitor (decision #8)                                                                          |
-| (new)             | `/handoff`                                       | Matt's per-thread session bridge                                                                                                                                |
+| Shipped        | → Target                             | Container     | Disposition                                                                                                                   |
+| -------------- | ------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `setup`        | `/setup`                             | skill         | Conversational + thin schema lib; discovers team system-skills; writes rich YAML config. [0019]                               |
+| `explore`      | `/explore`                           | Archon        | Off-line, optional; research/spike AFK → `findings.md`; interactive prototyping stays Matt's `/prototype`.                    |
+| `plan`         | `/specs` + `/tickets`                | skill + skill | `/specs` branch-on-input → PRD [0020]; `/tickets` slice → agent-ready issues (dag-builder/slopcheck/nyquist stay tested lib). |
+| `triage` (old) | retired                              | —             | State-snapshot dropped. [0013]                                                                                                |
+| —              | `/triage`                            | skill         | Intake on-ramp; composes Matt's `triage`.                                                                                     |
+| `build`        | `/build`                             | Archon        | Anti-cheat red/green; the keystone AFK box. [0012]                                                                            |
+| `review`       | `/pr-review`                         | Archon        | **New** generic workflow; harvest `unic-pr-review` learnings. [0017]                                                          |
+| `qa`           | `/qa`                                | Archon        | AFK pipeline + one approval gate; also an issue-producing on-ramp.                                                            |
+| `cleanup`      | `/improve-architecture` + `/cleanup` | skill + skill | Arch-health (composes Matt's `improve-codebase-architecture`) vs. repo-global operational janitor.                            |
+| —              | `/handoff`                           | skill         | Matt's per-thread session bridge (impossible as Archon — no live conversation).                                               |
 
 ---
 
@@ -67,88 +89,54 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /handoff
 
 ### A. Gates (HITL/AFK)
 
-Every baton handoff is a **HITL approval gate by default**; flippable to AFK per-workflow in `/setup` config (`gates.<workflow>: hitl|afk`). Default HITL points: `/specs`→PRD, `/tickets`→issues, `/build`→(tests-OK, then code AFK), `/build`→build-PR, `/qa`→UAT+merge, `/triage`→classification. `/pr-review` posts findings (AFK post is fine; the merge gate is the human point).
+Archon boxes gate via config (`gates.<box>: hitl|afk`, HITL default), expressed as `approval:` nodes ([ADR-0011](../adr/0011-archon-schema-target.md)). Interactive skill boxes are inherently HITL.
 
-### B. Build — anti-cheating red/green (the core fidelity decision)
-
-```
-SLICE = vertical tracer bullet (Matt-faithful; may carry several assertions for ONE demoable behavior)
-  │
-  ▼ RED node   (fresh ctx)  input: slice INTENT (acceptance criteria, from tracker/issues.json)
-                            write failing test(s) → RUN → assert RED → commit
-  │ baton = (1) slice intent  +  (2) committed failing test  (NOT red's reasoning/session)
-  ▼ GREEN node (fresh ctx)  input: slice INTENT + committed test
-                            minimum impl → RUN → assert GREEN
-  ▼ refactor   (placement = open item for /build session: tail of green vs separate fresh node)
-```
-
-- **Why fresh, against Matt's single-session TDD:** a shared test+impl context lets an unattended agent _cheat_ (tests written to pass its planned impl, or impl special-cased to its own tests). Matt avoids this with a human watching every cycle; an AFK pipeline must prevent it _structurally_. This is the failure mode `ralph-orchestrator` addressed and Anthropic's ralph-loop ignores.
-- **Fresh ≠ blind:** every node, even fresh ones, is fed the slice's _original intent_. The generated `code-red-<id>`/`code-green-<id>` nodes must (a) carry `fresh_context: true` and (b) inject the issue's `acceptance_criteria` into each node's prompt.
-
-### C. Integration contract (baton / resumability)
+### B. Build — anti-cheating red/green ([ADR-0012](../adr/0012-fresh-context-red-green-separation.md))
 
 ```
-INTENT    → issue tracker (acceptance criteria on each issue) — durable, external, read by every fresh node
-ARTIFACTS → workflows/<slug>/  (PRD.md, issues.json, plan-checker-report.md, report.md, findings.md)
-            ── MOVED here from today's docs/workflow/<slug>/; keep docs/ for human-facing docs only
-CODE      → the worktree on disk (committed tests + impl = the running baton)
-SCOPE     → slug keys the worktree/branch AND workflows/<slug>/
-RESUME    → re-run the box; all state external (tracker + disk), never conversation memory
-PRUNE     → /cleanup removes stale workflows/<slug>/ dirs (alongside worktrees/branches/PRs)
+SLICE = vertical tracer bullet (one demoable behaviour)
+  ▼ RED   node (fresh) ← slice INTENT (acceptance criteria)  → failing test → assert RED → commit
+  ▼ GREEN node (fresh) ← slice INTENT + committed test (NOT red's reasoning) → min impl → assert GREEN
+  ▼ refactor (placement = /build step open item)
 ```
 
-Caveat to document: `workflows/<slug>/` (artifacts) must not be confused with `.archon/workflows/` (generated DAG YAMLs).
+Fresh ≠ blind: every node is fed the slice's intent; generated `code-red-<id>`/`code-green-<id>` nodes carry `context: fresh` and inject `acceptance_criteria`.
 
-### D. `/setup` additions
+### C. Integration contract ([ADR-0013](../adr/0013-tracker-single-source-of-truth.md), [ADR-0015](../adr/0015-workflows-slug-artifact-home.md))
 
-New config keys: `gates.<workflow>: hitl|afk`; `build.fresh_context_red_green: true` (default on); slice-granularity guidance; `model_profile: fast|balanced|max` (exists). Setup remains idempotent and the sole config entry point (ADR-0001); add "re-run after plugin update."
+Intent → issue tracker · artifacts → `workflows/<slug>/` · code → worktree · resume = re-run the box · `/cleanup` prunes stale slug dirs. Nothing relies on conversation memory. (`workflows/<slug>/` ≠ `.archon/workflows/` DAG YAMLs.)
 
-### E. Template enforcement (the diagram's "validation over MD template")
+### D. `/setup` ([ADR-0019](../adr/0019-conversational-setup.md))
 
-Keep + strengthen existing validators: PRD 7-section (`lib/prd-writer.mjs` `validatePrdSections`), issue schema (`lib/issues-schema.mjs` `validateIssue`/`sortByDependency`), Nyquist `test_command`/`test_command_planned` gate.
+Conversational; composes system-skills to detect/register the team's stack; writes rich `.archon/unic-dlc.config.yaml` (`project`, `tracker{type,access:{mcp,cli},coords}`, `docs`, `repos`, `templates`, `classification`, `gates`, `build`). One thin tested lib: schema-validate + idempotent merge. Version check → behavioural `≥ 0.5.0`.
 
-### F. Tracker sync (the diagram's "Sync to ADO/GitHub")
+### E. Templates & validation ([ADR-0018](../adr/0018-generic-core-config-compose.md))
 
-Handled by the existing `lib/tracker-adapter.mjs` (github/ado/jira/local-markdown). `/tickets`, `/triage`, `/qa` publish via it. No dedicated sync workflow; ADO is just a `/setup`-selected target.
+PRD/issue/bug **template content lives in config**; a generic structure **validator** stays in tested lib (shared with issue-schema validation + Nyquist `test_command` gate).
+
+### F. Tracker/docs access — compose, don't reimplement ([ADR-0016](../adr/0016-dlc-thin-process-layer.md))
+
+No `tracker-adapter` lib. Command/prompt templates read config and compose the tool: MCP-first, else `az`/`gh`/`jira` CLI or the `azure-devops-cli` skill. ADO/Jira/GitHub/GitLab/Confluence/Figma are per-project config + composed system-skills.
 
 ---
 
-## Open risks / pre-work (do before refactoring workflows)
+## Open risks / pre-work
 
-1. **★ Archon version + YAML-schema reconciliation — RESOLVED (2026-06-23; version refreshed 2026-06-30). See [ADR-0011](../adr/0011-archon-schema-target.md).**
-
-   **Version (confirmed):** the 0.x line churns fast — installed CLI moved **v0.3.12 → v0.5.0 within a week** (both brew-shipped; `brew list --versions archon` → `0.5.0`). The plugin's `AGENTS.md` "≥ 0.10" claim was **fictional** (no such version line) — corrected to **≥ 0.5.0**. Don't hard-pin: the **node schema is the stable contract, not the release number** (it held across 0.3.12 → 0.5.0); re-validate behaviourally on each bump. Target floor: **≥ 0.5.0**.
-
-   **Schema (confirmed):** Archon is **key-discriminated**, not `type:`-discriminated. Each node carries exactly one of `command | prompt | bash | script | loop | approval | cancel`; unknown fields (incl. `type:`) are silently ignored. Variables are `$`-style (`$ARGUMENTS`, `$nodeId.output`, `$ARTIFACTS_DIR`) — there is **no `inputs:` block and no `{{ }}` Jinja**.
-
-   **Silent-failure finding (the trap):** `archon validate workflows <name>` reports **"ok" on all 7 shipped workflows** (re-confirmed on v0.5.0) — because each node carries a recognised content key and the stray `type:` is ignored. But validation success masks inert semantics. Translation table (today → target, and what actually happens on the installed CLI now):
-
-   | Shipped (`type:`-style)                                 | Target (key-discriminated)                                                                  | Runs today as                                   |
-   | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-   | `type: prompt` + `prompt:`                              | drop `type:`; `prompt:` alone                                                               | prompt node — works by accident                 |
-   | `type: bash` + `runtime: bun` + `script:`               | `script:` + `runtime:` (a real bash node uses `bash:`)                                      | script node — works (mislabeled)                |
-   | `type: interactive` + `fresh_context: true` + `prompt:` | **`approval:` node** (`message:`, opt `on_reject`) **+ workflow-level `interactive: true`** | 🔴 plain prompt — gate never pauses             |
-   | `type: loop` + `prompt:` (no `loop:`/`until:`)          | **`loop:`** { `prompt`, `until`, `max_iterations`, opt `fresh_context`/`until_bash` }       | 🔴 single-shot prompt — never iterates          |
-   | node-level `fresh_context: true`                        | `context: fresh` (cmd/prompt) or `loop.fresh_context`                                       | 🔴 ignored — isolation never applied            |
-   | `inputs:` block + `{{ inputs.slug }}`                   | slug via `$ARGUMENTS`, parsed in an early node                                              | 🔴 literal passthrough — slug never substituted |
-
-   **⚠ BLOCKING MIGRATION:** all 7 workflows must be ported off the `type:`-style schema before the redesign builds on them. Validation alone will not catch the regressions — gates, loops, fresh-context, and slug substitution must be confirmed **behaviourally**. Owned by the per-workflow steps (02+), not this pre-work step. The `$ARGUMENTS`-based slug change touches every workflow's prompts and the `lib/` path constants that assume `inputs.slug` — sequence it with pre-work #3 below. The `/setup` runtime version-check that asserts `0.10` must be corrected to `≥ 0.5.0` in step 03 (prefer a min-floor/behavioural check over an exact-version assertion, given the churn).
-
-2. **Nested `archon workflow run` is fragile.** `/build`'s `run-build` node shells out to `archon workflow run` from _inside_ a workflow; the skill warns about `CLAUDECODE=1` nested-Claude hangs.
-3. **`docs/workflow/<slug>/` → `workflows/<slug>/` move** touches every workflow's prompts and `lib/` path constants.
+1. **Archon schema migration — RESOLVED as a decision ([ADR-0011](../adr/0011-archon-schema-target.md)), but a BLOCKING implementation for Archon boxes.** Shipped `type:`-style workflows validate "ok" yet run inert (gates don't pause, loops run once, `fresh_context` ignored, `{{ }}`/`inputs:` never substitute). Port `/build`, `/qa`, `/pr-review`, `/explore` to the key-discriminated schema; confirm gates/loops/fresh-context **behaviourally**, not via `archon validate`.
+2. **Nested `archon workflow run`** from inside `/build` is fragile under `CLAUDECODE=1`; decide nested vs inlined vs sibling.
+3. **JSON → YAML config migration** handled by the conversational `/setup` (read old → write rich `.yaml` → backup).
+4. **Docs sweep debt:** `AGENTS.md` still says "workflow-per-box set" and references ADR-0001/0014 as canonical; `CONTEXT.md` vocabulary predates the two axes. Both are updated in the step-docs/AGENTS/CONTEXT sweep PR (not the decisions PR).
 
 ---
 
-## ADR candidates (plugin `docs/adr/`)
+## Recorded decisions (ADRs)
 
-- **Fresh-context red/green separation for anti-cheating** (keystone for `/build`).
-- **Tracker as single source of truth; HANDOFF.md/ROADMAP.md dropped.**
-- **`workflows/<slug>/` artifact home** (separate from `docs/`).
-- **Workflow-per-box decomposition** (supersedes the bundled `plan` design).
+- **0011** Archon schema target · **0012** red/green anti-cheat · **0013** tracker source of truth · **0014** box set (container revised by 0017) · **0015** `workflows/<slug>/` artifact home
+- **0016** thin process layer / compose team-skills · **0017** container follows structural need · **0018** generic core + config + lib line · **0019** conversational setup · **0020** `/specs` branch-on-input
 
 ---
 
 ## Per-workflow handoff stubs
 
-See the numbered docs in this directory. Recommended order:
+The numbered docs `00`–`13` in this directory predate the two-axis pivot and are **rewritten in the follow-up sweep PR** to reflect containers (skill vs Archon), composition, and the config substrate. Recommended order unchanged:
 `00 pre-work` → `01 foundations` → `02 /handoff` → `03 /setup` → `04 /specs` → `05 /tickets` → `06 /build` → `07 /triage` → `08 /qa` → `09 /pr-review` → `10 /improve-architecture` → `11 /cleanup` → `12 /explore` → `13 finalize diagram + docs`.
