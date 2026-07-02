@@ -76,27 +76,35 @@ _Avoid_: tickets, tasks list
 
 **Nyquist map**:
 The validation the `/tickets` command runs (via tested lib) to ensure every issue in Issues JSON
-has a `test_command` before `dag-builder` generates the build DAG. Named after the Nyquist sampling
-theorem analogy: you must observe behaviour at twice the frequency to reconstruct it faithfully.
+has a `test_command` before `/build` consumes it. Named after the Nyquist sampling theorem analogy:
+you must observe behaviour at twice the frequency to reconstruct it faithfully.
 _Avoid_: validation node, test-command check
 
 ### Build discipline
 
-**code-red**:
-The TDD node that writes failing acceptance tests for one issue before any implementation.
-The `code-red-<id>` Archon node depends on the `code-green` nodes of all blocked-by issues.
-_Avoid_: failing tests, red phase
+**RED phase**:
+The build-loop phase that writes failing acceptance test(s) for one slice from its intent, before any
+implementation. RED proves failure by running the slice's `test_command` and committing the test ONLY
+when it exits non-zero; a test that unexpectedly passes is flagged for human review, never committed.
+_Avoid_: failing tests, code-red node
 
-**code-green**:
-The TDD node that writes minimum implementation to make the acceptance tests pass.
-The `code-green-<id>` Archon node depends on `code-red-<id>` for the same issue.
-_Avoid_: implementation, green phase
+**GREEN phase**:
+The build-loop phase that writes the minimum implementation to make the committed failing test pass.
+It reads the slice intent + the committed test off disk — never RED's session.
+_Avoid_: implementation, code-green node
+
+**REFACTOR phase**:
+The build-loop phase that cleans up the committed implementation under a green suite — no behaviour
+change, no new features. Re-runs `test_command` to confirm still-green; a no-op when nothing needs
+tidying.
+_Avoid_: cleanup, tidy phase
 
 **red/green fresh-context**:
-The anti-cheating separation in `/build`: `code-red-<id>` and `code-green-<id>` run in separate
-fresh-context nodes (`context: fresh`), so green inherits only the slice intent and the committed
-failing test — never red's reasoning. Structurally prevents test/impl collusion in unattended (AFK)
-runs. See `docs/adr/0012-fresh-context-red-green-separation.md`.
+The anti-cheating separation in `/build`: RED, GREEN, and REFACTOR run as SEPARATE fresh loop
+iterations (`loop.fresh_context: true`), so GREEN inherits only the slice intent and the committed
+failing test — never RED's reasoning. Structurally prevents test/impl collusion in unattended (AFK)
+runs. See `docs/adr/0012-fresh-context-red-green-separation.md` and
+`docs/adr/0023-build-generic-red-green-refactor-loop.md`.
 _Avoid_: TDD isolation, context reset
 
 **Slopcheck gate**:
@@ -104,11 +112,11 @@ A pre-build verification that every new package in `package.json` exists on the 
 Packages that fail the check are flagged `[ASSUMED]` and require explicit human approval.
 _Avoid_: package check, dependency audit
 
-**yaml-gen**:
-The tested `dag-builder` lib step the `/tickets` command runs to generate
-`.archon/workflows/build-<slug>.yaml` — a DAG of `code-red` and `code-green` nodes for every issue,
-with `depends_on` edges derived from the `blocked_by` fields in Issues JSON.
-_Avoid_: build generator, workflow generator
+**Build state**:
+The `<artifacts_dir>/<slug>/build-state.json` file the `/build` loop reads and updates each iteration
+to track every slice's phase (`pending → red-done → green-done → refactor-done`). It is the on-disk
+memory that lets fresh, memoryless iterations compute the next `(slice, phase)`.
+_Avoid_: progress file, checkpoint
 
 ### Plugin entry points
 

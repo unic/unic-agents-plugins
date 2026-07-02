@@ -1,6 +1,6 @@
 {
   "name": "unic-archon-dlc",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test test/config-schema.test.mjs test/labels-config.test.mjs test/handoff-generator.test.mjs test/findings-writer.test.mjs test/prd-writer.test.mjs test/spike-verdicts.test.mjs test/issues-schema.test.mjs test/dag-builder.test.mjs test/slopcheck.test.mjs test/stub-detector.test.mjs test/archon-check.test.mjs test/dogfood-banner.test.mjs",
+    "test": "node --test test/config-schema.test.mjs test/labels-config.test.mjs test/handoff-generator.test.mjs test/findings-writer.test.mjs test/prd-writer.test.mjs test/spike-verdicts.test.mjs test/issues-schema.test.mjs test/slopcheck.test.mjs test/stub-detector.test.mjs test/archon-check.test.mjs test/dogfood-banner.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",

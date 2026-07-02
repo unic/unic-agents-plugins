@@ -2,6 +2,12 @@
 
 **Status:** Accepted (2026-07-02)
 
+> **Amended (2026-07-02):** `dag-builder` is **removed from the KEEP list** — it was dissolved by
+> [ADR-0023](0023-build-generic-red-green-refactor-loop.md). `/build` consumes `issues.json` via a
+> generic runtime loop instead of generated per-slug DAG code, so the codegen lib no longer exists.
+> The tested-lib ⟺ tracker-agnostic-deterministic-IP line is unchanged; the KEEP set is now
+> slopcheck · stub-detector · issues+PRD schema-validation · thin config validate/merge · archon guard.
+
 ## Context
 
 [ADR-0016](0016-dlc-thin-process-layer.md) establishes that the DLC composes team system-skills for the _how_. This ADR draws the concrete line **inside the plugin**: where does bespoke tested code stop and config + composition start? The two reference points pull opposite ways — Pesche's `unic-ticket-specification` (PR #257) has **no lib at all** (pure markdown + bash + config), while the DLC's anti-cheat `/build` DAG is exactly the deterministic logic that _must_ be tested code. `unic-archon-dlc` already proves the config-driven half: `lib/tracker-adapter.mjs` keeps canonical names in code and generates tracker CLI strings from config, tested across four trackers.

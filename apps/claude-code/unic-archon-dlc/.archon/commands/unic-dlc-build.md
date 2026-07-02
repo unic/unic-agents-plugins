@@ -1,6 +1,6 @@
 # /unic-dlc-build
 
-Execute the TDD build workflow for a planning session, enforcing red → green per issue.
+Implement an approved set of vertical-slice issues test-first, with structural anti-cheating.
 
 ## Usage
 
@@ -8,52 +8,57 @@ Execute the TDD build workflow for a planning session, enforcing red → green p
 /unic-dlc-build <slug>
 ```
 
-Where `<slug>` is the session identifier used when you ran `/unic-dlc-plan`. The generated
-`.archon/workflows/build-<slug>.yaml` must already exist (produced by the `yaml-gen` node in plan).
+`<slug>` is the session identifier from `/unic-archon-dlc:tickets`. The only prerequisite is the
+build-ready **`<artifacts_dir>/<slug>/issues.json`** that `/tickets` produced (dependency-ordered,
+each slice carrying its `acceptance_criteria` + `test_command`). There is **no generated
+`build-<slug>.yaml`** — `/build` consumes `issues.json` directly via one generic loop
+([ADR-0022](../../docs/adr/0022-tickets-slice-to-build.md), [ADR-0023](../../docs/adr/0023-build-generic-red-green-refactor-loop.md)).
 
-## What this command does
+## What this workflow does
 
-1. **Slopcheck gate** — before any implementation begins, scans `package.json` (and other
-   manifest files) for packages introduced since the last commit. Each new package is checked
-   against the npm registry. Packages that fail the check are flagged `[ASSUMED]` and require
-   explicit human approval before the build can continue.
+1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
+   (`artifacts_dir`, `gates.build`, `build.*`), and confirm `issues.json` exists. Missing
+   preconditions cancel cleanly with a "run /tickets first" message.
 
-   Registry check strategy (in order of preference):
+2. **slopcheck** — verify every package introduced since the last commit against the npm registry.
+   Packages that can't be confirmed are flagged `[ASSUMED]` and halt the build until a human resolves
+   them (or re-runs with `SLOPCHECK_BYPASS=1`).
 
-   - Python `slopcheck` tool (GSD's slopsquatting gate) if available on `PATH`
-   - npm registry HEAD request fallback
-   - If neither is available: all new packages are treated as `[ASSUMED]` (strict default)
+3. **run-build** — one generic loop advances each slice through **three FRESH-context phases**, serially
+   in dependency order (ADR-0012 / ADR-0023). Each phase is a separate fresh session; the baton is
+   artefacts on disk + `<artifacts_dir>/<slug>/build-state.json`, never session memory:
 
-   To bypass slopcheck for known-safe cases: `SLOPCHECK_BYPASS=1 /unic-dlc-build <slug>`
+   ```
+   RED      write a test from the slice INTENT → run test_command → commit ONLY if it fails (exit ≠ 0)
+   GREEN    read the committed test (not RED's reasoning) → minimum impl → assert green → commit
+   REFACTOR clean up under the green suite → assert still green → commit (or no-op)
+   ```
 
-2. **Generated build workflow** — executes `.archon/workflows/build-<slug>.yaml` which was
-   produced by the `yaml-gen` node in `/unic-dlc-plan`. The generated workflow:
-   - Issues a `code-red` node per issue: writes FAILING acceptance tests
-   - Issues a `code-green` node per issue: writes minimum implementation to pass those tests
-   - Enforces `code-red` before `code-green` within each issue via `depends_on` edges
-   - Runs independent issues' `code-red` (and `code-green`) phases in parallel
+   A RED test that unexpectedly passes is not committed — the slice is flagged for human review.
+
+4. **verification** — full test suite + a stub scan (TODO/FIXME/empty-return/`pass`) on the diff, plus
+   the coverage threshold if configured.
+
+5. **goals-check** — a coverage matrix mapping every PRD/issue acceptance criterion to test +
+   implementation evidence.
+
+6. **report** — writes `<artifacts_dir>/<slug>/report.md` (what was built, matrix, test outcomes,
+   decisions/ADRs, tech debt).
+
+7. **open-pr → build-pr-gate** — opens a PR to `develop`, then gates it. The gate is **HITL by default**
+   and honours `gates.build`: skipped when `afk` (the PR is still opened). On **reject**, a
+   verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses — it does **not** rebuild
+   from scratch.
 
 ## Prerequisites
 
-- `/unic-dlc-plan <slug>` must have been run and the plan PR approved
-- `.archon/workflows/build-<slug>.yaml` must exist
-- `.archon/unic-dlc.config.json` must be present (created by the install hook)
-
-## TDD contract
-
-Every issue in the build goes through:
-
-```
-RED:   code-red-<id>   → write failing acceptance tests
-GREEN: code-green-<id> → write minimum implementation to pass those tests
-```
-
-No `code-green` node may run before its corresponding `code-red` node completes.
-Independent issues run their `code-red` and `code-green` phases in parallel,
-giving the fastest possible end-to-end build time.
+- `/unic-archon-dlc:tickets <slug>` has run and its tickets PR is approved.
+- `<artifacts_dir>/<slug>/issues.json` exists.
+- `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
+- Archon ≥ 0.5.0.
 
 ## Runs
 
 ```
-archon workflow run unic-dlc-build --input slug=<slug>
+archon workflow run unic-dlc-build --input <slug>
 ```
