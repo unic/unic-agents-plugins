@@ -15,8 +15,8 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 | 00  | Archon schema pre-work  | —           | ✅ done | ADR-0011 (#262)                                                      |
 | 01  | Foundations             | —           | ✅ done | ADRs 0012–0021 + AGENTS/CONTEXT sweep (#262)                         |
 | 02  | `/handoff`              | Matt's, ref | ⏭️ skip | referenced verbatim, not shipped; dependency declared in `/setup`    |
-| 03  | `/setup`                | skill       | ▶️ next | linchpin — skill-discovery + registry every other box reads          |
-| 04  | `/specs`                | skill       | ⬜ todo | branch-on-input                                                      |
+| 03  | `/setup`                | skill       | ✅ done | conversational skill + `config-schema` lib; rich YAML config (#263)  |
+| 04  | `/specs`                | skill       | ▶️ next | branch-on-input                                                      |
 | 05  | `/tickets`              | skill       | ⬜ todo | + dag-builder / nyquist lib                                          |
 | 06  | `/build`                | Archon      | ⬜ todo | keystone — anti-cheat red/green                                      |
 | 07  | `/triage`               | skill       | ⬜ todo | intake on-ramp                                                       |
