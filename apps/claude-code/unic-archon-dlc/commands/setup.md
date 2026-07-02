@@ -10,7 +10,7 @@ description: 'Configure unic-archon-dlc for this project: detect the stack, regi
 
 **Arguments:** "$ARGUMENTS"
 
-`/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` that every other box reads. Only one deterministic concern is delegated to tested code — schema-validate + idempotent merge + YAML emit — in `lib/config-schema.mjs`. Conduct the conversation yourself; do not invent config keys the schema doesn't define.
+`/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` — the config substrate the redesigned boxes read (each box is migrated onto it in its own redesign step; pre-redesign workflows under `.archon/workflows/` still reference the old JSON/keys until then). Only one deterministic concern is delegated to tested code — schema-validate + idempotent merge + YAML emit — in `lib/config-schema.mjs`. Conduct the conversation yourself; do not invent config keys the schema doesn't define.
 
 Follow these steps in order. Do not skip any step. Do not write any files except through Step 5 (config) and Step 6 (docs).
 
@@ -160,23 +160,31 @@ try {
   const jsonPath = join(cwd, '.archon', 'unic-dlc.config.json')
 
   // Load whatever exists; migrate a legacy flat .json but NEVER delete or modify it.
+  // A present-but-malformed config MUST fail fast — never fall back to {} and clobber it.
   let existing = {}
+  let loadError = null
   if (existsSync(yamlPath)) {
     const r = mod.loadConfig(yamlPath)
-    if (!('error' in r)) existing = r.config
+    if ('error' in r) loadError = r.message
+    else existing = r.config
   } else if (existsSync(jsonPath)) {
     const r = mod.loadConfig(jsonPath)
-    if (!('error' in r)) existing = mod.isLegacyConfig(r.config) ? mod.migrateLegacy(r.config) : r.config
+    if ('error' in r) loadError = r.message
+    else existing = mod.isLegacyConfig(r.config) ? mod.migrateLegacy(r.config) : r.config
   }
 
-  const merged = mod.mergeConfig(existing, answers)
-  const emitted = mod.toYaml(merged)
-  if ('error' in emitted) {
-    result = { ok: false, stage: 'validate', message: emitted.message }
+  if (loadError) {
+    result = { ok: false, stage: 'config', message: `Existing config is present but unreadable — refusing to overwrite it. Fix or remove the file and re-run. ${loadError}` }
   } else {
-    mkdirSync(join(cwd, '.archon'), { recursive: true })
-    writeFileSync(yamlPath, emitted.yaml)
-    result = { ok: true, configPath: yamlPath, legacyKept: existsSync(jsonPath) ? jsonPath : null }
+    const merged = mod.mergeConfig(existing, answers)
+    const emitted = mod.toYaml(merged)
+    if ('error' in emitted) {
+      result = { ok: false, stage: 'validate', message: emitted.message }
+    } else {
+      mkdirSync(join(cwd, '.archon'), { recursive: true })
+      writeFileSync(yamlPath, emitted.yaml)
+      result = { ok: true, configPath: yamlPath, legacyKept: existsSync(jsonPath) ? jsonPath : null }
+    }
   }
 } catch (err) {
   result = { ok: false, stage: 'unexpected', message: `Unexpected error: ${err?.message ?? String(err)}` }

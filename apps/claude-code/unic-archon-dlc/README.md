@@ -161,7 +161,7 @@ From here, the full lifecycle is: explore → plan → build → qa → cleanup 
 
 ## Configuration reference
 
-The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the single config substrate every box reads; setup is its sole writer, is idempotent (a re-run merges, never clobbers), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). Top-level sections:
+The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate the **redesigned** boxes read; setup is its sole writer, is idempotent (a re-run merges, never clobbers — a present-but-malformed config fails fast rather than being overwritten), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). The pre-redesign workflows under `.archon/workflows/` still read the old JSON schema and are migrated onto this file box by box in later redesign steps. Top-level sections:
 
 | Path                                                     | Default       | Valid values                                  | Description                                                         |
 | -------------------------------------------------------- | ------------- | --------------------------------------------- | ------------------------------------------------------------------- |

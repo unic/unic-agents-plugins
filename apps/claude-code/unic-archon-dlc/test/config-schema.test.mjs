@@ -80,6 +80,18 @@ test('loadConfig returns structured error for a missing file', () => {
 	assert.ok('error' in result && result.error === true)
 })
 
+test('loadConfig returns structured error for malformed content (setup relies on this to fail fast)', () => {
+	const jsonPath = join(tempDir(), 'unic-dlc.config.json')
+	writeFileSync(jsonPath, '{ not: valid json,,, ')
+	const jsonResult = loadConfig(jsonPath)
+	assert.ok('error' in jsonResult && jsonResult.error === true, 'malformed JSON should error')
+
+	const yamlPath = join(tempDir(), 'unic-dlc.config.yaml')
+	writeFileSync(yamlPath, 'project:\n  name: "unterminated\n\tbad: indent')
+	const yamlResult = loadConfig(yamlPath)
+	assert.ok('error' in yamlResult && yamlResult.error === true, 'malformed YAML should error')
+})
+
 test('validateConfig flags each missing mandatory path', () => {
 	const result = validateConfig(defaultConfig()) // all mandatory leaves are null
 	assert.ok('error' in result && result.error === true)
