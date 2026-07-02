@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.6.0] — 2026-07-02
+
+### Breaking
 - **Retired the old `unic-dlc-triage` Archon workflow + command stub** (`.archon/workflows/unic-dlc-triage.yaml`, `.archon/commands/unic-dlc-triage.md`). Its state-snapshot role (writing `HANDOFF.md` / `ROADMAP.md`) was already retired by ADR-0013, and it used the inert `type:`-style schema (ADR-0011). `/triage` now means the intake on-ramp (ADR-0024).
 
 ### Added
