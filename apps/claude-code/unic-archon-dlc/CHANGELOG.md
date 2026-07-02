@@ -11,6 +11,23 @@
 ### Fixed
 - (none)
 
+## [0.2.0] — 2026-07-02
+
+### Breaking
+- **`/setup` is now conversational and writes the rich `.archon/unic-dlc.config.yaml`** (ADR-0019, supersedes ADR-0001), replacing the flat `.archon/unic-dlc.config.json`. The command detects the stack, runs verify-only skill discovery (introspect MCP/skills + CLI probes; never installs) to register a capability→tool map, verifies Matt Pocock's declared skill suite (warn + degrade, non-blocking on a missing required capability), and composes the team's system-skills for the _how_. An existing legacy `.json` is read and migrated but **left in place** (other tools may read it) — no backup file, no delete.
+- **Dissolved the heavy setup libs** `lib/install-runner.mjs`, `lib/setup-explorer.mjs`, `lib/config-loader.mjs`, and `lib/agent-docs-writer.mjs` (and their tests). Their `docs/agents/` + `CLAUDE.md` marker-block behaviour is re-homed to idempotent prose steps in `commands/setup.md`. See ADR-0018.
+
+### Added
+- **`lib/config-schema.mjs`** — the one surviving tested lib (imports `yaml`): `loadConfig` (parses `.yaml`/`.json`), `validateConfig` (mandatory-path invariant), `mergeConfig` (deep, idempotent, `defaults < existing < answers`), `migrateLegacy` (flat ADR-0001 JSON → rich nested shape, preserving hand-added labels such as `release`), `toYaml`, and `detectRepoLayout`. Covered by `test/config-schema.test.mjs`.
+- **`yaml`** runtime dependency (pinned via the pnpm catalog).
+
+### Changed
+- **`lib/archon-check.mjs`** now enforces a behavioural min-floor (`checkArchon` rejects Archon `< 0.5.0` via `MIN_ARCHON_VERSION`) instead of an exact-version match — the key-discriminated schema (gates/loops/fresh-context) requires `≥ 0.5.0` (ADR-0011/0019). Unparseable versions are non-blocking. The `incompatibleVersions` override is preserved (bare-array and options-object forms both accepted).
+- **`README.md`** configuration reference rewritten to the rich YAML schema.
+
+### Fixed
+- (none)
+
 ## [0.1.2] — 2026-05-23
 
 ### Breaking

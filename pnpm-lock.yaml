@@ -18,6 +18,9 @@ catalogs:
     typescript:
       specifier: 5.8.3
       version: 5.8.3
+    yaml:
+      specifier: 2.6.1
+      version: 2.6.1
 
 importers:
 
@@ -67,6 +70,10 @@ importers:
         version: link:../../../packages/release-tools
 
   apps/claude-code/unic-archon-dlc:
+    dependencies:
+      yaml:
+        specifier: 'catalog:'
+        version: 2.6.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -223,6 +230,11 @@ packages:
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
+  yaml@2.6.1:
+    resolution: {integrity: sha512-7r0XPzioN/Q9kXBro/XPnA6kznR73DHq+GXh5ON7ZozRO6aMjbmiBuKste2wslTFkC5d1dw0GooOCepZXJ2SAg==}
+    engines: {node: '>= 14'}
+    hasBin: true
+
 snapshots:
 
   '@biomejs/biome@2.4.0':
@@ -271,3 +283,5 @@ snapshots:
   typescript@5.8.3: {}
 
   undici-types@7.16.0: {}
+
+  yaml@2.6.1: {}

@@ -2,8 +2,12 @@
 import { execFileSync } from 'node:child_process'
 
 // Intentionally immutable; update this list in code as schema-incompatible Archon versions are identified.
-// Tests and callers can pass overrides via checkArchon(..., incompatibleVersions).
+// Tests and callers can pass overrides via checkArchon(..., { incompatibleVersions }).
 export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {readonly string[]} */ (Object.freeze([]))
+
+// Behavioural min-floor (ADR-0011/0019): the key-discriminated schema — gates/loops/fresh-context —
+// only runs correctly on Archon >= 0.5.0. This replaces the fictional exact-version assertion.
+export const MIN_ARCHON_VERSION = '0.5.0'
 
 /**
  * @typedef {{ ok: true, version: string }} ArchonOk
@@ -16,17 +20,55 @@ export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {readonly string[]} */ (Ob
  */
 
 /**
- * Checks whether archon is on PATH and returns a result object — never calls process.exit().
+ * Parse a `major.minor.patch` triple out of an `archon --version` string (which may carry a
+ * program-name prefix, a `v` prefix, or a pre-release suffix). Returns null when no triple is found.
+ * @param {string} raw
+ * @returns {[number, number, number] | null}
+ */
+function parseVersion(raw) {
+	const match = raw.match(/(\d+)\.(\d+)\.(\d+)/)
+	if (!match) return null
+	return [Number(match[1]), Number(match[2]), Number(match[3])]
+}
+
+/**
+ * Returns true when `version` is strictly below `floor`. Unparseable versions are treated as
+ * satisfying the floor (non-blocking — see ADR-0019 warn-and-degrade posture).
+ * @param {string} version
+ * @param {string} floor
+ * @returns {boolean}
+ */
+function isBelow(version, floor) {
+	const v = parseVersion(version)
+	const f = parseVersion(floor)
+	if (!v || !f) return false
+	for (let i = 0; i < 3; i++) {
+		if (v[i] < f[i]) return true
+		if (v[i] > f[i]) return false
+	}
+	return false
+}
+
+/**
+ * @typedef {Object} CheckArchonOptions
+ * @property {readonly string[]} [incompatibleVersions] - exact version strings to reject outright
+ * @property {string} [minVersion] - behavioural min-floor (default {@link MIN_ARCHON_VERSION})
+ */
+
+/**
+ * Checks whether archon is on PATH and meets the behavioural min-floor — never calls process.exit().
  * Pass a custom execFn in tests to avoid requiring archon on PATH.
  *
  * @param {ExecFn} [execFn]
- * @param {readonly string[]} [incompatibleVersions]
+ * @param {CheckArchonOptions | readonly string[]} [options] - options object; a bare array is
+ *   accepted as `incompatibleVersions` for backward compatibility.
  * @returns {ArchonCheckResult}
  */
-export function checkArchon(
-	execFn = /** @type {ExecFn} */ (/** @type {unknown} */ (execFileSync)),
-	incompatibleVersions = INCOMPATIBLE_ARCHON_VERSIONS
-) {
+export function checkArchon(execFn = /** @type {ExecFn} */ (/** @type {unknown} */ (execFileSync)), options = {}) {
+	const opts = /** @type {CheckArchonOptions} */ (Array.isArray(options) ? { incompatibleVersions: options } : options)
+	const incompatibleVersions = opts.incompatibleVersions ?? INCOMPATIBLE_ARCHON_VERSIONS
+	const minVersion = opts.minVersion ?? MIN_ARCHON_VERSION
+
 	try {
 		const version = execFn('archon', ['--version'], {
 			stdio: ['pipe', 'pipe', 'pipe'],
@@ -40,6 +82,14 @@ export function checkArchon(
 				ok: false,
 				code: 'incompatible',
 				message: `Archon ${version} has known schema incompatibilities with unic-archon-dlc. Please upgrade Archon.`,
+			}
+		}
+
+		if (isBelow(version, minVersion)) {
+			return {
+				ok: false,
+				code: 'incompatible',
+				message: `Archon ${version} is below the minimum supported version ${minVersion}. The key-discriminated workflow schema (gates, loops, fresh-context) requires Archon >= ${minVersion}. Please upgrade Archon.`,
 			}
 		}
 

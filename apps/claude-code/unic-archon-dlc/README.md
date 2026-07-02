@@ -161,24 +161,31 @@ From here, the full lifecycle is: explore → plan → build → qa → cleanup 
 
 ## Configuration reference
 
-The `/unic-archon-dlc:setup` command writes `.archon/unic-dlc.config.json` with these keys:
+The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate the **redesigned** boxes read; setup is its sole writer, is idempotent (a re-run merges, never clobbers — a present-but-malformed config fails fast rather than being overwritten), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). The pre-redesign workflows under `.archon/workflows/` still read the old JSON schema and are migrated onto this file box by box in later redesign steps. Top-level sections:
 
-| Key                     | Default                          | Valid values                                 | Description                                         |
-| ----------------------- | -------------------------------- | -------------------------------------------- | --------------------------------------------------- |
-| `tracker`               | auto-detected                    | `github` · `ado` · `jira` · `local-markdown` | Issue tracker backend                               |
-| `pr_strategy`           | `squash`                         | `squash` · `merge` · `rebase`                | Merge strategy for PRs                              |
-| `branching`             | `gitflow`                        | `gitflow` · `github-flow`                    | Branching model in use                              |
-| `e2e_command`           | `""`                             | any shell command string                     | Command that runs the full e2e test suite           |
-| `model_profile`         | `balanced`                       | `fast` · `balanced` · `max`                  | Archon model tier for workflow nodes                |
-| `tdd_mode`              | `true`                           | `true` · `false`                             | Enforce red→green discipline in build workflow      |
-| `nyquist_validation`    | `true`                           | `true` · `false`                             | Require test_command on every issue before yaml-gen |
-| `slopsquatting_gate`    | `true`                           | `true` · `false`                             | Enable slopcheck package verification               |
-| `coverage_threshold`    | `null`                           | number (0–100) or `null`                     | Minimum % coverage; `null` skips the check          |
-| `workflow.discuss_mode` | `interview`                      | `interview` · `assumptions`                  | Specs node dialogue style                           |
-| `repo_layout`           | `single-context (auto-detected)` | `single-context` · `multi-context`           | Whether CONTEXT-MAP.md is present                   |
-| `labels.state.*`        | canonical                        | any string                                   | Override tracker state label strings                |
-| `labels.type.*`         | canonical                        | any string                                   | Override tracker type label strings                 |
-| `labels.priority.*`     | canonical                        | any string                                   | Override tracker priority label strings             |
+| Path                                                     | Default       | Valid values                                  | Description                                                         |
+| -------------------------------------------------------- | ------------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| `project.name`                                           | asked         | any string                                    | Project name                                                        |
+| `project.repo_layout`                                    | auto-detected | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                 |
+| `project.branching`                                      | asked         | `gitflow` · `github-flow`                     | Branching model (mandatory)                                         |
+| `project.pr_strategy`                                    | asked         | `squash` · `merge` · `rebase`                 | PR merge strategy (mandatory)                                       |
+| `tracker.type`                                           | auto-detected | `github` · `ado` · `jira` · `local-markdown`  | Issue tracker backend (mandatory)                                   |
+| `tracker.access`                                         | discovered    | `{ mcp, cli }`                                | Capability→tool for the tracker (MCP-first, CLI-fallback)           |
+| `tracker.coords`                                         | asked         | tracker-specific map                          | e.g. `{ owner, repo }` (github) / `{ org, project, repo }` (ado)    |
+| `docs.type`                                              | `markdown`    | `confluence` · `markdown` · `none`            | Where the team's product specs live (drives `/specs` publishing)    |
+| `docs.publish`                                           | `false`       | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                     |
+| `design.type`                                            | `none`        | `figma` · `none`                              | Design system source                                                |
+| `templates.{prd,issue,bug}`                              | `null`        | template string                               | Config-driven artifact templates (ADR-0018)                         |
+| `classification.labels.*`                                | canonical     | any string                                    | 3-tier label mapping (state · type · priority)                      |
+| `gates.{build,qa,pr-review,explore}`                     | `hitl`        | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL     |
+| `build.fresh_context_red_green`                          | `true`        | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)            |
+| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`        | `true` · `false`                              | Build discipline toggles                                            |
+| `build.e2e_command`                                      | `null`        | shell command string                          | Full e2e suite command                                              |
+| `build.coverage_threshold`                               | `null`        | number (0–100) or `null`                      | Minimum % coverage; `null` skips the check                          |
+| `estimations`                                            | `off`         | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                         |
+| `artifacts_dir`                                          | `workflows`   | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)              |
+| `model_profile`                                          | `balanced`    | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                       |
+| `skills.matt_suite`                                      | discovered    | `{ present, missing }`                        | Verify-only discovery result for Matt Pocock's declared skill suite |
 
 Label canonical names: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
