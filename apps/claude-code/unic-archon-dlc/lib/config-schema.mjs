@@ -81,6 +81,7 @@ export function defaultConfig() {
 		templates: { prd: DEFAULT_PRD_TEMPLATE, issue: null, bug: null },
 		classification: { labels: getDefaultLabels('') },
 		specs: { discuss_mode: 'discuss', gate: 'open-pr' },
+		tickets: { gate: 'open-pr' },
 		gates: { build: 'hitl', qa: 'hitl', 'pr-review': 'hitl', explore: 'hitl' },
 		build: {
 			fresh_context_red_green: true,
