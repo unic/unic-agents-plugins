@@ -91,10 +91,13 @@ EOJS
 
 Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `TRACKER` (`.type`/`.access`/`.coords`,
 may be `null`), `CLEANUP` (`.stale_days` default `7`, `.dry_run` default `true`, `.prune_slug_dirs`
-default `false`), and `PROJECT` (`.branching`/`.pr_strategy`, for the main branch). If `degraded` is
-`true`, print a one-line warning naming `reason` and note the fallbacks, then continue. If `TRACKER`
-is `null` or its `type` is unset, warn that PR/branch-state detection and slug-dir pruning will be
-skipped (they need the tracker), then continue.
+default `false`), and `PROJECT` (`.branching`/`.pr_strategy`; a **hint** for the main branch — it may
+be `null`). If `degraded` is `true`, print a one-line warning naming `reason` and note the fallbacks,
+then continue. If `TRACKER` is `null` or its `type` is unset, warn that PR/branch-state detection and
+slug-dir pruning will be skipped (they need the tracker), then continue. If `PROJECT` is `null` or
+`PROJECT.branching` is unset (the plugin-load and no-config fallbacks leave it so), warn that the main
+branch will be derived from git rather than config — merged detection still works (Step 3), so this is
+non-blocking.
 
 ## Step 2 — Determine mode
 
@@ -118,10 +121,13 @@ installed and skip this category (non-blocking).
 
 Classify each environment:
 
-- **merged** — its branch is merged into the main branch (`PROJECT.branching` decides the main
-  line: `gitflow` → `develop`/`main`, `github-flow` → `main`). Archon's `--merged` uses a union of
-  ancestry (`git branch --merged`), patch-equivalence (`git cherry`), and PR state, which safely
-  catches squash-merges — rely on that signal rather than re-deriving it.
+- **merged** — its branch is merged into the main branch. Do **not** depend on `PROJECT.branching`
+  for correctness: Archon's `--merged` computes merged-into-main itself via a union of ancestry
+  (`git branch --merged`), patch-equivalence (`git cherry`), and PR state, which safely catches
+  squash-merges — rely on that signal rather than re-deriving it. `PROJECT.branching` is only a
+  **reporting hint** for which line is "main" (`gitflow` → `develop`/`main`, `github-flow` → `main`);
+  when it is unset (per Step 1), derive the main branch from git instead
+  (`git symbolic-ref --short refs/remotes/origin/HEAD`, falling back to `main`) — never block on it.
 - **stale** — last activity older than `CLEANUP.stale_days` days, not yet merged.
 - **active** — recent and unmerged; never prunable. Report it as retained, with its age.
 
