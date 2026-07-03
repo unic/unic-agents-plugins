@@ -1,0 +1,59 @@
+%% Unic DLC — vision implementation (two-axis architecture)
+%% Canonical as of 2026-07-03. Supersedes 20260703-Unic-dlc-draft.{mmd,excalidraw}.
+%% Axis 1 — CONTAINER (ADR-0017): ARCHON workflows (AFK, isolated) run /build /qa /pr-review /explore;
+%%          COMMAND/SKILL (interactive or repo-global) run the rest, composing Matt Pocock's originals.
+%% Axis 2 — GENERICITY (ADR-0016/0018): the DLC owns the WHAT; it composes team system-skills for the HOW.
+%% Gates: HITL by default, AFK opt-in per Archon box via config (ADR-0017); skill boxes are inherently HITL.
+flowchart LR
+  classDef archon stroke:#e03131,stroke-width:2px,fill:none,color:#e03131;
+  classDef skill stroke:#1e1e1e,stroke-width:2px,fill:none,color:#1e1e1e;
+  classDef ref stroke:#f08c00,stroke-width:1px,stroke-dasharray:5 5,fill:none,color:#f08c00;
+  classDef artifact stroke:#1971c2,stroke-width:1px,stroke-dasharray:5 5,fill:none,color:#1971c2;
+
+  subgraph MAIN["Main line"]
+    specs("/specs"):::skill
+    tickets("/tickets"):::skill
+    build("/build"):::archon
+    prreview("/pr-review"):::archon
+    qa("/qa"):::archon
+    specs --> tickets --> build --> prreview --> qa
+  end
+
+  subgraph ONRAMP["On-ramps → agent-ready issues"]
+    triage("/triage"):::skill
+    qafind("/qa findings"):::skill
+    humans("humans")
+  end
+  triage --> tickets
+  qafind --> tickets
+  humans --> tickets
+
+  subgraph OFFLINE["Off-line · on demand"]
+    setup("/setup"):::skill
+    explore("/explore"):::archon
+    improve("/improve-architecture"):::skill
+    cleanup("/cleanup"):::skill
+  end
+
+  subgraph REF["Referenced — Matt's skills, not shipped"]
+    handoff("/handoff"):::ref
+    prototype("/prototype"):::ref
+  end
+
+  %% Batons — artifacts carry state between boxes (no conversation memory; ADR-0013/0015)
+  setup -. "writes .archon/unic-dlc.config.yaml" .-> specs
+  explore -. "findings.md · Integrated Brief" .-> specs
+  specs -. "PRD.md" .-> tickets
+  tickets -. "issues.json" .-> build
+  explore -. "references (interactive prototyping)" .-> prototype
+
+  %% Emergent property, NOT a workflow (PLAN #12): fresh slices read the committed repo
+  qa -. "Component Assets" .-> assets("Component Assets"):::artifact
+  assets -. "deterministic output — emergent from fresh-slice-reads-committed-repo (see CONTEXT.md)" .-> specs
+
+  subgraph LEGEND["Legend"]
+    L1("Archon workflow — AFK, isolated"):::archon
+    L2("Command / skill — interactive · repo-global"):::skill
+    L3("Referenced Matt skill — not shipped"):::ref
+    L4("Artifact — baton between boxes"):::artifact
+  end
