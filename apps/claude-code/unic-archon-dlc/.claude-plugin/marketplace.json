@@ -13,7 +13,7 @@
         "name": "Unic AG"
       },
       "category": "productivity",
-      "description": "A complete Archon-powered AI development lifecycle — explore, plan, build, qa, cleanup, and triage workflows as installable YAML DAGs with human approval gates.",
+      "description": "A complete Archon-powered AI development lifecycle — explore, specs, tickets, build, pr-review, qa, triage, and cleanup workflows as installable YAML DAGs with human approval gates.",
       "displayName": "Unic Archon DLC",
       "homepage": "https://github.com/unic/unic-agents-plugins",
       "keywords": ["archon", "workflow", "lifecycle", "tdd", "unic"],
@@ -21,7 +21,7 @@
       "name": "unic-archon-dlc",
       "source": "./",
       "tags": ["productivity", "workflow", "ai-development"],
-      "version": "0.7.0"
+      "version": "0.8.0"
     }
   ]
 }
