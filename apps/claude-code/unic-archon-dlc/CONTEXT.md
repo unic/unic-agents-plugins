@@ -154,6 +154,30 @@ Architecture Decision Record. Written to `docs/adr/NNNN-*.md` only after explici
 approval in the `/improve-architecture` command/skill (which also supersedes stale ADRs).
 _Avoid_: decision doc, architecture note
 
+### PR-review artifacts
+
+**Review comment**:
+The `/pr-review` output — one structured **summary comment** on the open PR (severity-grouped findings +
+an Intent Check + "What's good"), plus **inline comments** per finding where the tracker supports threads.
+It is keyed by a hidden `<!-- unic-dlc-pr-review:iteration=N -->` marker so a re-run **updates in place**
+(and increments the iteration) rather than duplicating. Distinct from **Findings** (the `/explore`
+research doc at `workflows/<slug>/findings.md`) and from **arch-review** (the `/improve-architecture`
+architecture-drift report) — this is diff-level PR feedback.
+_Avoid_: review report, findings.md (the /explore artifact), code review (the arch-review sense)
+
+**Intent Brief**:
+The single narrative + numbered Acceptance Criteria that `/pr-review`'s `prep` node composes once from the
+linked work items, Confluence/MD docs, the PR description, and `PRD.md`, then injects into every review
+aspect so each judges the diff against intended behaviour. Contradictions across sources are surfaced, not
+silently resolved.
+_Avoid_: spec, PRD (which is one input source, not the brief)
+
+**Review aspect**:
+One of the seven parallel fresh nodes `/pr-review` fans out — code-quality, test-coverage, silent-failure,
+type-design, comment-rot, code-simplification, and intent/AC-coverage — each conditionally spawned by the
+changed-file categories and scoring findings on the confidence→severity rubric.
+_Avoid_: reviewer, agent, check
+
 ## Relationships
 
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, and a `build-<slug>.yaml`, all under `workflows/<slug>/`

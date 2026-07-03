@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [0.8.0] — 2026-07-03
+
+### Breaking
+- (none)
+
+### Added
+- **`/pr-review` generic fan-out Archon workflow** (ADR-0026) — reviews the open PR by composing **one Intent Brief** (linked work items + Confluence/MD docs + PR description + `PRD.md`) in `prep` and **injecting it into every aspect**, then fanning out **seven parallel fresh aspect nodes** (code-quality, test-coverage, silent-failure, type-design, comment-rot, code-simplification, intent/AC-coverage) — conditionally spawned by the changed-file categories and scored on a confidence→severity rubric. Findings are synthesised, **reconciled against the prior iteration** (new / still-present / fixed / regressed) in a dedicated `reconcile` node keyed on a hidden `<!-- unic-dlc-pr-review:iteration=N -->` marker (never author identity), then — after a `gates.pr-review` confirm (AFK posts directly) — posted as a **summary comment + inline comments** via the configured tracker (MCP-first, CLI-fallback). It **harvests `unic-pr-review`'s review learnings with no ADO code and no runtime dependency** on that plugin; posting is advisory (the real merge gate is `/qa`). **Not** via `lib/tracker-adapter.mjs` (dissolved).
+- **`pr-review` config block** in `defaultConfig()` — `{ confidence_threshold: 60, inline_comments: true }`. `mergeConfig` auto-fills it for existing configs (no `/setup` change). The `gates.pr-review` key already existed.
+- **New ADR-0026** recording the self-contained harvest-not-depend decision, the fan-out schema, intent-composed-once-injected-everywhere, the confidence rubric + spawn gates, first-class re-review, and the confirm-before-post gate.
+
+### Fixed
+- (none)
+
+### Changed
+- **Renamed + ported the `unic-dlc-review` workflow to `unic-dlc-pr-review`** on the key-discriminated node schema (ADR-0011) — the shipped single monolithic `type: prompt` node ran inert. `git mv`'d the workflow YAML + command stub, moved config reads to `.archon/unic-dlc.config.yaml`, artefact paths to `<artifacts_dir>/<slug>/pr-review/` (ADR-0015), replaced the four-aspect single-comment node with the seven-aspect fan-out DAG, and dropped the stale `lib/tracker-adapter.mjs` + `apps/claude-code/pr-review/` references. Updated the plugin/marketplace descriptions to enumerate the current boxes (added `pr-review`, dropped the retired `plan`).
+
 ## [0.7.0] — 2026-07-02
 
 ### Breaking

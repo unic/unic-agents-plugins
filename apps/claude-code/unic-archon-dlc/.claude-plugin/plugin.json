@@ -1,7 +1,7 @@
 {
   "name": "unic-archon-dlc",
-  "version": "0.7.0",
-  "description": "A complete Archon-powered AI development lifecycle as an installable DLC pack — explore, plan, build, qa, cleanup, and triage workflows.",
+  "version": "0.8.0",
+  "description": "A complete Archon-powered AI development lifecycle as an installable DLC pack — explore, specs, tickets, build, pr-review, qa, triage, and cleanup workflows.",
   "author": {
     "name": "Unic AG",
     "url": "https://www.unic.com"

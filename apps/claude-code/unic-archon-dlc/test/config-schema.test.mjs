@@ -230,6 +230,29 @@ test('mergeConfig preserves a team override of qa, filling untouched sub-keys', 
 	assert.equal(qa.coverage_threshold, null, 'untouched sub-key filled from default')
 })
 
+test('defaultConfig ships pr-review defaults: confidence_threshold=60, inline_comments=true', () => {
+	const prReview = /** @type {any} */ (defaultConfig()['pr-review'])
+	assert.equal(prReview.confidence_threshold, 60)
+	assert.equal(prReview.inline_comments, true)
+})
+
+test('mergeConfig auto-fills the pr-review block for an existing config that predates it', () => {
+	// A config written before the pr-review block existed (e.g. the qa-era dogfood config).
+	const merged = mergeConfig(
+		{ tracker: { type: 'github' }, project: { branching: 'gitflow', pr_strategy: 'merge' } },
+		{}
+	)
+	const prReview = /** @type {any} */ (merged['pr-review'])
+	assert.deepEqual(prReview, { confidence_threshold: 60, inline_comments: true }, 'pr-review block filled from default')
+})
+
+test('mergeConfig preserves a team override of pr-review, filling untouched sub-keys', () => {
+	const merged = mergeConfig({ 'pr-review': { confidence_threshold: 80 } }, {})
+	const prReview = /** @type {any} */ (merged['pr-review'])
+	assert.equal(prReview.confidence_threshold, 80, 'existing override wins')
+	assert.equal(prReview.inline_comments, true, 'untouched sub-key filled from default')
+})
+
 test('mergeConfig preserves a team override of triage, filling untouched sub-keys', () => {
 	const merged = mergeConfig({ triage: { external_prs: 'never' } }, {})
 	const triage = /** @type {any} */ (merged.triage)
