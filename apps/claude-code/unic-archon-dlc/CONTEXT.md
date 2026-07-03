@@ -154,6 +154,22 @@ Architecture Decision Record. Written to `docs/adr/NNNN-*.md` only after explici
 approval in the `/improve-architecture` command/skill (which also supersedes stale ADRs).
 _Avoid_: decision doc, architecture note
 
+### Operational hygiene
+
+**Operational cleanup**:
+The git/Archon hygiene the `/cleanup` command performs — pruning merged/stale worktrees, stale
+branches/PRs, and stale `workflows/<slug>/` artifact dirs. It composes `archon isolation` /
+`archon complete` + the configured tracker; it is report-first and never auto-deletes. Distinct from
+**arch-review** (the `/improve-architecture` code-health sense of "cleanup"): operational cleanup
+touches no code and writes no ADRs. See `docs/adr/0028-cleanup-operational-janitor.md`.
+_Avoid_: cleanup (bare — ambiguous with arch-review), garbage collection
+
+**cleanup config block**:
+The `.archon/unic-dlc.config.yaml` `cleanup` keys the `/cleanup` command reads: `stale_days`
+(default 7), `dry_run` (default true), `prune_slug_dirs` (default false). Off-line and non-mandatory
+— the command degrades to these defaults when config or the tracker is absent.
+_Avoid_: cleanup settings, janitor config
+
 ### PR-review artifacts
 
 **Review comment**:

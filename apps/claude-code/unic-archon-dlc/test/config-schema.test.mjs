@@ -253,6 +253,33 @@ test('mergeConfig preserves a team override of pr-review, filling untouched sub-
 	assert.equal(prReview.inline_comments, true, 'untouched sub-key filled from default')
 })
 
+test('defaultConfig ships cleanup defaults: stale_days=7, dry_run=true, prune_slug_dirs=false', () => {
+	const cleanup = /** @type {any} */ (defaultConfig().cleanup)
+	assert.deepEqual(cleanup, { stale_days: 7, dry_run: true, prune_slug_dirs: false })
+})
+
+test('mergeConfig auto-fills the cleanup block for an existing config that predates it', () => {
+	// A config written before the cleanup block existed (e.g. the pr-review-era dogfood config).
+	const merged = mergeConfig(
+		{ tracker: { type: 'github' }, project: { branching: 'gitflow', pr_strategy: 'merge' } },
+		{}
+	)
+	const cleanup = /** @type {any} */ (merged.cleanup)
+	assert.deepEqual(
+		cleanup,
+		{ stale_days: 7, dry_run: true, prune_slug_dirs: false },
+		'cleanup block filled from default'
+	)
+})
+
+test('mergeConfig preserves a team override of cleanup, filling untouched sub-keys', () => {
+	const merged = mergeConfig({ cleanup: { stale_days: 14 } }, {})
+	const cleanup = /** @type {any} */ (merged.cleanup)
+	assert.equal(cleanup.stale_days, 14, 'existing override wins')
+	assert.equal(cleanup.dry_run, true, 'untouched sub-key filled from default')
+	assert.equal(cleanup.prune_slug_dirs, false, 'untouched sub-key filled from default')
+})
+
 test('mergeConfig preserves a team override of triage, filling untouched sub-keys', () => {
 	const merged = mergeConfig({ triage: { external_prs: 'never' } }, {})
 	const triage = /** @type {any} */ (merged.triage)

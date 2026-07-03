@@ -11,6 +11,21 @@
 ### Fixed
 - (none)
 
+## [0.10.0] — 2026-07-03
+
+### Breaking
+- (none)
+
+### Added
+- **`/cleanup` repo-global operational janitor command** (ADR-0028) — reports (and, on explicit opt-in, prunes) the debris an Archon-driven lifecycle accumulates: **merged/stale worktrees**, **stale branches/PRs**, and **stale `<artifacts_dir>/<slug>/` dirs**. It is a **Claude Code command, not an Archon workflow** (it mutates sibling worktrees/branches/PRs, so it cannot run inside an isolated worktree — ADR-0017), **composing** Archon's own `archon isolation list` / `archon isolation cleanup [days] [--merged] [--include-closed]` / `archon complete <branch>` for worktree/branch lifecycle and the configured tracker (`tracker.access`, MCP-first/CLI-fallback) for PR/branch state — no `tracker-adapter` lib. **Report-first and never auto-deletes:** pruning requires `--apply` **plus** an explicit **per-category** confirmation, and `cleanup.dry_run: true` (the shipped default) keeps even `--apply` in report mode until overridden. A slug dir is prunable **only if** its PR/branch is merged or closed (`cleanup.prune_slug_dirs` defaults `false`); slug-dir pruning skips any dir containing a `LICENSE` (repo policy). Config load is lenient (off-line); degrades to defaults when config or the tracker is absent.
+- **`cleanup` config block** in `.archon/unic-dlc.config.yaml` — `stale_days` (default 7), `dry_run` (default true), `prune_slug_dirs` (default false). Added to `defaultConfig()` with merge/validate test coverage; **not** a mandatory path, so existing configs stay valid and auto-fill the block on next merge.
+
+### Removed
+- **Retired the legacy `unic-dlc-cleanup` Archon workflow + command stub** (`.archon/workflows/unic-dlc-cleanup.yaml`, `.archon/commands/unic-dlc-cleanup.md`). Its arch-review + ADR-consolidation content was harvested into `/improve-architecture` in v0.9.0 (ADR-0027); the `cleanup` name now belongs to the operational janitor (ADR-0028).
+
+### Fixed
+- (none)
+
 ## [0.9.0] — 2026-07-03
 
 ### Breaking
