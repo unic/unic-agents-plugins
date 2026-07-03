@@ -11,6 +11,17 @@
 ### Fixed
 - (none)
 
+## [0.11.0] — 2026-07-03
+
+### Breaking
+- **Dissolved `lib/findings-writer.mjs` and `lib/spike-verdicts.mjs`** (and their tests) — completing [ADR-0018](docs/adr/0018-generic-core-config-compose.md) #3 for the explore-only libs. The `/explore` nodes now write `findings.md` and the spike verdicts with their own tools ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5), so these modules have no remaining consumer. `labels-config.mjs` is untouched (`config-schema.mjs` still imports `getDefaultLabels`).
+
+### Added
+- **Ported the `unic-dlc-explore` Archon workflow to the key-discriminated node schema** ([ADR-0011](docs/adr/0011-archon-schema-target.md); [ADR-0029](docs/adr/0029-explore-research-spike-onramp.md)). The shipped workflow was **doubly dead** — a `type:`-style spike gate that never paused, and an import of the already-deleted `lib/config-loader.mjs`. The off-line, optional research + AFK-spike pipeline (`bootstrap → guard → four parallel research nodes → synthesize → spike → spike-ticket → spike-branch-gate → preserve-spike`) now: writes `findings.md` to `<artifacts_dir>/<slug>/` ([ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md)) instead of `docs/workflow/<slug>/`; frames the **Integrated Brief** as three explicitly-named lenses — **Domain Model / Established Decisions / Prior Research** — that `/specs`' load-context reads verbatim (the tightened `/explore → /specs` contract); runs the `spike` node **AFK** (build/measure where feasible, else reason → VALIDATED/INVALIDATED/PARTIAL) and **references** Matt's `/prototype` skill for the interactive case (never invokes it — nodes have no live conversation); files the spike ticket **before** a config-gated `approval:` spike-branch gate (`gates.explore`, HITL default) so the durable output survives a "discard", composing the tracker + `classification.labels` ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)); and preserves the spike on `spike/<slug>` only on approve (AFK skips → worktree left for `/cleanup`). Nodes are self-contained prompt nodes with no plugin-`lib/` import. No new config key (`gates.explore` + `artifacts_dir` already exist) → no `/setup` change.
+
+### Fixed
+- (none)
+
 ## [0.10.0] — 2026-07-03
 
 ### Breaking

@@ -65,8 +65,11 @@ and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input
 _Avoid_: spec, requirements doc
 
 **Findings**:
-The `/explore` output at `workflows/<slug>/findings.md` — five sections: Stack, Features,
-Architecture, Pitfalls, Integrated Brief.
+The `/explore` output at `workflows/<slug>/findings.md`. Its **Integrated Brief** carries three
+explicitly-named lenses — **Domain Model**, **Established Decisions**, **Prior Research** — that
+`/specs`' load-context reads verbatim (the `/explore` → `/specs` contract), followed by the four
+research dimensions (Stack, Features, Architecture, Pitfalls) and a `## Spike verdicts` section. See
+`docs/adr/0029-explore-research-spike-onramp.md`.
 _Avoid_: research doc, exploration report
 
 **Issues JSON**:

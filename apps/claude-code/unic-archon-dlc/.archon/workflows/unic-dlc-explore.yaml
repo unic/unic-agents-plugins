@@ -1,18 +1,89 @@
 name: unic-dlc-explore
-description: Parallel research across four dimensions, then synthesize findings into docs/workflow/<slug>/findings.md.
+description: >
+  Off-line, optional research + AFK-spike on-ramp. Parallel research (stack / features / architecture
+  / pitfalls) → synthesize into <artifacts_dir>/<slug>/findings.md → one AFK spike (verdicts) → file a
+  spike ticket → optionally preserve the spike code on a branch. findings.md is the /specs baton: its
+  Integrated Brief carries three named lenses (Domain Model / Established Decisions / Prior Research)
+  that /specs' load-context reads verbatim. Never required; a precursor to /specs, off the main line
+  (PLAN decision #3/#8). Ported to the key-discriminated node schema (ADR-0011); self-contained prompt
+  nodes, no plugin-lib import (ADR-0023 §5); artefacts at <artifacts_dir>/<slug>/ (ADR-0015). Interactive
+  prototyping stays Matt's /prototype skill (referenced, never invoked — nodes have no live
+  conversation). See ADR-0029.
 
-inputs:
-  slug:
-    description: Short identifier for this exploration (used as the findings directory name under docs/workflow/).
-    required: true
+# Required at the workflow level so the spike-branch approval message reaches the user (ADR-0011).
+interactive: true
 
 nodes:
-  - id: research-stack
-    name: Research Stack
-    type: prompt
+  # ---------------------------------------------------------------------------------------------
+  # bootstrap — parse the slug from $ARGUMENTS, read config. A prompt node (NOT a script) so it needs
+  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT (ADR-0023 §5): the agent reads
+  # .archon/unic-dlc.config.yaml with its own tools. No PRD precondition — /explore WRITES findings.md,
+  # it is not a consumer of a prior baton.
+  # ---------------------------------------------------------------------------------------------
+  - id: bootstrap
     depends_on: []
+    context: fresh
+    allowed_tools: [Read, Bash, Glob]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — research-stack node.
+      You are the bootstrap node of the unic-archon-dlc /explore workflow.
+
+      1. Parse the FIRST whitespace-delimited token of "$ARGUMENTS" as the slug (kebab-case).
+         If $ARGUMENTS is empty → status "no-slug".
+      2. Read `.archon/unic-dlc.config.yaml` at the repo root.
+         - If it is absent or unreadable → status "no-config".
+         - Otherwise read:
+             `artifacts_dir`        (default "workflows")
+             `gates.explore`        (default "hitl")
+             `tracker.type`         (e.g. github / ado / jira / local-markdown)
+             `project.branching`    (default "gitflow")
+      3. If slug and config are both present → status "ready".
+
+      /explore has no PRD or findings precondition — it is an off-line precursor that PRODUCES
+      findings.md, so `ready` needs only a slug + a readable config.
+
+      Emit ONLY the structured object. ALWAYS emit EVERY required field, including in the no-slug /
+      no-config branches, so the object validates before `guard-not-ready` can cancel. When a value
+      cannot be read, fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
+      tracker_type "", branching "gitflow". Set `message` to a human-readable reason for any
+      non-ready status.
+    output_format:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, no-slug, no-config]
+        slug: { type: string }
+        artifacts_dir: { type: string }
+        gate:
+          type: string
+          enum: [hitl, afk]
+        tracker_type: { type: string }
+        branching: { type: string }
+        message: { type: string }
+      required: [status, slug, artifacts_dir, gate, tracker_type, message]
+
+  # ---------------------------------------------------------------------------------------------
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-ready
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status != 'ready'"
+    cancel: >
+      /explore preconditions not met — see the bootstrap output. Pass a kebab-case slug
+      (`/unic-archon-dlc:explore <slug>`) and run /unic-archon-dlc:setup first so
+      `.archon/unic-dlc.config.yaml` exists.
+
+  # ---------------------------------------------------------------------------------------------
+  # research-stack — parallel research dimension 1 of 4. Read-only, fresh context. Emits its findings
+  # as structured text so `synthesize` can compose them without re-deriving.
+  # ---------------------------------------------------------------------------------------------
+  - id: research-stack
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep]
+    prompt: |
+      You are the research-stack node of /explore for slug "$bootstrap.output.slug".
 
       Goal: understand the technology stack of this project.
 
@@ -20,192 +91,282 @@ nodes:
       2. Note the runtime, package manager, module system, and key devDependencies.
       3. Check .nvmrc or .node-version for the pinned Node.js version.
       4. Look for any framework, test runner, linter, or build tool references.
-      5. Output a concise Markdown summary under the heading "## Stack Findings" covering:
-         - Runtime version
-         - Package manager
-         - Module system (CJS/ESM)
-         - Key frameworks / libraries
-         - Toolchain (lint, format, type-check, test)
 
+      Emit a concise Markdown body (no top-level heading — `synthesize` adds "## Stack Findings")
+      covering: runtime version · package manager · module system (CJS/ESM) · key frameworks /
+      libraries · toolchain (lint, format, type-check, test).
+    output_format:
+      type: object
+      properties:
+        findings: { type: string }
+      required: [findings]
+
+  # ---------------------------------------------------------------------------------------------
+  # research-features — parallel research dimension 2 of 4.
+  # ---------------------------------------------------------------------------------------------
   - id: research-features
-    name: Research Features
-    type: prompt
-    depends_on: []
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — research-features node.
+      You are the research-features node of /explore for slug "$bootstrap.output.slug".
 
       Goal: identify the key features and capabilities of this project.
 
       1. Read README.md (if present) for a high-level feature list.
-      2. Scan docs/plans/ and docs/issues/ for feature specs and issue slugs.
+      2. Scan the artefacts dir ("$bootstrap.output.artifacts_dir") and any tracker/issue docs for
+         feature specs and slugs.
       3. Inspect any CHANGELOG.md files for shipped feature entries.
-      4. Look at exported function names in lib/*.mjs to infer capabilities.
-      5. Output a concise Markdown summary under the heading "## Features Findings" covering:
-         - Core capabilities already shipped
-         - In-progress or planned features (from specs/issues)
-         - Any notable user-facing commands or workflows
+      4. Look at exported function names in lib/*.mjs (or the project's source dirs) to infer
+         capabilities.
 
+      Emit a concise Markdown body (no top-level heading — `synthesize` adds "## Features Findings")
+      covering: core capabilities already shipped · in-progress or planned features · notable
+      user-facing commands or workflows.
+    output_format:
+      type: object
+      properties:
+        findings: { type: string }
+      required: [findings]
+
+  # ---------------------------------------------------------------------------------------------
+  # research-architecture — parallel research dimension 3 of 4. Also the primary source for the
+  # Domain Model + Established Decisions lenses the synthesize node writes for /specs.
+  # ---------------------------------------------------------------------------------------------
   - id: research-architecture
-    name: Research Architecture
-    type: prompt
-    depends_on: []
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — research-architecture node.
+      You are the research-architecture node of /explore for slug "$bootstrap.output.slug".
 
       Goal: understand the structural and architectural decisions of this project.
 
-      1. Read CONTEXT.md (if present) for the domain model and layering decisions.
+      1. Read CONTEXT.md and (if a monorepo) CONTEXT-MAP.md for the domain model and layering.
       2. Read docs/adr/ entries (newest five by filename) for recorded decisions.
-      3. Examine the directory tree: lib/, test/, hooks/, .archon/, and any packages/.
-      4. Identify patterns: pure functions vs. stateful modules, DAG/workflow orchestration, plugin conventions.
+      3. Examine the directory tree: source dirs, tests, hooks, .archon/, and any packages/.
+      4. Identify patterns: pure functions vs. stateful modules, DAG/workflow orchestration,
+         plugin conventions.
       5. Note any cross-platform constraints (Windows, macOS, Linux) visible in the code.
-      6. Output a concise Markdown summary under the heading "## Architecture Findings" covering:
-         - Directory structure and module responsibilities
-         - Key design patterns and conventions
-         - Recorded decisions from ADRs
-         - Cross-platform or portability constraints
 
+      Emit a concise Markdown body (no top-level heading — `synthesize` adds "## Architecture
+      Findings") covering: directory structure and module responsibilities · key design patterns and
+      conventions · recorded decisions from ADRs (cite ADR numbers) · cross-platform constraints.
+    output_format:
+      type: object
+      properties:
+        findings: { type: string }
+      required: [findings]
+
+  # ---------------------------------------------------------------------------------------------
+  # research-pitfalls — parallel research dimension 4 of 4. (HANDOFF.md is retired — ADR-0013 — so it
+  # is no longer a source here.)
+  # ---------------------------------------------------------------------------------------------
   - id: research-pitfalls
-    name: Research Pitfalls
-    type: prompt
-    depends_on: []
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — research-pitfalls node.
+      You are the research-pitfalls node of /explore for slug "$bootstrap.output.slug".
 
       Goal: surface known pitfalls, edge cases, and areas of technical debt.
 
       1. Search for TODO, FIXME, HACK, and XXX comments across all source files.
-      2. Look for error-handling gaps: try/catch blocks that swallow errors, unhandled promise rejections.
+      2. Look for error-handling gaps: try/catch blocks that swallow errors, unhandled rejections.
       3. Check CI configuration (.github/workflows/ or .gitlab-ci.yml) for flaky or skipped jobs.
-      4. Inspect test coverage: are there lib modules with no corresponding test file?
-      5. Read the most recent HANDOFF.md (if present) for documented blockers.
-      6. Output a concise Markdown summary under the heading "## Pitfalls Findings" covering:
-         - Known bugs or TODOs in the code
-         - Untested modules or coverage gaps
-         - CI issues or flaky behaviours
-         - Blockers from the latest HANDOFF.md
+      4. Inspect test coverage: are there source modules with no corresponding test file?
 
+      Emit a concise Markdown body (no top-level heading — `synthesize` adds "## Pitfalls Findings")
+      covering: known bugs or TODOs · untested modules or coverage gaps · CI issues or flaky
+      behaviours · risks worth flagging before a spec is written.
+    output_format:
+      type: object
+      properties:
+        findings: { type: string }
+      required: [findings]
+
+  # ---------------------------------------------------------------------------------------------
+  # synthesize — depends on all four research nodes; writes <artifacts_dir>/<slug>/findings.md directly
+  # with the Write tool (ADR-0023 §5 — no findings-writer lib). The Integrated Brief is written as THREE
+  # explicitly-named lenses (Domain Model / Established Decisions / Prior Research) that /specs'
+  # load-context reads verbatim (ADR-0029) — this is the /explore → /specs contract.
+  # ---------------------------------------------------------------------------------------------
   - id: synthesize
-    name: Synthesize Findings
-    type: prompt
     depends_on: [research-stack, research-features, research-architecture, research-pitfalls]
+    context: fresh
+    allowed_tools: [Read, Write, Glob]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — synthesize node.
+      You are the synthesize node of /explore for slug "$bootstrap.output.slug".
 
-      You have four research outputs from the parallel nodes:
-        - research-stack    → "## Stack Findings"
-        - research-features → "## Features Findings"
-        - research-architecture → "## Architecture Findings"
-        - research-pitfalls → "## Pitfalls Findings"
+      Constants:
+        SLUG          = $bootstrap.output.slug
+        ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
+        Findings path = <ARTIFACTS_DIR>/<SLUG>/findings.md
 
-      Additionally:
-        - The user's stated intent for this exploration is captured in the `slug` workflow input.
-        - Read CONTEXT.md at the project root if it exists — it contains the canonical domain vocabulary.
-        - If this is a monorepo, also read CONTEXT-MAP.md at the repo root.
+      You have four research outputs:
+        - stack        = $research-stack.output.findings
+        - features     = $research-features.output.findings
+        - architecture = $research-architecture.output.findings
+        - pitfalls     = $research-pitfalls.output.findings
 
-      Your job:
-      1. Call initFindingsDir(projectDir, slug) to create docs/workflow/<slug>/ (idempotent).
-      2. Call writeFindingsMd(findingsDir, { stack, features, architecture, pitfalls, brief }) where:
-         - `stack`, `features`, `architecture`, `pitfalls` are the respective findings summaries
-           (strip the "## … Findings" heading and keep only the body text).
-         - `brief` is a new 3-5 sentence "Integrated Brief" that synthesises all four dimensions
-           into a single coherent narrative, highlighting the most important insight from each,
-           surfacing any cross-cutting concerns, and recommending the single highest-impact next step.
-      3. Print: "Explore complete. Findings written to docs/workflow/<slug>/findings.md"
+      Also read, if present: root CONTEXT.md / CONTEXT-MAP.md and docs/adr/ — they carry the canonical
+      domain vocabulary and the decisions already recorded.
 
-  - id: prototype
-    name: Prototype Experiments
-    type: prompt
+      Create the directory <ARTIFACTS_DIR>/<SLUG>/ if needed, then WRITE <ARTIFACTS_DIR>/<SLUG>/
+      findings.md with EXACTLY this structure (idempotent — overwrite if it already exists):
+
+        # Explore findings — <SLUG>
+
+        _Generated by unic-archon-dlc /explore._
+
+        ## Integrated Brief
+
+        ### Domain Model
+        <the ubiquitous-language terms + bounded contexts this feature touches, drawn from CONTEXT.md
+         and the architecture research. This is what /specs reads as its "Domain Model" lens.>
+
+        ### Established Decisions
+        <decisions already locked in — cite the relevant ADR numbers and any convention the spec must
+         respect. This is what /specs reads as its "Established Decisions" lens.>
+
+        ### Prior Research
+        <a 3-5 sentence synthesis across all four dimensions: the most important insight from each, any
+         cross-cutting concern, the single highest-impact next step, and the OPEN QUESTIONS a spec must
+         resolve. This is what /specs reads as its "Prior Research" lens.>
+
+        ## Stack Findings
+        <stack body>
+
+        ## Features Findings
+        <features body>
+
+        ## Architecture Findings
+        <architecture body>
+
+        ## Pitfalls Findings
+        <pitfalls body>
+
+      Then print: "Explore synthesize complete. Findings written to <ARTIFACTS_DIR>/<SLUG>/findings.md"
+
+  # ---------------------------------------------------------------------------------------------
+  # spike — one AFK experiment pass. Build/measure a throwaway experiment where AFK-feasible, else
+  # reason it through; assign exactly one verdict per unknown and APPEND a "## Spike verdicts" section
+  # to findings.md (Edit/Write — no spike-verdicts lib). Interactive prototyping is NOT done here — it
+  # is Matt's /prototype skill, which needs a live conversation and so cannot run in an Archon node
+  # (ADR-0017/0029). This node only references it.
+  # ---------------------------------------------------------------------------------------------
+  - id: spike
     depends_on: [synthesize]
+    context: fresh
+    allowed_tools: [Read, Write, Edit, Bash, Glob, Grep]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — prototype node.
+      You are the spike node of /explore for slug "$bootstrap.output.slug". You run AFK — no live human.
 
-      Goal: design and evaluate one or more experiments that test the key unknowns
-      identified in the findings, then record a verdict for each.
+      Constants:
+        ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
+        Findings path = <ARTIFACTS_DIR>/<$bootstrap.output.slug>/findings.md
 
-      Inputs available:
-        - `slug` workflow input (the exploration identifier)
-        - docs/workflow/<slug>/findings.md (written by the synthesize node)
-
-      Steps:
-      1. Read docs/workflow/<slug>/findings.md.
-      2. From the Integrated Brief and Pitfalls section identify 1-3 concrete unknowns
-         worth spiking. For each unknown, design a minimal experiment:
+      1. Read findings.md. From the Integrated Brief (Prior Research open questions) and Pitfalls,
+         pick 1-3 concrete unknowns worth spiking.
+      2. For each unknown, run a MINIMAL experiment:
            - Give it a short descriptive title.
-           - Describe what you would build or measure.
-           - Reason through what outcome is most likely given the existing evidence.
-           - Assign exactly ONE verdict: VALIDATED, INVALIDATED, or PARTIAL.
-             · VALIDATED  — the approach is confirmed viable; evidence is sufficient.
-             · INVALIDATED — the approach is ruled out; a blocker was found.
-             · PARTIAL    — the approach shows promise but requires follow-up work.
-           - Write 2-4 sentences of supporting evidence or reasoning.
-      3. Call appendSpikeVerdicts(findingsDir, verdicts) from lib/spike-verdicts.mjs,
-         passing an array of { title, verdict, notes } objects.
-         This appends a "## Spike verdicts" section to findings.md.
-      4. Print: "Prototype complete. <N> verdict(s) written to docs/workflow/<slug>/findings.md"
+           - Where an experiment can be built or measured non-interactively, DO SO (throwaway code,
+             clearly marked, no persistence, no polish — delete or leave it in this isolated worktree).
+             Where a live UI/UX judgement is required, DO NOT build it here — note that it needs Matt's
+             `/prototype` skill (interactive) and reason through the most likely outcome instead.
+           - Assign exactly ONE verdict: VALIDATED | INVALIDATED | PARTIAL.
+             · VALIDATED   — approach confirmed viable; evidence sufficient.
+             · INVALIDATED — approach ruled out; a blocker was found.
+             · PARTIAL     — promising but needs follow-up (e.g. interactive /prototype).
+           - Write 2-4 sentences of supporting evidence.
+      3. APPEND a "## Spike verdicts" section to findings.md, one subsection per unknown:
+           ## Spike verdicts
+           ### <title> — <VALIDATED|INVALIDATED|PARTIAL>
+           <evidence>
+         Do not disturb the sections synthesize wrote above it.
+      4. Emit a one-line `verdict_summary` like "1 VALIDATED, 1 PARTIAL" and print:
+         "Spike complete. <N> verdict(s) written to findings.md. (Interactive prototyping → Matt's
+          /prototype.)"
+    output_format:
+      type: object
+      properties:
+        verdict_summary: { type: string }
+      required: [verdict_summary]
 
-  - id: code-preserve-gate
-    name: Spike Branch Gate
-    type: interactive
-    fresh_context: true
-    depends_on: [prototype]
+  # ---------------------------------------------------------------------------------------------
+  # spike-ticket — file (or update) a spike ticket in the configured tracker. Runs BEFORE the branch
+  # gate so the durable output survives a "discard" (the approval schema only supports on_reject, which
+  # cancels/reworks — it never proceeds past a reject). Composes the tracker MCP-first/CLI-fallback and
+  # takes labels ONLY from classification.labels (single source of truth — ADR-0024), never a
+  # labels-config lib and never Matt's docs/agents/*.
+  # ---------------------------------------------------------------------------------------------
+  - id: spike-ticket
+    depends_on: [spike]
+    context: fresh
+    allowed_tools: [Read, Bash]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — code-preserve-gate node.
+      You are the spike-ticket node of /explore for slug "$bootstrap.output.slug".
 
-      Goal: decide whether to preserve any spike code on a dedicated branch.
+      Constants:
+        SLUG          = $bootstrap.output.slug
+        ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
+        TRACKER       = $bootstrap.output.tracker_type
+        Verdicts      = $spike.output.verdict_summary
 
-      Ask the user exactly this question:
-        "Should I preserve this spike code on a branch? (yes/no)"
+      1. Read `.archon/unic-dlc.config.yaml` for `tracker` (type / access / coords) and
+         `classification.labels`. Compose the tracker MCP-first, CLI-fallback (gh / az / jira, or the
+         azure-devops-cli skill) — never hardcode a host (ADR-0016). Labels come ONLY from
+         `classification.labels` (single source of truth — ADR-0024); do NOT read
+         docs/agents/triage-labels.md or issue-tracker.md.
+      2. Check whether a spike ticket for this SLUG already exists (search the tracker by title/label
+         containing the slug; for local-markdown check the issues dir). Be idempotent.
+      3a. If NONE exists → create a ticket:
+            - Title: "Spike: <SLUG> — <Verdicts>"
+            - Labels: type `spike` + a low priority (resolved through classification.labels).
+            - Body: link to <ARTIFACTS_DIR>/<SLUG>/findings.md, then the full "## Spike verdicts"
+              section text.
+            - Prepend the mandated disclaimer as the first body line:
+              `> *This was generated by AI during exploration.*`
+      3b. If one EXISTS → append the new `<Verdicts>` summary to its body and (re)set its triage/state
+          label per classification.labels.
+      4. For jira / local-markdown or any tracker without a create CLI, print the composed command /
+         manual steps instead of failing.
+      5. Print one of: "Spike ticket created: <title>" / "Spike ticket updated: <id>".
 
-      If the user answers YES (or y):
-        1. Derive a branch name: spike/<slug>  (e.g. spike/auth-refresh).
-        2. Run: git checkout -b spike/<slug>
-        3. Stage and commit any unstaged files related to this spike:
-             git add -A
-             git commit -m "spike(<slug>): preserve prototype code from explore workflow"
-        4. Print: "Spike code committed on branch spike/<slug>."
+  # ---------------------------------------------------------------------------------------------
+  # spike-branch-gate — HITL by default (gates.explore); skipped in AFK. APPROVE → proceed to
+  # preserve-spike (creates the branch). REJECT → the run ends here (spike-ticket already filed); no
+  # on_reject, so a reject cancels cleanly rather than looping. In AFK the gate is skipped and
+  # preserve-spike is skipped with it — no branch, the isolated worktree is left for /cleanup.
+  # ---------------------------------------------------------------------------------------------
+  - id: spike-branch-gate
+    depends_on: [spike-ticket]
+    when: "$bootstrap.output.gate == 'hitl'"
+    approval:
+      message: >
+        Exploration "$bootstrap.output.slug" is complete and the spike ticket is filed. Preserve the
+        spike code on a dedicated branch? APPROVE → I create branch spike/$bootstrap.output.slug and
+        commit the worktree changes. REJECT → no branch; the spike code stays uncommitted in this
+        isolated worktree (/cleanup prunes it later).
 
-      If the user answers NO (or n):
-        1. Leave the worktree unchanged — do NOT stage or commit anything.
-        2. Print: "Spike code discarded. Worktree left clean."
-
-  - id: create-spike-ticket
-    name: Create Spike Ticket
-    type: prompt
-    depends_on: [code-preserve-gate]
+  # ---------------------------------------------------------------------------------------------
+  # preserve-spike — reached ONLY on approve (a rejected gate cancels the run before here). `when`
+  # gates.explore == 'hitl' also skips it in AFK, where the gate is skipped and skip propagates.
+  # ---------------------------------------------------------------------------------------------
+  - id: preserve-spike
+    depends_on: [spike-branch-gate]
+    when: "$bootstrap.output.gate == 'hitl'"
+    context: fresh
+    allowed_tools: [Read, Bash]
     prompt: |
-      You are running the unic-archon-dlc explore workflow — create-spike-ticket node.
+      You are the preserve-spike node of /explore for slug "$bootstrap.output.slug". The reviewer
+      approved preserving the spike code.
 
-      Goal: create (or update) a spike ticket in the configured tracker.
-
-      Inputs available:
-        - `slug` workflow input
-        - docs/workflow/<slug>/findings.md (contains the ## Spike verdicts section)
-
-      Steps:
-      1. Read docs/workflow/<slug>/findings.md.
-      2. Call parseSpikeVerdicts(content) from lib/spike-verdicts.mjs to extract verdicts.
-      3. Build a one-line verdict summary, e.g.:
-           "1 VALIDATED, 1 INVALIDATED, 1 PARTIAL"
-      4. Load the tracker configuration with loadConfig(projectDir) from lib/config-loader.mjs.
-         Use config.tracker (defaults to 'github' if absent).
-      5. Load labels with getDefaultLabels(tracker) from lib/labels-config.mjs.
-      6. Check whether a spike ticket for this slug already exists:
-           - GitHub:         gh issue list --label spike --search "<slug>" --json number,title
-           - local-markdown: check for docs/issues/<slug>-spike/index.md
-           - Other trackers: search by title containing slug.
-      7a. If NO existing ticket:
-           Compose the tracker skill/CLI from config (MCP-first, else gh/az/jira per
-           tracker.access — ADR-0016/0018) to create a 'spike'/'p2' ticket titled
-           "Spike: <slug> — <one-line verdict summary>".
-           The body should include:
-             - Link to docs/workflow/<slug>/findings.md
-             - The full ## Spike verdicts section text
-           Execute or print the composed command.
-      7b. If ticket EXISTS:
-           Compose the tracker skill/CLI from config to set the 'needs-triage' label on
-           <issueId> and append the new verdict summary to the body.
-           Execute or print the composed command.
-      8. Print one of:
-           "Spike ticket created: <title>"
-           "Spike ticket updated: <issueId>"
+      1. Create the branch: git checkout -b spike/$bootstrap.output.slug
+      2. Stage and commit the spike code and findings:
+           git add -A
+           git commit -m "spike($bootstrap.output.slug): preserve exploration artifacts from /explore"
+      3. Print: "Spike code committed on branch spike/$bootstrap.output.slug."
