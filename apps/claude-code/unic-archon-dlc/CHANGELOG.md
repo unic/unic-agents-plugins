@@ -6,7 +6,7 @@
 - (none)
 
 ### Added
-- (none)
+- **`/improve-architecture` off-line arch-health command/skill** (ADR-0027) — surfaces technical + intent drift and deepening opportunities, writes a durable `arch-review.md`, and consolidates ADRs **including superseding**. It **composes Matt Pocock's `improve-codebase-architecture` verbatim** (technical drift + deepening HTML report + `/grilling` loop, with `/codebase-design` vocabulary + `/domain-modeling`) and **earns its place** (ADR-0021) by adding three DLC layers the raw skill lacks: an **intent-drift** pass (PRD stories/ACs vs shipped), a **durable artifact** under `<artifacts_dir>/` (ADR-0015), and an **ADR-consolidation gate with superseding**. Two modes: `/improve-architecture <slug>` → intent-grounded against that build session; `/improve-architecture` (no arg) → repo-wide sweep (dated artifact, intent-drift skipped). Superseding spans **both ADR homes** (plugin-local + repo-root), never deletes an ADR (old status → `Superseded by ADR-NNNN`, matching `README.md` index updated). Config load is **lenient** (off-line, touches no tracker); no new config key, no `lib/` change, no auto-hook. Harvests the legacy `unic-dlc-cleanup` `arch-review` + `adr-consolidation` content; does **not** touch that workflow (step 11's scope).
 
 ### Fixed
 - (none)
