@@ -68,7 +68,7 @@ nodes:
         branching: { type: string }
         expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, branching, expected_base, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
@@ -148,7 +148,9 @@ nodes:
       title) so reconcile can classify against them. If the tracker cannot list comments, set iteration 1
       and prior_findings []. Write `SESSION/prep.json` mirroring the emitted object for durability.
 
-      Emit the structured object.
+      ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
+      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". `contradictions` and
+      `prior_findings` are ALWAYS arrays — `[]` when there is nothing to report. Emit the structured object.
     output_format:
       type: object
       properties:
@@ -173,7 +175,7 @@ nodes:
               file: { type: string }
               title: { type: string }
             required: [hash, aspect, file, title]
-      required: [pr_id, base_ref, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, iteration]
+      required: [pr_id, pr_title, base_ref, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_findings]
 
   # =============================================================================================
   # ASPECT FAN-OUT — seven parallel fresh nodes, each depends_on [prep]. Every aspect reads the shared
