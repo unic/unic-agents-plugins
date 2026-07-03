@@ -83,6 +83,7 @@ export function defaultConfig() {
 		specs: { discuss_mode: 'discuss', gate: 'open-pr' },
 		tickets: { gate: 'open-pr' },
 		triage: { out_of_scope_dir: '.out-of-scope', external_prs: 'auto' },
+		qa: { e2e_command: null, coverage_threshold: null },
 		gates: { build: 'hitl', qa: 'hitl', 'pr-review': 'hitl', explore: 'hitl' },
 		build: {
 			fresh_context_red_green: true,

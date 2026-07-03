@@ -30,3 +30,4 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                      |
 | 0023 | `/build` is one generic red/green/refactor loop; dag-builder dissolved                     | Accepted                      |
 | 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted                      |
+| 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted                      |
