@@ -1,0 +1,121 @@
+flowchart LR
+  N26["Unic-DLC command/skill"]
+  N27["Unic-DLC command/skill output"]
+  N28["HITL (Human in the loop) -&gt; Unic's Value!"]
+  N29["AFK (Away from keyboard)"]
+  N30["Out of scope"]
+  subgraph SG_LxSatkTi87_3_YaLF8WGs ["Unic DLC - Vision implementation"]
+    N0("/specs")
+    N1("/setup (?)")
+    N4("PRD / SPECs component")
+    N5("PR (Validation gate)")
+    N6("ADRs")
+    N7("User Stories / Issues")
+    N8("Sync to ADO / GitHub")
+    N9("PR")
+    N10("PR")
+    N11("Component Assets")
+    N12("/triage")
+    N13("/tickets")
+    N14("/build")
+    N15("/pr-review")
+    N16("/qa")
+    N17("HITL")
+    N18("AFK")
+    N19("HITL")
+    N20(("Loop"))
+  end
+  subgraph SG_XPGXNIMT0LeAmNxoQB0a2 ["Out of scope"]
+    N2("/research")
+    N3("/prototype")
+  end
+  subgraph SG_2U1lUmvQVVmPtn2COk3xu ["Legend"]
+    N21("Solid Rectangle")
+    N22("Dashed Rectangle")
+    N23("Blue")
+    N24("Red")
+    N25("Brown / Orange")
+  end
+  N0 -.-> |"Validation ensured over MD template (enforcement)"| N4
+  N13 -.-> |"Validation ensured over MD template (enforcement)"| N7
+  N15 -.-> |"Validation ensured over MD template (enforcement)"| N7
+  N14 -.-> N20
+  N16 -.-> N10
+  N10 -.-> N11
+  N0 --> N12
+  N12 --> N13
+  N13 --> N14
+  N14 --> N15
+  N15 --> N16
+  N21 --> N26
+  N22 --> N27
+  N23 --> N28
+  N24 --> N29
+  N25 --> N30
+  N20 -.-> N9
+  N9 --> N15
+  N1 --> N0
+  N4 --> N13
+  N7 --> N14
+  N9 --> N16
+  N11 --> |"Feedback on future component iterations ensures deterministic output"| N4
+  N7 -.-> N8
+  N0 -.-> |"Validation ensured over MD template (enforcement)"| N6
+  N4 -.-> N5
+style N0 stroke:#1e1e1e,fill:none
+style N1 stroke:#1e1e1e,fill:none
+style N2 stroke:#f08c00,fill:none,color:#f08c00
+style N3 stroke:#f08c00,fill:none,color:#f08c00
+style N4 stroke-dasharray: 5 5,stroke:#1971c2,fill:none,color:#1971c2
+style N5 stroke-dasharray: 5 5,stroke:#1971c2,fill:none,color:#1971c2
+style N6 stroke-dasharray: 5 5,stroke:#1971c2,fill:none,color:#1971c2
+style N7 stroke-dasharray: 5 5,stroke:#e03131,fill:none,color:#e03131
+style N8 stroke-dasharray: 5 5,stroke:#f08c00,fill:none,color:#f08c00
+style N9 stroke-dasharray: 5 5,stroke:#e03131,fill:none,color:#e03131
+style N10 stroke-dasharray: 5 5,stroke:#1971c2,fill:none,color:#1971c2
+style N11 stroke-dasharray: 5 5,stroke:#1e1e1e,fill:none
+style N12 stroke:#1e1e1e,fill:none
+style N13 stroke:#1e1e1e,fill:none
+style N14 stroke:#1e1e1e,fill:none
+style N15 stroke:#f08c00,fill:none,color:#f08c00
+style N16 stroke:#1e1e1e,fill:none
+style N17 stroke:#1971c2,fill:none,color:#1971c2
+style N18 stroke:#e03131,fill:none,color:#e03131
+style N19 stroke:#1971c2,fill:none,color:#1971c2
+style N20 stroke-dasharray: 5 5,stroke:#1e1e1e,fill:none
+style N21 stroke:#1e1e1e,stroke-width:0.5,fill:none
+style N22 stroke-dasharray: 5 5,stroke:#1e1e1e,stroke-width:0.5,fill:none
+style N23 stroke:#1971c2,stroke-width:0.5,fill:none,color:#1971c2
+style N24 stroke:#e03131,stroke-width:0.5,fill:none,color:#e03131
+style N25 stroke:#f08c00,stroke-width:0.5,fill:none,color:#f08c00
+style N26 fill:none,stroke:none
+style N27 fill:none,stroke:none
+style N28 fill:none,stroke:none
+style N29 fill:none,stroke:none
+style N30 fill:none,stroke:none
+linkStyle 0 stroke-dasharray: 5 5
+linkStyle 1 stroke-dasharray: 5 5
+linkStyle 2 stroke-dasharray: 5 5,stroke:#e03131
+linkStyle 3 stroke-dasharray: 5 5
+linkStyle 4 stroke-dasharray: 5 5,stroke:#1971c2
+linkStyle 5 stroke-dasharray: 5 5
+linkStyle 6 stroke-width:0.5
+linkStyle 7 stroke-width:0.5
+linkStyle 8 stroke-width:0.5
+linkStyle 9 stroke-width:0.5
+linkStyle 10 stroke-width:0.5
+linkStyle 11 stroke-width:0.5
+linkStyle 12 stroke-width:0.5
+linkStyle 13 stroke-width:0.5
+linkStyle 14 stroke-width:0.5
+linkStyle 15 stroke-width:0.5
+linkStyle 16 stroke-dasharray: 5 5,stroke-width:0.5
+linkStyle 17 stroke:#f08c00,stroke-width:0.5
+linkStyle 18 stroke-width:0.5
+linkStyle 19 stroke-width:0.5
+linkStyle 20 stroke-width:0.5
+linkStyle 21 stroke-width:0.5
+linkStyle 22 stroke-width:0.5
+linkStyle 23 stroke-dasharray: 5 5,stroke:#f08c00,stroke-width:0.5
+linkStyle 24 stroke-dasharray: 5 5,stroke-width:0.5
+linkStyle 25 stroke-dasharray: 5 5,stroke-width:0.5

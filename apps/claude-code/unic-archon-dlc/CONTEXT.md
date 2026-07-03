@@ -37,11 +37,23 @@ holding all tracker/tenant/OS/template specifics; boxes read it and compose acco
 CLI-fallback). See `docs/adr/0018-generic-core-config-compose.md`.
 _Avoid_: config.json (the retired thin form)
 
+**Deterministic output** (emergent — not a workflow):
+The stakeholder-facing property that "the same component, fed the same inputs, produces the same
+output." The DLC needs **no workflow** for it — it is **emergent** from the
+_fresh-slice-reads-committed-repo_ discipline. Each `/build` slice runs in fresh context against the
+**committed** repo (`docs/adr/0012-fresh-context-red-green-separation.md`), and every artefact (PRD,
+Issues JSON, Findings, code) is durable on disk or in the tracker rather than in conversation memory
+(`docs/adr/0013-tracker-single-source-of-truth.md`, `docs/adr/0015-workflows-slug-artifact-home.md`).
+So a re-run over the same committed inputs converges on the same result, and feedback from shipped
+**Component Assets** flows back into the specs the same way each iteration (the diagram's "deterministic
+output" edge). It is a consequence of the architecture, not a feature to build.
+_Avoid_: reproducibility workflow, determinism gate, output-caching
+
 ### Session lifecycle
 
 **Slug**:
 A short identifier chosen at the start of a Session that scopes all session artefacts
-(e.g. `workflows/<slug>/`, `.archon/workflows/build-<slug>.yaml`).
+(e.g. `workflows/<slug>/findings.md`, `PRD.md`, `issues.json`, `build-state.json`).
 _Avoid_: session name, run id, job id
 
 **Session**:
@@ -139,7 +151,7 @@ Rendered by Claude at user-invocation time. `commands/setup.md` becomes `/unic-a
 _Avoid_: command, command template (which means something else here)
 
 **Archon workflow command template**:
-A markdown file under `.archon/commands/` (e.g. `unic-dlc-plan.md`). Rendered by the Archon
+A markdown file under `.archon/commands/` (e.g. `unic-dlc-build.md`). Rendered by the Archon
 workflow engine inside a workflow node, not by Claude directly. Same file extension as a slash
 command, completely different runtime.
 _Avoid_: slash command, workflow command (ambiguous)
@@ -199,10 +211,10 @@ _Avoid_: reviewer, agent, check
 
 ## Relationships
 
-- A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, and a `build-<slug>.yaml`, all under `workflows/<slug>/`
-- **yaml-gen** depends on **Nyquist map** completing without errors
-- Every issue in **yaml-gen** output gets exactly one **code-red** node and one **code-green** node, run in **red/green fresh-context** isolation
-- **code-green** depends on **code-red** within the same issue; independent issues run in parallel
+- A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
+- The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
+- `/build` runs a generic **red → green → refactor** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
+- Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`
 - The **Setup** slash command writes `.archon/unic-dlc.config.yaml`, registers the team's system-skills, and refreshes the `## Agent skills` block in `CLAUDE.md` in the target project

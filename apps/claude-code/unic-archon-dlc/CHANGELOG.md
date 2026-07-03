@@ -11,6 +11,16 @@
 ### Fixed
 - (none)
 
+## [0.12.0] — 2026-07-03
+
+### Added
+- **Regenerated the vision diagram** to the two-axis target architecture (redesign step 13, final). The new canonical pair is `docs/20260703-Unic-dlc.{mmd,excalidraw}`, hand-authored to show the main line (`/specs → /tickets → /build → /pr-review → /qa`), `/triage` + `/qa` findings + humans as on-ramps into `/tickets`, and the off-line boxes (`/setup`, `/explore`, `/improve-architecture`, `/cleanup`; `/handoff` + `/prototype` referenced), with the container (Archon vs command/skill) and HITL/AFK gate axes encoded. The superseded draft is archived as `docs/20260703-Unic-dlc-draft.{mmd,excalidraw}`; a dated `yyyymmdd-` snapshot scheme replaces the single canonical filename (newest date wins).
+- **Documented the "deterministic output" property** in `CONTEXT.md` as an _emergent_ consequence of the fresh-slice-reads-committed-repo discipline ([ADR-0012](docs/adr/0012-fresh-context-red-green-separation.md) / [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md) / [ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md)) — it needs no workflow.
+
+### Changed
+- **Swept the plugin docs to the shipped model** (redesign step 13). Rewrote the stale `README.md` — the old six-workflow diagram + node table, the `ROADMAP.md`/`HANDOFF.md` `docs/workflow/` layout, `yaml-gen`/`build-<slug>.yaml`, and the `Archon ≥ 0.10` requirement were all pre-redesign — into the two-axis box set, the four actual Archon workflow pipelines, a `<artifacts_dir>/<slug>/` session-artifact layout (no `ROADMAP.md`/`HANDOFF.md`), and `Archon ≥ 0.5.0`. Fixed `CONTEXT.md` (stale `unic-dlc-plan.md` example → `unic-dlc-build.md`; dropped the dissolved `yaml-gen`/`build-<slug>.yaml` relationships per [ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md)). Tidied the `plugin.json` / `marketplace.json` descriptions so only `build`/`qa`/`pr-review`/`explore` are called Archon workflows and `improve-architecture` is listed.
+- **Marked the redesign complete** in `docs/redesign/README.md` (step 13 → done); the directory is kept as the historical record.
+
 ## [0.11.0] — 2026-07-03
 
 ### Breaking

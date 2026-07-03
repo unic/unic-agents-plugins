@@ -6,6 +6,8 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 
 ## Progress — update after each step
 
+> **✅ Redesign complete (2026-07-03).** All 12 build steps + finalize are shipped to `develop`. This directory is kept as the historical record; the canonical architecture now lives in the [ADRs](../adr/) (0011–0029), [`../../CONTEXT.md`](../../CONTEXT.md), [`../../AGENTS.md`](../../AGENTS.md), and the vision diagram [`../20260703-Unic-dlc.mmd`](../20260703-Unic-dlc.mmd).
+
 > **Every step's Definition of Done includes updating this table** (Status + PR) **with the maintainer**, before the step's PR is opened. This table is the single source of truth for progress; the invocation table below is only _how to launch_.
 >
 > Legend: ✅ done · ⏭️ skip (not a build) · ▶️ next · ⬜ todo
@@ -25,7 +27,7 @@ This directory drives the refactor of `unic-archon-dlc` into a **thin, Matt-alig
 | 10  | `/improve-architecture` | skill       | ✅ done | command/skill composing Matt's `improve-codebase-architecture` verbatim + DLC layers (intent-drift, durable `arch-review.md`, ADR-superseding gate across both homes); two modes (per-slug / repo-wide sweep); ADR-0027 (PR #270)                                                                                                                                                      |
 | 11  | `/cleanup`              | command     | ✅ done | new repo-global operational janitor (report-first; composes `archon isolation`/`complete` + tracker); `cleanup` config block; retired legacy `unic-dlc-cleanup.yaml` + stub (content now in `/improve-architecture`); ADR-0028 (PR #271)                                                                                                                                               |
 | 12  | `/explore`              | Archon      | ✅ done | ported to key-discriminated schema (was inert + imported a deleted lib); findings.md moved to `<artifacts_dir>/<slug>/` with a 3-lens Integrated Brief (Domain Model / Established Decisions / Prior Research) as the tightened `/specs` baton; AFK spike + `/prototype` reference; config-gated spike-branch gate; dissolved `findings-writer` + `spike-verdicts`; ADR-0029 (PR #272) |
-| 13  | Finalize                | —           | ▶️ next | reduced — `Unic-dlc.mmd` diagram + dogfood dry-run only (sweep done)                                                                                                                                                                                                                                                                                                                   |
+| 13  | Finalize                | —           | ✅ done | vision diagram regenerated to the two-axis box set (dated `20260703-Unic-dlc.{mmd,excalidraw}`; old draft archived as `-draft`); README/CONTEXT swept to the shipped model + deterministic-output note; plugin/marketplace descriptions tidied; lightweight dogfood pass (4 workflows parse key-discriminated, stubs + core config keys present); v0.12.0 (PR #273)                    |
 
 ## How to run a step
 
