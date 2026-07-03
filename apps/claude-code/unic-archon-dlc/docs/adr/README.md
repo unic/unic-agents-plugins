@@ -34,3 +34,4 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted                      |
 | 0027 | `/improve-architecture` is a skill composing Matt's method + owns ADR superseding          | Accepted                      |
 | 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted                      |
+| 0029 | `/explore` is an off-line research + AFK-spike on-ramp; findings.md is the /specs baton    | Accepted                      |
