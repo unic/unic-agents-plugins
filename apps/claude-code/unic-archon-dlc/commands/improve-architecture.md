@@ -122,8 +122,13 @@ Bind that method to the DLC:
   `report.md` and/or the build's diff (e.g. `git diff --name-only <base>..HEAD`, adapting the range) —
   but keep Matt's method and still surface repo-wide friction the change touches.
 - **Repo-wide mode:** the full-codebase walk Matt's skill already performs.
-- Note any candidate the grill loop marks "accept as ADR" or any load-bearing rejection worth
-  recording — these feed Step 6.
+- **Defer every ADR to Step 6 — do not write one here.** Matt's method offers to record a
+  load-bearing rejection as an ADR inline (using its own template); in the DLC that offer is
+  **capture-only**. Do **not** accept, number, or write any ADR during Step 3, and do not let the
+  delegated skill write one — instead record each proposed decision (the "accept as ADR" candidates
+  and load-bearing rejections) as a candidate and hand it to Step 6. Step 6 is the **single place**
+  ADRs are written, so the A/R/E gate, MADR-lite format, both-homes numbering, and superseding/index
+  mechanics always apply and ADRs can never drift into an inconsistent format or bypass the gate.
 
 ## Step 4 — Intent drift (DLC value-add — per-slug mode only)
 
