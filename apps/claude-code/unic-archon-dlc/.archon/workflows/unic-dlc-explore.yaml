@@ -27,8 +27,11 @@ nodes:
     prompt: |
       You are the bootstrap node of the unic-archon-dlc /explore workflow.
 
-      1. Parse the FIRST whitespace-delimited token of "$ARGUMENTS" as the slug (kebab-case).
-         If $ARGUMENTS is empty → status "no-slug".
+      1. Parse the FIRST whitespace-delimited token of "$ARGUMENTS" as the slug. Validate it against
+         the kebab-case pattern `^[a-z0-9]+(-[a-z0-9]+)*$`. If $ARGUMENTS is empty OR the token does
+         not match → status "no-slug" with a `message` explaining the slug must be kebab-case (lower
+         alphanumerics and single hyphens only) — this is a hard gate: the slug is later interpolated
+         into branch names and shell commands, so a non-matching token is NEVER treated as ready.
       2. Read `.archon/unic-dlc.config.yaml` at the repo root.
          - If it is absent or unreadable → status "no-config".
          - Otherwise read:
@@ -282,11 +285,13 @@ nodes:
              · INVALIDATED — approach ruled out; a blocker was found.
              · PARTIAL     — promising but needs follow-up (e.g. interactive /prototype).
            - Write 2-4 sentences of supporting evidence.
-      3. APPEND a "## Spike verdicts" section to findings.md, one subsection per unknown:
+      3. Write a "## Spike verdicts" section to findings.md, one subsection per unknown:
            ## Spike verdicts
            ### <title> — <VALIDATED|INVALIDATED|PARTIAL>
            <evidence>
-         Do not disturb the sections synthesize wrote above it.
+         Be IDEMPOTENT: if a "## Spike verdicts" section already exists (e.g. this node is re-run),
+         REPLACE it in place — never append a second one. Do not disturb the sections synthesize
+         wrote above it.
       4. Emit a one-line `verdict_summary` like "1 VALIDATED, 1 PARTIAL" and print:
          "Spike complete. <N> verdict(s) written to findings.md. (Interactive prototyping → Matt's
           /prototype.)"
@@ -365,7 +370,8 @@ nodes:
       You are the preserve-spike node of /explore for slug "$bootstrap.output.slug". The reviewer
       approved preserving the spike code.
 
-      1. Create the branch: git checkout -b spike/$bootstrap.output.slug
+      1. Create the branch (quote the branch name — the slug is user-controlled):
+           git checkout -b "spike/$bootstrap.output.slug"
       2. Stage and commit the spike code and findings:
            git add -A
            git commit -m "spike($bootstrap.output.slug): preserve exploration artifacts from /explore"
