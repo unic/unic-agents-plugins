@@ -85,6 +85,7 @@ export function defaultConfig() {
 		triage: { out_of_scope_dir: '.out-of-scope', external_prs: 'auto' },
 		qa: { e2e_command: null, coverage_threshold: null },
 		'pr-review': { confidence_threshold: 60, inline_comments: true },
+		cleanup: { stale_days: 7, dry_run: true, prune_slug_dirs: false },
 		gates: { build: 'hitl', qa: 'hitl', 'pr-review': 'hitl', explore: 'hitl' },
 		build: {
 			fresh_context_red_green: true,
