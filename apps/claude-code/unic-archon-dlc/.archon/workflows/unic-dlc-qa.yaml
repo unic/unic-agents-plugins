@@ -43,6 +43,12 @@ nodes:
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
       Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
       (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
+
+      ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
+      object validates before `guard-not-ready` can cancel. When a value cannot be read (e.g. config is
+      missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
+      tracker_type "" , branching "gitflow", expected_base "develop". Set `message` to a human-readable
+      reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -249,15 +255,18 @@ nodes:
       tracker from `.archon/unic-dlc.config.yaml` (MCP-first, CLI-fallback):
         - github → `gh pr view --json baseRefName`
         - ado    → `az repos pr show` (targetRefName, strip refs/heads/)
-        - jira / local-markdown / other → no queryable PR base: set base_ok true and note it is
+        - jira / local-markdown / other → no queryable PR base: set base_ok "true" and note it is
           unverifiable for this tracker (warning only, non-blocking).
-      Set `base_ok` true when the actual base equals expected_base (or is unverifiable as above); false
-      on a genuine mismatch. Print "verify-pr-base: base is <actual> ✓" or
-      "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget before merging."
+      Set `base_ok` to the STRING "true" when the actual base equals expected_base (or is unverifiable
+      as above); the STRING "false" on a genuine mismatch. (It is a string, not a boolean, so the
+      downstream `when` gates compare it reliably as `== 'true'`.) Print "verify-pr-base: base is
+      <actual> ✓" or "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget first."
     output_format:
       type: object
       properties:
-        base_ok: { type: boolean }
+        base_ok:
+          type: string
+          enum: ['true', 'false']
         actual_base: { type: string }
       required: [base_ok]
 
