@@ -1,365 +1,337 @@
 name: unic-dlc-build
 description: >
-  TDD build execution wrapper: slopcheck gate → generated per-slug build workflow.
-  Each issue goes red (failing tests) before green (passing implementation).
-  Independent issues run in parallel; chained issues run in dependency order.
+  Keystone build box. Consumes the dependency-ordered issues.json that /tickets produced and
+  implements every slice test-first with structural anti-cheating: a single generic loop advances
+  each slice through three FRESH-context phases — RED (write a provably-failing test), GREEN (minimum
+  implementation), REFACTOR (clean up under a green suite) — serially in dependency order. The baton
+  between phases is artefacts on disk (committed test, committed impl), never session memory
+  (ADR-0012). Then verify, goals-check, report, and gate a PR to develop (ADR-0011/0022/0023).
 
-inputs:
-  slug:
-    description: Planning session identifier — matches the slug used in /unic-dlc-plan.
-    required: true
+# Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
+interactive: true
 
 nodes:
-  - id: slopcheck
-    name: Slopcheck — Verify New Packages
-    type: bash
-    runtime: bun
+  # ---------------------------------------------------------------------------------------------
+  # bootstrap — parse the slug from $ARGUMENTS, read config, confirm issues.json exists.
+  # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
+  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools.
+  # ---------------------------------------------------------------------------------------------
+  - id: bootstrap
     depends_on: []
+    context: fresh
+    allowed_tools: [Read, Bash, Glob]
+    prompt: |
+      You are the bootstrap node of the unic-archon-dlc /build workflow.
+
+      1. Parse the FIRST whitespace-delimited token of "$ARGUMENTS" as the slug (kebab-case).
+         If $ARGUMENTS is empty → status "no-slug".
+      2. Read `.archon/unic-dlc.config.yaml` at the repo root.
+         - If it is absent or unreadable → status "no-config".
+         - Otherwise read: `artifacts_dir` (default "workflows"), `gates.build` (default "hitl"),
+           `build.e2e_command` (may be null), `build.coverage_threshold` (may be null).
+      3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
+         - If it is absent → status "no-issues".
+      4. If slug, config, and issues.json are all present → status "ready".
+
+      Emit ONLY the structured object. `test_command` is the repo default test command you can infer
+      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one.
+    output_format:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, no-slug, no-config, no-issues]
+        slug: { type: string }
+        artifacts_dir: { type: string }
+        gate:
+          type: string
+          enum: [hitl, afk]
+        e2e_command: { type: [string, 'null'] }
+        coverage_threshold: { type: [number, 'null'] }
+        test_command: { type: [string, 'null'] }
+        message: { type: string }
+      required: [status, slug, artifacts_dir, gate, message]
+
+  # ---------------------------------------------------------------------------------------------
+  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-ready
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status != 'ready'"
+    cancel: >
+      /build preconditions not met — see the bootstrap output for which of slug, config, or
+      issues.json is missing. Run /unic-archon-dlc:tickets <slug> first to produce
+      <artifacts_dir>/<slug>/issues.json.
+
+  # ---------------------------------------------------------------------------------------------
+  # slopcheck — verify every NEW package against the npm registry before any code runs.
+  # Self-contained (ADR-0023 §5): mirrors lib/slopcheck.mjs, imports nothing from the plugin.
+  # ---------------------------------------------------------------------------------------------
+  - id: slopcheck
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    runtime: bun
+    timeout: 120000
     script: |
-      #!/usr/bin/env node
-      // @ts-check
       import { execFileSync } from 'node:child_process'
       import { existsSync, readFileSync } from 'node:fs'
       import { join } from 'node:path'
-      import { classifyPackages, parseNewPackages } from './lib/slopcheck.mjs'
+      import https from 'node:https'
 
       const projectDir = process.cwd()
       const pkgPath = join(projectDir, 'package.json')
-
       if (!existsSync(pkgPath)) {
-        console.log('slopcheck: no package.json found, skipping.')
+        console.log('slopcheck: no package.json found, skipping. ✓')
         process.exit(0)
       }
 
-      // Get the previous package.json from HEAD (if in a git repo)
+      // Packages present now but absent from HEAD:package.json are "new".
       let prevDeps = {}
       try {
         const prev = execFileSync('git', ['show', 'HEAD:package.json'], { cwd: projectDir, encoding: 'utf8' })
         const parsed = JSON.parse(prev)
         prevDeps = { ...parsed.dependencies, ...parsed.devDependencies }
       } catch {
-        // Not in a git repo or no HEAD — treat all current packages as new (strictest)
-        console.log('slopcheck: cannot read HEAD:package.json, treating all packages as new.')
+        console.log('slopcheck: cannot read HEAD:package.json, treating all packages as new (strictest).')
       }
-
       const current = JSON.parse(readFileSync(pkgPath, 'utf8'))
       const currentDeps = { ...current.dependencies, ...current.devDependencies }
-      const newPkgs = parseNewPackages(prevDeps, currentDeps)
+      const prevKeys = new Set(Object.keys(prevDeps))
+      const newPkgs = Object.keys(currentDeps).filter((k) => !prevKeys.has(k))
 
       if (newPkgs.length === 0) {
         console.log('slopcheck: no new packages detected. ✓')
         process.exit(0)
       }
-
       console.log(`slopcheck: found ${newPkgs.length} new package(s): ${newPkgs.join(', ')}`)
 
-      // Determine registry check strategy
-      let registryFn = null
+      // Registry existence check via an npm registry HEAD request (self-contained fallback).
+      const exists = (name) =>
+        new Promise((resolve) => {
+          const encoded = encodeURIComponent(name).replace(/^%40/, '@')
+          const req = https.request(
+            { hostname: 'registry.npmjs.org', path: `/${encoded}`, method: 'HEAD' },
+            (res) => resolve(res.statusCode === 200),
+          )
+          req.on('error', () => resolve(false))
+          req.setTimeout(5000, () => {
+            req.destroy()
+            resolve(false)
+          })
+          req.end()
+        })
 
-      // Strategy 1: Python slopcheck tool
-      try {
-        execFileSync('slopcheck', ['--version'], { encoding: 'utf8' })
-        registryFn = async (/** @type {string} */ name) => {
-          try {
-            execFileSync('slopcheck', ['check', name], { encoding: 'utf8' })
-            return true
-          } catch {
-            return false
-          }
-        }
-        console.log('slopcheck: using Python slopcheck tool.')
-      } catch {
-        // Python tool not on PATH, try npm registry HEAD check
+      const assumed = []
+      for (const name of newPkgs) {
+        let ok = false
         try {
-          const { default: https } = await import('node:https')
-          registryFn = (/** @type {string} */ name) =>
-            new Promise((resolve) => {
-              const encoded = encodeURIComponent(name).replace(/^%40/, '@')
-              const req = https.request(
-                { hostname: 'registry.npmjs.org', path: `/${encoded}`, method: 'HEAD' },
-                (res) => resolve(res.statusCode === 200),
-              )
-              req.on('error', () => resolve(false))
-              req.setTimeout(5000, () => {
-                req.destroy()
-                resolve(false)
-              })
-              req.end()
-            })
-          console.log('slopcheck: using npm registry HEAD check fallback.')
+          ok = await exists(name)
         } catch {
-          console.log('slopcheck: no registry check available — all new packages treated as [ASSUMED].')
+          ok = false
         }
+        if (!ok) assumed.push(name)
       }
-
-      const verdicts = await classifyPackages(newPkgs, registryFn)
-      const assumed = verdicts.filter((v) => v.assumed)
 
       if (assumed.length === 0) {
         console.log('slopcheck: all new packages verified in registry. ✓')
         process.exit(0)
       }
-
       console.log('\nslopcheck: [ASSUMED] packages require human verification:')
-      for (const pkg of assumed) {
-        console.log(`  ⚠  ${pkg.name} — not found in registry or unverifiable`)
-        console.log(`     checkpoint:human-verify — approve or reject this package before install continues`)
-      }
-      console.log(
-        '\nslopcheck: halting build. Resolve the above packages (remove them, pin a real version,',
-      )
-      console.log('or run the build with SLOPCHECK_BYPASS=1 to accept assumed packages explicitly.')
+      for (const name of assumed) console.log(`  ⚠  ${name} — not found in registry or unverifiable`)
+      console.log('\nslopcheck: halting build. Remove them, pin a real version, or re-run with')
+      console.log('SLOPCHECK_BYPASS=1 to accept [ASSUMED] packages explicitly.')
+      if (!process.env.SLOPCHECK_BYPASS) process.exit(1)
 
-      if (!process.env.SLOPCHECK_BYPASS) {
-        process.exit(1)
-      }
-
+  # ---------------------------------------------------------------------------------------------
+  # run-build — THE keystone. One fresh session per iteration advances ONE slice by ONE phase.
+  # Red/green/refactor never share a session; the baton is committed artefacts + build-state.json
+  # (ADR-0012 / ADR-0023). Serial in the dependency order already baked into issues.json.
+  # ---------------------------------------------------------------------------------------------
   - id: run-build
-    name: Execute Generated Build Workflow
-    type: prompt
     depends_on: [slopcheck]
-    prompt: |
-      You are running the unic-archon-dlc build workflow — run-build node.
+    idle_timeout: 900000
+    loop:
+      fresh_context: true
+      until: COMPLETE
+      max_iterations: 60
+      prompt: |
+        FRESH session — you have NO memory of previous iterations. All state is on disk.
+        You are one iteration of the unic-archon-dlc /build loop.
 
-      The slopcheck gate has passed. Now execute the generated build workflow for this slug.
+        Constants:
+          SLUG          = $bootstrap.output.slug
+          ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
+          Session dir   = <ARTIFACTS_DIR>/<SLUG>/
+          Issues        = <ARTIFACTS_DIR>/<SLUG>/issues.json      (dependency-ordered, read-only)
+          State         = <ARTIFACTS_DIR>/<SLUG>/build-state.json (you create/update it)
 
-      The generated workflow is at: .archon/workflows/build-{{ inputs.slug }}.yaml
+        ## Step 1 — Load state
+        Read issues.json (an ordered array; blockers come first — honour that order).
+        Read build-state.json if it exists; otherwise treat every slice as phase "pending".
+        build-state.json shape: { "<issue-id>": { "phase": "pending|red-done|green-done|refactor-done",
+        "red_exit": <number|null>, "red_unexpected_pass": <bool>, "notes": "<string>" }, ... }.
 
-      Actions:
-      1. Verify that .archon/workflows/build-{{ inputs.slug }}.yaml exists.
-         If it does not exist, print:
-           "build-{{ inputs.slug }}.yaml not found. Run /unic-dlc-plan {{ inputs.slug }} first to generate it."
-         and halt.
+        ## Step 2 — Pick the NEXT action (exactly one phase, one slice)
+        First, if ANY slice has `red_unexpected_pass: true` in build-state.json, the build is blocked:
+        print "BLOCKED: <id> red-unexpected-pass — needs human review", do NOT emit COMPLETE, and end
+        the iteration. (A human resolves the mis-written test out of band.)
+        Otherwise walk issues.json IN ORDER and pick the first slice whose blockers are all
+        "refactor-done" and:
+          - phase "pending"    → do RED for it
+          - phase "red-done"   → do GREEN for it
+          - phase "green-done" → do REFACTOR for it
+        If EVERY slice is "refactor-done" → print "All slices complete." and emit
+        <promise>COMPLETE</promise>. Do nothing else.
 
-      2. Invoke the generated workflow via Archon by name:
-         Run: archon workflow run unic-dlc-build-{{ inputs.slug }} --input slug={{ inputs.slug }}
+        ## Step 3 — Execute the chosen phase
 
-         The generated workflow contains:
-           - code-red-<id> nodes: write FAILING acceptance tests per issue
-           - code-green-<id> nodes: write minimum implementation to pass those tests
-           - Dependency edges enforce: red before green within each issue
-           - Independent issues run code-red (and code-green) in parallel
+        The slice's INTENT is its `acceptance_criteria` + `summary` from issues.json. Its verification
+        seam is `test_command` (or, if `test_command_planned` is true, the test is part of the slice —
+        you write it, then use the command you introduce).
 
-      3. After the workflow completes, print:
-         "build-{{ inputs.slug }} complete. All issues have been implemented following red→green discipline."
+        ### RED  (write a provably-failing test — this is the anti-cheat proof)
+          1. From the slice INTENT alone, write the failing test(s) for ONE demoable behaviour.
+             Do NOT write or modify implementation code in this phase.
+          2. Run the slice's `test_command`. Capture the exit code.
+          3. If exit code != 0 (test fails as required):
+               - `git add` the test file(s) and commit: `test(<SLUG>): failing test for <id> — <title>`
+               - Update build-state.json: phase "red-done", red_exit = <code>.
+          4. If exit code == 0 (test unexpectedly PASSES before any impl):
+               - Do NOT commit. The test does not capture new behaviour.
+               - Update build-state.json: red_unexpected_pass = true, notes = why.
+               - Print "RED FAILED TO FAIL: <id>" and end the iteration.
 
-      TDD rules enforced by the generated DAG:
-        - Never write implementation before writing failing tests.
-        - code-green nodes write ONLY enough code to pass the current tests.
-        - No speculative features, no extra abstractions.
-        - If a code-green node fails (tests still failing after implementation), pause and
-          ask the user whether to retry or flag the issue for human review.
+        ### GREEN  (minimum implementation)
+          The committed failing test on disk is your contract. You did NOT see how RED reasoned — read
+          the committed test + the slice INTENT.
+          1. Write the MINIMUM implementation to make the committed test pass. No speculative features,
+             no extra abstractions, no unrelated files.
+          2. Run `test_command`. It MUST now pass (exit 0). If it does not, iterate on the impl only
+             (never weaken the test) until green, within this iteration.
+          3. `git add` the implementation and commit: `feat(<SLUG>): implement <id> — <title>`
+             (use `fix(...)` when the slice `type` is bug).
+          4. Update build-state.json: phase "green-done".
 
+        ### REFACTOR  (clean up under a green suite)
+          1. Read the committed implementation for this slice. Improve clarity/duplication/naming ONLY;
+             change no observable behaviour and add no features.
+          2. Run `test_command`. It MUST stay green. If a change breaks it, revert that change.
+          3. If you made changes, `git add` and commit: `refactor(<SLUG>): tidy <id> — <title>`.
+             If nothing needed changing, make NO commit.
+          4. Update build-state.json: phase "refactor-done".
+
+        ## Step 4 — Never emit COMPLETE unless Step 2 found every slice "refactor-done".
+        Do exactly one phase per iteration, then stop.
+
+  # ---------------------------------------------------------------------------------------------
+  # verification — full suite + stub scan on the diff. Self-contained prompt (ADR-0023 §5).
+  # ---------------------------------------------------------------------------------------------
   - id: verification
-    name: Verification — Test Suite, Stubs, Wiring
-    type: bash
-    runtime: bun
     depends_on: [run-build]
-    script: |
-      #!/usr/bin/env node
-      // @ts-check
-      import { readFileSync, readdirSync, statSync } from 'node:fs'
-      import { join, extname } from 'node:path'
-      import { execFileSync } from 'node:child_process'
-      import { detectStubs } from './lib/stub-detector.mjs'
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep]
+    prompt: |
+      You are the verification node of /build for slug "$bootstrap.output.slug".
 
-      const slug = process.env.ARCHON_INPUT_SLUG
-      if (!slug) {
-        console.error('verification: ARCHON_INPUT_SLUG is not set')
-        process.exit(1)
-      }
+      1. Run the full test suite: use `$bootstrap.output.e2e_command` if non-null, else
+         `$bootstrap.output.test_command`, else `pnpm test`. Report pass/fail counts.
+      2. Stub scan — inspect the diff against the base branch
+         (`git diff --name-only $BASE_BRANCH...HEAD`, source files only:
+         .mjs/.js/.ts/.py/.rb/.go/.rs). Flag any of these left in changed source:
+           - `TODO` / `FIXME` comments
+           - Python `pass` as a whole statement
+           - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
+      3. If `$bootstrap.output.coverage_threshold` is non-null, run coverage and compare.
+      4. Print a verdict block:
+           verification: PASSED ✓    (tests green, no stubs, coverage ≥ threshold)
+         or
+           verification: FAILED ✗ — <the specific failures>
+      Do not fix anything here; just report. The report and gate nodes consume this verdict.
 
-      let exitCode = 0
-
-      // 1. Run the test suite
-      console.log('\n=== verification: running test suite ===')
-      try {
-        execFileSync('pnpm', ['test'], { stdio: 'inherit' })
-        console.log('verification: tests PASSED ✓')
-      } catch {
-        console.error('verification: tests FAILED ✗')
-        exitCode = 1
-      }
-
-      // 2. Detect stub patterns in changed source files
-      console.log('\n=== verification: checking for stub patterns ===')
-      let changedFiles = []
-      try {
-        const diff = execFileSync('git', ['diff', '--name-only', 'HEAD'], { encoding: 'utf8' })
-        changedFiles = diff.split('\n').filter(Boolean).filter(f => /\.(mjs|js|ts|py|rb|go|rs)$/.test(f))
-      } catch {
-        console.log('verification: cannot read git diff, skipping stub check.')
-      }
-
-      const stubFindings = []
-      for (const file of changedFiles) {
-        try {
-          const src = readFileSync(file, 'utf8')
-          const stubs = detectStubs(src)
-          for (const s of stubs) stubFindings.push({ file, ...s })
-        } catch { /* file deleted or unreadable */ }
-      }
-
-      if (stubFindings.length > 0) {
-        console.error(`verification: found ${stubFindings.length} stub pattern(s):`)
-        for (const f of stubFindings) {
-          console.error(`  ${f.file}:${f.line}  [${f.pattern}]  ${f.text}`)
-        }
-        exitCode = 1
-      } else {
-        console.log('verification: no stub patterns detected ✓')
-      }
-
-      // 3. Check coverage threshold
-      const configPath = '.archon/unic-dlc.config.json'
-      let coverageThreshold = null
-      try {
-        const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
-        coverageThreshold = cfg.coverage_threshold ?? null
-      } catch { /* config absent */ }
-
-      if (coverageThreshold !== null) {
-        console.log(`\n=== verification: checking coverage threshold (${coverageThreshold}%) ===`)
-        try {
-          execFileSync('pnpm', ['test', '--coverage'], { stdio: 'inherit' })
-        } catch {
-          console.error(`verification: coverage check failed (threshold: ${coverageThreshold}%)`)
-          exitCode = 1
-        }
-      }
-
-      process.exit(exitCode)
-
+  # ---------------------------------------------------------------------------------------------
   - id: goals-check
-    name: Goals-Check — PRD Coverage Matrix
-    type: prompt
     depends_on: [verification]
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
-      You are running the unic-archon-dlc build workflow — goals-check node.
+      You are the goals-check node of /build for slug "$bootstrap.output.slug".
 
-      Goal: produce a coverage matrix that maps every acceptance criterion from the PRD
-      to implementation evidence (file paths and test names). Any criterion without evidence
-      is "MISSING" and fails this node.
+      Build a PRD-coverage matrix mapping every acceptance criterion to implementation evidence.
+      1. Read `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` (if present) and
+         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`. Collect every
+         acceptance criterion from the PRD user stories and each issue's `acceptance_criteria`
+         (dedupe by meaning).
+      2. For each criterion, find (a) a test that asserts it and (b) a source file that implements it.
+      3. Emit a Markdown table:  | Criterion | Evidence (file:line / test name) | ✓ COVERED / ✗ MISSING |
+         A criterion is COVERED only when BOTH a test and an implementation exist.
+      4. If any row is MISSING: print "goals-check: FAILED — N uncovered criteria" and list them.
+         Else print "goals-check: PASSED — all acceptance criteria covered. ✓".
+      Keep the matrix in your output; the report node pastes it verbatim.
 
-      ## Step 1 — Load the PRD and issues
-
-      Read docs/workflow/{{ inputs.slug }}/PRD.md in full.
-      Read docs/workflow/{{ inputs.slug }}/issues.json and parse the issues array.
-
-      Extract every acceptance criterion from:
-        - Each user story in the PRD's "User Stories" section (format: "As a ... I want ...")
-        - Each issue's `acceptance_criteria` array in issues.json
-
-      Deduplicate criteria that appear in both (match by meaning, not exact text).
-
-      ## Step 2 — Find implementation evidence
-
-      For each criterion, search the codebase for:
-        - Source files that implement the described behaviour (file paths with function/class names)
-        - Test files that assert this criterion passes (test names, file:line references)
-
-      Use your knowledge of the changed files from the just-completed build to focus the search.
-
-      ## Step 3 — Build the coverage matrix
-
-      Format the matrix as a Markdown table:
-
-        | Criterion | Evidence | Status |
-        |-----------|----------|--------|
-        | <criterion text> | <file:line or test name> | ✓ COVERED / ✗ MISSING |
-
-      Rules:
-        - A criterion is COVERED if at least one test asserts it AND at least one source file
-          implements it.
-        - A criterion is MISSING if either the test or the implementation is absent.
-
-      ## Step 4 — Report and fail if any MISSING
-
-      If any rows are MISSING:
-        Print: "goals-check: FAILED — N criterion/criteria without coverage."
-        List the missing criteria.
-        The workflow will return control to `verification` after the report step.
-
-      If all criteria are COVERED:
-        Print: "goals-check: PASSED — all acceptance criteria covered. ✓"
-
-      Store the matrix as `{{ matrix }}` for use in the report node.
-
+  # ---------------------------------------------------------------------------------------------
   - id: report
-    name: Report — Consolidate Build Outcomes
-    type: prompt
     depends_on: [goals-check]
+    context: fresh
+    allowed_tools: [Read, Write, Bash]
     prompt: |
-      You are running the unic-archon-dlc build workflow — report node.
+      You are the report node of /build for slug "$bootstrap.output.slug".
 
-      Goal: write docs/workflow/{{ inputs.slug }}/report.md consolidating all build outcomes.
+      Write `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md` with exactly five
+      sections:
+        1. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
+           If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
+           criteria — see matrix below."
+        2. Goals-Check Coverage Matrix — paste $goals-check.output verbatim.
+        3. Test Outcomes — pass/fail counts + coverage from $verification.output; note skipped/flaky.
+        4. Decisions Made — technical decisions worth recording; for each significant one, draft an
+           ADR inline (docs/adr/NNNN-<slug>.md) for review.
+        5. Tech Debt Flagged — accepted stubs, known limits, shortcuts (feed into /cleanup).
+      Print: "report written to $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md".
 
-      ## Required sections (exactly five)
-
-      ### 1. What Was Built
-      A high-level summary (3-5 bullets) of the issues that were implemented in this build cycle.
-      Reference each issue id and title.
-
-      ### 2. Goals-Check Coverage Matrix
-      Paste the coverage matrix produced by the goals-check node verbatim.
-
-      ### 3. Test Outcomes
-      - Pass/fail counts from the test run.
-      - Coverage numbers if available.
-      - Any flaky or skipped tests.
-
-      ### 4. Decisions Made
-      Bullet list of technical decisions made during implementation that should be recorded.
-      For each decision, propose an ADR filename (docs/adr/NNNN-<slug>.md) if the decision
-      is significant enough to warrant one. Write the ADR inline for review.
-
-      ### 5. Tech Debt Flagged
-      Bullet list of items deferred during this build (stub patterns that were accepted,
-      known limitations, shortcuts taken under time pressure). These items feed into
-      the cleanup workflow (slice 13).
-
-      ## Output
-
-      Write the report to docs/workflow/{{ inputs.slug }}/report.md.
-      Print: "report written to docs/workflow/{{ inputs.slug }}/report.md"
-
-      If goals-check returned any MISSING criteria, include a note in the "What Was Built"
-      section: "⚠ goals-check found N uncovered criteria — see matrix below."
-
-  - id: build-pr-gate
-    name: Build PR Gate — Human Review
-    type: interactive
-    fresh_context: true
+  # ---------------------------------------------------------------------------------------------
+  # open-pr — always runs (even in AFK mode); the gate below only PAUSES in hitl mode.
+  # ---------------------------------------------------------------------------------------------
+  - id: open-pr
     depends_on: [report]
+    context: fresh
+    allowed_tools: [Read, Bash]
     prompt: |
-      You are running the unic-archon-dlc build workflow — build-pr-gate node.
+      You are the open-pr node of /build for slug "$bootstrap.output.slug".
 
-      The implementation, goals-check matrix, and report are ready for human review.
+      1. Stage everything changed by the build: source + tests, the session report
+         (`$bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md`), and any new
+         `docs/adr/NNNN-*.md` drafted by the report node.
+      2. Open a PR targeting `develop`:
+           Title: "build($bootstrap.output.slug): implementation"
+           Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
+                  ## Review Checklist
+                  - [ ] Every acceptance criterion has implementation evidence
+                  - [ ] No TODO/FIXME/stub returns in implementation code
+                  - [ ] Coverage meets the configured threshold
+                  - [ ] Tech-debt section in report.md is accurate
+                  - [ ] Drafted ADRs (if any) are ready to record
+         Compose the host from config (gh / az / the azure-devops-cli skill per the tracker); do NOT
+         hardcode a host. Print the PR URL.
 
-      Actions:
-      1. Stage all changed source and test files plus the report:
-         - All files changed during the build (git status --short)
-         - docs/workflow/{{ inputs.slug }}/report.md
-         - Any ADR files proposed in the report (docs/adr/NNNN-*.md that are new)
-      2. Open a PR targeting the develop branch with:
-         - Title: "build({{ inputs.slug }}): implementation"
-         - Body:
-           ## Summary
-           - TDD implementation for `{{ inputs.slug }}` session
-           - Goals-check matrix: all criteria covered (or: N criteria missing — see report)
-           - report.md attached
+  # ---------------------------------------------------------------------------------------------
+  # build-pr-gate — HITL by default; skipped when gates.build == afk (PR already open above).
+  # On reject: re-verify-and-fix from the reviewer's feedback, then re-pause (not a full rebuild).
+  # ---------------------------------------------------------------------------------------------
+  - id: build-pr-gate
+    depends_on: [open-pr]
+    when: "$bootstrap.output.gate == 'hitl'"
+    approval:
+      message: >
+        Build implementation, goals-check matrix, and report are ready. Review the PR opened against
+        develop. Approve to finish, or reject with feedback to trigger a verify-and-fix pass.
+      on_reject:
+        prompt: |
+          The reviewer rejected the build PR with this feedback:
+          $REJECTION_REASON
 
-           ## Review Checklist
-           - [ ] All acceptance criteria have implementation evidence
-           - [ ] No TODO / FIXME stubs left in implementation code
-           - [ ] Test coverage meets configured threshold
-           - [ ] Tech debt section in report.md is accurate
-           - [ ] Proposed ADRs (if any) are ready to record
-      3. Pause and wait for human review.
-         - If the PR is **approved** and merged:
-           Print: "Build PR gate passed."
-           Exit.
-         - If the PR is **rejected** or changes are requested:
-           Print: "Build PR gate: changes requested. Returning to verification."
-           Return control to the verification node for another pass.
-           Do NOT restart the full build (only re-verify and re-report).
+          Return to verification — do NOT rebuild from scratch:
+          1. Address the feedback with the minimum change (fix impl and/or tests).
+          2. Re-run the test suite and the stub scan; confirm green.
+          3. Update the session report.md if outcomes changed, and push the fix to the PR branch.
+          Then the gate re-pauses for another review.
+        max_attempts: 3

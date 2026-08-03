@@ -152,13 +152,29 @@ Then proceed through the shared steps with these re-review deltas:
 
 #### Step 1.5 — Discover Work Items
 
-Write `FETCHER_OUTPUT.prMetadata` to a temp file (avoids shell-quoting the JSON), then pipe it in:
+First distinguish whether `FETCHER_OUTPUT.workItemRefs` is **present** (including an explicit `[]`) or **absent** (the key does not exist on `FETCHER_OUTPUT`). These are two different states — absent means data was lost in the Fetcher→orchestrator handoff, not that the PR has no Work Items linked.
 
-```sh
-node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" discover-work-items "<URL>" < "<temp file with prMetadata JSON>"
+**Key absent — data-loss path:**
+
+Print the following notice to the terminal **before** the aspect fan-out so the Reviewer can Ctrl-C and re-run for intent coverage:
+
+```
+⚠ Work Item data was not delivered by the ADO Fetcher (workItemRefs key absent on FETCHER_OUTPUT).
+  This is a data gap — not a PR with no Work Items linked. The Intent Check will be skipped.
+  Press Ctrl-C now to abort and re-run for intent coverage, or wait to continue without it.
 ```
 
-- **Exit 0**: stdout is a JSON array. Store as `WORK_ITEMS`.
+Add `lostInHandoff: true` to `NOTICES_CONTEXT` so the renderer emits a durable Summary Notice at the top of the Review Summary (also posted to the PR when `--post` is used). Set `WORK_ITEMS = []` and continue to Step 1.6. Do **not** stop the run.
+
+**Key present (including `[]`) — normal path:**
+
+Write `FETCHER_OUTPUT.workItemRefs` (the refs array, not the raw `prMetadata` blob) as JSON to a temp file, then pipe it in:
+
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/providers/index.mjs" discover-work-items "<URL>" < "<temp file with workItemRefs JSON array>"
+```
+
+- **Exit 0**: stdout is a JSON array. Store as `WORK_ITEMS`. An explicit `[]` (no Work Items linked) stays silent — not a data gap.
 - **Exit non-zero**: relay stderr and stop.
 
 #### Step 1.6 — Spawn Intent Checker (only when `WORK_ITEMS` is non-empty)

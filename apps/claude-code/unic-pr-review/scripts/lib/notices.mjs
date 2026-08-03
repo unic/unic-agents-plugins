@@ -35,6 +35,9 @@
  *   unaddressed across two or more Iterations, ordered by sinceIteration ascending (US 27)
  * @property {boolean} [unassessedIntentCheck] - true when the Assessor was spawned but
  *   applied zero verdicts (assessed missing, non-array, or all-zero applied count)
+ * @property {boolean} [lostInHandoff] - true when the ADO Fetcher did not deliver
+ *   workItemRefs (key absent on FETCHER_OUTPUT), so Work Item discovery was skipped — a data
+ *   gap, not a PR with no Work Items linked (ADR-0004 lost-in-handoff state)
  * @property {boolean} [diffUnavailable] - true when line-level diff could not be fetched;
  *   diff-driven aspect agents were not run and an empty Findings list does not mean clean
  * @property {HumanThreadEntry[]} [humanThreadsNotice] - unresolved Human Threads that no
@@ -71,6 +74,13 @@ export function renderNotices(ctx) {
 		lines.push(
 			'> **Notice:** The Intent Check block could not be assessed — the Assessor produced no valid verdicts. ' +
 				'Every AC shows `unaddressed`, which may not reflect the diff.'
+		)
+	}
+
+	if (ctx.lostInHandoff) {
+		lines.push(
+			'> **Notice:** Work Item data was not delivered by the Fetcher (a data gap, not a PR with no ' +
+				'Work Items linked), so the Intent Check was skipped. Re-run the review to retry intent gathering.'
 		)
 	}
 

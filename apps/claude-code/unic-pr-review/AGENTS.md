@@ -67,7 +67,7 @@ Load-bearing invariants captured as ADRs. All sixteen must be understood before 
 - **ADR-0001** — Multi-source intent gathering with shared Atlassian credentials (`.unic-confluence.json` covers both Confluence and Jira)
 - **ADR-0002** — Confidence-scored Findings with explicit Severity thresholds (Critical 90-100, Important 80-89, Minor 60-79; drop below 60)
 - **ADR-0003** — Interactive Approval Loop as the default write path
-- **ADR-0004** — Hard-stop when intent sources are unreachable; empty intent is legitimate
+- **ADR-0004** — Hard-stop when intent sources are unreachable; legitimate empty (`[]`) is silent; absent `workItemRefs` key (lost-in-handoff) → loud Notice + continue
 - **ADR-0005** — `az` CLI for Azure DevOps reads/writes; `node:https` (or global `fetch`) for Atlassian
 - **ADR-0006** — Iteration state lives in the PR's Bot Signature (hidden `<!-- unic-pr-review:iteration=N -->` Iteration Marker), not on disk; detection keys on the Iteration Marker, never on ADO author identity; `doctor` does not probe `az devops user show`
 - **ADR-0007** — Re-review uses a delta diff against the prior reviewed Revision

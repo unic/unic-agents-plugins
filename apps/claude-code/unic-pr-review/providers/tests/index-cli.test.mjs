@@ -47,6 +47,39 @@ describe('providers/index.mjs detect CLI', () => {
 	})
 })
 
+describe('providers/index.mjs discover-work-items CLI', () => {
+	it('exits 0 and emits normalised WI JSON for a valid refs array', () => {
+		const refs = JSON.stringify([{ id: '101', url: 'https://dev.azure.com/org/proj/_apis/wit/workitems/101' }])
+		const out = execFileSync(
+			'node',
+			[indexMjs, 'discover-work-items', 'https://dev.azure.com/o/p/_git/r/pullrequest/1'],
+			{ input: refs, encoding: 'utf8' }
+		)
+		const parsed = JSON.parse(out)
+		assert.equal(parsed.length, 1)
+		assert.equal(parsed[0].id, '101')
+		assert.equal(parsed[0].type, 'ado-work-item')
+	})
+
+	it('exits 1 when stdin contains a non-array (data-loss guard)', () => {
+		assert.throws(
+			() =>
+				execFileSync('node', [indexMjs, 'discover-work-items', 'https://dev.azure.com/o/p/_git/r/pullrequest/1'], {
+					input: '{"workItemRefs":[]}',
+					encoding: 'utf8',
+				}),
+			(/** @type {any} */ err) => err.status === 1
+		)
+	})
+
+	it('exits 1 when URL argument is missing', () => {
+		assert.throws(
+			() => execFileSync('node', [indexMjs, 'discover-work-items'], { encoding: 'utf8' }),
+			(/** @type {any} */ err) => err.status === 1
+		)
+	})
+})
+
 describe('providers/index.mjs parse-url CLI', () => {
 	it('exits 0 and emits parsed PR ref for a dev.azure.com URL', () => {
 		const out = execFileSync(

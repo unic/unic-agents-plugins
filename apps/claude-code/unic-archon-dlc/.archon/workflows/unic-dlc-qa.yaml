@@ -1,361 +1,311 @@
 name: unic-dlc-qa
 description: >
-  QA workflow: e2e test execution → coverage gate → UAT checklist → merge.
-  Runs after the build workflow is complete and the build PR has been approved.
+  QA box + issue-producing on-ramp. Runs after /build's PR is approved: e2e → coverage-gate →
+  UAT sign-off → verify-pr-base → merge, config-driven and generic. Two human gates (UAT + merge)
+  honour gates.qa — HITL by default, AFK opt-in. When UAT surfaces a defect, it is filed directly as
+  an agent-ready tracker issue (composing the configured tracker + classification.labels, ADR-0016/
+  0024) so the finding feeds /tickets, rather than only halting. Ported to the key-discriminated node
+  schema (ADR-0011); inherits /build's self-contained-node conventions (ADR-0023 §5). See ADR-0025.
 
-inputs:
-  slug:
-    description: Planning session identifier — matches the slug used in /unic-dlc-plan and /unic-dlc-build.
-    required: true
+# Required at the workflow level so the UAT + merge approval messages reach the user (ADR-0011).
+interactive: true
 
 nodes:
-  - id: e2e
-    name: End-to-End Tests
-    type: bash
-    runtime: bun
+  # ---------------------------------------------------------------------------------------------
+  # bootstrap — parse the slug from $ARGUMENTS, read config, confirm the QA baton exists.
+  # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
+  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. The e2e command
+  # and coverage threshold fall back qa.* → build.* so a team can run a heavier QA suite than build.
+  # ---------------------------------------------------------------------------------------------
+  - id: bootstrap
     depends_on: []
-    script: |
-      #!/usr/bin/env node
-      // @ts-check
-      import { execFileSync } from 'node:child_process'
-      import { existsSync, readFileSync } from 'node:fs'
-      import { join } from 'node:path'
-
-      const projectDir = process.cwd()
-      const configPath = join(projectDir, '.archon', 'unic-dlc.config.json')
-
-      if (!existsSync(configPath)) {
-        console.error('e2e: .archon/unic-dlc.config.json not found.')
-        console.error('Run the install hook first: archon install')
-        process.exit(1)
-      }
-
-      const config = JSON.parse(readFileSync(configPath, 'utf8'))
-      const e2eCommand = config.e2e_command ?? null
-
-      if (!e2eCommand) {
-        console.error('e2e: e2e_command is not configured.')
-        console.error('')
-        console.error('To set it, run the install hook with --reconfigure:')
-        console.error('  archon install --reconfigure')
-        console.error('and provide a value for "e2e_command" (e.g. "pnpm test:e2e" or "npx playwright test").')
-        process.exit(1)
-      }
-
-      const parts = e2eCommand.trim().split(/\s+/)
-      const cmd = parts[0]
-      const args = parts.slice(1)
-
-      console.log(`e2e: running → ${e2eCommand}`)
-      console.log('')
-
-      try {
-        execFileSync(cmd, args, { cwd: projectDir, stdio: 'inherit' })
-        console.log('')
-        console.log('e2e: PASSED ✓')
-      } catch {
-        console.error('')
-        console.error('e2e: FAILED ✗')
-        process.exit(1)
-      }
-
-  - id: coverage-gate
-    name: Coverage Gate
-    type: bash
-    runtime: bun
-    depends_on: [e2e]
-    script: |
-      #!/usr/bin/env node
-      // @ts-check
-      import { execFileSync } from 'node:child_process'
-      import { existsSync, readFileSync } from 'node:fs'
-      import { join } from 'node:path'
-
-      const projectDir = process.cwd()
-      const configPath = join(projectDir, '.archon', 'unic-dlc.config.json')
-
-      let coverageThreshold = null
-      if (existsSync(configPath)) {
-        const config = JSON.parse(readFileSync(configPath, 'utf8'))
-        coverageThreshold = config.coverage_threshold ?? null
-      }
-
-      if (coverageThreshold === null) {
-        console.log('coverage-gate: no coverage_threshold configured — skipping.')
-        console.log('To enable, add "coverage_threshold": <number> to .archon/unic-dlc.config.json.')
-        process.exit(0)
-      }
-
-      console.log(`coverage-gate: threshold is ${coverageThreshold}%`)
-      console.log('coverage-gate: running test suite with coverage...')
-      console.log('')
-
-      // Run tests with coverage; capture output to parse coverage percentage
-      let coverageOutput = ''
-      let failed = false
-      try {
-        coverageOutput = execFileSync('pnpm', ['test', '--coverage'], {
-          cwd: projectDir,
-          encoding: 'utf8',
-          stdio: ['inherit', 'pipe', 'pipe'],
-        })
-        process.stdout.write(coverageOutput)
-      } catch (/** @type {any} */ err) {
-        if (err.stdout) process.stdout.write(err.stdout)
-        if (err.stderr) process.stderr.write(err.stderr)
-        coverageOutput = (err.stdout ?? '') + (err.stderr ?? '')
-        failed = true
-      }
-
-      // Attempt to extract a coverage percentage from the output.
-      // Handles common formats: "All files | 87.5 |", "Stmts: 87.5%", "87.5% statements"
-      const percentMatch =
-        coverageOutput.match(/All files\s*\|\s*([\d.]+)/) ??
-        coverageOutput.match(/Stmts\s*[:\|]\s*([\d.]+)/) ??
-        coverageOutput.match(/([\d.]+)%\s+statements/i)
-
-      if (percentMatch) {
-        const actual = parseFloat(percentMatch[1])
-        if (actual < coverageThreshold) {
-          console.error(`\ncoverage-gate: FAILED (${actual}% < threshold ${coverageThreshold}%)`)
-          process.exit(1)
-        }
-        console.log(`\ncoverage-gate: PASSED (${actual}%)`)
-      } else if (failed) {
-        // Could not parse percentage but the command failed
-        console.error(`\ncoverage-gate: FAILED (test suite exited non-zero; threshold ${coverageThreshold}%)`)
-        process.exit(1)
-      } else {
-        // Command passed but no parseable percentage — treat as passed with a warning
-        console.log(`\ncoverage-gate: PASSED (coverage % could not be parsed; threshold ${coverageThreshold}%)`)
-      }
-
-  - id: uat-gate
-    name: UAT Gate — Acceptance Checklist
-    type: interactive
-    fresh_context: true
-    depends_on: [coverage-gate]
+    context: fresh
+    allowed_tools: [Read, Bash, Glob]
     prompt: |
-      You are running the unic-archon-dlc QA workflow — uat-gate node.
+      You are the bootstrap node of the unic-archon-dlc /qa workflow.
 
-      Goal: walk through the UAT checklist derived from the PRD's acceptance criteria alongside
-      the e2e results, then get human sign-off before the merge step proceeds.
+      1. Parse the FIRST whitespace-delimited token of "$ARGUMENTS" as the slug (kebab-case).
+         If $ARGUMENTS is empty → status "no-slug".
+      2. Read `.archon/unic-dlc.config.yaml` at the repo root.
+         - If it is absent or unreadable → status "no-config".
+         - Otherwise read:
+             `artifacts_dir`          (default "workflows")
+             `gates.qa`               (default "hitl")
+             `qa.e2e_command`         (may be null) — else fall back to `build.e2e_command`
+             `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
+             `tracker.type`           (e.g. github / ado / jira / local-markdown)
+             `project.branching`      (default "gitflow")
+      3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
+         /build implemented — the acceptance criteria the UAT checklist is derived from.
+         - If it is absent → status "no-prd".
+      4. If slug, config, and PRD.md are all present → status "ready".
 
-      ## Step 1 — Load artefacts
+      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
+      Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
+      (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
 
-      1. Read `docs/workflow/{{ inputs.slug }}/PRD.md`.
-         Extract all acceptance criteria. They are typically found in:
-           - Each "User Story" block as sub-bullet "Acceptance criteria:" lists.
-           - A top-level "## Acceptance Criteria" section if present.
-         Number each criterion sequentially: AC-1, AC-2, …
+      ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
+      object validates before `guard-not-ready` can cancel. When a value cannot be read (e.g. config is
+      missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
+      tracker_type "" , branching "gitflow", expected_base "develop". Set `message` to a human-readable
+      reason for any non-ready status.
+    output_format:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, no-slug, no-config, no-prd]
+        slug: { type: string }
+        artifacts_dir: { type: string }
+        gate:
+          type: string
+          enum: [hitl, afk]
+        e2e_command: { type: [string, 'null'] }
+        coverage_threshold: { type: [number, 'null'] }
+        tracker_type: { type: string }
+        branching: { type: string }
+        expected_base: { type: string }
+        message: { type: string }
+      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, message]
 
-      2. Check whether `docs/workflow/{{ inputs.slug }}/report.md` exists and read it if so.
-         The report contains the goals-check coverage matrix and test outcomes from the build phase.
+  # ---------------------------------------------------------------------------------------------
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-ready
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status != 'ready'"
+    cancel: >
+      /qa preconditions not met — see the bootstrap output for which of slug, config, or
+      <artifacts_dir>/<slug>/PRD.md is missing. Run /unic-archon-dlc:build <slug> first (which in turn
+      needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
 
-      ## Step 2 — Present the UAT checklist
+  # ---------------------------------------------------------------------------------------------
+  # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
+  # command from bootstrap and runs it with its own tools. It REPORTS a verdict (does not hard-fail);
+  # a failing e2e surfaces in the UAT checklist and fail-closes the merge `when` below, so a red build
+  # can never auto-merge even in AFK mode.
+  # ---------------------------------------------------------------------------------------------
+  - id: e2e
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the e2e node of /qa for slug "$bootstrap.output.slug".
 
-      Print the following header:
+      The configured e2e command is: $bootstrap.output.e2e_command
+      - If it is null/empty → print "e2e: no e2e_command configured (qa.e2e_command / build.e2e_command)
+        — SKIPPED." and set result "skip". This is non-blocking.
+      - Otherwise run that exact command from the repo root and capture pass/fail counts.
+          · exit 0 → result "pass".
+          · non-zero → result "fail"; include the failing tests in `summary`.
+      Print a one-line verdict:  "e2e: PASSED ✓" / "e2e: FAILED ✗ — <detail>" / "e2e: SKIPPED".
+    output_format:
+      type: object
+      properties:
+        result:
+          type: string
+          enum: [pass, fail, skip]
+        summary: { type: string }
+      required: [result, summary]
 
-        === UAT Checklist for {{ inputs.slug }} ===
+  # ---------------------------------------------------------------------------------------------
+  # coverage-gate — enforce the coverage threshold if one is configured; skip cleanly otherwise.
+  # Reports a verdict like e2e (fail-closes the merge `when`, never hard-fails the run).
+  # ---------------------------------------------------------------------------------------------
+  - id: coverage-gate
+    depends_on: [e2e]
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the coverage-gate node of /qa for slug "$bootstrap.output.slug".
 
-      Then for each acceptance criterion:
+      The configured coverage threshold is: $bootstrap.output.coverage_threshold
+      - If it is null → print "coverage-gate: no coverage_threshold configured — SKIPPED." and set
+        result "skip".
+      - Otherwise run the repo's test suite with coverage (prefer the project's coverage script; e.g.
+        `pnpm test --coverage`). Parse the total statement/line coverage %.
+          · coverage ≥ threshold → result "pass".
+          · coverage < threshold, or the suite exits non-zero → result "fail".
+          · coverage % unparseable but suite passed → result "pass" (note it could not be parsed).
+      Print a one-line verdict:  "coverage-gate: PASSED (<n>%)" / "coverage-gate: FAILED (<n>% <
+      <threshold>%)" / "coverage-gate: SKIPPED".
+    output_format:
+      type: object
+      properties:
+        result:
+          type: string
+          enum: [pass, fail, skip]
+        summary: { type: string }
+      required: [result, summary]
 
-        AC-N: <criterion text>
-          Evidence: <matching row from coverage matrix, or "not recorded">
-          [ ] Verified by human
+  # ---------------------------------------------------------------------------------------------
+  # uat-prep — build the UAT checklist from the PRD's acceptance criteria + /build's report. Must be
+  # a prompt node: approval nodes run no AI, so the checklist is computed here and printed, then the
+  # uat-gate approval references it. Runs in both hitl and afk (a durable record either way).
+  # ---------------------------------------------------------------------------------------------
+  - id: uat-prep
+    depends_on: [coverage-gate]
+    context: fresh
+    allowed_tools: [Read, Bash, Glob]
+    prompt: |
+      You are the uat-prep node of /qa for slug "$bootstrap.output.slug".
 
-      Follow the list with:
+      Constants:
+        SLUG          = $bootstrap.output.slug
+        ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
+        Session dir   = <ARTIFACTS_DIR>/<SLUG>/
 
-        e2e result: PASSED  (or FAILED — see e2e node output above)
-        Coverage:   PASSED  (or SKIPPED / FAILED — see coverage-gate output above)
+      1. Read `<ARTIFACTS_DIR>/<SLUG>/PRD.md`. Extract every acceptance criterion (from the User
+         Stories' "Acceptance criteria:" bullets and any "## Acceptance Criteria" section). Number
+         them AC-1, AC-2, …
+      2. Read `<ARTIFACTS_DIR>/<SLUG>/report.md` if it exists — it holds /build's goals-check coverage
+         matrix and test outcomes.
+      3. Print the checklist verbatim (the uat-gate approval message points the reviewer at it):
 
-      ## Step 3 — Ask for sign-off
+           === UAT Checklist for <SLUG> ===
+           AC-N: <criterion text>
+             Evidence: <matching row from the coverage matrix, or "not recorded">
+             [ ] Verified by human
+           …
+           e2e result:      <PASSED | FAILED | SKIPPED>   (from the e2e node output above)
+           coverage result: <PASSED | FAILED | SKIPPED>   (from the coverage-gate node output above)
 
-      Ask the user:
-        "Please review each item above and confirm:
-         1. All acceptance criteria are verified (tick each [ ] mentally or note any failures).
-         2. You approve this build for merge.
+      Emit the numbered criteria as structured output so the finding-capture step can reference them
+      by number when a defect is rejected.
+    output_format:
+      type: object
+      properties:
+        criteria:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              text: { type: string }
+              evidence: { type: string }
+            required: [id, text]
+      required: [criteria]
 
-         Type APPROVE to continue to the merge step.
-         Type REJECT <AC-N> to flag a failing checklist item — I will return control to whoever
-         owns that item for remediation."
+  # ---------------------------------------------------------------------------------------------
+  # uat-gate — HITL by default; skipped when gates.qa == afk. On REJECT, on_reject captures the
+  # failing criteria as agent-ready tracker issues (finding-capture, ADR-0025) BEFORE the run halts,
+  # so the defect is durably tracked and feeds /tickets — not lost when the workflow cancels.
+  # max_attempts: 1 → capture once, then a second reject cancels the run.
+  # ---------------------------------------------------------------------------------------------
+  - id: uat-gate
+    depends_on: [uat-prep]
+    when: "$bootstrap.output.gate == 'hitl'"
+    approval:
+      message: >
+        UAT for "$bootstrap.output.slug": review the UAT checklist printed by uat-prep above against
+        the e2e and coverage-gate results. APPROVE to proceed to PR-base verification and merge.
+        REJECT with the failing item(s) (e.g. "AC-3: totals wrong for empty cart") — I will file each
+        as an agent-ready issue on the tracker, then the gate re-pauses so you can REJECT again to halt.
+      on_reject:
+        prompt: |
+          The reviewer rejected UAT for "$bootstrap.output.slug" with this feedback:
+          $REJECTION_REASON
 
-      ## Step 4 — Act on the response
+          FINDING-CAPTURE (ADR-0025) — turn each distinct defect into an agent-ready tracker issue so
+          it feeds /tickets. This is an on-ramp: file directly (a human is present — no PR gate).
 
-      If the user types APPROVE (case-insensitive):
-        Print: "uat-gate: APPROVED. Proceeding to merge."
+          1. Read `.archon/unic-dlc.config.yaml` for `tracker` (type/access/coords) and
+             `classification.labels`. Compose the tracker MCP-first, CLI-fallback (gh / az / jira, or
+             the azure-devops-cli skill) — never hardcode a host (ADR-0016). Labels come ONLY from
+             `classification.labels` (single source of truth — ADR-0024); do NOT read
+             docs/agents/triage-labels.md or issue-tracker.md.
+          2. Decide single-issue vs breakdown using Matt's `qa` method: prefer many thin, independently
+             fixable issues over one thick one; mark blocked-by relationships honestly; write from the
+             user's perspective in the project's domain language; NO file paths or line numbers.
+          3. For each finding, create a tracker issue:
+               - Title: "QA: <slug> — <short defect summary>"
+               - Labels: type `bug` + state `ready-for-agent` (resolved through classification.labels).
+                 The reviewer at this gate already vetted the defect, so it is agent-ready — it needs no
+                 second /triage pass (ADR-0025).
+               - Body (Matt `qa` shape): ## What happened / ## What I expected / ## Steps to reproduce /
+                 ## Blocked by (issue #s or "None — can start immediately") / ## Additional context
+                 (reference the failing AC-N and the e2e/coverage evidence).
+               - Prepend the mandated disclaimer as the first body line:
+                 `> *This was generated by AI during QA.*`
+          4. Print each created issue URL and its blocking relationships, and this line:
+             "Findings filed. They feed /unic-archon-dlc:tickets <slug> (or /build if already atomic).
+              REJECT again to halt the QA run — the findings are now tracked — or APPROVE only if the
+              defect is already fixed or non-blocking."
+          Do NOT merge. Do NOT weaken any test.
+        max_attempts: 1
 
-      If the user types REJECT <AC-N> (or REJECT with any text):
-        Print: "uat-gate: REJECTED — {{ user response }}."
-        Print: "Returning control. Address the failing criterion and re-run /unic-dlc-qa {{ inputs.slug }} to retry."
-        Halt the workflow (do not proceed to the merge node).
-
+  # ---------------------------------------------------------------------------------------------
+  # verify-pr-base — confirm the open PR targets the expected base before merge. trigger_rule:
+  # all_done so it still runs when uat-gate is SKIPPED in AFK mode (skipped counts as terminal); a
+  # rejected uat-gate cancels the whole run, so this never runs on a rejected build. Reports base_ok;
+  # the merge `when` fail-closes on a wrong base rather than this node failing.
+  # ---------------------------------------------------------------------------------------------
   - id: verify-pr-base
-    name: Verify PR Base Branch
-    type: bash
-    runtime: bun
     depends_on: [uat-gate]
-    script: |
-      #!/usr/bin/env node
-      // @ts-check
-      import { readFileSync } from 'node:fs'
-      import { execFileSync } from 'node:child_process'
+    trigger_rule: all_done
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the verify-pr-base node of /qa for slug "$bootstrap.output.slug".
 
-      let config = {}
-      try {
-        config = JSON.parse(readFileSync('.archon/unic-dlc.config.json', 'utf8'))
-      } catch {
-        console.error('verify-pr-base: cannot read .archon/unic-dlc.config.json')
-        process.exit(1)
-      }
+      Expected base branch: $bootstrap.output.expected_base   (tracker: $bootstrap.output.tracker_type)
 
-      const tracker = config.tracker ?? 'github'
-      const branching = config.branching ?? 'gitflow'
-      const expectedBase = branching === 'gitflow' ? 'develop' : 'main'
+      Query the open PR for the current feature branch and read its target/base branch, composing the
+      tracker from `.archon/unic-dlc.config.yaml` (MCP-first, CLI-fallback):
+        - github → `gh pr view --json baseRefName`
+        - ado    → `az repos pr show` (targetRefName, strip refs/heads/)
+        - jira / local-markdown / other → no queryable PR base: set base_ok "true" and note it is
+          unverifiable for this tracker (warning only, non-blocking).
+      Set `base_ok` to the STRING "true" when the actual base equals expected_base (or is unverifiable
+      as above); the STRING "false" on a genuine mismatch. (It is a string, not a boolean, so the
+      downstream `when` gates compare it reliably as `== 'true'`.) Print "verify-pr-base: base is
+      <actual> ✓" or "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget first."
+    output_format:
+      type: object
+      properties:
+        base_ok:
+          type: string
+          enum: ['true', 'false']
+        actual_base: { type: string }
+      required: [base_ok]
 
-      if (tracker === 'github') {
-        let actualBase
-        try {
-          const out = execFileSync('gh', ['pr', 'view', '--json', 'baseRefName'], { encoding: 'utf8' })
-          actualBase = JSON.parse(out).baseRefName
-        } catch (err) {
-          console.error(`verify-pr-base: cannot query PR base — ${err.message}`)
-          process.exit(1)
-        }
-        if (actualBase !== expectedBase) {
-          console.error(
-            `verify-pr-base: PR targets "${actualBase}" but expected "${expectedBase}" (branching: ${branching}).`,
-          )
-          console.error('  Retarget the PR before merging.')
-          process.exit(1)
-        }
-        console.log(`verify-pr-base: PR base is "${actualBase}" ✓`)
-      } else if (tracker === 'ado') {
-        let actualBase
-        try {
-          const out = execFileSync('az', ['repos', 'pr', 'show', '--output', 'json'], { encoding: 'utf8' })
-          actualBase = JSON.parse(out).targetRefName?.replace('refs/heads/', '')
-        } catch (err) {
-          console.error(`verify-pr-base: cannot query ADO PR — ${err.message}`)
-          process.exit(1)
-        }
-        if (actualBase !== expectedBase) {
-          console.error(
-            `verify-pr-base: PR targets "${actualBase}" but expected "${expectedBase}" (branching: ${branching}).`,
-          )
-          process.exit(1)
-        }
-        console.log(`verify-pr-base: PR base is "${actualBase}" ✓`)
-      } else {
-        // Jira / local-markdown — no CLI to query PR base
-        console.log(
-          `verify-pr-base: tracker "${tracker}" does not support PR base verification. Skipping (warning only).`,
-        )
-      }
-
-  - id: merge
-    name: Merge PR
-    type: bash
-    runtime: bun
+  # ---------------------------------------------------------------------------------------------
+  # merge-gate — HITL by default; skipped in AFK. Only pauses when the base is verified good, so an
+  # approval is never solicited for a merge that would be blocked anyway.
+  # ---------------------------------------------------------------------------------------------
+  - id: merge-gate
     depends_on: [verify-pr-base]
-    script: |
-      #!/usr/bin/env node
-      // @ts-check
-      import { execFileSync } from 'node:child_process'
-      import { existsSync, readFileSync } from 'node:fs'
-      import { join } from 'node:path'
+    when: "$bootstrap.output.gate == 'hitl' && $verify-pr-base.output.base_ok == 'true'"
+    approval:
+      message: >
+        UAT approved and PR base verified as "$bootstrap.output.expected_base" for
+        "$bootstrap.output.slug". Approve to merge the PR via the configured tracker (and delete the
+        feature branch on Gitflow). Reject to halt without merging.
 
-      const projectDir = process.cwd()
-      const configPath = join(projectDir, '.archon', 'unic-dlc.config.json')
+  # ---------------------------------------------------------------------------------------------
+  # merge — merge the PR via the composed tracker. trigger_rule: all_done so it runs when merge-gate
+  # is SKIPPED in AFK; the `when` fail-closes so it NEVER runs on a red e2e/coverage or a wrong base,
+  # in either mode. A rejected merge-gate cancels the run before this node (max_attempts default).
+  # ---------------------------------------------------------------------------------------------
+  - id: merge
+    depends_on: [merge-gate]
+    trigger_rule: all_done
+    when: "$e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.base_ok == 'true'"
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the merge node of /qa for slug "$bootstrap.output.slug".
 
-      if (!existsSync(configPath)) {
-        console.error('merge: .archon/unic-dlc.config.json not found.')
-        process.exit(1)
-      }
+      Merge the open PR for the current feature branch, composing the tracker from
+      `.archon/unic-dlc.config.yaml` (`tracker.type`, `project.pr_strategy`, `project.branching`;
+      MCP-first, CLI-fallback — never hardcode a host, ADR-0016):
+        - github → `gh pr merge` with `--squash` (default) or `--merge` per `project.pr_strategy`.
+        - ado    → `az repos pr update --status completed`.
+        - jira / local-markdown → print the manual steps (transition the linked issue to Done / set
+          Status: resolved in the issues file) — there is no merge CLI.
+      On Gitflow (`project.branching == "gitflow"`) with a git-hosted tracker (github/ado), after a
+      successful merge: check out the base branch and delete the merged `feature/*` branch. On
+      github-flow, leave branch cleanup to the host's auto-delete.
 
-      const config = JSON.parse(readFileSync(configPath, 'utf8'))
-      const tracker = config.tracker ?? 'github'
-      const branching = config.branching ?? 'gitflow'
-      const prStrategy = config.pr_strategy ?? 'squash'
-      const slug = process.env.ARCHON_INPUT_SLUG ?? ''
-
-      console.log(`merge: tracker=${tracker}, branching=${branching}, pr_strategy=${prStrategy}`)
-      console.log('')
-
-      // Merge via the configured tracker
-      switch (tracker) {
-        case 'github': {
-          const mergeFlag = prStrategy === 'merge' ? '--merge' : '--squash'
-          console.log(`merge: running gh pr merge ${mergeFlag}`)
-          try {
-            execFileSync('gh', ['pr', 'merge', mergeFlag], { cwd: projectDir, stdio: 'inherit' })
-            console.log('merge: PR merged successfully via GitHub CLI.')
-          } catch {
-            console.error('merge: gh pr merge failed. Ensure you are on a feature branch with an open PR.')
-            process.exit(1)
-          }
-          break
-        }
-
-        case 'ado': {
-          console.log('merge: running az repos pr update --status completed')
-          try {
-            execFileSync('az', ['repos', 'pr', 'update', '--status', 'completed'], {
-              cwd: projectDir,
-              stdio: 'inherit',
-            })
-            console.log('merge: PR completed successfully via Azure DevOps CLI.')
-          } catch {
-            console.error('merge: az repos pr update failed. Ensure the Azure DevOps PR is open and the CLI is authenticated.')
-            process.exit(1)
-          }
-          break
-        }
-
-        case 'jira':
-          console.log('Merge via Jira: transition the linked PR to Done manually.')
-          console.log('  1. Open the Jira issue linked to this feature.')
-          console.log('  2. Transition it to "Done" (or "In Review → Done" depending on your board).')
-          console.log('  3. Merge the corresponding PR in your VCS provider.')
-          break
-
-        case 'local-markdown':
-          console.log('Merge: update Status in issues to resolved.')
-          console.log(`  Edit docs/issues/<slug>/index.md and set: Status: resolved`)
-          console.log('  Then commit and push the change manually.')
-          break
-
-        default:
-          console.log(`merge: unknown tracker "${tracker}". Merge the PR manually in your tracker.`)
-          break
-      }
-
-      // Delete feature branch after merge when using Gitflow
-      if (branching === 'gitflow' && (tracker === 'github' || tracker === 'ado')) {
-        console.log('')
-        console.log('merge: Gitflow — deleting feature branch...')
-        try {
-          // Determine current branch name
-          const currentBranch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-            cwd: projectDir,
-            encoding: 'utf8',
-          }).trim()
-
-          if (currentBranch.startsWith('feature/')) {
-            // Switch to develop before deleting
-            execFileSync('git', ['checkout', 'develop'], { cwd: projectDir, stdio: 'inherit' })
-            execFileSync('git', ['branch', '-d', currentBranch], { cwd: projectDir, stdio: 'inherit' })
-            console.log(`merge: feature branch "${currentBranch}" deleted. ✓`)
-          } else {
-            console.log(`merge: current branch "${currentBranch}" is not a feature branch — skipping delete.`)
-          }
-        } catch {
-          console.log('merge: could not delete feature branch automatically — delete it manually if needed.')
-        }
-      } else if (branching !== 'gitflow') {
-        console.log('')
-        console.log('merge: github-flow — leaving branch cleanup to GitHub (auto-delete on merge).')
-      }
-
-      console.log('')
-      console.log(`merge: QA workflow for "${slug}" complete. ✓`)
+      Finally print: "merge: QA for \"$bootstrap.output.slug\" complete. ✓"

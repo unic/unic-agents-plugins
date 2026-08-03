@@ -1,20 +1,22 @@
 ---
 allowed-tools: ['Bash']
 argument-hint: '[reconfigure | <free-form intent>]'
-description: 'Configure unic-archon-dlc for this project: tracker, branching strategy, and optional e2e command'
+description: 'Configure unic-archon-dlc for this project: detect the stack, register the team system-skills, and write .archon/unic-dlc.config.yaml'
 ---
 
 # unic-archon-dlc:setup
 
-> Design rationale: [ADR-0001 — Setup is a slash command delegating to lib/install-runner.mjs](docs/adr/0001-setup-as-slash-command.md)
+> Design rationale: [ADR-0019 — Conversational `/setup` + one thin tested schema lib](docs/adr/0019-conversational-setup.md) (supersedes ADR-0001).
 
 **Arguments:** "$ARGUMENTS"
 
-Follow these steps in order. Do not skip any step. Do not write any files except through Step 5.
+`/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` — the config substrate the redesigned boxes read (each box is migrated onto it in its own redesign step; pre-redesign workflows under `.archon/workflows/` still reference the old JSON/keys until then). Only one deterministic concern is delegated to tested code — schema-validate + idempotent merge + YAML emit — in `lib/config-schema.mjs`. Conduct the conversation yourself; do not invent config keys the schema doesn't define.
 
-> **Shell requirement**: Steps 1, 2, and 5 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs.
+Follow these steps in order. Do not skip any step. Do not write any files except through Step 5 (config) and Step 6 (docs).
 
-## Step 1 — Archon preflight
+> **Shell requirement**: Steps 1, 2, and 5 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
+
+## Step 1 — Archon preflight (behavioural `≥ 0.5.0`)
 
 Run:
 
@@ -32,133 +34,158 @@ process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and stop — do not proceed to Step 2.
+Parse the JSON output. If `ok` is `false`, print `message` verbatim and stop — do not proceed. (The check enforces the key-discriminated schema floor: gates, loops, and `context: fresh` only run correctly on Archon `≥ 0.5.0`.)
 
-## Step 2 — Discover config state
+## Step 2 — Discover current config state
 
-Run:
+Run (reads the rich `.yaml` if present, else a legacy `.json` for migration; detects git remote + repo layout):
 
 ```bash
 node --input-type=module <<'EOJS'
 let output
 try {
   const { pathToFileURL } = await import('node:url')
-  const { exploreProject } = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/setup-explorer.mjs`).href)
-  const { readFileSync, existsSync } = await import('node:fs')
+  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
+  const { existsSync } = await import('node:fs')
+  const { execFileSync } = await import('node:child_process')
   const { join } = await import('node:path')
   const cwd = process.cwd()
-  const snap = exploreProject(cwd)
+
+  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
+  const jsonPath = join(cwd, '.archon', 'unic-dlc.config.json')
   let config = null
-  const configPath = join(cwd, '.archon', 'unic-dlc.config.json')
-  if (snap.archonConfigPresent && existsSync(configPath)) {
-    let rawConfig
-    try {
-      rawConfig = readFileSync(configPath, 'utf8')
-    } catch (readErr) {
-      output = { error: `Cannot read config file at ${configPath}: ${readErr?.message ?? String(readErr)}. Check file permissions or delete the file and re-run setup.`, gitRemote: snap.gitRemote, config: null }
-    }
-    if (!output) {
-      try {
-        config = JSON.parse(rawConfig)
-      } catch (parseErr) {
-        output = { error: `Config file at ${configPath} contains invalid JSON. Fix or delete the file and re-run setup. Parse error: ${parseErr?.message ?? String(parseErr)}`, gitRemote: snap.gitRemote, config: null }
-      }
-    }
+  let source = null
+  let legacy = false
+  if (existsSync(yamlPath)) {
+    const r = mod.loadConfig(yamlPath)
+    if ('error' in r) { output = { error: r.message }; } else { config = r.config; source = yamlPath }
+  } else if (existsSync(jsonPath)) {
+    const r = mod.loadConfig(jsonPath)
+    if ('error' in r) { output = { error: r.message }; } else { config = r.config; source = jsonPath; legacy = mod.isLegacyConfig(r.config) }
   }
+
   if (!output) {
-    const agentDocsPath = join(cwd, 'docs', 'agents', 'issue-tracker.md')
-    const claudeMdPath = join(cwd, 'CLAUDE.md')
-    const docsPresent = existsSync(agentDocsPath)
-    let claudeMdPresent = false
-    if (existsSync(claudeMdPath)) {
-      claudeMdPresent = readFileSync(claudeMdPath, 'utf8').includes('<!-- unic-archon-dlc:begin -->')
+    let gitRemote = null
+    try { gitRemote = execFileSync('git', ['remote', 'get-url', 'origin'], { stdio: ['pipe','pipe','pipe'], timeout: 5000 }).toString().trim() } catch {}
+    const repoLayout = mod.detectRepoLayout(cwd)
+    // Normalise to the rich shape so validation reflects what /setup will actually write.
+    const normalised = legacy ? mod.mergeConfig(mod.migrateLegacy(config)) : (config ? mod.mergeConfig(config) : null)
+    const validation = normalised ? mod.validateConfig(normalised) : { error: true, missing: mod.MANDATORY_PATHS }
+    output = {
+      gitRemote,
+      repoLayout,
+      source,
+      legacy,
+      hasConfig: config != null,
+      current: normalised,
+      missing: 'error' in validation ? validation.missing : [],
     }
-    output = { gitRemote: snap.gitRemote, config, docsPresent, claudeMdPresent }
   }
 } catch (err) {
-  output = { error: `Plugin load error: ${err?.message ?? String(err)}`, gitRemote: null, config: null }
+  output = { error: `Plugin load error: ${err?.message ?? String(err)}` }
 }
 process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the output. If `error` is present, print `error` verbatim and stop. Otherwise set `CONFIG` from `config`, `GIT_REMOTE` from `gitRemote`, `DOCS_PRESENT` from `docsPresent`, `CLAUDE_MD_PRESENT` from `claudeMdPresent`.
+Parse the output. If `error` is present, print it verbatim and stop. Otherwise set `GIT_REMOTE`, `REPO_LAYOUT`, `LEGACY` (true = a legacy flat `.json` will be migrated), `CURRENT` (the normalised config, or null), and `MISSING` (mandatory paths still unset).
 
 Determine `STATE`:
 
-- `CONFIG` is null → `STATE = 'fresh'`
-- `CONFIG` is missing any of `tracker`, `pr_strategy`, `branching` → `STATE = 'partial'`
+- `CURRENT` is null → `STATE = 'fresh'`
+- `MISSING` is non-empty → `STATE = 'partial'`
 - Otherwise → `STATE = 'full'`
 
-## Step 3 — Parse arguments and determine mode
+## Step 3 — Verify-only skill discovery (never installs)
+
+Build a **capability → tool** registry the downstream boxes read (`mcp | cli | skill`, **MCP-first**). Discovery is **verify-only**: introspect what is installed; never install anything.
+
+- **MCP servers**: note which relevant MCP servers are available in this session (tracker, docs, design — e.g. a GitHub/ADO/Jira MCP, a Confluence MCP, the Figma MCP).
+- **CLI probes** (portable — no `jq`/`awk`/`sort`): `gh --version`, `az --version`, `jira version` (or `jira --help`), etc. Record which succeed.
+- **Matt Pocock's skill suite** is a **declared dependency** ([ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md)): verify the skills the DLC composes are present (`grill-with-docs`, `to-prd`, `to-issues`, `triage`, `improve-codebase-architecture`, `handoff`, `prototype`). Check the available skills list.
+
+For each capability pick the tool MCP-first, else CLI, else skill. A **missing _required_ capability → warn + degrade, non-blocking**: complete setup, record it unavailable in the config, and **list the boxes it blocks** (boxes re-probe at runtime and fail with a clear "install X"). Never abort setup for a missing capability.
+
+## Step 4 — Parse arguments, then collect only the gaps conversationally
 
 Arguments: `$ARGUMENTS`
 
-- Empty or whitespace only → `MODE = 'default'`
+- Empty/whitespace → `MODE = 'default'`
 - Trimmed lowercase equals `reconfigure` → `MODE = 'reconfigure'`
 - Otherwise → `MODE = 'intent'`, `INTENT = $ARGUMENTS`
 
-## Step 4 — Act on STATE × MODE
+If `STATE = 'full'` and `MODE = 'default'`, print the current configuration summary and **stop** (do not rewrite) — tell the user to run `/unic-archon-dlc:setup reconfigure` to change settings. Exception: if `LEGACY` is true, proceed to migrate even in this case (a rich `.yaml` does not yet exist).
 
-### Full + default: print summary and exit (or repair)
+Otherwise collect the fields to fill:
 
-If `STATE = 'full'` and `MODE = 'default'` and `DOCS_PRESENT` is `true` and `CLAUDE_MD_PRESENT` is `true`, print the current configuration and **stop** (do not call `runInstall`):
+- `STATE = 'fresh'` → collect all mandatory fields + the optional ones below.
+- `STATE = 'partial'` (default) → collect only `MISSING` fields.
+- `MODE = 'reconfigure'` → collect all fields.
+- `MODE = 'intent'` → collect `MISSING` first, then interpret `INTENT` to decide which already-set field(s) to also update.
 
-```
-unic-archon-dlc is already configured:
-  tracker:       {CONFIG.tracker}
-  pr_strategy:   {CONFIG.pr_strategy}
-  branching:     {CONFIG.branching}
-  e2e_command:   {CONFIG.e2e_command or '(none)'}
-  model_profile: {CONFIG.model_profile or 'balanced'}
+Surface auto-detected hints while asking: `GIT_REMOTE` contains `github.com` → suggest `tracker.type = github`; `dev.azure.com`/`visualstudio.com` → `ado`. Always pass `REPO_LAYOUT` through (never ask).
 
-Run `/unic-archon-dlc:setup reconfigure` to update settings.
-```
+Fields (map answers onto the schema paths — see `docs/adr/0018-generic-core-config-compose.md`):
 
-If `STATE = 'full'` and `MODE = 'default'` but `DOCS_PRESENT` is `false` or `CLAUDE_MD_PRESENT` is `false`, print a repair notice and proceed to Step 5 with `partialAnswers = {}`:
+- **project** — `project.name`, `project.branching` (`gitflow | github-flow`), `project.pr_strategy` (`merge | squash | rebase`). _(mandatory: branching, pr_strategy)_
+- **tracker** — `tracker.type` (`github | ado | jira | local-markdown`) _(mandatory)_; `tracker.coords` (e.g. `{owner, repo}` for github, `{org, project, repo}` for ado); `tracker.access` filled from Step 3 (`{mcp, cli}`).
+- **docs** — `docs.type` (`confluence | markdown | none`) — where the team's **product specs** live; `docs.publish` (default `false`, opt-in). `docs.access` from Step 3. _(Independent of the `docs/agents/*.md` files Step 6 always writes.)_
+- **design** — `design.type` (`figma | none`), `design.access` from Step 3.
+- **gates** — per Archon box (`build`, `qa`, `pr-review`, `explore`): `hitl` (default) or `afk`. Interactive skill boxes are always HITL and are not listed here.
+- **build** — `build.e2e_command` (optional), `build.coverage_threshold` (optional). Leave `build.fresh_context_red_green`, `tdd_mode`, `nyquist_validation`, `slopsquatting_gate` at their defaults unless the user asks.
+- **estimations** — `off | provisional | definitive | both` (default `off`).
+- **model_profile** — `fast | balanced | max` (default `balanced`).
 
-```
-Config is complete but setup did not finish — rerunning to repair docs/CLAUDE.md.
-```
+Build a single `ANSWERS` object containing **only** the fields you collected, keyed by the nested schema paths above, plus:
 
-### Determine which fields to collect
+- `project.repo_layout` = `REPO_LAYOUT`,
+- the Step-3 discovery results under `tracker.access` / `docs.access` / `design.access` and a `skills` block (`{ matt_suite: { present, missing } }`).
 
-- `STATE = 'fresh'` → collect all three mandatory fields + optional e2e_command
-- `STATE = 'partial'` and `MODE = 'default'` → collect only the fields missing from `CONFIG` (skip any already present)
-- `STATE = 'partial'` and `MODE = 'intent'` → collect missing mandatory fields first (to ensure completeness), then interpret `INTENT` to determine if any already-present field should also be updated
-- `MODE = 'reconfigure'` → collect all three mandatory fields + optional e2e_command
-- `STATE = 'full'` and `MODE = 'intent'` → interpret `INTENT` to decide which field(s) to update; ask only about those fields
+## Step 5 — Write the config
 
-### Collect answers conversationally
-
-For each field to collect, ask the user conversationally. Surface auto-detected hints:
-
-- `GIT_REMOTE` contains `github.com` → suggest `tracker = github`
-- `GIT_REMOTE` contains `dev.azure.com` → suggest `tracker = ado`
-
-Mandatory fields (ask in this order):
-
-- **tracker** — issue tracker backend: `github` | `ado` | `jira` | `local-markdown`
-- **pr_strategy** — PR merge strategy: `merge` | `squash` | `rebase`
-- **branching** — branching model: `gitflow` | `github-flow`
-
-Optional field:
-
-- **e2e_command** — shell command to run e2e tests (e.g. `pnpm test:e2e`); user may leave empty
-
-Build `partialAnswers` containing only the fields you collected. Fields with an empty e2e_command should be set to `null`.
-
-## Step 5 — Write config
-
-Substitute `{ANSWERS_JSON}` with the JSON-serialised `partialAnswers` object (the literal JSON text is placed directly inside the heredoc), then run:
+Substitute `{ANSWERS_JSON}` with the JSON-serialised `ANSWERS` object (placed directly inside the heredoc — never via a shell variable), then run:
 
 ```bash
 node --input-type=module <<'EOJS'
 let result
 try {
   const { pathToFileURL } = await import('node:url')
-  const { runInstall } = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/install-runner.mjs`).href)
-  result = runInstall(process.cwd(), {ANSWERS_JSON})
+  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
+  const { existsSync, mkdirSync, writeFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const cwd = process.cwd()
+  const answers = {ANSWERS_JSON}
+
+  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
+  const jsonPath = join(cwd, '.archon', 'unic-dlc.config.json')
+
+  // Load whatever exists; migrate a legacy flat .json but NEVER delete or modify it.
+  // A present-but-malformed config MUST fail fast — never fall back to {} and clobber it.
+  let existing = {}
+  let loadError = null
+  if (existsSync(yamlPath)) {
+    const r = mod.loadConfig(yamlPath)
+    if ('error' in r) loadError = r.message
+    else existing = r.config
+  } else if (existsSync(jsonPath)) {
+    const r = mod.loadConfig(jsonPath)
+    if ('error' in r) loadError = r.message
+    else existing = mod.isLegacyConfig(r.config) ? mod.migrateLegacy(r.config) : r.config
+  }
+
+  if (loadError) {
+    result = { ok: false, stage: 'config', message: `Existing config is present but unreadable — refusing to overwrite it. Fix or remove the file and re-run. ${loadError}` }
+  } else {
+    const merged = mod.mergeConfig(existing, answers)
+    const emitted = mod.toYaml(merged)
+    if ('error' in emitted) {
+      result = { ok: false, stage: 'validate', message: emitted.message }
+    } else {
+      mkdirSync(join(cwd, '.archon'), { recursive: true })
+      writeFileSync(yamlPath, emitted.yaml)
+      result = { ok: true, configPath: yamlPath, legacyKept: existsSync(jsonPath) ? jsonPath : null }
+    }
+  }
 } catch (err) {
   result = { ok: false, stage: 'unexpected', message: `Unexpected error: ${err?.message ?? String(err)}` }
 }
@@ -166,17 +193,25 @@ process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
-Parse the JSON output:
+Parse the JSON output. If `ok` is `false`, print `message` and stop. If `ok` is `true`, note `configPath` and (if present) `legacyKept` — the legacy `.json` is **left in place** because other tools may still read it.
 
-- If `ok` is `true`, print:
+## Step 6 — Update agent docs (idempotent)
 
-  ```
-  unic-archon-dlc configured.
-    config:    {result.configPath}
-    workflows: {result.workflowsCopied} workflow(s) copied
-    commands:  {result.commandsCopied} command(s) copied
-    docs:      written
-    CLAUDE.md: updated
-  ```
+Write/refresh the auto-managed `## Agent skills` block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace only the content **between** the markers (preserve everything outside verbatim); if the file or block is absent, create it. The block points readers at the box set (`/specs → /tickets → /build → /pr-review → /qa`; on-ramps `/triage`, `/qa`; off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`) and at `.archon/unic-dlc.config.yaml` as the config source of truth. This runs regardless of `docs.type`.
 
-- If `ok` is `false`, print `result.message` and stop.
+Keep the edit idempotent: re-running `/setup` replaces the block in place, never appends a second one.
+
+## Step 7 — Summary
+
+Print a concise summary:
+
+```
+unic-archon-dlc configured.
+  config:   {configPath}
+  tracker:  {tracker.type} (access: {mcp|cli})
+  docs:     {docs.type} (publish: {docs.publish})
+  gates:    build={…} qa={…} pr-review={…} explore={…}
+  skills:   Matt suite {present|MISSING: …}; blocked boxes: {…|none}
+```
+
+Then note: **re-run `/unic-archon-dlc:setup` after updating the plugin** to pick up new config keys (the merge is idempotent — your existing values are preserved).

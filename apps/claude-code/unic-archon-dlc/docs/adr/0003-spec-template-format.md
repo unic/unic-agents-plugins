@@ -1,6 +1,6 @@
 # 0003. Spec template format for Ralph-executable specs
 
-**Status:** Accepted (2025-04)
+**Status:** Superseded by [ADR-0009](0009-retire-ralph-adopt-archon-runner.md)
 
 Renumbered from monorepo-root ADR-0023 (2026-05).
 
