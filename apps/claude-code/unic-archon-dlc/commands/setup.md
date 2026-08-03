@@ -115,7 +115,7 @@ Arguments: `$ARGUMENTS`
 - Trimmed lowercase equals `reconfigure` → `MODE = 'reconfigure'`
 - Otherwise → `MODE = 'intent'`, `INTENT = $ARGUMENTS`
 
-If `STATE = 'full'` and `MODE = 'default'`, print the current configuration summary and **stop** (do not rewrite) — tell the user to run `/unic-archon-dlc:setup reconfigure` to change settings. Exception: if `LEGACY` is true, proceed to migrate even in this case (a rich `.yaml` does not yet exist).
+If `STATE = 'full'` and `MODE = 'default'`, skip Step 5 (do not rewrite the config) but **still run Step 6**, then print the Step 8 summary and stop — tell the user to run `/unic-archon-dlc:setup reconfigure` to change settings. Step 6 is how a plugin upgrade lands a new Methods bundle, and it is idempotent: it writes only the generated `.archon/methods/` tree. Skipping it here would leave every already-configured project stuck on the bundle it first installed. Exception: if `LEGACY` is true, proceed through Step 5 to migrate even in this case (a rich `.yaml` does not yet exist).
 
 Otherwise collect the fields to fill:
 
@@ -200,7 +200,7 @@ Parse the JSON output. If `ok` is `false`, print `message` and stop. If `ok` is 
 
 The Methods the Boxes compose ship inside this Plugin at `vendor/mattpocock-skills/`. This step verifies that bundle and copies it into `.archon/methods/`, the `bundle` tier `resolveMethod` reads. It **never touches `.archon/methods.local/`** — that tier is the operator's own uncommitted override.
 
-Substitute `{MERGED_CONFIG_JSON}` with the JSON-serialised config Step 5 wrote (so the tier report reflects the team's own `methods.<name>.source` declarations), then run:
+Substitute `{MERGED_CONFIG_JSON}` with the JSON-serialised config Step 5 wrote — or with `CURRENT` when Step 5 was skipped — so the tier report reflects the team's own `methods.<name>.source` declarations. Then run:
 
 ```bash
 node --input-type=module <<'EOJS'
