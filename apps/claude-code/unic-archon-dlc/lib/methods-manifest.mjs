@@ -1,0 +1,153 @@
+// @ts-check
+
+/**
+ * The Method manifest — one entry per Matt Pocock skill this Plugin's Boxes compose.
+ *
+ * Vocabulary (CONTEXT.md): the **Harness** hosts **Methods**; a **Box** reads a Method by name.
+ * Before this module, a Method name appeared as a hardcoded string in `commands/setup.md`,
+ * `commands/specs.md` and `commands/tickets.md` at once, with nothing tying the three together —
+ * so the upstream v1.1.0 rename wave broke them silently. This file is the one place a Method name
+ * exists as data; the closure test in `test/methods-manifest.test.mjs` turns the next upstream
+ * rename or content relocation into a test failure instead of a production no-op.
+ *
+ * Paths are pinned to upstream tag `v1.1.0`. Vendoring the files themselves is issue #284; this
+ * slice ships the manifest and the resolver only.
+ */
+
+/**
+ * @typedef {Object} MethodEntry
+ * @property {string} name - canonical Method name; also the on-disk directory under `.archon/methods/`
+ * @property {string} upstreamPath - path within `mattpocock/skills` at tag v1.1.0
+ * @property {readonly string[]} aliases - pre-v1.1.0 names that must keep resolving to `name`
+ * @property {readonly string[]} providedTo - Boxes that read this Method directly; empty means
+ *   transitive-only (pulled in by another Method's own composition, no direct Box caller yet)
+ * @property {readonly string[]} knownExternalRefs - slash-tokens this Method's `SKILL.md` mentions
+ *   that are deliberately outside the manifest, so the closure test can tell "expected external"
+ *   from "unresolved reference"
+ */
+
+/**
+ * Every composed Method, in main-line-then-transitive order.
+ *
+ * `providedTo: []` is meaningful, not an oversight: those Methods are transitive-only — another
+ * Method composes them, no Box reads them directly yet.
+ *
+ * `knownExternalRefs` entries are audited, not guessed:
+ *   - `setup-matt-pocock-skills` is intentionally **not** a Method. Bundling it would double-install
+ *     a setup skill that this Plugin's own `/setup` replaces (AGENTS.md: "Consequently
+ *     `setup-matt-pocock-skills` is **not** a Plugin dependency").
+ *   - `tmp` is the OS temp directory in prose, not a skill reference. It is allowlisted per-entry
+ *     rather than special-cased in the closure test's regex, so that test stays a dumb, auditable
+ *     string check.
+ *
+ * @type {readonly MethodEntry[]}
+ */
+export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
+	Object.freeze([
+		Object.freeze({
+			name: 'to-spec',
+			upstreamPath: 'skills/engineering/to-spec/SKILL.md',
+			aliases: Object.freeze(['to-prd']),
+			providedTo: Object.freeze(['specs']),
+			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
+		}),
+		Object.freeze({
+			name: 'to-tickets',
+			upstreamPath: 'skills/engineering/to-tickets/SKILL.md',
+			aliases: Object.freeze(['to-issues']),
+			providedTo: Object.freeze(['tickets']),
+			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
+		}),
+		Object.freeze({
+			name: 'triage',
+			upstreamPath: 'skills/engineering/triage/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze(['triage']),
+			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
+		}),
+		Object.freeze({
+			name: 'code-review',
+			upstreamPath: 'skills/engineering/code-review/SKILL.md',
+			aliases: Object.freeze(['review']),
+			providedTo: Object.freeze(['pr-review']),
+			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
+		}),
+		Object.freeze({
+			name: 'improve-codebase-architecture',
+			upstreamPath: 'skills/engineering/improve-codebase-architecture/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze(['improve-architecture']),
+			knownExternalRefs: Object.freeze(['tmp']),
+		}),
+		Object.freeze({
+			name: 'implement',
+			upstreamPath: 'skills/engineering/implement/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze([]),
+			knownExternalRefs: Object.freeze([]),
+		}),
+		Object.freeze({
+			name: 'tdd',
+			upstreamPath: 'skills/engineering/tdd/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze([]),
+			knownExternalRefs: Object.freeze([]),
+		}),
+		Object.freeze({
+			name: 'research',
+			upstreamPath: 'skills/engineering/research/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze([]),
+			knownExternalRefs: Object.freeze([]),
+		}),
+		Object.freeze({
+			name: 'grilling',
+			upstreamPath: 'skills/productivity/grilling/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze([]),
+			knownExternalRefs: Object.freeze([]),
+		}),
+		Object.freeze({
+			name: 'domain-modeling',
+			upstreamPath: 'skills/engineering/domain-modeling/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze([]),
+			knownExternalRefs: Object.freeze([]),
+		}),
+		Object.freeze({
+			name: 'codebase-design',
+			upstreamPath: 'skills/engineering/codebase-design/SKILL.md',
+			aliases: Object.freeze([]),
+			providedTo: Object.freeze([]),
+			knownExternalRefs: Object.freeze([]),
+		}),
+	])
+)
+
+/**
+ * Map a possibly-legacy Method name to its canonical manifest name.
+ *
+ * Exact, case-sensitive match only — a fuzzy match here would resolve a typo to a real Method and
+ * hide exactly the class of failure this manifest exists to surface. An unknown name is returned
+ * unchanged; callers decide whether that is an error (see `findMethod`).
+ *
+ * @param {string} name
+ * @returns {string}
+ */
+export function resolveAlias(name) {
+	for (const entry of METHODS_MANIFEST) {
+		if (entry.name === name) return entry.name
+		if (entry.aliases.includes(name)) return entry.name
+	}
+	return name
+}
+
+/**
+ * Look up a Method entry by canonical name or legacy alias.
+ * @param {string} name
+ * @returns {MethodEntry | undefined}
+ */
+export function findMethod(name) {
+	const canonical = resolveAlias(name)
+	return METHODS_MANIFEST.find((entry) => entry.name === canonical)
+}

@@ -6,7 +6,10 @@
 - (none)
 
 ### Added
-- (none)
+- **`lib/methods-manifest.mjs` — the Method manifest.** One entry per Matt Pocock skill the Boxes compose (`name`, `upstreamPath` pinned to upstream tag `v1.1.0`, legacy `aliases`, `providedTo`, `knownExternalRefs`), plus `resolveAlias` and `findMethod`. Until now a Method name was a hardcoded string in `commands/setup.md`, `commands/specs.md` and `commands/tickets.md` at once, with nothing tying the three together — which is why the upstream v1.1.0 rename wave (8 skills renamed; `to-prd` → `to-spec`, `to-issues` → `to-tickets`, `review` → `code-review`) broke those commands without a single failing test. A closure test walks the real v1.1.0 `SKILL.md` content for all 11 Methods and asserts every `` `/cross-reference` `` resolves to a manifest name, a manifest alias, or an audited external exception, so the next rename or content relocation fails the suite instead of shipping silently.
+- **`lib/methods-resolver.mjs` — three-tier Method resolution.** `resolveMethod(name, { repoRoot, config, box, existsFn })` returns `{ name, path, tier }` for the first tier that answers — `config` (`methods.<name>.source`) → `local` (`.archon/methods.local/<name>/SKILL.md`) → `bundle` (`.archon/methods/<name>/SKILL.md`) — and an error value, never a throw, otherwise. Resolved paths must stay inside `repoRoot`: absolute paths, Windows drive letters, `~` prefixes, and `../` or `..\` escapes are all rejected, the last two normalised so a Windows-style escape is caught on POSIX too. The unresolved-Method error names both the Method and the requesting Box, so an operator reading a log knows which command to fix.
+
+This is the foundation tranche of the upstream v1.1.0 migration: it ships the machinery only. Vendoring the skills under `vendor/mattpocock-skills/` and rewiring the Boxes onto this manifest are separate slices, so no `commands/` or `.archon/` behaviour changes here.
 
 ### Fixed
 - (none)
