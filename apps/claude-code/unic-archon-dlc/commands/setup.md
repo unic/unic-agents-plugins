@@ -88,7 +88,7 @@ process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the output. If `error` is present, print it verbatim and stop. Otherwise set `GIT_REMOTE`, `REPO_LAYOUT`, `LEGACY` (true = a legacy flat `.json` will be migrated), `CURRENT` (the normalised config, or null), and `MISSING` (mandatory paths still unset).
+Parse the output. If `error` is present, print it verbatim and stop. Otherwise set `GIT_REMOTE`, `REPO_LAYOUT`, `LEGACY` (true = a legacy flat `.json` will be migrated), `CURRENT` (the normalised config, or null), `CONFIG_PATH` (`source`, the on-disk path read — used by Step 8 if Step 5 is skipped), and `MISSING` (mandatory paths still unset).
 
 Determine `STATE`:
 
@@ -224,13 +224,17 @@ try {
     if (!integrity.ok) {
       result = { ok: false, stage: 'bundle', message: `The vendored Method bundle is incomplete — missing: ${integrity.missing.join(', ')}. This is a Plugin packaging fault; reinstall or report it.` }
     } else {
-      const { installed } = bundle.installMethods({ bundleRoot, repoRoot: cwd })
-      const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
-      const tiers = manifest.METHODS_MANIFEST.map((entry) => {
-        const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
-        return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
-      })
-      result = { ok: true, tag: manifest.METHODS_BUNDLE.tag, installed, overrides, tiers }
+      const install = bundle.installMethods({ bundleRoot, repoRoot: cwd })
+      if (!install.ok) {
+        result = { ok: false, stage: 'install', message: install.message }
+      } else {
+        const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
+        const tiers = manifest.METHODS_MANIFEST.map((entry) => {
+          const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
+          return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
+        })
+        result = { ok: true, tag: manifest.METHODS_BUNDLE.tag, installed: install.installed, overrides, tiers }
+      }
     }
   }
 } catch (err) {
@@ -240,7 +244,7 @@ process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — both failure modes mean the shipped Plugin itself is incomplete or altered, which no Consumer action fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.**
+Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — each failure mode (`licence`, `bundle`, `install`, `unexpected`) means the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` failure, the message already tells the operator how many Methods landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the tree).
 
 If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, and `OVERRIDES` for the Step 8 summary. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
 
@@ -263,6 +267,8 @@ unic-archon-dlc configured.
   methods:  {name}({tier}) · {name}({tier}) · … (bundle {BUNDLE_TAG})
   overrides: none
 ```
+
+Fill `{configPath}` from `configPath` (Step 5's output) or, when Step 5 was skipped, from `CONFIG_PATH` (Step 2's output).
 
 Build the `methods:` line from `TIERS` — one `{name}({tier})` per manifest entry, `·`-separated. A `null` tier means the Method resolved at no tier at all; print it as `{name}(UNRESOLVED)` and name it as a fault worth reporting.
 

@@ -102,6 +102,21 @@ test('verifyLicence reports a missing LICENSE and tells the caller not to create
 	assert.match(/** @type {{ message: string }} */ (result).message, /never create a LICENSE file/)
 })
 
+test('verifyLicence reports code unreadable, not missing, for a non-ENOENT read failure', () => {
+	const bundleRoot = resolve('/bundle')
+
+	const result = verifyLicence({
+		bundleRoot,
+		readFileFn: () => {
+			throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+		},
+	})
+
+	assert.equal(result.ok, false)
+	assert.equal(/** @type {{ code: string }} */ (result).code, 'unreadable')
+	assert.match(/** @type {{ message: string }} */ (result).message, /permissions or filesystem problem/)
+})
+
 test('verifyLicence reports a mismatch when the LICENSE has been edited', () => {
 	const bundleRoot = resolve('/bundle')
 
@@ -182,6 +197,32 @@ test('installMethods removes with force, so a first-ever install does not throw'
 	const result = installMethods({ bundleRoot, repoRoot, cpFn: () => {} })
 
 	assert.equal(result.ok, true)
+})
+
+test('installMethods reports a partial failure without throwing, naming which Method failed and which already landed', () => {
+	const bundleRoot = resolve('/bundle')
+	const repoRoot = resolve('/repo')
+	const failAt = 2
+	let calls = 0
+
+	const result = installMethods({
+		bundleRoot,
+		repoRoot,
+		rmFn: () => {},
+		cpFn: () => {
+			calls += 1
+			if (calls === failAt + 1) throw Object.assign(new Error('EBUSY: resource busy'), { code: 'EBUSY' })
+		},
+	})
+
+	assert.equal(result.ok, false)
+	assert.deepEqual(
+		/** @type {{ installed: string[] }} */ (result).installed,
+		METHODS_MANIFEST.slice(0, failAt).map((entry) => entry.name)
+	)
+	assert.equal(/** @type {{ failed: string }} */ (result).failed, METHODS_MANIFEST[failAt].name)
+	assert.match(/** @type {{ message: string }} */ (result).message, /EBUSY/)
+	assert.match(/** @type {{ message: string }} */ (result).message, /re-run \/unic-archon-dlc:setup/)
 })
 
 // --- inspectLocalOverrides --------------------------------------------------------------------

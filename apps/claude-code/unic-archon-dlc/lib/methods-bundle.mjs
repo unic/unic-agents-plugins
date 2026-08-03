@@ -62,14 +62,16 @@ export function verifyBundle({ bundleRoot, existsFn = existsSync }) {
  */
 
 /**
- * @typedef {{ ok: true, sha256: string } | { ok: false, code: 'missing' | 'mismatch', message: string }} VerifyLicenceResult
+ * @typedef {{ ok: true, sha256: string } | { ok: false, code: 'missing' | 'unreadable' | 'mismatch', message: string }} VerifyLicenceResult
  */
 
 /**
  * Verify the vendored `LICENSE` is byte-identical to upstream's at the bundled tag.
  *
  * An absent file returns `code: 'missing'` and tells the caller to warn the maintainer. It must
- * never be auto-created: `LICENSE` files in this repository are maintainer-owned (AGENTS.md).
+ * never be auto-created: `LICENSE` files in this repository are maintainer-owned (AGENTS.md). A file
+ * that exists but can't be read (permissions, `EISDIR`, a transient FS error) returns `code:
+ * 'unreadable'` instead — that is not a "please add it" situation.
  *
  * @param {VerifyLicenceOptions} options
  * @returns {VerifyLicenceResult}
@@ -80,13 +82,16 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
 	try {
 		contents = readFileFn(licencePath)
 	} catch (err) {
+		const code = /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT' ? 'missing' : 'unreadable'
 		return {
 			ok: false,
-			code: 'missing',
+			code,
 			message:
-				`Cannot read the vendored licence at ${licencePath} (${/** @type {Error} */ (err).message}). ` +
-				`Stop and ask the maintainer to add ${METHODS_BUNDLE.repo}'s ${METHODS_BUNDLE.licence} LICENSE ` +
-				'at that path — an agent must never create a LICENSE file.',
+				code === 'missing'
+					? `Cannot find the vendored licence at ${licencePath}. Stop and ask the maintainer to add ` +
+						`${METHODS_BUNDLE.repo}'s ${METHODS_BUNDLE.licence} LICENSE at that path — an agent must never create a LICENSE file.`
+					: `Cannot read the vendored licence at ${licencePath} (${/** @type {Error} */ (err).message}). ` +
+						'This looks like a permissions or filesystem problem, not a missing file — investigate before assuming the LICENSE needs restoring.',
 		}
 	}
 	const sha256 = createHash('sha256').update(contents).digest('hex')
@@ -112,6 +117,10 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
  */
 
 /**
+ * @typedef {{ ok: true, installed: string[] } | { ok: false, installed: string[], failed: string, message: string }} InstallMethodsResult
+ */
+
+/**
  * Install the bundle into `<repoRoot>/.archon/methods/<name>/`, replacing whatever was there.
  *
  * Clean-replace, not merge: a Method dropped from the manifest in a later version must not linger on
@@ -124,15 +133,33 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
  *
  * `.archon/methods.local/` is never touched (that tier is the operator's uncommitted working copy).
  *
+ * A failure mid-copy (`EBUSY`/`ENOSPC`/`EACCES`) is caught per-entry rather than left to propagate: the
+ * `rmFn` above already ran, so the caller needs to know exactly which Methods made it to disk and which
+ * didn't, not just that something threw.
+ *
  * @param {InstallMethodsOptions} options
- * @returns {{ ok: true, installed: string[] }}
+ * @returns {InstallMethodsResult}
  */
 export function installMethods({ bundleRoot, repoRoot, rmFn = rmSync, cpFn = cpSync }) {
 	rmFn(join(repoRoot, INSTALL_DIR), { recursive: true, force: true })
-	const installed = METHODS_MANIFEST.map((entry) => {
-		cpFn(join(bundleRoot, dirname(entry.upstreamPath)), join(repoRoot, INSTALL_DIR, entry.name), { recursive: true })
-		return entry.name
-	})
+	const installed = []
+	for (const entry of METHODS_MANIFEST) {
+		try {
+			cpFn(join(bundleRoot, dirname(entry.upstreamPath)), join(repoRoot, INSTALL_DIR, entry.name), {
+				recursive: true,
+			})
+		} catch (err) {
+			return {
+				ok: false,
+				installed,
+				failed: entry.name,
+				message:
+					`Failed to install Method "${entry.name}" into ${INSTALL_DIR} (${/** @type {Error} */ (err).message}). ` +
+					`${installed.length} Method(s) installed before the failure; re-run /unic-archon-dlc:setup to retry — it clean-replaces the tree.`,
+			}
+		}
+		installed.push(entry.name)
+	}
 	return { ok: true, installed }
 }
 

@@ -154,6 +154,19 @@ test('rejects a Windows drive-letter config source', () => {
 	assert.match(/** @type {{ message: string }} */ (result).message, /absolute path/)
 })
 
+test('rejects a UNC-style config source', () => {
+	const repoRoot = tempDir()
+
+	const result = resolveMethod('to-spec', {
+		repoRoot,
+		box: 'specs',
+		config: { methods: { 'to-spec': { source: '\\\\server\\share\\SKILL.md' } } },
+	})
+
+	assert.equal(/** @type {{ error?: true }} */ (result).error, true)
+	assert.match(/** @type {{ message: string }} */ (result).message, /absolute path/)
+})
+
 test('rejects a home-directory config source', () => {
 	const repoRoot = tempDir()
 
