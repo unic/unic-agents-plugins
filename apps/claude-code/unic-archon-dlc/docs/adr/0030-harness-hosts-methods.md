@@ -1,8 +1,6 @@
 # 0030. The DLC is a Harness that hosts Methods; a Box survives only for what no Method can supply
 
-**Status:** Accepted (2026-08-03)
-
-Amends [ADR-0016](0016-dlc-thin-process-layer.md) and [ADR-0021](0021-earns-its-place-compose-verbatim.md).
+**Status:** Accepted (2026-08-03); amends [ADR-0016](0016-dlc-thin-process-layer.md) and [ADR-0021](0021-earns-its-place-compose-verbatim.md)
 
 ## Context
 

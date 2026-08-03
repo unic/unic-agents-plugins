@@ -16,34 +16,27 @@ Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
 ### Architecture
 
 **Harness**:
-What the DLC is to a Method: the owner of isolation, gates, configuration, red/green integrity,
-system-skill composition, artefact durability and posting. It owns the _what_ and never the
-procedure. See `docs/adr/0030-harness-hosts-methods.md`.
+What the DLC is to a Method: the owner of everything outside the procedure. See
+`docs/adr/0030-harness-hosts-methods.md`.
 _Avoid_: thin process layer, framework, integration layer, orchestrator
 
-**Thin process layer**:
-The earlier name for the Harness, kept in `docs/adr/0016-dlc-thin-process-layer.md` as the historical
-wording. Use **Harness**.
-_Avoid_: using it in new prose
-
 **Box**:
-One step of the lifecycle — `/specs`, `/tickets`, `/build`, `/pr-review`, `/qa`, `/triage`, `/setup`,
-`/explore`, `/improve-architecture`, `/cleanup`. A Box exists only for what no Method can supply.
-See `docs/adr/0030-harness-hosts-methods.md`.
-_Avoid_: workflow (that is one of a Box's two containers), step, stage, phase
+One step of the lifecycle. See `docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: step, stage, phase
 
 **Method**:
-The skill text a Box reads for procedure, from Matt Pocock's skills. A Method owns _how_ the work is
-done; configuration owns which, where and whether. See
+The skill text a Box reads for procedure. See
 `docs/adr/0031-methods-bundled-three-tier-resolution.md`.
 _Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
 
 **Local Method**:
-A team's own version of a Method, which takes precedence over the shipped one for that team.
+A team's own version of a Method, which takes precedence over the shipped one. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
 _Avoid_: custom skill, local skill, patch, fork
 
 **Bundle**:
-The set of Methods the plugin ships, fixed to one upstream version.
+The set of Methods the plugin ships, fixed to one upstream version. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
 _Avoid_: vendor directory, snapshot, cache
 
 **System-skill**:
@@ -98,8 +91,8 @@ _Avoid_: ticket, ready ticket, groomed issue
 ### Planning artifacts
 
 **PRD**:
-Product Requirements Document produced by the `/specs` command (branch-on-input; via Matt's
-`to-prd`) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
+Product Requirements Document produced by the `/specs` command (branch-on-input; via the `to-spec`
+Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
 and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
@@ -238,6 +231,9 @@ _Avoid_: reviewer, agent, check
 
 ## Relationships
 
+- The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
+- A **Method** resolves from the first tier that answers — a team's declared source, then a **Local Method**, then the **Bundle** that **Setup** installed (ADR-0031)
+- **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
 - `/build` runs a generic **red → green → refactor** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)

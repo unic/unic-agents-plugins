@@ -76,11 +76,13 @@ Beyond the Archon workflow engine (see [Configuration reference](#configuration-
 reimplement it. The Methods ship inside this plugin and `/unic-archon-dlc:setup` installs them, so there
 is nothing to install separately (see [The Method bundle](#the-method-bundle)).
 
-**This table is the single dependency list.** It is generated from `providedTo` in
-[`lib/methods-manifest.mjs`](lib/methods-manifest.mjs), and a test in `test/methods-manifest.test.mjs`
-fails if the two disagree — do not hand-edit it, and do not restate it anywhere else. Before the
-manifest existed, `commands/setup.md` named 7 Methods, this file named 6, and the boxes read 11; the
-upstream v1.1.0 rename wave then broke `/specs` and `/tickets` with CI green.
+**This table is the single dependency list, and `providedTo` in
+[`lib/methods-manifest.mjs`](lib/methods-manifest.mjs) is its source of truth.** A test in
+`test/methods-manifest.test.mjs` parses the table and fails if the two disagree, so edit the manifest
+first and bring the table into line with it — and do not restate the list anywhere else. Before the
+manifest existed, `commands/setup.md` named 7 Methods and this file named 6, while the plugin composed
+11 (8 of which have a box today); the upstream v1.1.0 rename wave then broke `/specs` and `/tickets`
+with CI green.
 
 <!-- methods-table:begin -->
 
@@ -168,7 +170,7 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                  |
 | `templates.{issue,bug}`                                  | `null`                 | template string                               | Config-driven artifact templates (ADR-0018)                                                                                         |
 | `classification.labels.*`                                | canonical              | any string                                    | 3-tier label mapping (state · type · priority)                                                                                      |
-| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `/grill-with-docs`; `assumptions` enumerates upfront (ADR-0020)                         |
+| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `grilling` + `domain-modeling`; `assumptions` enumerates upfront (ADR-0020)             |
 | `specs.gate`                                             | `open-pr`              | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops                        |
 | `tickets.gate`                                           | `open-pr`              | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022) |
 | `triage.out_of_scope_dir`                                | `.out-of-scope`        | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                      |

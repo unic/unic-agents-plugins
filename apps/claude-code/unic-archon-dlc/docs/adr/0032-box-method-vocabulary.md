@@ -64,6 +64,7 @@ disagree, `CONTEXT.md` is the definition and this ADR is the history.
   as the historical record; the opening sentences of `README.md`, `AGENTS.md` and `CONTEXT.md` are
   rewritten to say Harness.
 - A dependency list in prose is now a defect by definition, because "Method" has a single referent:
-  the manifest. `README.md`'s table is generated from `providedTo` and a test asserts they agree.
+  the manifest. `README.md`'s table mirrors `providedTo` and a test parses the table to assert they
+  agree — the manifest is edited first, and the table follows.
 - New vocabulary needs an entry here and in `CONTEXT.md` before it appears in a third file. That is the
   cheap version of the check that would have caught the original divergence.
