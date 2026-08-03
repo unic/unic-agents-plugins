@@ -106,6 +106,40 @@ test('every fixture is reviewed for cross-reference content — none are vacuous
 	}
 })
 
+test('providedTo is empty only for Methods whose Box has not shipped yet', () => {
+	// #285 generates the documented dependency list from `providedTo`, so an entry left empty by
+	// accident understates the docs — the divergence the manifest exists to end. This allowlist is the
+	// only sanctioned reason to be empty: the Box arrives in a later slice (#281, #276).
+	const boxNotShippedYet = new Set(['implement', 'tdd', 'research'])
+
+	for (const entry of METHODS_MANIFEST) {
+		if (boxNotShippedYet.has(entry.name)) continue
+		assert.ok(
+			entry.providedTo.length > 0,
+			`${entry.name}: providedTo is empty — name the Boxes that read it, or add it to boxNotShippedYet with a reason`
+		)
+	}
+})
+
+test('the Methods composed by the current command prose record their Box callers', () => {
+	// Sourced from the shipped commands: `commands/specs.md` (`/grill-with-docs` runs `/grilling` +
+	// `/domain-modeling`), `commands/triage.md` (same pair declared), and
+	// `commands/improve-architecture.md` (`/codebase-design` + `/grilling` + `/domain-modeling`).
+	const expected = {
+		grilling: ['specs', 'triage', 'improve-architecture'],
+		'domain-modeling': ['specs', 'triage', 'improve-architecture'],
+		'codebase-design': ['improve-architecture'],
+	}
+
+	for (const [name, boxes] of Object.entries(expected)) {
+		assert.deepEqual(
+			[...(findMethod(name)?.providedTo ?? [])],
+			boxes,
+			`${name}: providedTo must match the command prose`
+		)
+	}
+})
+
 test('the closure assertion actually fails on an unresolved cross-reference', () => {
 	const canonicalNames = new Set(METHODS_MANIFEST.map((entry) => entry.name))
 	const allAliases = new Set(METHODS_MANIFEST.flatMap((entry) => [...entry.aliases]))

@@ -29,8 +29,13 @@
 /**
  * Every composed Method, in main-line-then-transitive order.
  *
- * `providedTo: []` is meaningful, not an oversight: those Methods are transitive-only — another
- * Method composes them, no Box reads them directly yet.
+ * `providedTo: []` is meaningful, not an oversight: those Methods have no Box caller **yet** — their
+ * Boxes arrive with the rewiring slices (`implement` and `tdd` in #281, `research` in #276). Note the
+ * distinction: `grilling`, `domain-modeling` and `codebase-design` are named as declared dependencies
+ * in the current command prose (`commands/specs.md`, `commands/triage.md`,
+ * `commands/improve-architecture.md`), so they carry real Boxes today even though a Method also
+ * composes them transitively. `providedTo` records direct Box callers, and #285 generates the
+ * documented dependency list from it — an entry left empty here understates the docs.
  *
  * `knownExternalRefs` entries are audited, not guessed:
  *   - `setup-matt-pocock-skills` is intentionally **not** a Method. Bundling it would double-install
@@ -104,21 +109,21 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 			name: 'grilling',
 			upstreamPath: 'skills/productivity/grilling/SKILL.md',
 			aliases: Object.freeze([]),
-			providedTo: Object.freeze([]),
+			providedTo: Object.freeze(['specs', 'triage', 'improve-architecture']),
 			knownExternalRefs: Object.freeze([]),
 		}),
 		Object.freeze({
 			name: 'domain-modeling',
 			upstreamPath: 'skills/engineering/domain-modeling/SKILL.md',
 			aliases: Object.freeze([]),
-			providedTo: Object.freeze([]),
+			providedTo: Object.freeze(['specs', 'triage', 'improve-architecture']),
 			knownExternalRefs: Object.freeze([]),
 		}),
 		Object.freeze({
 			name: 'codebase-design',
 			upstreamPath: 'skills/engineering/codebase-design/SKILL.md',
 			aliases: Object.freeze([]),
-			providedTo: Object.freeze([]),
+			providedTo: Object.freeze(['improve-architecture']),
 			knownExternalRefs: Object.freeze([]),
 		}),
 	])
