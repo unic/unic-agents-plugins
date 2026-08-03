@@ -210,6 +210,17 @@ test('a sibling directory sharing the repo-root prefix does not count as inside 
 	assert.match(/** @type {{ message: string }} */ (result).message, /escapes the repository root/)
 })
 
+test('a repoRoot that is itself a filesystem root still resolves in-root paths', () => {
+	// Regression: a `root + sep` prefix test turns `/` into `//` and `C:\` into `C:\\`, so every
+	// in-root path reads as an escape. Pathological as a repo location, but the guard must not
+	// misfire — it fails closed, which would take every Box down rather than let anything through.
+	const result = resolveMethod('tdd', { repoRoot: '/', box: 'build', existsFn: () => true })
+
+	assert.equal(/** @type {{ error?: true }} */ (result).error, undefined)
+	assert.equal(/** @type {{ tier: string }} */ (result).tier, 'local')
+	assert.equal(/** @type {{ path: string }} */ (result).path, join('/', '.archon/methods.local/tdd/SKILL.md'))
+})
+
 test('an unresolved Method names both the Method and the Box', () => {
 	const repoRoot = tempDir()
 

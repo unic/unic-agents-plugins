@@ -1,6 +1,6 @@
 // @ts-check
 import { existsSync } from 'node:fs'
-import { isAbsolute, resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { findMethod, resolveAlias } from './methods-manifest.mjs'
 
 /**
@@ -66,8 +66,12 @@ function unsafeReason(candidate, repoRoot) {
 	}
 	const root = resolve(repoRoot)
 	const target = resolve(root, normalised)
-	// The trailing separator matters: without it, `/repo-evil` passes a bare `/repo` prefix test.
-	if (target !== root && !target.startsWith(root + sep)) return 'escapes the repository root'
+	// `relative` rather than a `root + sep` prefix test, for two reasons. A bare `root` prefix would
+	// let `/repo-evil` pass for a root of `/repo`; and `root + sep` breaks when the root IS a
+	// filesystem root — `/` becomes `//`, `C:\` becomes `C:\\`, so every in-root path reads as an
+	// escape. `relative` has neither failure mode. An empty result means target === root, which is in.
+	const rel = relative(root, target)
+	if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return 'escapes the repository root'
 	return null
 }
 
