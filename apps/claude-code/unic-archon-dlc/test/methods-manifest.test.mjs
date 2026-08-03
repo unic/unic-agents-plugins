@@ -87,10 +87,35 @@ test('every cross-reference in the v1.1.0 skills resolves to the manifest', () =
 	}
 })
 
-test('the closure check actually reads content — the referencing fixtures are not empty', () => {
-	// Guards against the closure test silently passing on missing or truncated fixtures.
-	for (const name of ['to-spec', 'to-tickets', 'triage', 'improve-codebase-architecture', 'code-review']) {
-		const tokens = [...readFixture(name).matchAll(SLASH_TOKEN)]
-		assert.ok(tokens.length > 0, `${name} fixture should contain at least one \`/token\` cross-reference`)
+test('every fixture is reviewed for cross-reference content — none are vacuously empty for the closure test', () => {
+	// Guards against the closure test silently passing on missing or truncated fixtures, for every
+	// manifest entry — not just the ones already known to have cross-references.
+	const expectedNonEmpty = new Set(['to-spec', 'to-tickets', 'triage', 'improve-codebase-architecture', 'code-review'])
+
+	for (const entry of METHODS_MANIFEST) {
+		const tokens = [...readFixture(entry.name).matchAll(SLASH_TOKEN)]
+		if (expectedNonEmpty.has(entry.name)) {
+			assert.ok(tokens.length > 0, `${entry.name} fixture should contain at least one \`/token\` cross-reference`)
+		} else {
+			assert.equal(
+				tokens.length,
+				0,
+				`${entry.name} fixture unexpectedly gained cross-references — add it to expectedNonEmpty and verify the closure test covers it`
+			)
+		}
 	}
+})
+
+test('the closure assertion actually fails on an unresolved cross-reference', () => {
+	const canonicalNames = new Set(METHODS_MANIFEST.map((entry) => entry.name))
+	const allAliases = new Set(METHODS_MANIFEST.flatMap((entry) => [...entry.aliases]))
+	const known = new Set()
+	const fakeToken = 'definitely-not-a-real-method'
+
+	assert.throws(() => {
+		assert.ok(
+			canonicalNames.has(fakeToken) || allAliases.has(fakeToken) || known.has(fakeToken),
+			`fixture references \`/${fakeToken}\`, which is not a manifest name, a manifest alias, or one of its knownExternalRefs`
+		)
+	}, /not a manifest name/)
 })

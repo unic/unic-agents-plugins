@@ -61,6 +61,22 @@ test('the config tier wins over both filesystem tiers', () => {
 	assert.deepEqual(result, { name: 'to-spec', path: expected, tier: 'config' })
 })
 
+test('a config source is trusted on declaration alone, even if the file does not exist', () => {
+	const repoRoot = tempDir()
+
+	const result = resolveMethod('to-spec', {
+		repoRoot,
+		box: 'specs',
+		config: { methods: { 'to-spec': { source: 'team/methods/to-spec/SKILL.md' } } },
+	})
+
+	assert.deepEqual(result, {
+		name: 'to-spec',
+		path: resolve(repoRoot, 'team/methods/to-spec/SKILL.md'),
+		tier: 'config',
+	})
+})
+
 test('an alias input resolves under the canonical name', () => {
 	const repoRoot = tempDir()
 	const expected = writeSkill(repoRoot, '.archon/methods/to-spec/SKILL.md')
@@ -94,6 +110,21 @@ test('an empty config source is treated as absent, not as the repo root', () => 
 	})
 
 	assert.deepEqual(result, { name: 'to-spec', path: expected, tier: 'bundle' })
+})
+
+test('rejects a non-string config source instead of silently falling through', () => {
+	const repoRoot = tempDir()
+	writeSkill(repoRoot, '.archon/methods/to-spec/SKILL.md')
+
+	const result = resolveMethod('to-spec', {
+		repoRoot,
+		box: 'specs',
+		config: { methods: { 'to-spec': { source: true } } },
+	})
+
+	assert.equal(/** @type {{ error?: true }} */ (result).error, true)
+	assert.equal(/** @type {{ path?: string }} */ (result).path, undefined)
+	assert.match(/** @type {{ message: string }} */ (result).message, /not a string/)
 })
 
 test('rejects an absolute config source', () => {

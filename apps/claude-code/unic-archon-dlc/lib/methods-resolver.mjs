@@ -37,7 +37,7 @@ import { findMethod, resolveAlias } from './methods-manifest.mjs'
 /**
  * @typedef {Object} ResolveMethodOptions
  * @property {string} repoRoot - the Consumer repository root; every resolved path must sit inside it
- * @property {Record<string, any>} [config] - the loaded `.archon/unic-dlc.config.yaml` object
+ * @property {import('./config-schema.mjs').DlcConfig} [config] - the loaded `.archon/unic-dlc.config.yaml` object
  * @property {string} [box] - the Box requesting the Method (used in error messages)
  * @property {ExistsFn} [existsFn] - injectable for tests, mirroring `checkArchon`'s `execFn`
  */
@@ -50,8 +50,9 @@ const BUNDLE_TIER = 'bundle'
  * Why a candidate path may not be used, or null when it is safe.
  *
  * Backslashes are normalised before analysis so a Windows-style escape (`..\\..\\etc`) is caught on
- * POSIX too, where it would otherwise read as one harmless filename. Drive letters and UNC prefixes
- * are rejected explicitly for the same reason — `isAbsolute` on POSIX does not recognise them.
+ * POSIX too, where it would otherwise read as one harmless filename. The same normalisation turns a
+ * UNC prefix (`\\server\share`) into a leading `//`, caught by the generic absolute-path check below.
+ * Drive letters get their own explicit regex — `isAbsolute` on POSIX does not recognise either form.
  *
  * @param {string} candidate - a repo-relative path as written by config or built by this module
  * @param {string} repoRoot
@@ -96,8 +97,17 @@ export function resolveMethod(name, { repoRoot, config, box = 'unknown', existsF
 	// Tier 1 — config. A declared override is authoritative on declaration alone: falling through to
 	// a bundled default because the operator's path is missing would silently ignore their choice,
 	// which is the failure mode this whole slice exists to eliminate. An empty string is not a
-	// declaration.
-	const source = config?.methods?.[canonical]?.source
+	// declaration; a non-string value is a misconfiguration, not an absence, so it fails loudly
+	// rather than falling through as if unset.
+	const methods = /** @type {Record<string, { source?: unknown }> | undefined} */ (config?.methods)
+	const source = methods?.[canonical]?.source
+	if (source !== undefined && typeof source !== 'string') {
+		return fail(
+			canonical,
+			box,
+			`Method "${canonical}" (requested by Box "${box}") has a ${CONFIG_TIER}-tier source that is not a string`
+		)
+	}
 	if (typeof source === 'string' && source.trim() !== '') {
 		const reason = unsafeReason(source, repoRoot)
 		if (reason) {
