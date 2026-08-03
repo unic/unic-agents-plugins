@@ -34,6 +34,31 @@ function readMethodDocs(entry) {
 		.join('\n')
 }
 
+/** The one dependency list, delimited in `README.md` so this test can hold it to the manifest. */
+const METHODS_TABLE = /<!-- methods-table:begin -->([\s\S]*?)<!-- methods-table:end -->/
+
+/**
+ * Parse the README's Method table into `[method, readBy]` pairs, in document order.
+ *
+ * Cells are trimmed rather than matched with their padding: Prettier owns Markdown here and repads a
+ * whole table when any one cell changes width, so asserting on alignment would fail on a reformat.
+ *
+ * @returns {Array<[string, string]>}
+ */
+function readReadmeMethodsTable() {
+	const readme = readFileSync(resolve(import.meta.dirname, '..', 'README.md'), 'utf8')
+	const section = readme.match(METHODS_TABLE)
+	assert.ok(section, 'README.md must delimit the Method table with the methods-table markers')
+
+	return section[1]
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line.startsWith('|') && !/^\|[\s|:-]*\|$/.test(line))
+		.map((line) => line.slice(1, -1).split('|'))
+		.filter((cells) => cells[0].trim() !== 'Method')
+		.map((cells) => /** @type {[string, string]} */ ([cells[0].trim(), cells[1].trim()]))
+}
+
 test('every manifest entry has the required shape', () => {
 	assert.ok(METHODS_MANIFEST.length > 0, 'manifest must not be empty')
 	for (const entry of METHODS_MANIFEST) {
@@ -145,6 +170,38 @@ test('every manifest entry declares exactly the Markdown files vendored for it',
 			onDisk,
 			declared,
 			`${entry.name}: the vendored directory and its \`subFiles\` disagree — reconcile the manifest with what was vendored at ${METHODS_BUNDLE.tag}`
+		)
+	}
+})
+
+test("the README's Method table matches the manifest's providedTo, row for row", () => {
+	// ADR-0032: a dependency list in prose is a defect unless a test holds it to the manifest. Three
+	// surfaces once disagreed — setup.md named 7 Methods, README.md named 6, the boxes read 11 — and
+	// the v1.1.0 rename wave then broke `/specs` and `/tickets` with CI green. This is the guard.
+	const rows = readReadmeMethodsTable()
+
+	assert.deepEqual(
+		rows.map(([method]) => method),
+		METHODS_MANIFEST.map((entry) => `\`${entry.name}\``),
+		'the README table must list every Method exactly once, in manifest order'
+	)
+
+	for (const [index, entry] of METHODS_MANIFEST.entries()) {
+		const readBy = rows[index][1]
+		if (entry.providedTo.length === 0) {
+			// The tracking issue is prose the manifest does not carry; what matters is that the cell
+			// claims no Box, so an unwired Method can never read as wired.
+			assert.match(
+				readBy,
+				/^no box yet\b/,
+				`${entry.name}: providedTo is empty, so the README must say so rather than name a box`
+			)
+			continue
+		}
+		assert.equal(
+			readBy,
+			entry.providedTo.map((box) => `\`/${box}\``).join(', '),
+			`${entry.name}: the README's "Read by" cell must match providedTo`
 		)
 	}
 })

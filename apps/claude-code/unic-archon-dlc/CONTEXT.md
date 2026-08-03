@@ -1,12 +1,13 @@
 # unic-archon-dlc
 
-A **thin process layer** for an AI development lifecycle. It owns the _what_ (the box set — main line
+A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
 off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) and **composes the
-team's system-skills for the _how_**. Each box's container follows its structural need: Archon
-workflows for the AFK-isolated legs, Claude Code commands/skills for the interactive ones.
-Configured via the `/unic-archon-dlc:setup` slash command. See `docs/adr/0016`–`0018` for the
-two-axis architecture and `docs/adr/0014` for the box set.
+team's system-skills for the _how_**. Procedure belongs to the **Methods** it hosts, not to the
+Harness. Each box's container follows its structural need: Archon workflows for the AFK-isolated legs,
+Claude Code commands/skills for the interactive ones. Configured via the `/unic-archon-dlc:setup`
+slash command. See `docs/adr/0016`–`0018` for the two-axis architecture, `docs/adr/0014` for the box
+set, and `docs/adr/0030`–`0032` for the Harness/Method division.
 
 Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
 
@@ -14,10 +15,36 @@ Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
 
 ### Architecture
 
+**Harness**:
+What the DLC is to a Method: the owner of isolation, gates, configuration, red/green integrity,
+system-skill composition, artefact durability and posting. It owns the _what_ and never the
+procedure. See `docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: thin process layer, framework, integration layer, orchestrator
+
 **Thin process layer**:
-The DLC owns the _what_ (the lifecycle and artefact shapes) and composes the team's system-skills
-for the _how_. See `docs/adr/0016-dlc-thin-process-layer.md`.
-_Avoid_: framework, integration layer
+The earlier name for the Harness, kept in `docs/adr/0016-dlc-thin-process-layer.md` as the historical
+wording. Use **Harness**.
+_Avoid_: using it in new prose
+
+**Box**:
+One step of the lifecycle — `/specs`, `/tickets`, `/build`, `/pr-review`, `/qa`, `/triage`, `/setup`,
+`/explore`, `/improve-architecture`, `/cleanup`. A Box exists only for what no Method can supply.
+See `docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: workflow (that is one of a Box's two containers), step, stage, phase
+
+**Method**:
+The skill text a Box reads for procedure, from Matt Pocock's skills. A Method owns _how_ the work is
+done; configuration owns which, where and whether. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
+
+**Local Method**:
+A team's own version of a Method, which takes precedence over the shipped one for that team.
+_Avoid_: custom skill, local skill, patch, fork
+
+**Bundle**:
+The set of Methods the plugin ships, fixed to one upstream version.
+_Avoid_: vendor directory, snapshot, cache
 
 **System-skill**:
 A team-provided capability that talks to one of their systems (a Confluence skill, the
