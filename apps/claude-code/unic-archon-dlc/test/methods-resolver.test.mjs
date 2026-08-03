@@ -218,7 +218,9 @@ test('a repoRoot that is itself a filesystem root still resolves in-root paths',
 
 	assert.equal(/** @type {{ error?: true }} */ (result).error, undefined)
 	assert.equal(/** @type {{ tier: string }} */ (result).tier, 'local')
-	assert.equal(/** @type {{ path: string }} */ (result).path, join('/', '.archon/methods.local/tdd/SKILL.md'))
+	// Expected path comes from `resolve`, not a literal: on Windows `resolve('/')` is the cwd's drive
+	// root (`D:\` on the CI runner), so a hardcoded `\.archon\…` would fail there and nowhere else.
+	assert.equal(/** @type {{ path: string }} */ (result).path, resolve('/', '.archon/methods.local/tdd/SKILL.md'))
 })
 
 test('an unresolved Method names both the Method and the Box', () => {
