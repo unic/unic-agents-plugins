@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { test } from 'node:test'
 import { findMethod, METHODS_BUNDLE, METHODS_MANIFEST, resolveAlias } from '../lib/methods-manifest.mjs'
 
@@ -39,6 +39,7 @@ test('every manifest entry has the required shape', () => {
 	for (const entry of METHODS_MANIFEST) {
 		assert.ok(entry.name.length > 0, 'name must be non-empty')
 		assert.ok(entry.upstreamPath.endsWith('/SKILL.md'), `${entry.name}: upstreamPath must point at a SKILL.md`)
+		assert.ok(Array.isArray(entry.subFiles), `${entry.name}: subFiles must be an array`)
 		assert.ok(Array.isArray(entry.aliases), `${entry.name}: aliases must be an array`)
 		assert.ok(Array.isArray(entry.providedTo), `${entry.name}: providedTo must be an array`)
 		assert.ok(Array.isArray(entry.knownExternalRefs), `${entry.name}: knownExternalRefs must be an array`)
@@ -127,6 +128,25 @@ test('the closure scan covers a Method sub-file, not just its SKILL.md', () => {
 	const docs = readMethodDocs(/** @type {import('../lib/methods-manifest.mjs').MethodEntry} */ (findMethod('triage')))
 
 	assert.match(docs, /Agent Brief/i, 'AGENT-BRIEF.md should be part of the scanned text')
+})
+
+test('every manifest entry declares exactly the Markdown files vendored for it', () => {
+	// `verifyBundle` checks the declared files exist; this checks the declaration itself is complete.
+	// Without it a re-vendor could ADD an upstream sub-file that nothing records — the bundle would
+	// ship a file no manifest entry knows about, and `installMethods` would copy it silently.
+	for (const entry of METHODS_MANIFEST) {
+		const methodDir = dirname(resolve(BUNDLE_ROOT, entry.upstreamPath))
+		const onDisk = readdirSync(methodDir)
+			.filter((file) => file.endsWith('.md'))
+			.sort()
+		const declared = [basename(entry.upstreamPath), ...entry.subFiles].sort()
+
+		assert.deepEqual(
+			onDisk,
+			declared,
+			`${entry.name}: the vendored directory and its \`subFiles\` disagree — reconcile the manifest with what was vendored at ${METHODS_BUNDLE.tag}`
+		)
+	}
 })
 
 test('the vendor README quotes the same tag and commit as METHODS_BUNDLE', () => {

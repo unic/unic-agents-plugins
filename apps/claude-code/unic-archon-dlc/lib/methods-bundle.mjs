@@ -39,18 +39,35 @@ const LOCAL_DIR = '.archon/methods.local'
  */
 
 /**
- * Check that every manifest entry has its `SKILL.md` in the bundle.
+ * Every bundle-relative path a Method ships: its `SKILL.md`, then each declared sub-file.
+ *
+ * Built with forward slashes to match how `upstreamPath` is written; `join` normalises them per
+ * platform at the point of use.
+ *
+ * @param {import('./methods-manifest.mjs').MethodEntry} entry
+ * @returns {string[]}
+ */
+function methodFiles(entry) {
+	const methodDir = dirname(entry.upstreamPath)
+	return [entry.upstreamPath, ...entry.subFiles.map((file) => `${methodDir}/${file}`)]
+}
+
+/**
+ * Check that every file every manifest entry declares is in the bundle.
  *
  * This is the check that replaced the `skills.matt_suite` probe. A miss means the shipped Plugin is
  * incomplete — a Plugin bug, not a Consumer gap — so the caller stops rather than degrading.
+ *
+ * Sub-files are checked, not just each `SKILL.md`. Several Methods read their own companion files
+ * (`tdd` reads `tests.md`, `triage` reads `AGENT-BRIEF.md`), so a re-vendor that drops one would
+ * otherwise install a Method whose text points at a file no longer on disk — and every existing test
+ * would still pass, because the closure scan reads whatever files it finds rather than a fixed list.
  *
  * @param {VerifyBundleOptions} options
  * @returns {VerifyBundleResult}
  */
 export function verifyBundle({ bundleRoot, existsFn = existsSync }) {
-	const missing = METHODS_MANIFEST.map((entry) => entry.upstreamPath).filter(
-		(upstreamPath) => !existsFn(join(bundleRoot, upstreamPath))
-	)
+	const missing = METHODS_MANIFEST.flatMap(methodFiles).filter((path) => !existsFn(join(bundleRoot, path)))
 	if (missing.length > 0) return { ok: false, missing }
 	return { ok: true }
 }

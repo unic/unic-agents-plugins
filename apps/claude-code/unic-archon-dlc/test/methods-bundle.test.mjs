@@ -32,7 +32,10 @@ function writeOverride(root, name, contents) {
 
 // --- verifyBundle -----------------------------------------------------------------------------
 
-test('verifyBundle passes when every manifest upstreamPath is present', () => {
+/** Every file the manifest declares: one `SKILL.md` per entry, plus that entry's sub-files. */
+const DECLARED_FILE_COUNT = METHODS_MANIFEST.reduce((total, entry) => total + 1 + entry.subFiles.length, 0)
+
+test('verifyBundle passes when every declared file is present', () => {
 	const bundleRoot = resolve('/bundle')
 	const probed = []
 	const existsFn = (/** @type {string} */ p) => {
@@ -41,7 +44,33 @@ test('verifyBundle passes when every manifest upstreamPath is present', () => {
 	}
 
 	assert.deepEqual(verifyBundle({ bundleRoot, existsFn }), { ok: true })
-	assert.equal(probed.length, METHODS_MANIFEST.length, 'should probe exactly one path per manifest entry')
+	assert.equal(probed.length, DECLARED_FILE_COUNT, 'should probe every SKILL.md and every declared sub-file')
+})
+
+test('verifyBundle probes each declared sub-file, not just the SKILL.md', () => {
+	// A Method reads its own companion files, so a bundle holding only SKILL.md is incomplete even
+	// though every closure test would still pass — that scan reads what it finds, not a fixed list.
+	const bundleRoot = resolve('/bundle')
+	/** @type {string[]} */
+	const probed = []
+	verifyBundle({
+		bundleRoot,
+		existsFn: (p) => {
+			probed.push(p)
+			return true
+		},
+	})
+
+	assert.ok(probed.includes(join(bundleRoot, 'skills/engineering/tdd/mocking.md')))
+	assert.ok(probed.includes(join(bundleRoot, 'skills/engineering/triage/AGENT-BRIEF.md')))
+})
+
+test('verifyBundle reports a missing sub-file', () => {
+	const bundleRoot = resolve('/bundle')
+	const absent = 'skills/engineering/domain-modeling/ADR-FORMAT.md'
+	const existsFn = (/** @type {string} */ p) => p !== join(bundleRoot, absent)
+
+	assert.deepEqual(verifyBundle({ bundleRoot, existsFn }), { ok: false, missing: [absent] })
 })
 
 test('verifyBundle reports the upstreamPath of every missing Method', () => {

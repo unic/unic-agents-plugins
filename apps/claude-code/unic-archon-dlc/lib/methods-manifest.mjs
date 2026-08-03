@@ -38,6 +38,9 @@ export const METHODS_BUNDLE = Object.freeze({
  * @typedef {Object} MethodEntry
  * @property {string} name - canonical Method name; also the on-disk directory under `.archon/methods/`
  * @property {string} upstreamPath - path within `mattpocock/skills` at tag v1.1.0
+ * @property {readonly string[]} subFiles - the Method's other files, as names relative to the
+ *   directory holding its `SKILL.md`. Declared rather than discovered: `verifyBundle` checks them,
+ *   so a re-vendor that drops one fails instead of installing a Method the Boxes read half of
  * @property {readonly string[]} aliases - pre-v1.1.0 names that must keep resolving to `name`
  * @property {readonly string[]} providedTo - Boxes that read this Method directly; empty means
  *   transitive-only (pulled in by another Method's own composition, no direct Box caller yet)
@@ -72,6 +75,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'to-spec',
 			upstreamPath: 'skills/engineering/to-spec/SKILL.md',
+			subFiles: Object.freeze([]),
 			aliases: Object.freeze(['to-prd']),
 			providedTo: Object.freeze(['specs']),
 			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
@@ -79,6 +83,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'to-tickets',
 			upstreamPath: 'skills/engineering/to-tickets/SKILL.md',
+			subFiles: Object.freeze([]),
 			aliases: Object.freeze(['to-issues']),
 			providedTo: Object.freeze(['tickets']),
 			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
@@ -86,6 +91,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'triage',
 			upstreamPath: 'skills/engineering/triage/SKILL.md',
+			subFiles: Object.freeze(['AGENT-BRIEF.md', 'OUT-OF-SCOPE.md']),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze(['triage']),
 			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
@@ -93,6 +99,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'code-review',
 			upstreamPath: 'skills/engineering/code-review/SKILL.md',
+			subFiles: Object.freeze([]),
 			aliases: Object.freeze(['review']),
 			providedTo: Object.freeze(['pr-review']),
 			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
@@ -100,6 +107,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'improve-codebase-architecture',
 			upstreamPath: 'skills/engineering/improve-codebase-architecture/SKILL.md',
+			subFiles: Object.freeze(['HTML-REPORT.md']),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze(['improve-architecture']),
 			knownExternalRefs: Object.freeze(['tmp']),
@@ -107,6 +115,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'implement',
 			upstreamPath: 'skills/engineering/implement/SKILL.md',
+			subFiles: Object.freeze([]),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze([]),
 			knownExternalRefs: Object.freeze([]),
@@ -114,6 +123,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'tdd',
 			upstreamPath: 'skills/engineering/tdd/SKILL.md',
+			subFiles: Object.freeze(['mocking.md', 'tests.md']),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze([]),
 			knownExternalRefs: Object.freeze([]),
@@ -121,6 +131,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'research',
 			upstreamPath: 'skills/engineering/research/SKILL.md',
+			subFiles: Object.freeze([]),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze([]),
 			knownExternalRefs: Object.freeze([]),
@@ -128,6 +139,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'grilling',
 			upstreamPath: 'skills/productivity/grilling/SKILL.md',
+			subFiles: Object.freeze([]),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze(['specs', 'triage', 'improve-architecture']),
 			knownExternalRefs: Object.freeze([]),
@@ -135,6 +147,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'domain-modeling',
 			upstreamPath: 'skills/engineering/domain-modeling/SKILL.md',
+			subFiles: Object.freeze(['ADR-FORMAT.md', 'CONTEXT-FORMAT.md']),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze(['specs', 'triage', 'improve-architecture']),
 			knownExternalRefs: Object.freeze([]),
@@ -142,6 +155,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 		Object.freeze({
 			name: 'codebase-design',
 			upstreamPath: 'skills/engineering/codebase-design/SKILL.md',
+			subFiles: Object.freeze(['DEEPENING.md', 'DESIGN-IT-TWICE.md']),
 			aliases: Object.freeze([]),
 			providedTo: Object.freeze(['improve-architecture']),
 			knownExternalRefs: Object.freeze([]),
