@@ -10,9 +10,29 @@
  * exists as data; the closure test in `test/methods-manifest.test.mjs` turns the next upstream
  * rename or content relocation into a test failure instead of a production no-op.
  *
- * Paths are pinned to upstream tag `v1.1.0`. Vendoring the files themselves is issue #284; this
- * slice ships the manifest and the resolver only.
+ * Paths are pinned to upstream tag `v1.1.0`, and {@link METHODS_BUNDLE} below records the exact
+ * commit those paths were vendored from. The files themselves live in
+ * `vendor/mattpocock-skills/skills/`, keyed by `upstreamPath`.
  */
+
+/**
+ * Provenance of the vendored Method bundle.
+ *
+ * A frozen code constant rather than a `provenance.json` inside the bundle: `/setup` needs the tag
+ * and the licence hash programmatically, a constant typechecks and has no parse-failure branch, and
+ * keeping it here forces a re-vendor to touch the same file that defines the closure — which is
+ * where an upstream path change has to be reconciled anyway. `vendor/mattpocock-skills/README.md`
+ * is the human mirror; a test asserts it quotes the same `tag` and `commit`.
+ *
+ * @type {Readonly<{ repo: string, tag: string, commit: string, licence: string, licenceSha256: string }>}
+ */
+export const METHODS_BUNDLE = Object.freeze({
+	repo: 'mattpocock/skills',
+	tag: 'v1.1.0',
+	commit: 'd574778f94cf620fcc8ce741584093bc650a61d3',
+	licence: 'MIT',
+	licenceSha256: '0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5',
+})
 
 /**
  * @typedef {Object} MethodEntry

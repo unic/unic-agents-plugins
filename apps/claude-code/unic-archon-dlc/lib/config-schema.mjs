@@ -98,9 +98,22 @@ export function defaultConfig() {
 		estimations: 'off',
 		artifacts_dir: 'workflows',
 		model_profile: 'balanced',
-		skills: { matt_suite: { present: false, missing: [] } },
+		// The config tier of Method resolution (`methods.<name>.source`, see `methods-resolver.mjs`).
+		// Empty by default: a Method resolves from the installed Bundle unless a team declares a fork.
+		methods: {},
 	}
 }
+
+/**
+ * Config keys this schema no longer defines, stripped from an existing on-disk config on merge.
+ *
+ * `skills` only ever held `matt_suite: { present, missing }` — a verify-only record of whether the
+ * Consumer had separately installed Matt Pocock's skill suite. The Bundle answers that by
+ * construction (`/setup` installs `.archon/methods/` and verifies its integrity), so the key is
+ * removed rather than repurposed, and a re-run of `/setup` cleans it out of an older config.
+ * @type {readonly string[]}
+ */
+const RETIRED_TOP_LEVEL_KEYS = Object.freeze(['skills'])
 
 /**
  * Map a tracker type to its default CLI tool (MCP-first is expressed separately via `access.mcp`).
@@ -144,12 +157,19 @@ function deepMerge(target, source) {
  * Merge answers over an existing config over the defaults: `DEFAULTS < existing < answers`.
  * Deep-merges nested objects (so partial answers never drop untouched keys) and is idempotent:
  * `mergeConfig(mergeConfig(a, b)) deep-equals mergeConfig(a, b)`.
+ *
+ * {@link RETIRED_TOP_LEVEL_KEYS} are dropped afterwards, so a legacy on-disk config is cleaned up by
+ * the next `/setup` run instead of carrying a key nothing reads. Stripping here rather than in
+ * `defaultConfig` is deliberate — the defaults no longer contain those keys at all; only an existing
+ * file or an explicit answer can reintroduce them.
  * @param {DlcConfig} [existing]
  * @param {Partial<DlcConfig>} [answers]
  * @returns {DlcConfig}
  */
 export function mergeConfig(existing = {}, answers = {}) {
-	return deepMerge(deepMerge(defaultConfig(), existing), answers)
+	const merged = deepMerge(deepMerge(defaultConfig(), existing), answers)
+	for (const key of RETIRED_TOP_LEVEL_KEYS) delete merged[key]
+	return merged
 }
 
 /**

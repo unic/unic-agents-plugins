@@ -27,5 +27,6 @@ artifacts/
 # Plugin changelogs — em-dash dates must not be reflowed
 **/CHANGELOG.md
 
-# Pinned upstream snapshots — must stay byte-identical to their source tag
-**/test/fixtures/methods/**
+# Pinned upstream snapshots — must stay byte-identical to their source tag.
+# Scoped to the skills/ subtree so the vendor directory's own README.md stays Prettier-checked.
+**/vendor/mattpocock-skills/skills/**

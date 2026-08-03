@@ -70,7 +70,6 @@ try {
           issue_template: g('templates.issue'),
           bug_template: g('templates.bug'),
           labels: g('classification.labels'),
-          matt_suite: g('skills.matt_suite'),
         }
       }
     }
@@ -84,10 +83,10 @@ EOJS
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
-`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `MATT_SUITE`.
+`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, and `LABELS`.
 
-If `MATT_SUITE.present` is `false`, warn that `/to-issues` is a declared dependency and slicing
-quality will degrade, then continue (non-blocking).
+Method availability is guaranteed by the Bundle (`vendor/mattpocock-skills/`, installed by
+`/unic-archon-dlc:setup`); per-Box `resolveMethod` wiring arrives with #280.
 
 ## Step 2 — Slug + re-entry
 
