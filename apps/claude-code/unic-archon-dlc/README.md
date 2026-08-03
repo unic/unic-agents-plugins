@@ -46,8 +46,8 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup   (+ /handof
 | `/cleanup`              | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028) |
 
 Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
-inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, not shipped —
-`/setup` verifies the suite is present (see [Dependencies](#dependencies)).
+inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
+human to run and deliberately not bundled (see [Dependencies](#dependencies)).
 
 ## Archon workflow pipelines
 
@@ -70,8 +70,9 @@ The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workf
 
 Beyond the Archon workflow engine (see [Configuration reference](#configuration-reference)), the interactive boxes (`/specs`,
 `/tickets`, `/triage`, …) **compose [Matt Pocock's engineering skill _methods_](https://github.com/mattpocock/skills)**
-as a declared dependency — they don't reimplement them. Install the skill suite so the following are
-available to Claude Code (typically under `.agents/skills/`):
+as a declared dependency — they don't reimplement them. Those methods ship inside this plugin and
+`/unic-archon-dlc:setup` installs them, so there is nothing to install separately (see
+[The Method bundle](#the-method-bundle)):
 
 | Skill method      | Composed by         |
 | ----------------- | ------------------- |
@@ -82,8 +83,8 @@ available to Claude Code (typically under `.agents/skills/`):
 | `grilling`        | `/specs`, `/triage` |
 | `domain-modeling` | `/specs`, `/triage` |
 
-`/unic-archon-dlc:setup` **verifies the suite is present** and warns (non-blocking) if any method is
-missing — quality degrades but the boxes still run.
+`/unic-archon-dlc:setup` **verifies the bundle's integrity** — the vendored licence hash and the
+manifest closure — and stops if either fails, because that means the shipped plugin is incomplete.
 
 > **Do _not_ run Matt's `setup-matt-pocock-skills`.** That skill writes its own tracker/label config
 > (`docs/agents/triage-labels.md`, `docs/agents/issue-tracker.md`). The DLC deliberately does not use
@@ -164,11 +165,32 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                  |
 | `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                              |
 | `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                       |
-| `skills.matt_suite`                                      | discovered             | `{ present, missing }`                        | Verify-only discovery result for Matt Pocock's declared skill suite                                                                 |
+| `methods.<name>.source`                                  | unset                  | repo-relative path                            | Team fork of a Method; the top tier of Method resolution, above `.archon/methods.local/` and the Bundle                             |
 
 Label canonical names: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
 `tech-debt` · `docs`; priorities `p0` · `p1` · `p2` · `p3`.
+
+### The Method bundle
+
+The Methods the boxes compose ship inside this plugin, at `vendor/mattpocock-skills/` — the upstream
+`mattpocock/skills` files at a pinned tag, recorded as `METHODS_BUNDLE` in
+[`lib/methods-manifest.mjs`](lib/methods-manifest.mjs). `/setup` Step 6 installs them into the
+consumer's `.archon/methods/`, overwriting that directory on every upgrade and never touching
+`.archon/methods.local/`.
+
+**Bundle integrity is not a config key.** It is verified on every `/setup` run by
+[`lib/methods-bundle.mjs`](lib/methods-bundle.mjs): `verifyLicence` hashes the vendored `LICENSE`
+against the pinned tag's, and `verifyBundle` checks the manifest closure against the files on disk.
+Either failure stops setup, because both mean the shipped plugin is incomplete or altered — nothing a
+consumer can configure around. This replaced the old `skills.matt_suite` discovery key, which
+`mergeConfig` now strips from any config that still carries it.
+
+A Method resolves from the first of three tiers that answers
+([`lib/methods-resolver.mjs`](lib/methods-resolver.mjs)): `methods.<name>.source` in config, then
+`.archon/methods.local/<name>/SKILL.md`, then the installed bundle. A Local override should record
+the bundle tag it forked from in its own frontmatter (`forked_from: v1.1.0`); `/setup` flags any
+override whose value differs from the bundled tag, or is absent.
 
 ---
 

@@ -73,7 +73,6 @@ try {
           docs: config.docs,
           triage: config.triage,
           labels: g('classification.labels'),
-          matt_suite: g('skills.matt_suite'),
         }
       }
     }
@@ -87,11 +86,10 @@ EOJS
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `DOCS`, `TRIAGE`
-(`.out_of_scope_dir`/`.external_prs`), `LABELS` (`classification.labels`), and `MATT_SUITE`.
+(`.out_of_scope_dir`/`.external_prs`), and `LABELS` (`classification.labels`).
 
-If `MATT_SUITE.present` is `false`, warn that Matt's `triage` method plus `/grilling` +
-`/domain-modeling` are declared dependencies and triage quality will degrade, then continue
-(non-blocking).
+Method availability is guaranteed by the Bundle (`vendor/mattpocock-skills/`, installed by
+`/unic-archon-dlc:setup`); per-Box `resolveMethod` wiring arrives with #280.
 
 ## Step 2 — Build the injected context (single-source binding)
 

@@ -63,7 +63,6 @@ try {
           estimations: config.estimations,
           specs: config.specs,
           prd_template: g('templates.prd'),
-          matt_suite: g('skills.matt_suite'),
         }
       }
     }
@@ -78,10 +77,10 @@ EOJS
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `DOCS` (`.type`/`.publish`/`.access`),
 `DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE`
-(`specs.gate`), `PRD_TEMPLATE`, and `MATT_SUITE`.
+(`specs.gate`), and `PRD_TEMPLATE`.
 
-If `MATT_SUITE.present` is `false`, warn that `/grill-with-docs` + `/to-prd` are declared
-dependencies and grilling quality will degrade, then continue (non-blocking).
+Method availability is guaranteed by the Bundle (`vendor/mattpocock-skills/`, installed by
+`/unic-archon-dlc:setup`); per-Box `resolveMethod` wiring arrives with #280.
 
 ## Step 2 — Slug + re-entry
 

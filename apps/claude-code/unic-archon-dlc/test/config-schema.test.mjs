@@ -287,6 +287,40 @@ test('mergeConfig preserves a team override of triage, filling untouched sub-key
 	assert.equal(triage.out_of_scope_dir, '.out-of-scope', 'untouched sub-key filled from default')
 })
 
+test('defaultConfig ships an empty methods block and no retired skills block', () => {
+	const config = defaultConfig()
+	assert.deepEqual(config.methods, {}, 'the config tier of Method resolution starts empty')
+	assert.ok(!('skills' in config), 'the retired skills.matt_suite probe is gone')
+})
+
+test('mergeConfig strips a legacy skills.matt_suite block from an existing config', () => {
+	// The Bundle answers "is the Method available" by construction, so a re-run of /setup must clean
+	// the old discovery key out rather than keep merging it forward.
+	const merged = mergeConfig({ skills: { matt_suite: { present: true, missing: [] } }, tracker: { type: 'github' } })
+
+	assert.ok(!('skills' in merged), 'legacy skills block stripped')
+	assert.deepEqual(/** @type {any} */ (merged.tracker).type, 'github', 'sibling keys survive the strip')
+})
+
+test('mergeConfig strips skills even when passed explicitly as an answer', () => {
+	const merged = mergeConfig({}, { skills: { matt_suite: { present: true, missing: [] } } })
+
+	assert.ok(!('skills' in merged), 'an explicit answer cannot reintroduce a retired key')
+})
+
+test('mergeConfig stays idempotent after stripping a retired key', () => {
+	const once = mergeConfig({ skills: { matt_suite: { present: false, missing: ['tdd'] } } })
+	const twice = mergeConfig(once)
+
+	assert.deepEqual(twice, once)
+})
+
+test('mergeConfig preserves a team-declared methods override', () => {
+	const merged = mergeConfig({ methods: { tdd: { source: 'team/methods/tdd/SKILL.md' } } })
+
+	assert.deepEqual(merged.methods, { tdd: { source: 'team/methods/tdd/SKILL.md' } })
+})
+
 test('mergeConfig preserves a team override of specs and templates.prd, filling gaps', () => {
 	const merged = mergeConfig({ specs: { gate: 'stage-only' }, templates: { prd: '# Custom\n## Goal\n' } }, {})
 	const specs = /** @type {any} */ (merged.specs)

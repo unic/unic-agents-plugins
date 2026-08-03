@@ -54,39 +54,36 @@ try {
   if (!existsSync(yamlPath)) {
     // Off-line box: no config is fine — fall back to defaults and continue.
     const config = mod.mergeConfig()
-    const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
-    output = { ok: true, degraded: true, reason: 'no-config', artifacts_dir: config.artifacts_dir, docs: config.docs, matt_suite: g('skills.matt_suite') }
+    output = { ok: true, degraded: true, reason: 'no-config', artifacts_dir: config.artifacts_dir, docs: config.docs }
   } else {
     const r = mod.loadConfig(yamlPath)
     if ('error' in r) {
       const config = mod.mergeConfig()
-      const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
-      output = { ok: true, degraded: true, reason: `config-unreadable: ${r.message}`, artifacts_dir: config.artifacts_dir, docs: config.docs, matt_suite: g('skills.matt_suite') }
+      output = { ok: true, degraded: true, reason: `config-unreadable: ${r.message}`, artifacts_dir: config.artifacts_dir, docs: config.docs }
     } else {
       const config = mod.mergeConfig(r.config)
-      const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
       output = {
         ok: true,
         degraded: false,
         artifacts_dir: config.artifacts_dir,
         docs: config.docs,
-        matt_suite: g('skills.matt_suite'),
       }
     }
   }
 } catch (err) {
   // Even a plugin load error should not stop an off-line review — default and warn.
-  output = { ok: true, degraded: true, reason: `plugin-load: ${err?.message ?? String(err)}`, artifacts_dir: 'workflows', docs: null, matt_suite: null }
+  output = { ok: true, degraded: true, reason: `plugin-load: ${err?.message ?? String(err)}`, artifacts_dir: 'workflows', docs: null }
 }
 process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `DOCS`, and `MATT_SUITE`. If `degraded`
-is `true`, print a one-line warning naming `reason` and note that `ARTIFACTS_DIR` fell back to
-`workflows`, then continue. If `MATT_SUITE` is present and `MATT_SUITE.present` is `false`, warn that
-`improve-codebase-architecture` + `/codebase-design` + `/grilling` + `/domain-modeling` are declared
-dependencies and review quality will degrade, then continue (non-blocking).
+Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`) and `DOCS`. If `degraded` is `true`, print
+a one-line warning naming `reason` and note that `ARTIFACTS_DIR` fell back to `workflows`, then
+continue.
+
+Method availability is guaranteed by the Bundle (`vendor/mattpocock-skills/`, installed by
+`/unic-archon-dlc:setup`); per-Box `resolveMethod` wiring arrives with #280.
 
 ## Step 2 — Determine mode
 
