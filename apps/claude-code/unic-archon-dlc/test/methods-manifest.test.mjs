@@ -43,6 +43,11 @@ const METHODS_TABLE = /<!-- methods-table:begin -->([\s\S]*?)<!-- methods-table:
  * Cells are trimmed rather than matched with their padding: Prettier owns Markdown here and repads a
  * whole table when any one cell changes width, so asserting on alignment would fail on a reformat.
  *
+ * The outer pipes are stripped with a pattern rather than by slicing fixed positions, because the
+ * trailing `|` is optional in GitHub-flavoured Markdown. Prettier always writes it, but a row edited
+ * by hand before a `pnpm format` would otherwise lose the last character of its final cell — turning
+ * a malformed-table problem into a mismatched-cell assertion that points at the wrong thing.
+ *
  * @returns {Array<[string, string]>}
  */
 function readReadmeMethodsTable() {
@@ -53,10 +58,15 @@ function readReadmeMethodsTable() {
 	return section[1]
 		.split('\n')
 		.map((line) => line.trim())
-		.filter((line) => line.startsWith('|') && !/^\|[\s|:-]*\|$/.test(line))
-		.map((line) => line.slice(1, -1).split('|'))
+		.filter((line) => line.startsWith('|'))
+		.map((line) => line.replace(/^\|/, '').replace(/\|$/, ''))
+		.filter((row) => !/^[\s|:-]+$/.test(row))
+		.map((row) => row.split('|'))
 		.filter((cells) => cells[0].trim() !== 'Method')
-		.map((cells) => /** @type {[string, string]} */ ([cells[0].trim(), cells[1].trim()]))
+		.map((cells) => {
+			assert.equal(cells.length, 2, `expected a two-column table row, got: ${cells.join('|')}`)
+			return /** @type {[string, string]} */ ([cells[0].trim(), cells[1].trim()])
+		})
 }
 
 test('every manifest entry has the required shape', () => {
