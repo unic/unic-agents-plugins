@@ -192,7 +192,27 @@ test('/build hosts no refactor phase — tdd puts refactoring in the review stag
 	// now reads, and the Fowler smell baseline in /pr-review's Standards axis would double-cover it.
 	const build = readWorkflow('unic-dlc-build')
 
-	assert.ok(!build.includes('refactor-done'), 'unic-dlc-build.yaml still carries the retired "refactor-done" phase')
+	// The signal is the declared phase set and what the loop WRITES, not a scan for the string: the
+	// state-load rule below must name `refactor-done` in order to retire it, exactly as the pre-check
+	// node names `gh pr comment` in order to forbid it. A substring check would fail on the rule that
+	// makes the retirement true.
+	assert.match(
+		build,
+		/"phase": "pending\|red-done\|green-done"/,
+		'unic-dlc-build.yaml must declare the phase set as pending|red-done|green-done'
+	)
+	assert.ok(
+		!/phase "refactor-done"/.test(build),
+		'unic-dlc-build.yaml writes or matches a "refactor-done" phase — the loop has no REFACTOR step (#281)'
+	)
+	// Regression guard for the migration rule itself. Without it a build-state.json left mid-run by
+	// 0.14.0 matches no Step 2 branch, never satisfies COMPLETE, and freezes every slice blocked on it —
+	// while the CHANGELOG's Breaking note promises the opposite (Copilot review, PR #293).
+	assert.match(
+		build,
+		/Normalise on read[\s\S]{0,80}"refactor-done"[\s\S]{0,160}read as "green-done"/,
+		'unic-dlc-build.yaml must normalise a legacy "refactor-done" phase to "green-done" when loading state'
+	)
 	assert.ok(
 		!/###\s+REFACTOR/.test(build),
 		'unic-dlc-build.yaml still carries a REFACTOR phase — refactoring belongs to /pr-review (#281)'

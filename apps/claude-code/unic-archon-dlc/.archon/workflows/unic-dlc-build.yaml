@@ -215,6 +215,10 @@ nodes:
         ## Step 1 — Load state
         Read issues.json (an ordered array; blockers come first — honour that order).
         Read build-state.json if it exists; otherwise treat every slice as phase "pending".
+        Normalise on read: a slice whose phase is "refactor-done" — the phase 0.14.0 wrote and this
+        version retired — is read as "green-done". The work it names is finished; only the tidy step
+        that followed it is gone. Without this the slice matches no Step 2 branch below, never
+        satisfies the COMPLETE condition, and freezes every slice that lists it as a blocker.
         build-state.json shape: { "<issue-id>": { "phase": "pending|red-done|green-done",
         "red_exit": <number|null>, "red_unexpected_pass": <bool>, "notes": "<string>" }, ... }.
 
