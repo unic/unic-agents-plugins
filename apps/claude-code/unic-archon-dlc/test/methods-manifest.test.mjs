@@ -229,8 +229,10 @@ test('the vendor README quotes the same tag and commit as METHODS_BUNDLE', () =>
 test('providedTo is empty only for Methods whose Box has not shipped yet', () => {
 	// #285 generates the documented dependency list from `providedTo`, so an entry left empty by
 	// accident understates the docs — the divergence the manifest exists to end. This allowlist is the
-	// only sanctioned reason to be empty: the Box arrives in a later slice (#281, #276).
-	const boxNotShippedYet = new Set(['implement', 'tdd', 'research'])
+	// only sanctioned reason to be empty: the Box arrives in a later slice. #281 wired the last three
+	// (`implement`, `tdd`, `research`), so it is empty today; `wayfinder` (#282) refills it. Annotated
+	// because an empty literal infers `Set<never>`, which `.has(entry.name)` cannot be called with.
+	const boxNotShippedYet = /** @type {Set<string>} */ (new Set())
 
 	for (const entry of METHODS_MANIFEST) {
 		if (boxNotShippedYet.has(entry.name)) continue

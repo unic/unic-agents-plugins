@@ -128,14 +128,8 @@ The build-loop phase that writes the minimum implementation to make the committe
 It reads the slice intent + the committed test off disk — never RED's session.
 _Avoid_: implementation, code-green node
 
-**REFACTOR phase**:
-The build-loop phase that cleans up the committed implementation under a green suite — no behaviour
-change, no new features. Re-runs `test_command` to confirm still-green; a no-op when nothing needs
-tidying.
-_Avoid_: cleanup, tidy phase
-
 **red/green fresh-context**:
-The anti-cheating separation in `/build`: RED, GREEN, and REFACTOR run as SEPARATE fresh loop
+The anti-cheating separation in `/build`: RED and GREEN run as SEPARATE fresh loop
 iterations (`loop.fresh_context: true`), so GREEN inherits only the slice intent and the committed
 failing test — never RED's reasoning. Structurally prevents test/impl collusion in unattended (AFK)
 runs. See `docs/adr/0012-fresh-context-red-green-separation.md` and
@@ -149,8 +143,10 @@ _Avoid_: package check, dependency audit
 
 **Build state**:
 The `<artifacts_dir>/<slug>/build-state.json` file the `/build` loop reads and updates each iteration
-to track every slice's phase (`pending → red-done → green-done → refactor-done`). It is the on-disk
-memory that lets fresh, memoryless iterations compute the next `(slice, phase)`.
+to track every slice's phase (`pending → red-done → green-done`). It is the on-disk memory that lets
+fresh, memoryless iterations compute the next `(slice, phase)`. A slice with `test_command_planned`
+also carries a `seam chosen: …` line in its `notes`, recording the seam an agent picked where no human
+approved one (ADR-0023 §7).
 _Avoid_: progress file, checkpoint
 
 ### Plugin entry points
@@ -218,16 +214,19 @@ _Avoid_: review report, findings.md (the /explore artifact), code review (the ar
 
 **Intent Brief**:
 The single narrative + numbered Acceptance Criteria that `/pr-review`'s `prep` node composes once from the
-linked work items, Confluence/MD docs, the PR description, and `PRD.md`, then injects into every review
-aspect so each judges the diff against intended behaviour. Contradictions across sources are surfaced, not
+linked work items, Confluence/MD docs, the PR description, and `PRD.md`, then injects into both review
+axes so each judges the diff against intended behaviour. Contradictions across sources are surfaced, not
 silently resolved.
 _Avoid_: spec, PRD (which is one input source, not the brief)
 
-**Review aspect**:
-One of the seven parallel fresh nodes `/pr-review` fans out — code-quality, test-coverage, silent-failure,
-type-design, comment-rot, code-simplification, and intent/AC-coverage — each conditionally spawned by the
-changed-file categories and scoring findings on the confidence→severity rubric.
-_Avoid_: reviewer, agent, check
+**Review axis**:
+One of the two lenses `/pr-review`'s single `review` node spawns as parallel sub-agents, reading the
+`code-review` Method: **Standards** (this repo's documented standards plus the twelve-item Fowler smell
+baseline — where refactoring lives, having left `/build`'s loop) and **Spec** (does the diff implement
+what the originating issue asked for). The two are reported side by side and never merged or reranked;
+each finding is scored on the confidence→severity rubric. Replaced the seven hand-written review aspects
+(ADR-0026 §8).
+_Avoid_: review aspect, reviewer, agent, check
 
 ## Relationships
 
@@ -236,7 +235,9 @@ _Avoid_: reviewer, agent, check
 - **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
-- `/build` runs a generic **red → green → refactor** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
+- `/build` runs a generic **red → green** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
+- Refactoring is **not** in that loop: the `tdd` Method puts it in the review stage, so it reaches the code as `/pr-review`'s Standards **Review axis** and its Fowler smell baseline (ADR-0023 §7 / ADR-0026 §8)
+- A **Method** read inside an Archon Box resolves from the **Bundle** tier only — a node cannot import plugin `lib/`, so the team-source and **Local Method** tiers reach the command Boxes but not the Archon ones (ADR-0023 §5 / ADR-0031)
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`

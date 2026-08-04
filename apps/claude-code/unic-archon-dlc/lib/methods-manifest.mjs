@@ -52,8 +52,9 @@ export const METHODS_BUNDLE = Object.freeze({
 /**
  * Every composed Method, in main-line-then-transitive order.
  *
- * `providedTo: []` is meaningful, not an oversight: those Methods have no Box caller **yet** — their
- * Boxes arrive with the rewiring slices (`implement` and `tdd` in #281, `research` in #276). Note the
+ * `providedTo: []` is meaningful, not an oversight: it marks a Method with no Box caller **yet**, whose
+ * Box arrives in a later rewiring slice. #281 wired the four Archon Boxes, so no entry is empty today —
+ * `wayfinder` (#282) is the next Method expected to sit empty for a slice. Note the
  * distinction: `grilling`, `domain-modeling` and `codebase-design` are named as declared dependencies
  * in the current command prose (`commands/specs.md`, `commands/triage.md`,
  * `commands/improve-architecture.md`), so they carry real Boxes today even though a Method also
@@ -101,7 +102,9 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 			upstreamPath: 'skills/engineering/code-review/SKILL.md',
 			subFiles: Object.freeze([]),
 			aliases: Object.freeze(['review']),
-			providedTo: Object.freeze(['pr-review']),
+			// `/build` reads it too, for `implement`'s own "once done, use /code-review" step — run there as
+			// a local pre-check that posts nothing, so `/pr-review` keeps sole posting authority (#281).
+			providedTo: Object.freeze(['pr-review', 'build']),
 			knownExternalRefs: Object.freeze(['setup-matt-pocock-skills']),
 		}),
 		Object.freeze({
@@ -117,7 +120,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 			upstreamPath: 'skills/engineering/implement/SKILL.md',
 			subFiles: Object.freeze([]),
 			aliases: Object.freeze([]),
-			providedTo: Object.freeze([]),
+			providedTo: Object.freeze(['build']),
 			knownExternalRefs: Object.freeze([]),
 		}),
 		Object.freeze({
@@ -125,7 +128,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 			upstreamPath: 'skills/engineering/tdd/SKILL.md',
 			subFiles: Object.freeze(['mocking.md', 'tests.md']),
 			aliases: Object.freeze([]),
-			providedTo: Object.freeze([]),
+			providedTo: Object.freeze(['build']),
 			knownExternalRefs: Object.freeze([]),
 		}),
 		Object.freeze({
@@ -133,7 +136,7 @@ export const METHODS_MANIFEST = /** @type {readonly MethodEntry[]} */ (
 			upstreamPath: 'skills/engineering/research/SKILL.md',
 			subFiles: Object.freeze([]),
 			aliases: Object.freeze([]),
-			providedTo: Object.freeze([]),
+			providedTo: Object.freeze(['explore']),
 			knownExternalRefs: Object.freeze([]),
 		}),
 		Object.freeze({

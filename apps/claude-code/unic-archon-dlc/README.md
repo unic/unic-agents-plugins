@@ -42,7 +42,7 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup   (+ /handof
 | `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md` (ADR-0020)                                                            |
 | `/tickets`              | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)               |
 | `/triage`               | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)              |
-| `/build`                | Archon    | `gates.build`     | Anti-cheat red/green/refactor loop over `issues.json` (ADR-0012 / ADR-0023)                      |
+| `/build`                | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                               |
 | `/pr-review`            | Archon    | `gates.pr-review` | Fan-out review of the open PR, intent-grounded; posts summary + inline (ADR-0026)                |
 | `/qa`                   | Archon    | `gates.qa`        | e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                   |
 | `/improve-architecture` | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                       |
@@ -59,13 +59,17 @@ The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workf
 
 | Workflow             | Node pipeline                                                                                                                                                                               |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → verification → goals-check → report → open-pr → build-pr-gate ✓`                                                                     |
-| `unic-dlc-pr-review` | `bootstrap → guard-not-ready → prep → {code-quality · tests · silent-failure · type-design · comment-rot · simplifier · intent-check} → synthesize → reconcile → review-gate ✓ → post`      |
+| `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → report → open-pr → build-pr-gate ✓`                                         |
+| `unic-dlc-pr-review` | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
 | `unic-dlc-qa`        | `bootstrap → guard-not-ready → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                         |
 | `unic-dlc-explore`   | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
 
 > **✓** = config-gated `approval:` node — it pauses for a human when the box's gate is `hitl` and
 > auto-proceeds when `afk` (ADR-0017). Parallel nodes are shown in `{…}`.
+>
+> `/pr-review`'s `review` and `/build`'s `implement-review-precheck` each run the `code-review` Method's
+> own two parallel sub-agents (Standards · Spec) **inside one node**, so their parallelism does not appear
+> in the DAG (ADR-0026 §8).
 
 ---
 
@@ -81,8 +85,7 @@ is nothing to install separately (see [The Method bundle](#the-method-bundle)).
 `test/methods-manifest.test.mjs` parses the table and fails if the two disagree, so edit the manifest
 first and bring the table into line with it — and do not restate the list anywhere else. Before the
 manifest existed, `commands/setup.md` named 7 Methods and this file named 6, while the plugin composed
-11 (8 of which have a box today); the upstream v1.1.0 rename wave then broke `/specs` and `/tickets`
-with CI green.
+11; the upstream v1.1.0 rename wave then broke `/specs` and `/tickets` with CI green.
 
 <!-- methods-table:begin -->
 
@@ -91,11 +94,11 @@ with CI green.
 | `to-spec`                       | `/specs`                                     |
 | `to-tickets`                    | `/tickets`                                   |
 | `triage`                        | `/triage`                                    |
-| `code-review`                   | `/pr-review`                                 |
+| `code-review`                   | `/pr-review`, `/build`                       |
 | `improve-codebase-architecture` | `/improve-architecture`                      |
-| `implement`                     | no box yet (#281)                            |
-| `tdd`                           | no box yet (#281)                            |
-| `research`                      | no box yet (#276)                            |
+| `implement`                     | `/build`                                     |
+| `tdd`                           | `/build`                                     |
+| `research`                      | `/explore`                                   |
 | `grilling`                      | `/specs`, `/triage`, `/improve-architecture` |
 | `domain-modeling`               | `/specs`, `/triage`, `/improve-architecture` |
 | `codebase-design`               | `/improve-architecture`                      |
@@ -236,7 +239,7 @@ workflows/
     ├── findings.md      # /explore — research + Integrated Brief (the /specs baton)
     ├── PRD.md           # /specs   — product requirements
     ├── issues.json      # /tickets — build-ready vertical slices + test commands
-    ├── build-state.json # /build   — per-slice red/green/refactor progress
+    ├── build-state.json # /build   — per-slice red/green progress
     ├── report.md        # /build   — build outcomes
     └── arch-review.md   # /improve-architecture — drift analysis
 ```
