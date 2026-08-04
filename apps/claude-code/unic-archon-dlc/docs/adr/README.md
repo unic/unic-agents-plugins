@@ -28,7 +28,7 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0020 | `/specs` reaches an aligned PRD by branch-on-input                                         | Accepted (amended)            |
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030 |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                      |
-| 0023 | `/build` is one generic red/green/refactor loop; dag-builder dissolved                     | Accepted                      |
+| 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281)       |
 | 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted                      |
 | 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted                      |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted                      |

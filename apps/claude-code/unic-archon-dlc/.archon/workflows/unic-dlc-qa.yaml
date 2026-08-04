@@ -192,6 +192,13 @@ nodes:
   # failing criteria as agent-ready tracker issues (finding-capture, ADR-0025) BEFORE the run halts,
   # so the defect is durably tracked and feeds /tickets — not lost when the workflow cancels.
   # max_attempts: 1 → capture once, then a second reject cancels the run.
+  #
+  # The finding-capture brief shape below (what happened / what I expected / steps to reproduce /
+  # blocked by / additional context) and the thin-issues heuristic above it were originally Matt
+  # Pocock's `qa` Method. Upstream v1.1.0 moved `qa` to `skills/deprecated/` with no replacement, so
+  # there is nothing left to resolve by name: the shape is inlined verbatim here and this Harness owns
+  # it from now on. It is deliberately NOT in lib/methods-manifest.mjs — a manifest entry would point
+  # at a dead upstream branch (#281).
   # ---------------------------------------------------------------------------------------------
   - id: uat-gate
     depends_on: [uat-prep]
@@ -215,15 +222,15 @@ nodes:
              the azure-devops-cli skill) — never hardcode a host (ADR-0016). Labels come ONLY from
              `classification.labels` (single source of truth — ADR-0024); do NOT read
              docs/agents/triage-labels.md or issue-tracker.md.
-          2. Decide single-issue vs breakdown using Matt's `qa` method: prefer many thin, independently
-             fixable issues over one thick one; mark blocked-by relationships honestly; write from the
-             user's perspective in the project's domain language; NO file paths or line numbers.
+          2. Decide single-issue vs breakdown this way: prefer many thin, independently fixable issues
+             over one thick one; mark blocked-by relationships honestly; write from the user's
+             perspective in the project's domain language; NO file paths or line numbers.
           3. For each finding, create a tracker issue:
                - Title: "QA: <slug> — <short defect summary>"
                - Labels: type `bug` + state `ready-for-agent` (resolved through classification.labels).
                  The reviewer at this gate already vetted the defect, so it is agent-ready — it needs no
                  second /triage pass (ADR-0025).
-               - Body (Matt `qa` shape): ## What happened / ## What I expected / ## Steps to reproduce /
+               - Body (the finding-capture brief shape): ## What happened / ## What I expected / ## Steps to reproduce /
                  ## Blocked by (issue #s or "None — can start immediately") / ## Additional context
                  (reference the failing AC-N and the e2e/coverage evidence).
                - Prepend the mandated disclaimer as the first body line:
