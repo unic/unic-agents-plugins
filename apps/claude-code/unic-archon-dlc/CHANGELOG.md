@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.14.0] — 2026-08-04
+
+### Breaking
+- (none)
+
+### Added
 - **`/specs`, `/tickets`, `/triage` and `/improve-architecture` resolve their Methods through `resolveMethod`.** Each Box's Step 1 now returns `methods: [{name, path, tier}]` alongside its config and prints a `methods: to-spec(bundle) · grilling(bundle) · …` line, so a Method answering from an unexpected tier — a forgotten `.archon/methods.local/` override, a `methods.<name>.source` someone declared months ago — is visible instead of silent. An unresolved Method stops the Box: it cannot run a procedure it cannot read. Boxes then read the returned path; a Method's sub-files sit beside its `SKILL.md` at every tier.
 - **A confirmation halt at the end of `/specs` Step 4.** v1.1.0 added "do not enact the plan until I confirm we have reached a shared understanding" to `grilling`, because grilling sessions were running straight into implementation on some models. `/specs` now carries that as an explicit halt on **every** Step 4 branch — the interview's own confirmation in `discuss` mode, the last assumption in `assumptions` mode, the synthesis review in `ingest`/`hybrid` — so the command has one shape whatever the input. It fires when the interview *reaches* shared understanding, not at a fixed question count; on "no" it returns into the interview.
 - **`test/command-methods.test.mjs` — the Boxes are held to the manifest.** Five checks per Box, plus one that asserts each `const wanted = [...]` matches `providedTo` in both directions. It fails on a pre-v1.1.0 alias in the prose (`to-prd`, `to-issues`, `grill-with-docs`), a sub-file upstream deleted, a hardcoded path into a Method's directory, a missing tier line, and any surviving `matt_suite` reference. Verified by mutation: each of those four defects, injected into `commands/specs.md`, fails the suite. This closes the gap `AGENTS.md` admitted out loud — a stale Method name in command prose was caught only by reading, which is how the v1.1.0 rename wave shipped green.
