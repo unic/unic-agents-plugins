@@ -19,7 +19,7 @@ import { METHODS_MANIFEST } from '../lib/methods-manifest.mjs'
  * forbids a literal path into a Method's directory. An Archon node cannot import plugin `lib/`
  * (ADR-0023 §5), so it must read the bundle tier by literal `.archon/methods/<name>/SKILL.md` path,
  * and this file forbids `resolveMethod` instead. Do not "unify" the two: the asymmetry is the
- * container difference, recorded in ADR-0031 §4.
+ * container difference, recorded in ADR-0023 §5.
  *
  * Every assertion here is a dumb string check, in the same style as its two siblings: a clever YAML
  * parser would have failure modes of its own, and node prompts are prompts, not code.
@@ -251,4 +251,45 @@ test('every Archon Box keeps its config gate and its fresh-context isolation', (
 	const build = readWorkflow('unic-dlc-build')
 	assert.ok(build.includes('- id: slopcheck'), 'unic-dlc-build.yaml lost the slopcheck node')
 	assert.match(build, /fresh_context: true/, 'unic-dlc-build.yaml lost the red/green loop fresh-context guarantee')
+})
+
+test('the two sub-agent-spawn nodes allow Agent, never Task', () => {
+	// `archon validate` (v0.7.0) caught this once already: `Task` in allowed_tools is silently
+	// ignored at runtime, so a revert here would leave both fan-outs spawning nothing with no error.
+	const spawners = /** @type {const} */ ({
+		'unic-dlc-build': 'implement-review-precheck',
+		'unic-dlc-pr-review': 'review',
+	})
+	for (const workflow of /** @type {Array<keyof typeof spawners>} */ (Object.keys(spawners))) {
+		const nodeId = spawners[workflow]
+		const contents = readWorkflow(workflow)
+		const node = contents.split(`- id: ${nodeId}`)[1]?.split('\n  - id: ')[0]
+		assert.ok(node, `${workflow}.yaml lost its ${nodeId} node`)
+		assert.match(
+			node,
+			/allowed_tools:.*\bAgent\b/,
+			`${workflow}.yaml's ${nodeId} node must allow the Agent tool to spawn its two sub-agents`
+		)
+		assert.doesNotMatch(
+			node,
+			/allowed_tools:.*\bTask\b/,
+			`${workflow}.yaml's ${nodeId} node allows Task — sub-agent spawn silently no-ops at runtime (the #281 regression)`
+		)
+	}
+})
+
+test('unic-dlc-explore.yaml — all four research nodes individually cite the research Method', () => {
+	// `citedMethods` dedupes into a Set, so the bidirectional manifest check above cannot tell "all
+	// four nodes cite research" from "only one still does" — this pins each node individually.
+	const contents = readWorkflow('unic-dlc-explore')
+	const nodeIds = [...contents.matchAll(/^ {2}- id: (research-\S+)/gm)].map(([, id]) => id)
+	assert.equal(nodeIds.length, 4, 'expected four research nodes in unic-dlc-explore.yaml')
+	for (const id of nodeIds) {
+		const node = contents.split(`- id: ${id}`)[1]?.split('\n  - id: ')[0]
+		assert.match(
+			node,
+			/\.archon\/methods\/research\/SKILL\.md/,
+			`${id} must cite the research Method individually, not rely on a sibling node's citation`
+		)
+	}
 })

@@ -292,9 +292,12 @@ nodes:
       Method asks a live human for two of them and there is no human here, so do NOT ask:
 
       - **Step 1, the fixed point:** the branch point of this build branch —
-        `git merge-base origin/$bootstrap.output.expected_base HEAD`. Fall back to
-        `git merge-base $bootstrap.output.expected_base HEAD`, then to the first commit of this build
-        (`git log --format=%H | tail -1`) if neither ref resolves. Confirm it resolves and the diff is
+        `git merge-base origin/$bootstrap.output.expected_base HEAD`, falling back to
+        `git merge-base $bootstrap.output.expected_base HEAD` if `origin/<ref>` doesn't resolve. If
+        NEITHER resolves, do NOT fall back to the branch's first commit — that guarantees a
+        "non-empty" diff that is not the Method's fixed point. Instead print "PRECHECK BLOCKED:
+        cannot resolve expected_base '$bootstrap.output.expected_base' via origin or local — no
+        merge-base found", emit that sentence as `findings`, and stop. Otherwise confirm the diff is
         non-empty before spawning anything, as the Method requires.
       - **Step 2, the spec source:** already on disk for this slug — read
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` and
