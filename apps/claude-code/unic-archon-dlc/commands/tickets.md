@@ -14,9 +14,8 @@ description: 'Decompose an approved PRD into independently-grabbable vertical-sl
 per slice), validates the whole set, publishes the issues to the team's tracker, and stops at the
 tickets gate. It is an **in-session command/skill** (slicing is a live conversation — ADR-0017), and
 it **owns the _what_** (the slicing flow, the build-ready checks, the DAG of `blocked_by` edges)
-while **composing the _how_**: Matt Pocock's `/to-issues` for slicing and the configured **tracker
-system-skill** (MCP-first, CLI-fallback) for publishing. Compose those by name — never reimplement or
-vendor them.
+while **composing the _how_**: the `to-tickets` Method for slicing — read by resolved path, per
+Step 1 — and the configured **tracker system-skill** (MCP-first, CLI-fallback) for publishing.
 
 `/tickets` **stops at a build-ready `issues.json`** (dependency-ordered, each slice carrying its
 acceptance criteria + test command) plus the published tracker issues. It does **not** generate a
@@ -42,9 +41,11 @@ node --input-type=module <<'EOJS'
 let output
 try {
   const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
   const { existsSync } = await import('node:fs')
   const { join } = await import('node:path')
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+  const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
+  const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
   const cwd = process.cwd()
 
   const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
@@ -61,6 +62,11 @@ try {
         output = { ok: false, message: `Config incomplete (${validation.missing.join(', ')}). Run /unic-archon-dlc:setup.` }
       } else {
         const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
+        const wanted = ['to-tickets']
+        const methods = wanted.map((name) => {
+          const m = resolver.resolveMethod(name, { repoRoot: cwd, config, box: 'tickets' })
+          return 'error' in m ? { name, error: m.message } : { name, path: m.path, tier: m.tier }
+        })
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
@@ -70,6 +76,7 @@ try {
           issue_template: g('templates.issue'),
           bug_template: g('templates.bug'),
           labels: g('classification.labels'),
+          methods,
         }
       }
     }
@@ -83,10 +90,26 @@ EOJS
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
-`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, and `LABELS`.
+`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `METHODS`.
 
-Method availability is guaranteed by the Bundle (`vendor/mattpocock-skills/`, installed by
-`/unic-archon-dlc:setup`); per-Box `resolveMethod` wiring arrives with #280.
+### The Method this Box reads
+
+`METHODS` carries one entry — `to-tickets` — with the tier it resolved from: `config` (a
+`methods.to-tickets.source` the team declared), `local` (`.archon/methods.local/`), or `bundle`
+(`.archon/methods/`, written by `/unic-archon-dlc:setup`).
+
+If the entry carries `error`, print it verbatim and **stop**. A Box cannot run a procedure it cannot
+read; the fix is to run `/unic-archon-dlc:setup`.
+
+Otherwise print the tier line before continuing, so a surprising result is diagnosable:
+
+```
+methods: to-tickets(bundle)
+```
+
+Then read the entry's `path` in full. That text **is** the slicing procedure — the steps below add
+only what the Harness owns, and never restate, summarise or improve a Method
+([ADR-0030](docs/adr/0030-harness-hosts-methods.md)).
 
 ## Step 2 — Slug + re-entry
 
@@ -109,18 +132,29 @@ root `CONTEXT.md` / `CONTEXT-MAP.md`, per-context `CONTEXT.md` files, all ADRs i
 PRD's **User Stories** + **Acceptance criteria** — every slice must trace back to them and use the
 project's domain vocabulary.
 
-## Step 4 — Slice into vertical tracer bullets (compose `/to-issues`)
+## Step 4 — Slice into vertical tracer bullets
 
-Decompose the PRD by **composing Matt's `/to-issues`** — do not reimplement it. Each slice is a thin
-**vertical tracer bullet**: a narrow but COMPLETE path through ALL layers (schema, API, UI, tests),
-demoable or verifiable on its own, ordered by a `blocked_by` DAG (no cycles). Do any prefactoring
-first ("make the change easy, then make the easy change").
+Decompose the PRD by following the resolved `to-tickets` Method — its slice rules, its blocking edges,
+its prefactoring guidance, and its wide-refactor exception all govern here.
 
-**Granularity heuristic (the litmus for "thin enough"):** one slice = **one demoable behaviour** —
-thin enough that a single failing test can capture it and a minimal implementation can satisfy it, so
-strict red/green (contract B) is safe. If a slice needs more than one failing test to express its
-behaviour, or bundles two independently-demoable behaviours, split it. If a slice can't be
-demonstrated without another, wire the dependency instead of merging.
+Three things the Harness adds or overrides on top of it:
+
+- **Granularity litmus (the DLC's "thin enough" test):** one slice = **one demoable behaviour** — thin
+  enough that a single failing test can capture it and a minimal implementation can satisfy it, so
+  strict red/green (contract B) is safe. If a slice needs more than one failing test to express its
+  behaviour, or bundles two independently-demoable behaviours, split it. If a slice can't be
+  demonstrated without another, wire the dependency instead of merging. The litmus does **not** apply
+  to the Method's **wide-refactor** exception: an expand–contract sequence is not a tracer bullet by
+  design, and green is promised where the Method says it is.
+- **A prefactor is an ordinary slice.** `issues.json` has no prefactor field and needs none: give the
+  prefactor `type: tech-debt` and `blocked_by: []`, then name it in the `blocked_by` of every slice it
+  unblocks. The dependency order from Step 8 then ships it first, and `/build` needs no extra rule.
+- **Publish to the tracker, never to a file in the repo root.** The Method offers a local `tickets.md`
+  as one of its two publishing shapes; in the DLC the durable baton is `issues.json` (Step 8) plus the
+  tracker issues (Step 9). Its closing "work the frontier one ticket at a time with `/implement`" maps
+  to `/unic-archon-dlc:build`. And its "run `/setup-matt-pocock-skills` if not" fallback never
+  applies — Step 1 provided that config, and running that skill would create a second label file that
+  drifts from `.archon/unic-dlc.config.yaml` ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
 
 Draft each slice with these fields (the `issues-schema` shape):
 
@@ -244,7 +278,7 @@ dependency `order` from Step 8 (**blockers first**) so each issue can reference 
 of its blockers.
 
 For each slice, build the issue body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`;
-fall back to Matt's `/to-issues` body template if the config template is null). The body MUST carry
+fall back to the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
 the slice's **acceptance criteria** (contract C — intent lives on the tracker issue) and its
 **Blocked by** references (real tracker IDs, or "None — can start immediately"). Apply the
 ready-for-agent triage label from `LABELS` unless the user says otherwise. Do NOT close or modify any
@@ -280,6 +314,7 @@ Print a concise summary:
   issues:   <ARTIFACTS_DIR>/<SLUG>/issues.json (<count> slices)
   order:    <id → id → …>  (dependency order)
   tracker:  <published issue refs>
+  methods:  <name>(<tier>) (as printed in Step 1)
   gate:     <open-pr → PR #… | stage-only → staged>
   next:     run /build <SLUG> once the tickets are approved
 ```

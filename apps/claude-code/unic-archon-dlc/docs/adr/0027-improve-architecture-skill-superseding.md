@@ -2,6 +2,18 @@
 
 **Status:** Accepted (2026-07-03)
 
+> **Amended (2026-08-04, Matt v1.1.0 migration tranche 2 — #280):** §5 below says the box reads
+> `skills.matt_suite` from config. That key was retired in #279 — it recorded a probe of whether the
+> Consumer had separately installed Matt's suite, a question the vendored Bundle answers by
+> construction. The box now resolves `improve-codebase-architecture`, `codebase-design`, `grilling` and
+> `domain-modeling` through `resolveMethod` ([ADR-0031](0031-methods-bundled-three-tier-resolution.md))
+> and reads each returned path. Two consequences worth naming: the config load stays **lenient** while
+> Method resolution is **fatal** — config carries parameters this off-line box can default, a Method
+> carries the procedure, which has no default — and `DEEPENING.md`, `INTERFACE-DESIGN.md` and
+> `LANGUAGE.md` left `improve-codebase-architecture` upstream (`DEEPENING.md` is now under
+> `codebase-design`; `HTML-REPORT.md` arrived in its place). "Composes Matt's method" in the title and
+> body means "reads the Method"; the decision itself is unchanged.
+
 ## Context
 
 `/improve-architecture` is the off-line arch-health box ([ADR-0014](0014-workflow-per-box-decomposition.md)):

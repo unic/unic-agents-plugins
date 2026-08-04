@@ -242,9 +242,11 @@ test('providedTo is empty only for Methods whose Box has not shipped yet', () =>
 })
 
 test('the Methods composed by the current command prose record their Box callers', () => {
-	// Sourced from the shipped commands: `commands/specs.md` (`/grill-with-docs` runs `/grilling` +
-	// `/domain-modeling`), `commands/triage.md` (same pair declared), and
-	// `commands/improve-architecture.md` (`/codebase-design` + `/grilling` + `/domain-modeling`).
+	// Sourced from the shipped commands' `resolveMethod` calls (#280): `commands/specs.md` and
+	// `commands/triage.md` each resolve `grilling` + `domain-modeling`, and
+	// `commands/improve-architecture.md` resolves those two plus `codebase-design`.
+	// `test/command-methods.test.mjs` holds each Box's `wanted` array to `providedTo` in both
+	// directions; this test pins the expected shape of that mapping in one readable place.
 	const expected = {
 		grilling: ['specs', 'triage', 'improve-architecture'],
 		'domain-modeling': ['specs', 'triage', 'improve-architecture'],
