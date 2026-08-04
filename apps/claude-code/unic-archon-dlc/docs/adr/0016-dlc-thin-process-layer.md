@@ -5,6 +5,15 @@
 > ADR-0030 keeps this decision and sharpens its name: the plugin is a **Harness**, and "thin process
 > layer" is retained below only as the original wording. The composition stance is unchanged.
 
+> **Amended (2026-08-04, Matt v1.1.0 migration tranche 2 — #280):** the Method names in Decision below
+> are pre-v1.1.0. `to-prd` is now `to-spec`, `to-issues` is `to-tickets`, and `grill-with-docs` is no
+> longer a method — it became a six-line pointer, so `/specs` reads `grilling` and `domain-modeling`
+> where the content now lives. Read that bullet as naming a set, not a current list: the one list lives
+> in [`lib/methods-manifest.mjs`](../../lib/methods-manifest.mjs) and the generated table in
+> `README.md`. "Compose" also narrowed for Methods specifically — a Box **reads** a Method by resolved
+> path ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)) and never invokes it as a skill;
+> composition by name still describes how the DLC reaches a team's tracker/docs/design system-skills.
+
 ## Context
 
 The redesign toward config-driven genericity (grilled 2026-07-02) surfaced a sharper framing than "config + compose CLIs." Unic's clients run heterogeneous stacks — their own Confluence, Jira, Azure DevOps, GitHub, GitLab, Figma, or docs "elsewhere." Hardcoding any of these is expensive and non-portable: `unic-pr-review` is the cautionary tale (~830 lines of ADO-specific fetch/write code, per-tracker provider bundles, three separate setup commands, retrofitting a provider pattern after the fact). Pesche's `unic-ticket-specification` (PR #257) demonstrated the alternative — generic workflow/command templates that read **all** specifics from per-project config and compose the right tool for each job (MCP-first, CLI fallback).

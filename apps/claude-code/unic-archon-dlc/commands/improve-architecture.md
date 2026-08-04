@@ -139,8 +139,8 @@ for the report scaffold, diagram patterns and styling. Where it calls for grilli
 Bind that procedure to the DLC:
 
 - Use `CONTEXT.md`/`CONTEXT-MAP.md` for the **domain** vocabulary and the resolved `codebase-design`
-  Method for the **architecture** vocabulary (deep modules, interface, depth, seam, adapter, leverage,
-  locality; the deletion test; "the interface is the test surface"). Use these terms exactly.
+  Method for the **architecture** vocabulary. Use its terms exactly as it defines them — including in
+  the report and in every suggestion.
 - **Per-slug mode:** focus the Explore walk on the slug's changed surface — derive it from
   `report.md` and/or the build's diff (e.g. `git diff --name-only <base>..HEAD`, adapting the range) —
   but keep the Method's procedure and still surface repo-wide friction the change touches.

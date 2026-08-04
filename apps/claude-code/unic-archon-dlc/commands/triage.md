@@ -120,10 +120,9 @@ config binding, and never restates, summarises or improves a Method
 Assemble the binding this wrapper hands to the Method. **Everything comes from config — do not
 read `docs/agents/triage-labels.md` or `docs/agents/issue-tracker.md`.**
 
-- **Label mapping** — from `LABELS` (canonical role → the tracker's actual label string). The Method
-  speaks five canonical state roles and two category roles; resolve each to its tracker string
-  through this map.
-- **Role → DLC-state map** — the DLC taxonomy is a superset of the Method's five roles. Bind them:
+- **Label mapping** — from `LABELS` (canonical role → the tracker's actual label string). Resolve every
+  canonical category and state role the Method names to its tracker string through this map.
+- **Role → DLC-state map** — the DLC taxonomy is a superset of the Method's roles. Bind them:
   - Category `bug` → type `bug`; category `enhancement` → type `feature`.
   - States `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` → same-named DLC state.
   - The Method's `wontfix` splits: a **rejected enhancement** → `rejected`; an **already-implemented**
@@ -152,13 +151,14 @@ Bind that procedure to the DLC with the Step 2 context, and enforce these overri
 - **`AGENT-BRIEF.md` is written for GitHub** and names `ready-for-agent` and `wontfix` as literal
   labels. Read those as canonical roles too, resolve them through `LABELS`, and apply the Step 2
   `wontfix` split (rejected enhancement → `rejected`; already implemented → `closed`).
-- **The "run `/setup-matt-pocock-skills` if not" fallback never applies.** Both the Method's
-  `SKILL.md` and `AGENT-BRIEF.md` offer it when the label and tracker vocabulary is absent. Step 2
-  provided it. Running that skill would create a second label file that drifts from
-  `.archon/unic-dlc.config.yaml`, which is what `/tickets` and `/build` read — `classification.labels`
-  is the single source of truth.
-- **The out-of-scope KB lives at `TRIAGE.out_of_scope_dir`**, not the hardcoded `.out-of-scope/` in
-  `OUT-OF-SCOPE.md`.
+- **The "run `/setup-matt-pocock-skills` if not" fallback never applies.** The Method's `SKILL.md`
+  offers it when the label mapping is absent. Step 2 provided it. Running that skill would create a
+  second label file that drifts from `.archon/unic-dlc.config.yaml`, which is what `/tickets` and
+  `/build` read — `classification.labels` is the single source of truth.
+- **The out-of-scope KB lives at `TRIAGE.out_of_scope_dir`.** The Method hardcodes `.out-of-scope/` in
+  both its `SKILL.md` (the prior-rejection check, and again when recording a rejected enhancement) and
+  its `OUT-OF-SCOPE.md`. Substitute the configured directory at every one of those points, including
+  the read that happens while gathering context — before any outcome is chosen.
 - **External PRs** are in scope per the injected external-PR posture, not per the Method's own
   tracker-config lookup.
 - **Every comment or issue posted during triage** must start with the mandated disclaimer:

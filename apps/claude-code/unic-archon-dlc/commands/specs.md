@@ -155,7 +155,7 @@ branch you took:
 | Branch                             | What satisfies the confirmation                            |
 | ---------------------------------- | ---------------------------------------------------------- |
 | converse, `DISCUSS_MODE = discuss` | ask "have we reached a shared understanding?" and wait     |
-| converse, `assumptions`            | the last assumption confirmed or corrected                 |
+| converse, `assumptions`            | the walk through the assumptions reaches agreement         |
 | ingest / hybrid                    | the human review of your synthesis (the #257 model, above) |
 
 This fires when the interview **reaches** shared understanding, however many turns that took — it is
