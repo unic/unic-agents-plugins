@@ -63,6 +63,16 @@ function readWorkflow(workflow) {
 }
 
 /**
+ * The source text of a single node, from its `- id:` line up to (not including) the next node's.
+ * @param {string} contents
+ * @param {string} nodeId
+ * @returns {string}
+ */
+function nodeSource(contents, nodeId) {
+	return contents.split(`- id: ${nodeId}`)[1]?.split('\n  - id: ')[0]
+}
+
+/**
  * The Methods a workflow cites, deduped — one entry per Method however many nodes read it.
  * @param {keyof typeof BOX_OF_WORKFLOW} workflow
  * @returns {Set<string>}
@@ -202,10 +212,9 @@ test('/pr-review is the only Archon Box that posts a review', () => {
 	// The signal is the hidden idempotency marker, not a scan for `gh pr comment`: the pre-check node
 	// NAMES those commands in order to forbid them, so a substring check would fail on the prohibition
 	// that makes the rule true. Only a node that actually posts a review needs the marker.
-	const precheck = readWorkflow('unic-dlc-build').split('- id: implement-review-precheck')[1]
-	assert.ok(precheck, 'unic-dlc-build.yaml must carry the implement-review-precheck node')
+	const nodeBody = nodeSource(readWorkflow('unic-dlc-build'), 'implement-review-precheck')
+	assert.ok(nodeBody, 'unic-dlc-build.yaml must carry the implement-review-precheck node')
 
-	const nodeBody = precheck.split('\n  - id: ')[0]
 	assert.match(nodeBody, /POSTS NOTHING/, 'implement-review-precheck must state that it posts nothing')
 	assert.match(
 		nodeBody,
@@ -262,8 +271,7 @@ test('the two sub-agent-spawn nodes allow Agent, never Task', () => {
 	})
 	for (const workflow of /** @type {Array<keyof typeof spawners>} */ (Object.keys(spawners))) {
 		const nodeId = spawners[workflow]
-		const contents = readWorkflow(workflow)
-		const node = contents.split(`- id: ${nodeId}`)[1]?.split('\n  - id: ')[0]
+		const node = nodeSource(readWorkflow(workflow), nodeId)
 		assert.ok(node, `${workflow}.yaml lost its ${nodeId} node`)
 		assert.match(
 			node,
@@ -285,7 +293,7 @@ test('unic-dlc-explore.yaml — all four research nodes individually cite the re
 	const nodeIds = [...contents.matchAll(/^ {2}- id: (research-\S+)/gm)].map(([, id]) => id)
 	assert.equal(nodeIds.length, 4, 'expected four research nodes in unic-dlc-explore.yaml')
 	for (const id of nodeIds) {
-		const node = contents.split(`- id: ${id}`)[1]?.split('\n  - id: ')[0]
+		const node = nodeSource(contents, id)
 		assert.match(
 			node,
 			/\.archon\/methods\/research\/SKILL\.md/,
