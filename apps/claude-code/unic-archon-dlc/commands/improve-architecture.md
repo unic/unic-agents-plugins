@@ -48,6 +48,9 @@ try {
   const { existsSync } = await import('node:fs')
   const { join } = await import('node:path')
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
+  // which says nothing about what to do next.
+  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
   const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
   const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
   const cwd = process.cwd()
@@ -81,16 +84,20 @@ try {
     }
   }
 } catch (err) {
-  // Even a plugin load error should not stop an off-line review — default and warn.
-  output = { ok: true, degraded: true, reason: `plugin-load: ${err?.message ?? String(err)}`, artifacts_dir: 'workflows', docs: null, methods: [] }
+  // A plugin-load failure is not the degradable case. Leniency covers a *missing or unreadable
+  // config*; if this Plugin's own lib/ cannot be imported there is no resolver, so no Method resolves
+  // and Step 3 has no procedure to follow. Fail with the cause rather than defaulting into a review
+  // that cannot run.
+  output = { ok: false, message: `Plugin load error: ${err?.message ?? String(err)}` }
 }
 process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `DOCS`, and `METHODS`. If `degraded` is
-`true`, print a one-line warning naming `reason` and note that `ARTIFACTS_DIR` fell back to
-`workflows`, then continue.
+Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop** — that is a broken Plugin,
+which no amount of defaulting fixes. Otherwise keep `ARTIFACTS_DIR` (default `workflows`), `DOCS`, and
+`METHODS`; if `degraded` is `true`, print a one-line warning naming `reason` and note that
+`ARTIFACTS_DIR` fell back to `workflows`, then continue.
 
 ### The Methods this Box reads
 
@@ -99,10 +106,10 @@ Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `DOCS`, and `METHODS
 the team declared), `local` (`.archon/methods.local/`), or `bundle` (`.archon/methods/`, written by
 `/unic-archon-dlc:setup`).
 
-**Method resolution is fatal here, unlike the config load.** If any entry carries `error`, or
-`METHODS` is empty, print it and **stop** — do not degrade. Config carries _parameters_ (which, where,
-whether), and this Box can sensibly default those; a Method carries the _procedure_, and there is no
-default for that. The fix is to run `/unic-archon-dlc:setup`.
+**Method resolution is fatal here, unlike the config load.** If any entry carries `error`, print it
+verbatim and **stop** — do not degrade. Config carries _parameters_ (which, where, whether), and this
+Box can sensibly default those; a Method carries the _procedure_, and there is no default for that. The
+fix is to run `/unic-archon-dlc:setup`.
 
 Otherwise print the tier line before continuing, so a surprising result is diagnosable:
 

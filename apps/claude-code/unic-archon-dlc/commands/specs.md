@@ -38,6 +38,9 @@ try {
   const { existsSync } = await import('node:fs')
   const { join } = await import('node:path')
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
+  // which says nothing about what to do next.
+  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
   const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
   const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
   const cwd = process.cwd()
