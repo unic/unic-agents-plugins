@@ -1,12 +1,13 @@
 # unic-archon-dlc
 
-A **thin process layer** for an AI development lifecycle. It owns the _what_ (the box set — main line
+A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
 off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) and **composes the
-team's system-skills for the _how_**. Each box's container follows its structural need: Archon
-workflows for the AFK-isolated legs, Claude Code commands/skills for the interactive ones.
-Configured via the `/unic-archon-dlc:setup` slash command. See `docs/adr/0016`–`0018` for the
-two-axis architecture and `docs/adr/0014` for the box set.
+team's system-skills for the _how_**. Procedure belongs to the **Methods** it hosts, not to the
+Harness. Each box's container follows its structural need: Archon workflows for the AFK-isolated legs,
+Claude Code commands/skills for the interactive ones. Configured via the `/unic-archon-dlc:setup`
+slash command. See `docs/adr/0016`–`0018` for the two-axis architecture, `docs/adr/0014` for the box
+set, and `docs/adr/0030`–`0032` for the Harness/Method division.
 
 Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
 
@@ -14,10 +15,29 @@ Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
 
 ### Architecture
 
-**Thin process layer**:
-The DLC owns the _what_ (the lifecycle and artefact shapes) and composes the team's system-skills
-for the _how_. See `docs/adr/0016-dlc-thin-process-layer.md`.
-_Avoid_: framework, integration layer
+**Harness**:
+What the DLC is to a Method: the owner of everything outside the procedure. See
+`docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: thin process layer, framework, integration layer, orchestrator
+
+**Box**:
+One step of the lifecycle. See `docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: step, stage, phase
+
+**Method**:
+The skill text a Box reads for procedure. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
+
+**Local Method**:
+A team's own version of a Method, which takes precedence over the shipped one. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: custom skill, local skill, patch, fork
+
+**Bundle**:
+The set of Methods the plugin ships, fixed to one upstream version. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: vendor directory, snapshot, cache
 
 **System-skill**:
 A team-provided capability that talks to one of their systems (a Confluence skill, the
@@ -71,8 +91,8 @@ _Avoid_: ticket, ready ticket, groomed issue
 ### Planning artifacts
 
 **PRD**:
-Product Requirements Document produced by the `/specs` command (branch-on-input; via Matt's
-`to-prd`) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
+Product Requirements Document produced by the `/specs` command (branch-on-input; via the `to-spec`
+Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
 and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
@@ -211,6 +231,9 @@ _Avoid_: reviewer, agent, check
 
 ## Relationships
 
+- The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
+- A **Method** resolves from the first tier that answers — a team's declared source, then a **Local Method**, then the **Bundle** that **Setup** installed (ADR-0031)
+- **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
 - `/build` runs a generic **red → green → refactor** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)

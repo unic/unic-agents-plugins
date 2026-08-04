@@ -11,6 +11,25 @@
 ### Fixed
 - (none)
 
+## [0.13.1] — 2026-08-03
+
+### Breaking
+- (none)
+
+### Added
+- **ADR-0030 — the Plugin is a Harness that hosts Methods.** Records the framing that ends the drift tranche 1 fixed mechanically: the Harness owns isolation, gates, config, red/green integrity, system-skill composition, artefact durability and posting, and a **Method** owns procedure. [ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md)'s "adds Unic value" test becomes structural — **a Box survives only for what no Method can supply** — which is why `handoff` and `prototype` are referenced rather than bundled, and why #281 is mostly deletion. Amends [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md) and ADR-0021; both carry a status line pointing here.
+- **ADR-0031 — Methods are bundled, the plugin version is the pin, resolution is three-tier.** Why the Methods must be committed files in the Consumer repo ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5: an Archon node runs in a separate worktree and cannot rely on `$CLAUDE_PLUGIN_ROOT`), why there is no `skills.pin` key, why paths must be repo-relative, and why Methods are read by path and never registered as skills. Records **per-box mapping as a rejected alternative** with its reason — it is the pre-#279 status quo that let the v1.1.0 rename wave break `/specs` and `/tickets` with CI green — plus two more rejections (run-time fetching, a separate pin key), so none of the three is re-derived.
+- **ADR-0032 — the vocabulary.** **Box**, **Method**, **Local Method**, **Bundle**, and **Harness**, with the division that makes them decidable: configuration carries _parameters_ (which, where, whether) and a Method carries _procedure_ (how). A team wanting different method text forks the Method instead of gaining a config key, which is what stops the config schema absorbing method text one key at a time.
+- **A drift test for the dependency list.** `test/methods-manifest.test.mjs` parses the Method table in `README.md` and asserts it matches the manifest's `providedTo` row for row, in manifest order, and that a Method with no Box says so rather than naming one. A stale row now fails CI.
+
+### Changed
+- **One dependency list, generated from the manifest.** `README.md` listed 6 Methods under three pre-v1.1.0 names (`grill-with-docs`, which is no longer a method at all, plus `to-prd` and `to-issues`), `commands/setup.md` listed none after tranche 1b, and the boxes read 11. All three surfaces now point at one table generated from `providedTo`, delimited by `methods-table` markers and guarded by the test above. `AGENTS.md` gains two doctrines — the Harness/Method division and "do not restate the list" — and `commands/setup.md` names the manifest instead of repeating it.
+- **`Harness` replaces `thin process layer` as the canonical term.** `CONTEXT.md` defines Harness and lists the old phrase under `_Avoid_`; the opening sentences of `README.md`, `AGENTS.md` and `CONTEXT.md` are rewritten. ADR-0016 keeps its original wording as the historical record. `CONTEXT.md` also gains **Box**, **Method**, **Local Method** and **Bundle** — the last was load-bearing in code from tranche 1b (`METHODS_BUNDLE`, `verifyBundle`) while appearing in no glossary.
+- **`README.md` states the never-registered-as-skills rule and its reason** — a Consumer running Matt Pocock's own Claude Code plugin would otherwise get every skill twice, with no way to tell which copy answered.
+
+### Fixed
+- (none)
+
 ## [0.13.0] — 2026-08-03
 
 ### Breaking

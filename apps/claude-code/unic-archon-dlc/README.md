@@ -1,16 +1,19 @@
 # unic-archon-dlc
 
-A config-driven AI development lifecycle, installable as a Claude Code plugin. It owns a **thin
-process layer** — the box set below — and **composes the team's system-skills** (tracker, docs,
-design) for the _how_, so nothing about ADO / Jira / GitHub / Confluence / Figma is baked in.
+A config-driven AI development lifecycle, installable as a Claude Code plugin. It is a **Harness** —
+it owns the box set below, plus isolation, gates, config and integrity — and **composes the team's
+system-skills** (tracker, docs, design) for the _how_, so nothing about ADO / Jira / GitHub /
+Confluence / Figma is baked in. Procedure belongs to the **Methods** it hosts
+([ADR-0030](docs/adr/0030-harness-hosts-methods.md)).
 
 Each box's **container follows its structural need**
 ([ADR-0017](docs/adr/0017-container-follows-structural-need.md)): **Archon workflows** for the
 AFK-isolated legs (`/build`, `/qa`, `/pr-review`, `/explore`) and **Claude Code commands/skills**
 for the interactive or repo-global boxes (`/setup`, `/specs`, `/tickets`, `/triage`,
-`/improve-architecture`, `/cleanup`) — the latter **compose Matt Pocock's skill _methods_** rather
+`/improve-architecture`, `/cleanup`) — the latter **read Matt Pocock's skill text as Methods** rather
 than reimplementing them. See [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)–[ADR-0018](docs/adr/0018-generic-core-config-compose.md)
-for the two-axis architecture and [CONTEXT.md](CONTEXT.md) for the vocabulary.
+for the two-axis architecture, [ADR-0030](docs/adr/0030-harness-hosts-methods.md)–[ADR-0032](docs/adr/0032-box-method-vocabulary.md)
+for the Harness/Method division, and [CONTEXT.md](CONTEXT.md) for the vocabulary.
 
 Archon has no marketplace; this plugin rides the Claude Code plugin marketplace.
 `/unic-archon-dlc:setup` installs the four Archon workflow YAMLs + command stubs and writes the
@@ -68,20 +71,36 @@ The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workf
 
 ## Dependencies
 
-Beyond the Archon workflow engine (see [Configuration reference](#configuration-reference)), the interactive boxes (`/specs`,
-`/tickets`, `/triage`, …) **compose [Matt Pocock's engineering skill _methods_](https://github.com/mattpocock/skills)**
-as a declared dependency — they don't reimplement them. Those methods ship inside this plugin and
-`/unic-archon-dlc:setup` installs them, so there is nothing to install separately (see
-[The Method bundle](#the-method-bundle)):
+Beyond the Archon workflow engine (see [Configuration reference](#configuration-reference)), the boxes read
+[Matt Pocock's engineering skill text](https://github.com/mattpocock/skills) as **Methods** — they don't
+reimplement it. The Methods ship inside this plugin and `/unic-archon-dlc:setup` installs them, so there
+is nothing to install separately (see [The Method bundle](#the-method-bundle)).
 
-| Skill method      | Composed by         |
-| ----------------- | ------------------- |
-| `grill-with-docs` | `/specs`            |
-| `to-prd`          | `/specs`            |
-| `to-issues`       | `/tickets`          |
-| `triage`          | `/triage`           |
-| `grilling`        | `/specs`, `/triage` |
-| `domain-modeling` | `/specs`, `/triage` |
+**This table is the single dependency list, and `providedTo` in
+[`lib/methods-manifest.mjs`](lib/methods-manifest.mjs) is its source of truth.** A test in
+`test/methods-manifest.test.mjs` parses the table and fails if the two disagree, so edit the manifest
+first and bring the table into line with it — and do not restate the list anywhere else. Before the
+manifest existed, `commands/setup.md` named 7 Methods and this file named 6, while the plugin composed
+11 (8 of which have a box today); the upstream v1.1.0 rename wave then broke `/specs` and `/tickets`
+with CI green.
+
+<!-- methods-table:begin -->
+
+| Method                          | Read by                                      |
+| ------------------------------- | -------------------------------------------- |
+| `to-spec`                       | `/specs`                                     |
+| `to-tickets`                    | `/tickets`                                   |
+| `triage`                        | `/triage`                                    |
+| `code-review`                   | `/pr-review`                                 |
+| `improve-codebase-architecture` | `/improve-architecture`                      |
+| `implement`                     | no box yet (#281)                            |
+| `tdd`                           | no box yet (#281)                            |
+| `research`                      | no box yet (#276)                            |
+| `grilling`                      | `/specs`, `/triage`, `/improve-architecture` |
+| `domain-modeling`               | `/specs`, `/triage`, `/improve-architecture` |
+| `codebase-design`               | `/improve-architecture`                      |
+
+<!-- methods-table:end -->
 
 `/unic-archon-dlc:setup` **verifies the bundle's integrity** — the vendored licence hash and the
 manifest closure — and stops if either fails, because that means the shipped plugin is incomplete.
@@ -151,7 +170,7 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                  |
 | `templates.{issue,bug}`                                  | `null`                 | template string                               | Config-driven artifact templates (ADR-0018)                                                                                         |
 | `classification.labels.*`                                | canonical              | any string                                    | 3-tier label mapping (state · type · priority)                                                                                      |
-| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `/grill-with-docs`; `assumptions` enumerates upfront (ADR-0020)                         |
+| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `grilling` + `domain-modeling`; `assumptions` enumerates upfront (ADR-0020)             |
 | `specs.gate`                                             | `open-pr`              | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops                        |
 | `tickets.gate`                                           | `open-pr`              | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022) |
 | `triage.out_of_scope_dir`                                | `.out-of-scope`        | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                      |
@@ -191,6 +210,18 @@ A Method resolves from the first of three tiers that answers
 `.archon/methods.local/<name>/SKILL.md`, then the installed bundle. A Local override should record
 the bundle tag it forked from in its own frontmatter (`forked_from: v1.1.0`); `/setup` flags any
 override whose value differs from the bundled tag, or is absent.
+
+**Methods are read by path and never registered as skills.** `/setup` writes them to
+`.archon/methods/`, not to `.claude/skills/` or `.agents/skills/`, and no box invokes one as a skill.
+If it did, a consumer who also runs Matt Pocock's own Claude Code plugin would end up with **every
+skill twice**, with no way to tell which copy answered — and skill invocation is a churning coupling
+surface besides (7 of the 10 Methods carried `disable-model-invocation: true` at v1.0; `prototype`
+flipped back at v1.1). Reading a file has neither problem. See
+[ADR-0031](docs/adr/0031-methods-bundled-three-tier-resolution.md) §4.
+
+The plugin version **is** the Method pin — there is no `skills.pin` key. Upgrading Methods means
+upgrading the plugin and re-running `/setup`, which is idempotent and installs the new bundle even for
+an already-configured project.
 
 ---
 

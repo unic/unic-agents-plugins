@@ -1,6 +1,9 @@
 # 0016. DLC is a thin process layer; compose team system-skills for the _how_
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended by [ADR-0030](0030-harness-hosts-methods.md)
+
+> ADR-0030 keeps this decision and sharpens its name: the plugin is a **Harness**, and "thin process
+> layer" is retained below only as the original wording. The composition stance is unchanged.
 
 ## Context
 

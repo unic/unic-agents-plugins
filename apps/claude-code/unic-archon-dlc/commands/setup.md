@@ -103,7 +103,7 @@ Build a **capability → tool** registry the downstream boxes read (`mcp | cli |
 - **MCP servers**: note which relevant MCP servers are available in this session (tracker, docs, design — e.g. a GitHub/ADO/Jira MCP, a Confluence MCP, the Figma MCP).
 - **CLI probes** (portable — no `jq`/`awk`/`sort`): `gh --version`, `az --version`, `jira version` (or `jira --help`), etc. Record which succeed.
 
-Do **not** probe for Matt Pocock's skills here. The Methods the Boxes compose ship with this Plugin and are installed by Step 6; their availability is a Bundle-integrity question, not a discovery one.
+Do **not** probe for Matt Pocock's skills here. The Methods the Boxes compose ship with this Plugin and are installed by Step 6; their availability is a Bundle-integrity question, not a discovery one. Which Method each Box reads is recorded once, in [`lib/methods-manifest.mjs`](../lib/methods-manifest.mjs) and the generated table in [README.md § Dependencies](../README.md#dependencies) — never restate that list here.
 
 For each capability pick the tool MCP-first, else CLI, else skill. A **missing _required_ capability → warn + degrade, non-blocking**: complete setup, record it unavailable in the config, and **list the boxes it blocks** (boxes re-probe at runtime and fail with a clear "install X"). Never abort setup for a missing capability.
 
