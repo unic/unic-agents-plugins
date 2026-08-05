@@ -125,8 +125,14 @@ nodes:
   # are durable diff metadata in prep.json that a reader (and a future spawn decision) can use; nothing
   # reads them today. Retire them or find them a consumer in a follow-up, not in a rewiring slice.
   # ---------------------------------------------------------------------------------------------
+  # `trigger_rule: all_done` is load-bearing on the `guard-no-repo-ref` edge. That guard carries a
+  # `when:`, so on the happy path — `project.repo_ref` IS set — it is SKIPPED, and a skipped dependency
+  # propagates its skipped state under the default `all_success` join. Without `all_done`, `prep` would
+  # be skipped for every correctly-configured Consumer and take `review` → `post` with it. Same reason
+  # `post`, `verify-pr-base` and `merge` carry it over their own gate edges.
   - id: prep
     depends_on: [bootstrap, guard-no-repo-ref]
+    trigger_rule: all_done
     when: "$bootstrap.output.status == 'ready'"
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]

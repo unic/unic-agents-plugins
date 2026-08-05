@@ -214,6 +214,29 @@ test('an absent project.repo_ref cancels the Box — it never fails it', () => {
 	}
 })
 
+test('a node that waits on guard-no-repo-ref joins with trigger_rule: all_done', () => {
+	// The guard carries a `when:`, so on the HAPPY path — `project.repo_ref` IS set — it is skipped, and
+	// a skipped dependency propagates its skipped state under Archon's default `all_success` join. A
+	// dependant without `trigger_rule: all_done` is therefore skipped for every correctly-configured
+	// Consumer, taking its whole downstream chain with it. This asserts the join, not the edge: a Box may
+	// legitimately leave the guard as a `when:`-exclusive sibling (a cancel node stops in-flight parallel
+	// nodes), but a Box that DOES depend on it must say `all_done`.
+	for (const workflow of WORKFLOWS) {
+		const contents = readWorkflow(workflow)
+		for (const [, nodeId] of contents.matchAll(/^ {2}- id: (\S+)$/gm)) {
+			const node = nodeSource(contents, nodeId)
+			if (!node) continue
+			const dependsOn = node.match(/^ {4}depends_on: \[([^\]]*)\]/m)?.[1] ?? ''
+			if (!dependsOn.split(',').some((dep) => dep.trim() === 'guard-no-repo-ref')) continue
+			assert.match(
+				node,
+				/^ {4}trigger_rule: all_done$/m,
+				`${workflow}.yaml's ${nodeId} node depends on the when:-gated guard-no-repo-ref, so it needs \`trigger_rule: all_done\` — the default all_success skips it whenever the guard is skipped`
+			)
+		}
+	}
+})
+
 for (const command of COMMANDS) {
 	test(`commands/${command}.md stages named paths in both gate paths and pins the PR`, () => {
 		// AC 5. `stage-only` is the path that gets forgotten: it stages without committing, so a blind
