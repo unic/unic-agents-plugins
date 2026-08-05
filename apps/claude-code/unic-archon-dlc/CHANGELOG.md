@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.15.1] — 2026-08-05
+
+### Breaking
+- (none)
+
+### Added
 - **`project.repo_ref` — an optional, host-agnostic repository reference every PR-touching Box pins its CLI call to.** `"OWNER/REPO"` (or `"HOST/OWNER/REPO"`) for github, `"PROJECT/REPO"` for ado. Each Box's `bootstrap` node reads it and emits it verbatim as `repo_ref`, and downstream nodes pass it through the flag their host actually takes — `gh --repo`, `az repos --repository` where the subcommand has one, the reference written into the path for `gh api`, which has no `--repo` flag. The key stays **optional** and is not a mandatory config path: promoting it belongs with the Archon 0.7.0 adoption, and a mandatory leaf would invalidate every existing Consumer config on upgrade. A new `guard-no-repo-ref` node in all four Box YAMLs **cancels** the run when the key is absent, naming the key and `/unic-archon-dlc:setup` — expected precondition failures cancel, they do not fail ([ADR-0011](docs/adr/0011-archon-schema-target.md)).
 - **`test/box-staging-and-repo-pinning.test.mjs`** holds every Box to both rules: no blind staging verb as an invocation (matched at line start, since every prompt has to *name* `git add -A` in order to forbid it), the deny list present inline in each committing node, `build-state.json` staged at `open-pr` and refused by both loop phases, `project.repo_ref` read and consumed in all four workflows, `--repo` / `--repository` present with no hardcoded host, a `cancel:` guard with an actionable message, and named-path staging plus a pinned `gh pr create` in both gate paths of `commands/specs.md` and `commands/tickets.md`.
 
