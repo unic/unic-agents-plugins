@@ -32,7 +32,7 @@ Then install individual plugins:
 
 ## Development
 
-**Prerequisites:** Node.js ≥ 22 (see `.nvmrc` for the recommended version), pnpm ≥ 10, Claude Code CLI (for Ralph).
+**Prerequisites:** Node.js ≥ 22 (see `.nvmrc` for the recommended version), pnpm ≥ 10.
 
 ```sh
 pnpm install                           # install all workspace deps
@@ -56,7 +56,7 @@ packages/
 └── release-tools/        # @unic/release-tools — bump/tag/verify scripts
 docs/
 ├── adr/                  # Architectural Decision Records
-├── agents/               # Agent skill documentation (issue-tracker, labels, branching, domain, workflow)
+├── agents/               # Agent skill documentation (indexed in AGENTS.md § Agent skills)
 ├── inbox/                # Retired idea-capture notes (historical)
 ├── issues/               # Grilled and scoped feature issues
 ├── process/              # Process and workflow guides

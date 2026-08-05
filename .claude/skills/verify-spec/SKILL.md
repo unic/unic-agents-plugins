@@ -19,6 +19,8 @@ Verify that all acceptance criteria in a spec file are satisfied by the current 
 
 ## Locating the spec file
 
+**Scope limit: this skill reads spec _files_ only.** Since upstream v1.1, `/to-spec` publishes the spec as a GitHub issue and writes no file, so a Feature specced that way has nothing here to verify. Say so plainly — "this Feature's spec is a GitHub issue, which this skill cannot read yet" — rather than reporting no match, which reads as a missing spec.
+
 Spec files live in `docs/issues/` as `<slug>/PRD.md`. Completed vertical-slice sub-tasks live under `docs/issues/<slug>/done/NN-title.md`.
 
 Search in order:

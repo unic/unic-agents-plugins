@@ -121,7 +121,7 @@ Monitor signals: `LIMIT` (Claude usage cap tripped mid-run — external, re-run 
 
 ## Standing rules (always apply)
 
-1. **Branch from `develop`, PR to `develop`.** Always pass `--branch feature/<scope>/<issue#>-<slug>` (derived in Step 1). Follow Gitflow's two-prefix model: develop-targeting work (features **and** bugs) is `feature/`; `hotfix/` is reserved for fixes branched off `main`. Never `fix/`, never target `main`. The Gitflow _topology_ is owned by `docs/agents/branching.md` (auto-generated, do not edit); the `<scope>/<issue#>-<slug>` naming _within_ the `feature/` namespace is owned by this command.
+1. **Branch from `develop`, PR to `develop`.** Always pass `--branch feature/<scope>/<issue#>-<slug>` (derived in Step 1). Follow Gitflow's two-prefix model: develop-targeting work (features **and** bugs) is `feature/`; `hotfix/` is reserved for fixes branched off `main`. Never `fix/`, never target `main`. The Gitflow _topology_ is owned by the "Git branching (Gitflow)" section of the root `AGENTS.md`; the `<scope>/<issue#>-<slug>` naming _within_ the `feature/` namespace is owned by this command.
 2. **Foundation on `develop` first** (Step 2). Never dispatch a dependent before its contract is on `develop`.
 3. **Clean-slate for `unic-pr-review`.** Issues scoped to `apps/claude-code/unic-pr-review/` share no code/prompts/fixtures/dependency with `apps/claude-code/pr-review/` (deprecated, hook-protected by `.claude/hooks/block-pr-review.mjs`). Put the clean-slate clause in those dispatch prompts verbatim. Other scopes are exempt.
 4. **`verify:changelog` merge-gate.** Guarded-file PRs need a version bump + CHANGELOG bullet or CI fails. If a rollout itself introduces/tightens this gate, merge that PR **last**.

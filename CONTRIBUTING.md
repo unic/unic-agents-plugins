@@ -2,7 +2,7 @@
 
 This monorepo uses a Feature-driven development workflow. For the full lifecycle — from idea capture through grilling, PRD, issues, execution, and QA — see **[`docs/process/development-workflow.md`](docs/process/development-workflow.md)**.
 
-New features and fixes are tracked as Features in the issue tracker under `docs/issues/<slug>/`. Implementation is done manually using `/tdd` for individual issues; the **Feature Runner** (`unic-dlc-build`, shipped by `unic-archon-dlc`) is the long-term AFK runner once it is wired into this repo (see [ADR-0009](apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md)).
+New features and fixes are tracked as Features in the GitHub issue tracker; a Feature that keeps a durable file set also gets a `docs/issues/<slug>/` directory. Implementation runs either by hand with `/tdd` or `/implement` per issue, or AFK via `/archon-rollout`, which dispatches the native `archon-fix-github-issue` workflow per issue and respects the `## Blocked by` tree.
 
 ## Cross-cutting standards
 
@@ -73,9 +73,9 @@ pnpm install
 All work enters through the issue tracker as a Feature. The recommended flow:
 
 1. Capture the idea — open a GitHub Issue directly, or run `/triage` to walk it through the state machine.
-2. Grill the design with `/grill-me` or `/grill-with-docs` until the problem and solution are clear.
-3. Create a PRD and issues with `/to-prd` → `/to-issues`.
-4. Implement each issue manually with `/tdd`. (AFK execution via `unic-dlc-build` will replace this step once the harness is wired in — see [ADR-0009](apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md) and [ADR-0010](apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md).)
+2. Chart the work. If it is too big for one agent session, run `/wayfinder`: it maps the open decisions as a `wayfinder:map` issue with child tickets and resolves them one at a time. If it fits in one session, grill it with `/grill-me` or `/grill-with-docs` instead.
+3. Create a spec and tickets with `/to-spec` → `/to-tickets`.
+4. Implement each issue with `/tdd` or `/implement`, or dispatch a chain of `ready-for-agent` issues with `/archon-rollout`.
 5. Open a PR targeting `develop`.
 
 See [`docs/process/development-workflow.md`](docs/process/development-workflow.md) for the full 8-phase lifecycle.

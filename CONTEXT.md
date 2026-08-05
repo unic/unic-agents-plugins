@@ -21,11 +21,11 @@ A versioned, tagged snapshot of a single Plugin published to `main`. A per-Plugi
 _Avoid_: deploy, publish, version bump
 
 **Feature**:
-A self-contained unit of work tracked as a directory under `docs/issues/<slug>/`, containing a PRD and numbered implementation issues. The atomic input to the Feature Runner.
-_Avoid_: ticket, epic, story
+A self-contained unit of work, tracked as a spec Issue on the GitHub tracker with one child Issue per ticket. A Feature that keeps a durable markdown artefact set also has a `docs/issues/<slug>/` directory, created by hand — no skill generates one. The atomic input to the Feature Runner.
+_Avoid_: ticket (a ticket is one Issue within a Feature), epic, story
 
 **Feature Runner**:
-The skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request. Backed by `unic-dlc-build`.
+Whatever implements a Feature's Issues end-to-end in one worktree, branch, and pull request. Two run here: a developer driving `/tdd` or `/implement`, and `/archon-rollout` dispatching the native `archon-fix-github-issue` workflow per Issue. Not `unic-dlc-build` — that Box ships to Consumers and does not run against this monorepo ([ADR-0033](docs/adr/0033-de-dogfood-unic-archon-dlc.md)).
 _Avoid_: issue runner, queue runner
 
 **Consumer**:

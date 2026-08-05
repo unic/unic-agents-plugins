@@ -17,13 +17,14 @@ Top Skills & Commands:
 - `/grill-with-docs` ████████████████████ 22x/month
 - `/triage` ██████████████░░░░░░ 15x/month
 - `/archon` ████████████░░░░░░░░ 13x/month
-- `/to-issues` ████████░░░░░░░░░░░░ 9x/month
+- `/to-tickets` ████████░░░░░░░░░░░░ 9x/month
 - `/tdd` ██████░░░░░░░░░░░░░░ 7x/month
 - `/plugin-dev:skill-development` █████░░░░░░░░░░░░░░░ 6x/month
 - `/skills` █████░░░░░░░░░░░░░░░ 6x/month
 - `/archon-rollout` ████░░░░░░░░░░░░░░░░ 5x/month
-- `/to-prd` ████░░░░░░░░░░░░░░░░ 5x/month
-- `/zoom-out` ████░░░░░░░░░░░░░░░░ 5x/month
+- `/to-spec` ████░░░░░░░░░░░░░░░░ 5x/month
+
+Counts are historical. `/to-tickets` and `/to-spec` carry the counts of `/to-issues` and `/to-prd`, which upstream renamed at v1.1.
 
 Top MCP Servers:
 
@@ -43,15 +44,16 @@ Top MCP Servers:
 
 ### Skills to Know About
 
-- [ ] /grill-with-docs — adversarial grilling of a plan against the project's domain model and ADRs, updating CONTEXT.md/ADRs inline as decisions firm up. The team's most-used skill: it stress-tests PR findings and locks designs before any code is written.
-- [ ] /triage — moves issues through the 8-state triage workflow; the default for "where do I stand" on open issues and prepping work for an AFK agent.
+- [ ] /grill-with-docs — adversarial grilling of a plan against the project's domain model and ADRs, updating CONTEXT.md/ADRs inline as decisions firm up. The team's most-used skill: it stress-tests PR findings and locks designs before any code is written. At upstream v1.1 it thinned to a composition of `/grilling` + `/domain-modeling`, and hands the bigger jobs to `/wayfinder`.
+- [ ] /wayfinder — the other half of that split, and where upstream moved the planning weight. Charts work too big for one agent session as a `wayfinder:map` issue with child decision tickets, blocked by GitHub's native issue dependencies, and works the frontier one ticket at a time. Reach for it when `/grill-with-docs` would run out of context.
+- [ ] /triage — moves issues through the 8-state triage workflow; the default for "where do I stand" on open issues and the on-ramp for raw work. It is no longer a gate after `/to-tickets` — that approval happens inside the skill.
 - [ ] /archon — runs AI workflows in isolated git worktrees for parallel development; the basis of the team's custom delivery harness.
 - [ ] /archon-rollout — dispatches `archon-fix-github-issue` per issue respecting the dependency tree, with standing guardrails and a deduped monitor; the team's way of shipping a chain of ready-for-agent issues.
-- [ ] /to-issues — breaks a plan or PRD into independently-grabbable issues using tracer-bullet vertical slices.
-- [ ] /to-prd — turns the current conversation into a PRD and publishes it to the issue tracker.
+- [ ] /to-tickets — breaks a spec into independently-grabbable issues using tracer-bullet vertical slices. Replaced `/to-issues` at upstream v1.1.
+- [ ] /to-spec — turns the current conversation into a spec and publishes it to the issue tracker. Replaced `/to-prd` at upstream v1.1.
 - [ ] /tdd — test-first red-green-refactor loop for building features and fixing bugs.
+- [ ] /implement — takes a ticket from spec to working code.
 - [ ] /plugin-dev:skill-development — guidance for authoring and improving Claude Code skills.
-- [ ] /zoom-out — step back and orient on a tangle of changes or untracked files.
 - [ ] /unic-pr-review:review-pr — multi-agent Azure DevOps PR review (intent checking, Confidence-scored Findings, interactive Approval Loop); the v2 successor to the deprecated `pr-review` plugin.
 - [ ] /unic-spec-review:review-spec — adversarial eleven-agent review of Confluence web specs (plus Figma and live-system sources), posting selected Findings back as Confluence comments.
 
@@ -61,7 +63,7 @@ Top MCP Servers:
 - **Run the verification loop before pushing.** `pnpm ci:check` (not just `pnpm format` — Biome's import sorting is not auto-fixed by `format`), then `pnpm test` and `pnpm typecheck`. CI runs all three OSes × Node 22/24, so check cross-platform assumptions (use `node:path`/`node:fs`, not shell commands).
 - **Versioning is scripted.** Bump with `pnpm --filter <plugin> bump <patch|minor|major>` — never hand-edit `marketplace.json`. CHANGELOG headers must be `## [X.Y.Z] — YYYY-MM-DD`, and `verify:changelog` gates any PR that touches guarded files (commands, scripts, `plugin.json`, plugin `README.md`).
 - **Never create or delete `LICENSE` files** — the maintainer manages those by hand in every package.
-- **Spec-first delivery.** Work flows `/grill-with-docs` → `/to-prd` → `/to-issues` → `/archon-rollout`. Only `ready-for-agent` issues with locked acceptance criteria get dispatched to an agent.
+- **Spec-first delivery.** Work flows `/wayfinder` (or `/grill-with-docs` when it fits in one session) → `/to-spec` → `/to-tickets` → `/archon-rollout`. `/to-tickets` publishes `ready-for-agent` tickets only after you approve its breakdown in-session — that approval is the only gate before an agent picks the work up, so read the acceptance criteria there. `/to-spec` labels the spec issue the same way, and that one is not implementable: check an Issue has `## What to build` before dispatching it.
 - **Trust CI on GitHub, not an agent's self-report.** When an Archon run reports "all green / mergeable," confirm with `gh pr checks <n>` before merging — the run summary and its exit code can both mislead.
 
 ## Get Started
