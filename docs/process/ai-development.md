@@ -34,11 +34,10 @@ GitHub Issue / /triage  ← raw capture, no review required
 /wayfinder              ← human resolves one decision ticket per session
   or /grill-with-docs    (single-session work: human reviews every branch)
        ↓
-/to-spec                ← human reviews the synthesized spec
+/to-spec                ← human approves the seams, then it publishes
        ↓
-/to-tickets             ← human reviews the vertical slice breakdown
-       ↓
-/triage                 ← human moves issues to ready-for-agent
+/to-tickets             ← human approves the breakdown, then it publishes
+                           `ready-for-agent` — this is the last checkpoint
        ↓
 /tdd or /implement      ← execution, or /archon-rollout for a chain
 ```
@@ -82,9 +81,9 @@ An issue's `## Acceptance criteria` is doing two jobs: it is the definition of d
 - [ ] Tests pass
 ```
 
-The `to-tickets` skill produces acceptance criteria — but an agent authors them. They are then reviewed by you before the issue reaches `ready-for-agent`. That review is the last human checkpoint before AFK execution. Use it.
+The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies is that approval. Nothing downstream re-checks, so this in-session review is the last human checkpoint before AFK execution. Use it.
 
-If an issue's acceptance criteria are too vague to verify without judgment, the issue is not `ready-for-agent`. Send it back to `needs-specs`.
+If an issue's acceptance criteria are too vague to verify without judgment, do not approve the breakdown. Send the ticket back for rework in the same session, or once published, relabel it `needs-specs`.
 
 ---
 

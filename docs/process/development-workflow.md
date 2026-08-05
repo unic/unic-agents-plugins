@@ -64,7 +64,7 @@ This publishes **one GitHub issue per ticket**, in dependency order so each can 
 
 Two things to know about the output:
 
-- **Both skills apply `ready-for-agent` themselves** on publish. Under this repo's 8-state vocabulary that label is a triage decision, so treat theirs as a proposal: review the acceptance criteria before dispatching anything to an agent. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
+- **The human gate sits inside the skill, not after it.** `/to-tickets` iterates on the breakdown until you approve it, and only then publishes — so the `ready-for-agent` label it applies already carries your approval. Do not run `/triage` again over freshly published tickets. Approve properly inside the skill, because nothing downstream re-checks. `/triage` stays the on-ramp for raw work that arrives unspecified: bug reports, external PRs, ideas. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
 - **`docs/issues/<slug>/` is a repo convention, not skill output.** Nothing generates it since upstream v1.1 — `to-tickets`' local-file mode writes `.scratch/<slug>/issues/` and is only reached when no real tracker is configured. Existing `docs/issues/<slug>/` directories are the durable artefact set from earlier Features; create one by hand when a Feature wants file-based tickets.
 
 ## Phase 7 — Execute

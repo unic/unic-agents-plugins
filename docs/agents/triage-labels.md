@@ -29,6 +29,8 @@ The type tier carries four more labels no canonical role names — `spike`, `tec
 
 Three more state labels exist that no canonical role names. They extend the skill's five-state machine rather than replacing it — `/triage` will not apply them on its own, so set them by hand or by whichever command owns that transition.
 
+`ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. Treat that label as final — do not re-triage freshly published tickets.
+
 | Label         | Meaning                                         | Sits between                 |
 | ------------- | ----------------------------------------------- | ---------------------------- |
 | `needs-specs` | Enough info from the reporter; ready for a spec | `needs-info` → `ready-for-*` |
