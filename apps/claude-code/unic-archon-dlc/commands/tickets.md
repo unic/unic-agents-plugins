@@ -97,6 +97,22 @@ Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Other
 (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`), `ISSUE_TEMPLATE`,
 `BUG_TEMPLATE`, `LABELS`, and `METHODS`.
 
+### Repository pin — check this now, before any tracker or PR write
+
+`REPO_REF` pins every `gh`/`az` write this command makes. If it is `null` or empty, print this line
+before doing anything else and ask the human to confirm or set the key:
+
+```
+project.repo_ref is not set in .archon/unic-dlc.config.yaml — gh/az will infer the repository from
+the checkout, which is the upstream parent in a fork clone. Set it under project:, or confirm you
+want the inferred repository.
+```
+
+On **set the key**: stop, let the human edit `.archon/unic-dlc.config.yaml`, and start again. On
+**confirm the inferred repository**: print what the CLI actually resolves to
+(`gh repo view --json nameWithOwner -q .nameWithOwner`), repeat it in the question, and only then run
+the writes with no `--repo` flag. Never pass `--repo "null"` or `--repo ""` — both fail at the CLI.
+
 ### The Method this Box reads
 
 `METHODS` carries one entry — `to-tickets` — with the tier it resolved from: `config` (a
@@ -282,6 +298,14 @@ read `TRACKER.type` / `TRACKER.coords` from config; never hardcode a tracker. Pu
 dependency `order` from Step 8 (**blockers first**) so each issue can reference the real tracker IDs
 of its blockers.
 
+**Pin every write in this step to `REPO_REF`** — this is the first tracker write the command makes, and
+an unpinned `gh`/`az` files the issue against whatever repository the checkout infers, which in a fork
+clone is someone else's tracker. `gh issue create --repo "<REPO_REF>" …` for GitHub; for ado, the flag
+the subcommand takes (`az boards work-item create` takes none — it takes `--organization` / `--project`
+from `TRACKER.coords`). If a pinned call fails, stop and report it; never retry it unpinned. If the
+human confirmed the inferred repository back in Step 1, say which repository you are filing into before
+the first `create` call.
+
 For each slice, build the issue body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`;
 fall back to the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
 the slice's **acceptance criteria** (contract C — intent lives on the tracker issue) and its
@@ -294,7 +318,8 @@ parent issue.
 The plan is human-approved via a PR — never merge it yourself. Both gate paths stage the same way.
 
 **Staging rule (both paths).** Stage by NAME — only `<ARTIFACTS_DIR>/<SLUG>/issues.json`. Never run
-`git add -A`, `git add .`, `git add -u`, or `git add` on a directory. Never stage `pr-body.md`, any
+`git add -A`, `git add --all`, `git add .`, `git add -u`, `git commit -a`/`-am`, or `git add` on a
+directory. Never stage `pr-body.md`, any
 `*.tmp.md` / `*.scratch.md`, or anything under Archon's per-run artifacts directory (which resolves
 outside the repo tree, and is not the config's `artifacts_dir`). After staging, run
 `git status --porcelain` and confirm every staged path is one you named.
@@ -307,14 +332,8 @@ against the wrong repository. The reference is host-agnostic and only the flag d
 Step 9's issue publishing: pin every `gh issue` call with `--repo "<REPO_REF>"`, and every `az` call
 with the flag its subcommand takes.
 
-If `REPO_REF` is `null`, print this line before doing anything else and ask the human to confirm or
-set the key:
-
-```
-project.repo_ref is not set in .archon/unic-dlc.config.yaml — gh/az will infer the repository from
-the checkout, which is the upstream parent in a fork clone. Set it under project:, or confirm you
-want the inferred repository.
-```
+The null-`REPO_REF` check already ran at the end of Step 1 — before any tracker write — so by
+here the human has either set the key or explicitly confirmed the inferred repository.
 
 Behaviour follows `GATE`:
 

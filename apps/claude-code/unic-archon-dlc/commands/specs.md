@@ -92,6 +92,22 @@ Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Other
 `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE` (`specs.gate`), `PRD_TEMPLATE`, and
 `METHODS`.
 
+### Repository pin — check this now, before any tracker or PR write
+
+`REPO_REF` pins every `gh`/`az` write this command makes. If it is `null` or empty, print this line
+before doing anything else and ask the human to confirm or set the key:
+
+```
+project.repo_ref is not set in .archon/unic-dlc.config.yaml — gh/az will infer the repository from
+the checkout, which is the upstream parent in a fork clone. Set it under project:, or confirm you
+want the inferred repository.
+```
+
+On **set the key**: stop, let the human edit `.archon/unic-dlc.config.yaml`, and start again. On
+**confirm the inferred repository**: print what the CLI actually resolves to
+(`gh repo view --json nameWithOwner -q .nameWithOwner`), repeat it in the question, and only then run
+the writes with no `--repo` flag. Never pass `--repo "null"` or `--repo ""` — both fail at the CLI.
+
 ### The Methods this Box reads
 
 `METHODS` carries one entry per Method — `to-spec`, `grilling`, `domain-modeling` — with the tier it
@@ -250,7 +266,8 @@ confirmations, not gates — they settle the design, they approve nothing. This 
 
 The PRD is human-approved via a PR — never merge it yourself. Both gate paths stage the same way.
 
-**Staging rule (both paths).** Stage by NAME. Never run `git add -A`, `git add .`, `git add -u`, or
+**Staging rule (both paths).** Stage by NAME. Never run `git add -A`, `git add --all`, `git add .`,
+`git add -u`, `git commit -a`/`-am`, or
 `git add` on a directory such as `docs/adr/` — a directory add sweeps in every unrelated in-flight
 ADR. Name the PRD, then name each new ADR file individually. Never stage `pr-body.md`, any
 `*.tmp.md` / `*.scratch.md`, or anything under Archon's per-run artifacts directory (which resolves
@@ -263,14 +280,8 @@ against the wrong repository. The reference is host-agnostic and only the flag d
 --repo "<REPO_REF>"` for GitHub, `az repos pr create --repository "<REPO_REF>"` plus the
 `--organization` / `--project` coords for Azure DevOps. Never hardcode a host.
 
-If `REPO_REF` is `null`, print this line before doing anything else and ask the human to confirm or
-set the key:
-
-```
-project.repo_ref is not set in .archon/unic-dlc.config.yaml — gh/az will infer the repository from
-the checkout, which is the upstream parent in a fork clone. Set it under project:, or confirm you
-want the inferred repository.
-```
+The null-`REPO_REF` check already ran at the end of Step 1 — before any tracker write — so by
+here the human has either set the key or explicitly confirmed the inferred repository.
 
 Behaviour follows `GATE`:
 

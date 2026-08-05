@@ -128,7 +128,7 @@ Surface auto-detected hints while asking: `GIT_REMOTE` contains `github.com` →
 
 Fields (map answers onto the schema paths — see `docs/adr/0018-generic-core-config-compose.md`):
 
-- **project** — `project.name`, `project.branching` (`gitflow | github-flow`), `project.pr_strategy` (`merge | squash | rebase`). _(mandatory: branching, pr_strategy)_
+- **project** — `project.name`, `project.branching` (`gitflow | github-flow`), `project.pr_strategy` (`merge | squash | rebase`), `project.repo_ref` (the host-agnostic repository every PR-touching Box pins its `gh`/`az` call to: `OWNER/REPO` or `HOST/OWNER/REPO` for github, the bare repository name for ado). Suggest a value parsed from `GIT_REMOTE` and ask the human to confirm it — in a fork clone the remote is the fork, which is the CORRECT answer here, and letting the CLI infer instead is the defect this key exists to stop (#289). _(mandatory: branching, pr_strategy; `repo_ref` is optional in the schema, but every Archon Box CANCELS without it — collect it on every run)_
 - **tracker** — `tracker.type` (`github | ado | jira | local-markdown`) _(mandatory)_; `tracker.coords` (e.g. `{owner, repo}` for github, `{org, project, repo}` for ado); `tracker.access` filled from Step 3 (`{mcp, cli}`).
 - **docs** — `docs.type` (`confluence | markdown | none`) — where the team's **product specs** live; `docs.publish` (default `false`, opt-in). `docs.access` from Step 3. _(Independent of the `docs/agents/*.md` files Step 6 always writes.)_
 - **design** — `design.type` (`figma | none`), `design.access` from Step 3.

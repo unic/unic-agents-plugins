@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
+import { parse as parseYaml } from 'yaml'
 
 /**
  * Explicit staging and host-agnostic repo pinning across every Box (#289).
@@ -21,6 +22,10 @@ import { test } from 'node:test'
  *
  * Asserted with dumb string checks, in the same style as `archon-box-methods.test.mjs`: node prompts
  * are prompts, not code, and a clever YAML walk would have failure modes of its own.
+ *
+ * The ONE exception is `depends_on` / `trigger_rule`, which are structural DAG data rather than prose.
+ * A string reader there has a failure mode of its own — it matches the inline flow form and silently
+ * skips the block-list form, so a dropped `trigger_rule` reads as a pass. Those two are parsed.
  */
 
 const PLUGIN_ROOT = resolve(import.meta.dirname, '..')
@@ -57,15 +62,25 @@ function nodeSource(contents, nodeId) {
 }
 
 /**
- * A blind staging verb, as an INVOCATION rather than as prose.
+ * A blind staging verb in a position where it would RUN, rather than one quoted in prose.
  *
  * Every prompt that forbids `git add -A` has to name it in order to forbid it, so a plain substring
- * check would fail on exactly the rule that makes the file correct. The distinguishing feature is
- * position: a runnable line puts the verb first; prose always leads with something else ("Stage by
- * NAME. `git add -A` ... are FORBIDDEN"). So this matches the verb only at the start of a line,
- * indented or not.
+ * check would fail on exactly the rule that makes the file correct. Prose quotes the verb inside
+ * backticks mid-sentence; a runnable one starts a line, indented or not. This is a POSITION check,
+ * not a shell parser — a blind add hidden mid-line (`git checkout -b x && git add -A`) still passes,
+ * which is a known limit rather than a claim of total coverage.
+ *
+ * All six spellings reach the same wrong content: `--all` is `-A`, `:/` and `*` are `.` from the repo
+ * root, and `git add -Av` is `-A` with a clustered flag.
  */
-const BLIND_ADD = /^[ \t]*git add\s+(?:-A|-u|\.)(?:\s|$)/m
+const BLIND_ADD = /^[ \t]*git add\s+(?:-[A-Za-z]*[Au][A-Za-z]*|--all|\.|:\/|\*)(?:\s|$)/m
+
+/**
+ * `git commit -a` / `-am` stages every tracked modification WITHOUT ever calling `git add`, so it
+ * defeats every staging rule that names only the `git add` spellings. It is the shorter thing a
+ * rewiring slice reaches for once `git add -A` is forbidden, which is the threat model in the header.
+ */
+const BLIND_COMMIT = /^[ \t]*git commit\s+(?:-[A-Za-z]*a[A-Za-z]*|--all)(?:\s|$)/m
 
 for (const workflow of WORKFLOWS) {
 	test(`${workflow}.yaml stages nothing blindly`, () => {
@@ -74,6 +89,11 @@ for (const workflow of WORKFLOWS) {
 			contents,
 			BLIND_ADD,
 			`${workflow}.yaml runs a blind staging verb — a Box stages named paths only (#289)`
+		)
+		assert.doesNotMatch(
+			contents,
+			BLIND_COMMIT,
+			`${workflow}.yaml commits with -a, which stages every tracked modification without calling \`git add\` — the same defect as \`git add -u\` (#289)`
 		)
 	})
 }
@@ -201,8 +221,8 @@ test('an absent project.repo_ref cancels the Box — it never fails it', () => {
 		)
 		assert.match(
 			guard,
-			/when: "\$bootstrap\.output\.status == 'ready' && \$bootstrap\.output\.repo_ref_present == 'false'"/,
-			`${workflow}.yaml's guard-no-repo-ref must fire only on a ready config with no repo_ref`
+			/when: "\$bootstrap\.output\.status == 'ready' && \(\$bootstrap\.output\.repo_ref_present == 'false' \|\| \$bootstrap\.output\.repo_ref == ''\)"/,
+			`${workflow}.yaml's guard-no-repo-ref must fire on a ready config whose repo_ref is missing OR empty — the flag is self-reported by the same LLM node that emits the value, so gating on the flag alone lets \`repo_ref: ""\` through as \`--repo ""\``
 		)
 		// Actionable: the message names the missing key AND the command that writes it.
 		assert.match(guard, /project\.repo_ref/, `${workflow}.yaml's cancel message must name project.repo_ref`)
@@ -214,26 +234,68 @@ test('an absent project.repo_ref cancels the Box — it never fails it', () => {
 	}
 })
 
-test('a node that waits on guard-no-repo-ref joins with trigger_rule: all_done', () => {
+test('every node that waits on guard-no-repo-ref joins with trigger_rule: all_done', () => {
 	// The guard carries a `when:`, so on the HAPPY path — `project.repo_ref` IS set — it is skipped, and
 	// a skipped dependency propagates its skipped state under Archon's default `all_success` join. A
 	// dependant without `trigger_rule: all_done` is therefore skipped for every correctly-configured
 	// Consumer, taking its whole downstream chain with it. This asserts the join, not the edge: a Box may
 	// legitimately leave the guard as a `when:`-exclusive sibling (a cancel node stops in-flight parallel
 	// nodes), but a Box that DOES depend on it must say `all_done`.
+	//
+	// PARSED, not string-matched. `depends_on` is data, not prose, so the file-header justification for
+	// string checks does not cover it — and a string reader tuned to the inline flow form
+	// (`depends_on: [a, b]`) silently SKIPS the equally valid block-list form, turning a defect into a
+	// pass rather than a failure.
+	let checked = 0
 	for (const workflow of WORKFLOWS) {
-		const contents = readWorkflow(workflow)
-		for (const [, nodeId] of contents.matchAll(/^ {2}- id: (\S+)$/gm)) {
-			const node = nodeSource(contents, nodeId)
-			if (!node) continue
-			const dependsOn = node.match(/^ {4}depends_on: \[([^\]]*)\]/m)?.[1] ?? ''
-			if (!dependsOn.split(',').some((dep) => dep.trim() === 'guard-no-repo-ref')) continue
-			assert.match(
-				node,
-				/^ {4}trigger_rule: all_done$/m,
-				`${workflow}.yaml's ${nodeId} node depends on the when:-gated guard-no-repo-ref, so it needs \`trigger_rule: all_done\` — the default all_success skips it whenever the guard is skipped`
+		const nodes = parseYaml(readWorkflow(workflow))?.nodes ?? []
+		for (const node of nodes) {
+			if (![node.depends_on ?? []].flat().includes('guard-no-repo-ref')) continue
+			checked++
+			assert.equal(
+				node.trigger_rule,
+				'all_done',
+				`${workflow}.yaml's ${node.id} node depends on the when:-gated guard-no-repo-ref, so it needs \`trigger_rule: all_done\` — the default all_success skips it whenever the guard is skipped`
 			)
 		}
+	}
+	// Non-vacuity. /pr-review's `prep` carries the edge today, so a count of zero means the reader broke,
+	// not that the Boxes are clean — the failure mode this assertion exists to catch.
+	assert.ok(checked >= 1, 'no guard-no-repo-ref dependant found at all — the depends_on reader is broken')
+})
+
+test('each bootstrap still emits the contract the guard condition reads', () => {
+	// The guard's `when:` is asserted verbatim above; this is the PRODUCER half. A `when:` that reads a
+	// field bootstrap does not emit is not an error — it is permanently FALSE, so the guard never
+	// cancels, the Box runs unpinned, and `gh pr create` resolves the repository from the checkout: the
+	// upstream parent in a fork clone. That is #289 restored with the guard still sitting in the file
+	// looking correct (#289 AC 7).
+	for (const workflow of WORKFLOWS) {
+		const contents = readWorkflow(workflow)
+		const bootstrap = nodeSource(contents, 'bootstrap')
+		assert.ok(bootstrap, `${workflow}.yaml lost its bootstrap node`)
+
+		const required = bootstrap.match(/^\s+required: \[([^\]]*)\]/m)?.[1] ?? ''
+		const declared = new Set(required.split(',').map((field) => field.trim()))
+
+		// Take each `when:` expression whole, THEN every field inside it — a single regex over the file
+		// stops at the first `$bootstrap.output.<field>` per condition, so the second and later reads of a
+		// compound condition go unchecked. `guard-no-repo-ref` reads two.
+		for (const [, expression] of contents.matchAll(/^\s+when: "([^"]*)"/gm)) {
+			for (const [, field] of expression.matchAll(/\$bootstrap\.output\.(\w+)/g)) {
+				assert.ok(
+					declared.has(field),
+					`${workflow}.yaml gates a node on $bootstrap.output.${field}, which bootstrap does not list in \`required\` — the condition is permanently false, not an error`
+				)
+			}
+		}
+
+		// A boolean never equals the string 'false', so retyping this field silently disables the guard.
+		assert.match(
+			bootstrap,
+			/repo_ref_present:[\s\S]{0,120}?'true'[\s\S]{0,40}?'false'/,
+			`${workflow}.yaml must keep repo_ref_present a STRING enum — the guard compares it to 'false' (#289 AC 7)`
+		)
 	}
 })
 

@@ -130,9 +130,11 @@ test('project.repo_ref defaults to null and is optional, so a config without it 
 
 test('project.repo_ref survives a merge and stays host-agnostic', () => {
 	// The value is passed verbatim to whichever CLI the tracker resolves to, so the schema must not
-	// normalise, split or host-qualify it: "OWNER/REPO", "HOST/OWNER/REPO" and ADO's "PROJECT/REPO" are
-	// all legal and only the consuming Box knows which flag they belong to.
-	for (const ref of ['unic/unic-agents-plugins', 'github.com/unic/unic-agents-plugins', 'MyProject/my-repo']) {
+	// normalise, split or host-qualify it. "OWNER/REPO" and "HOST/OWNER/REPO" are the github forms; for
+	// ado the value is the bare repository NAME, because `az repos --repository` takes a name or ID with
+	// the project supplied separately from `tracker.coords` — a "PROJECT/REPO" pair cannot be passed to
+	// it, which is why no consumer is allowed to split the value.
+	for (const ref of ['unic/unic-agents-plugins', 'github.com/unic/unic-agents-plugins', 'my-repo']) {
 		const merged = mergeConfig({ project: { repo_ref: ref } }, {})
 		assert.equal(/** @type {any} */ (merged.project).repo_ref, ref)
 		// The sibling project keys must survive alongside it — a replaced (not merged) project block

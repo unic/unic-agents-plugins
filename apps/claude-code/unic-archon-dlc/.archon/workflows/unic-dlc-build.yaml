@@ -42,11 +42,13 @@ nodes:
       implement-review-precheck node pins its code-review fixed point to it.
 
       `project.repo_ref` is the host-agnostic repository reference every PR-touching node pins its CLI
-      call to — "OWNER/REPO" (optionally "HOST/OWNER/REPO") for github, "PROJECT/REPO" for ado. Emit it
-      VERBATIM as `repo_ref`, with no normalising, splitting or host-qualifying: only the consuming node
-      knows which flag it belongs to. When the key is absent, null or empty, emit `repo_ref` "" and
-      `repo_ref_present` "false"; otherwise the value and "true". `repo_ref_present` is the STRING
-      "true"/"false" (an enum) so the `guard-no-repo-ref` condition compares it reliably.
+      call to — "OWNER/REPO" (optionally "HOST/OWNER/REPO") for github, and the bare repository NAME
+      for ado, whose `--repository` takes a name or ID with the project supplied separately from
+      `tracker.coords`. Emit it VERBATIM as `repo_ref`, with no normalising, splitting or
+      host-qualifying: only the consuming node knows which flag it belongs to. When the key is absent,
+      null or empty, emit `repo_ref` "" and `repo_ref_present` "false"; otherwise the value and "true".
+      `repo_ref_present` is the STRING "true"/"false" (an enum) so the `guard-no-repo-ref` condition
+      compares it reliably.
 
       Emit ONLY the structured object. `test_command` is the repo default test command you can infer
       (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one. Emit
@@ -94,11 +96,11 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   - id: guard-no-repo-ref
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status == 'ready' && $bootstrap.output.repo_ref_present == 'false'"
+    when: "$bootstrap.output.status == 'ready' && ($bootstrap.output.repo_ref_present == 'false' || $bootstrap.output.repo_ref == '')"
     cancel: >
       /build cannot run: `project.repo_ref` is not set in `.archon/unic-dlc.config.yaml`. It is the
-      repository the PR is opened against — "OWNER/REPO" (or "HOST/OWNER/REPO") for github,
-      "PROJECT/REPO" for ado. Without it `gh`/`az` infers the repository from the checkout, which in a
+      repository the PR is opened against — "OWNER/REPO" (or "HOST/OWNER/REPO") for github, the bare
+      repository name for ado. Without it `gh`/`az` infers the repository from the checkout, which in a
       fork clone is the upstream parent. Add it under `project:` (or re-run /unic-archon-dlc:setup) and
       start /build again.
 
@@ -270,7 +272,8 @@ nodes:
         you write the test, then use the command you introduce).
 
         #### Staging rule for BOTH phase commits below
-        Stage by NAME. `git add -A`, `git add .` and `git add -u` are FORBIDDEN in this loop: the
+        Stage by NAME. `git add -A`, `git add --all`, `git add .`, `git add -u` and
+        `git commit -a`/`-am` are FORBIDDEN in this loop: the
         worktree also carries the operator's copied `.archon/` directory, scratch files, and a
         build-state.json this iteration is about to rewrite, so "everything changed" is not this phase's
         change. Stage each file individually and quoted — `git add -- "<path>" "<path>"` — then run
@@ -361,10 +364,13 @@ nodes:
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker issue
         for each slice (compose the configured tracker from `.archon/unic-dlc.config.yaml`, MCP-first /
         CLI-fallback, never hardcode a host — ADR-0016). Pin every read to
-        `$bootstrap.output.repo_ref` — `gh --repo "<ref>"` for github, `az repos … --repository
-        "<ref>"` for ado — so the issues you read are this repository's and not an upstream parent's,
-        which is what an unpinned CLI resolves to in a fork clone. Degrade gracefully: if the tracker
-        cannot be queried, the PRD + issues.json are enough. Never ask where the spec is.
+        `$bootstrap.output.repo_ref` — `gh <subcommand> --repo "<ref>"` for github (e.g. `gh issue view
+        --repo "<ref>"`; `--repo` is a subcommand flag, not a top-level one), `az boards work-item show
+        --organization … --project …` for ado, whose work-item family takes no repository flag — so the
+        issues you read are this repository's and not an upstream parent's, which is what an unpinned
+        CLI resolves to in a fork clone. If a pinned read FAILS, report the command and its error; do
+        NOT retry it unpinned. Degrade gracefully: if the tracker cannot be queried, the PRD +
+        issues.json are enough. Never ask where the spec is.
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
         applies.** `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and
         `setup-matt-pocock-skills` is not a Plugin dependency — running it would write a competing
@@ -482,7 +488,8 @@ nodes:
         REPO_REF      = $bootstrap.output.repo_ref
 
       1. Stage the build BY NAME — this is an EXPLICIT list, not "everything changed". `git add -A`,
-         `git add .` and `git add -u` are FORBIDDEN in this node: the worktree also carries the
+         `git add --all`, `git add .`, `git add -u` and `git commit -a`/`-am` are FORBIDDEN in this
+         node: the worktree also carries the
          operator's copied `.archon/` directory and whatever scratch files the loop's 60 possible
          iterations left behind, so a blind add lands scratch and PR-body artefacts in the PR.
 
@@ -513,7 +520,24 @@ nodes:
          entry is a path you named above, and unstage anything else with
          `git restore --staged -- "<path>"`.
 
-      2. Open a PR targeting `develop`:
+      2. COMMIT what you staged, then PUSH the branch. Staging is not committing: without this step the
+         five session paths above stay staged and uncommitted, `gh pr create` still exits 0 against the
+         loop's last GREEN commit, and the PR opens without the PRD, the report or the ADR-0012 proof —
+         which then dies with the worktree when /cleanup prunes it.
+
+           git commit -m "build($bootstrap.output.slug): session artifacts and drafted ADRs"
+
+         Confirm the commit landed and carries the proof:
+
+           git show --stat --name-only HEAD
+
+         If <ARTIFACTS_DIR>/<SLUG>/build-state.json is absent from that output, STOP and report it — it
+         is ADR-0012's anti-cheat proof (`red_exit`, `red_unexpected_pass`, the per-slice phase order)
+         and the PR is not reviewable without it. Then push, so the PR has commits to open against:
+
+           git push -u origin HEAD
+
+      3. Open a PR targeting `develop`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
                   ## Review Checklist
@@ -528,12 +552,21 @@ nodes:
          PIN THE REPOSITORY to REPO_REF on every call — never let the CLI infer it from the checkout,
          which in a fork clone resolves to the upstream parent and opens the PR against the wrong
          repository. The reference is host-agnostic and only the FLAG differs (ADR-0016):
-           - github → `gh pr create --repo "<REPO_REF>" --base develop …` (and `--repo` on every other
-             `gh pr` / `gh api` call this node makes)
+           - github → `gh pr create --repo "<REPO_REF>" --base develop …`, and `--repo "<REPO_REF>"` on
+             every other `gh pr` / `gh issue` call this node makes. `gh api` has NO `--repo` flag: write
+             the reference into the path instead (`repos/<OWNER>/<REPO>/…`), and when REPO_REF carries a
+             leading host segment ("HOST/OWNER/REPO") pass that segment as `--hostname "<HOST>"` and put
+             only "<OWNER>/<REPO>" in the path — a three-segment path 404s.
            - ado    → `az repos pr create --repository "<REPO_REF>" …` plus the `--organization` /
-             `--project` coords from `tracker.coords`
+             `--project` coords from `tracker.coords`. REPO_REF is the bare repository name here; the
+             project is a separate flag, which is why the value is never a "PROJECT/REPO" pair.
            - jira / local-markdown → no PR CLI exists; print the composed command / manual steps.
          REPO_REF is guaranteed non-empty here: `guard-no-repo-ref` cancelled the run otherwise.
+
+         If a pinned call FAILS, STOP and report the exact command and its error. Do NOT retry the call
+         without the pin, and do NOT split, reshape or host-qualify REPO_REF to make it pass: an
+         unpinned retry writes to whatever repository the checkout infers, which is the defect this pin
+         exists to prevent (#289). A wrong `project.repo_ref` is the operator's to fix, not yours.
 
          Print the PR URL.
 
@@ -557,7 +590,8 @@ nodes:
           1. Address the feedback with the minimum change (fix impl and/or tests).
           2. Re-run the test suite and the stub scan; confirm green.
           3. Update the session report.md if outcomes changed, then commit and push the fix to the PR
-             branch. Stage BY NAME — `git add -A`, `git add .` and `git add -u` are FORBIDDEN here, and
+             branch. Stage BY NAME — `git add -A`, `git add --all`, `git add .`, `git add -u` and
+             `git commit -a`/`-am` are FORBIDDEN here, and
              NEVER stage `pr-body.md`, any `*.tmp.md` / `*.scratch.md`, anything under `$ARTIFACTS_DIR`
              (Archon's per-run directory, outside the repo tree — not the config's `artifacts_dir`), or
              anything under `.archon/` (the operator's files, copied into this worktree before the run).
