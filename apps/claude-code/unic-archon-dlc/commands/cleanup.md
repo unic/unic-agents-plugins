@@ -92,7 +92,11 @@ EOJS
 Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `TRACKER` (`.type`/`.access`/`.coords`,
 may be `null`), `CLEANUP` (`.stale_days` default `7`, `.dry_run` default `true`, `.prune_slug_dirs`
 default `false`), and `PROJECT` (`.branching`/`.pr_strategy`; a **hint** for the main branch — it may
-be `null`). If `degraded` is `true`, print a one-line warning naming `reason` and note the fallbacks,
+be `null`; plus `.repo_ref`, the repository every host CLI call is pinned to — `<owner>/<repo>` for
+GitHub, the repository name or ID for Azure DevOps. It is an optional key, so it may be `null`. Take
+it from config only — never from `git remote get-url origin` or `gh repo view`, which follow the
+host's own remote precedence (`upstream` > `github` > `origin`) and resolve to the upstream parent on
+a fork clone). If `degraded` is `true`, print a one-line warning naming `reason` and note the fallbacks,
 then continue. If `TRACKER` is `null` or its `type` is unset, warn that PR/branch-state detection and
 slug-dir pruning will be skipped (they need the tracker), then continue. If `PROJECT` is `null` or
 `PROJECT.branching` is unset (the plugin-load and no-config fallbacks leave it so), warn that the main
@@ -190,7 +194,11 @@ items, then ask the user to confirm **that category** (yes/no). On confirmation,
 - **A specific branch's full lifecycle** (worktree + local/remote branch) → `archon complete <branch>`.
   Use this for a targeted removal the bulk `isolation cleanup` did not cover.
 - **Stale/leftover PRs** → close via the composed `TRACKER.access` (e.g. the tracker MCP close tool,
-  or `gh pr close` / `az repos pr update --status abandoned`), never a hardcoded CLI. Opt-in only.
+  or `gh pr close --repo "<PROJECT.repo_ref>"` / `az repos pr update --repository
+"<PROJECT.repo_ref>" --status abandoned`), never a hardcoded CLI. Pin the repository on every call:
+  closing a PR is destructive, and an unpinned CLI resolves to the upstream parent on a fork clone.
+  If `PROJECT.repo_ref` is unset, **skip this category** and warn that `project.repo_ref` is missing
+  from `.archon/unic-dlc.config.yaml` — never guess the repository. Opt-in only.
 - **Prunable slug dirs** (only if `CLEANUP.prune_slug_dirs` is `true`) → remove the directory with
   Node's `node:fs` (`rm` recursive). **Before deleting, scan the dir for any `LICENSE` file; if one
   is present, skip that dir and warn the maintainer to handle it manually** (repo LICENSE policy).
