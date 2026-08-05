@@ -193,9 +193,9 @@ test('/build hosts no refactor phase — tdd puts refactoring in the review stag
 	const build = readWorkflow('unic-dlc-build')
 
 	// The signal is the declared phase set and what the loop WRITES, not a scan for the string: the
-	// state-load rule below must name `refactor-done` in order to retire it, exactly as the pre-check
-	// node names `gh pr comment` in order to forbid it. A substring check would fail on the rule that
-	// makes the retirement true.
+	// state-load rule below must name `refactor-done` in order to retire it, exactly as a staging rule
+	// must name `git add -A` in order to forbid it. A substring check would fail on the rule that makes
+	// the retirement true.
 	assert.match(
 		build,
 		/"phase": "pending\|red-done\|green-done"/,
@@ -229,9 +229,10 @@ test('/pr-review is the only Archon Box that posts a review', () => {
 	// Boxes with review-posting authority would double-comment every PR — invisible in a green test run,
 	// which is why it is asserted rather than trusted to prose.
 	//
-	// The signal is the hidden idempotency marker, not a scan for `gh pr comment`: the pre-check node
-	// NAMES those commands in order to forbid them, so a substring check would fail on the prohibition
-	// that makes the rule true. Only a node that actually posts a review needs the marker.
+	// The signal is the hidden idempotency marker, not a scan for the mutations the pre-check forbids:
+	// #289 stripped every host CLI token from these prompts, so the prohibition is now phrased in terms
+	// of the ACT ("no PR comment", "no write call against the tracker's API") rather than a command a
+	// substring check could match. Only a node that actually posts a review needs the marker.
 	const nodeBody = nodeSource(readWorkflow('unic-dlc-build'), 'implement-review-precheck')
 	assert.ok(nodeBody, 'unic-dlc-build.yaml must carry the implement-review-precheck node')
 

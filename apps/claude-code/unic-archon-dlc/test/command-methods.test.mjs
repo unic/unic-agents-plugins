@@ -69,11 +69,13 @@ const HARNESS_DOCS = new Set([
 	'report.md',
 	'arch-review.md',
 	'findings.md',
-	// Named only to forbid: the local publishing shape `to-tickets` offers, and the two label files
-	// Matt's own setup writes, which `/triage` must never read.
+	// Named only to forbid: the local publishing shape `to-tickets` offers, the two label files
+	// Matt's own setup writes, which `/triage` must never read, and the scratch PR-body file every
+	// staging rule denies by name (#289 AC 4).
 	'tickets.md',
 	'docs/agents/issue-tracker.md',
 	'docs/agents/triage-labels.md',
+	'pr-body.md',
 ])
 
 /** Every backtick-wrapped, slash-prefixed token — `` `/build` ``, `` `/implement` ``. */

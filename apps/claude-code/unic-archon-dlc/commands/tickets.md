@@ -95,6 +95,23 @@ Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Other
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
 `ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `METHODS`.
 
+### Resolve the target repository
+
+`TARGET_REPO` is the repository this run publishes issues to and opens its PR against. **Derive it;
+never let a tool infer it.**
+
+1. Run `git remote get-url origin`. That URL is `TARGET_REPO`.
+2. `project.repo_ref` in `.archon/unic-dlc.config.yaml` is an **optional override**, absent from a
+   default config. When it is set, it wins verbatim.
+3. When no override is set, list the remotes (`git remote -v`) and compare their fetch URLs,
+   normalising away a trailing `.git`, the `user@host:path` vs `https://host/path` spelling, and case.
+   If a remote other than `origin` names a **different** repository, this checkout is a fork and a
+   host tool would act on the parent. **Stop** and ask the user to set `project.repo_ref` to the
+   repository this run must act on. A checkout whose only remote is `origin` never reaches this stop,
+   so no existing project is affected.
+
+Print `TARGET_REPO` with the tier line below, so a surprising issue or PR target is diagnosable.
+
 ### The Method this Box reads
 
 `METHODS` carries one entry — `to-tickets` — with the tier it resolved from: `config` (a
@@ -274,11 +291,15 @@ dependency-ordered baton `/build` consumes — it carries each slice's `acceptan
 
 ## Step 9 — Publish issues to the tracker (dependency order)
 
-Publish each slice to the team's tracker by **composing the configured tracker system-skill**
-(MCP-first) or its CLI (`gh` / `az` / `jira` per `TRACKER.access`; or the `azure-devops-cli` skill) —
-read `TRACKER.type` / `TRACKER.coords` from config; never hardcode a tracker. Publish in the
-dependency `order` from Step 8 (**blockers first**) so each issue can reference the real tracker IDs
-of its blockers.
+Publish each slice to `TARGET_REPO` — that repository, named explicitly in every call, never the one a
+tool infers from the checkout. Compose the system-skill registered under `TRACKER.access` (MCP first,
+its CLI as fallback) and build each call from that skill's own current interface: read `TRACKER.type` /
+`TRACKER.coords` from config, but do not write a host command, subcommand, or flag here and do not
+branch on which provider `TRACKER.type` names — this Box owns the _what_ and none of the _how_
+([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the registered skill cannot target a
+repository explicitly, stop and say which capability is missing rather than publishing to an inferred
+repository. Publish in the dependency `order` from Step 8 (**blockers first**) so each issue can
+reference the real tracker IDs of its blockers.
 
 For each slice, build the issue body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`;
 fall back to the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
@@ -291,22 +312,34 @@ parent issue.
 
 The plan is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
-- **`open-pr`** (default): create `feature/tickets/<SLUG>`, stage `issues.json`, commit, and open a
-  PR to `develop`, then **stop** for human review:
+Both gates stage the **same named path**, and nothing else: `<ARTIFACTS_DIR>/<SLUG>/issues.json`.
+
+**Staging rule — named paths only.** Run one `git add <path>` per path above. Never `git add -A`,
+`git add .`, or `git add -u`. Never stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under
+`$ARTIFACTS_DIR` (Archon's per-run directory, which resolves outside the repo tree under
+`~/.archon/workspaces/<name>/artifacts/`; `<ARTIFACTS_DIR>` from config is a different, repo-relative
+path and is staged above). Then run `git status --porcelain` and confirm every staged entry is one of
+the named paths. Unstage anything else with `git restore --staged <path>` and say what you unstaged.
+
+- **`open-pr`** (default): create `feature/tickets/<SLUG>`, stage the named path, commit, push, and
+  open a PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/tickets/<SLUG>
   git add <ARTIFACTS_DIR>/<SLUG>/issues.json
+  git status --porcelain               # confirm nothing else is staged
   git commit -m "tickets(<SLUG>): vertical-slice issues"
   git push origin feature/tickets/<SLUG>
-  gh pr create --base develop --title "tickets(<SLUG>): vertical-slice issues" --body "<why + slice summary + tracker links>"
   ```
 
-  (Adapt the host commands to `TRACKER` if the project is not GitHub.) On **reject**, return to
-  Step 4 and revise the breakdown, then re-run from Step 8.
+  Then open the PR **against `TARGET_REPO`**, base `develop`, title
+  `tickets(<SLUG>): vertical-slice issues`, body `<why + slice summary + tracker links>`, composing
+  the same registered system-skill Step 9 used and naming `TARGET_REPO` explicitly. On **reject**,
+  return to Step 4 and revise the breakdown, then re-run from Step 8.
 
-- **`stage-only`**: write `issues.json` (already done in Step 8) and `git add` it, print a suggested
-  PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+- **`stage-only`**: write `issues.json` (already done in Step 8), stage the same named path under the
+  same staging rule, print a suggested PR title/body, and **stop** — leave the commit, push, and PR
+  to the user.
 
 ## Step 11 — Summary
 
@@ -316,6 +349,7 @@ Print a concise summary:
 /tickets complete — slug: <SLUG>
   issues:   <ARTIFACTS_DIR>/<SLUG>/issues.json (<count> slices)
   order:    <id → id → …>  (dependency order)
+  repo:     <TARGET_REPO>  (origin | project.repo_ref override)
   tracker:  <published issue refs>
   methods:  <name>(<tier>) (as printed in Step 1)
   gate:     <open-pr → PR #… | stage-only → staged>

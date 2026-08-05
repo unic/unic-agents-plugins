@@ -17,8 +17,10 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 ## What this workflow does
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
-   (`artifacts_dir`, `gates.build`, `build.*`), and confirm `issues.json` exists. Missing
-   preconditions cancel cleanly with a "run /tickets first" message.
+   (`artifacts_dir`, `gates.build`, `build.*`), confirm `issues.json` exists, and **derive the target
+   repository** from the worktree's `origin` remote (`project.repo_ref` is an optional override, absent
+   by default). Missing preconditions cancel cleanly with a "run /tickets first" message; an ambiguous
+   repository cancels with its own message.
 
 2. **slopcheck** — verify every package introduced since the last commit against the npm registry.
    Packages that can't be confirmed are flagged `[ASSUMED]` and halt the build until a human resolves
@@ -45,7 +47,11 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 6. **report** — writes `<artifacts_dir>/<slug>/report.md` (what was built, matrix, test outcomes,
    decisions/ADRs, tech debt).
 
-7. **open-pr → build-pr-gate** — opens a PR to `develop`, then gates it. The gate is **HITL by default**
+7. **open-pr → build-pr-gate** — stages an explicit list of **named paths** (source, tests, `PRD.md`,
+   `issues.json`, `report.md`, `build-state.json`, and any drafted ADR), confirms with
+   `git status --porcelain` that nothing else is staged, opens a PR against the derived repository with
+   base `develop`, then gates it. `build-state.json` is committed here and **only** here — never during
+   a loop iteration — so the loop's anti-cheat record survives `/cleanup`. The gate is **HITL by default**
    and honours `gates.build`: skipped when `afk` (the PR is still opened). On **reject**, a
    verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses — it does **not** rebuild
    from scratch.
@@ -55,6 +61,7 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 - `/unic-archon-dlc:tickets <slug>` has run and its tickets PR is approved.
 - `<artifacts_dir>/<slug>/issues.json` exists.
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
+- The checkout has an `origin` remote, or `project.repo_ref` is set.
 - Archon ≥ 0.5.0.
 
 ## Runs
