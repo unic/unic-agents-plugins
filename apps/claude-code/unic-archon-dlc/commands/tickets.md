@@ -65,6 +65,7 @@ try {
           ok: true,
           artifacts_dir: config.artifacts_dir,
           tracker: config.tracker,
+          repo_ref: g('project.repo_ref'),
           estimations: config.estimations,
           tickets: config.tickets,
           issue_template: g('templates.issue'),
@@ -83,8 +84,14 @@ EOJS
 ```
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
-`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `MATT_SUITE`.
+`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `REPO_REF` (`project.repo_ref`),
+`ESTIMATIONS`, `GATE` (`tickets.gate`), `ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `MATT_SUITE`.
+
+`REPO_REF` is the repository every host CLI call is pinned to — `<owner>/<repo>` (or
+`<host>/<owner>/<repo>`) for GitHub, the repository name or ID for Azure DevOps. It is an optional
+config key, so it may be `null`; Step 10 handles that case. Take it from config only — never from
+`git remote get-url origin` or `gh repo view`, which follow the host's own remote precedence
+(`upstream` > `github` > `origin`) and resolve to the upstream parent on a fork clone.
 
 If `MATT_SUITE.present` is `false`, warn that `/to-issues` is a declared dependency and slicing
 quality will degrade, then continue (non-blocking).
@@ -240,9 +247,11 @@ dependency-ordered baton `/build` consumes — it carries each slice's `acceptan
 
 Publish each slice to the team's tracker by **composing the configured tracker system-skill**
 (MCP-first) or its CLI (`gh` / `az` / `jira` per `TRACKER.access`; or the `azure-devops-cli` skill) —
-read `TRACKER.type` / `TRACKER.coords` from config; never hardcode a tracker. Publish in the
-dependency `order` from Step 8 (**blockers first**) so each issue can reference the real tracker IDs
-of its blockers.
+read `TRACKER.type` / `TRACKER.coords` from config; never hardcode a tracker. Pin every host CLI call
+to `REPO_REF` — `gh issue create --repo "<REPO_REF>" …` for GitHub, `--repository "<REPO_REF>"` for
+Azure DevOps — so the issues land on the configured repository rather than the one the CLI infers
+from the checkout. Publish in the dependency `order` from Step 8 (**blockers first**) so each issue
+can reference the real tracker IDs of its blockers.
 
 For each slice, build the issue body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`;
 fall back to Matt's `/to-issues` body template if the config template is null). The body MUST carry
@@ -255,22 +264,47 @@ parent issue.
 
 The plan is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
+**Staging rule (both gates).** Stage paths you have named — here, `issues.json` alone. Never
+`git add -A`, `git add .`, `git add -u`, or a bare directory. Never stage `pr-body.md` (or
+`.pr-body.md`), `*.tmp.md`, `*.scratch.md`, `*-report.md` at the repo root, or anything under
+Archon's per-run artifacts dir (the `$ARTIFACTS_DIR` environment variable, which resolves outside the
+repo under `~/.archon/workspaces/<name>/artifacts/` — not the in-repo `ARTIFACTS_DIR` config value,
+whose `issues.json` you do commit). After staging, run `git status --porcelain` and confirm every
+staged entry is a path you named; `git restore --staged "<path>"` anything else before you commit.
+
+**Repository pinning rule (`open-pr` gate).** Pass `REPO_REF` explicitly: `--repo "<REPO_REF>"` for
+GitHub, `--repository "<REPO_REF>"` for Azure DevOps. If `REPO_REF` is null or empty, do **not** open
+the PR: print
+
+```
+project.repo_ref is not set in .archon/unic-dlc.config.yaml. Without it the host CLI infers the
+repository from the checkout and opens the PR against the upstream parent on a fork clone. Set
+project.repo_ref (run /unic-archon-dlc:setup, or add the key by hand), then re-run this gate.
+```
+
+then fall back to `stage-only` behaviour below and **stop**. This mirrors the Archon boxes, which
+cancel on the same missing key rather than failing.
+
 - **`open-pr`** (default): create `feature/tickets/<SLUG>`, stage `issues.json`, commit, and open a
   PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/tickets/<SLUG>
   git add <ARTIFACTS_DIR>/<SLUG>/issues.json
+  git status --porcelain                      # confirm nothing else is staged
   git commit -m "tickets(<SLUG>): vertical-slice issues"
   git push origin feature/tickets/<SLUG>
-  gh pr create --base develop --title "tickets(<SLUG>): vertical-slice issues" --body "<why + slice summary + tracker links>"
+  gh pr create --repo "<REPO_REF>" --base develop --title "tickets(<SLUG>): vertical-slice issues" --body "<why + slice summary + tracker links>"
   ```
 
-  (Adapt the host commands to `TRACKER` if the project is not GitHub.) On **reject**, return to
-  Step 4 and revise the breakdown, then re-run from Step 8.
+  For Azure DevOps the last line becomes
+  `az repos pr create --repository "<REPO_REF>" --target-branch develop --title "…" --description "…"`.
+  (Adapt the host commands to `TRACKER` if the project is not GitHub; the repository is always pinned,
+  whichever host.) On **reject**, return to Step 4 and revise the breakdown, then re-run from Step 8.
 
-- **`stage-only`**: write `issues.json` (already done in Step 8) and `git add` it, print a suggested
-  PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+- **`stage-only`**: write `issues.json` (already done in Step 8) and `git add` it **by name** (same
+  staging rule), print a suggested PR title/body, and **stop** — leave the branch, commit, push, and
+  PR to the user.
 
 ## Step 11 — Summary
 

@@ -58,6 +58,7 @@ try {
           ok: true,
           artifacts_dir: config.artifacts_dir,
           tracker: config.tracker,
+          repo_ref: g('project.repo_ref'),
           docs: config.docs,
           design: config.design,
           estimations: config.estimations,
@@ -76,9 +77,15 @@ EOJS
 ```
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `DOCS` (`.type`/`.publish`/`.access`),
-`DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE`
-(`specs.gate`), `PRD_TEMPLATE`, and `MATT_SUITE`.
+`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `REPO_REF` (`project.repo_ref`), `DOCS`
+(`.type`/`.publish`/`.access`), `DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE`
+(`specs.discuss_mode`), `GATE` (`specs.gate`), `PRD_TEMPLATE`, and `MATT_SUITE`.
+
+`REPO_REF` is the repository the PR gate pins its host CLI to — `<owner>/<repo>` (or
+`<host>/<owner>/<repo>`) for GitHub, the repository name or ID for Azure DevOps. It is an optional
+config key, so it may be `null`; Step 8 handles that case. Take it from config only — never from
+`git remote get-url origin` or `gh repo view`, which follow the host's own remote precedence
+(`upstream` > `github` > `origin`) and resolve to the upstream parent on a fork clone.
 
 If `MATT_SUITE.present` is `false`, warn that `/grill-with-docs` + `/to-prd` are declared
 dependencies and grilling quality will degrade, then continue (non-blocking).
@@ -193,22 +200,49 @@ The repo copy at `<ARTIFACTS_DIR>/<SLUG>/PRD.md` is always the floor; publishing
 
 The PRD is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
+**Staging rule (both gates).** Stage paths you have named. Never `git add -A`, `git add .`,
+`git add -u`, or a bare directory such as `docs/adr/` — name each new ADR file instead. Never stage
+`pr-body.md` (or `.pr-body.md`), `*.tmp.md`, `*.scratch.md`, `*-report.md` at the repo root, or
+anything under Archon's per-run artifacts dir (the `$ARTIFACTS_DIR` environment variable, which
+resolves outside the repo under `~/.archon/workspaces/<name>/artifacts/` — not the in-repo
+`ARTIFACTS_DIR` config value, whose `PRD.md` you do commit). After staging, run
+`git status --porcelain` and confirm every staged entry is a path you named; `git restore --staged
+"<path>"` anything else before you commit.
+
+**Repository pinning rule (`open-pr` gate).** Pass `REPO_REF` explicitly: `--repo "<REPO_REF>"` for
+GitHub, `--repository "<REPO_REF>"` for Azure DevOps. If `REPO_REF` is null or empty, do **not** open
+the PR: print
+
+```
+project.repo_ref is not set in .archon/unic-dlc.config.yaml. Without it the host CLI infers the
+repository from the checkout and opens the PR against the upstream parent on a fork clone. Set
+project.repo_ref (run /unic-archon-dlc:setup, or add the key by hand), then re-run this gate.
+```
+
+then fall back to `stage-only` behaviour below and **stop**. This mirrors the Archon boxes, which
+cancel on the same missing key rather than failing.
+
 - **`open-pr`** (default): create `feature/specs/<SLUG>`, stage the PRD and any new ADRs, commit, and
   open a PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/specs/<SLUG>
-  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md docs/adr/
+  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md docs/adr/<NNNN-new-adr>.md   # name each ADR you added
+  git status --porcelain                                            # confirm nothing else is staged
   git commit -m "plan(<SLUG>): PRD and ADRs"
   git push origin feature/specs/<SLUG>
-  gh pr create --base develop --title "plan(<SLUG>): PRD and ADRs" --body "<why + summary>"
+  gh pr create --repo "<REPO_REF>" --base develop --title "plan(<SLUG>): PRD and ADRs" --body "<why + summary>"
   ```
 
-  (Adapt the tracker/host commands to `TRACKER` if the project is not GitHub.) On **reject**, return
-  to Step 4 and grill the open points, then re-run from Step 7.
+  For Azure DevOps the last line becomes
+  `az repos pr create --repository "<REPO_REF>" --target-branch develop --title "…" --description "…"`.
+  (Adapt the tracker/host commands to `TRACKER` if the project is not GitHub; the repository is always
+  pinned, whichever host.) On **reject**, return to Step 4 and grill the open points, then re-run from
+  Step 7.
 
-- **`stage-only`**: write the PRD (already done in Step 7) and `git add` it plus any new ADRs, print a
-  suggested PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+- **`stage-only`**: write the PRD (already done in Step 7) and `git add` it plus any new ADRs **by
+  name** (same staging rule), print a suggested PR title/body, and **stop** — leave the branch,
+  commit, push, and PR to the user.
 
 ## Step 9 — Summary
 

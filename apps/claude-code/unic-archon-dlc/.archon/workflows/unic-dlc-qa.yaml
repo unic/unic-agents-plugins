@@ -35,6 +35,7 @@ nodes:
              `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
              `tracker.type`           (e.g. github / ado / jira / local-markdown)
              `project.branching`      (default "gitflow")
+             `project.repo_ref`       (OPTIONAL, may be absent or null → emit "")
       3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
          /build implemented — the acceptance criteria the UAT checklist is derived from.
          - If it is absent → status "no-prd".
@@ -44,11 +45,19 @@ nodes:
       Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
       (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
 
+      `repo_ref` is the repository every host CLI call is pinned to — "<owner>/<repo>" (or
+      "<host>/<owner>/<repo>") for github, the repository name or ID for ado. Read it from CONFIG,
+      never from `git remote get-url origin` and never from `gh repo view`: both follow the host's own
+      remote precedence (`upstream` > `github` > `origin`) and resolve to the upstream parent on a fork
+      clone — the exact defect the pin exists to close. Emit "" when the key is absent, null, or blank;
+      `guard-no-repo-ref` treats "" as missing (a blank `--repo ""` exits 0 and silently falls back to
+      the host's own resolution, so an empty value must be caught here, not by the CLI).
+
       ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
       object validates before `guard-not-ready` can cancel. When a value cannot be read (e.g. config is
       missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
-      tracker_type "" , branching "gitflow", expected_base "develop". Set `message` to a human-readable
-      reason for any non-ready status.
+      tracker_type "" , branching "gitflow", expected_base "develop", repo_ref "". Set `message` to a
+      human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -65,8 +74,9 @@ nodes:
         tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
+        repo_ref: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, repo_ref, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
@@ -78,6 +88,22 @@ nodes:
       /qa preconditions not met — see the bootstrap output for which of slug, config, or
       <artifacts_dir>/<slug>/PRD.md is missing. Run /unic-archon-dlc:build <slug> first (which in turn
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-repo-ref — verify-pr-base and merge pin their host CLI calls to a repository, so an unset
+  # `project.repo_ref` is an expected precondition failure: CANCEL, never fail (ADR-0011). It runs
+  # before the e2e suite so the run stops in seconds rather than after a full QA pass it cannot merge.
+  # Scoped to the `ready` case so it never competes with guard-not-ready above.
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-repo-ref
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready' && $bootstrap.output.repo_ref == ''"
+    cancel: >
+      /qa needs a pinned repository: `project.repo_ref` is missing from
+      `.archon/unic-dlc.config.yaml`. Without it the host CLI infers the repository from the checkout
+      and reads — or merges — a PR on the upstream parent on a fork clone. Set `project.repo_ref` to
+      "<owner>/<repo>" (github) or the repository name (ado) — run /unic-archon-dlc:setup, or add the
+      key by hand — then re-run /unic-archon-dlc:qa <slug>.
 
   # ---------------------------------------------------------------------------------------------
   # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
@@ -210,6 +236,15 @@ nodes:
           FINDING-CAPTURE (ADR-0025) — turn each distinct defect into an agent-ready tracker issue so
           it feeds /tickets. This is an on-ramp: file directly (a human is present — no PR gate).
 
+          REPO_REF = $bootstrap.output.repo_ref — pin EVERY host CLI call to it (github →
+          `--repo "<REPO_REF>"`, e.g. `gh issue create --repo "<REPO_REF>" …`; ado →
+          `--repository "<REPO_REF>"`). Never let the CLI infer the repository from the checkout: it
+          resolves to the upstream parent on a fork clone. Take the value from bootstrap, which read
+          `project.repo_ref` from config; do NOT recompute it from `git remote get-url origin` or
+          `gh repo view` — both follow the host's own remote precedence and return the wrong
+          repository in exactly that fork case. Shell state does not persist between separate bash
+          invocations, so pass it on every command rather than exporting it once.
+
           1. Read `.archon/unic-dlc.config.yaml` for `tracker` (type/access/coords) and
              `classification.labels`. Compose the tracker MCP-first, CLI-fallback (gh / az / jira, or
              the azure-devops-cli skill) — never hardcode a host (ADR-0016). Labels come ONLY from
@@ -250,11 +285,20 @@ nodes:
       You are the verify-pr-base node of /qa for slug "$bootstrap.output.slug".
 
       Expected base branch: $bootstrap.output.expected_base   (tracker: $bootstrap.output.tracker_type)
+      REPO_REF = $bootstrap.output.repo_ref
+
+      ## Repository pinning rule (host-agnostic)
+      Pin every host CLI call to REPO_REF; never let the CLI infer the repository from the checkout,
+      which resolves to the upstream parent on a fork clone — you would then verify the base of
+      somebody else's PR. Take REPO_REF from bootstrap (it read `project.repo_ref` from config); do NOT
+      recompute it from `git remote get-url origin` or `gh repo view` — both follow the host's own
+      remote precedence and return the wrong repository in exactly that fork case. Shell state does not
+      persist between separate bash invocations, so pass it on every command.
 
       Query the open PR for the current feature branch and read its target/base branch, composing the
       tracker from `.archon/unic-dlc.config.yaml` (MCP-first, CLI-fallback):
-        - github → `gh pr view --json baseRefName`
-        - ado    → `az repos pr show` (targetRefName, strip refs/heads/)
+        - github → `gh pr view --repo "<REPO_REF>" --json baseRefName`
+        - ado    → `az repos pr show --repository "<REPO_REF>"` (targetRefName, strip refs/heads/)
         - jira / local-markdown / other → no queryable PR base: set base_ok "true" and note it is
           unverifiable for this tracker (warning only, non-blocking).
       Set `base_ok` to the STRING "true" when the actual base equals expected_base (or is unverifiable
@@ -297,11 +341,22 @@ nodes:
     prompt: |
       You are the merge node of /qa for slug "$bootstrap.output.slug".
 
+      REPO_REF = $bootstrap.output.repo_ref
+
+      ## Repository pinning rule (host-agnostic)
+      Pin every host CLI call to REPO_REF; never let the CLI infer the repository from the checkout,
+      which resolves to the upstream parent on a fork clone — merging there would land this work in
+      the wrong repository. Take REPO_REF from bootstrap (it read `project.repo_ref` from config); do
+      NOT recompute it from `git remote get-url origin` or `gh repo view` — both follow the host's own
+      remote precedence and return the wrong repository in exactly that fork case. Shell state does not
+      persist between separate bash invocations, so pass it on every command.
+
       Merge the open PR for the current feature branch, composing the tracker from
       `.archon/unic-dlc.config.yaml` (`tracker.type`, `project.pr_strategy`, `project.branching`;
       MCP-first, CLI-fallback — never hardcode a host, ADR-0016):
-        - github → `gh pr merge` with `--squash` (default) or `--merge` per `project.pr_strategy`.
-        - ado    → `az repos pr update --status completed`.
+        - github → `gh pr merge --repo "<REPO_REF>"` with `--squash` (default) or `--merge` per
+          `project.pr_strategy`.
+        - ado    → `az repos pr update --repository "<REPO_REF>" --status completed`.
         - jira / local-markdown → print the manual steps (transition the linked issue to Done / set
           Status: resolved in the issues file) — there is no merge CLI.
       On Gitflow (`project.branching == "gitflow"`) with a git-hosted tracker (github/ado), after a

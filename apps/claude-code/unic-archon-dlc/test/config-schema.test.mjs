@@ -11,6 +11,7 @@ import {
 	defaultConfig,
 	isLegacyConfig,
 	loadConfig,
+	MANDATORY_PATHS,
 	mergeConfig,
 	migrateLegacy,
 	toYaml,
@@ -285,6 +286,44 @@ test('mergeConfig preserves a team override of triage, filling untouched sub-key
 	const triage = /** @type {any} */ (merged.triage)
 	assert.equal(triage.external_prs, 'never', 'existing override wins')
 	assert.equal(triage.out_of_scope_dir, '.out-of-scope', 'untouched sub-key filled from default')
+})
+
+test('defaultConfig ships project.repo_ref as an optional key defaulting to null', () => {
+	const project = /** @type {any} */ (defaultConfig().project)
+	assert.equal(project.repo_ref, null, 'the key exists so the config can carry it, unset by default')
+	assert.ok(
+		!MANDATORY_PATHS.includes('project.repo_ref'),
+		'repo_ref stays optional — promoting it to mandatory is out of scope (a box guards and cancels instead)'
+	)
+})
+
+test('validateConfig passes with repo_ref unset — the key is optional, not mandatory', () => {
+	const config = mergeConfig(
+		{ tracker: { type: 'github' }, project: { branching: 'gitflow', pr_strategy: 'merge' } },
+		{}
+	)
+	const result = validateConfig(config)
+	assert.ok('ok' in result, 'a config with no repo_ref is still usable')
+})
+
+test('mergeConfig auto-fills project.repo_ref for an existing config that predates it', () => {
+	// A config written before repo_ref existed keeps every answered project key.
+	const merged = mergeConfig(
+		{ tracker: { type: 'github' }, project: { branching: 'gitflow', pr_strategy: 'merge' } },
+		{}
+	)
+	const project = /** @type {any} */ (merged.project)
+	assert.equal(project.repo_ref, null, 'repo_ref filled from default')
+	assert.equal(project.branching, 'gitflow', 'answered sibling key untouched')
+	assert.equal(project.pr_strategy, 'merge', 'answered sibling key untouched')
+})
+
+test('mergeConfig carries a host-agnostic repo_ref through, for github and for ado', () => {
+	const github = /** @type {any} */ (mergeConfig({ project: { repo_ref: 'unic/unic-agents-plugins' } }, {}).project)
+	assert.equal(github.repo_ref, 'unic/unic-agents-plugins', 'github owner/repo form preserved verbatim')
+	const ado = /** @type {any} */ (mergeConfig({ project: { repo_ref: 'MyRepo' } }, {}).project)
+	assert.equal(ado.repo_ref, 'MyRepo', 'ado repository name preserved verbatim')
+	assert.equal(github.repo_layout, 'single-context', 'untouched sub-key filled from default')
 })
 
 test('mergeConfig preserves a team override of specs and templates.prd, filling gaps', () => {
