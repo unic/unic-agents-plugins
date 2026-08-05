@@ -190,3 +190,9 @@ Three traps the CLI sets:
 - **`remove` is 2-for-3.** It cleans the `.claude/skills/<name>` symlink and the lockfile entry but leaves `.agents/skills/<name>/` behind. Pair every removal with `git rm -r .agents/skills/<name>`.
 
 Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree and remove what no longer exists there.
+
+### Vendored hook caveat: `git-guardrails-claude-code` needs `jq`
+
+`.agents/skills/git-guardrails-claude-code/scripts/block-dangerous-git.sh` reads its `PreToolUse` payload with `jq` and does not check that the read worked. Without `jq` on the hook runner's `PATH` it exits 0 — which the hook protocol means as **allow** — so a `git push --force` passes while the transcript looks identical to a successful block. Its own verification step tests only the matching-command path, so installing it appears to confirm protection that is conditional on `jq`.
+
+Before wiring this hook into `.claude/settings.json`, confirm `jq` resolves for the hook runner, then test the negative path: pipe a payload in with `jq` off the `PATH` and expect a **non-zero** exit. The fix belongs upstream — `.agents/skills/**` is never hand-edited here, so a local patch dies on the next `npx skills add`.

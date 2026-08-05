@@ -41,6 +41,16 @@ Run `gh issue view <number> --comments`.
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets. Both endpoints below are enabled on this repo — sub-issues and native issue dependencies — so neither body-convention fallback applies here.
 
+**Prerequisite: the five `wayfinder:*` labels do not exist yet.** Create them once, before the first `/wayfinder` run. Label creation mutates the live tracker and a revert would not undo it, so it is held out of the PR that documented this flow:
+
+```sh
+gh label create wayfinder:map       --description "Wayfinder map issue"
+gh label create wayfinder:research  --description "Wayfinder child ticket: research"
+gh label create wayfinder:prototype --description "Wayfinder child ticket: prototype"
+gh label create wayfinder:grilling  --description "Wayfinder child ticket: grilling"
+gh label create wayfinder:task      --description "Wayfinder child ticket: task"
+```
+
 - **Map**: a single issue labelled `wayfinder:map`, holding the Destination / Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
 - **Child ticket**: an issue linked to the map as a GitHub sub-issue (`gh api` on the sub-issues endpoint). Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
 - **Blocking**: GitHub's **native issue dependencies** — the canonical, UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric **database id** (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or `node_id`). GitHub reports `issue_dependencies_summary.blocked_by` (open blockers only — the live gate). A ticket is unblocked when every blocker is closed.

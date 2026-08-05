@@ -56,7 +56,7 @@ packages/
 └── release-tools/        # @unic/release-tools — bump/tag/verify scripts
 docs/
 ├── adr/                  # Architectural Decision Records
-├── agents/               # Agent skill documentation (issue-tracker, labels, branching, domain, workflow)
+├── agents/               # Agent skill documentation (indexed in AGENTS.md § Agent skills)
 ├── inbox/                # Retired idea-capture notes (historical)
 ├── issues/               # Grilled and scoped feature issues
 ├── process/              # Process and workflow guides
