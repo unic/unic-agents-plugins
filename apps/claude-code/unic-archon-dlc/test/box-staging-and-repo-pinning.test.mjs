@@ -43,21 +43,27 @@ function readCommand(command) {
 
 /**
  * The source text of a single node, from its `- id:` line up to (not including) the next node's.
+ *
+ * Splits on the id as a whole line, not a bare substring — `merge` is a prefix of `merge-gate`, and a
+ * substring split on `- id: merge` would match inside `- id: merge-gate`'s own line when that node is
+ * declared first, returning `merge-gate`'s body instead of `merge`'s.
  * @param {string} contents
  * @param {string} nodeId
  * @returns {string | undefined}
  */
 function nodeSource(contents, nodeId) {
-	return contents.split(`- id: ${nodeId}`)[1]?.split('\n  - id: ')[0]
+	const escapedId = nodeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	return contents.split(new RegExp(`- id: ${escapedId}\\n`))[1]?.split('\n  - id: ')[0]
 }
 
 /**
  * A blind staging verb, as an INVOCATION rather than as prose.
  *
  * Every prompt that forbids `git add -A` has to name it in order to forbid it, so a plain substring
- * check would fail on exactly the rule that makes the file correct. The distinguishing feature is the
- * backtick: prose always wraps the verb in one, and a runnable line never does. So this matches the
- * verb only at the start of a line, indented or not.
+ * check would fail on exactly the rule that makes the file correct. The distinguishing feature is
+ * position: a runnable line puts the verb first; prose always leads with something else ("Stage by
+ * NAME. `git add -A` ... are FORBIDDEN"). So this matches the verb only at the start of a line,
+ * indented or not.
  */
 const BLIND_ADD = /^[ \t]*git add\s+(?:-A|-u|\.)(?:\s|$)/m
 
@@ -138,6 +144,30 @@ test('every PR-touching Box resolves the repository from project.repo_ref', () =
 	}
 })
 
+/** Node IDs that must pin project.repo_ref on their own gh/az call — the nodes a missing pin would misroute. */
+const REPO_PINNED_NODES = /** @type {const} */ ({
+	'unic-dlc-build': ['implement-review-precheck', 'open-pr'],
+	'unic-dlc-explore': ['spike-ticket'],
+	'unic-dlc-pr-review': ['prep', 'post'],
+	'unic-dlc-qa': ['verify-pr-base', 'merge'],
+})
+
+for (const [workflow, nodeIds] of Object.entries(REPO_PINNED_NODES)) {
+	for (const nodeId of nodeIds) {
+		test(`${workflow}.yaml's ${nodeId} node pins its own gh/az call to REPO_REF`, () => {
+			// AC 6, node-scoped: a whole-file check would still pass if this specific node lost its pin
+			// while some other node in the file kept theirs.
+			const node = nodeSource(readWorkflow(workflow), nodeId)
+			assert.ok(node, `${workflow}.yaml lost its ${nodeId} node`)
+			assert.match(
+				node,
+				/--repo(?:sitory)? "/,
+				`${workflow}.yaml's ${nodeId} node must pin its own gh/az call to REPO_REF, not rely on another node in the file`
+			)
+		})
+	}
+}
+
 test('the repository reference stays host-agnostic — a flag per host, never a hardcoded host', () => {
 	// AC 6. The same string reaches `gh` and `az` through different flags, so the prompt names both and
 	// commits to neither host. A literal `github.com` in a command would pin every Consumer to GitHub.
@@ -215,6 +245,22 @@ for (const command of COMMANDS) {
 			contents,
 			/git add[^\n]*\sdocs\/adr\/(?:\s|$)/,
 			`commands/${command}.md stages the docs/adr/ directory — name each new ADR file instead`
+		)
+	})
+
+	test(`commands/${command}.md warns (not cancels) on a null repo_ref, before opening a PR`, () => {
+		// AC 7 continued: workflows CANCEL on a missing repo_ref (guard-no-repo-ref); command docs have a
+		// live human, so they WARN AND ASK instead. scope.md flags this distinction as needing its own
+		// verification, since none of the assertions above would fail if this warning were silently
+		// dropped, reworded into a no-op, or reordered to print after the PR already opened.
+		const contents = readCommand(command)
+		const warnIdx = contents.indexOf('project.repo_ref is not set in .archon/unic-dlc.config.yaml')
+		assert.notEqual(warnIdx, -1, `commands/${command}.md must warn when REPO_REF is null, not silently proceed`)
+
+		const prCreateIdx = contents.indexOf('gh pr create --repo "')
+		assert.ok(
+			prCreateIdx !== -1 && warnIdx < prCreateIdx,
+			`commands/${command}.md must print the null-repo_ref warning before the gh pr create call`
 		)
 	})
 }

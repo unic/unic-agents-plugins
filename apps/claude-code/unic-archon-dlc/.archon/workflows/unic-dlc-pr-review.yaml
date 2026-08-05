@@ -126,7 +126,7 @@ nodes:
   # reads them today. Retire them or find them a consumer in a follow-up, not in a rewiring slice.
   # ---------------------------------------------------------------------------------------------
   - id: prep
-    depends_on: [bootstrap]
+    depends_on: [bootstrap, guard-no-repo-ref]
     when: "$bootstrap.output.status == 'ready'"
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
