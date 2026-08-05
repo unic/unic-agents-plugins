@@ -54,7 +54,7 @@ In AFK mode (an `/archon-rollout` dispatch) there is no user to ask. The issue's
 
 This means there is a direct line between **grilling quality → PRD quality → issue acceptance criteria quality → implementation correctness**. If any link in that chain is weak, the agent produces a _correct-but-wrong_ implementation: code that satisfies the literal issue description but diverges from what you actually intended.
 
-The grilling session (`/grill-with-docs`) is where that chain is forged. It is not a formality — it is the point at which ambiguity is eliminated and architectural constraints are identified. Skipping or shortcutting it shifts the cost downstream, where it is much more expensive to recover from.
+Phase 2 is where that chain is forged — `/wayfinder` across sessions, or `/grill-with-docs` within one. It is not a formality: it is the point at which ambiguity is eliminated and architectural constraints are identified. Skipping or shortcutting it shifts the cost downstream, where it is much more expensive to recover from.
 
 ---
 
@@ -103,7 +103,7 @@ The dependency graph also reveals which issues are parallelisable (those with no
 
 `CONTEXT.md` and `docs/adr/` are not documentation you write once and forget. They are the vocabulary and constraint layer that every agent reads before writing code. Their quality directly affects the quality of every execution — manual or AFK.
 
-**Update CONTEXT.md** when a new domain term is introduced or an existing term is redefined. `/grill-with-docs` does this automatically during a grilling session — terms resolved during grilling are written into CONTEXT.md inline. If a term surfaces outside a grilling session, add it manually.
+**Update CONTEXT.md** when a new domain term is introduced or an existing term is redefined. `/grill-with-docs` does this inline, because it composes `/domain-modeling` — terms resolved during the session are written into CONTEXT.md as they land. A `/wayfinder` map does it per decision ticket, in whichever session resolves that ticket. If a term surfaces outside either, add it manually or run `/domain-modeling` on its own.
 
 **Write an ADR** when a decision is: (a) hard to reverse, (b) surprising without context, and (c) the result of a real trade-off with considered alternatives. An ADR that just restates the obvious adds noise and dilutes the ones that matter.
 

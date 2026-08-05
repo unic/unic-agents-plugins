@@ -12,37 +12,51 @@ When an idea surfaces mid-conversation or mid-task, capture it without breaking 
 
 GitHub Issues are the canonical tracker (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)) — they hold raw ideas, bug reports, triage state, and from Phase 5 onward the spec and its tickets. A Feature that wants a durable markdown artefact set also gets a `docs/issues/<slug>/` directory, created by hand; most work never needs one.
 
-If you already have enough context to start grilling immediately, skip capture and go straight to Phase 2.
+If you already have enough context to start charting immediately, skip capture and go straight to Phase 2.
 
-## Phase 2 — Grill the idea
+## Phase 2 — Chart the work
 
-Before writing a PRD or spec, reach shared understanding with the agent:
+Before writing a spec, reach shared understanding with the agent. Pick the tool by how much there is to decide:
 
 ```
-/grill-with-docs
+/wayfinder          # too much to plan in one agent session
+/grill-with-docs    # fits in one session, touches domain concepts
+/grill-me           # fits in one session, no domain vocabulary at stake
 ```
 
-Use `/grill-with-docs` when the topic involves domain concepts — it is designed to update `CONTEXT.md` and ADRs alongside the grilling. Use `/grill-me` for everything else.
+**`/wayfinder` is where the planning weight has moved upstream.** Use it when the fog is thicker than one session: it names the destination, charts the open decisions as a `wayfinder:map` issue with one child ticket per decision, blocks them with GitHub's native dependencies, then works the frontier — one decision per session, each ticket typed `research`, `prototype`, `grilling` or `task`. It plans; it does not build. The map is done when nothing is left to decide. See [Wayfinding operations](../agents/issue-tracker.md#wayfinding-operations) for how this repo expresses maps, blocking, and the frontier query.
 
-The grilling session walks down every branch of the design tree until the idea is concrete: edge cases surfaced, ambiguities resolved, out-of-scope items named.
+Use `/grill-with-docs` when one session is enough and the topic involves domain concepts — it composes `/grilling` with `/domain-modeling`, so `CONTEXT.md` and the ADRs get updated as decisions land. Use `/grill-me` for everything else.
+
+Either way the session walks down every branch of the design tree until the idea is concrete: edge cases surfaced, ambiguities resolved, out-of-scope items named.
 
 ## Phase 3 — Research (optional)
 
 If the work involves an unfamiliar external API, a complex integration, or anything that would require repeated exploration in fresh context windows, cache the findings:
 
-Ask the agent to research the topic and save results to a `research.md` file in the relevant plugin directory (e.g. `apps/claude-code/pr-review/research.md`).
+```
+/research
+```
+
+It spins up a background agent that reads primary sources — official docs, source code, specs, first-party APIs — cites each claim, and writes one Markdown file. Point it at the relevant plugin directory (e.g. `apps/claude-code/pr-review/research.md`) so the note lands where the work is. A `wayfinder` ticket labelled `wayfinder:research` is the same job scoped to one decision.
 
 Research assets are **temporary** — scoped to the current feature sprint. Delete them once the feature ships to prevent stale data from misleading future agents.
 
 ## Phase 4 — Prototype (optional)
 
-When design or UX decisions are uncertain, prototype first. Ask the agent to generate multiple variations on a throwaway route and iterate until you have a direction you're happy with.
+When design or state-model decisions are uncertain, prototype first:
 
-Commit the winning design to the codebase before writing the PRD — concrete examples are more valuable than abstract descriptions.
+```
+/prototype
+```
+
+It branches on the question. "Does this logic feel right?" produces a single shareable HTML file that drives the state machine through the awkward cases, playable by a non-developer. "What should this look like?" produces several radically different UI variations on one route, switchable from a floating bar. Either way the code is throwaway. A `wayfinder` ticket labelled `wayfinder:prototype` is the same job scoped to one decision.
+
+Commit the winning design before writing the spec — concrete examples are more valuable than abstract descriptions.
 
 ## Phase 5 — Write the spec
 
-With grilling and prototyping complete, document the destination:
+With charting and prototyping complete, document the destination:
 
 ```
 /to-spec
@@ -95,16 +109,16 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                             | Tool                                                         |
-| ------------ | -------------------------------- | ------------------------------------------------------------ |
-| 1. Capture   | Idea surfaces mid-task           | GitHub Issue (or `/triage`)                                  |
-| 2. Grill     | Before any spec                  | `/wayfinder`, `/grill-with-docs` or `/grill-me`              |
-| 3. Research  | Unfamiliar external dependencies | `/research` (or `research.md`, ad hoc)                       |
-| 4. Prototype | Uncertain design or UX           | `/prototype`                                                 |
-| 5. Spec      | After grilling                   | `/to-spec` → one GitHub issue                                |
-| 6. Tickets   | After the spec                   | `/to-tickets` → one GitHub issue per ticket, natively linked |
-| 7. Execute   | Tickets are `ready-for-agent`    | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK  |
-| 8. QA        | After execution                  | QA plan (agent-generated, human-verified)                    |
+| Phase        | When                             | Tool                                                                           |
+| ------------ | -------------------------------- | ------------------------------------------------------------------------------ |
+| 1. Capture   | Idea surfaces mid-task           | GitHub Issue (or `/triage`)                                                    |
+| 2. Chart     | Before any spec                  | `/wayfinder` if it exceeds one session, else `/grill-with-docs` or `/grill-me` |
+| 3. Research  | Unfamiliar external dependencies | `/research`                                                                    |
+| 4. Prototype | Uncertain design or state model  | `/prototype`                                                                   |
+| 5. Spec      | After charting                   | `/to-spec` → one GitHub issue                                                  |
+| 6. Tickets   | After the spec                   | `/to-tickets` → one GitHub issue per ticket, natively linked                   |
+| 7. Execute   | Tickets are `ready-for-agent`    | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK                    |
+| 8. QA        | After execution                  | QA plan (agent-generated, human-verified)                                      |
 
 ## Related
 

@@ -44,13 +44,13 @@ Top MCP Servers:
 
 ### Skills to Know About
 
-- [ ] /grill-with-docs — adversarial grilling of a plan against the project's domain model and ADRs, updating CONTEXT.md/ADRs inline as decisions firm up. The team's most-used skill: it stress-tests PR findings and locks designs before any code is written.
-- [ ] /triage — moves issues through the 8-state triage workflow; the default for "where do I stand" on open issues and prepping work for an AFK agent.
+- [ ] /grill-with-docs — adversarial grilling of a plan against the project's domain model and ADRs, updating CONTEXT.md/ADRs inline as decisions firm up. The team's most-used skill: it stress-tests PR findings and locks designs before any code is written. At upstream v1.1 it thinned to a composition of `/grilling` + `/domain-modeling`, and hands the bigger jobs to `/wayfinder`.
+- [ ] /wayfinder — the other half of that split, and where upstream moved the planning weight. Charts work too big for one agent session as a `wayfinder:map` issue with child decision tickets, blocked by GitHub's native issue dependencies, and works the frontier one ticket at a time. Reach for it when `/grill-with-docs` would run out of context.
+- [ ] /triage — moves issues through the 8-state triage workflow; the default for "where do I stand" on open issues and the on-ramp for raw work. It is no longer a gate after `/to-tickets` — that approval happens inside the skill.
 - [ ] /archon — runs AI workflows in isolated git worktrees for parallel development; the basis of the team's custom delivery harness.
 - [ ] /archon-rollout — dispatches `archon-fix-github-issue` per issue respecting the dependency tree, with standing guardrails and a deduped monitor; the team's way of shipping a chain of ready-for-agent issues.
 - [ ] /to-tickets — breaks a spec into independently-grabbable issues using tracer-bullet vertical slices. Replaced `/to-issues` at upstream v1.1.
 - [ ] /to-spec — turns the current conversation into a spec and publishes it to the issue tracker. Replaced `/to-prd` at upstream v1.1.
-- [ ] /wayfinder — charts work too big for one agent session as a `wayfinder:map` issue with child decision tickets, blocked by GitHub's native issue dependencies, and works the frontier one ticket at a time. Reach for it where `/grill-with-docs` would run out of context.
 - [ ] /tdd — test-first red-green-refactor loop for building features and fixing bugs.
 - [ ] /implement — takes a ticket from spec to working code.
 - [ ] /plugin-dev:skill-development — guidance for authoring and improving Claude Code skills.
