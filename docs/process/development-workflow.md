@@ -10,7 +10,7 @@ Not every phase is required for every piece of work. A typo fix can go straight 
 
 When an idea surfaces mid-conversation or mid-task, capture it without breaking flow by opening a GitHub Issue directly (or running `/triage` and letting it walk the idea through the state machine).
 
-GitHub Issues are the canonical tracker (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)) — they hold raw ideas, bug reports, and triage state. Features that get grilled additionally pick up a `docs/issues/<slug>/` directory in Phase 5, where `/to-prd` and `/to-issues` write the PRD and ticket files the Feature Runner consumes. Not every GitHub Issue grows into a Feature directory — small fixes stay as plain GitHub Issues.
+GitHub Issues are the canonical tracker (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)) — they hold raw ideas, bug reports, and triage state. Features that get grilled additionally pick up a `docs/issues/<slug>/` directory in Phase 5, where `/to-spec` and `/to-tickets` write the spec and ticket files the Feature Runner consumes. Not every GitHub Issue grows into a Feature directory — small fixes stay as plain GitHub Issues.
 
 If you already have enough context to start grilling immediately, skip capture and go straight to Phase 2.
 
@@ -45,7 +45,7 @@ Commit the winning design to the codebase before writing the PRD — concrete ex
 With grilling and prototyping complete, document the destination:
 
 ```
-/to-prd
+/to-spec
 ```
 
 This synthesizes the conversation into a PRD at `docs/issues/<slug>/PRD.md`, describing the end state, user stories, implementation decisions, and what's explicitly out of scope.
@@ -57,7 +57,7 @@ The PRD answers "what does done look like?" — not "how do we get there?"
 Turn the PRD into independently-executable tickets:
 
 ```
-/to-issues
+/to-tickets
 ```
 
 This creates `docs/issues/<slug>/<NN>-<ticket>.md` files — vertical slices that cut through all integration layers. Each ticket should be small enough to fit in a single agent context window.
@@ -72,9 +72,11 @@ Work through `ready-for-agent` issues one at a time with `/tdd`. For each issue,
 
 Respect the issue ordering signalled by `## Blocked by` (see [ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md)) — a downstream issue inherits a broken foundation if a blocker has not landed.
 
-### Feature Runner — long-term AFK execution
+### AFK execution with `/archon-rollout`
 
-The Feature Runner (`unic-dlc-build`, shipped by `unic-archon-dlc`) is the AFK path going forward; see [ADR-0009](../../apps/claude-code/unic-archon-dlc/docs/adr/0009-retire-ralph-adopt-archon-runner.md) and [ADR-0010](../../apps/claude-code/unic-archon-dlc/docs/adr/0010-retire-implement-feature-skill.md). Until it is wired into this repo, AFK runs are not available — implement manually with `/tdd`.
+Dispatch a chain of `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Each run lands its own PR targeting `develop`.
+
+`unic-dlc-build` (shipped by `unic-archon-dlc`) is **not** the AFK path here. That plugin is a product this repo builds for Consumer repos; it is not installed against this one — see [ADR-0033](../adr/0033-de-dogfood-unic-archon-dlc.md).
 
 ### Human execution
 
@@ -90,16 +92,16 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                                           | Tool                                                         |
-| ------------ | ---------------------------------------------- | ------------------------------------------------------------ |
-| 1. Capture   | Idea surfaces mid-task                         | GitHub Issue (or `/triage`)                                  |
-| 2. Grill     | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`                            |
-| 3. Research  | Unfamiliar external dependencies               | `research.md` (ad hoc)                                       |
-| 4. Prototype | Uncertain design or UX                         | Ad hoc throwaway route                                       |
-| 5. PRD       | After grilling                                 | `/to-prd` → `docs/issues/<slug>/PRD.md`                      |
-| 6. Issues    | After PRD                                      | `/to-issues` → `docs/issues/<slug>/<NN>-*.md`                |
-| 7. Execute   | Issues in `docs/issues/` are `ready-for-agent` | `/tdd` per issue (Feature Runner via `unic-dlc-build` later) |
-| 8. QA        | After execution                                | QA plan (agent-generated, human-verified)                    |
+| Phase        | When                                           | Tool                                                        |
+| ------------ | ---------------------------------------------- | ----------------------------------------------------------- |
+| 1. Capture   | Idea surfaces mid-task                         | GitHub Issue (or `/triage`)                                 |
+| 2. Grill     | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`                           |
+| 3. Research  | Unfamiliar external dependencies               | `research.md` (ad hoc)                                      |
+| 4. Prototype | Uncertain design or UX                         | Ad hoc throwaway route                                      |
+| 5. PRD       | After grilling                                 | `/to-spec` → `docs/issues/<slug>/PRD.md`                    |
+| 6. Issues    | After PRD                                      | `/to-tickets` → `docs/issues/<slug>/<NN>-*.md`              |
+| 7. Execute   | Issues in `docs/issues/` are `ready-for-agent` | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK |
+| 8. QA        | After execution                                | QA plan (agent-generated, human-verified)                   |
 
 ## Related
 

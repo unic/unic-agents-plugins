@@ -37,7 +37,7 @@ already visible:
 [ADR-0032](0032-label-taxonomy.md) resolved the same collision the other way in 2026-06:
 `unic-archon-dlc` was "the tool that stays" and `setup-matt-pocock-skills` was "being
 phased out". That was correct when the plugin was also this repo's local driver. The
-redesign since then (ADR-0030–0032, plugin-local) turned it into a *product* with a
+redesign since then (ADR-0030–0032, plugin-local) turned it into a _product_ with a
 vendored Method bundle pinned to an upstream tag, shipped to Consumer repos. Its
 configuration surface now belongs to those Consumers, not to the workshop that builds it.
 

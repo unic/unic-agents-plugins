@@ -167,11 +167,11 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 
 ### Who owns which files
 
-| Path | Owner | Rule |
-| ---- | ----- | ---- |
-| `.agents/skills/**` | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently |
-| `.claude/skills/*` (symlinks) | `npx skills` | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r` |
-| `skills-lock.json` | `npx skills` | Never hand-edit — the hashes are computed |
-| `docs/agents/*.md` | This repo | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
+| Path                          | Owner                        | Rule                                                                                                                                         |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.agents/skills/**`           | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently                                                                |
+| `.claude/skills/*` (symlinks) | `npx skills`                 | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r`                                   |
+| `skills-lock.json`            | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
+| `docs/agents/*.md`            | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
 Skill selection policy: all of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/`.
