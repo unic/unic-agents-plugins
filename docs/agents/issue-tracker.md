@@ -63,6 +63,8 @@ gh label create wayfinder:task      --description "Wayfinder child ticket: task"
 
   `<type>` is one of `research`, `prototype`, `grilling`, `task`. Once claimed, the ticket is assigned to the driving dev.
 
+  The `sub_issues` POST returns the **parent** issue, not the child, so its `.number` is not confirmation that the link landed. Verify by listing: `gh api repos/<owner>/<repo>/issues/<map>/sub_issues --jq '.[].number'`.
+
 - **Blocking**: GitHub's **native issue dependencies** — the canonical, UI-visible representation:
 
   ```sh
