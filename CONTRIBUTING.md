@@ -2,7 +2,7 @@
 
 This monorepo uses a Feature-driven development workflow. For the full lifecycle — from idea capture through grilling, PRD, issues, execution, and QA — see **[`docs/process/development-workflow.md`](docs/process/development-workflow.md)**.
 
-New features and fixes are tracked as Features in the issue tracker under `docs/issues/<slug>/`. Implementation runs either by hand with `/tdd` or `/implement` per issue, or AFK via `/archon-rollout`, which dispatches the native `archon-fix-github-issue` workflow per issue and respects the `## Blocked by` tree.
+New features and fixes are tracked as Features in the GitHub issue tracker; a Feature that keeps a durable file set also gets a `docs/issues/<slug>/` directory. Implementation runs either by hand with `/tdd` or `/implement` per issue, or AFK via `/archon-rollout`, which dispatches the native `archon-fix-github-issue` workflow per issue and respects the `## Blocked by` tree.
 
 ## Cross-cutting standards
 

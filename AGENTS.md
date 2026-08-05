@@ -174,4 +174,19 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 | `skills-lock.json`            | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
 | `docs/agents/*.md`            | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
-Skill selection policy: all of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/`.
+### Upgrading
+
+Selection policy: all of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/`.
+
+```sh
+npx skills@latest add mattpocock/skills -a claude-code -y -s <name> -s <name> …
+npx skills@latest remove -s <name> -s <name> … -a claude-code -y
+```
+
+Three traps the CLI sets:
+
+- **Target `-a claude-code`, never `-a '*'`.** The wildcard installs a second, frontmatter-rewritten copy of every skill into a top-level `agent/skills/` tree for foreign agents, which then drifts from `.agents/skills/`. `remove` rejects `-a '*'` outright.
+- **`-s` takes repeated flags, not a comma list.** `-s a,b,c` reports "no matching skills found" and exits 0.
+- **`remove` is 2-for-3.** It cleans the `.claude/skills/<name>` symlink and the lockfile entry but leaves `.agents/skills/<name>/` behind. Pair every removal with `git rm -r .agents/skills/<name>`.
+
+Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree and remove what no longer exists there.

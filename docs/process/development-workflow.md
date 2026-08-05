@@ -10,7 +10,7 @@ Not every phase is required for every piece of work. A typo fix can go straight 
 
 When an idea surfaces mid-conversation or mid-task, capture it without breaking flow by opening a GitHub Issue directly (or running `/triage` and letting it walk the idea through the state machine).
 
-GitHub Issues are the canonical tracker (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)) — they hold raw ideas, bug reports, and triage state. Features that get grilled additionally pick up a `docs/issues/<slug>/` directory in Phase 5, where `/to-spec` and `/to-tickets` write the spec and ticket files the Feature Runner consumes. Not every GitHub Issue grows into a Feature directory — small fixes stay as plain GitHub Issues.
+GitHub Issues are the canonical tracker (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)) — they hold raw ideas, bug reports, triage state, and from Phase 5 onward the spec and its tickets. A Feature that wants a durable markdown artefact set also gets a `docs/issues/<slug>/` directory, created by hand; most work never needs one.
 
 If you already have enough context to start grilling immediately, skip capture and go straight to Phase 2.
 
@@ -40,7 +40,7 @@ When design or UX decisions are uncertain, prototype first. Ask the agent to gen
 
 Commit the winning design to the codebase before writing the PRD — concrete examples are more valuable than abstract descriptions.
 
-## Phase 5 — Write the PRD
+## Phase 5 — Write the spec
 
 With grilling and prototyping complete, document the destination:
 
@@ -48,21 +48,24 @@ With grilling and prototyping complete, document the destination:
 /to-spec
 ```
 
-This synthesizes the conversation into a PRD at `docs/issues/<slug>/PRD.md`, describing the end state, user stories, implementation decisions, and what's explicitly out of scope.
+This synthesizes the conversation into a spec — problem statement, solution, user stories, implementation decisions, out-of-scope — and **publishes it as a GitHub issue**. It proposes the seams it intends to test at and checks them with you first. It does not write a file.
 
-The PRD answers "what does done look like?" — not "how do we get there?"
+The spec answers "what does done look like?" — not "how do we get there?"
 
-## Phase 6 — Break it into issues
+## Phase 6 — Break it into tickets
 
-Turn the PRD into independently-executable tickets:
+Turn the spec into independently-executable tickets:
 
 ```
 /to-tickets
 ```
 
-This creates `docs/issues/<slug>/<NN>-<ticket>.md` files — vertical slices that cut through all integration layers. Each ticket should be small enough to fit in a single agent context window.
+This publishes **one GitHub issue per ticket**, in dependency order so each can reference real identifiers, linked with GitHub's native sub-issue and blocking relationships. Each ticket is a vertical slice that cuts through all integration layers, small enough to fit in a single agent context window.
 
-Use the triage labels to track state — see `docs/agents/triage-labels.md` for the full 8-state vocabulary (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed` / `rejected`).
+Two things to know about the output:
+
+- **Both skills apply `ready-for-agent` themselves** on publish. Under this repo's 8-state vocabulary that label is a triage decision, so treat theirs as a proposal: review the acceptance criteria before dispatching anything to an agent. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
+- **`docs/issues/<slug>/` is a repo convention, not skill output.** Nothing generates it since upstream v1.1 — `to-tickets`' local-file mode writes `.scratch/<slug>/issues/` and is only reached when no real tracker is configured. Existing `docs/issues/<slug>/` directories are the durable artefact set from earlier Features; create one by hand when a Feature wants file-based tickets.
 
 ## Phase 7 — Execute
 
@@ -92,16 +95,16 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                                           | Tool                                                        |
-| ------------ | ---------------------------------------------- | ----------------------------------------------------------- |
-| 1. Capture   | Idea surfaces mid-task                         | GitHub Issue (or `/triage`)                                 |
-| 2. Grill     | Before any PRD or spec                         | `/grill-with-docs` or `/grill-me`                           |
-| 3. Research  | Unfamiliar external dependencies               | `research.md` (ad hoc)                                      |
-| 4. Prototype | Uncertain design or UX                         | Ad hoc throwaway route                                      |
-| 5. PRD       | After grilling                                 | `/to-spec` → `docs/issues/<slug>/PRD.md`                    |
-| 6. Issues    | After PRD                                      | `/to-tickets` → `docs/issues/<slug>/<NN>-*.md`              |
-| 7. Execute   | Issues in `docs/issues/` are `ready-for-agent` | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK |
-| 8. QA        | After execution                                | QA plan (agent-generated, human-verified)                   |
+| Phase        | When                             | Tool                                                         |
+| ------------ | -------------------------------- | ------------------------------------------------------------ |
+| 1. Capture   | Idea surfaces mid-task           | GitHub Issue (or `/triage`)                                  |
+| 2. Grill     | Before any spec                  | `/wayfinder`, `/grill-with-docs` or `/grill-me`              |
+| 3. Research  | Unfamiliar external dependencies | `/research` (or `research.md`, ad hoc)                       |
+| 4. Prototype | Uncertain design or UX           | `/prototype`                                                 |
+| 5. Spec      | After grilling                   | `/to-spec` → one GitHub issue                                |
+| 6. Tickets   | After the spec                   | `/to-tickets` → one GitHub issue per ticket, natively linked |
+| 7. Execute   | Tickets are `ready-for-agent`    | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK  |
+| 8. QA        | After execution                  | QA plan (agent-generated, human-verified)                    |
 
 ## Related
 

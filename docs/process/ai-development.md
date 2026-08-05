@@ -8,15 +8,17 @@ This guide explains the mental model behind the AI-development workflow, the arc
 
 A **Feature Runner** is the skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request (see root `CONTEXT.md`).
 
-New work enters as a GitHub Issue — the canonical tracker for state and ownership (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)). Once an idea is charted into a Feature, `/to-spec` and `/to-tickets` materialise a `docs/issues/<slug>/` directory with the spec and the numbered ticket files the Feature Runner reads. GitHub Issues remain the source of truth for triage state; `docs/issues/<slug>/` is the markdown artifact set that captures the grilled scope. Not every GitHub Issue becomes a Feature directory (small fixes never need one).
+New work enters as a GitHub Issue — the canonical tracker for state and ownership (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)). Once an idea is charted into a Feature, `/to-spec` publishes the spec as an issue and `/to-tickets` publishes one issue per ticket, linked by GitHub's native sub-issue and blocking relationships.
 
-|                       | Feature Runner                                             |
-| --------------------- | ---------------------------------------------------------- |
-| **Input**             | `docs/issues/<slug>/NN-*.md` Issue                         |
-| **Format**            | Descriptive: `## What to build` + `## Acceptance criteria` |
-| **Worker**            | `/tdd` or `/implement`                                     |
-| **Completion marker** | `Status: resolved` in issue file                           |
-| **Branch**            | `feature/<name>`, or `feature/<scope>/<issue#>-<slug>` AFK |
+`docs/issues/<slug>/` directories hold the markdown artifact set for Features that want durable file-based tickets — `PRD.md` plus numbered ticket files a Feature Runner can read. Since upstream v1.1 **no skill generates them**; create one by hand when a Feature needs it. Most work lives in GitHub Issues alone.
+
+|                       | Feature Runner                                                    |
+| --------------------- | ----------------------------------------------------------------- |
+| **Input**             | A `ready-for-agent` GitHub issue, or `docs/issues/<slug>/NN-*.md` |
+| **Format**            | Descriptive: `## What to build` + `## Acceptance criteria`        |
+| **Worker**            | `/tdd` or `/implement`                                            |
+| **Completion marker** | `Status: resolved` in issue file                                  |
+| **Branch**            | `feature/<name>`, or `feature/<scope>/<issue#>-<slug>` AFK        |
 
 Two runners operate here: **the developer driving `/tdd` or `/implement`** one issue at a time, and **`/archon-rollout`** dispatching the native `archon-fix-github-issue` workflow per issue for AFK runs. `unic-dlc-build` (shipped by `unic-archon-dlc`) is not one of them — that plugin is built here for Consumer repos and deliberately not installed against this one, see [ADR-0033](../adr/0033-de-dogfood-unic-archon-dlc.md). Infrastructure work (CI, tooling, packages) and product work (plugin features) both enter through the issue tracker — the split is in the issue content, not in which runner handles it.
 
@@ -88,7 +90,7 @@ If an issue's acceptance criteria are too vague to verify without judgment, the 
 
 ## 5. Dependency ordering
 
-Issues produced by `to-tickets` are named with a numeric prefix (`01-`, `02-`, etc.) for human readability. The numbers usually reflect dependency order because `to-tickets` publishes blockers first. But **numerical order is not the execution contract**.
+`to-tickets` publishes blockers first, so issue numbers usually ascend in dependency order — and in its local-file mode, filenames carry an explicit `01-`, `02-` prefix for readability. Either way, **that order is not the execution contract**.
 
 The `## Blocked by` field in each issue is the canonical dependency signal — see [ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md). Any Feature Runner (manual or AFK) must respect `## Blocked by` over filename order. If they conflict, the runner halts rather than proceeding silently in the wrong order — because a wrong execution order means downstream issues inherit a broken foundation.
 
