@@ -73,6 +73,7 @@ try {
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
+          repo_ref: g('project.repo_ref') ?? null,
           tracker: config.tracker,
           estimations: config.estimations,
           tickets: config.tickets,
@@ -92,8 +93,9 @@ EOJS
 ```
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
-`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `METHODS`.
+`ARTIFACTS_DIR`, `REPO_REF` (`project.repo_ref`, may be `null`), `TRACKER`
+(`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`), `ISSUE_TEMPLATE`,
+`BUG_TEMPLATE`, `LABELS`, and `METHODS`.
 
 ### The Method this Box reads
 
@@ -289,24 +291,52 @@ parent issue.
 
 ## Step 10 — Tickets gate (HITL)
 
-The plan is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
+The plan is human-approved via a PR — never merge it yourself. Both gate paths stage the same way.
+
+**Staging rule (both paths).** Stage by NAME — only `<ARTIFACTS_DIR>/<SLUG>/issues.json`. Never run
+`git add -A`, `git add .`, `git add -u`, or `git add` on a directory. Never stage `pr-body.md`, any
+`*.tmp.md` / `*.scratch.md`, or anything under Archon's per-run artifacts directory (which resolves
+outside the repo tree, and is not the config's `artifacts_dir`). After staging, run
+`git status --porcelain` and confirm every staged path is one you named.
+
+**Repo-pinning rule (both paths).** Pin the PR command to `REPO_REF`. An unpinned `gh`/`az` infers
+the repository from the checkout, which in a fork clone is the upstream parent — the PR then opens
+against the wrong repository. The reference is host-agnostic and only the flag differs: `gh pr create
+--repo "<REPO_REF>"` for GitHub, `az repos pr create --repository "<REPO_REF>"` plus the
+`--organization` / `--project` coords for Azure DevOps. Never hardcode a host. The same rule covers
+Step 9's issue publishing: pin every `gh issue` call with `--repo "<REPO_REF>"`, and every `az` call
+with the flag its subcommand takes.
+
+If `REPO_REF` is `null`, print this line before doing anything else and ask the human to confirm or
+set the key:
+
+```
+project.repo_ref is not set in .archon/unic-dlc.config.yaml — gh/az will infer the repository from
+the checkout, which is the upstream parent in a fork clone. Set it under project:, or confirm you
+want the inferred repository.
+```
+
+Behaviour follows `GATE`:
 
 - **`open-pr`** (default): create `feature/tickets/<SLUG>`, stage `issues.json`, commit, and open a
   PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/tickets/<SLUG>
-  git add <ARTIFACTS_DIR>/<SLUG>/issues.json
+  git add -- "<ARTIFACTS_DIR>/<SLUG>/issues.json"
+  git status --porcelain                              # confirm nothing else is staged
   git commit -m "tickets(<SLUG>): vertical-slice issues"
   git push origin feature/tickets/<SLUG>
-  gh pr create --base develop --title "tickets(<SLUG>): vertical-slice issues" --body "<why + slice summary + tracker links>"
+  gh pr create --repo "<REPO_REF>" --base develop --title "tickets(<SLUG>): vertical-slice issues" --body "<why + slice summary + tracker links>"
   ```
 
   (Adapt the host commands to `TRACKER` if the project is not GitHub.) On **reject**, return to
   Step 4 and revise the breakdown, then re-run from Step 8.
 
-- **`stage-only`**: write `issues.json` (already done in Step 8) and `git add` it, print a suggested
-  PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+- **`stage-only`**: write `issues.json` (already done in Step 8), then stage it by name — the same
+  `git add -- "<path>"` plus `git status --porcelain` check as above. Print a suggested PR title/body
+  (including the `--repo "<REPO_REF>"` flag) and **stop** — leave the branch, commit, push, and PR to
+  the user.
 
 ## Step 11 — Summary
 

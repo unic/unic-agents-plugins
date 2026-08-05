@@ -39,16 +39,25 @@ nodes:
              `gates.explore`        (default "hitl")
              `tracker.type`         (e.g. github / ado / jira / local-markdown)
              `project.branching`    (default "gitflow")
+             `project.repo_ref`     (OPTIONAL, may be absent or null)
       3. If slug and config are both present → status "ready".
 
       /explore has no PRD or findings precondition — it is an off-line precursor that PRODUCES
       findings.md, so `ready` needs only a slug + a readable config.
 
+      `project.repo_ref` is the host-agnostic repository reference every tracker-touching node pins its
+      CLI call to — "OWNER/REPO" (optionally "HOST/OWNER/REPO") for github, "PROJECT/REPO" for ado.
+      Emit it VERBATIM as `repo_ref`, with no normalising, splitting or host-qualifying: only the
+      consuming node knows which flag it belongs to. When the key is absent, null or empty, emit
+      `repo_ref` "" and `repo_ref_present` "false"; otherwise emit the value and "true".
+      `repo_ref_present` is the STRING "true"/"false" (an enum) so the `guard-no-repo-ref` condition
+      compares it reliably.
+
       Emit ONLY the structured object. ALWAYS emit EVERY required field, including in the no-slug /
       no-config branches, so the object validates before `guard-not-ready` can cancel. When a value
       cannot be read, fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
-      tracker_type "", branching "gitflow". Set `message` to a human-readable reason for any
-      non-ready status.
+      tracker_type "", branching "gitflow", repo_ref "", repo_ref_present "false". Set `message` to a
+      human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -62,8 +71,12 @@ nodes:
           enum: [hitl, afk]
         tracker_type: { type: string }
         branching: { type: string }
+        repo_ref: { type: string }
+        repo_ref_present:
+          type: string
+          enum: ['true', 'false']
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, tracker_type, message]
+      required: [status, slug, artifacts_dir, gate, tracker_type, repo_ref, repo_ref_present, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
@@ -75,6 +88,22 @@ nodes:
       /explore preconditions not met — see the bootstrap output. Pass a kebab-case slug
       (`/unic-archon-dlc:explore <slug>`) and run /unic-archon-dlc:setup first so
       `.archon/unic-dlc.config.yaml` exists.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-repo-ref — an unpinned repository is an EXPECTED precondition failure, so it cancels
+  # rather than fails (ADR-0011), exactly like guard-not-ready above. spike-ticket files a ticket
+  # against the repository, and an unpinned `gh`/`az` call infers it from the checkout — which in a
+  # fork clone is the upstream parent, so the ticket lands in someone else's tracker (#289).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-repo-ref
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready' && $bootstrap.output.repo_ref_present == 'false'"
+    cancel: >
+      /explore cannot run: `project.repo_ref` is not set in `.archon/unic-dlc.config.yaml`. It is the
+      repository every tracker call is pinned to — "OWNER/REPO" (or "HOST/OWNER/REPO") for github,
+      "PROJECT/REPO" for ado. Without it `gh`/`az` infers the repository from the checkout, which in a
+      fork clone is the upstream parent. Add it under `project:` (or re-run /unic-archon-dlc:setup) and
+      start /explore again.
 
   # ---------------------------------------------------------------------------------------------
   # research-stack — parallel research dimension 1 of 4. Read-only, fresh context. Emits its findings
@@ -359,7 +388,20 @@ nodes:
         SLUG          = $bootstrap.output.slug
         ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
         TRACKER       = $bootstrap.output.tracker_type
+        REPO_REF      = $bootstrap.output.repo_ref
         Verdicts      = $spike.output.verdict_summary
+
+      ## Repo-pinning rule (applies to EVERY tracker call in this node)
+      Pin every call to REPO_REF — never let the CLI infer the repository from the checkout, which in a
+      fork clone resolves to the upstream parent and files the ticket in someone else's tracker. The
+      reference is host-agnostic and the FLAG is what differs, so pass it per host and never hardcode
+      one (ADR-0016):
+        - github → `gh issue create --repo "<REPO_REF>" …` (and `--repo` on every `gh issue list` /
+          `gh issue edit` / `gh api` call this node makes)
+        - ado    → `az repos …` with `--repository "<REPO_REF>"` (plus the `--organization` /
+          `--project` coords from `tracker.coords`)
+        - jira / local-markdown → no repository flag exists; use the configured coords as-is.
+      REPO_REF is guaranteed non-empty here: `guard-no-repo-ref` cancelled the run otherwise.
 
       1. Read `.archon/unic-dlc.config.yaml` for `tracker` (type / access / coords) and
          `classification.labels`. Compose the tracker MCP-first, CLI-fallback (gh / az / jira, or the
@@ -410,9 +452,35 @@ nodes:
       You are the preserve-spike node of /explore for slug "$bootstrap.output.slug". The reviewer
       approved preserving the spike code.
 
+      Constants:
+        SLUG          = $bootstrap.output.slug
+        ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
+
       1. Create the branch (quote the branch name — the slug is user-controlled):
            git checkout -b "spike/$bootstrap.output.slug"
-      2. Stage and commit the spike code and findings:
-           git add -A
+
+      2. Stage the spike BY NAME. This node never stages blindly: `git add -A`, `git add .` and
+         `git add -u` are FORBIDDEN here. It runs in an isolated worktree that also carries the
+         operator's copied `.archon/` directory, scratch files the research and spike nodes produced,
+         and whatever an experiment left on disk — so "everything changed" is not the spike, and a
+         blind add lands scratch and PR-body artefacts on the branch.
+           a. List the candidates: `git status --porcelain`
+           b. Build the stage list from that output, keeping ONLY:
+                - <ARTIFACTS_DIR>/<SLUG>/findings.md
+                - the throwaway experiment files the spike node created for this SLUG
+           c. NEVER stage, whatever `git status` reports:
+                - `pr-body.md`, or any `*.tmp.md` / `*.scratch.md`
+                - anything under `$ARTIFACTS_DIR` — Archon's per-run directory, which resolves OUTSIDE
+                  the repo tree and is NOT the config's `artifacts_dir`
+                - anything under `.archon/` — the operator's workflows and commands, copied into this
+                  worktree before the run started; they are never this node's changes to commit
+           d. Stage each kept path individually and quoted:
+                git add -- "<path>" "<path>" …
+           e. PROVE it: run `git status --porcelain` again and confirm every staged entry (first
+              column) is a path you named in (b). Unstage anything else with
+              `git restore --staged -- "<path>"` and re-check before committing.
+
+      3. Commit:
            git commit -m "spike($bootstrap.output.slug): preserve exploration artifacts from /explore"
-      3. Print: "Spike code committed on branch spike/$bootstrap.output.slug."
+
+      4. Print: "Spike code committed on branch spike/$bootstrap.output.slug."

@@ -41,16 +41,25 @@ nodes:
              `tracker.type`                   (e.g. github / ado / jira / local-markdown)
              `docs.type` / `docs.access`      (for intent composition from docs)
              `project.branching`              (default "gitflow")
+             `project.repo_ref`               (OPTIONAL, may be absent or null)
       3. If slug and config are both present → status "ready". (There is no PRD precondition: intent is
          composed from whatever sources resolve — see prep.)
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
+
+      `project.repo_ref` is the host-agnostic repository reference every PR-touching node pins its CLI
+      call to — "OWNER/REPO" (optionally "HOST/OWNER/REPO") for github, "PROJECT/REPO" for ado. Emit it
+      VERBATIM as `repo_ref`, with no normalising, splitting or host-qualifying: only the consuming node
+      knows which flag it belongs to. When the key is absent, null or empty, emit `repo_ref` "" and
+      `repo_ref_present` "false"; otherwise the value and "true".
+
       ALWAYS emit EVERY required field, including in the no-slug / no-config branches, so the object
       validates before `guard-not-ready` can cancel. When a value cannot be read, fall back to: slug ""
       (if no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
-      "true", tracker_type "", branching "gitflow", expected_base "develop". `inline_comments` is emitted
-      as the STRING "true"/"false" (enum) so downstream `when` comparisons are reliable. Set `message` to
-      a human-readable reason for any non-ready status.
+      "true", tracker_type "", branching "gitflow", expected_base "develop", repo_ref "",
+      repo_ref_present "false". `inline_comments` and `repo_ref_present` are emitted as the STRING
+      "true"/"false" (enum) so downstream `when` comparisons are reliable. Set `message` to a
+      human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -69,8 +78,12 @@ nodes:
         tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
+        repo_ref: { type: string }
+        repo_ref_present:
+          type: string
+          enum: ['true', 'false']
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, branching, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, branching, expected_base, repo_ref, repo_ref_present, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
@@ -82,6 +95,22 @@ nodes:
       /pr-review preconditions not met — see the bootstrap output for whether the slug or
       .archon/unic-dlc.config.yaml is missing. Pass a slug (`/unic-dlc-pr-review <slug>`) and run
       /unic-archon-dlc:setup first if there is no config.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-repo-ref — an unpinned repository is an EXPECTED precondition failure, so it cancels
+  # rather than fails (ADR-0011), exactly like guard-not-ready above. This Box holds the only
+  # review-posting authority in the lifecycle, so an inferred repository would post a whole review —
+  # summary comment and every inline thread — onto a PR in the upstream parent of a fork clone (#289).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-repo-ref
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready' && $bootstrap.output.repo_ref_present == 'false'"
+    cancel: >
+      /pr-review cannot run: `project.repo_ref` is not set in `.archon/unic-dlc.config.yaml`. It is the
+      repository the review is read from and posted to — "OWNER/REPO" (or "HOST/OWNER/REPO") for github,
+      "PROJECT/REPO" for ado. Without it `gh`/`az` infers the repository from the checkout, which in a
+      fork clone is the upstream parent. Add it under `project:` (or re-run /unic-archon-dlc:setup) and
+      start /pr-review again.
 
   # ---------------------------------------------------------------------------------------------
   # prep — the shared context builder. Identifies the open PR, computes the diff, categorises the
@@ -109,13 +138,24 @@ nodes:
         ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
         SESSION       = <ARTIFACTS_DIR>/<SLUG>/pr-review/
         TRACKER       = $bootstrap.output.tracker_type
+        REPO_REF      = $bootstrap.output.repo_ref
       Create SESSION if it does not exist.
+
+      ## Repo-pinning rule (applies to EVERY tracker call in this node)
+      Pin every call to REPO_REF — an unpinned CLI infers the repository from the checkout, which in a
+      fork clone is the upstream parent, so you would review a PR and work items from the wrong
+      repository. The reference is host-agnostic and only the FLAG differs (ADR-0016): `--repo
+      "<REPO_REF>"` on every `gh` call; for ado, the flag the subcommand takes (`--repository` where one
+      exists, `--id` where the PR identifies itself) plus the `--organization` / `--project` coords from
+      `tracker.coords`. Never hardcode a host. REPO_REF is guaranteed non-empty here:
+      `guard-no-repo-ref` cancelled the run otherwise.
 
       ## 1. Identify the open PR + read its description
       Compose the configured tracker (MCP-first, CLI-fallback — never hardcode a host, ADR-0016), reading
       `tracker` from `.archon/unic-dlc.config.yaml`:
-        - github → `gh pr view --json number,title,body,headRefName,baseRefName`
-        - ado    → `az repos pr list --status active` then `az repos pr show` for the current branch
+        - github → `gh pr view --repo "<REPO_REF>" --json number,title,body,headRefName,baseRefName`
+        - ado    → `az repos pr list --repository "<REPO_REF>" --status active` then
+          `az repos pr show --id <id>` for the current branch
         - jira / local-markdown / other → there may be no queryable PR; note it and continue.
       Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an intent source).
 
@@ -401,17 +441,30 @@ nodes:
       You are the post node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/. ITERATION = $reconcile.output.iteration.
       PR_ID = $prep.output.pr_id. inline_comments = $bootstrap.output.inline_comments.
+      REPO_REF = $bootstrap.output.repo_ref.
 
       Compose the configured tracker from `.archon/unic-dlc.config.yaml` (`tracker.type`; MCP-first,
       CLI-fallback — never hardcode a host, ADR-0016).
 
+      ## Repo-pinning rule (applies to EVERY call below)
+      Pin every call to REPO_REF. This node is the only place in the lifecycle that POSTS a review, and
+      an unpinned CLI infers the repository from the checkout — in a fork clone, the upstream parent, so
+      the summary comment and every inline thread would land on a stranger's PR. The reference is
+      host-agnostic and only the FLAG differs: `--repo "<REPO_REF>"` on every `gh pr` call, and — since
+      `gh api` has no `--repo` flag — the reference written INTO the API path (`repos/<REPO_REF>/…`)
+      rather than left to `gh`'s `{owner}/{repo}` placeholders, which resolve from the checkout. For ado,
+      the flag the subcommand takes (`--repository` where one exists, `--id` where the PR identifies
+      itself) plus the `--organization` / `--project` coords from `tracker.coords`. Never hardcode a
+      host. REPO_REF is guaranteed non-empty here: `guard-no-repo-ref` cancelled the run otherwise.
+
       ## Summary comment (always)
       Read SESSION/comment.md. Search the PR's comments for the FIRST comment containing the marker
       `<!-- unic-dlc-pr-review:iteration=` (match the marker, NEVER the author).
-        - github → find via `gh pr view "$PR_ID" --json comments`; PATCH the matched comment with
-          `gh api ... -X PATCH -f body=@SESSION/comment.md`, else `gh pr comment "$PR_ID" --body-file`.
-        - ado    → `az repos pr thread list`; update the matched general-comment thread's first comment,
-          else create a new general-comment thread.
+        - github → find via `gh pr view "$PR_ID" --repo "<REPO_REF>" --json comments`; PATCH the matched
+          comment with `gh api repos/<REPO_REF>/issues/comments/<id> -X PATCH -f
+          body=@SESSION/comment.md`, else `gh pr comment "$PR_ID" --repo "<REPO_REF>" --body-file`.
+        - ado    → `az repos pr thread list --id "$PR_ID"`; update the matched general-comment thread's
+          first comment, else create a new general-comment thread.
         - jira / local-markdown → update the marked comment / overwrite SESSION/comment.md as the record.
       The comment.md already carries the bumped `iteration=<ITERATION>` marker + footer.
 
@@ -425,7 +478,9 @@ nodes:
                           tracker supports a resolved status (best-effort; otherwise just reply).
         - regressed     → reopen the thread (or open a new one) noting the regression.
         - new           → create a new inline thread at file:line.
-      (github: `gh api` review comments; ado: `az repos pr thread create/update` with threadContext.)
+      (github: `gh api repos/<REPO_REF>/pulls/<PR_ID>/comments` — the reference written into the path,
+      per the repo-pinning rule above; ado: `az repos pr thread create/update --id "$PR_ID"` with
+      threadContext.)
 
       Finally print: "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
       <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved). ✓"

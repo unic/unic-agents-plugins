@@ -11,6 +11,7 @@ import {
 	defaultConfig,
 	isLegacyConfig,
 	loadConfig,
+	MANDATORY_PATHS,
 	mergeConfig,
 	migrateLegacy,
 	toYaml,
@@ -108,6 +109,46 @@ test('validateConfig passes once mandatory paths are filled', () => {
 	})
 	const result = validateConfig(config)
 	assert.ok(!('error' in result), 'expected a valid config')
+})
+
+test('project.repo_ref defaults to null and is optional, so a config without it still validates', () => {
+	// #289: every PR-touching Box pins `gh --repo` / `az repos --repository` to this value, and cancels
+	// cleanly when it is absent. Optional on purpose — promoting it to mandatory is the 0.7.0 adoption's
+	// job, and a mandatory leaf here would make every existing Consumer config invalid on upgrade.
+	const project = /** @type {any} */ (defaultConfig().project)
+	assert.ok('repo_ref' in project, 'defaultConfig must define project.repo_ref so a Box can read it')
+	assert.equal(project.repo_ref, null, 'project.repo_ref defaults to null — "not pinned"')
+
+	const filled = mergeConfig(defaultConfig(), {
+		tracker: { type: 'github' },
+		project: { branching: 'gitflow', pr_strategy: 'merge' },
+	})
+	const result = validateConfig(filled)
+	assert.ok(!('error' in result), 'a config with no repo_ref must still validate')
+	assert.ok(!MANDATORY_PATHS.includes('project.repo_ref'), 'project.repo_ref must not be a mandatory path')
+})
+
+test('project.repo_ref survives a merge and stays host-agnostic', () => {
+	// The value is passed verbatim to whichever CLI the tracker resolves to, so the schema must not
+	// normalise, split or host-qualify it: "OWNER/REPO", "HOST/OWNER/REPO" and ADO's "PROJECT/REPO" are
+	// all legal and only the consuming Box knows which flag they belong to.
+	for (const ref of ['unic/unic-agents-plugins', 'github.com/unic/unic-agents-plugins', 'MyProject/my-repo']) {
+		const merged = mergeConfig({ project: { repo_ref: ref } }, {})
+		assert.equal(/** @type {any} */ (merged.project).repo_ref, ref)
+		// The sibling project keys must survive alongside it — a replaced (not merged) project block
+		// would silently drop `branching` and send every Box to the wrong base branch.
+		assert.equal(/** @type {any} */ (merged.project).repo_layout, 'single-context')
+	}
+	const answered = mergeConfig({ project: { repo_ref: 'old/repo' } }, { project: { repo_ref: 'new/repo' } })
+	assert.equal(/** @type {any} */ (answered.project).repo_ref, 'new/repo', 'an answer wins over the on-disk value')
+})
+
+test('migrateLegacy carries a hand-added flat repo_ref into project.repo_ref', () => {
+	const config = mergeConfig(migrateLegacy({ ...DOGFOOD_JSON, repo_ref: 'unic/unic-agents-plugins' }))
+	assert.equal(/** @type {any} */ (config.project).repo_ref, 'unic/unic-agents-plugins')
+	// A legacy config without the key migrates to the null default, never to undefined — a Box reads
+	// the key unconditionally.
+	assert.equal(/** @type {any} */ (mergeConfig(migrateLegacy(DOGFOOD_JSON)).project).repo_ref, null)
 })
 
 test('mergeConfig precedence: defaults < existing < answers', () => {

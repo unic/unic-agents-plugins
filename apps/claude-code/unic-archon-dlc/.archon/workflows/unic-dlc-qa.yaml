@@ -35,6 +35,7 @@ nodes:
              `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
              `tracker.type`           (e.g. github / ado / jira / local-markdown)
              `project.branching`      (default "gitflow")
+             `project.repo_ref`       (OPTIONAL, may be absent or null)
       3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
          /build implemented — the acceptance criteria the UAT checklist is derived from.
          - If it is absent → status "no-prd".
@@ -44,11 +45,18 @@ nodes:
       Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
       (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
 
+      `project.repo_ref` is the host-agnostic repository reference every PR-touching node pins its CLI
+      call to — "OWNER/REPO" (optionally "HOST/OWNER/REPO") for github, "PROJECT/REPO" for ado. Emit it
+      VERBATIM as `repo_ref`, with no normalising, splitting or host-qualifying: only the consuming node
+      knows which flag it belongs to. When the key is absent, null or empty, emit `repo_ref` "" and
+      `repo_ref_present` "false"; otherwise the value and "true". `repo_ref_present` is the STRING
+      "true"/"false" (an enum) so the `guard-no-repo-ref` condition compares it reliably.
+
       ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
       object validates before `guard-not-ready` can cancel. When a value cannot be read (e.g. config is
       missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
-      tracker_type "" , branching "gitflow", expected_base "develop". Set `message` to a human-readable
-      reason for any non-ready status.
+      tracker_type "" , branching "gitflow", expected_base "develop", repo_ref "", repo_ref_present
+      "false". Set `message` to a human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -65,8 +73,12 @@ nodes:
         tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
+        repo_ref: { type: string }
+        repo_ref_present:
+          type: string
+          enum: ['true', 'false']
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, repo_ref, repo_ref_present, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
@@ -78,6 +90,22 @@ nodes:
       /qa preconditions not met — see the bootstrap output for which of slug, config, or
       <artifacts_dir>/<slug>/PRD.md is missing. Run /unic-archon-dlc:build <slug> first (which in turn
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-repo-ref — an unpinned repository is an EXPECTED precondition failure, so it cancels
+  # rather than fails (ADR-0011), exactly like guard-not-ready above. /qa is the box that MERGES, so an
+  # inferred repository is at its most dangerous here: it cancels before the e2e suite runs rather than
+  # discovering the problem at verify-pr-base (#289).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-repo-ref
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready' && $bootstrap.output.repo_ref_present == 'false'"
+    cancel: >
+      /qa cannot run: `project.repo_ref` is not set in `.archon/unic-dlc.config.yaml`. It is the
+      repository whose PR is verified and merged — "OWNER/REPO" (or "HOST/OWNER/REPO") for github,
+      "PROJECT/REPO" for ado. Without it `gh`/`az` infers the repository from the checkout, which in a
+      fork clone is the upstream parent. Add it under `project:` (or re-run /unic-archon-dlc:setup) and
+      start /qa again.
 
   # ---------------------------------------------------------------------------------------------
   # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
@@ -222,6 +250,12 @@ nodes:
              the azure-devops-cli skill) — never hardcode a host (ADR-0016). Labels come ONLY from
              `classification.labels` (single source of truth — ADR-0024); do NOT read
              docs/agents/triage-labels.md or issue-tracker.md.
+             PIN every call to REPO_REF = $bootstrap.output.repo_ref — an unpinned CLI infers the
+             repository from the checkout, which in a fork clone is the upstream parent, and the defect
+             would be filed in someone else's tracker. The reference is host-agnostic and only the FLAG
+             differs: `gh issue create --repo "<REPO_REF>"` for github; for ado, the `az repos` /
+             `az boards` flag the subcommand takes (`--repository` where one exists) plus the
+             `--organization` / `--project` coords from `tracker.coords`.
           2. Decide single-issue vs breakdown this way: prefer many thin, independently fixable issues
              over one thick one; mark blocked-by relationships honestly; write from the user's
              perspective in the project's domain language; NO file paths or line numbers.
@@ -257,13 +291,21 @@ nodes:
       You are the verify-pr-base node of /qa for slug "$bootstrap.output.slug".
 
       Expected base branch: $bootstrap.output.expected_base   (tracker: $bootstrap.output.tracker_type)
+      REPO_REF = $bootstrap.output.repo_ref
 
       Query the open PR for the current feature branch and read its target/base branch, composing the
-      tracker from `.archon/unic-dlc.config.yaml` (MCP-first, CLI-fallback):
-        - github → `gh pr view --json baseRefName`
-        - ado    → `az repos pr show` (targetRefName, strip refs/heads/)
+      tracker from `.archon/unic-dlc.config.yaml` (MCP-first, CLI-fallback). PIN every call to REPO_REF —
+      an unpinned CLI infers the repository from the checkout, which in a fork clone is the upstream
+      parent, so you would verify the base of a PR in the wrong repository. The reference is
+      host-agnostic and only the FLAG differs (ADR-0016):
+        - github → `gh pr view --repo "<REPO_REF>" --json baseRefName`
+        - ado    → find the PR with `az repos pr list --repository "<REPO_REF>"`, then read
+          `targetRefName` from `az repos pr show --id <id>` (strip `refs/heads/`). Pass the repository
+          through the flag the subcommand actually takes: `--repository` where one exists, `--id` where
+          the PR identifies itself; add the `--organization` / `--project` coords from `tracker.coords`
         - jira / local-markdown / other → no queryable PR base: set base_ok "true" and note it is
           unverifiable for this tracker (warning only, non-blocking).
+      REPO_REF is guaranteed non-empty here: `guard-no-repo-ref` cancelled the run otherwise.
       Set `base_ok` to the STRING "true" when the actual base equals expected_base (or is unverifiable
       as above); the STRING "false" on a genuine mismatch. (It is a string, not a boolean, so the
       downstream `when` gates compare it reliably as `== 'true'`.) Print "verify-pr-base: base is
@@ -304,11 +346,19 @@ nodes:
     prompt: |
       You are the merge node of /qa for slug "$bootstrap.output.slug".
 
+      REPO_REF = $bootstrap.output.repo_ref
+
       Merge the open PR for the current feature branch, composing the tracker from
       `.archon/unic-dlc.config.yaml` (`tracker.type`, `project.pr_strategy`, `project.branching`;
-      MCP-first, CLI-fallback — never hardcode a host, ADR-0016):
-        - github → `gh pr merge` with `--squash` (default) or `--merge` per `project.pr_strategy`.
-        - ado    → `az repos pr update --status completed`.
+      MCP-first, CLI-fallback — never hardcode a host, ADR-0016). PIN every call to REPO_REF — an
+      unpinned CLI infers the repository from the checkout, which in a fork clone is the upstream parent,
+      and this node MERGES. The reference is host-agnostic and only the FLAG differs:
+        - github → `gh pr merge --repo "<REPO_REF>"` with `--squash` (default) or `--merge` per
+          `project.pr_strategy`.
+        - ado    → resolve the PR with `az repos pr list --repository "<REPO_REF>"` and complete it with
+          `az repos pr update --id <id> --status completed`. Pass the repository through the flag the
+          subcommand actually takes: `--repository` where one exists, `--id` where the PR identifies
+          itself; add the `--organization` / `--project` coords from `tracker.coords` to both.
         - jira / local-markdown → print the manual steps (transition the linked issue to Done / set
           Status: resolved in the issues file) — there is no merge CLI.
       On Gitflow (`project.branching == "gitflow"`) with a git-hosted tracker (github/ado), after a

@@ -67,6 +67,7 @@ try {
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
+          repo_ref: g('project.repo_ref') ?? null,
           tracker: config.tracker,
           docs: config.docs,
           design: config.design,
@@ -86,9 +87,10 @@ EOJS
 ```
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `DOCS` (`.type`/`.publish`/`.access`),
-`DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE`
-(`specs.gate`), `PRD_TEMPLATE`, and `METHODS`.
+`ARTIFACTS_DIR`, `REPO_REF` (`project.repo_ref`, may be `null`), `TRACKER`
+(`.type`/`.access`/`.coords`), `DOCS` (`.type`/`.publish`/`.access`), `DESIGN` (`.type`/`.access`),
+`ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE` (`specs.gate`), `PRD_TEMPLATE`, and
+`METHODS`.
 
 ### The Methods this Box reads
 
@@ -246,24 +248,51 @@ confirmations, not gates — they settle the design, they approve nothing. This 
 `grilling`'s "do not enact the plan until I confirm we have reached a shared understanding" lands: in
 `/specs`, enacting the plan means writing and PR-ing the PRD, and that is exactly what this gate holds.
 
-The PRD is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
+The PRD is human-approved via a PR — never merge it yourself. Both gate paths stage the same way.
+
+**Staging rule (both paths).** Stage by NAME. Never run `git add -A`, `git add .`, `git add -u`, or
+`git add` on a directory such as `docs/adr/` — a directory add sweeps in every unrelated in-flight
+ADR. Name the PRD, then name each new ADR file individually. Never stage `pr-body.md`, any
+`*.tmp.md` / `*.scratch.md`, or anything under Archon's per-run artifacts directory (which resolves
+outside the repo tree, and is not the config's `artifacts_dir`). After staging, run
+`git status --porcelain` and confirm every staged path is one you named.
+
+**Repo-pinning rule (both paths).** Pin the PR command to `REPO_REF`. An unpinned `gh`/`az` infers
+the repository from the checkout, which in a fork clone is the upstream parent — the PR then opens
+against the wrong repository. The reference is host-agnostic and only the flag differs: `gh pr create
+--repo "<REPO_REF>"` for GitHub, `az repos pr create --repository "<REPO_REF>"` plus the
+`--organization` / `--project` coords for Azure DevOps. Never hardcode a host.
+
+If `REPO_REF` is `null`, print this line before doing anything else and ask the human to confirm or
+set the key:
+
+```
+project.repo_ref is not set in .archon/unic-dlc.config.yaml — gh/az will infer the repository from
+the checkout, which is the upstream parent in a fork clone. Set it under project:, or confirm you
+want the inferred repository.
+```
+
+Behaviour follows `GATE`:
 
 - **`open-pr`** (default): create `feature/specs/<SLUG>`, stage the PRD and any new ADRs, commit, and
   open a PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/specs/<SLUG>
-  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md docs/adr/
+  git add -- "<ARTIFACTS_DIR>/<SLUG>/PRD.md" "docs/adr/<NNNN-slug>.md"   # one path per new ADR
+  git status --porcelain                                                 # confirm nothing else is staged
   git commit -m "plan(<SLUG>): PRD and ADRs"
   git push origin feature/specs/<SLUG>
-  gh pr create --base develop --title "plan(<SLUG>): PRD and ADRs" --body "<why + summary>"
+  gh pr create --repo "<REPO_REF>" --base develop --title "plan(<SLUG>): PRD and ADRs" --body "<why + summary>"
   ```
 
   (Adapt the tracker/host commands to `TRACKER` if the project is not GitHub.) On **reject**, return
   to Step 4 and grill the open points, then re-run from Step 7.
 
-- **`stage-only`**: write the PRD (already done in Step 7) and `git add` it plus any new ADRs, print a
-  suggested PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+- **`stage-only`**: write the PRD (already done in Step 7), then stage it and each new ADR by name —
+  the same `git add -- "<path>" …` plus `git status --porcelain` check as above. Print a suggested PR
+  title/body (including the `--repo "<REPO_REF>"` flag) and **stop** — leave the branch, commit, push,
+  and PR to the user.
 
 ## Step 9 — Summary
 
