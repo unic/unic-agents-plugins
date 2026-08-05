@@ -16,6 +16,7 @@
 node_modules/
 **/.ralph/
 **/.history/
+**/.remember/
 artifacts/
 
 # AI agent spec files — not for human review
