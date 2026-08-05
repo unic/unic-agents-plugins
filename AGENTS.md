@@ -27,7 +27,6 @@ docs/
 ├── agents/                   # Agent skill documentation
 ├── inbox/                    # Retired idea-capture notes (historical)
 ├── issues/                   # Grilled and scoped feature issues
-├── plans/                    # Retired spec files (historical)
 ├── process/                  # Process and workflow guides
 └── research/                 # Research notes and explorations
 ```
@@ -98,6 +97,8 @@ Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(relea
 
 **Never commit directly to `main` or `develop`.** Always go through a PR.
 
+PRs merge with a merge commit, never a squash — the release flow reads `develop → main` merges.
+
 Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `feature/` (the prefix encodes PR topology, not change kind). Archon-dispatched branches add a scope sub-namespace: `feature/<scope>/<issue#>-<slug>`, where `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `repo` → `repo`). The `/archon-rollout` command owns the full derivation rule.
 
 ## Release flow
@@ -167,16 +168,22 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 
 ### Who owns which files
 
-| Path                          | Owner                        | Rule                                                                                                                                         |
-| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.agents/skills/**`           | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently                                                                |
-| `.claude/skills/*` (symlinks) | `npx skills`                 | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r`                                   |
-| `skills-lock.json`            | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
-| `docs/agents/*.md`            | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
+| Path                                             | Owner                        | Rule                                                                                                                                         |
+| ------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.agents/skills/**`                              | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently                                                                |
+| `.claude/skills/<name>` symlinks                 | `npx skills`                 | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r`                                   |
+| `.claude/skills/{archon,new-plugin,verify-spec}` | This repo                    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
+| `skills-lock.json`                               | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
+| `docs/agents/*.md`                               | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
 ### Upgrading
 
 Selection policy: all of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/`.
+
+Two entries the policy needs to name explicitly:
+
+- **`misc/git-guardrails-claude-code`** is the one `misc/` entry installed. Justification: it is the only vendored skill that installs a repo-local safety hook, so it belongs where the repo is. Read the caveat below before wiring it up.
+- **`setup-matt-pocock-skills` stays installed but must never run.** It is the reference `docs/agents/*.md` was hand-authored from, which is why it is kept. A run reverts `docs/agents/triage-labels.md` to the five-role `wontfix` vocabulary. Four installed skills tell an agent to invoke it when a tracker or label mapping looks missing — `triage`, `wayfinder`, `to-spec`, `to-tickets`. Those files exist and are correct here, so that condition is never met: if a skill asks for them, read `docs/agents/`, do not run the setup skill.
 
 ```sh
 npx skills@latest add mattpocock/skills -a claude-code -y -s <name> -s <name> …

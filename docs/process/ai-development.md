@@ -6,19 +6,19 @@ This guide explains the mental model behind the AI-development workflow, the arc
 
 ## 1. The Feature Runner
 
-A **Feature Runner** is the skill that implements a Feature's issues end-to-end in one worktree, branch, and pull request (see root `CONTEXT.md`).
+A **Feature Runner** is whatever implements a Feature's Issues end-to-end in one worktree, branch, and pull request (see root `CONTEXT.md`).
 
 New work enters as a GitHub Issue — the canonical tracker for state and ownership (see [docs/agents/issue-tracker.md](../agents/issue-tracker.md)). Once an idea is charted into a Feature, `/to-spec` publishes the spec as an issue and `/to-tickets` publishes one issue per ticket, linked by GitHub's native sub-issue and blocking relationships.
 
 `docs/issues/<slug>/` directories hold the markdown artifact set for Features that want durable file-based tickets — `PRD.md` plus numbered ticket files a Feature Runner can read. Since upstream v1.1 **no skill generates them**; create one by hand when a Feature needs it. Most work lives in GitHub Issues alone.
 
-|                       | Feature Runner                                                    |
-| --------------------- | ----------------------------------------------------------------- |
-| **Input**             | A `ready-for-agent` GitHub issue, or `docs/issues/<slug>/NN-*.md` |
-| **Format**            | Descriptive: `## What to build` + `## Acceptance criteria`        |
-| **Worker**            | `/tdd` or `/implement`                                            |
-| **Completion marker** | `Status: resolved` in issue file                                  |
-| **Branch**            | `feature/<name>`, or `feature/<scope>/<issue#>-<slug>` AFK        |
+|                       | Feature Runner                                                          |
+| --------------------- | ----------------------------------------------------------------------- |
+| **Input**             | A `ready-for-agent` GitHub issue, or `docs/issues/<slug>/NN-*.md`       |
+| **Format**            | Descriptive: `## What to build` + `## Acceptance criteria`              |
+| **Worker**            | `/tdd` or `/implement`                                                  |
+| **Completion marker** | `resolved` label on the Issue, or `Status: resolved` in the ticket file |
+| **Branch**            | `feature/<name>`, or `feature/<scope>/<issue#>-<slug>` AFK              |
 
 Two runners operate here: **the developer driving `/tdd` or `/implement`** one issue at a time, and **`/archon-rollout`** dispatching the native `archon-fix-github-issue` workflow per issue for AFK runs. `unic-dlc-build` (shipped by `unic-archon-dlc`) is not one of them — that plugin is built here for Consumer repos and deliberately not installed against this one, see [ADR-0033](../adr/0033-de-dogfood-unic-archon-dlc.md). Infrastructure work (CI, tooling, packages) and product work (plugin features) both enter through the issue tracker — the split is in the issue content, not in which runner handles it.
 

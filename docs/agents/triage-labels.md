@@ -31,6 +31,8 @@ Three more state labels exist that no canonical role names. They extend the skil
 
 `ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. Treat that label as final — do not re-triage freshly published tickets.
 
+It carries two different meanings depending on which issue holds it. On a **ticket** from `/to-tickets` it means an agent may implement this. On the **spec issue** from `/to-spec` it means the spec is settled — the body is user stories, with no `## What to build` and no `## Blocked by` edges, so it is not implementable. Check the shape, not just the label, before dispatching.
+
 | Label         | Meaning                                         | Sits between                 |
 | ------------- | ----------------------------------------------- | ---------------------------- |
 | `needs-specs` | Enough info from the reporter; ready for a spec | `needs-info` → `ready-for-*` |

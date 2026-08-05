@@ -28,6 +28,8 @@ One per issue: `p0`, `p1`, `p2`, `p3`.
 - `pkg:<package>` — one per workspace package under `packages/`
 - `repo` — monorepo-wide or cross-cutting work
 
+One exception: `app:unic-ticket-specification` has no directory under `apps/claude-code/` — the plugin was specified but never built. Keep the label; one issue carries it, and deleting a label strips it from every issue that has it. `app:pr-review` does have a directory, deliberately tagging the deprecated v1 plugin's 30 historical issues.
+
 Hand-applied. The context each area label maps to is listed in [`CONTEXT-MAP.md`](../../CONTEXT-MAP.md).
 
 ## Kept for tooling

@@ -38,9 +38,9 @@ If the work involves an unfamiliar external API, a complex integration, or anyth
 /research
 ```
 
-It spins up a background agent that reads primary sources — official docs, source code, specs, first-party APIs — cites each claim, and writes one Markdown file. Point it at the relevant plugin directory (e.g. `apps/claude-code/pr-review/research.md`) so the note lands where the work is. A `wayfinder` ticket labelled `wayfinder:research` is the same job scoped to one decision.
+It spins up a background agent that reads primary sources — official docs, source code, specs, first-party APIs — cites each claim, and writes one Markdown file. This repo keeps those notes in `docs/research/`, which is the convention the skill picks up. A `wayfinder` ticket labelled `wayfinder:research` is the same job scoped to one decision.
 
-Research assets are **temporary** — scoped to the current feature sprint. Delete them once the feature ships to prevent stale data from misleading future agents.
+A note written **beside the code it explains** (e.g. `apps/claude-code/pr-review/research.md`) is **temporary** — scoped to the current feature sprint. Delete it once the feature ships to prevent stale data from misleading future agents. Notes in `docs/research/` are the durable set and stay.
 
 ## Phase 4 — Prototype (optional)
 
@@ -62,9 +62,13 @@ With charting and prototyping complete, document the destination:
 /to-spec
 ```
 
-This synthesizes the conversation into a spec — problem statement, solution, user stories, implementation decisions, out-of-scope — and **publishes it as a GitHub issue**. It proposes the seams it intends to test at and checks them with you first. It does not write a file.
+This synthesizes the conversation into a spec and **publishes it as a GitHub issue**. Seven sections: Problem Statement, Solution, User Stories, Implementation Decisions, **Testing Decisions**, Out of Scope, Further Notes. It does not write a file.
+
+Testing Decisions carries the seams forward into `/tdd`, which is why the skill proposes those seams and checks them with you before it writes anything — prefer existing seams, and the highest one available.
 
 The spec answers "what does done look like?" — not "how do we get there?"
+
+It also applies `ready-for-agent` to the spec issue itself. That label there means "the spec is settled", **not** "an agent may implement this" — the spec has no `## What to build` or `## Blocked by` edges. Phase 6 produces the implementable tickets. A rollout must skip the spec issue.
 
 ## Phase 6 — Break it into tickets
 
@@ -79,6 +83,7 @@ This publishes **one GitHub issue per ticket**, in dependency order so each can 
 Two things to know about the output:
 
 - **The human gate sits inside the skill, not after it.** `/to-tickets` iterates on the breakdown until you approve it, and only then publishes — so the `ready-for-agent` label it applies already carries your approval. Do not run `/triage` again over freshly published tickets. Approve properly inside the skill, because nothing downstream re-checks. `/triage` stays the on-ramp for raw work that arrives unspecified: bug reports, external PRs, ideas. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
+- **Two kinds of issue now carry `ready-for-agent`, and only one is implementable.** The spec issue from Phase 5 has it too, and a `wayfinder:map` and its decision tickets are labelled by a different scheme entirely. Before dispatching, check the Issue has the `## What to build` / `## Acceptance criteria` shape — a label match alone is not enough. `/archon-rollout` does not yet filter these out; treat its issue list as needing a glance.
 - **`docs/issues/<slug>/` is a repo convention, not skill output.** Nothing generates it since upstream v1.1 — `to-tickets`' local-file mode writes `.scratch/<slug>/issues/` and is only reached when no real tracker is configured. Existing `docs/issues/<slug>/` directories are the durable artefact set from earlier Features; create one by hand when a Feature wants file-based tickets.
 
 ## Phase 7 — Execute
