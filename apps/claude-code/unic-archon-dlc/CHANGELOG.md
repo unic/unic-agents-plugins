@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.12.1] — 2026-08-05
+
+### Breaking
+- (none)
+
+### Added
 - **`project.repo_ref` — an optional, host-agnostic repository pin** in `lib/config-schema.mjs`, defaulting to `null`. It carries the repository every PR-touching Box node targets: `<owner>/<repo>` (or `<host>/<owner>/<repo>`) for github, the repository name or ID for ado. It is deliberately **not** in `MANDATORY_PATHS` and `/setup` does not demand it — promoting the key belongs with the Archon 0.7.0 adoption. Each of the four Box YAMLs reads it in `bootstrap`, emits it in `output_format`, and threads it downstream as `$bootstrap.output.repo_ref`; a new `guard-no-repo-ref` node **cancels** (never fails) with an actionable message naming the key and `/unic-archon-dlc:setup` when it is absent or blank ([ADR-0011](docs/adr/0011-archon-schema-target.md)). The guard treats an empty string as missing, because a blank `--repo ""` exits 0 and silently falls back to the host's own resolution.
 
 ### Fixed
