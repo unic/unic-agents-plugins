@@ -1,6 +1,6 @@
 # 0032. Issue label taxonomy: state, type, priority, and a repo-owned area tier
 
-**Status:** Accepted (2026-06)
+**Status:** Accepted (2026-06); ownership amended 2026-08, see [Amendment](#amendment-2026-08)
 
 ## Context
 
@@ -79,3 +79,38 @@ were kept, since Dependabot auto-applies and recreates them.
   vocabulary and revert `docs/agents/triage-labels.md` to the 5-role/`wontfix`
   set. Re-aligning `SKILL.md` was left out of scope because it is a vendored skill
   an upstream update could overwrite; reconcile it by hand if you re-run the skill.
+
+## Amendment (2026-08)
+
+The four-tier taxonomy above stands unchanged. Its **ownership** does not.
+
+[ADR-0033](0033-de-dogfood-unic-archon-dlc.md) uninstalls `unic-archon-dlc` from this
+monorepo, which reverses the Context above on one point: `unic-archon-dlc` is **not** "the
+tool that stays" here, and `setup-matt-pocock-skills` is **not** being phased out — it is
+the surviving driver. The collision the Context describes is resolved by removing a
+generator, not by picking a winner between two.
+
+Four amendments follow:
+
+1. **Tiers 1-3 are repo-owned.** State, type and priority were owned by
+   `unic-archon-dlc` and generated into `docs/agents/labels.md`. That file is now
+   hand-maintained, so all four tiers sit on the same footing: the repo owns them, and
+   `docs/agents/labels.md` is the record. Its "three-tier" wording — flagged above as
+   auto-generated and not to be hand-edited — is corrected to four.
+2. **`release` has one home.** The type was a repo-local override in
+   `.archon/unic-dlc.config.json`, which is deleted. `docs/agents/labels.md` is now its only
+   record.
+3. **`wayfinder:*` is a fifth, tool-scoped namespace, outside the four tiers.**
+   `wayfinder:map` marks a map issue; `wayfinder:{research,prototype,grilling,task}` type a
+   child ticket. `/wayfinder` owns their lifecycle, so they are excluded from the
+   one-per-tier discipline the four tiers follow and from any future generator's remit.
+   Documented under
+   [`docs/agents/issue-tracker.md` § Wayfinding operations](../agents/issue-tracker.md#wayfinding-operations).
+4. **The "do not re-run `/setup-matt-pocock-skills`" warning is resolved by never
+   re-running it.** Upstream v1.1 still declares five canonical roles using `wontfix`, so
+   the destructive behaviour described above is unchanged. `docs/agents/*.md` is instead
+   authored by hand from that skill's templates. The reconciled reference doc the warning
+   points at, `.agents/skills/setup-matt-pocock-skills/triage-labels.md`, is no longer
+   maintained: `.agents/skills/**` is upstream-owned and every `npx skills add` overwrites
+   it — which is how that reconciliation was silently lost in 2026-08. The 8-state mapping
+   lives in `docs/agents/triage-labels.md` only.

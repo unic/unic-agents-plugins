@@ -18,7 +18,7 @@ pnpm install
 
 ## Planning
 
-All work starts as a GitHub Issue in [unic/unic-agents-plugins](https://github.com/unic/unic-agents-plugins/issues). Open or claim an issue there before touching code. See [`docs/agents/workflow.md`](../../../../docs/agents/workflow.md) in the repo root for the full seven-phase workflow (triage → specs → implementation → PR → release).
+All work starts as a GitHub Issue in [unic/unic-agents-plugins](https://github.com/unic/unic-agents-plugins/issues). Open or claim an issue there before touching code. See [`docs/process/development-workflow.md`](../../../../docs/process/development-workflow.md) in the repo root for the full workflow (triage → specs → implementation → PR → release).
 
 ## Implementing
 
