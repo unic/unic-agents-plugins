@@ -299,6 +299,7 @@ test('every Archon Box derives the repository from origin, with repo_ref as an o
 			`${workflow}.yaml lost its guard-ambiguous-repo node (#289 AC 7)`
 		)
 		const guard = nodeSource(contents, 'guard-ambiguous-repo')
+		assert.ok(guard, `${workflow}.yaml's guard-ambiguous-repo node body could not be extracted`)
 		assert.match(
 			guard,
 			/when: "\$bootstrap\.output\.status == 'ambiguous-repo'"/,
@@ -307,8 +308,10 @@ test('every Archon Box derives the repository from origin, with repo_ref as an o
 		assert.match(guard, /cancel:/, `${workflow}.yaml's guard-ambiguous-repo must cancel, not fail (ADR-0011)`)
 		// The two guards must be mutually exclusive, or both fire on an ambiguous repository and the
 		// operator reads the generic "run /tickets first" message instead of the one that helps.
+		const guardNotReady = nodeSource(contents, 'guard-not-ready')
+		assert.ok(guardNotReady, `${workflow}.yaml's guard-not-ready node body could not be extracted`)
 		assert.match(
-			nodeSource(contents, 'guard-not-ready'),
+			guardNotReady,
 			/status != 'ready' && \$bootstrap\.output\.status != 'ambiguous-repo'/,
 			`${workflow}.yaml's guard-not-ready must exclude ambiguous-repo so only one guard fires`
 		)
