@@ -4,7 +4,7 @@ Repo-owned. Hand-maintained — no generator writes this file. See [ADR-0032](..
 
 Four tiers on the GitHub tracker: **state**, **type**, **priority** and **area**. Canonical names are what skills speak; on this tracker they are also the literal label strings, so no mapping is needed. `docs/agents/triage-labels.md` maps a skill's canonical triage _role_ onto the state tier, which is where the two vocabularies differ.
 
-`wayfinder:*` labels sit outside these tiers — `/wayfinder` owns their lifecycle. They do not exist on the tracker yet and are created by hand once; the commands are in [Wayfinding operations](issue-tracker.md#wayfinding-operations).
+`wayfinder:*` labels sit outside these tiers — `/wayfinder` owns their lifecycle. Five exist: `wayfinder:map` and the four ticket types (`research`, `prototype`, `grilling`, `task`). They were created by hand and nothing maintains them; see [Wayfinding operations](issue-tracker.md#wayfinding-operations).
 
 ## State (8)
 

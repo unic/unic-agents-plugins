@@ -41,14 +41,14 @@ Run `gh issue view <number> --comments`.
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets. Both endpoints below are enabled on this repo — sub-issues and native issue dependencies — so neither body-convention fallback applies here.
 
-**Prerequisite: the five `wayfinder:*` labels do not exist yet.** Create them once, before the first `/wayfinder` run. Label creation mutates the live tracker and a revert would not undo it, so it is held out of the PR that documented this flow:
+The five `wayfinder:*` labels exist on the tracker — `map` plus the four ticket types. They were created by hand (2026-08-05); no generator maintains them, and `/wayfinder` does not create a missing one. If you clone this flow into another repo, create them there first:
 
 ```sh
-gh label create wayfinder:map       --description "Wayfinder map issue"
-gh label create wayfinder:research  --description "Wayfinder child ticket: research"
-gh label create wayfinder:prototype --description "Wayfinder child ticket: prototype"
-gh label create wayfinder:grilling  --description "Wayfinder child ticket: grilling"
-gh label create wayfinder:task      --description "Wayfinder child ticket: task"
+gh label create wayfinder:map       --description "Wayfinder map: the index issue for one effort" --color 5319E7
+gh label create wayfinder:research  --description "Wayfinder ticket: investigate against primary sources" --color BFD4F2
+gh label create wayfinder:prototype --description "Wayfinder ticket: build a throwaway to answer it" --color BFD4F2
+gh label create wayfinder:grilling  --description "Wayfinder ticket: decide it by grilling" --color BFD4F2
+gh label create wayfinder:task      --description "Wayfinder ticket: do the thing" --color BFD4F2
 ```
 
 **Every sub-issue and dependency endpoint below takes the issue's numeric database id, never its `#number` and never its `node_id`.** Read it once per issue and reuse it: `gh api repos/<owner>/<repo>/issues/<n> --jq .id`.

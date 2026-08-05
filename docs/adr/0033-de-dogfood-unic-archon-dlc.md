@@ -75,12 +75,13 @@ plugin's.
 - **`release` has one home.** The repo-local `release` type lived as an override in
   `.archon/unic-dlc.config.json`, which is deleted. `docs/agents/labels.md` is now the only
   record of it.
-- **`/wayfinder` becomes usable once the five `wayfinder:*` labels exist.**
-  `docs/agents/issue-tracker.md` is hand-authored from upstream's v1.1 GitHub template,
-  including the Wayfinding operations section. This repo's GitHub sub-issues and native
-  issue-dependency endpoints were both verified live, so no body-convention fallback is
-  needed. The labels are the one remaining prerequisite: creating them mutates the live
-  tracker, so the commands are recorded in that section rather than run here.
+- **`/wayfinder` becomes usable.** `docs/agents/issue-tracker.md` is hand-authored from
+  upstream's v1.1 GitHub template, including the Wayfinding operations section. All three
+  moving parts are verified live rather than assumed: GitHub sub-issues, native issue
+  dependencies, and the five `wayfinder:*` labels, created by hand on 2026-08-05. No
+  body-convention fallback is needed and no prerequisite remains. Nothing maintains those
+  labels — `/wayfinder` does not create a missing one, so a fork of this flow into another
+  repo creates them there first.
 - **The plugin's `/setup` gap is now visible rather than papered over.** It generates a
   tracker doc it under-fills — no wayfinding section — which a real Consumer will hit.
   Fixing that is plugin work, tracked separately; this repo no longer masks it with a
