@@ -33,12 +33,12 @@ const COMMANDS = /** @type {const} */ (['specs', 'tickets'])
 
 /** @param {string} workflow */
 function readWorkflow(workflow) {
-	return readFileSync(join(PLUGIN_ROOT, '.archon', 'workflows', `${workflow}.yaml`), 'utf8')
+	return readFileSync(join(PLUGIN_ROOT, '.archon', 'workflows', `${workflow}.yaml`), 'utf8').replace(/\r\n/g, '\n')
 }
 
 /** @param {string} command */
 function readCommand(command) {
-	return readFileSync(join(PLUGIN_ROOT, 'commands', `${command}.md`), 'utf8')
+	return readFileSync(join(PLUGIN_ROOT, 'commands', `${command}.md`), 'utf8').replace(/\r\n/g, '\n')
 }
 
 /**
