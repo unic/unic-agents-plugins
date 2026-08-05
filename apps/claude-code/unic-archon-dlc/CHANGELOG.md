@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.15.1] — 2026-08-05
+
+### Breaking
+- (none)
+
+### Added
 - **`project.repo_ref`, an optional repository override — absent by default.** Every Box now derives its target repository from the worktree's `origin` remote, so no existing config needs changing. Set `project.repo_ref` only for a checkout where `origin` is not the repository to act on; that is also the one case a Box **cancels** rather than guess, via a new `guard-ambiguous-repo` node that fires when the checkout names more than one repository and no override is set ([ADR-0011](docs/adr/0011-archon-schema-target.md): an expected precondition failure cancels, it does not fail). A checkout with a single `origin` never reaches that guard.
 - **`test/box-staging-and-repo-pinning.test.mjs` — the barrier that keeps both fixes.** It greps the four Box YAMLs, both interactive command docs and the four Archon command docs for host CLI tokens (`gh`, `az`, `--repo`, `--repository`, `--organization`, `--hostname`) and provider names, and fails naming every hit by `file:line`. It also self-tests its own patterns, so a mistyped regex cannot silently fail open, and asserts the positive rules: named-path staging, the deny list, the derived repository, and the repository invariant per PR-touching node.
 
