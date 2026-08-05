@@ -79,9 +79,9 @@ plugin's.
   upstream's v1.1 GitHub template, including the Wayfinding operations section. All three
   moving parts are verified live rather than assumed: GitHub sub-issues, native issue
   dependencies, and the five `wayfinder:*` labels, created by hand on 2026-08-05. No
-  body-convention fallback is needed and no prerequisite remains. Nothing maintains those
-  labels — `/wayfinder` does not create a missing one, so a fork of this flow into another
-  repo creates them there first.
+  body-convention fallback is needed. Nothing maintains those labels and `/wayfinder` does
+  not create a missing one, so the tracker doc treats their presence as a prerequisite to
+  check rather than a fact to trust — a versioned document cannot enforce tracker state.
 - **The plugin's `/setup` gap is now visible rather than papered over.** It generates a
   tracker doc it under-fills — no wayfinding section — which a real Consumer will hit.
   Fixing that is plugin work, tracked separately; this repo no longer masks it with a

@@ -7,7 +7,7 @@ Issues and specs for this repo live as GitHub issues at [`unic/unic-agents-plugi
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
+- **Read an issue**: `gh issue view <number> --comments` for a human read — it prints tab-delimited text, **not** JSON, so it cannot be piped to `jq`. For anything programmatic ask for the fields: `gh issue view <number> --json title,body,labels,comments,state --jq '{title, state, labels: [.labels[].name], body, comments: [.comments[].body]}'`.
 - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
@@ -41,7 +41,7 @@ Run `gh issue view <number> --comments`.
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets. Both endpoints below are enabled on this repo — sub-issues and native issue dependencies — so neither body-convention fallback applies here.
 
-The five `wayfinder:*` labels exist on the tracker — `map` plus the four ticket types. They were created by hand (2026-08-05); no generator maintains them, and `/wayfinder` does not create a missing one. If you clone this flow into another repo, create them there first:
+The five `wayfinder:*` labels exist on the tracker — `map` plus the four ticket types — created by hand on 2026-08-05. Nothing maintains them and `/wayfinder` does not create a missing one, so treat their presence as a **prerequisite to verify, not a fact to trust**: this file is versioned and the tracker is not, so a deleted label or a fresh fork will disagree with it. Check with `gh label list --search wayfinder`, and create whatever is missing:
 
 ```sh
 gh label create wayfinder:map       --description "Wayfinder map: the index issue for one effort" --color 5319E7
