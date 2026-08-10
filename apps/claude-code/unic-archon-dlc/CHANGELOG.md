@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.16.0] — 2026-08-10
+
+### Breaking
 - **The Archon floor moves to `≥ 0.7.0`.** `MIN_ARCHON_VERSION` in `lib/archon-check.mjs` rises from `0.5.0`, and `commands/setup.md` Step 1, `AGENTS.md`, `README.md` and `CONTEXT.md` restate it. A Consumer on Archon 0.5.x or 0.6.x is refused at the next `/setup` preflight with an upgrade message; an already-configured Consumer who does not re-run `/setup` is unaffected until they do, because the check runs only there and never inside a workflow run. The two fields this floor buys — `evidence_policy` and `always_run` — were verified behaviourally against the shipped 0.7.0 binary, not read from a release note ([ADR-0033](docs/adr/0033-archon-070-schema-target.md), amending [ADR-0011](docs/adr/0011-archon-schema-target.md) on the floor only).
 - **`/setup` refuses a project with no git remote at all.** Every Archon Box derives its target repository from a remote, so a remote-less checkout could never run one; the refusal was previously silent until the first `/build` run discovered it at `guard-ambiguous-repo`. This is distinct from "no `origin` specifically", which that guard still handles at run time.
 - **`verification` and `goals-check` in `unic-dlc-build.yaml` now return structured output.** Their `$verification.output` and `$goals-check.output` are the JSON-stringified result rather than prose. The prose is preserved in a `verdict` field and `report` reads `$verification.output.verdict` / `$goals-check.output.verdict`, so `report.md` is unchanged — but any local fork consuming those node outputs as text needs the `.verdict` suffix.
