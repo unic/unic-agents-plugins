@@ -1,13 +1,14 @@
 ---
-description: Run the unic-archon-dlc PR review workflow — seven intent-grounded aspects fanned out, then a summary comment + inline comments posted/updated on the current PR, with iteration-aware re-review.
+description: Run the unic-archon-dlc PR review workflow — an intent-grounded two-axis review, then a summary comment + inline comments posted/updated on the current PR, with iteration-aware re-review.
 ---
 
 # /unic-dlc-pr-review
 
 Runs the `pr-review` box: composes a shared **Intent Brief** (from the linked work items, the referenced
-docs pages, the PR description, and `PRD.md`), fans out **seven review aspects** as parallel fresh nodes
-(code-quality, test-coverage, silent-failure, type-design, comment-rot, code-simplification, and an
-intent/AC-coverage check), synthesises the findings, **reconciles them against the prior iteration**
+docs pages, the PR description, and `PRD.md`), runs **one review node** that hosts the `code-review`
+Method's own **two-axis fan-out** — **Standards** (repo standards plus the twelve-item Fowler smell
+baseline) and **Spec** (the diff against the originating intent) — synthesises the findings,
+**reconciles them against the prior iteration**
 (new / still-present / fixed / regressed), and — after a config-gated human confirm — posts or updates a
 single structured **summary comment** plus **inline comments** on the current PR.
 
@@ -37,15 +38,19 @@ precondition** — intent is composed from whatever sources resolve.
    slug/config cancels cleanly; so does an ambiguous repository.
 
 2. **prep** — identify the open PR + its description; compute the diff and **categorise** the changed
-   files (for the spawn gates); compose **one Intent Brief** from the linked work items, the referenced
+   files (reported for context; the categories gate nothing); compose **one Intent Brief** from the linked work items, the referenced
    docs pages, the PR body, and `PRD.md` (recording any **contradictions across sources**); and detect the
    **prior review iteration** by its hidden marker. Writes everything to `<artifacts_dir>/<slug>/pr-review/`.
 
-3. **7 aspect nodes** (parallel, fresh) — each reads the shared Intent Brief (**every aspect is
-   intent-grounded**) + the diff and emits findings scored on the **confidence rubric** (90–100 Critical
-   / 80–89 Important / 60–79 Minor / below the threshold dropped). **Spawn gates** run each aspect only
-   when meaningful: code-quality + intent-check always; tests/type-design/comment-rot/simplifier/
-   silent-failure gated on the changed-file categories.
+3. **review** (one node, fresh) — hosts the `code-review` Method's own two-axis fan-out. The Method
+   spawns its two sub-agents itself: **Standards** (repo standards + the twelve-item Fowler smell
+   baseline, pasted in full) and **Spec** (the diff against the originating intent). Both axes read the
+   shared Intent Brief, so **neither judges the diff without knowing what it was for**. Every finding is
+   scored on the **confidence rubric** (90–100 Critical / 80–89 Important / 60–79 Minor / below the
+   threshold dropped) and carries `aspect: "standards" | "spec"`. The two axes are aggregated, never
+   merged or reranked. This replaced seven hand-written aspect nodes and their spawn gates: re-implementing
+   the Method's own step 4 as Archon nodes is what [ADR-0030](../../docs/adr/0030-harness-hosts-methods.md)'s
+   structural bar forbids.
 
 4. **synthesize** — merge + dedupe this run's findings, bucket by severity, assemble the summary
    sections + Intent Check + "What's good".

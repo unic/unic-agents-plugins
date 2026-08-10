@@ -146,6 +146,30 @@ function scan(text) {
 }
 
 /**
+ * Every `git add` line in `text` that stages a directory rather than named files.
+ *
+ * Checked token by token, not with one end-of-line-anchored pattern. An anchored pattern only sees
+ * `git add docs/adr/` alone on its line, so it misses a trailing comment, a quoted path, a `&&` chain
+ * and — the spelling that matters most — `git add -- docs/adr/`, which is the `git add -- "<path>"`
+ * form these very prompts teach. A sweep written in the house style would have walked past the guard.
+ * @param {string} text
+ * @returns {string[]}
+ */
+function directorySweeps(text) {
+	/** @type {string[]} */
+	const hits = []
+	for (const match of text.matchAll(/^[ \t]*git add\b(?<args>[^\n]*)/gm)) {
+		const args = (match.groups?.args ?? '').replace(/#.*$/, '').split(/&&|\|\||;/)[0]
+		for (const token of args.split(/\s+/).filter(Boolean)) {
+			// `--` ends option parsing; anything else leading with `-` is a flag, not a path.
+			if (token === '--' || token.startsWith('-')) continue
+			if (token.replace(/^["']|["']$/g, '').endsWith('/')) hits.push(`git add${match.groups?.args ?? ''}`.trim())
+		}
+	}
+	return hits
+}
+
+/**
  * The source text of a single node, from its `- id:` line up to (not including) the next node's.
  *
  * The trailing newline in the split key is load-bearing: without it, `merge` matches `merge-gate`
@@ -175,6 +199,29 @@ test('the barrier itself still fires', () => {
 	}
 	const hits = scan('Compose the host: `gh pr create --repo unic/x` on GitHub, `az repos pr` on ado.')
 	assert.ok(hits.length >= 5, `the scanner found only ${hits.length} tokens in a line that carries at least five`)
+
+	// The directory-sweep reader, sample by sample. Copilot found two of these bypasses on PR #308;
+	// the `--` and `&&` spellings turned up while confirming them.
+	for (const sweep of [
+		'git add docs/adr/',
+		'git add docs/adr/  # every ADR in flight',
+		'git add "docs/adr/"',
+		"git add 'docs/adr/'",
+		'git add docs/adr/ && git commit',
+		'git add -- docs/adr/',
+		'  git add -- "docs/adr/"',
+	]) {
+		assert.deepEqual(directorySweeps(sweep).length, 1, `the directory-sweep reader no longer catches: ${sweep}`)
+	}
+	// And must stay silent on the named-path form the prompts prescribe, or the barrier fails closed
+	// and the rule becomes unfollowable.
+	for (const named of [
+		'git add -- "workflows/<slug>/report.md" "workflows/<slug>/issues.json"',
+		'git add -- "docs/adr/0034-a-named-adr.md"',
+		'`git add -A`, `git add .` and `git add -u` are FORBIDDEN in this node',
+	]) {
+		assert.deepEqual(directorySweeps(named), [], `the directory-sweep reader now false-positives on: ${named}`)
+	}
 })
 
 test('no Box prompt or command doc names a host CLI, a flag, or a provider', () => {
@@ -216,9 +263,9 @@ test('no Box stages blindly', () => {
 		)
 		// A trailing slash is a directory sweep: `git add docs/adr/` commits every uncommitted ADR,
 		// not the ones this session wrote.
-		assert.doesNotMatch(
-			contents,
-			/^\s*git add\s+\S*\/\s*$/m,
+		assert.deepEqual(
+			directorySweeps(contents),
+			[],
 			`${label(segments)} stages a whole directory — name each file (#289 AC 5)`
 		)
 	}
