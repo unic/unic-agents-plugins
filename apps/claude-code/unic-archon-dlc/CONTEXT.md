@@ -9,7 +9,7 @@ Claude Code commands/skills for the interactive ones. Configured via the `/unic-
 slash command. See `docs/adr/0016`–`0018` for the two-axis architecture, `docs/adr/0014` for the box
 set, and `docs/adr/0030`–`0032` for the Harness/Method division.
 
-Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
+Requires the Archon workflow engine (version ≥ 0.7.0) in the target project.
 
 ## Language
 
@@ -156,6 +156,27 @@ fresh, memoryless iterations compute the next `(slice, phase)`. A slice with `te
 also carries a `seam chosen: …` line in its `notes`, recording the seam an agent picked where no human
 approved one (ADR-0023 §7).
 _Avoid_: progress file, checkpoint
+
+**Evidence gate**:
+The workflow-level `evidence_policy: { required: true }` on `/build` that refuses terminal
+`completed` unless `$ARTIFACTS_DIR/evidence.json` exists. The engine checks file presence only;
+producing valid evidence is the `evidence` node's contract, never a prompt's. See
+`docs/adr/0034-evidence-gate-deterministic-writer.md`.
+_Avoid_: verification gate, quality gate
+
+**Evidence set**:
+The Session-artifact mirror of the evidence gate's content, at `<artifacts_dir>/<slug>/evidence.json`
+— written by the same `evidence` node that satisfies the engine's presence check at
+`$ARTIFACTS_DIR/evidence.json`, so a reviewer (and `open-pr`, which stages it) can see what the gate
+saw after `/cleanup` prunes the worktree.
+_Avoid_: evidence.json (ambiguous — two files share the name at two different paths), evidence file
+
+**Sub-run**:
+Archon 0.7.0's `workflow:` node — a child workflow run with its own row, artifacts, gates, and cost
+line, whose terminal output threads back as `$nodeId.output`. Deferred for this Harness
+(`docs/adr/0033-archon-070-schema-target.md`): the wanted use, one child run per `/build` slice, is
+blocked because slice count is runtime data and 0.7.0's sub-run fan-out rejects it fail-fast.
+_Avoid_: child workflow, nested workflow, sub-workflow
 
 ### Plugin entry points
 

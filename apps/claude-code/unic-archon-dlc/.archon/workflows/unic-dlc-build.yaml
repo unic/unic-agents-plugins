@@ -13,6 +13,12 @@ description: >
 # Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
 interactive: true
 
+# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists — the
+# `evidence` node below is the only writer; the engine gates on presence only, the content
+# contract is this workflow's own (ADR-0034).
+evidence_policy:
+  required: true
+
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm issues.json exists.
@@ -116,6 +122,9 @@ nodes:
   - id: slopcheck
     depends_on: [bootstrap]
     when: "$bootstrap.output.status == 'ready'"
+    # always_run: true — a resume must re-verify package.json's CURRENT contents; exit 0 says
+    # nothing about packages added since the last completed attempt (ADR-0033).
+    always_run: true
     runtime: bun
     timeout: 120000
     script: |
@@ -403,6 +412,10 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   - id: verification
     depends_on: [implement-review-precheck]
+    # always_run: true — the exit code is a prose report, not a promise; a resume must re-run the
+    # suite against the CURRENT tree, never replay a cached PASSED from before a since-applied fix
+    # (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
@@ -421,11 +434,29 @@ nodes:
            verification: PASSED ✓    (tests green, no stubs, coverage ≥ threshold)
          or
            verification: FAILED ✗ — <the specific failures>
+      5. Return the verdict block from step 4, plus everything you found worth reporting (counts,
+         coverage figure, the stub list), as the `verdict` string — that field is the prose the
+         report node reads, so it must stand alone. Then set a `passed` boolean (true only if the
+         suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
+         and a `failures` array of short strings, one per distinct failure. The prose is for the
+         human at build-pr-gate; `evidence` and `evidence_policy` read the boolean.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
+    output_format:
+      type: object
+      properties:
+        verdict: { type: string }
+        passed: { type: boolean }
+        failures:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures]
 
   # ---------------------------------------------------------------------------------------------
   - id: goals-check
     depends_on: [verification]
+    # always_run: true — same reason as verification: the coverage matrix is a fact about the
+    # CURRENT diff, and a resume must recompute it rather than reuse a cached verdict (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
@@ -441,11 +472,76 @@ nodes:
          A criterion is COVERED only when BOTH a test and an implementation exist.
       4. If any row is MISSING: print "goals-check: FAILED — N uncovered criteria" and list them.
          Else print "goals-check: PASSED — all acceptance criteria covered. ✓".
-      Keep the matrix in your output; the report node pastes it verbatim.
+      5. Return the whole Markdown table plus the PASSED/FAILED line as the `verdict` string — that
+         field is what the report node pastes verbatim, so the matrix must be inside it. Then set a
+         `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
+         short string per MISSING criterion. The prose is for the human at build-pr-gate; `evidence`
+         and `evidence_policy` read the boolean.
+    output_format:
+      type: object
+      properties:
+        verdict: { type: string }
+        passed: { type: boolean }
+        failures:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures]
+
+  # ---------------------------------------------------------------------------------------------
+  # evidence — writes $ARTIFACTS_DIR/evidence.json ONLY when both verdicts are green; its mere
+  # PRESENCE is what workflow-level evidence_policy checks before allowing terminal `completed`
+  # (the engine gates on presence only — the content contract is this node's, ADR-0034). A SCRIPT,
+  # never a prompt: a prompt that both judges and certifies grades its own homework.
+  # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive
+  # presence from the CURRENT verification/goals-check output, never trust a stale file (also why
+  # it deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # ---------------------------------------------------------------------------------------------
+  - id: evidence
+    depends_on: [verification, goals-check]
+    always_run: true
+    runtime: bun
+    script: |
+      import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
+      import { join } from 'node:path'
+
+      const artifactsDir = process.env.ARTIFACTS_DIR
+      const evidencePath = join(artifactsDir, 'evidence.json')
+
+      // Delete first: a resumed run reuses the same $ARTIFACTS_DIR, so a prior attempt's file
+      // would certify a red tree if this attempt fails before writing a fresh one.
+      if (existsSync(evidencePath)) rmSync(evidencePath)
+
+      // A node-output field reference substitutes RAW: booleans land as `true`/`false` and arrays
+      // as JSON array literals (both valid JS); strings land unquoted, so the two string reads
+      // below carry their own quotes. Do not "tidy" that quoting away — it is load-bearing.
+      // (Never write a placeholder node id in a comment here — the DAG loader reads every
+      // `$<id>.output` token in this body as a real edge and rejects the workflow.)
+      const verificationPassed = $verification.output.passed
+      const goalsCheckPassed = $goals-check.output.passed
+
+      if (!verificationPassed || !goalsCheckPassed) {
+        console.log(`evidence: withholding — verification.passed=${verificationPassed} goals-check.passed=${goalsCheckPassed}`)
+        process.exit(0)
+      }
+
+      const evidence = {
+        slug: '$bootstrap.output.slug',
+        verification_failures: $verification.output.failures,
+        goals_check_failures: $goals-check.output.failures,
+      }
+      writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
+      console.log(`evidence: wrote ${evidencePath} ✓`)
+
+      // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
+      // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
+      const sessionDir = join('$bootstrap.output.artifacts_dir', '$bootstrap.output.slug')
+      mkdirSync(sessionDir, { recursive: true })
+      copyFileSync(evidencePath, join(sessionDir, 'evidence.json'))
+      console.log(`evidence: mirrored to ${join(sessionDir, 'evidence.json')} ✓`)
 
   # ---------------------------------------------------------------------------------------------
   - id: report
-    depends_on: [goals-check]
+    depends_on: [evidence]
     context: fresh
     allowed_tools: [Read, Write, Bash]
     prompt: |
@@ -456,8 +552,9 @@ nodes:
         1. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
            If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
            criteria — see matrix below."
-        2. Goals-Check Coverage Matrix — paste $goals-check.output verbatim.
-        3. Test Outcomes — pass/fail counts + coverage from $verification.output; note skipped/flaky.
+        2. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
+        3. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
+           skipped/flaky.
         4. Decisions Made — technical decisions worth recording; for each significant one, draft an
            ADR inline (docs/adr/NNNN-<slug>.md) for review. Also fold in, verbatim:
              - `$implement-review-precheck.output.findings` — the local code-review pre-check's
@@ -491,6 +588,7 @@ nodes:
            - SESSION/issues.json
            - SESSION/report.md
            - SESSION/build-state.json
+           - SESSION/evidence.json
            - each new `docs/adr/NNNN-*.md` the report node drafted, by name
          Derive the source/test entries by reading `git status --porcelain` and picking out the
          source and test files — then add them one at a time by name. A path already committed by a

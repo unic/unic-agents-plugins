@@ -59,7 +59,7 @@ The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workf
 
 | Workflow             | Node pipeline                                                                                                                                                                               |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → report → open-pr → build-pr-gate ✓`                                         |
+| `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
 | `unic-dlc-pr-review` | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
 | `unic-dlc-qa`        | `bootstrap → guard-not-ready → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                         |
 | `unic-dlc-explore`   | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
@@ -70,6 +70,10 @@ The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workf
 > `/pr-review`'s `review` and `/build`'s `implement-review-precheck` each run the `code-review` Method's
 > own two parallel sub-agents (Standards · Spec) **inside one node**, so their parallelism does not appear
 > in the DAG (ADR-0026 §8).
+>
+> `evidence` writes `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check` both report
+> `passed: true` — the workflow-level `evidence_policy: { required: true }` fails the run closed otherwise
+> (ADR-0034).
 
 ---
 
@@ -255,7 +259,7 @@ stale `<slug>/` dir only once its PR/branch is merged or closed (report-first, n
 
 ## Dependency map
 
-- **Archon**: version ≥ 0.5.0 required — the key-discriminated node schema is the stable contract, not the release number ([ADR-0011](docs/adr/0011-archon-schema-target.md))
+- **Archon**: version ≥ 0.7.0 required, in a project with at least one git remote configured — the key-discriminated node schema plus `evidence_policy`/`always_run` is the stable contract, not the release number ([ADR-0011](docs/adr/0011-archon-schema-target.md), [ADR-0033](docs/adr/0033-archon-070-schema-target.md)); every Archon Box derives its target repository from the worktree's `origin` remote, so a remote-less checkout cannot run one
 - **Required peer plugins**: none
 - **Optional tool**: Python `slopcheck` CLI (GSD's slopsquatting gate) — if on `PATH`, the
   slopcheck node defers to it; otherwise falls back to npm registry HEAD checks

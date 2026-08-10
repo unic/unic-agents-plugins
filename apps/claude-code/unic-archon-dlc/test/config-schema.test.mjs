@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -11,6 +11,7 @@ import {
 	defaultConfig,
 	isLegacyConfig,
 	loadConfig,
+	MANDATORY_PATHS,
 	mergeConfig,
 	migrateLegacy,
 	toYaml,
@@ -352,4 +353,25 @@ test('project.repo_ref survives a merge when a team sets it as an override', () 
 
 	const twice = mergeConfig(merged)
 	assert.deepEqual(twice, merged, 'merging again must not drop or duplicate the override')
+})
+
+test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 10 guards', () => {
+	// #290 AC 10. Criteria 2 and 10 were amended 2026-08-10 to preserve the #289 design (derive from
+	// origin, repo_ref is an optional override) rather than re-promote it to mandatory — promoting it
+	// would break every installed Consumer on upgrade. This asserts the two surfaces that regression
+	// would touch: the mandatory-paths list, and commands/setup.md's own instruction not to ask for or
+	// write it. The default config is covered by the two tests above.
+	// `test/box-staging-and-repo-pinning.test.mjs` separately asserts every bootstrap node still
+	// derives from `origin` — this test does not repeat that coverage.
+	assert.ok(
+		!MANDATORY_PATHS.some((path) => path.includes('repo_ref')),
+		'project.repo_ref must never become a mandatory config path'
+	)
+
+	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
+	assert.match(
+		setupDoc,
+		/Do \*\*not\*\* ask for `project\.repo_ref` and do not write it/,
+		'commands/setup.md must keep telling the agent not to ask for or write project.repo_ref'
+	)
 })

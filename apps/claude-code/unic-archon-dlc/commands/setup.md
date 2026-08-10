@@ -16,7 +16,7 @@ Follow these steps in order. Do not skip any step. Do not write any files except
 
 > **Shell requirement**: Steps 1, 2, 5, and 6 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
 
-## Step 1 — Archon preflight (behavioural `≥ 0.5.0`)
+## Step 1 — Archon preflight (behavioural `≥ 0.7.0`)
 
 Run:
 
@@ -34,7 +34,7 @@ process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and stop — do not proceed. (The check enforces the key-discriminated schema floor: gates, loops, and `context: fresh` only run correctly on Archon `≥ 0.5.0`.)
+Parse the JSON output. If `ok` is `false`, print `message` verbatim and stop — do not proceed. (The check enforces the key-discriminated schema floor: gates, loops, `context: fresh`, `evidence_policy`, and `always_run` only run correctly on Archon `≥ 0.7.0`.)
 
 ## Step 2 — Discover current config state
 
@@ -64,15 +64,42 @@ try {
     if ('error' in r) { output = { error: r.message }; } else { config = r.config; source = jsonPath; legacy = mod.isLegacyConfig(r.config) }
   }
 
+  // A repo with NO remote at all cannot run any of the four Archon Boxes — every one derives its
+  // target repository from a remote. Distinct from "no `origin` specifically", which /build's own
+  // bootstrap handles at run time; this is the earlier, plainer refusal at /setup itself.
+  let remotes = []
+  try {
+    const list = execFileSync('git', ['remote'], { stdio: ['pipe','pipe','pipe'], timeout: 5000 }).toString().trim()
+    remotes = list.length === 0 ? [] : list.split(/\r?\n/).filter(Boolean)
+  } catch {}
+  if (!output && remotes.length === 0) {
+    output = { error: 'This project has no git remote configured. All four Archon Boxes (/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run without one. Add one — e.g. `git remote add origin <url>` — and re-run /setup.' }
+  }
+
   if (!output) {
     let gitRemote = null
     try { gitRemote = execFileSync('git', ['remote', 'get-url', 'origin'], { stdio: ['pipe','pipe','pipe'], timeout: 5000 }).toString().trim() } catch {}
     const repoLayout = mod.detectRepoLayout(cwd)
+
+    // Verify-only: report whether ARCHON'S OWN .archon/config.yaml (a different file from ours)
+    // resolves a remote via its `worktree.remote` key, falling back to Archon's own auto-detection
+    // (origin, else the sole remote). NEVER write .archon/config.yaml — it is Archon's file.
+    let archonRemoteResolved = null
+    const archonConfigPath = join(cwd, '.archon', 'config.yaml')
+    if (existsSync(archonConfigPath)) {
+      const r = mod.loadConfig(archonConfigPath)
+      if ('ok' in r) archonRemoteResolved = r.config?.worktree?.remote ?? null
+    }
+    if (!archonRemoteResolved) {
+      archonRemoteResolved = remotes.includes('origin') ? 'origin' : (remotes.length === 1 ? remotes[0] : null)
+    }
+
     // Normalise to the rich shape so validation reflects what /setup will actually write.
     const normalised = legacy ? mod.mergeConfig(mod.migrateLegacy(config)) : (config ? mod.mergeConfig(config) : null)
     const validation = normalised ? mod.validateConfig(normalised) : { error: true, missing: mod.MANDATORY_PATHS }
     output = {
       gitRemote,
+      archonRemoteResolved,
       repoLayout,
       source,
       legacy,
@@ -88,7 +115,7 @@ process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the output. If `error` is present, print it verbatim and stop. Otherwise set `GIT_REMOTE`, `REPO_LAYOUT`, `LEGACY` (true = a legacy flat `.json` will be migrated), `CURRENT` (the normalised config, or null), `CONFIG_PATH` (`source`, the on-disk path read — used by Step 8 if Step 5 is skipped), and `MISSING` (mandatory paths still unset).
+Parse the output. If `error` is present, print it verbatim and stop. Otherwise set `GIT_REMOTE`, `ARCHON_REMOTE_RESOLVED` (the remote Archon's own config resolves, or null — reported by Step 8, never written by this plugin), `REPO_LAYOUT`, `LEGACY` (true = a legacy flat `.json` will be migrated), `CURRENT` (the normalised config, or null), `CONFIG_PATH` (`source`, the on-disk path read — used by Step 8 if Step 5 is skipped), and `MISSING` (mandatory paths still unset).
 
 Determine `STATE`:
 
@@ -264,6 +291,7 @@ Print a concise summary. List every Method with the tier it resolved from, and o
 ```
 unic-archon-dlc configured.
   config:   {configPath}
+  archon remote: {ARCHON_REMOTE_RESOLVED} (Archon's own worktree.remote — verified, never written by this plugin)
   tracker:  {tracker.type} (access: {mcp|cli})
   docs:     {docs.type} (publish: {docs.publish})
   gates:    build={…} qa={…} pr-review={…} explore={…}
@@ -272,6 +300,8 @@ unic-archon-dlc configured.
 ```
 
 Fill `{configPath}` from `configPath` (Step 5's output) or, when Step 5 was skipped, from `CONFIG_PATH` (Step 2's output).
+
+Fill the `archon remote:` line from `ARCHON_REMOTE_RESOLVED`. When it is null, print `none resolved — Archon Boxes may need worktree.remote set manually` instead of a remote name.
 
 Build the `methods:` line from `TIERS` — one `{name}({tier})` per manifest entry, `·`-separated. A `null` tier means the Method resolved at no tier at all; print it as `{name}(UNRESOLVED)` and name it as a fault worth reporting.
 
