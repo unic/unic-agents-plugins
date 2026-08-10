@@ -26,7 +26,7 @@ export const MIN_ARCHON_VERSION = '0.7.0'
  * @param {string} raw
  * @returns {[number, number, number] | null}
  */
-function parseVersion(raw) {
+export function parseVersion(raw) {
 	const match = raw.match(/(\d+)\.(\d+)\.(\d+)/)
 	if (!match) return null
 	return [Number(match[1]), Number(match[2]), Number(match[3])]

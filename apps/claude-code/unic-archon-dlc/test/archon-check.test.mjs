@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkArchon, INCOMPATIBLE_ARCHON_VERSIONS, MIN_ARCHON_VERSION } from '../lib/archon-check.mjs'
+import { checkArchon, INCOMPATIBLE_ARCHON_VERSIONS, MIN_ARCHON_VERSION, parseVersion } from '../lib/archon-check.mjs'
 
 /** @typedef {import('../lib/archon-check.mjs').ExecFn} ExecFn */
 
@@ -94,6 +94,14 @@ test('returns other failure with stderr when process fails', () => {
 	assert.equal(result.code, 'other')
 	assert.ok(result.message.includes('stderr:'), `message should include stderr label: ${result.message}`)
 	assert.ok(result.message.includes('illegal option'), `message should include stderr content: ${result.message}`)
+})
+
+test('parseVersion is public API: it tolerates a program-name and v prefix, and returns null on garbage', () => {
+	// Exported for `/archon-upgrade`, which compares the installed version against the floor and
+	// against each release tag it enumerates. Locked here now that it is public.
+	assert.deepEqual(parseVersion('archon v0.7.1'), [0, 7, 1])
+	assert.deepEqual(parseVersion('0.7.0'), [0, 7, 0])
+	assert.equal(parseVersion('not a version'), null)
 })
 
 test('INCOMPATIBLE_ARCHON_VERSIONS is frozen and starts empty', () => {

@@ -10,7 +10,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test test/config-schema.test.mjs test/labels-config.test.mjs test/handoff-generator.test.mjs test/prd-writer.test.mjs test/issues-schema.test.mjs test/slopcheck.test.mjs test/stub-detector.test.mjs test/archon-check.test.mjs test/dogfood-banner.test.mjs test/methods-manifest.test.mjs test/methods-resolver.test.mjs test/methods-bundle.test.mjs test/command-methods.test.mjs test/archon-box-methods.test.mjs test/box-staging-and-repo-pinning.test.mjs test/build-qa-evidence-and-always-run.test.mjs test/box-workflow-node-refs.test.mjs test/test-enumeration.test.mjs",
+    "test": "node --test test/config-schema.test.mjs test/labels-config.test.mjs test/handoff-generator.test.mjs test/prd-writer.test.mjs test/issues-schema.test.mjs test/slopcheck.test.mjs test/stub-detector.test.mjs test/archon-check.test.mjs test/dogfood-banner.test.mjs test/methods-manifest.test.mjs test/methods-resolver.test.mjs test/methods-bundle.test.mjs test/command-methods.test.mjs test/archon-upgrade-command.test.mjs test/schema-traps.test.mjs test/archon-box-methods.test.mjs test/box-staging-and-repo-pinning.test.mjs test/build-qa-evidence-and-always-run.test.mjs test/box-workflow-node-refs.test.mjs test/test-enumeration.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",

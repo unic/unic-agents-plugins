@@ -10,7 +10,7 @@ Each box's **container follows its structural need**
 ([ADR-0017](docs/adr/0017-container-follows-structural-need.md)): **Archon workflows** for the
 AFK-isolated legs (`/build`, `/qa`, `/pr-review`, `/explore`) and **Claude Code commands/skills**
 for the interactive or repo-global boxes (`/setup`, `/specs`, `/tickets`, `/triage`,
-`/improve-architecture`, `/cleanup`) — the latter **read Matt Pocock's skill text as Methods** rather
+`/improve-architecture`, `/cleanup`, `/archon-upgrade`) — the latter **read Matt Pocock's skill text as Methods** rather
 than reimplementing them. See [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)–[ADR-0018](docs/adr/0018-generic-core-config-compose.md)
 for the two-axis architecture, [ADR-0030](docs/adr/0030-harness-hosts-methods.md)–[ADR-0032](docs/adr/0032-box-method-vocabulary.md)
 for the Harness/Method division, and [CONTEXT.md](CONTEXT.md) for the vocabulary.
@@ -32,7 +32,7 @@ MAIN LINE   /specs ──▶ /tickets ──▶ /build ──▶ /pr-review ─�
                           ▲
 ON-RAMPS    /triage ──────┤   raw bugs · requests · /qa findings · humans → agent-ready issues
             humans ───────┘
-OFF-LINE    /setup · /explore · /improve-architecture · /cleanup   (+ /handoff, /prototype — Matt's, referenced)
+OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-upgrade   (+ /handoff, /prototype — Matt's, referenced)
 ```
 
 | Box                     | Container | Gate              | Role                                                                                             |
@@ -47,6 +47,7 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup   (+ /handof
 | `/qa`                   | Archon    | `gates.qa`        | e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                   |
 | `/improve-architecture` | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                       |
 | `/cleanup`              | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028) |
+| `/archon-upgrade`       | command   | —                 | Report what a new Archon release means for this Plugin; read-only, writes nothing (ADR-0035)     |
 
 Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
 inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
