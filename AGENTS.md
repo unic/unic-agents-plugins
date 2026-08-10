@@ -99,6 +99,16 @@ Use package scope: `feat(auto-format): …`, `fix(pr-review): …`, `chore(relea
 
 PRs merge with a merge commit, never a squash — the release flow reads `develop → main` merges.
 
+### The Archon pre-push guard
+
+The Archon worktrees under `~/.archon/workspaces/<org>/<repo>/worktrees/` are worktrees of your clone, not a separate checkout. They share its ref store, its config and its `origin`, so an autonomous run can move `develop` or `main` directly and bypass the PR gate above. `.githooks/pre-push` refuses a push of either branch when the push comes from a path under `.archon/workspaces/`. It leaves your own pushes alone, so read a refusal as "an Archon worktree tried this", never as "`develop` is protected".
+
+`.git/hooks` is not version-controlled, so install it once per clone:
+
+```sh
+ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
+```
+
 Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `feature/` (the prefix encodes PR topology, not change kind). Archon-dispatched branches add a scope sub-namespace: `feature/<scope>/<issue#>-<slug>`, where `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `repo` → `repo`). The `/archon-rollout` command owns the full derivation rule.
 
 ## Release flow

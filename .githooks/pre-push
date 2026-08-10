@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# pre-push — refuse pushes of a protected branch that originate from an Archon worktree.
+#
+# WHY THIS EXISTS
+#
+# The Archon worktrees under ~/.archon/workspaces/<org>/<repo>/worktrees/ are worktrees of THIS
+# clone, not of a separate checkout. They share this clone's ref store, its config and its `origin`.
+# An autonomous run therefore has everything it needs to move `develop` or `main` directly, which
+# would bypass the PR gate the root AGENTS.md requires ("Never commit directly to main or develop.
+# Always go through a PR").
+#
+# WHAT THIS DOES AND DOES NOT PROTECT
+#
+# It blocks ONLY when it can positively identify the push as coming from a path under
+# `.archon/workspaces/`. A push of `develop` from your own checkout is none of this hook's business
+# and is allowed. So this is not general protection for `develop` and `main` — read the message on
+# a refusal as "an Archon worktree tried this", never as "develop is protected".
+#
+# It also cannot stop `git push --no-verify`, which skips every pre-push hook by design. That is the
+# escape hatch for a deliberate human push; no environment override is provided, because an
+# autonomous agent that hit a block would be just as able to set the variable as you are.
+#
+# INSTALL (per clone; `.git/hooks` is not version-controlled)
+#
+#   ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
+#
+# `core.hooksPath` in this repo points at the main clone's `.git/hooks`, and every linked worktree
+# resolves hooks through that same shared config — so one install covers all of them.
+#
+# Arguments: $1 = remote name, $2 = remote URL.
+# Stdin: one line per ref being pushed — "<local ref> <local sha> <remote ref> <remote sha>".
+
+set -eu
+
+PROTECTED_BRANCHES='develop main'
+
+remote_name=${1:-'(unnamed remote)'}
+
+# Where is this push coming from? --show-toplevel is the invoking worktree's root. If git cannot
+# answer, fall back to the working directory rather than guessing a repo layout.
+worktree=$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")
+
+case "$worktree" in
+	*/.archon/workspaces/*) ;;
+	*) exit 0 ;;
+esac
+
+status=0
+
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+	# A blank line, or a push that names no remote ref, is nothing to judge.
+	[ -n "${remote_ref:-}" ] || continue
+
+	branch=${remote_ref#refs/heads/}
+	# Unchanged means the ref was not refs/heads/* — a tag or a note, which this hook ignores.
+	[ "$branch" != "$remote_ref" ] || continue
+
+	for protected in $PROTECTED_BRANCHES; do
+		[ "$branch" = "$protected" ] || continue
+
+		# An all-zero local sha is a delete. Worth naming separately: the remedy differs.
+		case "$local_sha" in
+			0000000000000000000000000000000000000000)
+				action="delete '$branch' on"
+				;;
+			*)
+				action="push '$branch' to"
+				;;
+		esac
+
+		printf '%s\n' "pre-push: refusing to $action $remote_name." >&2
+		printf '%s\n' "  This push comes from an Archon worktree:" >&2
+		printf '%s\n' "    $worktree" >&2
+		printf '%s\n' "  '$branch' takes changes through a pull request only (see AGENTS.md, \"Git branching\")." >&2
+		printf '%s\n' "  Push the run's own feature branch instead, and open a PR targeting develop." >&2
+		status=1
+	done
+done
+
+exit $status
