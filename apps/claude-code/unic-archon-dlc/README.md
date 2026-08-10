@@ -245,6 +245,7 @@ workflows/
     ├── PRD.md           # /specs   — product requirements
     ├── issues.json      # /tickets — build-ready vertical slices + test commands
     ├── build-state.json # /build   — per-slice red/green progress
+    ├── evidence.json    # /build   — evidence set; present only when the build gate passed
     ├── report.md        # /build   — build outcomes
     └── arch-review.md   # /improve-architecture — drift analysis
 ```

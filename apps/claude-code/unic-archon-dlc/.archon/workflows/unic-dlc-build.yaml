@@ -438,8 +438,10 @@ nodes:
          coverage figure, the stub list), as the `verdict` string — that field is the prose the
          report node reads, so it must stand alone. Then set a `passed` boolean (true only if the
          suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
-         and a `failures` array of short strings, one per distinct failure. The prose is for the
-         human at build-pr-gate; `evidence` and `evidence_policy` read the boolean.
+         and a `failures` array of short strings, one per distinct failure. List blockers ONLY in
+         `failures` — never a non-blocking note. The prose is for the human at build-pr-gate; the
+         `evidence` node reads `passed` and `failures` and withholds on either signal, and
+         `evidence_policy` then gates on the file that node writes.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
     output_format:
       type: object
@@ -475,8 +477,9 @@ nodes:
       5. Return the whole Markdown table plus the PASSED/FAILED line as the `verdict` string — that
          field is what the report node pastes verbatim, so the matrix must be inside it. Then set a
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
-         short string per MISSING criterion. The prose is for the human at build-pr-gate; `evidence`
-         and `evidence_policy` read the boolean.
+         short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
+         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` and
+         withholds on either signal, and `evidence_policy` then gates on the file that node writes.
     output_format:
       type: object
       properties:
@@ -527,16 +530,30 @@ nodes:
       // spot once did exactly that. `test/box-workflow-node-refs.test.mjs` now guards it.)
       const verificationPassed = $verification.output.passed
       const goalsCheckPassed = $goals-check.output.passed
+      const verificationFailures = $verification.output.failures
+      const goalsCheckFailures = $goals-check.output.failures
 
-      if (!verificationPassed || !goalsCheckPassed) {
-        console.log(`evidence: withholding — verification.passed=${verificationPassed} goals-check.passed=${goalsCheckPassed}`)
+      // `passed` is self-reported by the same prompt that wrote `failures`, so neither field alone
+      // is trustworthy — but disagreement BETWEEN them is. Certifying on `passed` alone let a
+      // `passed: true` with a non-empty `failures` array write a certificate whose own body listed
+      // the failures. Both prompts define `failures` as blockers only, so a non-empty list is a
+      // red verdict whatever the boolean says. This does not make the gate independent of the
+      // judge — only re-running the suite would, and ADR-0023 §5 rules that out (ADR-0034).
+      const verificationGreen = verificationPassed === true && verificationFailures.length === 0
+      const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
+
+      if (!verificationGreen || !goalsCheckGreen) {
+        console.log(`evidence: withholding — verification(passed=${verificationPassed}, failures=${verificationFailures.length}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
         process.exit(0)
       }
 
+      // Both arrays are empty by construction here — the guard above returns on either being
+      // non-empty. They stay in the artefact so a reviewer reading evidence.json sees the two
+      // fields the gate checked rather than having to know which fields it consulted.
       const evidence = {
         slug: '$bootstrap.output.slug',
-        verification_failures: $verification.output.failures,
-        goals_check_failures: $goals-check.output.failures,
+        verification_failures: verificationFailures,
+        goals_check_failures: goalsCheckFailures,
       }
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
       console.log(`evidence: wrote ${evidencePath} ✓`)
@@ -596,11 +613,14 @@ nodes:
            - SESSION/issues.json
            - SESSION/report.md
            - SESSION/build-state.json
-           - SESSION/evidence.json
+           - SESSION/evidence.json — ONLY if that file exists. The `evidence` node withholds it on
+             a red verdict, and `git add` on a path that does not exist fails with exit 128 and
+             takes the whole staging step with it. Check first; if it is absent, skip it and say so.
            - each new `docs/adr/NNNN-*.md` the report node drafted, by name
          Derive the source/test entries by reading `git status --porcelain` and picking out the
          source and test files — then add them one at a time by name. A path already committed by a
          RED or GREEN phase, or unchanged, simply adds nothing; list it anyway rather than guessing.
+         That applies to committed and unchanged paths — NOT to paths that do not exist at all.
          SESSION/build-state.json is committed HERE and ONLY here — the loop never commits it. This
          one commit is the durable proof of the loop's anti-cheat record (`red_exit`,
          `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`

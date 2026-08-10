@@ -16,7 +16,7 @@ Both fields were verified behaviourally against the installed `archon` CLI v0.7.
 
 ### Version floor
 
-Raise the floor to Archon ≥ 0.7.0 (`MIN_ARCHON_VERSION` in `lib/archon-check.mjs`), stated identically in `commands/setup.md` Step 1, `AGENTS.md`, `README.md`, and `CONTEXT.md`. As with the 0.5.0 pin, this is not a hard version pin — the durable contract is still the key-discriminated schema plus the two fields below; re-validate behaviourally on the next bump rather than trusting a number.
+Raise the floor to Archon ≥ 0.7.0 (`MIN_ARCHON_VERSION` in `lib/archon-check.mjs`), stated identically in `commands/setup.md` Step 1, `AGENTS.md`, `README.md`, `CONTEXT.md`, and the four Box command docs under `.archon/commands/` (`unic-dlc-build.md`, `unic-dlc-qa.md`, `unic-dlc-pr-review.md`, `unic-dlc-explore.md`). Those four ship into a Consumer project as the operator-facing description of each Box, so a floor they contradict is refused at `/setup` with no warning from the doc the operator checked — the first draft of this ADR omitted them and all four kept `≥ 0.5.0`. As with the 0.5.0 pin, this is not a hard version pin — the durable contract is still the key-discriminated schema plus the two fields below; re-validate behaviourally on the next bump rather than trusting a number.
 
 ### `always_run` closes the stale-resume hole
 
