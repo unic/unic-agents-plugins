@@ -71,6 +71,18 @@ test('evidence node deletes any stale file before evaluating the withhold guard'
 	)
 })
 
+test('evidence node deletes the mirrored copy too, before the withhold guard', () => {
+	const evidence = nodeSource(readWorkflow('unic-dlc-build'), 'evidence')
+	assert.ok(evidence, 'unic-dlc-build.yaml lost its evidence node')
+	const deleteIndex = evidence.indexOf('rmSync(mirrorPath)')
+	const guardIndex = evidence.indexOf('if (!verificationPassed || !goalsCheckPassed)')
+	assert.ok(deleteIndex !== -1, 'evidence node lost the mirror delete step (ADR-0034)')
+	assert.ok(
+		deleteIndex < guardIndex,
+		'the mirror must be deleted BEFORE the withhold guard — the engine presence gate reads only the $ARTIFACTS_DIR copy, so a stale mirror survives an engine refusal and open-pr stages it'
+	)
+})
+
 test('evidence node only writes when both verification and goals-check passed', () => {
 	const evidence = nodeSource(readWorkflow('unic-dlc-build'), 'evidence')
 	assert.ok(evidence, 'unic-dlc-build.yaml lost its evidence node')

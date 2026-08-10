@@ -506,10 +506,16 @@ nodes:
 
       const artifactsDir = process.env.ARTIFACTS_DIR
       const evidencePath = join(artifactsDir, 'evidence.json')
+      const sessionDir = join('$bootstrap.output.artifacts_dir', '$bootstrap.output.slug')
+      const mirrorPath = join(sessionDir, 'evidence.json')
 
-      // Delete first: a resumed run reuses the same $ARTIFACTS_DIR, so a prior attempt's file
-      // would certify a red tree if this attempt fails before writing a fresh one.
+      // Delete BOTH copies first: a resumed run reuses the same $ARTIFACTS_DIR and the same
+      // Session dir, so a prior attempt's file would certify a red tree if this attempt fails
+      // before writing a fresh one. The mirror needs this most — the engine's presence gate reads
+      // only the $ARTIFACTS_DIR copy, so a stale mirror survives an engine refusal and is what
+      // open-pr stages and a reviewer reads.
       if (existsSync(evidencePath)) rmSync(evidencePath)
+      if (existsSync(mirrorPath)) rmSync(mirrorPath)
 
       // A node-output field reference substitutes RAW: booleans land as `true`/`false` and arrays
       // as JSON array literals (both valid JS); strings land unquoted, so every quoted
@@ -535,10 +541,9 @@ nodes:
 
       // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
       // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
-      const sessionDir = join('$bootstrap.output.artifacts_dir', '$bootstrap.output.slug')
       mkdirSync(sessionDir, { recursive: true })
-      copyFileSync(evidencePath, join(sessionDir, 'evidence.json'))
-      console.log(`evidence: mirrored to ${join(sessionDir, 'evidence.json')} ✓`)
+      copyFileSync(evidencePath, mirrorPath)
+      console.log(`evidence: mirrored to ${mirrorPath} ✓`)
 
   # ---------------------------------------------------------------------------------------------
   - id: report
