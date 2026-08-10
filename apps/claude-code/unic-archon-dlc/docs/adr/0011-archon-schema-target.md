@@ -1,6 +1,6 @@
 # 0011. Archon version target and node-schema conventions
 
-**Status:** Accepted (2026-06-23; version facts refreshed 2026-06-30 for the 0.3.12 → 0.5.0 bump — schema conventions unchanged)
+**Status:** Accepted (2026-06-23; version facts refreshed 2026-06-30 for the 0.3.12 → 0.5.0 bump, and again 2026-08-10 for the 0.5.0 → 0.7.0 bump ([ADR-0033](0033-archon-070-schema-target.md)) — schema conventions unchanged)
 
 ## Context
 

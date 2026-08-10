@@ -92,7 +92,7 @@ grilling. Keeping those three subsection headings exact is what makes the handof
 - The system-skill registered under `tracker.access` is reachable for the spike ticket. A tracker with
   no issue-creation capability prints manual steps instead of failing.
 - The checkout has an `origin` remote, or `project.repo_ref` is set.
-- Archon ≥ 0.5.0.
+- Archon ≥ 0.7.0 ([ADR-0033](../../docs/adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 

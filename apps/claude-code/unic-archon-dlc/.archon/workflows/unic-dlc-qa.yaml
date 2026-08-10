@@ -122,6 +122,9 @@ nodes:
   - id: e2e
     depends_on: [bootstrap]
     when: "$bootstrap.output.status == 'ready'"
+    # always_run: true — the result is a fact about the CURRENT branch; a resume must re-run it
+    # rather than replay a cached pass from before the code changed underneath it (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |
@@ -149,6 +152,9 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   - id: coverage-gate
     depends_on: [e2e]
+    # always_run: true — same reason as e2e: coverage is a fact about the CURRENT tree, not a
+    # promise carried by exit code 0 (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |
@@ -292,6 +298,10 @@ nodes:
   - id: verify-pr-base
     depends_on: [uat-gate]
     trigger_rule: all_done
+    # always_run: true — base_ok is a fact about the remote PR, not about this node's own exit
+    # code; a resume must re-query it, never reuse a cached verdict for a PR retargeted since
+    # (the exact hole ADR-0033 closes). Independent of trigger_rule above; both apply.
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |

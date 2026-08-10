@@ -5,9 +5,10 @@ import { execFileSync } from 'node:child_process'
 // Tests and callers can pass overrides via checkArchon(..., { incompatibleVersions }).
 export const INCOMPATIBLE_ARCHON_VERSIONS = /** @type {readonly string[]} */ (Object.freeze([]))
 
-// Behavioural min-floor (ADR-0011/0019): the key-discriminated schema — gates/loops/fresh-context —
-// only runs correctly on Archon >= 0.5.0. This replaces the fictional exact-version assertion.
-export const MIN_ARCHON_VERSION = '0.5.0'
+// Behavioural min-floor (ADR-0011/0019/0033): the key-discriminated schema — gates/loops/
+// fresh-context — plus `evidence_policy` and `always_run` only run correctly on Archon >= 0.7.0.
+// This replaces the fictional exact-version assertion.
+export const MIN_ARCHON_VERSION = '0.7.0'
 
 /**
  * @typedef {{ ok: true, version: string }} ArchonOk
@@ -89,7 +90,7 @@ export function checkArchon(execFn = /** @type {ExecFn} */ (/** @type {unknown} 
 			return {
 				ok: false,
 				code: 'incompatible',
-				message: `Archon ${version} is below the minimum supported version ${minVersion}. The key-discriminated workflow schema (gates, loops, fresh-context) requires Archon >= ${minVersion}. Please upgrade Archon.`,
+				message: `Archon ${version} is below the minimum supported version ${minVersion}. The key-discriminated workflow schema (gates, loops, fresh-context, evidence_policy, always_run) requires Archon >= ${minVersion}. Please upgrade Archon.`,
 			}
 		}
 

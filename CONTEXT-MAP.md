@@ -39,5 +39,5 @@ All four tiers are repo conventions: hand-applied and maintained here, generated
 - **auto-format**, **pr-review**, **unic-archon-dlc**, **unic-pr-review**, and **unic-spec-review** are Claude Code Plugins with no runtime dependencies on each other (`unic-spec-review` vendors shared code from `unic-pr-review` rather than importing it)
 - **unic-confluence** can be installed as a git dependency for use outside Claude Code.
 - **pr-review** has a soft dependency on the `pr-review-toolkit` plugin from `anthropics/claude-plugins-official`
-- **unic-archon-dlc** requires the Archon workflow engine (version ≥ 0.10) in the target project; it has no runtime dependencies on any other plugin in this repo
+- **unic-archon-dlc** requires the Archon workflow engine (version ≥ 0.7.0, [ADR-0033](apps/claude-code/unic-archon-dlc/docs/adr/0033-archon-070-schema-target.md)) in the target project; it has no runtime dependencies on any other plugin in this repo
 - Architectural decisions are split by scope: monorepo-wide decisions live in root `docs/adr/`; decisions scoped to a single context live in that context's own `docs/adr/`.

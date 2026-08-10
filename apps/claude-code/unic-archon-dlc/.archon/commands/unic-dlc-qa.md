@@ -65,7 +65,7 @@ mismatched PR base blocks the merge even in AFK (fail-closed `when`).
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
 - The current branch has an open PR targeting the base branch (for verify-pr-base + merge).
 - The checkout has an `origin` remote, or `project.repo_ref` is set.
-- Archon ≥ 0.5.0.
+- Archon ≥ 0.7.0 ([ADR-0033](../../docs/adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 

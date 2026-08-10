@@ -13,6 +13,12 @@ description: >
 # Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
 interactive: true
 
+# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists — the
+# `evidence` node below is the only writer; the engine gates on presence only, the content
+# contract is this workflow's own (ADR-0034).
+evidence_policy:
+  required: true
+
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm issues.json exists.
@@ -116,6 +122,9 @@ nodes:
   - id: slopcheck
     depends_on: [bootstrap]
     when: "$bootstrap.output.status == 'ready'"
+    # always_run: true — a resume must re-verify package.json's CURRENT contents; exit 0 says
+    # nothing about packages added since the last completed attempt (ADR-0033).
+    always_run: true
     runtime: bun
     timeout: 120000
     script: |
@@ -403,6 +412,10 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   - id: verification
     depends_on: [implement-review-precheck]
+    # always_run: true — the exit code is a prose report, not a promise; a resume must re-run the
+    # suite against the CURRENT tree, never replay a cached PASSED from before a since-applied fix
+    # (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
@@ -421,11 +434,31 @@ nodes:
            verification: PASSED ✓    (tests green, no stubs, coverage ≥ threshold)
          or
            verification: FAILED ✗ — <the specific failures>
+      5. Return the verdict block from step 4, plus everything you found worth reporting (counts,
+         coverage figure, the stub list), as the `verdict` string — that field is the prose the
+         report node reads, so it must stand alone. Then set a `passed` boolean (true only if the
+         suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
+         and a `failures` array of short strings, one per distinct failure. List blockers ONLY in
+         `failures` — never a non-blocking note. The prose is for the human at build-pr-gate; the
+         `evidence` node reads `passed` and `failures` and withholds on either signal, and
+         `evidence_policy` then gates on the file that node writes.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
+    output_format:
+      type: object
+      properties:
+        verdict: { type: string }
+        passed: { type: boolean }
+        failures:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures]
 
   # ---------------------------------------------------------------------------------------------
   - id: goals-check
     depends_on: [verification]
+    # always_run: true — same reason as verification: the coverage matrix is a fact about the
+    # CURRENT diff, and a resume must recompute it rather than reuse a cached verdict (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
@@ -441,11 +474,114 @@ nodes:
          A criterion is COVERED only when BOTH a test and an implementation exist.
       4. If any row is MISSING: print "goals-check: FAILED — N uncovered criteria" and list them.
          Else print "goals-check: PASSED — all acceptance criteria covered. ✓".
-      Keep the matrix in your output; the report node pastes it verbatim.
+      5. Return the whole Markdown table plus the PASSED/FAILED line as the `verdict` string — that
+         field is what the report node pastes verbatim, so the matrix must be inside it. Then set a
+         `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
+         short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
+         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` and
+         withholds on either signal, and `evidence_policy` then gates on the file that node writes.
+    output_format:
+      type: object
+      properties:
+        verdict: { type: string }
+        passed: { type: boolean }
+        failures:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures]
+
+  # ---------------------------------------------------------------------------------------------
+  # evidence — writes $ARTIFACTS_DIR/evidence.json ONLY when both verdicts are green; its mere
+  # PRESENCE is what workflow-level evidence_policy checks before allowing terminal `completed`
+  # (the engine gates on presence only — the content contract is this node's, ADR-0034). A SCRIPT,
+  # never a prompt: a prompt that both judges and certifies grades its own homework.
+  # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive
+  # presence from the CURRENT verification/goals-check output, never trust a stale file (also why
+  # it deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # ---------------------------------------------------------------------------------------------
+  - id: evidence
+    depends_on: [verification, goals-check]
+    always_run: true
+    runtime: bun
+    script: |
+      import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
+      import { join } from 'node:path'
+
+      // The engine exports ARTIFACTS_DIR to script nodes; this is the plugin's only read of it, and
+      // an absent value must fail loudly. Unset throws inside join() with a node:path message that
+      // names nothing about the contract. Empty string is worse and is why this guard checks
+      // falsiness rather than undefined: join('', 'evidence.json') returns a RELATIVE path and does
+      // not throw, so this node logs "wrote evidence.json" while the engine's presence gate reads
+      // the real ARTIFACTS_DIR and finds nothing — a run failing closed with a success line in its
+      // log. Do NOT fall back to the Session dir: the gate reads only this path, so a fallback
+      // would make that silent case permanent (ADR-0033/0034).
+      const artifactsDir = process.env.ARTIFACTS_DIR
+      if (!artifactsDir) {
+        console.error(
+          'evidence: ARTIFACTS_DIR is unset or empty — the engine did not export it to this script node. ' +
+            'The evidence gate requires Archon >= 0.7.0 (ADR-0033/0034).'
+        )
+        process.exit(1)
+      }
+      const evidencePath = join(artifactsDir, 'evidence.json')
+      const sessionDir = join('$bootstrap.output.artifacts_dir', '$bootstrap.output.slug')
+      const mirrorPath = join(sessionDir, 'evidence.json')
+
+      // Delete BOTH copies first: a resumed run reuses the same $ARTIFACTS_DIR and the same
+      // Session dir, so a prior attempt's file would certify a red tree if this attempt fails
+      // before writing a fresh one. The mirror needs this most — the engine's presence gate reads
+      // only the $ARTIFACTS_DIR copy, so a stale mirror survives an engine refusal and is what
+      // open-pr stages and a reviewer reads.
+      if (existsSync(evidencePath)) rmSync(evidencePath)
+      if (existsSync(mirrorPath)) rmSync(mirrorPath)
+
+      // A node-output field reference substitutes RAW: booleans land as `true`/`false` and arrays
+      // as JSON array literals (both valid JS); strings land unquoted, so every quoted
+      // node-output reference below carries its own quotes. Do not "tidy" that quoting away — it
+      // is load-bearing.
+      // (Never write a placeholder node id anywhere in this body, comments included. The DAG
+      // loader reads every dollar-prefixed node-output token here as a real edge, so a placeholder
+      // makes the whole Box fail to load with "references unknown node". A comment on this very
+      // spot once did exactly that. `test/box-workflow-node-refs.test.mjs` now guards it.)
+      const verificationPassed = $verification.output.passed
+      const goalsCheckPassed = $goals-check.output.passed
+      const verificationFailures = $verification.output.failures
+      const goalsCheckFailures = $goals-check.output.failures
+
+      // `passed` is self-reported by the same prompt that wrote `failures`, so neither field alone
+      // is trustworthy — but disagreement BETWEEN them is. Certifying on `passed` alone let a
+      // `passed: true` with a non-empty `failures` array write a certificate whose own body listed
+      // the failures. Both prompts define `failures` as blockers only, so a non-empty list is a
+      // red verdict whatever the boolean says. This does not make the gate independent of the
+      // judge — only re-running the suite would, and ADR-0023 §5 rules that out (ADR-0034).
+      const verificationGreen = verificationPassed === true && verificationFailures.length === 0
+      const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
+
+      if (!verificationGreen || !goalsCheckGreen) {
+        console.log(`evidence: withholding — verification(passed=${verificationPassed}, failures=${verificationFailures.length}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+        process.exit(0)
+      }
+
+      // Both arrays are empty by construction here — the guard above returns on either being
+      // non-empty. They stay in the artefact so a reviewer reading evidence.json sees the two
+      // fields the gate checked rather than having to know which fields it consulted.
+      const evidence = {
+        slug: '$bootstrap.output.slug',
+        verification_failures: verificationFailures,
+        goals_check_failures: goalsCheckFailures,
+      }
+      writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
+      console.log(`evidence: wrote ${evidencePath} ✓`)
+
+      // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
+      // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
+      mkdirSync(sessionDir, { recursive: true })
+      copyFileSync(evidencePath, mirrorPath)
+      console.log(`evidence: mirrored to ${mirrorPath} ✓`)
 
   # ---------------------------------------------------------------------------------------------
   - id: report
-    depends_on: [goals-check]
+    depends_on: [evidence]
     context: fresh
     allowed_tools: [Read, Write, Bash]
     prompt: |
@@ -456,8 +592,9 @@ nodes:
         1. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
            If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
            criteria — see matrix below."
-        2. Goals-Check Coverage Matrix — paste $goals-check.output verbatim.
-        3. Test Outcomes — pass/fail counts + coverage from $verification.output; note skipped/flaky.
+        2. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
+        3. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
+           skipped/flaky.
         4. Decisions Made — technical decisions worth recording; for each significant one, draft an
            ADR inline (docs/adr/NNNN-<slug>.md) for review. Also fold in, verbatim:
              - `$implement-review-precheck.output.findings` — the local code-review pre-check's
@@ -491,10 +628,14 @@ nodes:
            - SESSION/issues.json
            - SESSION/report.md
            - SESSION/build-state.json
+           - SESSION/evidence.json — ONLY if that file exists. The `evidence` node withholds it on
+             a red verdict, and `git add` on a path that does not exist fails with exit 128 and
+             takes the whole staging step with it. Check first; if it is absent, skip it and say so.
            - each new `docs/adr/NNNN-*.md` the report node drafted, by name
          Derive the source/test entries by reading `git status --porcelain` and picking out the
          source and test files — then add them one at a time by name. A path already committed by a
          RED or GREEN phase, or unchanged, simply adds nothing; list it anyway rather than guessing.
+         That applies to committed and unchanged paths — NOT to paths that do not exist at all.
          SESSION/build-state.json is committed HERE and ONLY here — the loop never commits it. This
          one commit is the durable proof of the loop's anti-cheat record (`red_exit`,
          `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
