@@ -507,7 +507,22 @@ nodes:
       import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
       import { join } from 'node:path'
 
+      // The engine exports ARTIFACTS_DIR to script nodes; this is the plugin's only read of it, and
+      // an absent value must fail loudly. Unset throws inside join() with a node:path message that
+      // names nothing about the contract. Empty string is worse and is why this guard checks
+      // falsiness rather than undefined: join('', 'evidence.json') returns a RELATIVE path and does
+      // not throw, so this node logs "wrote evidence.json" while the engine's presence gate reads
+      // the real ARTIFACTS_DIR and finds nothing — a run failing closed with a success line in its
+      // log. Do NOT fall back to the Session dir: the gate reads only this path, so a fallback
+      // would make that silent case permanent (ADR-0033/0034).
       const artifactsDir = process.env.ARTIFACTS_DIR
+      if (!artifactsDir) {
+        console.error(
+          'evidence: ARTIFACTS_DIR is unset or empty — the engine did not export it to this script node. ' +
+            'The evidence gate requires Archon >= 0.7.0 (ADR-0033/0034).'
+        )
+        process.exit(1)
+      }
       const evidencePath = join(artifactsDir, 'evidence.json')
       const sessionDir = join('$bootstrap.output.artifacts_dir', '$bootstrap.output.slug')
       const mirrorPath = join(sessionDir, 'evidence.json')

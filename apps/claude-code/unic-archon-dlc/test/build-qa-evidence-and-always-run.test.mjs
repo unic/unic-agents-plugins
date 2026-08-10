@@ -64,6 +64,30 @@ function alwaysRunNodeIds(contents) {
 /** The withhold guard's exact expression. One constant, so all four ordering tests move together. */
 const WITHHOLD_GUARD = 'if (!verificationGreen || !goalsCheckGreen)'
 
+test('evidence node refuses an unset or empty ARTIFACTS_DIR, before it deletes anything', () => {
+	// Empty string is the silent case this guards: join('', 'evidence.json') returns a relative path
+	// without throwing, so the node logs a successful write while the engine's presence gate reads
+	// the real ARTIFACTS_DIR and finds nothing. Falsiness, not `undefined`, is therefore the test —
+	// and a non-zero exit, because withholding here would look like a red verdict (ADR-0034).
+	const evidence = nodeSource(readWorkflow('unic-dlc-build'), 'evidence')
+	assert.ok(evidence, 'unic-dlc-build.yaml lost its evidence node')
+	assert.match(
+		evidence,
+		/if \(!artifactsDir\) \{/,
+		'evidence node lost its ARTIFACTS_DIR guard, or the guard stopped checking falsiness — an empty value writes the certificate to a relative path and the gate never sees it'
+	)
+	const guardIndex = evidence.indexOf('if (!artifactsDir) {')
+	assert.ok(
+		guardIndex < evidence.indexOf('rmSync(evidencePath)'),
+		'the ARTIFACTS_DIR guard must run BEFORE the deletes — rmSync against a relative path removes the wrong file'
+	)
+	assert.match(
+		evidence.slice(guardIndex, evidence.indexOf(WITHHOLD_GUARD)),
+		/process\.exit\(1\)/,
+		'the ARTIFACTS_DIR guard must exit NON-zero: an engine-contract breach is not a red verdict, and exit 0 would let the run continue and fail closed with no cause'
+	)
+})
+
 test('evidence node deletes any stale file before evaluating the withhold guard', () => {
 	const evidence = nodeSource(readWorkflow('unic-dlc-build'), 'evidence')
 	assert.ok(evidence, 'unic-dlc-build.yaml lost its evidence node')
@@ -106,7 +130,7 @@ test('evidence node only writes when both verification and goals-check passed', 
 test('evidence node cross-checks the failures list against the self-reported boolean', () => {
 	// `passed` is self-reported by the same prompt that wrote `failures`. Certifying on the boolean
 	// alone let `passed: true` beside a non-empty `failures` array write a certificate whose own
-	// body listed the failures. Both fields must gate (ADR-0034 step 2).
+	// body listed the failures. Both fields must gate (ADR-0034 step 3).
 	const evidence = nodeSource(readWorkflow('unic-dlc-build'), 'evidence')
 	assert.ok(evidence, 'unic-dlc-build.yaml lost its evidence node')
 	assert.match(
