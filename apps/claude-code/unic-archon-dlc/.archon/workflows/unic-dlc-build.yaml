@@ -519,10 +519,12 @@ nodes:
 
       // A node-output field reference substitutes RAW: booleans land as `true`/`false` and arrays
       // as JSON array literals (both valid JS); strings land unquoted, so every quoted
-      // `$id.output.field` reference below carries its own quotes. Do not "tidy" that quoting
-      // away — it is load-bearing.
-      // (Never write a placeholder node id in a comment here — the DAG loader reads every
-      // `$<id>.output` token in this body as a real edge and rejects the workflow.)
+      // node-output reference below carries its own quotes. Do not "tidy" that quoting away — it
+      // is load-bearing.
+      // (Never write a placeholder node id anywhere in this body, comments included. The DAG
+      // loader reads every dollar-prefixed node-output token here as a real edge, so a placeholder
+      // makes the whole Box fail to load with "references unknown node". A comment on this very
+      // spot once did exactly that. `test/box-workflow-node-refs.test.mjs` now guards it.)
       const verificationPassed = $verification.output.passed
       const goalsCheckPassed = $goals-check.output.passed
 
