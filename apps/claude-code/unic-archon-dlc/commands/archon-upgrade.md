@@ -5,7 +5,7 @@ description: 'Report what a new Archon release means for this Plugin: compare th
 
 # unic-archon-dlc:archon-upgrade
 
-> Design rationale: [ADR-0035 — `/archon-upgrade` reports what a new Archon release means for this Plugin](docs/adr/0035-archon-upgrade-report.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); floor, node-schema conventions and the three silent-failure traps per [ADR-0011](docs/adr/0011-archon-schema-target.md); the two locked classification precedents per [ADR-0033](docs/adr/0033-archon-070-schema-target.md); the evidence-gate shape a future release may touch per [ADR-0034](docs/adr/0034-evidence-gate-deterministic-writer.md)).
+> Design rationale: [ADR-0035 — `/archon-upgrade` reports what a new Archon release means for this Plugin](docs/adr/0035-archon-upgrade-report.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); floor, node-schema conventions and the four silent-failure traps per [ADR-0011](docs/adr/0011-archon-schema-target.md); the two locked classification precedents per [ADR-0033](docs/adr/0033-archon-070-schema-target.md); the evidence-gate shape a future release may touch per [ADR-0034](docs/adr/0034-evidence-gate-deterministic-writer.md)).
 
 `/archon-upgrade` answers one question: **Archon shipped a new release — what does it mean for this
 Plugin?** It compares the installed `archon` against this Plugin's floor, reads the release notes for
@@ -54,8 +54,9 @@ Parse the JSON. **Do not stop on `ok: false` the way `/setup` does** — branch 
 
 - **`enoent` or `other`** → Archon is unusable at all. Print `message` verbatim and stop. Nothing else
   in this report would be meaningful.
-- **`incompatible`** → the installed Archon is _below_ the floor. Print both versions and one line:
-  "run `/unic-archon-dlc:setup` first — there is no upgrade to report, only a downgrade to fix." Stop.
+- **`incompatible`** → the installed Archon is _below_ the floor. `message` already names both
+  versions — print it verbatim, then add one line: "run `/unic-archon-dlc:setup` first — there is
+  no upgrade to report, only a downgrade to fix." Stop.
 - **`ok: true` and `installedTriple` is `null`** → the version string did not parse (a dev build).
   Say so, skip Steps 2–4, and go straight to Step 5, which needs no version at all.
 - **`ok: true` and `installedTriple` equals `floorTriple`** → print
@@ -69,7 +70,7 @@ Parse the JSON. **Do not stop on `ok: false` the way `/setup` does** — branch 
 Never hardcode or guess a URL. Ask the local environment where Archon came from:
 
 ```bash
-brew info archon --json=v2 2>/dev/null
+brew info archon --json=v2
 ```
 
 Read `.formulae[0].homepage` (fall back to `.casks[0].homepage`) and take the `owner/repo` out of the

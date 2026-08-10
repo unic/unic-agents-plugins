@@ -1,6 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
@@ -28,15 +29,14 @@ const FLAT = COMMAND.replace(/\s+/g, ' ')
 /** The frontmatter block, alone. `Write` in the prose is not a granted tool. */
 const FRONTMATTER = COMMAND.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? ''
 
-test('the command declares Bash and no write-capable tool (AC 7)', () => {
-	assert.ok(FRONTMATTER, 'commands/archon-upgrade.md must open with a frontmatter block')
-	assert.match(FRONTMATTER, /allowed-tools:.*'Bash'/, 'allowed-tools must grant Bash')
-	for (const tool of ['Write', 'Edit', 'NotebookEdit']) {
-		assert.ok(
-			!FRONTMATTER.includes(tool),
-			`allowed-tools grants ${tool} — /archon-upgrade is read-only by design (ADR-0035)`
-		)
-	}
+test('the command declares Bash and nothing else (AC 7)', () => {
+	const match = FRONTMATTER.match(/allowed-tools:\s*(\[[^\]]*\])/)
+	assert.ok(match, 'commands/archon-upgrade.md must declare allowed-tools as an array')
+	assert.deepEqual(
+		JSON.parse(match[1].replace(/'/g, '"')),
+		['Bash'],
+		'allowed-tools must be exactly [Bash] — /archon-upgrade is read-only by design (ADR-0035)'
+	)
 })
 
 test('the command cites every ADR its design rests on', () => {
@@ -102,4 +102,24 @@ test('README.md and AGENTS.md list the box (AC 8)', () => {
 		const contents = readFileSync(join(PLUGIN_ROOT, doc), 'utf8')
 		assert.ok(contents.includes('`/archon-upgrade`'), `${doc} must list \`/archon-upgrade\` in its box set`)
 	}
+})
+
+test('the Step 5 heredoc actually runs and reports the bundled Boxes clean', () => {
+	// AC 5. The surrounding prose is string-matched above; this runs the embedded script for real, so
+	// a typo in a property name or a broken import path fails CI here rather than only at run time.
+	const body = COMMAND.match(/## Step 5[\s\S]*?<<'EOJS'\n([\s\S]*?)\nEOJS/)?.[1]
+	assert.ok(body, 'Step 5 heredoc body must be extractable')
+
+	const stdout = execFileSync('node', ['--input-type=module'], {
+		input: body,
+		env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT },
+		encoding: 'utf8',
+	})
+	const result = JSON.parse(stdout)
+	assert.equal(result.ok, true)
+	assert.equal(result.files.length, 4)
+	assert.ok(
+		result.files.every((/** @type {{ ok: boolean }} */ f) => f.ok),
+		`expected all four Boxes clean: ${JSON.stringify(result.files)}`
+	)
 })

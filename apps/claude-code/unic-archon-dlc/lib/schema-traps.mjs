@@ -3,7 +3,7 @@
 import { parse as parseYaml } from 'yaml'
 
 /**
- * ADR-0011's three silent-failure traps, as a deterministic check over one workflow YAML.
+ * ADR-0011's four silent-failure traps, as a deterministic check over one workflow YAML.
  *
  * `archon validate workflows <name>` passes clean on every one of these forms, because each node
  * still carries a recognised content key and unknown fields are ignored. The failures are therefore
@@ -19,14 +19,6 @@ import { parse as parseYaml } from 'yaml'
  * @typedef {{ trap: 'parse' | 'type-discriminator' | 'approval-interactive' | 'loop-keys' | 'node-fresh-context', node: string | null, message: string }} TrapViolation
  * @typedef {{ ok: boolean, violations: TrapViolation[] }} TrapReport
  */
-
-/** The four ADR-0011 traps, in the order `checkSchemaTraps` reports them. */
-export const SCHEMA_TRAPS = /** @type {const} */ ([
-	'type-discriminator',
-	'approval-interactive',
-	'loop-keys',
-	'node-fresh-context',
-])
 
 /**
  * Check one workflow YAML source against ADR-0011's node-schema conventions 1–4.
