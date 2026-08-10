@@ -114,3 +114,33 @@ Four amendments follow:
    maintained: `.agents/skills/**` is upstream-owned and every `npx skills add` overwrites
    it — which is how that reconciliation was silently lost in 2026-08. The 8-state mapping
    lives in `docs/agents/triage-labels.md` only.
+
+## Amendment 2 (2026-08-10)
+
+The four tiers stand. Two changes to what they contain, both from the
+[Regroup the tracker into streams](https://github.com/unic/unic-agents-plugins/issues/312)
+wayfinder map.
+
+The map introduces a **stream ticket**: an issue whose sub-issues are one workstream. Streams
+are the grouping the tracker was missing — the area label answers "which app", not "which
+effort", and one area can hold several unrelated efforts at once. Two of the three chains of
+blocked-by edges in `app:unic-archon-dlc` belong to different streams.
+
+1. **`stream` is a seventh type.** Type (6) becomes Type (7). The one-per-issue discipline is
+   unchanged: a stream ticket carries `stream` and no other type. It carries no state label
+   and no priority either — a stream is not triageable, and a state on it would distort the
+   readiness counts that the state tier exists to produce.
+
+2. **The area tier is one-per-issue for members, several for stream tickets.** A stream can
+   span apps and packages, so a stream ticket may carry more than one area label. Every other
+   issue keeps exactly one, because `/archon-rollout` derives the branch name
+   `feature/<scope>/<issue#>-<slug>` from it and stops when an issue has none; a second label
+   would leave that derivation with no single answer. Stream tickets are never dispatched, so
+   the exception is safe.
+
+Both are recorded in [`docs/agents/labels.md`](../agents/labels.md), which remains the record
+for every tier.
+
+Two adjacent decisions from the same map are **not** ADR material and live on the map instead:
+sub-issue links express stream membership while native GitHub dependencies express ordering,
+and a stream ticket closes only after its children close.
