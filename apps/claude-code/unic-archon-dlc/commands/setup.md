@@ -68,11 +68,18 @@ try {
   // target repository from a remote. Distinct from "no `origin` specifically", which /build's own
   // bootstrap handles at run time; this is the earlier, plainer refusal at /setup itself.
   let remotes = []
+  let remotesErr = null
   try {
     const list = execFileSync('git', ['remote'], { stdio: ['pipe','pipe','pipe'], timeout: 5000 }).toString().trim()
     remotes = list.length === 0 ? [] : list.split(/\r?\n/).filter(Boolean)
-  } catch {}
-  if (!output && remotes.length === 0) {
+  } catch (err) {
+    remotesErr = err
+  }
+  if (!output && remotesErr && remotesErr.code === 'ENOENT') {
+    output = { error: 'git binary not found on PATH. Install git before running /setup.' }
+  } else if (!output && remotesErr) {
+    output = { error: `Failed to read git remotes: ${remotesErr.message}. Confirm this directory is a git repository, then re-run /setup.` }
+  } else if (!output && remotes.length === 0) {
     output = { error: 'This project has no git remote configured. All four Archon Boxes (/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run without one. Add one — e.g. `git remote add origin <url>` — and re-run /setup.' }
   }
 
@@ -84,15 +91,13 @@ try {
     // Verify-only: report whether ARCHON'S OWN .archon/config.yaml (a different file from ours)
     // resolves a remote via its `worktree.remote` key, falling back to Archon's own auto-detection
     // (origin, else the sole remote). NEVER write .archon/config.yaml — it is Archon's file.
-    let archonRemoteResolved = null
     const archonConfigPath = join(cwd, '.archon', 'config.yaml')
+    let archonConfig = null
     if (existsSync(archonConfigPath)) {
       const r = mod.loadConfig(archonConfigPath)
-      if ('ok' in r) archonRemoteResolved = r.config?.worktree?.remote ?? null
+      if ('ok' in r) archonConfig = r.config
     }
-    if (!archonRemoteResolved) {
-      archonRemoteResolved = remotes.includes('origin') ? 'origin' : (remotes.length === 1 ? remotes[0] : null)
-    }
+    const archonRemoteResolved = mod.resolveArchonRemote({ remotes, archonConfig })
 
     // Normalise to the rich shape so validation reflects what /setup will actually write.
     const normalised = legacy ? mod.mergeConfig(mod.migrateLegacy(config)) : (config ? mod.mergeConfig(config) : null)

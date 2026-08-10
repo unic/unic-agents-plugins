@@ -14,6 +14,7 @@ import {
 	MANDATORY_PATHS,
 	mergeConfig,
 	migrateLegacy,
+	resolveArchonRemote,
 	toYaml,
 	validateConfig,
 } from '../lib/config-schema.mjs'
@@ -374,4 +375,23 @@ test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 1
 		/Do \*\*not\*\* ask for `project\.repo_ref` and do not write it/,
 		'commands/setup.md must keep telling the agent not to ask for or write project.repo_ref'
 	)
+})
+
+test('resolveArchonRemote prefers worktree.remote over auto-detection', () => {
+	assert.equal(
+		resolveArchonRemote({ remotes: ['origin', 'fork'], archonConfig: { worktree: { remote: 'fork' } } }),
+		'fork'
+	)
+})
+
+test('resolveArchonRemote falls back to origin when worktree.remote is unset', () => {
+	assert.equal(resolveArchonRemote({ remotes: ['origin', 'fork'], archonConfig: null }), 'origin')
+})
+
+test('resolveArchonRemote falls back to the sole remote when origin is absent', () => {
+	assert.equal(resolveArchonRemote({ remotes: ['fork'], archonConfig: null }), 'fork')
+})
+
+test('resolveArchonRemote resolves to null when ambiguous', () => {
+	assert.equal(resolveArchonRemote({ remotes: ['fork-a', 'fork-b'], archonConfig: null }), null)
 })

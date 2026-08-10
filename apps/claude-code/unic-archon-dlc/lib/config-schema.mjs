@@ -303,3 +303,18 @@ export function toYaml(config) {
 export function detectRepoLayout(projectDir) {
 	return existsSync(join(projectDir, 'CONTEXT-MAP.md')) ? 'multi-context' : 'single-context'
 }
+
+/**
+ * Resolve which remote Archon's own auto-detection would pick, verify-only: `worktree.remote` wins
+ * outright, else `origin` if present, else the sole remote if exactly one exists, else `null`
+ * (ambiguous). Mirrors Archon's own precedence — never written back to `.archon/config.yaml`.
+ * @param {{ remotes: readonly string[], archonConfig: DlcConfig | null | undefined }} args
+ * @returns {string | null}
+ */
+export function resolveArchonRemote({ remotes, archonConfig }) {
+	const worktree = /** @type {{ remote?: string } | undefined} */ (archonConfig?.worktree)
+	const configured = worktree?.remote ?? null
+	if (configured) return configured
+	if (remotes.includes('origin')) return 'origin'
+	return remotes.length === 1 ? remotes[0] : null
+}

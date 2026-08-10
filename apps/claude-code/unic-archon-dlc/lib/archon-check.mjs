@@ -90,7 +90,7 @@ export function checkArchon(execFn = /** @type {ExecFn} */ (/** @type {unknown} 
 			return {
 				ok: false,
 				code: 'incompatible',
-				message: `Archon ${version} is below the minimum supported version ${minVersion}. The key-discriminated workflow schema (gates, loops, fresh-context) requires Archon >= ${minVersion}. Please upgrade Archon.`,
+				message: `Archon ${version} is below the minimum supported version ${minVersion}. The key-discriminated workflow schema (gates, loops, fresh-context, evidence_policy, always_run) requires Archon >= ${minVersion}. Please upgrade Archon.`,
 			}
 		}
 
