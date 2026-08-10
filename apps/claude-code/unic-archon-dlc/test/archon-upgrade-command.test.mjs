@@ -19,7 +19,8 @@ import { test } from 'node:test'
 
 const PLUGIN_ROOT = resolve(import.meta.dirname, '..')
 
-const COMMAND = readFileSync(join(PLUGIN_ROOT, 'commands', 'archon-upgrade.md'), 'utf8')
+/** Line endings normalised: the Windows CI runner checks out CRLF, and `^---\n` does not match it. */
+const COMMAND = readFileSync(join(PLUGIN_ROOT, 'commands', 'archon-upgrade.md'), 'utf8').replace(/\r\n/g, '\n')
 
 /** Collapse every whitespace run to one space — line wrapping is Prettier's, not the author's. */
 const FLAT = COMMAND.replace(/\s+/g, ' ')
