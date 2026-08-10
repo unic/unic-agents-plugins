@@ -90,6 +90,22 @@ Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Other
 `DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE`
 (`specs.gate`), `PRD_TEMPLATE`, and `METHODS`.
 
+### Resolve the target repository
+
+`TARGET_REPO` is the repository this run acts on. **Derive it; never let a tool infer it.**
+
+1. Run `git remote get-url origin`. That URL is `TARGET_REPO`.
+2. `project.repo_ref` in `.archon/unic-dlc.config.yaml` is an **optional override**, absent from a
+   default config. When it is set, it wins verbatim.
+3. When no override is set, list the remotes (`git remote -v`) and compare their fetch URLs,
+   normalising away a trailing `.git`, the `user@host:path` vs `https://host/path` spelling, and case.
+   If a remote other than `origin` names a **different** repository, this checkout is a fork and a
+   host tool would act on the parent. **Stop** and ask the user to set `project.repo_ref` to the
+   repository this run must act on. A checkout whose only remote is `origin` never reaches this stop,
+   so no existing project is affected.
+
+Print `TARGET_REPO` with the tier line below, so a surprising PR target is diagnosable.
+
 ### The Methods this Box reads
 
 `METHODS` carries one entry per Method — `to-spec`, `grilling`, `domain-modeling` — with the tier it
@@ -142,9 +158,9 @@ Classify `SOURCE` and take the cheapest path to an aligned understanding:
     decisions settle.
 - **Existing spec / Figma / UX / tracker issue** (a URL or ref) → **ingest**. Read the source by
   **composing the configured system-skill** (MCP-first, CLI-fallback):
-  - docs (`DOCS.type` = `confluence`) → the team's docs skill / MCP via `DOCS.access`;
-  - design (`DESIGN.type` = `figma`) → the Figma skill / MCP via `DESIGN.access`;
-  - tracker issue → the tracker skill / CLI via `TRACKER.access`.
+  - docs (`DOCS.type` is set) → the team's docs skill / MCP via `DOCS.access`;
+  - design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`;
+  - tracker issue → the tracker skill / CLI via `TRACKER.access`, naming `TARGET_REPO`.
     Synthesise what the source says, then have the **human review** your synthesis (the #257 model).
     Reuse `to-spec`'s PRD _shaping_; there is nothing to interview, so `grilling` does not apply here.
 - **Partial** (a source exists but has gaps) → **hybrid**. Ingest what exists (as above), then grill
@@ -234,9 +250,10 @@ Replace `{SLUG_JSON}` with the JSON-encoded slug and `{SLUG_RAW}` with the bare 
 output: if `ok` is `false`, fix the missing sections and re-run; if `ok` is `true`, note `path`.
 
 **Docs publish (opt-in):** if `DOCS.publish` is `true` and `DOCS.type` is not `none`, also publish
-the PRD to the team's docs system by **composing the configured docs skill** (e.g. `unic-confluence`
-for Confluence — its injection markers guarantee the human-authored source is never overwritten).
-The repo copy at `<ARTIFACTS_DIR>/<SLUG>/PRD.md` is always the floor; publishing is additive.
+the PRD to the team's docs system by **composing the docs skill registered under `DOCS.access`** —
+whichever one that is. Expect it to write through injection markers, so a human-authored source is
+never overwritten; if it cannot, publish nothing and say so. The repo copy at
+`<ARTIFACTS_DIR>/<SLUG>/PRD.md` is always the floor; publishing is additive.
 
 ## Step 8 — PRD gate (HITL)
 
@@ -248,22 +265,46 @@ confirmations, not gates — they settle the design, they approve nothing. This 
 
 The PRD is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
-- **`open-pr`** (default): create `feature/specs/<SLUG>`, stage the PRD and any new ADRs, commit, and
+Both gates stage the **same named paths**, and nothing else:
+
+- `<ARTIFACTS_DIR>/<SLUG>/PRD.md`
+- each ADR this session created, by its own filename — `docs/adr/NNNN-<name>.md`, one `git add` per
+  file. Never `git add docs/adr/`: that directory holds every ADR the project has, and a sweep of it
+  commits whatever else is uncommitted there.
+
+**Staging rule — named paths only.** Run one `git add <path>` per path above. Never `git add -A`,
+`git add .`, or `git add -u`. Never stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under
+`$ARTIFACTS_DIR` (Archon's per-run directory, which resolves outside the repo tree under
+`~/.archon/workspaces/<name>/artifacts/`; `<ARTIFACTS_DIR>` from config is a different, repo-relative
+path and is staged above). Then run `git status --porcelain` and confirm every staged entry is one of
+the named paths. Unstage anything else with `git restore --staged <path>` and say what you unstaged.
+
+- **`open-pr`** (default): create `feature/specs/<SLUG>`, stage the named paths, commit, push, and
   open a PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/specs/<SLUG>
-  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md docs/adr/
+  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md
+  git add docs/adr/NNNN-<name>.md      # once per ADR created this session
+  git status --porcelain               # confirm nothing else is staged
   git commit -m "plan(<SLUG>): PRD and ADRs"
   git push origin feature/specs/<SLUG>
-  gh pr create --base develop --title "plan(<SLUG>): PRD and ADRs" --body "<why + summary>"
   ```
 
-  (Adapt the tracker/host commands to `TRACKER` if the project is not GitHub.) On **reject**, return
-  to Step 4 and grill the open points, then re-run from Step 7.
+  Then open the PR **against `TARGET_REPO`**, base `develop`, title
+  `plan(<SLUG>): PRD and ADRs`, body `<why + summary>`. Act on **that** repository, named explicitly —
+  never the one a tool infers from the checkout, which in a fork clone is the parent. Compose the
+  system-skill registered under `TRACKER.access` (MCP first, its CLI as fallback) and build the call
+  from that skill's own current interface: do not write a host command, subcommand, or flag here, and
+  do not branch on which provider `TRACKER.type` names — this Box owns the _what_ and none of the
+  _how_ ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the registered skill cannot target a
+  repository explicitly, stop and say which capability is missing rather than opening the PR.
 
-- **`stage-only`**: write the PRD (already done in Step 7) and `git add` it plus any new ADRs, print a
-  suggested PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+  On **reject**, return to Step 4 and grill the open points, then re-run from Step 7.
+
+- **`stage-only`**: write the PRD (already done in Step 7), stage the same named paths under the same
+  staging rule, print a suggested PR title/body, and **stop** — leave the commit, push, and PR to the
+  user.
 
 ## Step 9 — Summary
 
@@ -272,6 +313,7 @@ Print a concise summary:
 ```
 /specs complete — slug: <SLUG>
   path:     <ARTIFACTS_DIR>/<SLUG>/PRD.md
+  repo:     <TARGET_REPO>  (origin | project.repo_ref override)
   input:    <converse | ingest | hybrid>
   seams:    <the approved testing seam(s)>
   ADRs:     <NNNN-slug.md … | none>

@@ -24,8 +24,10 @@ from), which `/build` implemented against.
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
    (`artifacts_dir`, `gates.qa`, `qa.e2e_command ?? build.e2e_command`,
-   `qa.coverage_threshold ?? build.coverage_threshold`, `tracker.type`, `project.branching`), and
-   confirm `PRD.md` exists. Missing preconditions cancel cleanly with a "run /build first" message.
+   `qa.coverage_threshold ?? build.coverage_threshold`, `tracker.type`, `project.branching`), confirm
+   `PRD.md` exists, and **derive the target repository** from the worktree's `origin` remote
+   (`project.repo_ref` is an optional override, absent by default). Missing preconditions cancel
+   cleanly with a "run /build first" message; an ambiguous repository cancels with its own message.
 
 2. **e2e** — run the resolved e2e command; **skips with a warning** when none is configured. Reports a
    verdict (does not hard-fail).
@@ -43,7 +45,8 @@ from), which `/build` implemented against.
    second reject halts the run.
 
 6. **verify-pr-base** — confirm the open PR targets the expected base (`develop` on Gitflow, else
-   `main`), composing the tracker CLI/MCP. Reports `base_ok`.
+   `main`), composing the registered tracker system-skill and naming the derived repository
+   explicitly. Reports `base_ok`.
 
 7. **merge-gate → merge** — **HITL by default** (`gates.qa`); skipped in AFK. On approval (or in AFK)
    the PR is merged via the configured tracker and the feature branch is cleaned up on Gitflow. The
@@ -61,6 +64,7 @@ mismatched PR base blocks the merge even in AFK (fail-closed `when`).
 - `<artifacts_dir>/<slug>/PRD.md` exists.
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
 - The current branch has an open PR targeting the base branch (for verify-pr-base + merge).
+- The checkout has an `origin` remote, or `project.repo_ref` is set.
 - Archon ≥ 0.5.0.
 
 ## Configuration reference
@@ -76,7 +80,8 @@ Read from `.archon/unic-dlc.config.yaml`:
 | `tracker.*`             | object       | —           | Composed for issue filing, PR-base check, and merge (MCP-first, CLI-fallback) |
 | `classification.labels` | object       | —           | Single source of truth for the labels QA findings carry                       |
 | `project.branching`     | string       | `gitflow`   | `gitflow` → base `develop` + branch cleanup; else base `main`                 |
-| `project.pr_strategy`   | string       | `squash`    | GitHub merge style: `squash` or `merge`                                       |
+| `project.pr_strategy`   | string       | `squash`    | Merge style: `squash`, `merge` or `rebase`                                    |
+| `project.repo_ref`      | string       | _absent_    | Optional override; by default the repository comes from `origin`              |
 
 ## Runs
 

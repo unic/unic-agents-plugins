@@ -33,28 +33,42 @@ nodes:
              `gates.qa`               (default "hitl")
              `qa.e2e_command`         (may be null) — else fall back to `build.e2e_command`
              `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
-             `tracker.type`           (e.g. github / ado / jira / local-markdown)
+             `tracker.type`           (read it; never branch on which provider it names)
              `project.branching`      (default "gitflow")
       3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
          /build implemented — the acceptance criteria the UAT checklist is derived from.
          - If it is absent → status "no-prd".
-      4. If slug, config, and PRD.md are all present → status "ready".
+      4. Resolve the TARGET REPOSITORY that every PR and tracker call this run makes must name. It is
+         DERIVED from this worktree, not configured:
+         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
+         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
+            set, it wins verbatim and `repo_ref_source` is "override".
+         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
+            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
+            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
+            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
+            instead of `origin`, and this Box MERGES — so the target is genuinely ambiguous → status
+            "ambiguous-repo", with `message` naming the remotes that disagree. A checkout whose only
+            remote is `origin` is never ambiguous, so an existing project never reaches that guard.
+         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
+      5. If slug, config, and PRD.md are all present and the repository is unambiguous →
+         status "ready".
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
       Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
       (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
 
-      ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
-      object validates before `guard-not-ready` can cancel. When a value cannot be read (e.g. config is
-      missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl",
-      tracker_type "" , branching "gitflow", expected_base "develop". Set `message` to a human-readable
-      reason for any non-ready status.
+      ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd /
+      ambiguous-repo branches, so the object validates before a guard can cancel. When a value cannot
+      be read (e.g. config is missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows",
+      gate "hitl", tracker_type "" , branching "gitflow", expected_base "develop", repo_ref "",
+      repo_ref_source "origin". Set `message` to a human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, no-prd]
+          enum: [ready, no-slug, no-config, no-prd, ambiguous-repo]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -65,19 +79,39 @@ nodes:
         tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
+        repo_ref: { type: string }
+        repo_ref_source:
+          type: string
+          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, repo_ref, repo_ref_source, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). Two guards,
+  # mutually exclusive on status, so each cancel message names the one thing to fix.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready'"
+    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
     cancel: >
       /qa preconditions not met — see the bootstrap output for which of slug, config, or
       <artifacts_dir>/<slug>/PRD.md is missing. Run /unic-archon-dlc:build <slug> first (which in turn
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-ambiguous-repo — the ONLY repository precondition, and it matters most here: this is the
+  # Box that MERGES. It fires when this checkout is a fork whose parent differs from `origin` and no
+  # `project.repo_ref` override is set. A checkout with only `origin` never reaches it, so no existing
+  # project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-ambiguous-repo
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ambiguous-repo'"
+    cancel: >
+      /qa cannot tell which repository to act on — see the bootstrap message for the remotes that
+      disagree. This checkout names more than one repository, so a tool that infers the target from
+      the checkout could verify one PR and merge another. Set `project.repo_ref` in
+      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
 
   # ---------------------------------------------------------------------------------------------
   # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
@@ -217,9 +251,16 @@ nodes:
           FINDING-CAPTURE (ADR-0025) — turn each distinct defect into an agent-ready tracker issue so
           it feeds /tickets. This is an on-ramp: file directly (a human is present — no PR gate).
 
-          1. Read `.archon/unic-dlc.config.yaml` for `tracker` (type/access/coords) and
-             `classification.labels`. Compose the tracker MCP-first, CLI-fallback (gh / az / jira, or
-             the azure-devops-cli skill) — never hardcode a host (ADR-0016). Labels come ONLY from
+          1. File every issue on $bootstrap.output.repo_ref — THIS repository, named explicitly in
+             each call, never the one a tool infers from the checkout (in a fork clone those differ
+             and the defect lands on someone else's project). Read `.archon/unic-dlc.config.yaml` for
+             `tracker` (`type` / `access` / `coords`) and `classification.labels`, and compose the
+             system-skill the team registered under `tracker.access` — MCP first, its CLI as fallback
+             — by reading that skill's own current interface and building the call from it. Do NOT
+             write a command, subcommand or flag here, and do NOT branch on which provider
+             `tracker.type` names (ADR-0016). If the registered skill cannot target a repository
+             explicitly, STOP and print "BLOCKED: the registered tracker skill cannot target a
+             repository explicitly — <the missing capability>". Labels come ONLY from
              `classification.labels` (single source of truth — ADR-0024); do NOT read
              docs/agents/triage-labels.md or issue-tracker.md.
           2. Decide single-issue vs breakdown this way: prefer many thin, independently fixable issues
@@ -256,18 +297,27 @@ nodes:
     prompt: |
       You are the verify-pr-base node of /qa for slug "$bootstrap.output.slug".
 
-      Expected base branch: $bootstrap.output.expected_base   (tracker: $bootstrap.output.tracker_type)
+      Expected base branch: $bootstrap.output.expected_base
+      TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
 
-      Query the open PR for the current feature branch and read its target/base branch, composing the
-      tracker from `.archon/unic-dlc.config.yaml` (MCP-first, CLI-fallback):
-        - github → `gh pr view --json baseRefName`
-        - ado    → `az repos pr show` (targetRefName, strip refs/heads/)
-        - jira / local-markdown / other → no queryable PR base: set base_ok "true" and note it is
-          unverifiable for this tracker (warning only, non-blocking).
-      Set `base_ok` to the STRING "true" when the actual base equals expected_base (or is unverifiable
-      as above); the STRING "false" on a genuine mismatch. (It is a string, not a boolean, so the
-      downstream `when` gates compare it reliably as `== 'true'`.) Print "verify-pr-base: base is
-      <actual> ✓" or "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget first."
+      Query the open PR for the current feature branch ON TARGET_REPO and read its target/base branch.
+
+      ## Act on THIS repository
+      Name TARGET_REPO explicitly in the query. Act on THIS repository, never the one a tool infers
+      from the checkout — verifying the base of a PR on a different repository would report a green
+      base for a PR nobody is about to merge. Compose the system-skill the team registered under
+      `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading
+      that skill's own current interface and building the call from it. Do NOT write a command,
+      subcommand or flag here, and do NOT branch on which provider `tracker.type` names (ADR-0016). If
+      the registered skill cannot target a repository explicitly, treat the base as unverifiable
+      (below) and say which capability was missing — do not query an inferred repository.
+
+      Set `base_ok` to the STRING "true" when the actual base equals expected_base; the STRING "false"
+      on a genuine mismatch. (It is a string, not a boolean, so the downstream `when` gates compare it
+      reliably as `== 'true'`.) When the configured tracker has no queryable PR at all, set `base_ok`
+      "true" and note that the base is unverifiable here — a warning, non-blocking. Print
+      "verify-pr-base: base is <actual> ✓" or "verify-pr-base: PR targets <actual> but expected
+      <expected> ✗ — retarget first."
     output_format:
       type: object
       properties:
@@ -303,16 +353,27 @@ nodes:
     allowed_tools: [Read, Bash]
     prompt: |
       You are the merge node of /qa for slug "$bootstrap.output.slug".
+      TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
 
-      Merge the open PR for the current feature branch, composing the tracker from
-      `.archon/unic-dlc.config.yaml` (`tracker.type`, `project.pr_strategy`, `project.branching`;
-      MCP-first, CLI-fallback — never hardcode a host, ADR-0016):
-        - github → `gh pr merge` with `--squash` (default) or `--merge` per `project.pr_strategy`.
-        - ado    → `az repos pr update --status completed`.
-        - jira / local-markdown → print the manual steps (transition the linked issue to Done / set
-          Status: resolved in the issues file) — there is no merge CLI.
-      On Gitflow (`project.branching == "gitflow"`) with a git-hosted tracker (github/ado), after a
-      successful merge: check out the base branch and delete the merged `feature/*` branch. On
-      github-flow, leave branch cleanup to the host's auto-delete.
+      Merge the open PR for the current feature branch ON TARGET_REPO, using the merge style in
+      `project.pr_strategy` (`squash` / `merge` / `rebase`).
+
+      ## Act on THIS repository
+      This node is the one irreversible act in the lifecycle, so name TARGET_REPO explicitly in the
+      merge call. Act on THIS repository, never the one a tool infers from the checkout — in a fork
+      clone those differ, and a merge cannot be taken back. Compose the system-skill the team
+      registered under `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as
+      fallback — by reading that skill's own current interface and building the call from it. Do NOT
+      write a command, subcommand or flag here, and do NOT branch on which provider `tracker.type`
+      names (ADR-0016). If the registered skill cannot target a repository explicitly, STOP: print
+      "BLOCKED: the registered tracker skill cannot target a repository explicitly — <the missing
+      capability>" and merge nothing.
+      If the configured tracker has no merge capability at all, merge nothing and print the manual
+      steps for a human instead (transition the linked work item to Done, or set the issue's status
+      to resolved wherever the tracker keeps it).
+
+      On Gitflow (`project.branching == "gitflow"`), after a successful merge: check out the base
+      branch and delete the merged `feature/*` branch. Under any other branching model, leave branch
+      cleanup to whatever auto-delete the host provides.
 
       Finally print: "merge: QA for \"$bootstrap.output.slug\" complete. ✓"

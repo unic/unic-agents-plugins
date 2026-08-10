@@ -330,3 +330,26 @@ test('mergeConfig preserves a team override of specs and templates.prd, filling 
 	assert.equal(templates.prd, '# Custom\n## Goal\n', 'a custom PRD template replaces the default wholesale')
 	assert.equal(templates.issue, null, 'sibling template default retained')
 })
+
+test('project.repo_ref is absent by default — the repository is derived, not configured', () => {
+	// #289 AC 7. Each Box's bootstrap resolves the target repository from the worktree's `origin`
+	// remote, so a Consumer needs no config change to upgrade. A `repo_ref: null` in the defaults would
+	// look identical in YAML but read as "a mandatory leaf nobody has answered" under this schema's own
+	// convention — hence absent, not null.
+	const project = /** @type {any} */ (defaultConfig().project)
+	assert.ok(!('repo_ref' in project), 'project.repo_ref must not be in the default config')
+
+	const merged = /** @type {any} */ (mergeConfig())
+	assert.ok(!('repo_ref' in merged.project), 'a default merge must not introduce project.repo_ref')
+})
+
+test('project.repo_ref survives a merge when a team sets it as an override', () => {
+	// The override is the escape hatch for a fork checkout, where `origin` and the parent differ and
+	// the ambiguity guard cancels the run. It has to survive `mergeConfig` to be usable at all.
+	const merged = /** @type {any} */ (mergeConfig({ project: { repo_ref: 'unic/unic-agents-plugins' } }, {}))
+	assert.equal(merged.project.repo_ref, 'unic/unic-agents-plugins', 'an explicit override must be preserved')
+	assert.equal(merged.project.branching, null, 'untouched sibling keys still come from the defaults')
+
+	const twice = mergeConfig(merged)
+	assert.deepEqual(twice, merged, 'merging again must not drop or duplicate the override')
+})

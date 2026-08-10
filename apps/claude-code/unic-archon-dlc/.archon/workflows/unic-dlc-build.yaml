@@ -35,20 +35,37 @@ nodes:
            `project.branching` (default "gitflow").
       3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
          - If it is absent → status "no-issues".
-      4. If slug, config, and issues.json are all present → status "ready".
+      4. Resolve the TARGET REPOSITORY that the PR this run opens must be opened against. It is
+         DERIVED from this worktree, not configured:
+         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
+         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
+            set, it wins verbatim and `repo_ref_source` is "override".
+         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
+            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
+            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
+            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
+            instead of `origin`, and the PR would open on someone else's project — so the target is
+            genuinely ambiguous → status "ambiguous-repo", with `message` naming the remotes that
+            disagree. A checkout whose only remote is `origin` is never ambiguous, so an existing
+            project never reaches that guard.
+         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
+      5. If slug, config, and issues.json are all present and the repository is unambiguous →
+         status "ready".
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
       Emit it in EVERY branch (fall back to "develop" when config cannot be read) — the
       implement-review-precheck node pins its code-review fixed point to it.
 
       Emit ONLY the structured object. `test_command` is the repo default test command you can infer
-      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one.
+      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one. In every
+      non-ready branch still emit each required field: `repo_ref` "" and `repo_ref_source` "origin"
+      when they cannot be resolved.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, no-issues]
+          enum: [ready, no-slug, no-config, no-issues, ambiguous-repo]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -58,19 +75,39 @@ nodes:
         coverage_threshold: { type: [number, 'null'] }
         test_command: { type: [string, 'null'] }
         expected_base: { type: string }
+        repo_ref: { type: string }
+        repo_ref_source:
+          type: string
+          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, expected_base, repo_ref, repo_ref_source, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail).
+  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). Two
+  # guards, mutually exclusive on status, so each cancel message names the one thing to fix.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready'"
+    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
     cancel: >
       /build preconditions not met — see the bootstrap output for which of slug, config, or
       issues.json is missing. Run /unic-archon-dlc:tickets <slug> first to produce
       <artifacts_dir>/<slug>/issues.json.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-ambiguous-repo — the ONLY repository precondition. It fires when this checkout is a fork
+  # whose parent differs from `origin` and no `project.repo_ref` override is set, because a host tool
+  # would then open the PR on the parent. A checkout with only `origin` never reaches it, so no
+  # existing project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-ambiguous-repo
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ambiguous-repo'"
+    cancel: >
+      /build cannot tell which repository to open the PR against — see the bootstrap message for the
+      remotes that disagree. This checkout names more than one repository, so a tool that infers the
+      target from the checkout would act on the wrong one. Set `project.repo_ref` in
+      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
 
   # ---------------------------------------------------------------------------------------------
   # slopcheck — verify every NEW package against the npm registry before any code runs.
@@ -233,6 +270,23 @@ nodes:
         If EVERY slice is "green-done" → print "All slices complete." and emit
         <promise>COMPLETE</promise>. Do nothing else.
 
+        ## Step 2.5 — The staging rule, which both phases below obey
+        Every commit in this loop stages NAMED paths — the test file(s) in RED, the implementation
+        file(s) in GREEN — one `git add <path>` per path. NEVER `git add -A`, `git add .` or
+        `git add -u`: you are a FRESH session in an isolated worktree, so you cannot tell your own
+        output from whatever else is on disk, and "everything changed" sweeps that in.
+        NEVER stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under `$ARTIFACTS_DIR` —
+        Archon's per-run directory, which resolves OUTSIDE the repo tree under
+        `~/.archon/workspaces/<name>/artifacts/`. (The repo-relative session dir under ARTIFACTS_DIR
+        above is a different thing; see the next rule for what happens to it.)
+        NEVER stage or commit build-state.json in a loop iteration. You rewrite it on every one of up
+        to 60 iterations; committing it here would put 60 revisions of a scratch-looking file in the
+        PR. The `open-pr` node commits it ONCE, at the end — that single commit is the durable proof
+        of this loop's anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase
+        order), which otherwise dies when `/cleanup` prunes this worktree (ADR-0012).
+        After each `git add`, run `git status --porcelain` and confirm the staged set is exactly the
+        file(s) you named. Unstage anything else with `git restore --staged <path>` before committing.
+
         ## Step 3 — Execute the chosen phase
 
         The slice's INTENT is its `acceptance_criteria` + `summary` from issues.json. Its verification
@@ -247,8 +301,9 @@ nodes:
              It is the reference; do not re-derive its rules or substitute your own.
           2. Run the slice's `test_command`. Capture the exit code.
           3. If exit code != 0 (test fails as required):
-               - `git add` the test file(s) and commit: `test(<SLUG>): failing test for <id> — <title>`
-               - Update build-state.json: phase "red-done", red_exit = <code>.
+               - Stage the test file(s) BY NAME per Step 2.5 and commit:
+                 `test(<SLUG>): failing test for <id> — <title>`
+               - Update build-state.json: phase "red-done", red_exit = <code>. Leave it UNSTAGED.
           4. If exit code == 0 (test unexpectedly PASSES before any impl):
                - Do NOT commit. The test does not capture new behaviour.
                - Update build-state.json: red_unexpected_pass = true, notes = why.
@@ -263,9 +318,9 @@ nodes:
              go, as `implement` prescribes.
           2. Run `test_command`. It MUST now pass (exit 0). If it does not, iterate on the impl only
              (never weaken the test) until green, within this iteration.
-          3. `git add` the implementation and commit: `feat(<SLUG>): implement <id> — <title>`
-             (use `fix(...)` when the slice `type` is bug).
-          4. Update build-state.json: phase "green-done".
+          3. Stage the implementation file(s) BY NAME per Step 2.5 and commit:
+             `feat(<SLUG>): implement <id> — <title>` (use `fix(...)` when the slice `type` is bug).
+          4. Update build-state.json: phase "green-done". Leave it UNSTAGED.
 
         ## Step 4 — Never emit COMPLETE unless Step 2 found every slice "green-done".
         Do exactly one phase per iteration, then stop. `implement`'s closing "once done, use
@@ -306,9 +361,13 @@ nodes:
       - **Step 2, the spec source:** already on disk for this slug — read
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` and
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker issue
-        for each slice (compose the configured tracker from `.archon/unic-dlc.config.yaml`, MCP-first /
-        CLI-fallback, never hardcode a host — ADR-0016). Degrade gracefully: if the tracker cannot be
-        queried, the PRD + issues.json are enough. Never ask where the spec is.
+        for each slice. Read those issues from `$bootstrap.output.repo_ref` — THIS repository, named
+        explicitly, never the one a tool infers from the checkout — by composing the system-skill the
+        team registered under `tracker.access` in `.archon/unic-dlc.config.yaml`, MCP first and its
+        CLI as fallback. Read that skill's own current interface and build the call from it; do NOT
+        write a command or flag here, and do NOT branch on which provider `tracker.type` names
+        (ADR-0016). Degrade gracefully: if the tracker cannot be queried, the PRD + issues.json are
+        enough. Never ask where the spec is.
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
         applies.** `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and
         `setup-matt-pocock-skills` is not a Plugin dependency — running it would write a competing
@@ -321,11 +380,12 @@ nodes:
       `## Spec`; never merge or rerank the two axes.
 
       ## This node POSTS NOTHING
-      Run no tracker or PR mutation of any kind — no `gh pr comment`, no `gh api -X POST/PATCH`, no
-      `az repos pr` write, no issue creation, no label change. Read-only tracker queries for step 2 are
-      the only tracker traffic allowed. /pr-review is the only Box with posting authority; this axis
-      pair is here to inform the build report and the human at build-pr-gate. Emit the aggregated
-      `## Standards` / `## Spec` text as `findings` for the report node to fold in.
+      Run no tracker or PR mutation of any kind: no PR comment, no comment edit, no write call
+      against the tracker's API by any route, no issue creation, no label change, no thread. The
+      read-only issue queries in step 2 are the only tracker traffic allowed here. /pr-review is the
+      only Box with posting authority; this axis pair is here to inform the build report and the human
+      at build-pr-gate. Emit the aggregated `## Standards` / `## Spec` text as `findings` for the
+      report node to fold in.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else: print "PRECHECK BLOCKED: Agent tool
@@ -419,10 +479,41 @@ nodes:
     prompt: |
       You are the open-pr node of /build for slug "$bootstrap.output.slug".
 
-      1. Stage everything changed by the build: source + tests, the session report
-         (`$bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md`), and any new
-         `docs/adr/NNNN-*.md` drafted by the report node.
-      2. Open a PR targeting `develop`:
+      Constants:
+        SESSION     = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
+        TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
+
+      1. Build the stage list. It is EXACTLY these named paths — an explicit list, never "everything
+         changed by the build":
+           - each source file the loop wrote that is still uncommitted, by name
+           - each test file the loop wrote that is still uncommitted, by name
+           - SESSION/PRD.md
+           - SESSION/issues.json
+           - SESSION/report.md
+           - SESSION/build-state.json
+           - each new `docs/adr/NNNN-*.md` the report node drafted, by name
+         Derive the source/test entries by reading `git status --porcelain` and picking out the
+         source and test files — then add them one at a time by name. A path already committed by a
+         RED or GREEN phase, or unchanged, simply adds nothing; list it anyway rather than guessing.
+         SESSION/build-state.json is committed HERE and ONLY here — the loop never commits it. This
+         one commit is the durable proof of the loop's anti-cheat record (`red_exit`,
+         `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
+         prunes this worktree (ADR-0012).
+
+      ## Staging — named paths only
+      Run one `git add <path>` per path in the list above. NEVER `git add -A`, `git add .` or
+      `git add -u`: this node runs in an isolated worktree with fresh context, so "everything changed"
+      sweeps in scratch files it cannot see the origin of.
+      NEVER stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under `$ARTIFACTS_DIR` —
+      Archon's per-run directory, which resolves OUTSIDE the repo tree under
+      `~/.archon/workspaces/<name>/artifacts/`. (SESSION above is repo-relative and IS staged; write
+      the PR body inline rather than to a file, so there is no body file to leak.)
+      Then run `git status --porcelain` and confirm every staged entry is one of the named paths.
+      Unstage anything else with `git restore --staged <path>` and say what you unstaged.
+
+      2. Commit the staged set: `build($bootstrap.output.slug): session artefacts`.
+
+      3. Open a PR against TARGET_REPO, targeting `$bootstrap.output.expected_base`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
                   ## Review Checklist
@@ -431,8 +522,20 @@ nodes:
                   - [ ] Coverage meets the configured threshold
                   - [ ] Tech-debt section in report.md is accurate
                   - [ ] Drafted ADRs (if any) are ready to record
-         Compose the host from config (gh / az / the azure-devops-cli skill per the tracker); do NOT
-         hardcode a host. Print the PR URL.
+
+      ## Act on THIS repository
+      Name TARGET_REPO explicitly when you open the PR. Act on THIS repository, never the one a tool
+      infers from the checkout — in a fork clone those differ, and the PR opens on someone else's
+      project. Compose the system-skill the team registered under `tracker.access` in
+      `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading that skill's own
+      current interface and building the call from it. Do NOT write a command, subcommand or flag
+      here, and do NOT branch on which provider `tracker.type` names: the DLC owns the what and none
+      of the how (ADR-0016), and a flag table frozen in this file is stale the moment the tool
+      changes. If the registered skill cannot target a repository explicitly, STOP: print "BLOCKED:
+      the registered tracker skill cannot target a repository explicitly — <the missing capability>"
+      and open nothing.
+
+      4. Print the PR URL and TARGET_REPO.
 
   # ---------------------------------------------------------------------------------------------
   # build-pr-gate — HITL by default; skipped when gates.build == afk (PR already open above).
@@ -444,7 +547,8 @@ nodes:
     approval:
       message: >
         Build implementation, goals-check matrix, and report are ready. Review the PR opened against
-        develop. Approve to finish, or reject with feedback to trigger a verify-and-fix pass.
+        $bootstrap.output.expected_base. Approve to finish, or reject with feedback to trigger a
+        verify-and-fix pass.
       on_reject:
         prompt: |
           The reviewer rejected the build PR with this feedback:
@@ -454,5 +558,15 @@ nodes:
           1. Address the feedback with the minimum change (fix impl and/or tests).
           2. Re-run the test suite and the stub scan; confirm green.
           3. Update the session report.md if outcomes changed, and push the fix to the PR branch.
+
+          ## Staging — named paths only
+          Stage only the files you changed for this fix, one `git add <path>` per path. NEVER
+          `git add -A`, `git add .` or `git add -u`. NEVER stage `pr-body.md`, `*.tmp.md`,
+          `*.scratch.md`, or anything under `$ARTIFACTS_DIR` — Archon's per-run directory, which
+          resolves OUTSIDE the repo tree under `~/.archon/workspaces/<name>/artifacts/`. Then run
+          `git status --porcelain` and confirm the staged set is exactly the files you named,
+          unstaging anything else with `git restore --staged <path>`. Push to the PR branch that is
+          already open on $bootstrap.output.repo_ref — this repository, never one a tool infers.
+
           Then the gate re-pauses for another review.
         max_attempts: 3

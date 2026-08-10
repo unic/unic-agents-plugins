@@ -11,6 +11,21 @@
 ### Fixed
 - (none)
 
+## [0.15.1] — 2026-08-05
+
+### Breaking
+- (none)
+
+### Added
+- **`project.repo_ref`, an optional repository override — absent by default.** Every Box now derives its target repository from the worktree's `origin` remote, so no existing config needs changing. Set `project.repo_ref` only for a checkout where `origin` is not the repository to act on; that is also the one case a Box **cancels** rather than guess, via a new `guard-ambiguous-repo` node that fires when the checkout names more than one repository and no override is set ([ADR-0011](docs/adr/0011-archon-schema-target.md): an expected precondition failure cancels, it does not fail). A checkout with a single `origin` never reaches that guard.
+- **`test/box-staging-and-repo-pinning.test.mjs` — the barrier that keeps both fixes.** It greps the four Box YAMLs, both interactive command docs and the four Archon command docs for host CLI tokens (`gh`, `az`, `--repo`, `--repository`, `--organization`, `--hostname`) and provider names, and fails naming every hit by `file:line`. It also self-tests its own patterns, so a mistyped regex cannot silently fail open, and asserts the positive rules: named-path staging, the deny list, the derived repository, and the repository invariant per PR-touching node.
+
+### Fixed
+- **No Box stages blindly any more.** `/explore`'s `preserve-spike` ran `git add -A` and `/build`'s `open-pr` said "stage everything changed by the build". A Box runs in an isolated worktree with fresh context, so "everything changed" swept in whatever else was on disk. Every committing node now stages a named list — one `git add <path>` per path — then confirms with `git status --porcelain` and unstages anything else. `/build`'s `open-pr` list is explicit: source, tests, `PRD.md`, `issues.json`, `report.md`, `build-state.json`, and each drafted `docs/adr/NNNN-*.md`. The deny list (`pr-body.md`, `*.tmp.md`, `*.scratch.md`, and anything under `$ARTIFACTS_DIR`, Archon's per-run directory outside the repo tree) is stated **inline in each node**, because an Archon node imports nothing from the Plugin ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5) and doctrine in `AGENTS.md` is invisible at run time.
+- **`build-state.json` is committed once, at `open-pr`.** The red/green loop rewrites it on every one of up to 60 iterations and now never stages it. That single commit is the durable proof of [ADR-0012](docs/adr/0012-fresh-context-red-green-separation.md)'s anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase order), which previously died whenever `/cleanup` pruned the worktree.
+- **Every PR and tracker call names the repository it acts on.** No call passed one, so a host tool inferred it from the checkout — in a fork clone that is the parent, and the PR opened on someone else's project. Each PR-touching prompt now states the invariant "act on THIS repository, never the one a tool infers from the checkout", names the derived repository, and **cancels** if the registered system-skill cannot target a repository explicitly.
+- **No prompt or command doc carries a host CLI token, subcommand, flag, or provider name.** Ten shipped files lose their per-provider branches; they name the config **keys** (`tracker.type`, `tracker.access`) and compose the system-skill the team registered, reading that skill's own current interface ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md) — the DLC owns the _what_ and none of the _how_). A flag table frozen in a YAML file is stale the moment the tool changes and cannot be verified without a live tenant: a closed earlier attempt shipped a subcommand that does not exist. Behaviour a prompt used to hardcode per host — is there a queryable PR, can it comment on a file and line, can it merge — is now a capability the composed skill is asked about, degrading to summary-only or manual steps when the answer is no.
+
 ## [0.15.0] — 2026-08-04
 
 ### Breaking

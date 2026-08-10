@@ -57,6 +57,14 @@ holding all tracker/tenant/OS/template specifics; boxes read it and compose acco
 CLI-fallback). See `docs/adr/0018-generic-core-config-compose.md`.
 _Avoid_: config.json (the retired thin form)
 
+**Repository derivation**:
+How a Box knows which repository to act on: derived from the worktree's `origin` remote in
+`bootstrap`, never inferred by the composed system-skill from ambient checkout state.
+`project.repo_ref` overrides it (absent by default); the guard that cancels on an ambiguous
+checkout is the one case ADR-0011's cancel-vs-fail distinction fires for this concern. See
+`docs/adr/0011-archon-schema-target.md`.
+_Avoid_: repo pinning (imprecise — nothing is "pinned", it's derived with an optional override)
+
 **Deterministic output** (emergent — not a workflow):
 The stakeholder-facing property that "the same component, fed the same inputs, produces the same
 output." The DLC needs **no workflow** for it — it is **emergent** from the

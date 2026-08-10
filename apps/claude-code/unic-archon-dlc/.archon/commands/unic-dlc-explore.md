@@ -31,8 +31,10 @@ a prior baton.
 ## What this workflow does
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
-   (`artifacts_dir`, `gates.explore`, `tracker.type`, `project.branching`). A missing slug or config
-   cancels cleanly.
+   (`artifacts_dir`, `gates.explore`, `tracker.type`, `project.branching`), and **derive the target
+   repository** from the worktree's `origin` remote (`project.repo_ref` is an optional override,
+   absent by default). A missing slug or config cancels cleanly; so does a fork checkout whose parent
+   differs from `origin` with no override set, because the target would then be ambiguous.
 
 2. **4 research nodes** (parallel, fresh, read-only) — stack · features · architecture · pitfalls. Each
    emits a concise findings body.
@@ -58,7 +60,9 @@ a prior baton.
    spike code on branch `spike/<slug>`; REJECT → no branch (the code stays in the isolated worktree for
    `/cleanup`).
 
-7. **preserve-spike** — reached only on approve: creates `spike/<slug>` and commits the worktree.
+7. **preserve-spike** — reached only on approve: creates `spike/<slug>` and commits **named paths
+   only** (findings.md plus the paths the spike node recorded), then confirms with
+   `git status --porcelain` that nothing else was staged.
 
 ## Workflow structure
 
@@ -85,21 +89,23 @@ grilling. Keeping those three subsection headings exact is what makes the handof
 ## Prerequisites
 
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
-- The configured tracker CLI/MCP is reachable for the spike ticket (`gh` / `az` / `jira`, or the
-  `azure-devops-cli` skill). Trackers without a create CLI print manual steps instead of failing.
+- The system-skill registered under `tracker.access` is reachable for the spike ticket. A tracker with
+  no issue-creation capability prints manual steps instead of failing.
+- The checkout has an `origin` remote, or `project.repo_ref` is set.
 - Archon ≥ 0.5.0.
 
 ## Configuration reference
 
 Read from `.archon/unic-dlc.config.yaml`:
 
-| Field                   | Type         | Default     | Description                                                     |
-| ----------------------- | ------------ | ----------- | --------------------------------------------------------------- |
-| `gates.explore`         | `hitl`/`afk` | `hitl`      | HITL pauses at the spike-branch gate; AFK skips it (no branch)  |
-| `artifacts_dir`         | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/findings.md`)    |
-| `tracker.*`             | object       | —           | Composed to file the spike ticket (MCP-first, CLI-fallback)     |
-| `classification.labels` | object       | —           | Single source of truth for the spike ticket's labels (ADR-0024) |
-| `project.branching`     | string       | `gitflow`   | Informs branch conventions                                      |
+| Field                   | Type         | Default     | Description                                                      |
+| ----------------------- | ------------ | ----------- | ---------------------------------------------------------------- |
+| `gates.explore`         | `hitl`/`afk` | `hitl`      | HITL pauses at the spike-branch gate; AFK skips it (no branch)   |
+| `artifacts_dir`         | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/findings.md`)     |
+| `tracker.*`             | object       | —           | Composed to file the spike ticket (MCP-first, CLI-fallback)      |
+| `classification.labels` | object       | —           | Single source of truth for the spike ticket's labels (ADR-0024)  |
+| `project.branching`     | string       | `gitflow`   | Informs branch conventions                                       |
+| `project.repo_ref`      | string       | _absent_    | Optional override; by default the repository comes from `origin` |
 
 ## Runs
 
