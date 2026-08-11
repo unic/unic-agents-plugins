@@ -268,30 +268,41 @@ try {
       if (!install.ok) {
         result = { ok: false, stage: 'install', message: install.message }
       } else {
-        const workflowsHeader = artefacts.buildGeneratedHeader(pluginJson.name, pluginJson.version)
-        const workflowsSourceDir = join(pluginRoot, '.archon', 'workflows')
-        const [workflows] = artefacts.installArtefacts({
-          entries: [{
-            name: 'workflows',
-            destDir: join(cwd, '.archon', 'workflows'),
-            items: artefacts.discoverInstallItems({ sourceDir: workflowsSourceDir }),
-            header: workflowsHeader,
-          }],
-          pluginName: pluginJson.name,
-        })
-        const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
-        const tiers = manifest.METHODS_MANIFEST.map((entry) => {
-          const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
-          return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
-        })
-        result = {
-          ok: true,
-          tag: manifest.METHODS_BUNDLE.tag,
-          installed: install.installed,
-          overrides,
-          tiers,
-          workflowsInstalled: workflows.installed,
-          workflowsDeleted: workflows.deleted,
+        let workflows
+        try {
+          const workflowsHeader = artefacts.buildGeneratedHeader(pluginJson.name, pluginJson.version)
+          const workflowsSourceDir = join(pluginRoot, '.archon', 'workflows')
+          ;[workflows] = artefacts.installArtefacts({
+            entries: [{
+              name: 'workflows',
+              destDir: join(cwd, '.archon', 'workflows'),
+              items: artefacts.discoverInstallItems({ sourceDir: workflowsSourceDir }),
+              header: workflowsHeader,
+            }],
+          })
+        } catch (err) {
+          result = {
+            ok: false,
+            stage: 'workflows',
+            message: `Failed to install a Box workflow YAML into .archon/workflows/ (${err?.message ?? String(err)}). ` +
+              'This looks like a permissions or disk-space problem in this repository, not the Plugin — check both, then re-run /unic-archon-dlc:setup.',
+          }
+        }
+        if (workflows) {
+          const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
+          const tiers = manifest.METHODS_MANIFEST.map((entry) => {
+            const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
+            return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
+          })
+          result = {
+            ok: true,
+            tag: manifest.METHODS_BUNDLE.tag,
+            installed: install.installed,
+            overrides,
+            tiers,
+            workflowsInstalled: workflows.installed,
+            workflowsDeleted: workflows.deleted,
+          }
         }
       }
     }
@@ -303,7 +314,7 @@ process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — each failure mode (`licence`, `bundle`, `install`, `unexpected`) means the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` failure, the message already tells the operator how many Methods landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the tree).
+Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run**. `licence`, `bundle`, `install`, and `unexpected` mean the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` failure, the message already tells the operator how many Methods landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the tree). A `workflows` failure is different: it means a write into _this repository's_ `.archon/workflows/` failed (permissions, disk space, or a fresh-repo `mkdir` fault) — the message already points the operator at checking those and re-running, not at the Plugin.
 
 If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, and `OVERRIDES` for the Step 8 summary, plus `WORKFLOWS_INSTALLED` (`workflowsInstalled`) and `WORKFLOWS_DELETED` (`workflowsDeleted`) — the Box workflow YAMLs this run installed, and the ones it deleted because the current Plugin version no longer ships them. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
 

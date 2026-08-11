@@ -46,7 +46,6 @@ import { join } from 'node:path'
 
 /**
  * @typedef {Object} InstallDeps
- * @property {string} pluginName
  * @property {RmFn} [rmFn]
  * @property {CpFn} [cpFn]
  * @property {ExistsFn} [existsFn]
@@ -57,7 +56,7 @@ import { join } from 'node:path'
  */
 
 /**
- * @typedef {{ name: string, ok: true, installed: string[], deleted: string[] } | { name: string, ok: false, installed: string[], deleted: string[], failed: string, error: Error }} InstallEntryResult
+ * @typedef {{ name: string, ok: true, installed: string[], deleted: string[], skipped: string[] } | { name: string, ok: false, installed: string[], deleted: string[], failed: string, error: Error }} InstallEntryResult
  */
 
 /** The substring every header this module writes contains, and the only thing a stale-deletion scan checks for. */
@@ -104,7 +103,6 @@ export function discoverInstallItems({ sourceDir, readdirFn = (path) => readdirS
  *
  * @param {Object} options
  * @param {readonly InstallEntry[]} options.entries
- * @param {string} options.pluginName
  * @param {RmFn} [options.rmFn]
  * @param {CpFn} [options.cpFn]
  * @param {ExistsFn} [options.existsFn]
@@ -147,7 +145,7 @@ export function installArtefacts({
 			results.push(
 				failure
 					? { name: entry.name, ok: false, installed, deleted: [], ...failure }
-					: { name: entry.name, ok: true, installed, deleted: [] }
+					: { name: entry.name, ok: true, installed, deleted: [], skipped: [] }
 			)
 			continue
 		}
@@ -155,6 +153,8 @@ export function installArtefacts({
 		const currentNames = new Set(entry.items.map((item) => item.name))
 		/** @type {string[]} */
 		const deleted = []
+		/** @type {string[]} */
+		const skipped = []
 		if (existsFn(entry.destDir)) {
 			for (const existingName of readdirFn(entry.destDir)) {
 				if (existingName.startsWith('.') || currentNames.has(existingName)) continue
@@ -162,6 +162,7 @@ export function installArtefacts({
 				try {
 					contents = readFileFn(join(entry.destDir, existingName))
 				} catch {
+					skipped.push(existingName)
 					continue
 				}
 				if (!contents.includes(GENERATED_HEADER_MARKER)) continue
@@ -181,7 +182,7 @@ export function installArtefacts({
 			writeFileFn(join(entry.destDir, item.name), entry.header ? `${entry.header}\n\n${contents}` : contents)
 			installed.push(item.name)
 		}
-		results.push({ name: entry.name, ok: true, installed, deleted })
+		results.push({ name: entry.name, ok: true, installed, deleted, skipped })
 	}
 
 	return results

@@ -71,7 +71,6 @@ test('a whole-dir entry wipes destDir once, then copies each item as a directory
 				],
 			},
 		],
-		pluginName: PLUGIN_NAME,
 		rmFn: (path, options) => removed.push({ path, options }),
 		cpFn: (from, to, options) => copied.push({ from, to, options }),
 	})
@@ -81,7 +80,7 @@ test('a whole-dir entry wipes destDir once, then copies each item as a directory
 		{ from: '/bundle/one', to: join(repoRoot, '.archon/fixture', 'one'), options: { recursive: true } },
 		{ from: '/bundle/two', to: join(repoRoot, '.archon/fixture', 'two'), options: { recursive: true } },
 	])
-	assert.deepEqual(result, { name: 'fixture-whole-dir', ok: true, installed: ['one', 'two'], deleted: [] })
+	assert.deepEqual(result, { name: 'fixture-whole-dir', ok: true, installed: ['one', 'two'], deleted: [], skipped: [] })
 })
 
 test('a whole-dir entry stops at the failing item and reports which items already landed', () => {
@@ -99,7 +98,6 @@ test('a whole-dir entry stops at the failing item and reports which items alread
 				],
 			},
 		],
-		pluginName: PLUGIN_NAME,
 		rmFn: () => {},
 		cpFn: () => {
 			calls += 1
@@ -129,7 +127,6 @@ test('a name-scoped entry installs every item with the generated header prepende
 				header: HEADER,
 			},
 		],
-		pluginName: PLUGIN_NAME,
 	})
 
 	assert.deepEqual(result.installed, ['fixture-a.yaml'])
@@ -145,7 +142,6 @@ test('a name-scoped entry creates a destination directory the Consumer does not 
 
 	const [result] = installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 
 	assert.deepEqual(result.installed, ['fixture-a.yaml'])
@@ -160,7 +156,6 @@ test('a name-scoped entry leaves a Consumer file outside the install set untouch
 
 	const [result] = installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 
 	assert.deepEqual(result.deleted, [])
@@ -176,11 +171,42 @@ test('a name-scoped entry deletes a stale plugin-owned file the current run no l
 
 	const [result] = installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 
 	assert.deepEqual(result.deleted, ['fixture-retired.yaml'])
 	assert.ok(!readdirSync(destDir).includes('fixture-retired.yaml'))
+})
+
+test('a name-scoped entry never crashes on an existing directory it cannot read as a file', () => {
+	const sourceDir = tempDir()
+	const destDir = tempDir()
+	writeFiles(sourceDir, { 'fixture-a.yaml': 'a: 1\n' })
+	mkdirSync(join(destDir, 'some-subdir'), { recursive: true })
+
+	const [result] = installArtefacts({
+		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
+	})
+
+	assert.deepEqual(result.deleted, [])
+	assert.deepEqual(/** @type {{ skipped: string[] }} */ (result).skipped, ['some-subdir'])
+	assert.ok(readdirSync(destDir).includes('some-subdir'))
+})
+
+test('a name-scoped item whose source cannot be read propagates as a throw, never a silent skip', () => {
+	const sourceDir = tempDir()
+	const destDir = tempDir()
+	writeFiles(sourceDir, { 'fixture-a.yaml': 'a: 1\n' })
+
+	assert.throws(
+		() =>
+			installArtefacts({
+				entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
+				readFileFn: () => {
+					throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+				},
+			}),
+		/EACCES/
+	)
 })
 
 test('a name-scoped entry never treats .gitkeep as stale or as an item to install', () => {
@@ -191,7 +217,6 @@ test('a name-scoped entry never treats .gitkeep as stale or as an item to instal
 
 	const [result] = installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 
 	assert.deepEqual(result.installed, ['fixture-a.yaml'])
@@ -206,14 +231,12 @@ test('adding a fixture yaml to the plugin tree installs it with no other source 
 
 	installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 	assert.deepEqual(readdirSync(destDir).sort(), ['fixture-a.yaml'])
 
 	writeFiles(sourceDir, { 'fixture-b.yaml': 'b: 2\n' })
 	installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 	assert.deepEqual(readdirSync(destDir).sort(), ['fixture-a.yaml', 'fixture-b.yaml'])
 })
@@ -226,10 +249,10 @@ test('re-running with no source change produces byte-identical output', () => {
 		{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER },
 	]
 
-	installArtefacts({ entries: entries(), pluginName: PLUGIN_NAME })
+	installArtefacts({ entries: entries() })
 	const first = readFileSync(join(destDir, 'fixture-a.yaml'))
 
-	installArtefacts({ entries: entries(), pluginName: PLUGIN_NAME })
+	installArtefacts({ entries: entries() })
 	const second = readFileSync(join(destDir, 'fixture-a.yaml'))
 
 	assert.deepEqual(first, second)
@@ -246,7 +269,6 @@ test('a stale file with no generated-header marker is never deleted even if the 
 
 	const [result] = installArtefacts({
 		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 
 	assert.deepEqual(result.deleted, [])
@@ -270,7 +292,6 @@ test('installing the plugin real .archon/workflows/ into a fresh Consumer fixtur
 
 	installArtefacts({
 		entries: [{ name: 'workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
-		pluginName: PLUGIN_NAME,
 	})
 
 	const shipped = readdirSync(sourceDir).filter((name) => !name.startsWith('.'))

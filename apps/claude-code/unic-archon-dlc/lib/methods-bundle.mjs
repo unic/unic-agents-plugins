@@ -167,7 +167,6 @@ export function installMethods({ bundleRoot, repoRoot, rmFn = rmSync, cpFn = cpS
 	}))
 	const [result] = installArtefacts({
 		entries: [{ name: 'methods', destDir: join(repoRoot, INSTALL_DIR), items, ownsWholeDir: true }],
-		pluginName: 'unic-archon-dlc',
 		rmFn,
 		cpFn,
 	})
