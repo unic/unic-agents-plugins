@@ -148,6 +148,18 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
+  packages/tracker-streams:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+      '@unic/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+
   packages/tsconfig: {}
 
 packages:

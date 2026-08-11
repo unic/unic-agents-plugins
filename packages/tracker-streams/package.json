@@ -1,0 +1,17 @@
+{
+  "name": "@unic/tracker-streams",
+  "version": "0.0.0",
+  "private": true,
+  "license": "LGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "generate": "node scripts/fetch-streams.mjs",
+    "test": "node --test scripts/lib/readiness.test.mjs scripts/lib/priority.test.mjs scripts/lib/title.test.mjs scripts/lib/graph.test.mjs scripts/lib/render.test.mjs scripts/lib/no-issue-body.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@unic/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

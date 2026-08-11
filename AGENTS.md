@@ -21,7 +21,8 @@ apps/
 packages/
 ├── biome-config/             # @unic/biome-config
 ├── tsconfig/                 # @unic/tsconfig
-└── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
+├── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
+└── tracker-streams/          # @unic/tracker-streams (generates the published streams page)
 docs/
 ├── adr/                      # Architectural Decision Records
 ├── agents/                   # Agent skill documentation
