@@ -45,14 +45,23 @@ Dispatching spawns autonomous agents and consumes significant tokens, so **alway
 
 ## Step 4 — Dispatch
 
-Run each `archon workflow run` in the **background** (`run_in_background: true`) — the workflow blocks the shell. Always pass `--branch`.
+Run each `archon workflow run` in the **background** (`run_in_background: true`) — the workflow blocks the shell. Always pass `--branch` **and `--from develop`**.
+
+**`--from develop` is not optional.** Archon forks a new worktree from `main` by default, whatever the branch name says. `main` trails `develop` by every unreleased commit, so a run without `--from develop` works against a tree that lacks the ADRs, tests and conventions Step 2 just verified — and Step 2 passes anyway, because it inspects `develop`, not the worktree. After dispatch, before arming the monitor, verify the fork point:
+
+```sh
+git -C "$HOME/.archon/workspaces/<org>/<repo>/worktrees/archon/<archon-branch>" rev-parse --short HEAD
+git -C <your-checkout> rev-parse --short develop     # the two must match
+```
+
+If they differ, the run is on the wrong base: abandon it (`archon workflow abandon <run-id>`), then follow the clean re-run runbook below before re-dispatching.
 
 **Parallelism rule:** dispatch concurrently **only** when issues share zero files (different package/plugin, no overlapping module). Issues editing the same file, or one `blocked-by` another, run **serially** — dispatch the next only after the prior PR **merges to `develop`**.
 
 Dispatch command shape (fill the bracketed clauses from Step 1; drop clauses that don't apply):
 
 ```sh
-archon workflow run archon-fix-github-issue --branch feature/<scope>/<n>-<slug> "Fix issue #<n> in repo unic/unic-agents-plugins. Read the issue body carefully — the acceptance criteria are exhaustive. Source of truth: <derived paths>. [IF unic-pr-review: CLEAN-SLATE DOCTRINE — write every module fresh from the PRD and ADRs; do NOT load, copy, or pattern-match anything from apps/claude-code/pr-review/.] [IF guarded: run 'pnpm --filter <name> bump patch' and add a CHANGELOG bullet under the new version.] VERIFICATION DISCIPLINE: after EVERY edit, including any self-fix/simplify/format commit, re-run BOTH 'pnpm --filter <name> typecheck' AND 'pnpm --filter <name> test' and confirm both pass — the CI Test job runs test THEN typecheck, so passing tests alone is not a green build. If you rename or remove a function parameter, update its JSDoc @param to match or tsc fails (TS8024/TS7006). Do not report the issue done unless 'gh pr checks' shows every check passing. After both typecheck and tests are green, push and open a PR targeting develop titled '<PR title>'."
+archon workflow run archon-fix-github-issue --branch feature/<scope>/<n>-<slug> --from develop "Fix issue #<n> in repo unic/unic-agents-plugins. Read the issue body carefully — the acceptance criteria are exhaustive. Source of truth: <derived paths>. [IF unic-pr-review: CLEAN-SLATE DOCTRINE — write every module fresh from the PRD and ADRs; do NOT load, copy, or pattern-match anything from apps/claude-code/pr-review/.] [IF guarded: run 'pnpm --filter <name> bump patch' and add a CHANGELOG bullet under the new version.] VERIFICATION DISCIPLINE: after EVERY edit, including any self-fix/simplify/format commit, re-run BOTH 'pnpm --filter <name> typecheck' AND 'pnpm --filter <name> test' and confirm both pass — the CI Test job runs test THEN typecheck, so passing tests alone is not a green build. If you rename or remove a function parameter, update its JSDoc @param to match or tsc fails (TS8024/TS7006). Do not report the issue done unless 'gh pr checks' shows every check passing. After both typecheck and tests are green, push and open a PR targeting develop titled '<PR title>'."
 ```
 
 ## Step 5 — Arm the monitor
