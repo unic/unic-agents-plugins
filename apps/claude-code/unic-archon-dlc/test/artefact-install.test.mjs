@@ -136,6 +136,22 @@ test('a name-scoped entry installs every item with the generated header prepende
 	assert.equal(readFileSync(join(destDir, 'fixture-a.yaml'), 'utf8'), `${HEADER}\n\na: 1\n`)
 })
 
+test('a name-scoped entry creates a destination directory the Consumer does not have yet', () => {
+	// A Consumer that has never authored a workflow has no `.archon/workflows/`. `cpSync` would make
+	// the parents; `writeFileSync` would throw ENOENT, so the fresh-repo install has to make it.
+	const sourceDir = tempDir()
+	const destDir = join(tempDir(), '.archon', 'workflows')
+	writeFiles(sourceDir, { 'fixture-a.yaml': 'a: 1\n' })
+
+	const [result] = installArtefacts({
+		entries: [{ name: 'fixture-workflows', destDir, items: discoverInstallItems({ sourceDir }), header: HEADER }],
+		pluginName: PLUGIN_NAME,
+	})
+
+	assert.deepEqual(result.installed, ['fixture-a.yaml'])
+	assert.equal(readFileSync(join(destDir, 'fixture-a.yaml'), 'utf8'), `${HEADER}\n\na: 1\n`)
+})
+
 test('a name-scoped entry leaves a Consumer file outside the install set untouched', () => {
 	const sourceDir = tempDir()
 	const destDir = tempDir()

@@ -1,5 +1,5 @@
 // @ts-check
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -24,6 +24,7 @@ import { join } from 'node:path'
 /** @typedef {(path: string) => string[]} ReaddirFn */
 /** @typedef {(path: string) => string} ReadFileFn */
 /** @typedef {(path: string, contents: string) => void} WriteFileFn */
+/** @typedef {(path: string) => void} MkdirFn */
 
 /**
  * @typedef {Object} InstallItem
@@ -52,6 +53,7 @@ import { join } from 'node:path'
  * @property {ReaddirFn} [readdirFn]
  * @property {ReadFileFn} [readFileFn]
  * @property {WriteFileFn} [writeFileFn]
+ * @property {MkdirFn} [mkdirFn]
  */
 
 /**
@@ -109,6 +111,7 @@ export function discoverInstallItems({ sourceDir, readdirFn = (path) => readdirS
  * @param {ReaddirFn} [options.readdirFn]
  * @param {ReadFileFn} [options.readFileFn]
  * @param {WriteFileFn} [options.writeFileFn]
+ * @param {MkdirFn} [options.mkdirFn]
  * @returns {InstallEntryResult[]}
  */
 export function installArtefacts({
@@ -119,6 +122,9 @@ export function installArtefacts({
 	readdirFn = (path) => readdirSync(path),
 	readFileFn = (path) => readFileSync(path, 'utf8'),
 	writeFileFn = writeFileSync,
+	mkdirFn = (path) => {
+		mkdirSync(path, { recursive: true })
+	},
 }) {
 	/** @type {InstallEntryResult[]} */
 	const results = []
@@ -163,6 +169,10 @@ export function installArtefacts({
 				deleted.push(existingName)
 			}
 		}
+
+		// `cpSync` creates missing parents; `writeFileSync` does not. A Consumer that has never authored
+		// a workflow has no `.archon/workflows/`, so the name-scoped path has to make one.
+		if (entry.items.length > 0 && !existsFn(entry.destDir)) mkdirFn(entry.destDir)
 
 		/** @type {string[]} */
 		const installed = []
