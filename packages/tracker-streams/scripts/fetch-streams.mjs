@@ -98,8 +98,9 @@ async function main() {
 	const openIssues = await listOpenIssues(owner, repo)
 	const outsideIssues = openIssues.filter((issue) => isOutsideEveryStream(issue, laneIndex))
 
+	const streamMembers = [...membersByStream.values()].flat()
 	/** @type {IssueSummary[]} */
-	const carded = [...[...membersByStream.values()].flat(), ...outsideIssues]
+	const carded = [...streamMembers, ...outsideIssues]
 	const blockersByIssue = await listBlockersFor(
 		owner,
 		repo,
@@ -131,7 +132,7 @@ async function main() {
 	const everyBlocker = everyCard.flatMap((card) => card.blockers)
 	const counts = {
 		streams: streamTickets.length,
-		members: [...membersByStream.values()].reduce((total, members) => total + members.length, 0),
+		members: streamMembers.length,
 		edges: everyBlocker.length,
 		crossingEdges: everyBlocker.filter((blocker) => blocker.crossesStream).length,
 		outside: outside.length,
