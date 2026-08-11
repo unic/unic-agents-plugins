@@ -16,7 +16,7 @@ for the two-axis architecture, [ADR-0030](docs/adr/0030-harness-hosts-methods.md
 for the Harness/Method division, and [CONTEXT.md](CONTEXT.md) for the vocabulary.
 
 Archon has no marketplace; this plugin rides the Claude Code plugin marketplace.
-`/unic-archon-dlc:setup` installs the four Archon workflow YAMLs + command stubs and writes the
+`/unic-archon-dlc:setup` installs the Archon workflow YAMLs the plugin ships and writes the
 per-project config the interactive boxes read.
 
 > **Vision diagram:** [`docs/20260703-Unic-dlc.mmd`](docs/20260703-Unic-dlc.mmd) (Mermaid; an
@@ -133,14 +133,15 @@ Open Claude Code in any project and run:
 ```
 
 The setup command auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
-PR strategy, and writes the config and agent docs into your project.
+PR strategy, and writes the config, installs the Methods, and installs the Box workflow YAMLs
+into your project.
 
 **Step 2 — Explore** _(optional)_
 
 Kick off research on any new problem space:
 
 ```
-/unic-dlc-explore my-feature
+archon workflow run unic-dlc-explore "my-feature"
 ```
 
 **Step 3 — Triage**
@@ -231,6 +232,20 @@ flipped back at v1.1). Reading a file has neither problem. See
 The plugin version **is** the Method pin — there is no `skills.pin` key. Upgrading Methods means
 upgrading the plugin and re-running `/setup`, which is idempotent and installs the new bundle even for
 an already-configured project.
+
+### The Box artefacts
+
+The Archon workflow YAMLs ship inside this plugin's own `.archon/workflows/`, and `/setup` installs
+whatever it finds there into the Consumer's `.archon/workflows/` — discovered by reading that directory
+at install time, never a fixed list, because the box set is in flux. Every installed file is
+**committed** and carries a **generated header** naming the plugin and its version; re-running `/setup`
+**replaces** it and any hand edit is lost. Installation is **name-scoped**, not directory-scoped: unlike
+`.archon/methods/`, `.archon/workflows/` also holds a Consumer's own workflows, so `/setup` deletes only
+the files it generated on a previous run that the current version no longer ships, and never touches a
+Consumer's own file at any other name ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md)).
+
+A team wanting a variant Box copies the YAML to a name outside the `unic-dlc-*` naming, where `/setup`'s
+name-scoped replacement never reaches.
 
 ---
 

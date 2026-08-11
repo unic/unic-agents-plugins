@@ -32,8 +32,9 @@ import { test } from 'node:test'
 const PLUGIN_ROOT = resolve(import.meta.dirname, '..')
 
 /**
- * The four Box YAMLs, both interactive command docs, and the four Archon command docs that ship
- * beside the YAMLs. #289 AC 10 names the first six; the four stubs are in because AC 6's rule is
+ * The four Box YAMLs, both interactive command docs, and the four Box operator-doc stubs under
+ * `docs/boxes/` (#294 moved them out of `.archon/commands/`, which `/setup` never installs into).
+ * #289 AC 10 names the first six; the four stubs are in because AC 6's rule is
  * "no Box prompt **or command doc**", and a Consumer's agent reads a stub as readily as a prompt.
  *
  * `commands/setup.md` is deliberately NOT here. `/setup` is the one surface that legitimately holds
@@ -48,10 +49,10 @@ const GUARDED = Object.freeze([
 	['.archon', 'workflows', 'unic-dlc-explore.yaml'],
 	['.archon', 'workflows', 'unic-dlc-pr-review.yaml'],
 	['.archon', 'workflows', 'unic-dlc-qa.yaml'],
-	['.archon', 'commands', 'unic-dlc-build.md'],
-	['.archon', 'commands', 'unic-dlc-explore.md'],
-	['.archon', 'commands', 'unic-dlc-pr-review.md'],
-	['.archon', 'commands', 'unic-dlc-qa.md'],
+	['docs', 'boxes', 'unic-dlc-build.md'],
+	['docs', 'boxes', 'unic-dlc-explore.md'],
+	['docs', 'boxes', 'unic-dlc-pr-review.md'],
+	['docs', 'boxes', 'unic-dlc-qa.md'],
 	['commands', 'specs.md'],
 	['commands', 'tickets.md'],
 ])

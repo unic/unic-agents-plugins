@@ -9,7 +9,7 @@
 - (none)
 
 ### Fixed
-- (none)
+- **`/setup` installs the Box workflow YAMLs it ships, clean-replacing by name.** Nothing previously wrote `.archon/workflows/` or `.archon/commands/` in a Consumer project, so no Consumer could run `/build`, `/qa`, `/pr-review` or `/explore` (#294). `lib/artefact-install.mjs` adds one tree-install engine — `installArtefacts` — serving both `installMethods`'s existing whole-dir clean-replace of `.archon/methods/` and a new name-scoped entry for `.archon/workflows/`, discovered by reading the plugin's own directory at install time rather than a fixed list, because the box set is in flux. A destination file is deleted only when it is outside the current run's set **and** carries the generated header a previous `/setup` run wrote — never by name pattern — so a Consumer's own workflow file is never touched regardless of its name, while a Box retired in a later plugin version is still removed. `/setup` writes nothing into `.archon/commands/`: the four Box command docs were inert (no Box YAML carries a `command:` node) and move to `docs/boxes/` as operator documentation, each now documenting its invocation as `archon workflow run <name> "<slug>"` rather than the nonexistent `--input` flag. See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md).
 
 ## [0.17.0] — 2026-08-10
 

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { installArtefacts } from './artefact-install.mjs'
 import { METHODS_BUNDLE, METHODS_MANIFEST } from './methods-manifest.mjs'
 
 /**
@@ -140,17 +141,19 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
 /**
  * Install the bundle into `<repoRoot>/.archon/methods/<name>/`, replacing whatever was there.
  *
- * Clean-replace, not merge: a Method dropped from the manifest in a later version must not linger on
- * disk, where `resolveMethod` would keep resolving it at the `bundle` tier. `rmSync` needs both
- * options spelled out — `recursive` defaults to `false`, and `force` defaults to `false`, so a
- * first-ever install with no `.archon/methods/` yet would throw instead of no-op'ing.
+ * A thin, Method-specific wrapper over the generic `installArtefacts` engine (`lib/artefact-install.mjs`,
+ * #294): it declares one whole-dir entry — Methods are entirely plugin-owned, so the whole
+ * `.archon/methods/` directory is wiped and rebuilt, unlike the name-scoped Box-workflow entry that
+ * engine also serves. `rmSync` needs both options spelled out — `recursive` defaults to `false`, and
+ * `force` defaults to `false`, so a first-ever install with no `.archon/methods/` yet would throw
+ * instead of no-op'ing.
  *
  * The installed tree is flat, keyed by canonical Method name, because that is what `resolveMethod`
  * reads; only the vendored source mirrors upstream's category directories.
  *
  * `.archon/methods.local/` is never touched (that tier is the operator's uncommitted working copy).
  *
- * A failure mid-copy (`EBUSY`/`ENOSPC`/`EACCES`) is caught per-entry rather than left to propagate: the
+ * A failure mid-copy (`EBUSY`/`ENOSPC`/`EACCES`) is caught per-item rather than left to propagate: the
  * `rmFn` above already ran, so the caller needs to know exactly which Methods made it to disk and which
  * didn't, not just that something threw.
  *
@@ -158,26 +161,27 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
  * @returns {InstallMethodsResult}
  */
 export function installMethods({ bundleRoot, repoRoot, rmFn = rmSync, cpFn = cpSync }) {
-	rmFn(join(repoRoot, INSTALL_DIR), { recursive: true, force: true })
-	const installed = []
-	for (const entry of METHODS_MANIFEST) {
-		try {
-			cpFn(join(bundleRoot, dirname(entry.upstreamPath)), join(repoRoot, INSTALL_DIR, entry.name), {
-				recursive: true,
-			})
-		} catch (err) {
-			return {
-				ok: false,
-				installed,
-				failed: entry.name,
-				message:
-					`Failed to install Method "${entry.name}" into ${INSTALL_DIR} (${/** @type {Error} */ (err).message}). ` +
-					`${installed.length} Method(s) installed before the failure; re-run /unic-archon-dlc:setup to retry — it clean-replaces the tree.`,
-			}
+	const items = METHODS_MANIFEST.map((entry) => ({
+		name: entry.name,
+		sourcePath: join(bundleRoot, dirname(entry.upstreamPath)),
+	}))
+	const [result] = installArtefacts({
+		entries: [{ name: 'methods', destDir: join(repoRoot, INSTALL_DIR), items, ownsWholeDir: true }],
+		pluginName: 'unic-archon-dlc',
+		rmFn,
+		cpFn,
+	})
+	if (!result.ok) {
+		return {
+			ok: false,
+			installed: result.installed,
+			failed: result.failed,
+			message:
+				`Failed to install Method "${result.failed}" into ${INSTALL_DIR} (${result.error.message}). ` +
+				`${result.installed.length} Method(s) installed before the failure; re-run /unic-archon-dlc:setup to retry — it clean-replaces the tree.`,
 		}
-		installed.push(entry.name)
 	}
-	return { ok: true, installed }
+	return { ok: true, installed: result.installed }
 }
 
 /**

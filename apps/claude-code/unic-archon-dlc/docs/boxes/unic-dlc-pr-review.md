@@ -14,10 +14,10 @@ single structured **summary comment** plus **inline comments** on the current PR
 
 Generic and **self-contained**: it harvests `unic-pr-review`'s review learnings (confidence rubric,
 structured summary, hidden-marker idempotency, conditional spawn table, two-surface posting) **without
-its host-specific code and without any runtime dependency** ([ADR-0016](../../docs/adr/0016-dlc-thin-process-layer.md)/
-[ADR-0017](../../docs/adr/0017-container-follows-structural-need.md)). Ported to the key-discriminated
-Archon node schema ([ADR-0011](../../docs/adr/0011-archon-schema-target.md)); design in
-[ADR-0026](../../docs/adr/0026-pr-review-generic-archon-harvest.md).
+its host-specific code and without any runtime dependency** ([ADR-0016](../adr/0016-dlc-thin-process-layer.md)/
+[ADR-0017](../adr/0017-container-follows-structural-need.md)). Ported to the key-discriminated
+Archon node schema ([ADR-0011](../adr/0011-archon-schema-target.md)); design in
+[ADR-0026](../adr/0026-pr-review-generic-archon-harvest.md).
 
 ## Usage
 
@@ -49,7 +49,7 @@ precondition** — intent is composed from whatever sources resolve.
    scored on the **confidence rubric** (90–100 Critical / 80–89 Important / 60–79 Minor / below the
    threshold dropped) and carries `aspect: "standards" | "spec"`. The two axes are aggregated, never
    merged or reranked. This replaced seven hand-written aspect nodes and their spawn gates: re-implementing
-   the Method's own step 4 as Archon nodes is what [ADR-0030](../../docs/adr/0030-harness-hosts-methods.md)'s
+   the Method's own step 4 as Archon nodes is what [ADR-0030](../adr/0030-harness-hosts-methods.md)'s
    structural bar forbids.
 
 4. **synthesize** — merge + dedupe this run's findings, bucket by severity, assemble the summary
@@ -81,7 +81,7 @@ checkpoint is `/qa`.
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
 - The system-skill registered under `tracker.access` is reachable.
 - The checkout has an `origin` remote, or `project.repo_ref` is set.
-- Archon ≥ 0.7.0 ([ADR-0033](../../docs/adr/0033-archon-070-schema-target.md)).
+- Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 
@@ -101,5 +101,5 @@ Read from `.archon/unic-dlc.config.yaml`:
 ## Runs
 
 ```
-archon workflow run unic-dlc-pr-review --input <slug>
+archon workflow run unic-dlc-pr-review "<slug>"
 ```

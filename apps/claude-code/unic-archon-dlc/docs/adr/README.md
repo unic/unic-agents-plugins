@@ -41,3 +41,4 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted                            |
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted                            |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted                            |
+| 0036 | `/setup` owns a named install set; Box YAMLs clean-replace by name, not by directory       | Accepted                            |

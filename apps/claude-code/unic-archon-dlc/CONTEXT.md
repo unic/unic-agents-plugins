@@ -214,7 +214,7 @@ Rendered by Claude at user-invocation time. `commands/setup.md` becomes `/unic-a
 _Avoid_: command, command template (which means something else here)
 
 **Archon workflow command template**:
-A markdown file under `.archon/commands/` (e.g. `unic-dlc-build.md`). Rendered by the Archon
+A markdown file under `.archon/commands/`. Rendered by the Archon
 workflow engine inside a workflow node, not by Claude directly. Same file extension as a slash
 command, completely different runtime.
 _Avoid_: slash command, workflow command (ambiguous)

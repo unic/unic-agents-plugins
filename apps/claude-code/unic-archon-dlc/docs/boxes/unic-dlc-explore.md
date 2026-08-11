@@ -12,10 +12,10 @@ tracker, and — after a config-gated human confirm — the spike code can be pr
 `/explore` is **off the main line** and **never required** (PLAN decision #3/#8): it is an optional
 precursor to `/specs`. Its `findings.md` may seed `/specs`, but a feature can go straight to `/specs`
 without it. Ported to the key-discriminated Archon node schema
-([ADR-0011](../../docs/adr/0011-archon-schema-target.md)); self-contained prompt nodes with no
-plugin-`lib/` import ([ADR-0023](../../docs/adr/0023-build-generic-red-green-refactor-loop.md) §5);
-artefacts at `<artifacts_dir>/<slug>/` ([ADR-0015](../../docs/adr/0015-workflows-slug-artifact-home.md)).
-Design in [ADR-0029](../../docs/adr/0029-explore-research-spike-onramp.md).
+([ADR-0011](../adr/0011-archon-schema-target.md)); self-contained prompt nodes with no
+plugin-`lib/` import ([ADR-0023](../adr/0023-build-generic-red-green-refactor-loop.md) §5);
+artefacts at `<artifacts_dir>/<slug>/` ([ADR-0015](../adr/0015-workflows-slug-artifact-home.md)).
+Design in [ADR-0029](../adr/0029-explore-research-spike-onramp.md).
 
 ## Usage
 
@@ -48,12 +48,12 @@ a prior baton.
 4. **spike** — one AFK experiment pass. Builds/measures a throwaway experiment where AFK-feasible, else
    reasons it through; appends a **`## Spike verdicts`** section (VALIDATED / INVALIDATED / PARTIAL).
    **Interactive prototyping is NOT done here** — that is Matt's `/prototype` skill, which needs a live
-   conversation and so cannot run in an Archon node ([ADR-0017](../../docs/adr/0017-container-follows-structural-need.md)).
+   conversation and so cannot run in an Archon node ([ADR-0017](../adr/0017-container-follows-structural-need.md)).
    This node only references it.
 
 5. **spike-ticket** — files (or idempotently updates) a `spike` ticket on the configured tracker
    (MCP-first, CLI-fallback), linking findings.md and the verdicts, with the AI disclaimer. Labels come
-   **only** from `classification.labels` ([ADR-0024](../../docs/adr/0024-triage-intake-on-ramp.md)).
+   **only** from `classification.labels` ([ADR-0024](../adr/0024-triage-intake-on-ramp.md)).
    Runs **before** the gate so the durable output survives a "discard".
 
 6. **spike-branch-gate** — **HITL by default** (`gates.explore`); skipped in AFK. APPROVE → preserve the
@@ -92,7 +92,7 @@ grilling. Keeping those three subsection headings exact is what makes the handof
 - The system-skill registered under `tracker.access` is reachable for the spike ticket. A tracker with
   no issue-creation capability prints manual steps instead of failing.
 - The checkout has an `origin` remote, or `project.repo_ref` is set.
-- Archon ≥ 0.7.0 ([ADR-0033](../../docs/adr/0033-archon-070-schema-target.md)).
+- Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 
@@ -110,5 +110,5 @@ Read from `.archon/unic-dlc.config.yaml`:
 ## Runs
 
 ```
-archon workflow run unic-dlc-explore --input <slug>
+archon workflow run unic-dlc-explore "<slug>"
 ```
