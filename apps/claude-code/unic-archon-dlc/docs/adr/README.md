@@ -40,3 +40,4 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0032 | Vocabulary: Box, Method, Local Method, Bundle; config is parameters, a Method is procedure | Accepted                            |
 | 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted                            |
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted                            |
+| 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted                            |

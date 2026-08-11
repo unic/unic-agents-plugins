@@ -2,7 +2,7 @@
 
 A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
-off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) and **composes the
+off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`, `/handoff`) and **composes the
 team's system-skills for the _how_**. Procedure belongs to the **Methods** it hosts, not to the
 Harness. Each box's container follows its structural need: Archon workflows for the AFK-isolated legs,
 Claude Code commands/skills for the interactive ones. Configured via the `/unic-archon-dlc:setup`

@@ -11,6 +11,19 @@
 ### Fixed
 - (none)
 
+## [0.17.0] — 2026-08-10
+
+### Breaking
+- (none)
+
+### Added
+- **`/archon-upgrade` — a read-only report of what a new Archon release means for this Plugin.** ADR-0011 tells authors to "re-validate behaviourally on each bump" and ships no mechanism for doing it; the 0.7.0 assessment was a manual read of a 210-file release against four Box YAMLs, two `lib/` modules and six command files, and the 0.x line ships a release every few weeks. The command compares the installed `archon` against `MIN_ARCHON_VERSION` and stops when they match; discovers Archon's own upstream repository at run time from `brew` and **asks rather than guesses** when that fails, so no Archon URL is hardcoded anywhere; reads the release notes for the range through `gh` and classifies each notable change **ADOPT / DEFER / VERIFY-ONLY / BREAKS-US**, naming the affected file and node plus one next step per row. Two classifications are locked and cited rather than re-derived — `workflow:` sub-runs are DEFER per [ADR-0033](docs/adr/0033-archon-070-schema-target.md) § Sub-runs, and Archon's own remote-resolution algorithm is VERIFY-ONLY per that ADR's § "Repository derivation", because a recorded, deliberate divergence classified BREAKS-US would relitigate a settled decision on every run. A separate mandatory sub-pass reads the notes for changed, removed and deprecated **defaults** against the Boxes' own node bodies: both real 0.7.0 defects were an upstream default a Box still assumed, and a new-field scan is blind to that shape. `allowed-tools` is `Bash` alone — the command writes nothing, and `test/archon-upgrade-command.test.mjs` asserts that structurally so a later edit cannot quietly grant it a write tool. See [ADR-0035](docs/adr/0035-archon-upgrade-report.md).
+- **`lib/schema-traps.mjs` + `test/schema-traps.test.mjs` — ADR-0011's silent-failure traps, as tested code.** `/archon-upgrade` re-asserts them on every run: no `type:` discriminator, every `approval:` node paired with workflow-level `interactive: true`, every `loop:` carrying both `until` and `max_iterations`, no node-level `fresh_context:`. Putting that check in `lib/` rather than in a prompt regex is the point — an untested assertion inside a Markdown file fails open, which is the exact class of defect the traps describe, and it means the four bundled Boxes now have a CI-enforced conformance guard they did not have before. The checker returns violations rather than throwing, so a caller printing a PASS/FAIL grid cannot mistake a crash for a pass.
+- **`parseVersion` is exported from `lib/archon-check.mjs`.** `/archon-upgrade` compares version triples — installed against the floor, and each release tag against both — rather than re-implementing the regex or comparing raw strings that may carry a program-name or `v` prefix. A test locks the contract now that it is public API.
+
+### Fixed
+- (none)
+
 ## [0.16.0] — 2026-08-10
 
 ### Breaking
