@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "generate": "node scripts/fetch-streams.mjs",
-    "test": "node --test scripts/lib/readiness.test.mjs scripts/lib/priority.test.mjs scripts/lib/title.test.mjs scripts/lib/graph.test.mjs scripts/lib/render.test.mjs scripts/lib/no-issue-body.test.mjs",
+    "test": "node --test scripts/lib/readiness.test.mjs scripts/lib/priority.test.mjs scripts/lib/title.test.mjs scripts/lib/graph.test.mjs scripts/lib/render.test.mjs scripts/lib/no-issue-body.test.mjs scripts/lib/github-client.test.mjs scripts/fetch-streams.test.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "devDependencies": {

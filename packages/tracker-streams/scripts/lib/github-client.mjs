@@ -55,16 +55,28 @@ function headers() {
 /**
  * Turn a failed response into the right error.
  *
- * A 403 or 404 on one of the two relation endpoints means the token cannot read the
+ * A rate-limit response (primary quota exhausted, or a secondary/abuse-detection limit)
+ * is checked first: GitHub returns 403 for both, and the fix — rerun after the window —
+ * is the opposite of the relation-permission message below. Only once that's ruled out
+ * does a 403 or 404 on one of the two relation endpoints mean the token cannot read the
  * relation. That is the one failure the issue says to stop on rather than work around, so
  * it gets its own message.
  *
  * @param {number} status
  * @param {string} path
  * @param {string | undefined} relation
+ * @param {Headers | undefined} [responseHeaders]
  * @returns {CliError}
  */
-function requestFailure(status, path, relation) {
+function requestFailure(status, path, relation, responseHeaders) {
+	const retryAfter = responseHeaders?.get('retry-after')
+	const rateLimited = Boolean(retryAfter) || responseHeaders?.get('x-ratelimit-remaining') === '0'
+	if (rateLimited) {
+		return new CliError(
+			`GitHub API rate limit hit on ${path}${retryAfter ? ` — retry after ${retryAfter}s` : ''}.\n` +
+				'This is expected under load; the next scheduled run will pick up where this one left off.'
+		)
+	}
 	if (relation && (status === 403 || status === 404)) {
 		return new CliError(
 			`GITHUB_TOKEN cannot read ${relation} (HTTP ${status} on ${path}).\n` +
@@ -94,7 +106,7 @@ async function paginate(path, relation) {
 		const separator = path.includes('?') ? '&' : '?'
 		const url = `${API_ROOT}${path}${separator}per_page=${PER_PAGE}&page=${page}`
 		const response = await fetch(url, { headers: headers() })
-		if (!response.ok) throw requestFailure(response.status, path, relation)
+		if (!response.ok) throw requestFailure(response.status, path, relation, response.headers)
 		const payload = /** @type {Record<string, unknown>[]} */ (await response.json())
 		if (!Array.isArray(payload)) throw new CliError(`GitHub API returned a non-list payload for ${path}`)
 		collected.push(...payload)
@@ -178,7 +190,7 @@ export async function listMembersByStream(owner, repo, streamNumbers) {
 export async function listBlockersFor(owner, repo, issueNumbers) {
 	const lists = await mapBounded(issueNumbers, async (issueNumber) => {
 		const blockers = await paginate(`/repos/${owner}/${repo}/issues/${issueNumber}/${DEPENDENCIES}`, DEPENDENCIES)
-		return blockers.map(toSummary)
+		return blockers.filter((issue) => !isPullRequest(issue)).map(toSummary)
 	})
 	return new Map(issueNumbers.map((issueNumber, index) => [issueNumber, lists[index]]))
 }

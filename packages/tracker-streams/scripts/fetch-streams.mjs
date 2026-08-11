@@ -15,6 +15,7 @@
  * Usage: GITHUB_TOKEN=… GITHUB_REPOSITORY=owner/repo node scripts/fetch-streams.mjs > index.html
  */
 
+import { fileURLToPath } from 'node:url'
 import { CliError } from './lib/errors.mjs'
 import { listBlockersFor, listMembersByStream, listOpenIssues, listStreamTickets } from './lib/github-client.mjs'
 import { buildLaneIndex, groupIntoLanes, isCrossStreamEdge } from './lib/graph.mjs'
@@ -25,6 +26,8 @@ import { shortenTitle } from './lib/title.mjs'
 
 const STREAM_LABEL = 'stream'
 const WAYFINDER_PREFIX = 'wayfinder:'
+// "Takeable now" counts ready-for-agent only. Issue #327 names no formula for this;
+// ready-for-human tickets are excluded because they need a person, not just an unblocked queue slot.
 const TAKEABLE_STATE = 'ready-for-agent'
 
 /**
@@ -53,7 +56,7 @@ function resolveRepository() {
  * @param {ReadonlyMap<number, number>} laneIndex
  * @returns {boolean}
  */
-function isOutsideEveryStream(issue, laneIndex) {
+export function isOutsideEveryStream(issue, laneIndex) {
 	if (issue.labels.includes(STREAM_LABEL)) return false
 	if (laneIndex.has(issue.number)) return false
 	return !issue.labels.some((label) => label.startsWith(WAYFINDER_PREFIX))
@@ -65,7 +68,7 @@ function isOutsideEveryStream(issue, laneIndex) {
  * @param {ReadonlyMap<number, number>} laneIndex
  * @returns {Card}
  */
-function toCard(issue, blockers, laneIndex) {
+export function toCard(issue, blockers, laneIndex) {
 	const lane = laneIndex.get(issue.number)
 	return {
 		number: issue.number,
@@ -148,12 +151,15 @@ async function main() {
 	)
 }
 
-try {
-	await main()
-} catch (err) {
-	if (err instanceof CliError) {
-		console.error(err.message)
-		process.exit(err.exitCode)
+// Guarded so tests can import isOutsideEveryStream/toCard without running the CLI.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+	try {
+		await main()
+	} catch (err) {
+		if (err instanceof CliError) {
+			console.error(err.message)
+			process.exit(err.exitCode)
+		}
+		throw err
 	}
-	throw err
 }
