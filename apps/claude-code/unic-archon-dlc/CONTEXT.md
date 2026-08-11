@@ -97,18 +97,21 @@ See `docs/adr/0014-workflow-per-box-decomposition.md`.
 _Avoid_: ticket, ready ticket, groomed issue
 
 **Canonical role**:
-The name a Box uses for a state, type or priority. Owned by the Harness and fixed, because Boxes hand
-work to each other through it: `/triage` writes `needs-specs` and `/specs` reads it; `/tickets` writes
-`ready-for-agent` and `/build` reads it. A canonical role is never written to a tracker — it resolves
-to a Label string first.
+The name a Box uses for a state, type or priority. Owned by the Harness and fixed: the team names the
+Label string a role resolves to, never the role itself, because the roles are the protocol the Boxes
+share. `/triage`, `/tickets` and `/qa` write states; no Box reads one, so a state signals to a human
+rather than routing work — the handoff between Boxes is the Slug. A canonical role is never written to
+a tracker: it resolves to a Label string first.
 _Avoid_: label (a label is the string, not the role), status, tag, canonical label
 
 **Label string**:
-The tracker's own text for a Canonical role. Owned by the team, set during
+The tracker's own text for a Canonical role. Owned by the team, named during
 `/unic-archon-dlc:setup`, held in `classification.labels`, and read by every Box through `LABELS` and
 from nowhere else. Two teams may render the same role as `needs-specs` and `3-Analysis`; both are
-correct, and no Box can tell the difference. The names the Plugin ships are a convenience seed for
-that conversation, never a contract.
+correct, and no Box can tell the difference. The tier a role sits in — `state`, `type` or `priority` —
+tells the composed tracker skill which axis to write, so a Box never learns whether the tracker holds
+the string as a label, a status, a work-item type or a field. The names the Plugin ships are what
+`/setup` offers in that conversation, never a default it writes on the team's behalf.
 _Avoid_: canonical label, default label, tracker label
 
 ### Planning artifacts

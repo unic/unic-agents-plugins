@@ -2,6 +2,16 @@
 
 **Status:** Accepted (2026-07-02)
 
+> **Amended (2026-08-11):** this ADR ended its label section with "Teams override `classification.labels` in YAML" and never said who fills the mapping. So `defaultConfig()` seeded one and `/setup` never raised the subject, shipping a guess that is correct only for a tracker already using the Plugin's own vocabulary (#329). Five decisions complete the sentence.
+>
+> - **The team names the Label strings, and `/setup` asks.** One question, the seventeen roles grouped by tier — `state`, `type`, `priority` — with a one-line gloss per tier, offering the names the Plugin ships. The gloss is conversation copy in `commands/setup.md`, never data in `lib/`. This is the shape `setup-matt-pocock-skills` uses for its own five roles: one question, ships no code.
+> - **`/setup` never inspects the tracker and never creates a label.** It does not probe for existing labels, does not report which are absent, and does not offer to add one. A tracker with a different vocabulary is answered by mapping the role onto a string that tracker already carries, not by adding a seventeenth label to someone else's board.
+> - **The tier carries the axis.** A Box hands the composed tracker skill the tier alongside the string, so the skill knows whether to write an Azure DevOps `System.State`, a Jira status or a GitHub label. No Box ever learns how the tracker stores a role. This is what keeps the mapping tracker-agnostic while it stays a plain `Record<role, string>`, and it is why the label-shaped model needs no generalisation.
+> - **No default is seeded.** `defaultConfig()` emits no `classification.labels`, and `classification.labels` joins `MANDATORY_PATHS`. A mapping is therefore present because a human accepted it, or absent and collected on the next run. The names the Plugin ships are what `/setup` offers, never what it writes on the team's behalf.
+> - **The key set is closed downward.** A `classification.labels` missing a shipped Canonical role is a fault: `validateConfig` reports it, so the config reads `partial` and `/setup` collects it, and `toYaml` refuses to write it. An extra key is allowed and ignored — nothing reads it, and `migrateLegacy` preserves a hand-added type such as `release` on purpose. The team owns the right-hand column and never the left.
+>
+> Recorded because it surprised the session that produced this amendment: **no Box reads a state Label string today.** `/triage`, `/tickets` and `/qa` write states; nothing selects work by label, and the handoff between Boxes is the Slug a human passes. Key-closure still earns its place, because a missing key breaks the **writer** — `/triage` resolving `needs-specs` through `LABELS` either fails mid-run or invents a string, which is #329's failure mode. Whether the reads should exist is #332.
+
 ## Context
 
 The shipped `triage` workflow produced a `HANDOFF.md` state snapshot and updated a `ROADMAP.md`.
