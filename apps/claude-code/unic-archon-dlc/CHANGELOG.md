@@ -6,7 +6,19 @@
 - (none)
 
 ### Added
-- (none)
+- **`/setup` installs the Box workflow YAMLs into a Consumer's `.archon/workflows/`.** Nothing wrote
+  them before this release, so no Box was runnable outside this repo. Install is name-scoped to the
+  `unic-dlc-*` naming, discovered by reading this Plugin's own `.archon/workflows/` at install time —
+  never enumerated by name. `lib/artefact-install.mjs` generalises `installMethods`'s clean-replace
+  logic into one tree-install engine covering both the whole-directory Methods install and the new
+  name-scoped Box install; `installMethods` keeps its exact signature and every existing test. A
+  retired Box is swept **by name, never by whether it carries the generated header** — a Consumer
+  workflow whose name is outside the `unic-dlc-*` set is untouched, whatever its contents, which is
+  what makes the README's variant escape hatch (copy a Box to a name outside that set) hold. See
+  [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md).
+- Every Box command stub moves from `.archon/commands/` to `docs/boxes/` as operator documentation;
+  `/setup` writes nothing into `.archon/commands/`. Each stub's invocation is now
+  `archon workflow run <name> "<slug>"` — `--input` was never a real flag.
 
 ### Fixed
 - (none)
