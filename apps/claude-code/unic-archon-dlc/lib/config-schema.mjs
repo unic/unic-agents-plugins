@@ -147,6 +147,15 @@ function isPlainObject(v) {
 }
 
 /**
+ * A mandatory value counts as absent whether it was never set or was cleared back to empty.
+ * @param {unknown} v
+ * @returns {boolean}
+ */
+function isMissing(v) {
+	return v === undefined || v === null || v === ''
+}
+
+/**
  * Recursively merge `source` over `target`. Plain objects merge key-by-key; every other value
  * (arrays, scalars, null) is replaced wholesale by `source`. Never mutates the inputs.
  * @param {Record<string, unknown>} target
@@ -261,10 +270,7 @@ function getPath(obj, path) {
  * @returns {{ ok: true, config: DlcConfig } | ConfigError}
  */
 export function validateConfig(config) {
-	const missing = MANDATORY_PATHS.filter((path) => {
-		const value = getPath(config, path)
-		return value === undefined || value === null || value === ''
-	})
+	const missing = MANDATORY_PATHS.filter((path) => isMissing(getPath(config, path)))
 
 	const labels = getPath(config, 'classification.labels')
 	if (isPlainObject(labels)) {
@@ -272,12 +278,10 @@ export function validateConfig(config) {
 			const tierLabels = labels[tier]
 			for (const role of roles) {
 				const value = isPlainObject(tierLabels) ? tierLabels[role] : undefined
-				if (value === undefined || value === null || value === '') {
-					missing.push(`classification.labels.${tier}.${role}`)
-				}
+				if (isMissing(value)) missing.push(`classification.labels.${tier}.${role}`)
 			}
 		}
-	} else if (labels !== undefined && labels !== null && labels !== '') {
+	} else if (!isMissing(labels)) {
 		missing.push('classification.labels')
 	}
 
