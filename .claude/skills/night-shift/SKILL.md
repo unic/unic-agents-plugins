@@ -86,13 +86,28 @@ unresolved finding" — which fails open, because a review that never happened h
 observed PR the review took twenty minutes, and for thirteen of those the PR showed no review _and_
 an empty pending-reviewer list, indistinguishable from a silent drop.
 
+Both commands must answer before the gate passes. Run both — the first cannot see threads, and the
+second cannot see staleness.
+
 ```sh
-gh pr view <n> --json reviews,headRefOid --jq \
-  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | length'
+# 1. A review newer than the head commit. Answer must be >= 1.
+gh pr view <n> --json reviews,commits --jq '
+  (.commits[-1].committedDate) as $head
+  | [.reviews[] | select(.author.login == "copilot-pull-request-reviewer" and .submittedAt > $head)]
+  | length'
+
+# 2. Unresolved threads. Answer must be 0.
+gh api graphql -f query='query($n:Int!){repository(owner:"unic",name:"unic-agents-plugins"){
+  pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved}}}}}' -F n=<n> \
+  --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)] | length'
 ```
 
-Zero fails. A review older than the head commit fails. A stale review is not evidence about the
-code now on the branch.
+`0` from the first fails the gate, and it is the same answer whether the review never ran or ran
+against older code — which is the point. Comparison happens inside `jq`, not the shell: `[ "$a" \> "$b" ]`
+is not portable, and zsh rejects it outright.
+
+A resolved thread means someone answered the finding. Resolving without replying passes this check
+while leaving the next reader a question with no answer.
 
 ### Gate 3 — an acceptance-criteria audit in a fresh context
 
