@@ -2,7 +2,7 @@
 
 ## Shared vocabulary
 
-- [Monorepo](./CONTEXT.md): Plugin, Workspace Package, Release, Feature, Feature Runner, Consumer
+- [Monorepo](./CONTEXT.md): Plugin, Workspace Package, Release, Release Train, Change Note, Feature, Feature Runner, Consumer
 
 ## Plugin contexts
 
