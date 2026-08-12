@@ -1,7 +1,7 @@
 ---
 name: night-shift
 description: Run a chain of ready-for-agent issues unattended — dispatch, gate, merge, advance — with explicit gates and stop conditions, and a durable log.
-argument-hint: "<issue-number> [issue-number ...]"
+argument-hint: '<issue-number> [issue-number ...]'
 disable-model-invocation: true
 ---
 
@@ -82,7 +82,7 @@ thread.
 **Absence is a failure.** This gate was first written as "the review has returned and carries no
 unresolved finding" — which a review that never happened satisfies, because it has no findings. On
 one observed PR the review took twenty minutes, and for thirteen of those the PR showed no review
-*and* an empty pending-reviewer list, indistinguishable from a silent drop.
+_and_ an empty pending-reviewer list, indistinguishable from a silent drop.
 
 ```sh
 gh pr view <n> --json reviews,headRefOid --jq \

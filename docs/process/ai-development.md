@@ -50,11 +50,11 @@ State every check so that **not having run** fails it. A check whose "found noth
 
 Three instances, all found in this repo within a week:
 
-| Check | How it failed open |
-| --- | --- |
-| A PR-review gate written as "the review has returned and carries no unresolved finding" | A review that never happened has no findings. Absence satisfied it |
-| `pnpm --filter <pkg> --if-present verify:changelog` | A package with no such script reported success, hiding that the gate never ran (#340) |
-| The changelog gate's allow-list of guarded paths | It omitted `lib/**`, so a change confined there was ungated. An allow-list rots every time a plugin grows a directory |
+| Check                                                                                   | How it failed open                                                                                                    |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| A PR-review gate written as "the review has returned and carries no unresolved finding" | A review that never happened has no findings. Absence satisfied it                                                    |
+| `pnpm --filter <pkg> --if-present verify:changelog`                                     | A package with no such script reported success, hiding that the gate never ran (#340)                                 |
+| The changelog gate's allow-list of guarded paths                                        | It omitted `lib/**`, so a change confined there was ungated. An allow-list rots every time a plugin grows a directory |
 
 The repair is the same in each case: assert the positive. A review must **exist** and be newer than the head commit. A configured step must actually have a script. A guard should deny-list what is exempt rather than allow-list what is covered, so a new directory is covered on arrival.
 
@@ -113,7 +113,7 @@ Individually reasonable criteria can be **collectively impossible**. One issue i
 
 - One forbade a name appearing as a literal in a test fixture; another required a guarded list to be "repointed in place", which needs those literals.
 - One forbade a name in the README; another required the README's quick start to show a command containing that name.
-- One said *what* to delete but never *how ownership is decided*, so an implementation chose a different rule, documented its reasoning, and passed.
+- One said _what_ to delete but never _how ownership is decided_, so an implementation chose a different rule, documented its reasoning, and passed.
 
 The third is the dangerous shape: not a contradiction between two criteria, but a **gap between them** that an implementer fills with a defensible-sounding decision. It produces a green pull request that faithfully implements the wrong thing.
 
