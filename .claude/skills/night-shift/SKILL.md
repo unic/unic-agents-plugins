@@ -1,36 +1,38 @@
 ---
 name: night-shift
-description: Run a chain of ready-for-agent issues unattended — dispatch, gate, merge, advance — with explicit gates and stop conditions, and a durable log.
+description: Merge a chain of issues unattended, under gates that fail closed.
 argument-hint: '<issue-number> [issue-number ...]'
 disable-model-invocation: true
 ---
 
 # Night shift
 
-Run a chain of issues to merge without a human present. This composes `/archon-rollout` and
+Merge a chain of issues without a human present. This composes `/archon-rollout` and
 `/archon-pr-review`; it replaces neither. What it adds is the part that has to hold when nobody is
 watching: **when may this merge, and when must it stop.**
 
-> **v1 — 2026-08-12.** Written from two supervised runs. The gates below work with what exists
-> today. Issue #347 hardens it once #345 (terminal issue state) and #346 (killed-run recovery) land.
-> Their absence is why several stop conditions below say "stop and leave it for a human" rather than
-> "recover automatically".
+Every gate below is written to **fail closed** — not having run fails it. A gate that fails open
+reports success for work it never did, and it does so most convincingly on the night nobody reads
+the output. `docs/process/ai-development.md` §2 carries the three real instances this repo has
+already shipped.
 
-**Do not run this without explicit authorisation for the specific issues in the chain.** Autonomous
-merge is not a standing permission. It is granted per run, for a named list, and it does not carry
-over to the next session.
+> **v1 — 2026-08-12.** Written from two supervised runs. Issue #347 hardens it once #345 (terminal
+> issue state) and #346 (killed-run recovery) land. Their absence is why several stop conditions
+> below hand back to a human rather than recovering.
+
+Run only with explicit authorisation for the issues named in this invocation. Autonomous merge is
+granted per run, for a named list, and expires with the session.
 
 ---
 
 ## Before you start
 
-1. **State the chain and get a yes.** Numbers, order, and what you will not do. If the list changes
-   mid-run, that is a new authorisation.
+1. **State the chain and get a yes.** Numbers, order, and the boundary. A changed list is a new
+   authorisation.
 2. **Confirm the session can survive.** Monitors and the loop die with the session; Archon runs do
    not. If the terminal closes, runs continue and nothing drives them. Say so before starting.
-3. **Write the log somewhere durable.** Not a scratchpad — this repository or the tracker. The
-   protocol has been reconstructed from memory once already, and the reconstruction had a defect in
-   it (see the gate 2 note below).
+3. **Open the log in a durable place** — this repository or the tracker. This protocol was once
+   reconstructed from memory, and the reconstruction shipped a gate that failed open.
 
 ---
 
@@ -56,9 +58,9 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
    forks from `main` by default whatever the branch name says.
 4. **Wait.** Arm a Monitor keyed on the run ID, never on a global active count.
 5. **Check the PR base.** Archon has retargeted PRs to `main` after opening them, more than once.
-6. **Apply the three gates.**
-7. **Merge with a merge commit**, never a squash — the release flow reads `develop → main` merges.
-8. **Log one line.** Then the next slice.
+6. **Apply the three gates.** All three, in full, before any merge.
+7. **Merge**, per `AGENTS.md`'s merge rule.
+8. **Log one line**, naming the slice, the gate verdicts and the merge commit. Then the next slice.
 
 ---
 
@@ -79,10 +81,10 @@ unreliable in both directions.
 A code review **exists**, was submitted **after the current head commit**, and leaves no unresolved
 thread.
 
-**Absence is a failure.** This gate was first written as "the review has returned and carries no
-unresolved finding" — which a review that never happened satisfies, because it has no findings. On
-one observed PR the review took twenty minutes, and for thirteen of those the PR showed no review
-_and_ an empty pending-reviewer list, indistinguishable from a silent drop.
+**Absence fails this gate.** It was first written as "the review has returned and carries no
+unresolved finding" — which fails open, because a review that never happened has no findings. On one
+observed PR the review took twenty minutes, and for thirteen of those the PR showed no review _and_
+an empty pending-reviewer list, indistinguishable from a silent drop.
 
 ```sh
 gh pr view <n> --json reviews,headRefOid --jq \
@@ -106,48 +108,44 @@ Gates 2 and 3 look for different things and neither subsumes the other. See
 
 ---
 
-## Stop conditions
+## Hand back
 
-Stop the chain, leave everything open, record why. Do not merge, do not dispatch the next slice.
+On any condition below: leave the pull request open, record the condition and its evidence, and
+stop. The next slice waits. State this list at the start of the run, so the boundary is legible in
+advance rather than in the morning.
 
-- Any gate fails.
-- A run trips the usage limit (`session limit` in its log). External; wait for reset.
-- `verify-pr-base` fails — Archon then cascade-skips the entire review, self-fix and simplify
+- **A gate fails.**
+- **A run trips the usage limit** (`session limit` in its log). External; it resumes after the reset.
+- **`verify-pr-base` fails.** Archon then cascade-skips the whole review, self-fix and simplify
   pipeline, leaving an unreviewed PR that may still be CI-green. Archon cannot resume a failed run.
-- **A run leaves the active list without opening a PR.** Check the worktree for unpushed commits
-  before assuming it produced nothing — one killed run had three commits and a passing suite. Until
-  #346 lands there is no automatic recovery; leave it and report.
-- A decision is a design call rather than a mechanical one. Amending an acceptance criterion is
-  always a design call.
-- Anything requires a credential you do not have. Widening a credential is never the fix.
+- **A run leaves the active list without opening a PR.** Inspect the worktree for unpushed commits
+  before concluding it produced nothing — one killed run held three commits and a passing suite.
+  Recovery is #346; until then this hands back.
+- **The next move is a design call.** Amending an acceptance criterion is always one. Hand back and
+  let a human amend it — a green pull request that faithfully implements a wrong criterion becomes
+  the precedent the next agent reads.
+- **The next move needs a credential this session lacks.** Hand back; the credential stays as it is.
+- **A run is still in the active list.** Its PR waits — `archon-fix-github-issue` keeps working
+  after it opens one.
 
----
-
-## What this must not do unattended
-
-State these before the run so the boundary is legible in advance, not in the morning.
-
-- **Never amend an acceptance criterion.** If the criteria are wrong, stop. A green pull request
-  that faithfully implements a wrong criterion becomes the precedent the next agent reads.
-- **Never merge a PR whose run is still in the active list.** `archon-fix-github-issue` keeps
-  working after it opens the PR.
-- **Never create, copy or delete a `LICENSE` file.**
-- **Never push to `develop` or `main` directly**, and never cut a release.
-- **Never widen a permission, token or ruleset** to make a gate pass.
+Everything `AGENTS.md` forbids applies here unchanged and is not restated: branch topology, direct
+pushes, `LICENSE` files, squash merges. Cutting a release is a human act.
 
 ---
 
 ## Reporting
 
-The morning report is the deliverable. It should let someone reconstruct the night without reading
-the transcript:
+The report is the deliverable. It is done when someone can reconstruct the night from it without
+opening the transcript — every slice accounted for, whether it merged or not:
 
 - What merged, with PR numbers.
-- What stopped, at which gate, with the evidence.
-- What was found that no criterion asked about.
-- What is waiting on a human, and what specifically is being asked.
+- What handed back, at which condition, with the evidence.
+- What was found that no acceptance criterion asked about. This is where a night pays for itself:
+  the audit reads code against the ticket, the review reads code against itself, and what only one
+  of them sees is the finding.
+- What waits on a human, and the specific question being asked.
 
-Report outcomes flat. A slice that failed is not a setback to soften — it is the gate working.
+A slice that handed back is the gate working. Say so plainly and move on.
 
 ---
 
@@ -155,5 +153,5 @@ Report outcomes flat. A slice that failed is not a setback to soften — it is t
 
 - `.claude/commands/archon-rollout.md` — dispatch shape, fork-point verification, clean re-run runbook
 - `.claude/commands/archon-pr-review.md` — the review pass this composes
-- `docs/process/ai-development.md` — why a gate that cannot fail is not a gate; reading criteria as a set
+- `docs/process/ai-development.md` §2 — gates that fail open, and why two reviewers see different things
 - #345 terminal issue state · #346 killed-run recovery · #347 hardening this skill
