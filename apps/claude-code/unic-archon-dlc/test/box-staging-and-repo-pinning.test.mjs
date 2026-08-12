@@ -61,7 +61,12 @@ const BOX_DOC_SEGMENTS = BOX_WORKFLOW_NAMES.map((name) => ['docs', 'boxes', name
  * Path segments are joined, never a literal — the Windows CI runner's cwd is on `D:`.
  * @type {readonly string[][]}
  */
-const GUARDED = Object.freeze([...BOX_WORKFLOW_SEGMENTS, ...BOX_DOC_SEGMENTS, ['commands', 'specs.md'], ['commands', 'tickets.md']])
+const GUARDED = Object.freeze([
+	...BOX_WORKFLOW_SEGMENTS,
+	...BOX_DOC_SEGMENTS,
+	['commands', 'specs.md'],
+	['commands', 'tickets.md'],
+])
 
 /** The four Box YAMLs, by the workflow name their `bootstrap` node belongs to. */
 const WORKFLOWS = /** @type {const} */ (['unic-dlc-build', 'unic-dlc-explore', 'unic-dlc-pr-review', 'unic-dlc-qa'])
@@ -198,7 +203,10 @@ test('the barrier is pointed at files that exist', () => {
 	// The derived set replaces a hand-maintained "does not shrink" count (#294): that literal count
 	// is exactly what the discovery criterion forbids, since it requires re-touching this file on
 	// every Box added or retired — the two criteria are why #333 relitigated the same defect twice.
-	assert.ok(BOX_WORKFLOW_SEGMENTS.length > 0, 'no unic-dlc-*.yaml discovered under .archon/workflows/ — the barrier would guard nothing')
+	assert.ok(
+		BOX_WORKFLOW_SEGMENTS.length > 0,
+		'no unic-dlc-*.yaml discovered under .archon/workflows/ — the barrier would guard nothing'
+	)
 	assert.equal(
 		BOX_DOC_SEGMENTS.length,
 		BOX_WORKFLOW_SEGMENTS.length,

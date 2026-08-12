@@ -25,14 +25,14 @@ close.
 PR #333 generalised `installMethods`'s clean-replace logic, stamped a generated header on every
 installed Box YAML, and gated the stale-sweep on that header: a file was swept only if it both
 matched the naming and carried the header. CI was green on nine checks; every test passed. The
-criteria at the time did not say *how* ownership was decided, so the implementation was faithful to
+criteria at the time did not say _how_ ownership was decided, so the implementation was faithful to
 underspecified criteria and still produced the wrong behaviour, in both directions:
 
 - The four Boxes hand-seeded at `8869684` carry no header — they predate this feature — so a
   header-gated sweep leaves them runnable. That is this issue's motivating case, unfixed.
 - The README already commits to an escape hatch: a team wanting a variant of a bundled Box copies it
   to a name outside the `unic-dlc-*` set, where name-scoped install never reaches it. A copy made the
-  documented way — by copying an *installed* YAML — carries the header. Header-gating deletes it,
+  documented way — by copying an _installed_ YAML — carries the header. Header-gating deletes it,
   breaking the one guarantee the escape hatch depends on.
 
 The acceptance criteria also contradicted each other: one forbade a Box name as a literal anywhere in
@@ -95,7 +95,7 @@ Plugin and its version and states that `/setup` replaces it — that is what mak
 legible: an operator's edit is a tracked `git diff` after `/setup`, not a warning dialog.
 
 **No `.archon/workflows.local/` override tier.** A Method has an override tier because a team
-legitimately owns *procedure* ([ADR-0030](0030-harness-hosts-methods.md),
+legitimately owns _procedure_ ([ADR-0030](0030-harness-hosts-methods.md),
 [ADR-0032](0032-box-method-vocabulary.md)). A Box YAML is the Harness — isolation, gates, red/green
 integrity — and "Consumer-side opt-out flags for individual Boxes" is already on this Plugin's
 Do-not-add list ([ADR-0014](0014-workflow-per-box-decomposition.md)). The escape hatch that already
@@ -119,7 +119,7 @@ The reasons that do hold:
 1. **Archon's own doctrine.** `.archon/{commands,workflows,scripts}/` "should be committed"
    (`references/repo-init.md`). Only `.archon/state/` and `.archon/.env` are gitignored.
 2. **Consistency inside the install set.** `.archon/unic-dlc.config.yaml` and `.archon/methods/` are
-   already committed and *are* read inside the worktree by every Box's `bootstrap` node. Committing
+   already committed and _are_ read inside the worktree by every Box's `bootstrap` node. Committing
    some generated entries and ignoring others breaks the one rule that makes the set reviewable.
 3. **The review surface.** A Plugin upgrade changes what an AFK run does to the repo. An ignored file
    gives that change no diff and no reviewer — [#295](https://github.com/unic/unic-agents-plugins/issues/295)

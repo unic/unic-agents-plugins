@@ -1,14 +1,14 @@
 // @ts-check
 
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 import {
 	BOX_WORKFLOW_NAME_PATTERN,
-	GENERATED_HEADER_PREFIX,
 	discoverBoxWorkflowEntry,
+	GENERATED_HEADER_PREFIX,
 	hasGeneratedHeader,
 	installArtefacts,
 	installBoxWorkflows,
@@ -63,12 +63,14 @@ function fakeFs({ files = {}, dirs = {} } = {}) {
 		writeCalls,
 		readdirFn: (/** @type {string} */ path) => {
 			readdirCalls.push(path)
-			if (!(path in dirs)) throw Object.assign(new Error(`ENOENT: no such directory, scandir '${path}'`), { code: 'ENOENT' })
+			if (!(path in dirs))
+				throw Object.assign(new Error(`ENOENT: no such directory, scandir '${path}'`), { code: 'ENOENT' })
 			return dirs[path]
 		},
 		readFileFn: (/** @type {string} */ path) => {
 			readFileCalls.push(path)
-			if (!(path in files)) throw Object.assign(new Error(`ENOENT: no such file or directory, open '${path}'`), { code: 'ENOENT' })
+			if (!(path in files))
+				throw Object.assign(new Error(`ENOENT: no such file or directory, open '${path}'`), { code: 'ENOENT' })
 			return files[path]
 		},
 		writeFileFn: (/** @type {string} */ path, /** @type {string} */ contents) => {
@@ -113,7 +115,12 @@ test('installArtefacts (directory) removes the whole destination once, then copi
 		{ from: '/bundle/a', to: '/repo/.archon/methods/a', options: { recursive: true } },
 		{ from: '/bundle/b', to: '/repo/.archon/methods/b', options: { recursive: true } },
 	])
-	assert.deepEqual(result, { ok: true, written: ['/repo/.archon/methods/a', '/repo/.archon/methods/b'], deleted: [], skipped: [] })
+	assert.deepEqual(result, {
+		ok: true,
+		written: ['/repo/.archon/methods/a', '/repo/.archon/methods/b'],
+		deleted: [],
+		skipped: [],
+	})
 })
 
 test('installArtefacts (directory) reports which item failed and which already landed, without throwing', () => {
@@ -150,7 +157,14 @@ test('installArtefacts (named) creates the destination directory before touching
 	const fs = fakeFs({ dirs: {} }) // destination does not exist yet — fresh Consumer
 
 	const result = installArtefacts({
-		entries: [{ kind: 'named', destinationDir: DEST, namePattern: BOX_WORKFLOW_NAME_PATTERN, files: [{ name: 'unic-dlc-a.yaml', contents: 'a\n' }] }],
+		entries: [
+			{
+				kind: 'named',
+				destinationDir: DEST,
+				namePattern: BOX_WORKFLOW_NAME_PATTERN,
+				files: [{ name: 'unic-dlc-a.yaml', contents: 'a\n' }],
+			},
+		],
 		mkdirFn: fs.mkdirFn,
 		readdirFn: fs.readdirFn,
 		readFileFn: fs.readFileFn,
@@ -171,7 +185,14 @@ test('installArtefacts (named) writes every shipped file, overwriting unconditio
 	})
 
 	const result = installArtefacts({
-		entries: [{ kind: 'named', destinationDir: DEST, namePattern: BOX_WORKFLOW_NAME_PATTERN, files: [{ name: 'unic-dlc-a.yaml', contents: 'fresh\n' }] }],
+		entries: [
+			{
+				kind: 'named',
+				destinationDir: DEST,
+				namePattern: BOX_WORKFLOW_NAME_PATTERN,
+				files: [{ name: 'unic-dlc-a.yaml', contents: 'fresh\n' }],
+			},
+		],
 		mkdirFn: fs.mkdirFn,
 		readdirFn: fs.readdirFn,
 		readFileFn: fs.readFileFn,
@@ -213,7 +234,7 @@ test('installArtefacts (named) deletes a stale match that DOES carry the generat
 	const path = join(DEST, 'unic-dlc-retired.yaml')
 	const fs = fakeFs({
 		dirs: { [DEST]: ['unic-dlc-retired.yaml'] },
-		files: { [path]: renderGeneratedHeader({ pluginVersion: '1.0.0' }) + 'kind: workflow\n' },
+		files: { [path]: `${renderGeneratedHeader({ pluginVersion: '1.0.0' })}kind: workflow\n` },
 	})
 	assert.ok(hasGeneratedHeader(fs.files[path]), 'fixture must actually carry the header, or this test proves nothing')
 
@@ -235,7 +256,11 @@ test('installArtefacts (named) never inspects or deletes a file outside the nami
 	const headered = join(DEST, 'my-team-variant.yaml')
 	const fs = fakeFs({
 		dirs: { [DEST]: ['my-team-variant.yaml'] },
-		files: { [headered]: renderGeneratedHeader({ pluginVersion: '1.0.0' }) + 'kind: workflow\n# a variant copied from an installed Box\n' },
+		files: {
+			[headered]:
+				renderGeneratedHeader({ pluginVersion: '1.0.0' }) +
+				'kind: workflow\n# a variant copied from an installed Box\n',
+		},
 	})
 
 	const result = installArtefacts({
@@ -318,7 +343,6 @@ test('discoverBoxWorkflowEntry reads the plugin source directory and filters to 
 })
 
 test('discoverBoxWorkflowEntry stamps every discovered file with the generated header naming the version', () => {
-	const sourceDir = '/plugin/.archon/workflows'
 	const entry = discoverBoxWorkflowEntry({
 		pluginRoot: '/plugin',
 		repoRoot: '/repo',
@@ -343,7 +367,10 @@ test('adding a unic-dlc-*.yaml to the plugin tree installs it with no other sour
 
 	const first = installBoxWorkflows({ pluginRoot, repoRoot, pluginVersion: '0.0.1' })
 	assert.equal(first.ok, true)
-	assert.deepEqual(readdirSync(join(repoRoot, '.archon', 'workflows')).sort(), ['unic-dlc-alpha.yaml', 'unic-dlc-beta.yaml'])
+	assert.deepEqual(readdirSync(join(repoRoot, '.archon', 'workflows')).sort(), [
+		'unic-dlc-alpha.yaml',
+		'unic-dlc-beta.yaml',
+	])
 
 	// The plugin ships a new Box. No call site here changes.
 	writeFileSync(join(pluginRoot, '.archon', 'workflows', 'unic-dlc-gamma.yaml'), 'kind: workflow\nname: gamma\n')
@@ -381,10 +408,14 @@ test('re-running installBoxWorkflows with no plugin change produces byte-identic
 
 	installBoxWorkflows({ pluginRoot: PLUGIN_ROOT, repoRoot, pluginVersion: '9.9.9' })
 	const names = readdirSync(join(repoRoot, '.archon', 'workflows'))
-	const before = Object.fromEntries(names.map((name) => [name, readFileSync(join(repoRoot, '.archon', 'workflows', name), 'utf8')]))
+	const before = Object.fromEntries(
+		names.map((name) => [name, readFileSync(join(repoRoot, '.archon', 'workflows', name), 'utf8')])
+	)
 
 	installBoxWorkflows({ pluginRoot: PLUGIN_ROOT, repoRoot, pluginVersion: '9.9.9' })
-	const after = Object.fromEntries(names.map((name) => [name, readFileSync(join(repoRoot, '.archon', 'workflows', name), 'utf8')]))
+	const after = Object.fromEntries(
+		names.map((name) => [name, readFileSync(join(repoRoot, '.archon', 'workflows', name), 'utf8')])
+	)
 
 	assert.deepEqual(after, before)
 })
@@ -411,7 +442,7 @@ test('renderGeneratedHeader names the version and states that /setup replaces th
 })
 
 test('hasGeneratedHeader matches only a first-line prefix, never a substring over the whole body', () => {
-	assert.equal(hasGeneratedHeader(renderGeneratedHeader({ pluginVersion: '1.0.0' }) + 'kind: workflow\n'), true)
+	assert.equal(hasGeneratedHeader(`${renderGeneratedHeader({ pluginVersion: '1.0.0' })}kind: workflow\n`), true)
 	// The marker text appears in the body, but not as the first line — a Consumer file that merely
 	// mentions it must not be classified as plugin-owned.
 	assert.equal(hasGeneratedHeader(`kind: workflow\n# see also: ${GENERATED_HEADER_PREFIX}@1.0.0\n`), false)
