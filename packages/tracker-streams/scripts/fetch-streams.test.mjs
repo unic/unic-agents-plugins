@@ -2,7 +2,56 @@
 // @ts-check
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { isOutsideEveryStream, toCard } from './fetch-streams.mjs'
+import { isOutsideEveryStream, resolveRepository, toCard } from './fetch-streams.mjs'
+
+/**
+ * Run `resolveRepository` with `GITHUB_REPOSITORY` set to `value`, then put the
+ * environment back however the call ended.
+ *
+ * @param {string | undefined} value
+ * @returns {() => { owner: string, repo: string, slug: string }}
+ */
+const withSlug = (value) => () => {
+	const previous = process.env.GITHUB_REPOSITORY
+	try {
+		if (value === undefined) delete process.env.GITHUB_REPOSITORY
+		else process.env.GITHUB_REPOSITORY = value
+		return resolveRepository()
+	} finally {
+		if (previous === undefined) delete process.env.GITHUB_REPOSITORY
+		else process.env.GITHUB_REPOSITORY = previous
+	}
+}
+
+describe('resolveRepository', () => {
+	it('accepts a well-formed slug', () => {
+		assert.deepEqual(withSlug('unic/unic-agents-plugins')(), {
+			owner: 'unic',
+			repo: 'unic-agents-plugins',
+			slug: 'unic/unic-agents-plugins',
+		})
+	})
+
+	it('rejects a slug with a third segment', () => {
+		assert.throws(withSlug('unic/unic-agents-plugins/extra'), /malformed/)
+	})
+
+	it('rejects a slug with a trailing slash', () => {
+		assert.throws(withSlug('unic/unic-agents-plugins/'), /malformed/)
+	})
+
+	it('rejects a slug with only one segment', () => {
+		assert.throws(withSlug('unic'), /malformed/)
+	})
+
+	it('rejects a slug carrying characters no owner or repository name may hold', () => {
+		assert.throws(withSlug('unic/repo"><script>'), /malformed/)
+	})
+
+	it('rejects an unset variable', () => {
+		assert.throws(withSlug(undefined), /is not set/)
+	})
+})
 
 describe('isOutsideEveryStream', () => {
 	it('excludes a stream ticket itself', () => {

@@ -166,6 +166,53 @@ describe('renderPage — crossing edges (AC 6)', () => {
 	})
 })
 
+describe('renderPage — escaping (the page is published publicly)', () => {
+	/** A slug that closes the `href` attribute and opens an element, if it is not escaped. */
+	const HOSTILE_REPO = 'unic/repo"><script>alert(1)</script>'
+
+	/** @returns {string} */
+	function hostilePage() {
+		return renderPage({
+			repo: HOSTILE_REPO,
+			generatedAt: '2026-08-12T00:00:00Z',
+			counts: COUNTS,
+			lanes: [
+				{
+					streamNumber: 313,
+					streamTitle: 'stream: <img src=x onerror="alert(1)"> & friends',
+					streamState: 'open',
+					members: [card({ number: 281, blockers: [{ number: 280, state: 'open', crossesStream: false }] })],
+				},
+			],
+			outside: [],
+		})
+	}
+
+	it('escapes the repository slug in every issue link', () => {
+		const html = hostilePage()
+		assert.match(html, /href="https:\/\/github\.com\/unic\/repo&quot;&gt;&lt;script&gt;/)
+		assert.doesNotMatch(html, /href="https:\/\/github\.com\/unic\/repo">/)
+	})
+
+	it('escapes the repository slug in the blocker chip link too', () => {
+		const html = hostilePage()
+		const chip = html.match(/<a class="chip[^>]*>/)?.[0] ?? ''
+		assert.match(chip, /&quot;&gt;&lt;script&gt;/)
+		assert.doesNotMatch(chip, /"><script>/)
+	})
+
+	it('opens no element anywhere from a hostile repository slug or stream title', () => {
+		const html = hostilePage()
+		assert.doesNotMatch(html, /<script\b/i)
+		assert.doesNotMatch(html, /<img\b/i)
+	})
+
+	it('escapes a stream title containing markup and an ampersand', () => {
+		const html = hostilePage()
+		assert.match(html, /<h2>stream: &lt;img src=x onerror=&quot;alert\(1\)&quot;&gt; &amp; friends<\/h2>/)
+	})
+})
+
 describe('renderPage — counts (AC 9)', () => {
 	it('prints every count it was given', () => {
 		const html = samplePage()

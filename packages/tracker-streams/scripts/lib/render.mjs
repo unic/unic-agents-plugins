@@ -46,12 +46,23 @@ export function escapeHtml(value) {
 }
 
 /**
+ * The repository's issue list. Every link on the page is built from this one helper, so
+ * `repo` is escaped in exactly one place and cannot reach an `href` raw.
+ *
+ * @param {string} repo - `owner/name`
+ * @returns {string}
+ */
+function repoIssuesUrl(repo) {
+	return `https://github.com/${escapeHtml(repo)}/issues`
+}
+
+/**
  * @param {string} repo - `owner/name`
  * @param {number} number
  * @returns {string}
  */
 function issueUrl(repo, number) {
-	return `https://github.com/${repo}/issues/${number}`
+	return `${repoIssuesUrl(repo)}/${number}`
 }
 
 /**
@@ -159,7 +170,7 @@ export function renderPage({ repo, lanes, outside, counts, generatedAt }) {
 <body>
 <header>
 <h1>Tracker streams</h1>
-<p class="meta"><a href="https://github.com/${escapeHtml(repo)}/issues">${escapeHtml(
+<p class="meta"><a href="${repoIssuesUrl(repo)}">${escapeHtml(
 		repo
 	)}</a> · generated ${escapeHtml(generatedAt)} · every value read live from the tracker</p>
 ${renderCounts(counts)}

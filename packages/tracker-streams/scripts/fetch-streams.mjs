@@ -36,15 +36,31 @@ const TAKEABLE_STATE = 'ready-for-agent'
  */
 
 /**
+ * The characters GitHub allows in an owner or a repository name. Anything else would be
+ * interpolated into an API path and into the page's links, so it is rejected here rather
+ * than escaped downstream.
+ */
+const SLUG_SEGMENT = /^[A-Za-z0-9._-]+$/
+
+/**
+ * Read `GITHUB_REPOSITORY` and insist on exactly two well-formed path segments.
+ *
+ * A slug like `owner/repo/extra` used to pass: `owner` and `repo` went to the API while
+ * the whole string went to the page, so the links pointed somewhere the data did not come
+ * from. Fail loudly instead.
+ *
  * @returns {{ owner: string, repo: string, slug: string }}
  */
-function resolveRepository() {
+export function resolveRepository() {
 	const slug = process.env.GITHUB_REPOSITORY
 	if (!slug) {
 		throw new CliError('GITHUB_REPOSITORY is not set — expected "owner/repo" (GitHub Actions sets this for you)')
 	}
-	const [owner, repo] = slug.split('/')
-	if (!owner || !repo) throw new CliError(`GITHUB_REPOSITORY is malformed: "${slug}" — expected "owner/repo"`)
+	const segments = slug.split('/')
+	const [owner, repo] = segments
+	if (segments.length !== 2 || !SLUG_SEGMENT.test(owner) || !SLUG_SEGMENT.test(repo)) {
+		throw new CliError(`GITHUB_REPOSITORY is malformed: "${slug}" — expected exactly "owner/repo"`)
+	}
 	return { owner, repo, slug }
 }
 
