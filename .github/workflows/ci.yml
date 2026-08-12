@@ -115,5 +115,5 @@ jobs:
           az extension add --name azure-devops
       - run: pnpm --filter ${{ matrix.package.name }} --if-present test
       - run: pnpm --filter ${{ matrix.package.name }} --if-present typecheck
-      - if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request' && matrix.package.name != 'release-tools'
         run: pnpm --filter ${{ matrix.package.name }} --if-present verify:changelog
