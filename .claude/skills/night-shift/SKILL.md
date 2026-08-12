@@ -50,6 +50,43 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
 
 ---
 
+## Pre-audit every issue before you dispatch it
+
+An issue written before the last merge describes a tree that no longer exists. Audit each one against
+the current tree **before** dispatching it, in a fresh context, the same way Gate 3 audits a diff. The
+auditor checks four things:
+
+1. Every `file:line` the issue cites still resolves, and still says what the issue claims.
+2. The acceptance criteria read as **one list**: which pair cannot both hold, and where a criterion
+   says _what_ must happen without saying _on what basis_ it is decided. That gap is the dangerous
+   shape — an implementer fills it with a defensible-sounding rule and ships a green pull request that
+   does the wrong thing.
+3. Which criteria an implementer can satisfy by changing nothing. A vacuous criterion is a finding,
+   not a pass.
+4. What the last merge moved, deleted or reshaped underneath the issue.
+
+The verdict is one word: `dispatchable` or `needs-amendment`.
+
+### On `needs-amendment`
+
+Do all three, then move on:
+
+1. **Comment** on the issue with the findings and their evidence. This is the amendment brief, so it
+   must say what a human has to decide, not only what is wrong.
+2. **Relabel** `ready-for-agent` → `needs-specs`. An issue that keeps `ready-for-agent` is takeable,
+   and the next unattended rollout will take it.
+3. **Skip it. Do not stop the chain** — a failed pre-audit is one ticket's problem, not the night's.
+
+**Unless it blocks another issue in the chain.** Then skip the blocked issues too, by the same three
+steps, and say in each comment which issue blocked it. Judge blocking by a native `blocked_by`
+relation; prose in an issue body is not the contract, but a criterion that cannot be written until
+another issue lands is a real block whatever the tracker says.
+
+Amending the criteria is still a human act. Draft a replacement list only when asked, always as a
+comment, never in the issue body, and mark every choice in it as the drafter's.
+
+---
+
 ## Per slice
 
 1. **Fast-forward `develop`** so the fork point carries the previous merge.
