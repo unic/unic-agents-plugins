@@ -180,6 +180,18 @@ test('validateConfig treats a team-renamed Label string as answered', () => {
 	assert.ok(!('error' in validateConfig(config)), 'a renamed Label string is still a mapped role')
 })
 
+test('validateConfig rejects a classification.labels that is not a plain object', () => {
+	// A hand-edit that collapses `labels:` from a mapping to a scalar is a structural fault, not an
+	// unanswered field — MANDATORY_PATHS alone would pass it through as "present".
+	const config = answeredConfig({ classification: { labels: 'not-an-object' } })
+
+	const result = validateConfig(config)
+	assert.ok('error' in result && result.error === true, 'a wrong-shaped labels value must be a fault')
+	if (!('error' in result)) return
+	assert.deepEqual(result.missing, ['classification.labels'])
+	assert.ok('error' in toYaml(config), 'toYaml must refuse to write a wrong-shaped labels value')
+})
+
 test('mergeConfig precedence: defaults < existing < answers', () => {
 	const existing = { model_profile: 'fast', build: { tdd_mode: false } }
 	const answers = { model_profile: 'max' }
@@ -493,6 +505,22 @@ test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 1
 		setupDoc,
 		/Do \*\*not\*\* ask for `project\.repo_ref` and do not write it/,
 		'commands/setup.md must keep telling the agent not to ask for or write project.repo_ref'
+	)
+})
+
+test('commands/setup.md keeps the classification.labels question and the CLAUDE.md marker sentence', () => {
+	// Same pattern as the repo_ref guard above: doc-only prose with no other test surface, guarding
+	// against a future reformat or merge-conflict resolution silently dropping either paragraph.
+	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
+	assert.match(
+		setupDoc,
+		/\*\*classification\*\* — `classification\.labels` _\(mandatory\)_/,
+		'Step 4 must keep asking the Canonical role → Label string question'
+	)
+	assert.match(
+		setupDoc,
+		/carries one sentence naming `classification\.labels`/,
+		'Step 7 must keep pointing the CLAUDE.md marker block at classification.labels'
 	)
 })
 

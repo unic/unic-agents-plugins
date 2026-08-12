@@ -277,6 +277,8 @@ export function validateConfig(config) {
 				}
 			}
 		}
+	} else if (labels !== undefined && labels !== null && labels !== '') {
+		missing.push('classification.labels')
 	}
 
 	if (missing.length > 0) {
