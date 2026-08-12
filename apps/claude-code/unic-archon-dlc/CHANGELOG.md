@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.19.0] — 2026-08-12
+
+### Breaking
 - **`defaultConfig()` no longer seeds `classification.labels`, and `getDefaultLabels` is deleted.**
   `lib/labels-config.mjs` now exports the three frozen role arrays and nothing else, and
   `classification.labels` joins `MANDATORY_PATHS` — so a config without one reads as `partial` and
