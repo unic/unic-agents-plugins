@@ -71,22 +71,35 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: ['22', '24']
+        # `plugin` decides whether verify:changelog applies. Only a versioned plugin under
+        # apps/claude-code/ carries .claude-plugin/plugin.json and a CHANGELOG the gate can read;
+        # a workspace package under packages/ is private at 0.0.0 and has neither. Naming the
+        # exceptions instead would need a new exclusion per package added — which is how
+        # release-tools and tracker-streams both ended up configured for a step they cannot run.
         package:
           - name: auto-format
+            plugin: true
             changed: ${{ needs.changes.outputs.auto-format }}
           - name: unic-confluence
+            plugin: true
             changed: ${{ needs.changes.outputs.unic-confluence }}
           - name: release-tools
+            plugin: false
             changed: ${{ needs.changes.outputs.release-tools }}
           - name: unic-archon-dlc
+            plugin: true
             changed: ${{ needs.changes.outputs.unic-archon-dlc }}
           - name: pr-review
+            plugin: true
             changed: ${{ needs.changes.outputs.pr-review }}
           - name: unic-pr-review
+            plugin: true
             changed: ${{ needs.changes.outputs.unic-pr-review }}
           - name: unic-spec-review
+            plugin: true
             changed: ${{ needs.changes.outputs.unic-spec-review }}
           - name: tracker-streams
+            plugin: false
             changed: ${{ needs.changes.outputs.tracker-streams }}
         exclude:
           - package:
@@ -115,5 +128,5 @@ jobs:
           az extension add --name azure-devops
       - run: pnpm --filter ${{ matrix.package.name }} --if-present test
       - run: pnpm --filter ${{ matrix.package.name }} --if-present typecheck
-      - if: github.event_name == 'pull_request'
-        run: pnpm --filter ${{ matrix.package.name }} --if-present verify:changelog
+      - if: github.event_name == 'pull_request' && matrix.package.plugin
+        run: pnpm --filter ${{ matrix.package.name }} verify:changelog
