@@ -317,6 +317,91 @@ test('installArtefacts (named) reports an unreadable stale match, never silently
 	assert.deepEqual(rmCalls, [])
 })
 
+test('installArtefacts (named) does not fail the install over a stale match that is already gone', () => {
+	// The whole file vanished between `readdir` and the sweep. The desired end state — the retired
+	// name is not on disk — already holds, so reporting failure would be a false negative. It is not
+	// counted in `deleted` either: this sweep did not delete it.
+	const path = join(DEST, 'unic-dlc-retired.yaml')
+	/** @type {Record<string, string[]>} */
+	const dirs = { [DEST]: ['unic-dlc-retired.yaml'] }
+	/** @type {string[]} */
+	const rmPaths = []
+
+	const result = installArtefacts({
+		entries: [{ kind: 'named', destinationDir: DEST, namePattern: BOX_WORKFLOW_NAME_PATTERN, files: [] }],
+		mkdirFn: () => {},
+		readdirFn: (p) => dirs[p] ?? [],
+		readFileFn: () => {
+			throw Object.assign(new Error(`ENOENT: no such file or directory, open '${path}'`), { code: 'ENOENT' })
+		},
+		writeFileFn: () => {},
+		rmFn: (p) => {
+			rmPaths.push(p)
+			throw Object.assign(new Error(`ENOENT: no such file or directory, unlink '${p}'`), { code: 'ENOENT' })
+		},
+		existsFn: (p) => p in dirs,
+	})
+
+	assert.equal(result.ok, true)
+	assert.deepEqual(result.deleted, [])
+	assert.deepEqual(result.skipped, [])
+	// The delete was still attempted — absence is concluded from the delete, never assumed from the read.
+	assert.deepEqual(rmPaths, [path])
+})
+
+test('installArtefacts (named) still deletes a stale match whose CONTENTS are unreadable but whose name is on disk', () => {
+	// A dangling symlink is the case that makes an ENOENT from the read useless as proof of absence:
+	// the read fails ENOENT while the directory entry is listed, stale, and perfectly deletable. If
+	// the sweep forgave the read, a retired Box name would survive under a green /setup.
+	const path = join(DEST, 'unic-dlc-retired.yaml')
+	/** @type {Record<string, string[]>} */
+	const dirs = { [DEST]: ['unic-dlc-retired.yaml'] }
+	/** @type {string[]} */
+	const rmPaths = []
+
+	const result = installArtefacts({
+		entries: [{ kind: 'named', destinationDir: DEST, namePattern: BOX_WORKFLOW_NAME_PATTERN, files: [] }],
+		mkdirFn: () => {},
+		readdirFn: (p) => dirs[p] ?? [],
+		readFileFn: () => {
+			throw Object.assign(new Error(`ENOENT: no such file or directory, open '${path}'`), { code: 'ENOENT' })
+		},
+		writeFileFn: () => {},
+		rmFn: (p) => rmPaths.push(p),
+		existsFn: (p) => p in dirs,
+	})
+
+	assert.equal(result.ok, true)
+	assert.deepEqual(result.deleted, [path])
+	assert.deepEqual(result.skipped, [])
+	assert.deepEqual(rmPaths, [path])
+})
+
+test('installArtefacts (named) reports a stale match the delete itself cannot remove', () => {
+	// The ENOENT relaxation above must not have become blanket leniency: an EACCES on the delete
+	// leaves the retired Box on disk, which is exactly what must not pass as success.
+	const path = join(DEST, 'unic-dlc-retired.yaml')
+	/** @type {Record<string, string[]>} */
+	const dirs = { [DEST]: ['unic-dlc-retired.yaml'] }
+
+	const result = installArtefacts({
+		entries: [{ kind: 'named', destinationDir: DEST, namePattern: BOX_WORKFLOW_NAME_PATTERN, files: [] }],
+		mkdirFn: () => {},
+		readdirFn: (p) => dirs[p] ?? [],
+		readFileFn: () => 'kind: workflow\n',
+		writeFileFn: () => {},
+		rmFn: () => {
+			throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+		},
+		existsFn: (p) => p in dirs,
+	})
+
+	assert.equal(result.ok, false)
+	assert.equal(/** @type {{ stage: string }} */ (result).stage, 'stale-sweep')
+	assert.deepEqual(result.skipped, [{ path, message: 'EACCES: permission denied' }])
+	assert.deepEqual(result.deleted, [])
+})
+
 // --- discoverBoxWorkflowEntry -----------------------------------------------------------------
 
 test('discoverBoxWorkflowEntry reads the plugin source directory and filters to unic-dlc-*.yaml', () => {
@@ -343,6 +428,51 @@ test('discoverBoxWorkflowEntry reads the plugin source directory and filters to 
 	)
 	assert.equal(entry.kind, 'named')
 	assert.equal(entry.destinationDir, join('/repo', '.archon', 'workflows'))
+})
+
+test('discoverBoxWorkflowEntry orders the discovered set by name, not by readdir order', () => {
+	// `readdir` returns whatever the filesystem returns — insertion order on ext4, hash order
+	// elsewhere — so an unsorted set makes the install order, `written[]` and the /setup Step 8
+	// summary differ between a maintainer's Mac and the Linux CI runner for identical inputs.
+	const sourceDir = join('/plugin', '.archon', 'workflows')
+
+	const entry = discoverBoxWorkflowEntry({
+		pluginRoot: '/plugin',
+		repoRoot: '/repo',
+		pluginVersion: '1.2.3',
+		readdirFn: () => ['unic-dlc-c.yaml', 'unic-dlc-a.yaml', 'unic-dlc-b.yaml'],
+		readFileFn: (path) => `body of ${path}\n`,
+	})
+
+	assert.deepEqual(
+		entry.files.map((f) => f.name),
+		['unic-dlc-a.yaml', 'unic-dlc-b.yaml', 'unic-dlc-c.yaml']
+	)
+	// Each entry still carries its OWN body — sorting the names must not shear names from contents.
+	assert.match(entry.files[0].contents, /body of .*unic-dlc-a\.yaml/)
+	assert.ok(entry.files[0].contents.includes(join(sourceDir, 'unic-dlc-a.yaml')))
+})
+
+test('installBoxWorkflows writes in name order, so written[] and the Step 8 summary are stable across machines', () => {
+	const fs = fakeFs({ dirs: { [join('/plugin', '.archon', 'workflows')]: ['unic-dlc-c.yaml', 'unic-dlc-a.yaml'] } })
+
+	const result = installBoxWorkflows({
+		pluginRoot: '/plugin',
+		repoRoot: '/repo',
+		pluginVersion: '1.2.3',
+		readdirFn: (path) => fs.dirs[path] ?? [],
+		readFileFn: () => 'kind: workflow\n',
+		mkdirFn: fs.mkdirFn,
+		writeFileFn: fs.writeFileFn,
+		rmFn: fs.rmFn,
+		existsFn: (path) => path in fs.dirs,
+	})
+
+	assert.equal(result.ok, true)
+	assert.deepEqual(result.written, [
+		join('/repo', '.archon', 'workflows', 'unic-dlc-a.yaml'),
+		join('/repo', '.archon', 'workflows', 'unic-dlc-c.yaml'),
+	])
 })
 
 test('discoverBoxWorkflowEntry stamps every discovered file with the generated header naming the version', () => {

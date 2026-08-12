@@ -156,7 +156,8 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
  *
  * A failure mid-copy (`EBUSY`/`ENOSPC`/`EACCES`) is caught per-entry rather than left to propagate: the
  * `rmFn` above already ran, so the caller needs to know exactly which Methods made it to disk and which
- * didn't, not just that something threw.
+ * didn't, not just that something threw. `failed` names a Method in that case and the install directory
+ * when the preceding clean is what failed — never an absolute path, in either case.
  *
  * @param {InstallMethodsOptions} options
  * @returns {InstallMethodsResult}
@@ -175,6 +176,22 @@ export function installMethods({ bundleRoot, repoRoot, rmFn = rmSync, cpFn = cpS
 	})
 
 	if (result.ok) return { ok: true, installed: items.map((item) => item.name) }
+
+	// The clean that precedes the copies fails on a directory, not on a Method, so `result.failed` is
+	// an absolute path here where every other stage carries a Method name. Formatting it through the
+	// message below would name a directory as a Method. `failed` stays the relative install dir: a
+	// stable value across machines, and the same string the message already prints.
+	if (result.stage === 'directory-clean') {
+		return {
+			ok: false,
+			installed: [],
+			failed: INSTALL_DIR,
+			message:
+				`Failed to clear ${INSTALL_DIR} before installing the Methods (${result.cause}). ` +
+				'No Method was installed; clear the cause — an open file handle or a permissions problem on that ' +
+				'directory — then re-run /unic-archon-dlc:setup.',
+		}
+	}
 
 	const failedIndex = items.findIndex((item) => item.to === result.failed)
 	const installed = items.slice(0, failedIndex === -1 ? 0 : failedIndex).map((item) => item.name)

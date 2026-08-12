@@ -64,7 +64,7 @@ Box added to or retired from the Plugin changes what installs with no code chang
 path. `test/box-staging-and-repo-pinning.test.mjs`'s guarded set is derived the same way, replacing
 the hand-maintained "does not shrink" literal list that PR #333's own test carried.
 
-`/setup` writes nothing into `.archon/commands/`. The four Box command docs move to
+`/setup` writes nothing into `.archon/commands/`. Every Box command doc moves to
 [`docs/boxes/`](../boxes/) as operator documentation — read in this Plugin's own repo, never
 installed into a Consumer. `.archon/commands/` keeps only its `.gitkeep`. Each doc's invocation is
 `archon workflow run <name> "<slug>"`; none mentions `--input`, which is not a real flag.
@@ -86,7 +86,14 @@ down is not the same thing as a file this engine wrote.
 
 A file that cannot be read during the sweep is reported in a `skipped` list, never silently dropped,
 and the install reports failure rather than success while a Box it meant to retire might still be on
-disk (`stage: 'stale-sweep'` in `installArtefacts`'s result).
+disk (`stage: 'stale-sweep'` in `installArtefacts`'s result). One error is forgiven, precisely:
+`ENOENT` **from the deletion**. A name that is absent is not "still on disk" — it is already in the
+end state the sweep wanted — so it is neither a failure nor a deletion the sweep performed, and it
+appears in neither list. `ENOENT` from the **read** is forgiven by nobody, because it is not proof of
+absence: a dangling symlink reads `ENOENT` while its directory entry is still listed and still stale.
+The deletion is therefore what concludes absence; the read stays a strict probe for every other
+failure. For the same reason `rm` is called with `force: false` — `force: true` would swallow the
+`ENOENT` inside `rm`, and the sweep would then report a `deleted` path it never deleted.
 
 Overwrite silently rather than warn or refuse: refusing would break the upgrade path (`/setup` Step 6
 runs even when `STATE = 'full'`, precisely so a plugin upgrade lands with no reconfigure), and

@@ -254,6 +254,30 @@ test('installMethods reports a partial failure without throwing, naming which Me
 	assert.match(/** @type {{ message: string }} */ (result).message, /re-run \/unic-archon-dlc:setup/)
 })
 
+test('installMethods names the install directory, not a bogus Method, when the clean itself fails', () => {
+	// The clean runs before any copy, so it fails on a directory. Every other stage reports a Method
+	// name in `failed`, and the message formats `failed` as one — so passing the raw value through
+	// here printed an absolute path inside `Failed to install Method "…"`, which names no Method and
+	// differs on every machine.
+	const result = installMethods({
+		bundleRoot: resolve('/bundle'),
+		repoRoot: resolve('/repo'),
+		rmFn: () => {
+			throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+		},
+		cpFn: () => {},
+	})
+
+	assert.equal(result.ok, false)
+	assert.deepEqual(/** @type {{ installed: string[] }} */ (result).installed, [])
+	assert.equal(/** @type {{ failed: string }} */ (result).failed, '.archon/methods')
+	const message = /** @type {{ message: string }} */ (result).message
+	assert.doesNotMatch(message, /Method "/, 'the clean failure must not be reported as a named Method')
+	assert.match(message, /\.archon\/methods/)
+	assert.match(message, /EACCES/)
+	assert.match(message, /re-run \/unic-archon-dlc:setup/)
+})
+
 // --- inspectLocalOverrides --------------------------------------------------------------------
 
 test('inspectLocalOverrides returns nothing when the Local tier does not exist', () => {

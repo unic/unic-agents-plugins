@@ -55,7 +55,7 @@ human to run and deliberately not bundled (see [Dependencies](#dependencies)).
 
 ## Archon workflow pipelines
 
-The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
+The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
 ([ADR-0011](docs/adr/0011-archon-schema-target.md)):
 
 | Workflow             | Node pipeline                                                                                                                                                                               |

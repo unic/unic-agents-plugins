@@ -23,7 +23,11 @@ import { join } from 'node:path'
  * list no longer ships, **regardless of whether it carries the generated header** — ownership is
  * decided by name alone, never by reading file contents. A name this entry cannot even read is
  * reported in `skipped`, never silently dropped: `/setup` must not report success while a stale
- * artefact it meant to retire is still on disk.
+ * artefact it meant to retire is still on disk. The one exception is precise, and it is the whole
+ * reason the sweep classifies errors by `errno` rather than treating every throw alike: a name that
+ * is *absent* is not "still on disk" — it is already in the end state the sweep wanted — so `ENOENT`
+ * from the deletion is neither a failure nor a deletion this sweep performed. See
+ * {@link installArtefacts}'s sweep for why the read cannot be the arbiter of that.
  */
 
 /**
@@ -71,6 +75,18 @@ import { join } from 'node:path'
 /**
  * @typedef {{ path: string, message: string }} SkippedArtefact
  */
+
+/**
+ * The `errno` code of a thrown filesystem error, or null when it carries none (a test double, a
+ * plain `Error`). Null never matches a code, so an error without one takes the strict branch.
+ *
+ * @param {unknown} err
+ * @returns {string | null}
+ */
+function errnoCode(err) {
+	const code = /** @type {NodeJS.ErrnoException} */ (err)?.code
+	return typeof code === 'string' ? code : null
+}
 
 /**
  * @typedef {{ ok: true, written: string[], deleted: string[], skipped: SkippedArtefact[] } | { ok: false, written: string[], deleted: string[], skipped: SkippedArtefact[], stage: string, failed: string, cause: string }} InstallArtefactsResult
@@ -169,15 +185,34 @@ export function installArtefacts({
 		// Stale sweep, scoped strictly to namePattern. A stale match is deleted regardless of its
 		// contents — ownership is decided by name alone. A match that cannot even be read is reported
 		// in `skipped`, not silently left in place.
+		//
+		// Only ENOENT is forgiven, and only from the DELETION, never from the read. The read cannot be
+		// the arbiter of absence: a dangling symlink reads ENOENT while its directory entry is still
+		// listed and still stale, and forgiving that would leave a retired Box name in place under a
+		// green `/setup` — this issue's motivating defect. The read stays a strict probe for every
+		// other failure (EACCES, EISDIR); an ENOENT from it only means "let the delete decide".
+		//
+		// `force` stays false for the same reason: `force: true` would swallow the ENOENT inside `rm`,
+		// and this loop would then record a `deleted` path it never deleted.
 		for (const name of existingNames) {
 			if (!entry.namePattern.test(name)) continue
 			if (shippedNames.has(name)) continue
 			const path = join(entry.destinationDir, name)
 			try {
 				readFileFn(path)
+			} catch (err) {
+				if (errnoCode(err) !== 'ENOENT') {
+					skipped.push({ path, message: /** @type {Error} */ (err).message })
+					continue
+				}
+			}
+			try {
 				rmFn(path, { recursive: false, force: false })
 				deleted.push(path)
 			} catch (err) {
+				// The name is already absent — the end state this sweep wanted. Not `deleted`, because
+				// this sweep did not delete it, and not `skipped`, because nothing was left behind.
+				if (errnoCode(err) === 'ENOENT') continue
 				skipped.push({ path, message: /** @type {Error} */ (err).message })
 			}
 		}
@@ -278,7 +313,14 @@ export function discoverBoxWorkflowEntry({
 	readFileFn = (path) => readFileSync(path, 'utf8'),
 }) {
 	const sourceDir = join(pluginRoot, '.archon', 'workflows')
-	const names = readdirFn(sourceDir).filter((name) => BOX_WORKFLOW_NAME_PATTERN.test(name))
+	// Sorted, because `readdir` order is whatever the filesystem returns — insertion order on ext4,
+	// hash order elsewhere — and it flows straight through to `written[]` and the `/setup` Step 8
+	// summary an operator reads. Plain `.sort()` on purpose: it orders by UTF-16 code unit, so the
+	// result is identical on macOS, Windows and Linux. `localeCompare` would not be — it depends on
+	// the runtime's ICU data.
+	const names = readdirFn(sourceDir)
+		.filter((name) => BOX_WORKFLOW_NAME_PATTERN.test(name))
+		.sort()
 	const header = renderGeneratedHeader({ pluginVersion })
 	const files = names.map((name) => ({
 		name,
