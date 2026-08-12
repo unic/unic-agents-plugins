@@ -214,10 +214,20 @@ Rendered by Claude at user-invocation time. `commands/setup.md` becomes `/unic-a
 _Avoid_: command, command template (which means something else here)
 
 **Archon workflow command template**:
-A markdown file under `.archon/commands/` (e.g. `unic-dlc-build.md`). Rendered by the Archon
-workflow engine inside a workflow node, not by Claude directly. Same file extension as a slash
-command, completely different runtime.
+A markdown file under `.archon/commands/`, resolved by a workflow's own `command:` node — Archon's
+own doctrine: "Commands are referenced by name (without `.md`) in workflow YAML files." Rendered by
+the Archon workflow engine inside a workflow node, not by Claude directly. Same file extension as a
+slash command, completely different runtime. None of this Plugin's shipped Boxes currently
+reference one — see Box operator doc below — but a Box that adds a `command:` node later costs one
+entry in `/setup`'s install set, not a new concept.
 _Avoid_: slash command, workflow command (ambiguous)
+
+**Box operator doc**:
+A markdown file under `docs/boxes/` (e.g. `unic-dlc-build.md`) documenting one Box for a human
+operator — usage, prerequisites, what the workflow does, its `archon workflow run <name> "<slug>"`
+invocation. Never installed by `/setup`: it is read in this Plugin's own repo, not shipped into a
+Consumer. Not an Archon workflow command template — no `command:` node resolves it.
+_Avoid_: command stub, command doc (both suggest the runtime template above)
 
 ### Architecture-health artifacts
 

@@ -1,6 +1,6 @@
 {
   "name": "unic-archon-dlc",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "A config-driven AI development lifecycle as an installable Claude Code plugin — main line /specs → /tickets → /build → /pr-review → /qa, plus /triage, /explore, /improve-architecture, and /cleanup. Four Archon workflows (build, qa, pr-review, explore) with human approval gates; the rest are commands/skills composing Matt Pocock's methods.",
   "author": {
     "name": "Unic AG",

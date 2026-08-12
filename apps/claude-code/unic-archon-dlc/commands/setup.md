@@ -6,7 +6,7 @@ description: 'Configure unic-archon-dlc for this project: detect the stack, regi
 
 # unic-archon-dlc:setup
 
-> Design rationale: [ADR-0019 — Conversational `/setup` + one thin tested schema lib](docs/adr/0019-conversational-setup.md) (supersedes ADR-0001).
+> Design rationale: [ADR-0019 — Conversational `/setup` + one thin tested schema lib](docs/adr/0019-conversational-setup.md) (supersedes ADR-0001); [ADR-0036 — `/setup` owns a named install set](docs/adr/0036-setup-owns-a-named-install-set.md) for Step 6's install engine.
 
 **Arguments:** "$ARGUMENTS"
 
@@ -228,9 +228,11 @@ EOJS
 
 Parse the JSON output. If `ok` is `false`, print `message` and stop. If `ok` is `true`, note `configPath` and (if present) `legacyKept` — the legacy `.json` is **left in place** because other tools may still read it.
 
-## Step 6 — Install the Methods
+## Step 6 — Install the Methods and the Box workflows
 
 The Methods the Boxes compose ship inside this Plugin at `vendor/mattpocock-skills/`. This step verifies that bundle and copies it into `.archon/methods/`, the `bundle` tier `resolveMethod` reads. It **never touches `.archon/methods.local/`** — that tier is the operator's own uncommitted override.
+
+The same step then installs every `unic-dlc-*.yaml` this Plugin ships into the Consumer's `.archon/workflows/`, discovered by reading this Plugin's own `.archon/workflows/` at install time — no Box name is a literal anywhere in the install path. This is **name-scoped**, never a whole-directory clean-replace: `.archon/workflows/` is shared with the Consumer's own workflows, so only names matching the `unic-dlc-*.yaml` naming are ever written, overwritten, or swept as stale — including a Box retired from a later Plugin version, which is deleted **regardless of whether it carries the generated header**. A file named outside that pattern is never inspected, whatever it contains — that is what makes the variant escape hatch (README.md) true. `/setup` writes nothing into `.archon/commands/`; the Box command stubs live at `docs/boxes/` as operator documentation, not runtime artefacts.
 
 Substitute `{MERGED_CONFIG_JSON}` with the JSON-serialised config Step 5 wrote — or with `CURRENT` when Step 5 was skipped — so the tier report reflects the team's own `methods.<name>.source` declarations. Then run:
 
@@ -247,9 +249,12 @@ try {
   const bundle = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-bundle.mjs')).href)
   const manifest = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-manifest.mjs')).href)
   const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
+  const artefacts = await import(pathToFileURL(join(pluginRoot, 'lib', 'artefact-install.mjs')).href)
+  const { readFileSync } = await import('node:fs')
   const cwd = process.cwd()
   const config = {MERGED_CONFIG_JSON}
   const bundleRoot = join(pluginRoot, 'vendor', 'mattpocock-skills')
+  const pluginVersion = JSON.parse(readFileSync(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version
 
   const licence = bundle.verifyLicence({ bundleRoot })
   if (!licence.ok) {
@@ -263,12 +268,29 @@ try {
       if (!install.ok) {
         result = { ok: false, stage: 'install', message: install.message }
       } else {
-        const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
-        const tiers = manifest.METHODS_MANIFEST.map((entry) => {
-          const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
-          return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
-        })
-        result = { ok: true, tag: manifest.METHODS_BUNDLE.tag, installed: install.installed, overrides, tiers }
+        const workflows = artefacts.installBoxWorkflows({ pluginRoot, repoRoot: cwd, pluginVersion })
+        if (!workflows.ok) {
+          result = {
+            ok: false,
+            stage: 'workflows',
+            message: `Failed to install the Box workflow YAMLs into .archon/workflows/ (${workflows.stage}: ${workflows.cause}). ${workflows.written.length} file(s) written and ${workflows.deleted.length} stale file(s) removed before the failure; re-run /unic-archon-dlc:setup to retry.`,
+          }
+        } else {
+          const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
+          const tiers = manifest.METHODS_MANIFEST.map((entry) => {
+            const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
+            return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
+          })
+          result = {
+            ok: true,
+            tag: manifest.METHODS_BUNDLE.tag,
+            installed: install.installed,
+            overrides,
+            tiers,
+            workflowsWritten: workflows.written,
+            workflowsDeleted: workflows.deleted,
+          }
+        }
       }
     }
   }
@@ -279,9 +301,9 @@ process.stdout.write(JSON.stringify(result) + '\n')
 EOJS
 ```
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — each failure mode (`licence`, `bundle`, `install`, `unexpected`) means the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` failure, the message already tells the operator how many Methods landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the tree).
+Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — each failure mode (`licence`, `bundle`, `install`, `workflows`, `unexpected`) means the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` or `workflows` failure, the message already tells the operator how much landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the affected tree). A `workflows` failure whose stage is `stale-sweep` means a `unic-dlc-*.yaml` this Plugin no longer ships could not be read or removed — its path and the read/remove error are already named in `message`, so `/setup` never reports success while that stale Box is still on disk.
 
-If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, and `OVERRIDES` for the Step 8 summary. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
+If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_WRITTEN`, and `WORKFLOWS_DELETED` for the Step 8 summary. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
 
 ## Step 7 — Update agent docs (idempotent)
 
@@ -302,6 +324,8 @@ unic-archon-dlc configured.
   gates:    build={…} qa={…} pr-review={…} explore={…}
   methods:  {name}({tier}) · {name}({tier}) · … (bundle {BUNDLE_TAG})
   overrides: none
+  workflows written: {path} · {path} · …
+  workflows removed: none
 ```
 
 Fill `{configPath}` from `configPath` (Step 5's output) or, when Step 5 was skipped, from `CONFIG_PATH` (Step 2's output).
@@ -311,5 +335,7 @@ Fill the `archon remote:` line from `ARCHON_REMOTE_RESOLVED`. When it is null, p
 Build the `methods:` line from `TIERS` — one `{name}({tier})` per manifest entry, `·`-separated. A `null` tier means the Method resolved at no tier at all; print it as `{name}(UNRESOLVED)` and name it as a fault worth reporting.
 
 Build the `overrides:` line from `OVERRIDES`: `none` when it is empty, otherwise one entry per override whose `matchesBundle` is `false`, e.g. `overrides: tdd — forked_from mismatch (expected {BUNDLE_TAG}, got v1.0.0|missing)`. Overrides that match the Bundle tag need no flag.
+
+Build the `workflows written:` line from `WORKFLOWS_WRITTEN` — every path this run wrote into `.archon/workflows/`, `·`-separated. Build `workflows removed:` from `WORKFLOWS_DELETED` — `none` when it is empty, otherwise every stale `unic-dlc-*.yaml` path this run swept because the current Plugin version no longer ships it. Both lists name **paths written and paths deleted**, never a count alone — the point is a reviewable diff, not a summary number.
 
 Then note: **re-run `/unic-archon-dlc:setup` after updating the plugin** to pick up new config keys (the merge is idempotent — your existing values are preserved).

@@ -7,8 +7,8 @@ description: Run the unic-archon-dlc QA workflow — e2e, coverage gate, UAT sig
 Runs the `qa` box: end-to-end tests → coverage gate → UAT sign-off → PR-base verification → merge.
 It is also an **issue-producing on-ramp** — when UAT surfaces a defect, the workflow files it directly
 as an **agent-ready tracker issue** (feeding `/tickets`) instead of only halting. Ported to the
-key-discriminated Archon node schema ([ADR-0011](../../docs/adr/0011-archon-schema-target.md)); design in
-[ADR-0025](../../docs/adr/0025-qa-pipeline-onramp.md).
+key-discriminated Archon node schema ([ADR-0011](../adr/0011-archon-schema-target.md)); design in
+[ADR-0025](../adr/0025-qa-pipeline-onramp.md).
 
 ## Usage
 
@@ -65,7 +65,7 @@ mismatched PR base blocks the merge even in AFK (fail-closed `when`).
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
 - The current branch has an open PR targeting the base branch (for verify-pr-base + merge).
 - The checkout has an `origin` remote, or `project.repo_ref` is set.
-- Archon ≥ 0.7.0 ([ADR-0033](../../docs/adr/0033-archon-070-schema-target.md)).
+- Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 
@@ -86,5 +86,5 @@ Read from `.archon/unic-dlc.config.yaml`:
 ## Runs
 
 ```
-archon workflow run unic-dlc-qa --input <slug>
+archon workflow run unic-dlc-qa "<slug>"
 ```

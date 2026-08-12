@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { installArtefacts } from './artefact-install.mjs'
 import { METHODS_BUNDLE, METHODS_MANIFEST } from './methods-manifest.mjs'
 
 /**
@@ -141,9 +142,12 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
  * Install the bundle into `<repoRoot>/.archon/methods/<name>/`, replacing whatever was there.
  *
  * Clean-replace, not merge: a Method dropped from the manifest in a later version must not linger on
- * disk, where `resolveMethod` would keep resolving it at the `bundle` tier. `rmSync` needs both
- * options spelled out — `recursive` defaults to `false`, and `force` defaults to `false`, so a
- * first-ever install with no `.archon/methods/` yet would throw instead of no-op'ing.
+ * disk, where `resolveMethod` would keep resolving it at the `bundle` tier. Delegates to the generic
+ * `installArtefacts` engine (`artefact-install.mjs`) as a single **directory** entry — the one entry
+ * that owns its whole destination directory, because `.archon/methods/` is entirely Plugin-owned
+ * (#294). `rmSync` needs both options spelled out — `recursive` defaults to `false`, and `force`
+ * defaults to `false`, so a first-ever install with no `.archon/methods/` yet would throw instead of
+ * no-op'ing.
  *
  * The installed tree is flat, keyed by canonical Method name, because that is what `resolveMethod`
  * reads; only the vendored source mirrors upstream's category directories.
@@ -152,32 +156,54 @@ export function verifyLicence({ bundleRoot, readFileFn = readFileSync }) {
  *
  * A failure mid-copy (`EBUSY`/`ENOSPC`/`EACCES`) is caught per-entry rather than left to propagate: the
  * `rmFn` above already ran, so the caller needs to know exactly which Methods made it to disk and which
- * didn't, not just that something threw.
+ * didn't, not just that something threw. `failed` names a Method in that case and the install directory
+ * when the preceding clean is what failed — never an absolute path, in either case.
  *
  * @param {InstallMethodsOptions} options
  * @returns {InstallMethodsResult}
  */
 export function installMethods({ bundleRoot, repoRoot, rmFn = rmSync, cpFn = cpSync }) {
-	rmFn(join(repoRoot, INSTALL_DIR), { recursive: true, force: true })
-	const installed = []
-	for (const entry of METHODS_MANIFEST) {
-		try {
-			cpFn(join(bundleRoot, dirname(entry.upstreamPath)), join(repoRoot, INSTALL_DIR, entry.name), {
-				recursive: true,
-			})
-		} catch (err) {
-			return {
-				ok: false,
-				installed,
-				failed: entry.name,
-				message:
-					`Failed to install Method "${entry.name}" into ${INSTALL_DIR} (${/** @type {Error} */ (err).message}). ` +
-					`${installed.length} Method(s) installed before the failure; re-run /unic-archon-dlc:setup to retry — it clean-replaces the tree.`,
-			}
+	const items = METHODS_MANIFEST.map((entry) => ({
+		name: entry.name,
+		from: join(bundleRoot, dirname(entry.upstreamPath)),
+		to: join(repoRoot, INSTALL_DIR, entry.name),
+	}))
+
+	const result = installArtefacts({
+		entries: [{ kind: 'directory', destinationDir: join(repoRoot, INSTALL_DIR), items }],
+		rmFn,
+		cpFn,
+	})
+
+	if (result.ok) return { ok: true, installed: items.map((item) => item.name) }
+
+	// The clean that precedes the copies fails on a directory, not on a Method, so `result.failed` is
+	// an absolute path here where every other stage carries a Method name. Formatting it through the
+	// message below would name a directory as a Method. `failed` stays the relative install dir: a
+	// stable value across machines, and the same string the message already prints.
+	if (result.stage === 'directory-clean') {
+		return {
+			ok: false,
+			installed: [],
+			failed: INSTALL_DIR,
+			message:
+				`Failed to clear ${INSTALL_DIR} before installing the Methods (${result.cause}). ` +
+				'No Method was installed; clear the cause — an open file handle or a permissions problem on that ' +
+				'directory — then re-run /unic-archon-dlc:setup.',
 		}
-		installed.push(entry.name)
 	}
-	return { ok: true, installed }
+
+	const failedIndex = items.findIndex((item) => item.to === result.failed)
+	const installed = items.slice(0, failedIndex === -1 ? 0 : failedIndex).map((item) => item.name)
+	const failedName = failedIndex === -1 ? result.failed : items[failedIndex].name
+	return {
+		ok: false,
+		installed,
+		failed: failedName,
+		message:
+			`Failed to install Method "${failedName}" into ${INSTALL_DIR} (${result.cause}). ` +
+			`${installed.length} Method(s) installed before the failure; re-run /unic-archon-dlc:setup to retry — it clean-replaces the tree.`,
+	}
 }
 
 /**

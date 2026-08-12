@@ -16,8 +16,8 @@ for the two-axis architecture, [ADR-0030](docs/adr/0030-harness-hosts-methods.md
 for the Harness/Method division, and [CONTEXT.md](CONTEXT.md) for the vocabulary.
 
 Archon has no marketplace; this plugin rides the Claude Code plugin marketplace.
-`/unic-archon-dlc:setup` installs the four Archon workflow YAMLs + command stubs and writes the
-per-project config the interactive boxes read.
+`/unic-archon-dlc:setup` installs the config, the Methods, and the Archon Box workflow YAMLs this
+plugin ships into your project.
 
 > **Vision diagram:** [`docs/20260703-Unic-dlc.mmd`](docs/20260703-Unic-dlc.mmd) (Mermaid; an
 > Excalidraw twin sits alongside). Dated `yyyymmdd-` snapshots are kept — the newest date is
@@ -55,7 +55,7 @@ human to run and deliberately not bundled (see [Dependencies](#dependencies)).
 
 ## Archon workflow pipelines
 
-The four Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
+The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
 ([ADR-0011](docs/adr/0011-archon-schema-target.md)):
 
 | Workflow             | Node pipeline                                                                                                                                                                               |
@@ -133,14 +133,15 @@ Open Claude Code in any project and run:
 ```
 
 The setup command auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
-PR strategy, and writes the config and agent docs into your project.
+PR strategy, and writes the config, the Methods, and the Box workflow YAMLs into your project (see
+[The Box workflow artefacts](#the-box-workflow-artefacts)).
 
 **Step 2 — Explore** _(optional)_
 
 Kick off research on any new problem space:
 
 ```
-/unic-dlc-explore my-feature
+archon workflow run unic-dlc-explore "my-feature"
 ```
 
 **Step 3 — Triage**
@@ -231,6 +232,27 @@ flipped back at v1.1). Reading a file has neither problem. See
 The plugin version **is** the Method pin — there is no `skills.pin` key. Upgrading Methods means
 upgrading the plugin and re-running `/setup`, which is idempotent and installs the new bundle even for
 an already-configured project.
+
+### The Box workflow artefacts
+
+See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup` Step 6
+also installs every `unic-dlc-*.yaml` this plugin ships into your project's
+`.archon/workflows/`, discovered by reading the plugin's own copy at install time — the set is
+whatever this plugin currently ships, never a fixed count. Each installed file is **generated and
+committed**: it opens with a header naming the plugin and its version and stating that `/setup`
+replaces the file on every run, so a local edit is lost on the next run. Because it is committed,
+an edit shows up as a tracked `git diff` after `/setup` — that diff is the review surface and the
+recovery path, not a warning dialog.
+
+Install is **name-scoped, not directory-scoped**: `.archon/workflows/` is shared with your own
+workflows, so only files matching the `unic-dlc-*` naming are ever written, overwritten, or swept as
+stale. A Box retired from a later plugin version is deleted on the next `/setup` run **regardless of
+whether it carries the generated header** — a file outside the `unic-dlc-*` naming is never touched,
+whatever it contains.
+
+**Wanting a variant of a bundled Box is the one supported escape hatch: copy it to a name outside
+the `unic-dlc-*` set.** Name-scoped install never reaches a name outside that pattern, so your copy
+survives every future `/setup` run untouched — there is no per-Box opt-out config key.
 
 ---
 
