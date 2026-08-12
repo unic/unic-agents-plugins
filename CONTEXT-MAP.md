@@ -21,6 +21,7 @@ Shared packages each map to a `pkg:` area label.
 
 - `pkg:biome-config` for `packages/biome-config` (`@unic/biome-config`)
 - `pkg:release-tools` for `packages/release-tools` (`@unic/release-tools`)
+- `pkg:tracker-streams` for `packages/tracker-streams` (`@unic/tracker-streams`) — generates the published streams page, see [ADR-0034](docs/adr/0034-publish-a-generated-tracker-view.md)
 - `pkg:tsconfig` for `packages/tsconfig` (`@unic/tsconfig`)
 
 ## Area labels

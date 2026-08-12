@@ -1,0 +1,56 @@
+name: Streams Page
+
+# The two relations this page is built on — sub-issues and issue dependencies — exist as
+# webhook events but are NOT GitHub Actions triggers, so attaching a member or wiring a
+# dependency fires nothing. The issues trigger covers label and state changes instantly;
+# the cron bounds staleness for the rest. Never add a pull_request trigger: Pages cannot
+# deploy from a pull request. See docs/adr/0034-publish-a-generated-tracker-view.md.
+on:
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled, edited, transferred, deleted]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: streams-page
+  cancel-in-progress: true
+
+permissions:
+  issues: read
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Generate the page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate the streams page
+        run: |
+          mkdir -p _site
+          node packages/tracker-streams/scripts/fetch-streams.mjs > _site/index.html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
