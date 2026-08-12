@@ -23,11 +23,11 @@ install behaviour plus a file relocation, where `minor` fits.
 
 ## Decision
 
-A pull request writes a **Change Note** and touches no shared file: one new file under `.changes/`,
-named `<issue#>-<slug>.md`, carrying a semver level, a CHANGELOG section, and the prose that becomes
-the bullet. Plugin work writes into `apps/claude-code/<plugin>/.changes/`; repository-scoped work
-writes into the root `.changes/` and declares no level, because nothing there is versioned. A change
-touching two Plugins writes two notes, because it is two release decisions.
+A pull request writes a **Change Note** and touches no shared file: one new file in a `.changes/`
+directory, named `<issue#>-<slug>.md`, carrying a CHANGELOG section and the prose that becomes the
+bullet. Plugin work writes into `apps/claude-code/<plugin>/.changes/` and declares a semver level;
+repository-scoped work writes into the root `.changes/` and declares none, because nothing there is
+versioned. A change touching two Plugins writes two notes, because it is two release decisions.
 
 A **Release Train**, cut on a dated `release/YYYY-MM-DD` branch, consumes every pending Change Note.
 Per Plugin it takes the maximum level across that Plugin's notes, bumps once, and writes one
@@ -71,8 +71,8 @@ the author knows which.
   `/release` on a release branch.
 - **`## [Unreleased]` leaves every Plugin CHANGELOG.** Change Notes hold what it used to, so it would
   be a permanently empty skeleton. Removing it also dissolves a latent trap:
-  `bump-version.mjs:70-72` aborts when `[Unreleased]` is the file's last section, because the
-  promotion regex requires a following `## [` to match.
+  `packages/release-tools/scripts/bump-version.mjs:70-72` aborts when `[Unreleased]` is the file's
+  last section, because the promotion regex requires a following `## [` to match.
 - **Gitflow gains `release/*`.** `AGENTS.md`'s branch table and `/archon-rollout`'s prefix derivation
   both need to know it is not a `feature/`.
 - **Repository-scoped work becomes recordable.** A new package, a workflow and an ADR that touch no
