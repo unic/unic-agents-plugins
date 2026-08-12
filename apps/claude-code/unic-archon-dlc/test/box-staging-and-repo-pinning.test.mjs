@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 
@@ -32,9 +32,27 @@ import { test } from 'node:test'
 const PLUGIN_ROOT = resolve(import.meta.dirname, '..')
 
 /**
- * The four Box YAMLs, both interactive command docs, and the four Archon command docs that ship
- * beside the YAMLs. #289 AC 10 names the first six; the four stubs are in because AC 6's rule is
- * "no Box prompt **or command doc**", and a Consumer's agent reads a stub as readily as a prompt.
+ * Every `unic-dlc-*.yaml` Box workflow this plugin currently ships, discovered by reading
+ * `.archon/workflows/` — never enumerated by name. #294's discovery criterion forbids a Box name as
+ * a literal in a test fixture, so a Box added or retired here changes this list with no edit below.
+ * @type {readonly string[]}
+ */
+const BOX_WORKFLOW_NAMES = readdirSync(join(PLUGIN_ROOT, '.archon', 'workflows'))
+	.filter((name) => /^unic-dlc-.*\.yaml$/.test(name))
+	.sort()
+
+/** @type {readonly string[][]} */
+const BOX_WORKFLOW_SEGMENTS = BOX_WORKFLOW_NAMES.map((name) => ['.archon', 'workflows', name])
+
+/** Each Box workflow's own operator doc at `docs/boxes/`, same base name, `.md` in place of `.yaml`. */
+const BOX_DOC_SEGMENTS = BOX_WORKFLOW_NAMES.map((name) => ['docs', 'boxes', name.replace(/\.yaml$/, '.md')])
+
+/**
+ * The Box workflow YAMLs, their operator docs (discovered above), and the two interactive command
+ * docs that also compose a registered tracker skill. #289 AC 10 named the YAMLs and the four
+ * `.archon/commands/` stubs by hand; the stubs moved to `docs/boxes/` (#294) and are now derived
+ * alongside the YAMLs they document, because AC 6's rule is "no Box prompt **or command doc**", and a
+ * Consumer's agent reads a stub as readily as a prompt.
  *
  * `commands/setup.md` is deliberately NOT here. `/setup` is the one surface that legitimately holds
  * provider values: it conducts the conversation that WRITES `tracker.type`, so it must be able to
@@ -43,18 +61,7 @@ const PLUGIN_ROOT = resolve(import.meta.dirname, '..')
  * Path segments are joined, never a literal — the Windows CI runner's cwd is on `D:`.
  * @type {readonly string[][]}
  */
-const GUARDED = Object.freeze([
-	['.archon', 'workflows', 'unic-dlc-build.yaml'],
-	['.archon', 'workflows', 'unic-dlc-explore.yaml'],
-	['.archon', 'workflows', 'unic-dlc-pr-review.yaml'],
-	['.archon', 'workflows', 'unic-dlc-qa.yaml'],
-	['.archon', 'commands', 'unic-dlc-build.md'],
-	['.archon', 'commands', 'unic-dlc-explore.md'],
-	['.archon', 'commands', 'unic-dlc-pr-review.md'],
-	['.archon', 'commands', 'unic-dlc-qa.md'],
-	['commands', 'specs.md'],
-	['commands', 'tickets.md'],
-])
+const GUARDED = Object.freeze([...BOX_WORKFLOW_SEGMENTS, ...BOX_DOC_SEGMENTS, ['commands', 'specs.md'], ['commands', 'tickets.md']])
 
 /** The four Box YAMLs, by the workflow name their `bootstrap` node belongs to. */
 const WORKFLOWS = /** @type {const} */ (['unic-dlc-build', 'unic-dlc-explore', 'unic-dlc-pr-review', 'unic-dlc-qa'])
@@ -188,7 +195,15 @@ test('the barrier is pointed at files that exist', () => {
 		const contents = readGuarded(segments)
 		assert.ok(contents.length > 0, `${label(segments)} is empty or missing — the #289 barrier no longer covers it`)
 	}
-	assert.equal(GUARDED.length, 10, 'the guarded set changed — update it deliberately, do not let it shrink')
+	// The derived set replaces a hand-maintained "does not shrink" count (#294): that literal count
+	// is exactly what the discovery criterion forbids, since it requires re-touching this file on
+	// every Box added or retired — the two criteria are why #333 relitigated the same defect twice.
+	assert.ok(BOX_WORKFLOW_SEGMENTS.length > 0, 'no unic-dlc-*.yaml discovered under .archon/workflows/ — the barrier would guard nothing')
+	assert.equal(
+		BOX_DOC_SEGMENTS.length,
+		BOX_WORKFLOW_SEGMENTS.length,
+		'every shipped Box workflow must have a matching docs/boxes/ operator doc, and vice versa'
+	)
 })
 
 test('the barrier itself still fires', () => {

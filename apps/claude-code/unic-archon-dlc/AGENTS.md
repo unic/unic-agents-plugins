@@ -38,9 +38,10 @@ Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:ch
 ## Layout
 
 ```tree
-.archon/                  # Archon assets installed into Consumer projects — workflow YAMLs and command stubs
+.archon/                  # This Plugin's own Box workflow YAMLs. /setup installs only the workflows/ ones into a Consumer's .archon/workflows/ — never .archon/commands/
 .claude-plugin/           # Plugin manifest (plugin.json) and marketplace listing
 commands/                 # Claude Code slash command / skill definitions (setup + the interactive boxes)
+docs/boxes/               # Operator documentation for each Box — never installed into a Consumer
 lib/                      # Tested helper modules — tracker-agnostic deterministic IP only (ESM, // @ts-check)
 test/                     # node:test suites covering lib/ and command behaviour
 CONTEXT.md                # Domain vocabulary for the Archon-powered AI development lifecycle

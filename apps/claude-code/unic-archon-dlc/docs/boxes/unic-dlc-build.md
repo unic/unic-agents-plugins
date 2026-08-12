@@ -12,7 +12,7 @@ Implement an approved set of vertical-slice issues test-first, with structural a
 build-ready **`<artifacts_dir>/<slug>/issues.json`** that `/tickets` produced (dependency-ordered,
 each slice carrying its `acceptance_criteria` + `test_command`). There is **no generated
 `build-<slug>.yaml`** — `/build` consumes `issues.json` directly via one generic loop
-([ADR-0022](../../docs/adr/0022-tickets-slice-to-build.md), [ADR-0023](../../docs/adr/0023-build-generic-red-green-refactor-loop.md)).
+([ADR-0022](../adr/0022-tickets-slice-to-build.md), [ADR-0023](../adr/0023-build-generic-red-green-refactor-loop.md)).
 
 ## What this workflow does
 
@@ -51,7 +51,7 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    `<artifacts_dir>/<slug>/evidence.json`. The workflow-level `evidence_policy: { required: true }`
    refuses terminal `completed` when that file is absent, so a red suite or an uncovered acceptance
    criterion fails the run closed. A script node, never a prompt
-   ([ADR-0034](../../docs/adr/0034-evidence-gate-deterministic-writer.md)). The run still continues
+   ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The run still continues
    to `report` and `open-pr` on a withheld verdict, so you get the report and the PR — it is the run
    _status_ the engine refuses.
 
@@ -74,10 +74,10 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 - `<artifacts_dir>/<slug>/issues.json` exists.
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
 - The checkout has an `origin` remote, or `project.repo_ref` is set.
-- Archon ≥ 0.7.0 ([ADR-0033](../../docs/adr/0033-archon-070-schema-target.md)).
+- Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Runs
 
 ```
-archon workflow run unic-dlc-build --input <slug>
+archon workflow run unic-dlc-build "<slug>"
 ```
