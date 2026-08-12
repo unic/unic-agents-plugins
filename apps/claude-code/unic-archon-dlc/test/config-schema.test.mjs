@@ -18,6 +18,7 @@ import {
 	toYaml,
 	validateConfig,
 } from '../lib/config-schema.mjs'
+import { PRIORITY_LABELS, STATE_LABELS, TYPE_LABELS } from '../lib/labels-config.mjs'
 import { DEFAULT_PRD_HEADINGS } from '../lib/prd-writer.mjs'
 
 let _seq = 0
@@ -61,6 +62,36 @@ const DOGFOOD_JSON = {
 	},
 }
 
+/**
+ * A legacy flat config written before the `docs` type role existed — deliberately short of exactly
+ * one shipped role, unlike DOGFOOD_JSON. Once `defaultConfig()` stopped seeding an identity map
+ * there is nothing left to backfill the gap silently, and that is the point: this must read as
+ * `partial` so `/setup` collects the missing role.
+ */
+const LEGACY_MISSING_ROLE_JSON = {
+	...DOGFOOD_JSON,
+	labels: {
+		...DOGFOOD_JSON.labels,
+		type: { feature: 'feature', bug: 'bug', spike: 'spike', 'tech-debt': 'tech-debt', release: 'release' },
+	},
+}
+
+/** The seventeen entries `/setup` writes when the operator keeps every Label string it offers. */
+function identityLabels() {
+	const identity = (/** @type {readonly string[]} */ keys) => Object.fromEntries(keys.map((k) => [k, k]))
+	return { state: identity(STATE_LABELS), type: identity(TYPE_LABELS), priority: identity(PRIORITY_LABELS) }
+}
+
+/** A config whose only remaining gap is whatever the caller leaves out. */
+function answeredConfig(/** @type {Record<string, unknown>} */ overrides = {}) {
+	return mergeConfig(defaultConfig(), {
+		tracker: { type: 'github' },
+		project: { branching: 'gitflow', pr_strategy: 'merge' },
+		classification: { labels: identityLabels() },
+		...overrides,
+	})
+}
+
 test('loadConfig parses JSON by extension', () => {
 	const path = join(tempDir(), 'unic-dlc.config.json')
 	writeFileSync(path, JSON.stringify(DOGFOOD_JSON))
@@ -97,19 +128,68 @@ test('loadConfig returns structured error for malformed content (setup relies on
 })
 
 test('validateConfig flags each missing mandatory path', () => {
-	const result = validateConfig(defaultConfig()) // all mandatory leaves are null
+	// Mandatory leaves are null and `classification.labels` is absent entirely — so it reports the one
+	// path, never seventeen sub-paths, which would be noise on a fresh install.
+	const result = validateConfig(defaultConfig())
 	assert.ok('error' in result && result.error === true)
 	if (!('error' in result)) return
-	assert.deepEqual(result.missing.sort(), ['project.branching', 'project.pr_strategy', 'tracker.type'])
+	assert.deepEqual(result.missing.sort(), [
+		'classification.labels',
+		'project.branching',
+		'project.pr_strategy',
+		'tracker.type',
+	])
 })
 
 test('validateConfig passes once mandatory paths are filled', () => {
-	const config = mergeConfig(defaultConfig(), {
-		tracker: { type: 'github' },
-		project: { branching: 'gitflow', pr_strategy: 'merge' },
-	})
-	const result = validateConfig(config)
+	const result = validateConfig(answeredConfig())
 	assert.ok(!('error' in result), 'expected a valid config')
+})
+
+test('validateConfig accepts an extra classification.labels role and ignores it', () => {
+	// `migrateLegacy` preserves a hand-added type such as `release` on purpose. The role walk
+	// enumerates the required roles and never the keys present, so an extra one is invisible to it.
+	const labels = identityLabels()
+	const config = answeredConfig({
+		classification: { labels: { ...labels, type: { ...labels.type, release: 'release' } } },
+	})
+
+	assert.ok(!('error' in validateConfig(config)), 'a hand-added extra role must not be rejected')
+	assert.ok(!('error' in toYaml(config)), 'and it must still write')
+})
+
+test('validateConfig names the exact role a classification.labels is short of', () => {
+	const labels = identityLabels()
+	const { docs: _docs, ...typeWithoutDocs } = labels.type
+	const config = answeredConfig({ classification: { labels: { ...labels, type: typeWithoutDocs } } })
+
+	const result = validateConfig(config)
+	assert.ok('error' in result && result.error === true)
+	if (!('error' in result)) return
+	assert.deepEqual(result.missing, ['classification.labels.type.docs'], 'only the missing role is reported')
+})
+
+test('validateConfig treats a team-renamed Label string as answered', () => {
+	// The team owns the right-hand column: `needs-triage` mapped onto `3-Analysis` is a complete
+	// answer, not a missing role.
+	const labels = identityLabels()
+	const config = answeredConfig({
+		classification: { labels: { ...labels, state: { ...labels.state, 'needs-triage': '3-Analysis' } } },
+	})
+
+	assert.ok(!('error' in validateConfig(config)), 'a renamed Label string is still a mapped role')
+})
+
+test('validateConfig rejects a classification.labels that is not a plain object', () => {
+	// A hand-edit that collapses `labels:` from a mapping to a scalar is a structural fault, not an
+	// unanswered field — MANDATORY_PATHS alone would pass it through as "present".
+	const config = answeredConfig({ classification: { labels: 'not-an-object' } })
+
+	const result = validateConfig(config)
+	assert.ok('error' in result && result.error === true, 'a wrong-shaped labels value must be a fault')
+	if (!('error' in result)) return
+	assert.deepEqual(result.missing, ['classification.labels'])
+	assert.ok('error' in toYaml(config), 'toYaml must refuse to write a wrong-shaped labels value')
 })
 
 test('mergeConfig precedence: defaults < existing < answers', () => {
@@ -161,6 +241,57 @@ test('migrateLegacy preserves hand-added label types such as `release`', () => {
 	assert.equal(labels.type.release, 'release')
 	assert.equal(Object.keys(labels.type).length, 6)
 	assert.equal(Object.keys(labels.state).length, 8)
+})
+
+test('defaultConfig emits no classification key at all — the mapping is answered, never seeded', () => {
+	const config = defaultConfig()
+	assert.ok(!('classification' in config), 'defaultConfig must not seed classification.labels')
+	assert.ok(!('classification' in mergeConfig()), 'and a default merge must not reintroduce it')
+	assert.ok(MANDATORY_PATHS.includes('classification.labels'), 'so it has to be mandatory instead')
+})
+
+test('a legacy config short of one role reaches /setup as `partial` rather than an unexplained error', () => {
+	// The trap this issue turns on. The seed used to backfill the gap during mergeConfig, before
+	// anything could notice; with it gone the gap survives, and the escape route has to be the same
+	// `partial` → collect path /setup already runs, not a relaxed toYaml.
+	const config = mergeConfig(migrateLegacy(LEGACY_MISSING_ROLE_JSON))
+
+	const validation = validateConfig(config)
+	assert.ok('error' in validation && validation.error === true)
+	if (!('error' in validation)) return
+	assert.deepEqual(validation.missing, ['classification.labels.type.docs'], 'the config reads as partial')
+	assert.equal(
+		/** @type {any} */ (config.classification).labels.type.release,
+		'release',
+		'and the hand-added role survives the trip'
+	)
+
+	assert.ok('error' in toYaml(config), 'toYaml refuses while the role is unanswered')
+
+	// What /setup does next: it asks for the missing role, keeping the strings already mapped.
+	const labels = /** @type {any} */ (config.classification).labels
+	const answered = mergeConfig(config, { classification: { labels: { type: { docs: 'documentation' } } } })
+	const emitted = toYaml(answered)
+	assert.ok(!('error' in emitted), 'and writes once the answer lands')
+	assert.equal(/** @type {any} */ (answered.classification).labels.type.docs, 'documentation')
+	assert.equal(/** @type {any} */ (answered.classification).labels.type.release, labels.type.release)
+})
+
+test('mergeConfig keeps a hand-edited classification.labels when the answers carry none', () => {
+	// Already true — `DEFAULTS < existing < answers` — but nothing guarded it, and it is the reason a
+	// re-run of /setup cannot quietly overwrite a team's own Label strings.
+	const labels = identityLabels()
+	const existing = answeredConfig({
+		classification: { labels: { ...labels, state: { ...labels.state, 'needs-triage': '3-Analysis' } } },
+	})
+
+	const reRun = mergeConfig(existing, {})
+
+	assert.deepEqual(
+		/** @type {any} */ (reRun.classification).labels,
+		/** @type {any} */ (existing.classification).labels,
+		'a re-run with no label answers preserves the mapping on disk'
+	)
 })
 
 test('toYaml validates then serializes; round-trips through loadConfig', () => {
@@ -374,6 +505,29 @@ test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 1
 		setupDoc,
 		/Do \*\*not\*\* ask for `project\.repo_ref` and do not write it/,
 		'commands/setup.md must keep telling the agent not to ask for or write project.repo_ref'
+	)
+})
+
+test('commands/setup.md keeps the classification.labels question and the CLAUDE.md marker sentence', () => {
+	// Same pattern as the repo_ref guard above: doc-only prose with no other test surface, guarding
+	// against a future reformat or merge-conflict resolution silently dropping any of the three
+	// sentences. Each assertion anchors one sentence, so all three are named here rather than
+	// assumed to travel together.
+	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
+	assert.match(
+		setupDoc,
+		/\*\*classification\*\* — `classification\.labels` _\(mandatory\)_/,
+		'Step 4 must keep asking the Canonical role → Label string question'
+	)
+	assert.match(
+		setupDoc,
+		/Any entry in `MISSING` that starts with `classification\.labels` selects this field/,
+		'Step 4 must keep routing a partial config to the label question, or a legacy config short of a role is never collected'
+	)
+	assert.match(
+		setupDoc,
+		/carries one sentence naming `classification\.labels`/,
+		'Step 7 must keep pointing the CLAUDE.md marker block at classification.labels'
 	)
 })
 

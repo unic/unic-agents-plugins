@@ -11,6 +11,37 @@
 ### Fixed
 - (none)
 
+## [0.19.0] — 2026-08-12
+
+### Breaking
+- **`defaultConfig()` no longer seeds `classification.labels`, and `getDefaultLabels` is deleted.**
+  `lib/labels-config.mjs` now exports the three frozen role arrays and nothing else, and
+  `classification.labels` joins `MANDATORY_PATHS` — so a config without one reads as `partial` and
+  `/setup` collects it. **An existing installed config is unaffected**: the seed was already written
+  to disk as literal data the last time `/setup` ran, `mergeConfig` still resolves
+  `DEFAULTS < existing < answers`, and a hand-edited mapping keeps surviving re-runs exactly as
+  before. That also means an existing project keeps its seeded mapping rather than being asked to
+  confirm it — run `/unic-archon-dlc:setup reconfigure` to review or change it. See
+  [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md) (amended 2026-08-11, extended 2026-08-13).
+
+### Added
+- **`/setup` asks for the tracker's Label strings.** One question, the seventeen Canonical roles
+  shown as three tier-grouped tables (`state`, `type`, `priority`) with a line on what each role
+  means, offering the names this Plugin ships. `/setup` never probes the tracker, never creates a
+  label, and reports nothing about labels in its summary: a tracker with a different vocabulary is
+  answered by mapping a role onto a string it already carries. The `CLAUDE.md` marker block now names
+  `classification.labels` and points at `reconfigure`, so the written mapping has a thread to pull
+  (#329).
+
+### Fixed
+- **`validateConfig` reports a `classification.labels` short of a shipped Canonical role**, naming the
+  exact role, so an older config self-heals through `/setup`'s own collect path instead of being
+  silently completed from a default. An **extra** key — a hand-added `release` type, say — is still
+  accepted, ignored and preserved through `migrateLegacy`.
+- `test/labels-config.test.mjs` freezes the membership of all three role arrays instead of checking
+  each expected name is present, so a new Canonical role fails CI until someone changes the list on
+  purpose. No test name implies the mapping varies by tracker; it never did.
+
 ## [0.18.0] — 2026-08-12
 
 ### Breaking
