@@ -44,6 +44,28 @@ GitHub Issue / /triage  ← raw capture, no review required
 
 The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution there is no human in the loop until PR review.
 
+### A gate that cannot fail is not a gate
+
+State every check so that **not having run** fails it. A check whose "found nothing" is indistinguishable from "never executed" reports success for work it did not do, and it does so most convincingly on the night nobody is watching.
+
+Three instances, all found in this repo within a week:
+
+| Check                                                                                   | How it failed open                                                                                                    |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| A PR-review gate written as "the review has returned and carries no unresolved finding" | A review that never happened has no findings. Absence satisfied it                                                    |
+| `pnpm --filter <pkg> --if-present verify:changelog`                                     | A package with no such script reported success, hiding that the gate never ran (#340)                                 |
+| The changelog gate's allow-list of guarded paths                                        | It omitted `lib/**`, so a change confined there was ungated. An allow-list rots every time a plugin grows a directory |
+
+The repair is the same in each case: assert the positive. A review must **exist** and be newer than the head commit. A configured step must actually have a script. A guard should deny-list what is exempt rather than allow-list what is covered, so a new directory is covered on arrival.
+
+### Two reviewers see different things, and you need both
+
+An acceptance-criteria audit checks the code against **what the ticket asked for**. An automated code review checks the code against **itself** — escaping, error handling, dead branches, inconsistency. Neither subsumes the other.
+
+A PR merged in this repo passed nine CI checks and an AC audit that found every criterion met, and still implemented the wrong rule: it gated a deletion on a file header rather than on the file's name, so the very artefacts the issue existed to remove survived. What caught it was a review comment pointing at a **different** file — the README sentence promising behaviour the code did not provide. The audit could not have found it, because no criterion mentioned that sentence.
+
+Run both. When they disagree, the disagreement is the finding.
+
 ---
 
 ## 3. Why context quality determines AFK quality
@@ -84,6 +106,23 @@ An issue's `## Acceptance criteria` is doing two jobs: it is the definition of d
 The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies is that approval. Nothing downstream re-checks, so this in-session review is the last human checkpoint before AFK execution. Use it.
 
 If an issue's acceptance criteria are too vague to verify without judgment, do not approve the breakdown. Send the ticket back for rework in the same session, or once published, relabel it `needs-specs`.
+
+### Read the criteria as a set, not one at a time
+
+Individually reasonable criteria can be **collectively impossible**. One issue in this repo shipped with three such pairs, none noticed during grilling, all three found only when an implementation ran against them:
+
+- One forbade a name appearing as a literal in a test fixture; another required a guarded list to be "repointed in place", which needs those literals.
+- One forbade a name in the README; another required the README's quick start to show a command containing that name.
+- One said _what_ to delete but never _how ownership is decided_, so an implementation chose a different rule, documented its reasoning, and passed.
+
+The third is the dangerous shape: not a contradiction between two criteria, but a **gap between them** that an implementer fills with a defensible-sounding decision. It produces a green pull request that faithfully implements the wrong thing.
+
+Two habits help:
+
+- **Before publishing, read the criteria as one list and ask which pair cannot both hold.** A single pass costs minutes; discovering it after an AFK run costs the run.
+- **When a criterion says what must happen, check it also says on what basis.** "Delete the stale file" is not checkable without "stale is decided by name, not by contents".
+
+When you find one after dispatch, amend the ticket and re-dispatch. Do not merge a green PR that faithfully implements a wrong criterion — it becomes the precedent the next agent reads.
 
 ---
 
