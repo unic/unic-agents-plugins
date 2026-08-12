@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.18.0] — 2026-08-12
+
+### Breaking
+- (none)
+
+### Added
 - **`/setup` installs the Box workflow YAMLs into a Consumer's `.archon/workflows/`.** Nothing wrote
   them before this release, so no Box was runnable outside this repo. Install is name-scoped to the
   `unic-dlc-*` naming, discovered by reading this Plugin's own `.archon/workflows/` at install time —
