@@ -164,6 +164,46 @@ Fields (map answers onto the schema paths — see `docs/adr/0018-generic-core-co
 - **tracker** — `tracker.type` (`github | ado | jira | local-markdown`) _(mandatory)_; `tracker.coords` (e.g. `{owner, repo}` for github, `{org, project, repo}` for ado); `tracker.access` filled from Step 3 (`{mcp, cli}`).
 - **docs** — `docs.type` (`confluence | markdown | none`) — where the team's **product specs** live; `docs.publish` (default `false`, opt-in). `docs.access` from Step 3. _(Independent of the `docs/agents/*.md` files Step 6 always writes.)_
 - **design** — `design.type` (`figma | none`), `design.access` from Step 3.
+- **classification** — `classification.labels` _(mandatory)_, the Canonical role → Label string
+  mapping every Box resolves a role through. Ask **one** question. Show the three tables below as they
+  stand — the right-hand column is what this Plugin offers, not what it writes on the team's behalf —
+  and ask "Keep these? (recommended: yes)". On **yes**, write all seventeen entries explicitly. On
+  **no**, take an override only for the rows the team renames; every other row keeps the string shown.
+  Any entry in `MISSING` that starts with `classification.labels` selects this field, so a config
+  written before a role existed asks for that role too; pre-fill every row that `CURRENT` already maps
+  with the team's own string, and write the full seventeen back, so an override is never dropped by a
+  partial re-run. Do **not** probe the tracker for its labels, do **not** create one, and do **not**
+  report which are absent: a tracker with a different vocabulary is answered by mapping the role onto
+  a string it already carries, not by adding a seventeenth label to someone else's board. The tier a
+  row sits in is what tells a composed tracker skill which axis to write, so the team owns the
+  right-hand column and never the left ([ADR-0024](../docs/adr/0024-triage-intake-on-ramp.md)).
+
+  | `state` role      | Label string      | what it means                                          |
+  | ----------------- | ----------------- | ------------------------------------------------------ |
+  | `needs-triage`    | `needs-triage`    | Filed, not yet evaluated                               |
+  | `needs-info`      | `needs-info`      | Waiting on the reporter for detail                     |
+  | `needs-specs`     | `needs-specs`     | A valid idea, not yet decomposed — routes to `/specs`  |
+  | `ready-for-agent` | `ready-for-agent` | Fully specified — an AFK agent can take it             |
+  | `ready-for-human` | `ready-for-human` | Needs a human — a design call, or it reproduces poorly |
+  | `resolved`        | `resolved`        | Implemented, awaiting the merge                        |
+  | `closed`          | `closed`          | Merged, or already covered                             |
+  | `rejected`        | `rejected`        | Will not be actioned                                   |
+
+  | `type` role | Label string | what it means                             |
+  | ----------- | ------------ | ----------------------------------------- |
+  | `feature`   | `feature`    | New capability                            |
+  | `bug`       | `bug`        | Something that should work does not       |
+  | `spike`     | `spike`      | Time-boxed research                       |
+  | `tech-debt` | `tech-debt`  | Cleanup, no user-visible behaviour change |
+  | `docs`      | `docs`       | Documentation only                        |
+
+  | `priority` role | Label string | what it means   |
+  | --------------- | ------------ | --------------- |
+  | `p0`            | `p0`         | Drop everything |
+  | `p1`            | `p1`         | High — next up  |
+  | `p2`            | `p2`         | Normal          |
+  | `p3`            | `p3`         | Low — whenever  |
+
 - **gates** — per Archon box (`build`, `qa`, `pr-review`, `explore`): `hitl` (default) or `afk`. Interactive skill boxes are always HITL and are not listed here.
 - **build** — `build.e2e_command` (optional), `build.coverage_threshold` (optional). Leave `build.fresh_context_red_green`, `tdd_mode`, `nyquist_validation`, `slopsquatting_gate` at their defaults unless the user asks.
 - **estimations** — `off | provisional | definitive | both` (default `off`).
@@ -308,6 +348,8 @@ If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_W
 ## Step 7 — Update agent docs (idempotent)
 
 Write/refresh the auto-managed `## Agent skills` block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace only the content **between** the markers (preserve everything outside verbatim); if the file or block is absent, create it. The block points readers at the box set (`/specs → /tickets → /build → /pr-review → /qa`; on-ramps `/triage`, `/qa`; off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`) and at `.archon/unic-dlc.config.yaml` as the config source of truth. This runs regardless of `docs.type`.
+
+The block also carries one sentence naming `classification.labels` as the Canonical role → tracker Label string mapping this project answered during setup, and pointing at `/unic-archon-dlc:setup reconfigure` as the way to review or change it. This block is the only surface that ships into a Consumer's repo, so without that sentence the seventeen lines in the config have no thread to pull.
 
 Keep the edit idempotent: re-running `/setup` replaces the block in place, never appends a second one.
 

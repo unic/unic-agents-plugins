@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
-import { getDefaultLabels } from './labels-config.mjs'
+import { PRIORITY_LABELS, STATE_LABELS, TYPE_LABELS } from './labels-config.mjs'
 
 /**
  * The rich `.archon/unic-dlc.config.yaml` schema (ADR-0018/0019/0020). This is the single
@@ -23,7 +23,15 @@ import { getDefaultLabels } from './labels-config.mjs'
  * Dotted paths that must be present and non-null after a merge for a config to be usable.
  * @type {readonly string[]}
  */
-export const MANDATORY_PATHS = ['tracker.type', 'project.pr_strategy', 'project.branching']
+export const MANDATORY_PATHS = ['tracker.type', 'project.pr_strategy', 'project.branching', 'classification.labels']
+
+/**
+ * The Canonical role arrays keyed by the tier `validateConfig` walks under `classification.labels`.
+ * The key set is closed downward (ADR-0024, 2026-08-11 amendment): every shipped role must be
+ * mapped, an extra key is never inspected here and so is always accepted and ignored.
+ * @type {Readonly<Record<string, readonly string[]>>}
+ */
+const LABEL_TIERS = Object.freeze({ state: STATE_LABELS, type: TYPE_LABELS, priority: PRIORITY_LABELS })
 
 /**
  * Default PRD scaffold (ADR-0018: the PRD template lives in config, not in a lib template
@@ -79,7 +87,9 @@ export function defaultConfig() {
 		design: { type: 'none', access: { mcp: null } },
 		repos: [],
 		templates: { prd: DEFAULT_PRD_TEMPLATE, issue: null, bug: null },
-		classification: { labels: getDefaultLabels('') },
+		// No `classification` key: the team names its own Label strings and `/setup` asks for them.
+		// Seeding an identity map here would ship a guess that is correct only for a tracker already
+		// using this Plugin's own vocabulary. See ADR-0024's 2026-08-11 amendment.
 		specs: { discuss_mode: 'discuss', gate: 'open-pr' },
 		tickets: { gate: 'open-pr' },
 		triage: { out_of_scope_dir: '.out-of-scope', external_prs: 'auto' },
@@ -183,9 +193,10 @@ export function isLegacyConfig(obj) {
 
 /**
  * Translate a flat ADR-0001 JSON config into the rich nested shape. Preserves the file's own
- * `labels` verbatim (so hand-added label types such as `release` survive) rather than
- * regenerating from `getDefaultLabels`. Returns a PARTIAL — run it through `mergeConfig` to fill
- * defaults. Never touches or deletes the source file.
+ * `labels` verbatim (so hand-added label types such as `release` survive) rather than regenerating
+ * or completing them — a legacy file short of a shipped role stays short, reads as `partial`, and is
+ * collected by `/setup`. Returns a PARTIAL — run it through `mergeConfig` to fill defaults. Never
+ * touches or deletes the source file.
  * @param {Record<string, unknown>} flat
  * @returns {Partial<DlcConfig>}
  */
@@ -236,7 +247,16 @@ function getPath(obj, path) {
 }
 
 /**
- * Validate that every mandatory path is present and non-null.
+ * Validate that every mandatory path is present and non-null and — when `classification.labels` is
+ * present — that it maps every shipped Canonical role.
+ *
+ * The granular walk runs only once `classification.labels` is an object, so a fresh config reports
+ * the single path `classification.labels` rather than seventeen sub-paths. It enumerates the
+ * *required* roles and never the keys actually present, which is what makes a hand-added extra role
+ * (a `release` type, say) structurally invisible here: accepted and ignored, never rejected.
+ *
+ * A reported sub-path is what makes an older config self-heal — it reads as `partial`, so `/setup`
+ * collects the role it predates and no migration code is needed.
  * @param {DlcConfig} config
  * @returns {{ ok: true, config: DlcConfig } | ConfigError}
  */
@@ -245,6 +265,20 @@ export function validateConfig(config) {
 		const value = getPath(config, path)
 		return value === undefined || value === null || value === ''
 	})
+
+	const labels = getPath(config, 'classification.labels')
+	if (isPlainObject(labels)) {
+		for (const [tier, roles] of Object.entries(LABEL_TIERS)) {
+			const tierLabels = labels[tier]
+			for (const role of roles) {
+				const value = isPlainObject(tierLabels) ? tierLabels[role] : undefined
+				if (value === undefined || value === null || value === '') {
+					missing.push(`classification.labels.${tier}.${role}`)
+				}
+			}
+		}
+	}
+
 	if (missing.length > 0) {
 		return { error: true, missing, message: `Missing mandatory config fields: ${missing.join(', ')}` }
 	}
