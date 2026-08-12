@@ -50,54 +50,47 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
 
 ---
 
-## Pre-audit every issue before you dispatch it
+## Pre-audit every issue before dispatch
 
-An issue written before the last merge describes a tree that no longer exists. Audit each one against
-the current tree **before** dispatching it, in a fresh context, the same way Gate 3 audits a diff. The
-auditor checks four things:
+An issue written before the last merge describes a tree that no longer exists. Audit each one in a
+fresh context, on Gate 3's terms, against the tree it is about to run on. Four checks:
 
-1. Every `file:line` the issue cites still resolves, and still says what the issue claims.
-2. The acceptance criteria read as **one list**: which pair cannot both hold, and where a criterion
-   says _what_ must happen without saying _on what basis_ it is decided. That gap is the dangerous
-   shape — an implementer fills it with a defensible-sounding rule and ships a green pull request that
-   does the wrong thing.
-3. Which criteria an implementer can satisfy by changing nothing. A vacuous criterion is a finding,
-   not a pass.
+1. Every `file:line` the issue cites resolves, and still says what the issue claims.
+2. The criteria read as one list. `docs/process/ai-development.md` §4 is the method.
+3. Which criteria an implementer satisfies by changing nothing. A vacuous criterion is a finding.
 4. What the last merge moved, deleted or reshaped underneath the issue.
 
 The verdict is one word: `dispatchable` or `needs-amendment`.
 
 ### On `needs-amendment`
 
-Do all three, then move on:
+1. **Comment** with the findings and their evidence. This is the amendment brief, so write what a
+   human has to decide, not only what is wrong.
+2. **Relabel** `ready-for-agent` → `needs-specs`. An issue keeping `ready-for-agent` stays takeable,
+   and the next unattended rollout takes it.
+3. **Skip that issue and dispatch the next slice.** One bad ticket costs one slice, not the night.
 
-1. **Comment** on the issue with the findings and their evidence. This is the amendment brief, so it
-   must say what a human has to decide, not only what is wrong.
-2. **Relabel** `ready-for-agent` → `needs-specs`. An issue that keeps `ready-for-agent` is takeable,
-   and the next unattended rollout will take it.
-3. **Skip it. Do not stop the chain** — a failed pre-audit is one ticket's problem, not the night's.
+An issue that blocks another takes the blocked ones with it: skip all of them, and name the blocker in
+each comment. Read blocking as **Order the chain** defines it, and treat a criterion that cannot be
+written until another issue lands as a block whatever the tracker says.
 
-**Unless it blocks another issue in the chain.** Then skip the blocked issues too, by the same three
-steps, and say in each comment which issue blocked it. Judge blocking by a native `blocked_by`
-relation; prose in an issue body is not the contract, but a criterion that cannot be written until
-another issue lands is a real block whatever the tracker says.
-
-Amending the criteria is still a human act. Draft a replacement list only when asked, always as a
-comment, never in the issue body, and mark every choice in it as the drafter's.
+A human amends the criteria. When asked for a draft replacement, post it as a comment and mark every
+choice in it as the drafter's.
 
 ---
 
 ## Per slice
 
-1. **Fast-forward `develop`** so the fork point carries the previous merge.
-2. **Dispatch** via `/archon-rollout`. Always `--from develop`, always `--branch`.
-3. **Verify the fork point** before anything else — the worktree HEAD must equal `develop`. Archon
+1. **Pre-audit the issue.** `needs-amendment` skips it and frees the slice for the next one.
+2. **Fast-forward `develop`** so the fork point carries the previous merge.
+3. **Dispatch** via `/archon-rollout`. Always `--from develop`, always `--branch`.
+4. **Verify the fork point** before anything else — the worktree HEAD must equal `develop`. Archon
    forks from `main` by default whatever the branch name says.
-4. **Wait.** Arm a Monitor keyed on the run ID, never on a global active count.
-5. **Check the PR base.** Archon has retargeted PRs to `main` after opening them, more than once.
-6. **Apply the three gates.** All three, in full, before any merge.
-7. **Merge**, per `AGENTS.md`'s merge rule.
-8. **Log one line**, naming the slice, the gate verdicts and the merge commit. Then the next slice.
+5. **Wait.** Arm a Monitor keyed on the run ID, never on a global active count.
+6. **Check the PR base.** Archon has retargeted PRs to `main` after opening them, more than once.
+7. **Apply the three gates.** All three, in full, before any merge.
+8. **Merge**, per `AGENTS.md`'s merge rule.
+9. **Log one line**, naming the slice, the gate verdicts and the merge commit. Then the next slice.
 
 ---
 
@@ -173,9 +166,9 @@ advance rather than in the morning.
 - **A run leaves the active list without opening a PR.** Inspect the worktree for unpushed commits
   before concluding it produced nothing — one killed run held three commits and a passing suite.
   Recovery is #346; until then this hands back.
-- **The next move is a design call.** Amending an acceptance criterion is always one. Hand back and
-  let a human amend it — a green pull request that faithfully implements a wrong criterion becomes
-  the precedent the next agent reads.
+- **The next move is a design call**, on a slice already dispatched. Amending an acceptance criterion
+  is always one — a green pull request that faithfully implements a wrong criterion becomes the
+  precedent the next agent reads. Found before dispatch, the same call is a pre-audit skip.
 - **The next move needs a credential this session lacks.** Hand back; the credential stays as it is.
 - **A run is still in the active list.** Its PR waits — `archon-fix-github-issue` keeps working
   after it opens one.
