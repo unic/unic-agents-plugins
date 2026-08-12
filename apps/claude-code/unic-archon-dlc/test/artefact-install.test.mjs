@@ -320,7 +320,10 @@ test('installArtefacts (named) reports an unreadable stale match, never silently
 // --- discoverBoxWorkflowEntry -----------------------------------------------------------------
 
 test('discoverBoxWorkflowEntry reads the plugin source directory and filters to unic-dlc-*.yaml', () => {
-	const sourceDir = '/plugin/.archon/workflows'
+	// Built with `join`, never a literal: the function under test looks the directory up as
+	// `join(pluginRoot, '.archon', 'workflows')`, which is backslash-separated on Windows. A
+	// forward-slash literal misses that lookup, and the double returns undefined.
+	const sourceDir = join('/plugin', '.archon', 'workflows')
 	/** @type {Record<string, string[]>} */
 	const dirs = { [sourceDir]: ['unic-dlc-a.yaml', 'unic-dlc-b.yaml', 'README.md', 'unic-dlc-c.json', '.gitkeep'] }
 	/** @type {Record<string, string>} */
