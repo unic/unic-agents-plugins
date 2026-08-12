@@ -40,7 +40,7 @@
   accepted, ignored and preserved through `migrateLegacy`.
 - `test/labels-config.test.mjs` freezes the membership of all three role arrays instead of checking
   each expected name is present, so a new Canonical role fails CI until someone changes the list on
-  purpose. Its two tests no longer imply the mapping varies by tracker; it never did.
+  purpose. No test name implies the mapping varies by tracker; it never did.
 
 ## [0.18.0] — 2026-08-12
 

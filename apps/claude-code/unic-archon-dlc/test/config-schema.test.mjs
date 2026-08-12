@@ -510,12 +510,19 @@ test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 1
 
 test('commands/setup.md keeps the classification.labels question and the CLAUDE.md marker sentence', () => {
 	// Same pattern as the repo_ref guard above: doc-only prose with no other test surface, guarding
-	// against a future reformat or merge-conflict resolution silently dropping either paragraph.
+	// against a future reformat or merge-conflict resolution silently dropping any of the three
+	// sentences. Each assertion anchors one sentence, so all three are named here rather than
+	// assumed to travel together.
 	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
 	assert.match(
 		setupDoc,
 		/\*\*classification\*\* — `classification\.labels` _\(mandatory\)_/,
 		'Step 4 must keep asking the Canonical role → Label string question'
+	)
+	assert.match(
+		setupDoc,
+		/Any entry in `MISSING` that starts with `classification\.labels` selects this field/,
+		'Step 4 must keep routing a partial config to the label question, or a legacy config short of a role is never collected'
 	)
 	assert.match(
 		setupDoc,

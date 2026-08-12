@@ -116,8 +116,9 @@ an oversight. A missing Method file is fatal for the node; the fix is `/unic-arc
   [ADR-0011](0011-archon-schema-target.md) §6).
 - **`findings-writer.mjs` + `spike-verdicts.mjs` are dissolved** (and their tests), completing
   [ADR-0018](0018-generic-core-config-compose.md) #3 for the explore-only libs — the nodes write
-  findings.md with their own tools. `labels-config.mjs` **stays** (`config-schema.mjs` still imports
-  `getDefaultLabels`). This is a breaking change for any external caller of the two deleted modules;
+  findings.md with their own tools. `labels-config.mjs` **stays** — at the time because
+  `config-schema.mjs` imported `getDefaultLabels`; that function went in 0.19.0 (#329) and the module
+  now exports the three role arrays alone. This is a breaking change for any external caller of the two deleted modules;
   they were internal to the dead workflow, so there is none.
 - **No new config key.** `gates.explore` + `artifacts_dir` already exist in `defaultConfig()`, so **no
   `/setup` change** is required this step (contrast [ADR-0025](0025-qa-pipeline-onramp.md)/
