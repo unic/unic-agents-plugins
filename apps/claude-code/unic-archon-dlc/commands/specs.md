@@ -12,10 +12,10 @@ description: 'Turn an idea (or an existing spec / Figma / UX) into one human-app
 `/specs` is the **first main-line box**: it turns an idea into **one human-approved PRD** by the
 cheapest path given what already exists, then hands off to `/tickets`. It is an **in-session
 command/skill** (grilling needs the live conversation — ADR-0017), and it **owns the _what_** (the
-branch-on-input flow, the seam-approval gate, the PRD shape) while **composing the team's
-system-skills for the _how_**: Matt Pocock's `/grill-with-docs` + `/to-prd` for the conversation, and
-the configured docs / design / tracker skill (MCP-first, CLI-fallback) to read an existing source.
-Compose those skills by name — never reimplement or vendor them.
+branch-on-input flow, the seam-approval halt, the PRD shape) while **composing the _how_**: the
+`to-spec`, `grilling` and `domain-modeling` Methods for the conversation — read by resolved path, per
+Step 1 — and the configured docs / design / tracker system-skill (MCP-first, CLI-fallback) to read an
+existing source.
 
 Follow these steps in order. Do not skip any step. The only files you write are the PRD
 (`<artifacts_dir>/<slug>/PRD.md`) and any ADRs that crystallise during grilling; everything else is
@@ -35,9 +35,14 @@ node --input-type=module <<'EOJS'
 let output
 try {
   const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
   const { existsSync } = await import('node:fs')
   const { join } = await import('node:path')
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
+  // which says nothing about what to do next.
+  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
+  const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
+  const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
   const cwd = process.cwd()
 
   const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
@@ -54,6 +59,11 @@ try {
         output = { ok: false, message: `Config incomplete (${validation.missing.join(', ')}). Run /unic-archon-dlc:setup.` }
       } else {
         const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
+        const wanted = ['to-spec', 'grilling', 'domain-modeling']
+        const methods = wanted.map((name) => {
+          const m = resolver.resolveMethod(name, { repoRoot: cwd, config, box: 'specs' })
+          return 'error' in m ? { name, error: m.message } : { name, path: m.path, tier: m.tier }
+        })
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
@@ -63,7 +73,7 @@ try {
           estimations: config.estimations,
           specs: config.specs,
           prd_template: g('templates.prd'),
-          matt_suite: g('skills.matt_suite'),
+          methods,
         }
       }
     }
@@ -78,10 +88,43 @@ EOJS
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `DOCS` (`.type`/`.publish`/`.access`),
 `DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE`
-(`specs.gate`), `PRD_TEMPLATE`, and `MATT_SUITE`.
+(`specs.gate`), `PRD_TEMPLATE`, and `METHODS`.
 
-If `MATT_SUITE.present` is `false`, warn that `/grill-with-docs` + `/to-prd` are declared
-dependencies and grilling quality will degrade, then continue (non-blocking).
+### Resolve the target repository
+
+`TARGET_REPO` is the repository this run acts on. **Derive it; never let a tool infer it.**
+
+1. Run `git remote get-url origin`. That URL is `TARGET_REPO`.
+2. `project.repo_ref` in `.archon/unic-dlc.config.yaml` is an **optional override**, absent from a
+   default config. When it is set, it wins verbatim.
+3. When no override is set, list the remotes (`git remote -v`) and compare their fetch URLs,
+   normalising away a trailing `.git`, the `user@host:path` vs `https://host/path` spelling, and case.
+   If a remote other than `origin` names a **different** repository, this checkout is a fork and a
+   host tool would act on the parent. **Stop** and ask the user to set `project.repo_ref` to the
+   repository this run must act on. A checkout whose only remote is `origin` never reaches this stop,
+   so no existing project is affected.
+
+Print `TARGET_REPO` with the tier line below, so a surprising PR target is diagnosable.
+
+### The Methods this Box reads
+
+`METHODS` carries one entry per Method — `to-spec`, `grilling`, `domain-modeling` — with the tier it
+resolved from: `config` (a `methods.<name>.source` the team declared), `local`
+(`.archon/methods.local/`), or `bundle` (`.archon/methods/`, written by `/unic-archon-dlc:setup`).
+
+If any entry carries `error`, print it verbatim and **stop**. A Box cannot run a procedure it cannot
+read; the fix is to run `/unic-archon-dlc:setup`.
+
+Otherwise print the tier line before continuing, so a surprising result is diagnosable:
+
+```
+methods: to-spec(bundle) · grilling(bundle) · domain-modeling(bundle)
+```
+
+Then read each entry's `path` in full. That text **is** the procedure — the steps below add only what
+the Harness owns, and never restate, summarise or improve a Method
+([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). A Method's sub-files sit beside its resolved
+`SKILL.md`, in the same directory, at every tier.
 
 ## Step 2 — Slug + re-entry
 
@@ -106,32 +149,45 @@ Classify `SOURCE` and take the cheapest path to an aligned understanding:
 
 - **Raw idea** (no source, or free-form prose only) → **converse**. Run the interview per
   `DISCUSS_MODE`:
-  - `discuss` (default) → invoke **`/grill-with-docs`** (it runs `/grilling` + `/domain-modeling`):
-    one question at a time, each with a **recommended answer**; challenge assumptions; explore the
-    codebase to answer a question rather than asking when you can. Write ADRs live (via
-    `/domain-modeling`) only when a decision is hard to reverse, surprising, and a real trade-off.
+  - `discuss` (default) → follow the resolved **`grilling`** Method, and the resolved
+    **`domain-modeling`** Method for the terms and ADRs that crystallise as you go. Its
+    `ADR-FORMAT.md` and `CONTEXT-FORMAT.md` — in the same directory as its resolved `SKILL.md` — are
+    the shapes any ADR or `CONTEXT.md` edit must follow.
   - `assumptions` → enumerate **all** your assumptions about the feature upfront as a numbered list,
-    then walk the user through confirming/correcting each; still write live ADRs via
-    `/domain-modeling` as decisions settle.
+    then walk the user through confirming/correcting each. `domain-modeling` still applies as
+    decisions settle.
 - **Existing spec / Figma / UX / tracker issue** (a URL or ref) → **ingest**. Read the source by
   **composing the configured system-skill** (MCP-first, CLI-fallback):
-  - docs (`DOCS.type` = `confluence`) → the team's docs skill / MCP via `DOCS.access`;
-  - design (`DESIGN.type` = `figma`) → the Figma skill / MCP via `DESIGN.access`;
-  - tracker issue → the tracker skill / CLI via `TRACKER.access`.
-    Synthesise what the source says, then have the **human review** your synthesis (the #257 model):
-    reuse `/to-prd`'s PRD _shaping_, but not `/grill-with-docs`.
+  - docs (`DOCS.type` is set) → the team's docs skill / MCP via `DOCS.access`;
+  - design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`;
+  - tracker issue → the tracker skill / CLI via `TRACKER.access`, naming `TARGET_REPO`.
+    Synthesise what the source says, then have the **human review** your synthesis (the #257 model).
+    Reuse `to-spec`'s PRD _shaping_; there is nothing to interview, so `grilling` does not apply here.
 - **Partial** (a source exists but has gaps) → **hybrid**. Ingest what exists (as above), then grill
   **only the gaps** per `DISCUSS_MODE`.
 
-Continue until the user signals the design is settled.
+### Confirm shared understanding before anything is written
 
-## Step 5 — Seam-design approval (compose `/to-prd`)
+Do not write the PRD until the user confirms the design is settled. What satisfies this depends on the
+branch you took:
 
-Before writing the PRD, propose the **testing seams** at which the feature will be verified —
-following `/to-prd`: prefer existing seams over new ones; use the highest seam possible; the fewer
-seams across the codebase the better, **ideally one**. Present the proposed seam(s) and **get the
-user's explicit confirmation** that they match expectations. The approved seams become the PRD's
-**Testing Decisions** section. Do not proceed to Step 7 without this confirmation.
+| Branch                             | What satisfies the confirmation                            |
+| ---------------------------------- | ---------------------------------------------------------- |
+| converse, `DISCUSS_MODE = discuss` | ask "have we reached a shared understanding?" and wait     |
+| converse, `assumptions`            | the walk through the assumptions reaches agreement         |
+| ingest / hybrid                    | the human review of your synthesis (the #257 model, above) |
+
+This fires when the interview **reaches** shared understanding, however many turns that took — it is
+not "the last question". On **no**, return into the interview; there is no cap on how often that
+happens. Never count, cap or restate the interview: how many questions a Method asks is the Method's
+business, not this Box's.
+
+## Step 5 — Seam-design approval
+
+Before writing the PRD, propose the **testing seams** at which the feature will be verified, following
+the resolved `to-spec` Method's seam guidance. Present the proposed seam(s) and **get the user's
+explicit confirmation** that they match expectations. The approved seams become the PRD's **Testing
+Decisions** section. Do not proceed to Step 7 without this confirmation.
 
 ## Step 6 — Estimation (config-gated)
 
@@ -143,9 +199,18 @@ If `ESTIMATIONS` is `provisional` or `both`, **compose** an estimator (never bui
 
 Shape the agreed design into the sections of `PRD_TEMPLATE` (the config-driven template — fall back
 to the built-in default if it is null), using the project's domain vocabulary and respecting the
-ADRs in scope. Follow `/to-prd`'s guidance for each section (User Stories extensive; Implementation
-Decisions carry interfaces/contracts but **no file paths or code snippets**, which rot; Testing
-Decisions carry the approved seams from Step 5).
+ADRs in scope. Follow the resolved `to-spec` Method's guidance for each section, with the approved
+seams from Step 5 as the Testing Decisions.
+
+Two things in `to-spec` are **overridden** here, because the Harness owns them:
+
+- Its final step publishes the spec to the issue tracker with a `ready-for-agent` label. In the DLC
+  `/specs` writes `<ARTIFACTS_DIR>/<SLUG>/PRD.md` (below) and optionally publishes to `DOCS`. Filing
+  tracker issues is `/tickets`' job — do not file any here.
+- Its "the issue tracker and triage label vocabulary should have been provided to you — run
+  `/setup-matt-pocock-skills` if not" fallback never applies. Step 1 provided that config, and
+  `setup-matt-pocock-skills` must not be run: it writes a second label file that drifts from
+  `.archon/unic-dlc.config.yaml` ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
 
 Substitute `{PRD_CONTENT_JSON}` with the rendered PRD markdown as a JSON string, and
 `{ARTIFACTS_DIR_JSON}` / `{PRD_TEMPLATE_JSON}` with the config values (all placed directly inside the
@@ -185,30 +250,61 @@ Replace `{SLUG_JSON}` with the JSON-encoded slug and `{SLUG_RAW}` with the bare 
 output: if `ok` is `false`, fix the missing sections and re-run; if `ok` is `true`, note `path`.
 
 **Docs publish (opt-in):** if `DOCS.publish` is `true` and `DOCS.type` is not `none`, also publish
-the PRD to the team's docs system by **composing the configured docs skill** (e.g. `unic-confluence`
-for Confluence — its injection markers guarantee the human-authored source is never overwritten).
-The repo copy at `<ARTIFACTS_DIR>/<SLUG>/PRD.md` is always the floor; publishing is additive.
+the PRD to the team's docs system by **composing the docs skill registered under `DOCS.access`** —
+whichever one that is. Expect it to write through injection markers, so a human-authored source is
+never overwritten; if it cannot, publish nothing and say so. The repo copy at
+`<ARTIFACTS_DIR>/<SLUG>/PRD.md` is always the floor; publishing is additive.
 
 ## Step 8 — PRD gate (HITL)
 
+`GATE` is the **single approval gate** in `/specs`: the one halt that produces a durable artefact and
+puts it in front of a human. The Step 4 confirmation and the Step 5 seam check are in-method
+confirmations, not gates — they settle the design, they approve nothing. This is also where
+`grilling`'s "do not enact the plan until I confirm we have reached a shared understanding" lands: in
+`/specs`, enacting the plan means writing and PR-ing the PRD, and that is exactly what this gate holds.
+
 The PRD is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
-- **`open-pr`** (default): create `feature/specs/<SLUG>`, stage the PRD and any new ADRs, commit, and
+Both gates stage the **same named paths**, and nothing else:
+
+- `<ARTIFACTS_DIR>/<SLUG>/PRD.md`
+- each ADR this session created, by its own filename — `docs/adr/NNNN-<name>.md`, one `git add` per
+  file. Never `git add docs/adr/`: that directory holds every ADR the project has, and a sweep of it
+  commits whatever else is uncommitted there.
+
+**Staging rule — named paths only.** Run one `git add <path>` per path above. Never `git add -A`,
+`git add .`, or `git add -u`. Never stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under
+`$ARTIFACTS_DIR` (Archon's per-run directory, which resolves outside the repo tree under
+`~/.archon/workspaces/<name>/artifacts/`; `<ARTIFACTS_DIR>` from config is a different, repo-relative
+path and is staged above). Then run `git status --porcelain` and confirm every staged entry is one of
+the named paths. Unstage anything else with `git restore --staged <path>` and say what you unstaged.
+
+- **`open-pr`** (default): create `feature/specs/<SLUG>`, stage the named paths, commit, push, and
   open a PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/specs/<SLUG>
-  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md docs/adr/
+  git add <ARTIFACTS_DIR>/<SLUG>/PRD.md
+  git add docs/adr/NNNN-<name>.md      # once per ADR created this session
+  git status --porcelain               # confirm nothing else is staged
   git commit -m "plan(<SLUG>): PRD and ADRs"
   git push origin feature/specs/<SLUG>
-  gh pr create --base develop --title "plan(<SLUG>): PRD and ADRs" --body "<why + summary>"
   ```
 
-  (Adapt the tracker/host commands to `TRACKER` if the project is not GitHub.) On **reject**, return
-  to Step 4 and grill the open points, then re-run from Step 7.
+  Then open the PR **against `TARGET_REPO`**, base `develop`, title
+  `plan(<SLUG>): PRD and ADRs`, body `<why + summary>`. Act on **that** repository, named explicitly —
+  never the one a tool infers from the checkout, which in a fork clone is the parent. Compose the
+  system-skill registered under `TRACKER.access` (MCP first, its CLI as fallback) and build the call
+  from that skill's own current interface: do not write a host command, subcommand, or flag here, and
+  do not branch on which provider `TRACKER.type` names — this Box owns the _what_ and none of the
+  _how_ ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the registered skill cannot target a
+  repository explicitly, stop and say which capability is missing rather than opening the PR.
 
-- **`stage-only`**: write the PRD (already done in Step 7) and `git add` it plus any new ADRs, print a
-  suggested PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+  On **reject**, return to Step 4 and grill the open points, then re-run from Step 7.
+
+- **`stage-only`**: write the PRD (already done in Step 7), stage the same named paths under the same
+  staging rule, print a suggested PR title/body, and **stop** — leave the commit, push, and PR to the
+  user.
 
 ## Step 9 — Summary
 
@@ -217,9 +313,11 @@ Print a concise summary:
 ```
 /specs complete — slug: <SLUG>
   path:     <ARTIFACTS_DIR>/<SLUG>/PRD.md
+  repo:     <TARGET_REPO>  (origin | project.repo_ref override)
   input:    <converse | ingest | hybrid>
   seams:    <the approved testing seam(s)>
   ADRs:     <NNNN-slug.md … | none>
+  methods:  <name>(<tier>) · … (as printed in Step 1)
   gate:     <open-pr → PR #… | stage-only → staged>
   next:     run /tickets <SLUG> once the PRD is approved
 ```

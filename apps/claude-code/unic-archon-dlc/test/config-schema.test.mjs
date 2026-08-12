@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -11,8 +11,10 @@ import {
 	defaultConfig,
 	isLegacyConfig,
 	loadConfig,
+	MANDATORY_PATHS,
 	mergeConfig,
 	migrateLegacy,
+	resolveArchonRemote,
 	toYaml,
 	validateConfig,
 } from '../lib/config-schema.mjs'
@@ -287,6 +289,40 @@ test('mergeConfig preserves a team override of triage, filling untouched sub-key
 	assert.equal(triage.out_of_scope_dir, '.out-of-scope', 'untouched sub-key filled from default')
 })
 
+test('defaultConfig ships an empty methods block and no retired skills block', () => {
+	const config = defaultConfig()
+	assert.deepEqual(config.methods, {}, 'the config tier of Method resolution starts empty')
+	assert.ok(!('skills' in config), 'the retired skills.matt_suite probe is gone')
+})
+
+test('mergeConfig strips a legacy skills.matt_suite block from an existing config', () => {
+	// The Bundle answers "is the Method available" by construction, so a re-run of /setup must clean
+	// the old discovery key out rather than keep merging it forward.
+	const merged = mergeConfig({ skills: { matt_suite: { present: true, missing: [] } }, tracker: { type: 'github' } })
+
+	assert.ok(!('skills' in merged), 'legacy skills block stripped')
+	assert.deepEqual(/** @type {any} */ (merged.tracker).type, 'github', 'sibling keys survive the strip')
+})
+
+test('mergeConfig strips skills even when passed explicitly as an answer', () => {
+	const merged = mergeConfig({}, { skills: { matt_suite: { present: true, missing: [] } } })
+
+	assert.ok(!('skills' in merged), 'an explicit answer cannot reintroduce a retired key')
+})
+
+test('mergeConfig stays idempotent after stripping a retired key', () => {
+	const once = mergeConfig({ skills: { matt_suite: { present: false, missing: ['tdd'] } } })
+	const twice = mergeConfig(once)
+
+	assert.deepEqual(twice, once)
+})
+
+test('mergeConfig preserves a team-declared methods override', () => {
+	const merged = mergeConfig({ methods: { tdd: { source: 'team/methods/tdd/SKILL.md' } } })
+
+	assert.deepEqual(merged.methods, { tdd: { source: 'team/methods/tdd/SKILL.md' } })
+})
+
 test('mergeConfig preserves a team override of specs and templates.prd, filling gaps', () => {
 	const merged = mergeConfig({ specs: { gate: 'stage-only' }, templates: { prd: '# Custom\n## Goal\n' } }, {})
 	const specs = /** @type {any} */ (merged.specs)
@@ -295,4 +331,67 @@ test('mergeConfig preserves a team override of specs and templates.prd, filling 
 	assert.equal(specs.discuss_mode, 'discuss', 'untouched sub-key filled from default')
 	assert.equal(templates.prd, '# Custom\n## Goal\n', 'a custom PRD template replaces the default wholesale')
 	assert.equal(templates.issue, null, 'sibling template default retained')
+})
+
+test('project.repo_ref is absent by default — the repository is derived, not configured', () => {
+	// #289 AC 7. Each Box's bootstrap resolves the target repository from the worktree's `origin`
+	// remote, so a Consumer needs no config change to upgrade. A `repo_ref: null` in the defaults would
+	// look identical in YAML but read as "a mandatory leaf nobody has answered" under this schema's own
+	// convention — hence absent, not null.
+	const project = /** @type {any} */ (defaultConfig().project)
+	assert.ok(!('repo_ref' in project), 'project.repo_ref must not be in the default config')
+
+	const merged = /** @type {any} */ (mergeConfig())
+	assert.ok(!('repo_ref' in merged.project), 'a default merge must not introduce project.repo_ref')
+})
+
+test('project.repo_ref survives a merge when a team sets it as an override', () => {
+	// The override is the escape hatch for a fork checkout, where `origin` and the parent differ and
+	// the ambiguity guard cancels the run. It has to survive `mergeConfig` to be usable at all.
+	const merged = /** @type {any} */ (mergeConfig({ project: { repo_ref: 'unic/unic-agents-plugins' } }, {}))
+	assert.equal(merged.project.repo_ref, 'unic/unic-agents-plugins', 'an explicit override must be preserved')
+	assert.equal(merged.project.branching, null, 'untouched sibling keys still come from the defaults')
+
+	const twice = mergeConfig(merged)
+	assert.deepEqual(twice, merged, 'merging again must not drop or duplicate the override')
+})
+
+test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 10 guards', () => {
+	// #290 AC 10. Criteria 2 and 10 were amended 2026-08-10 to preserve the #289 design (derive from
+	// origin, repo_ref is an optional override) rather than re-promote it to mandatory — promoting it
+	// would break every installed Consumer on upgrade. This asserts the two surfaces that regression
+	// would touch: the mandatory-paths list, and commands/setup.md's own instruction not to ask for or
+	// write it. The default config is covered by the two tests above.
+	// `test/box-staging-and-repo-pinning.test.mjs` separately asserts every bootstrap node still
+	// derives from `origin` — this test does not repeat that coverage.
+	assert.ok(
+		!MANDATORY_PATHS.some((path) => path.includes('repo_ref')),
+		'project.repo_ref must never become a mandatory config path'
+	)
+
+	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
+	assert.match(
+		setupDoc,
+		/Do \*\*not\*\* ask for `project\.repo_ref` and do not write it/,
+		'commands/setup.md must keep telling the agent not to ask for or write project.repo_ref'
+	)
+})
+
+test('resolveArchonRemote prefers worktree.remote over auto-detection', () => {
+	assert.equal(
+		resolveArchonRemote({ remotes: ['origin', 'fork'], archonConfig: { worktree: { remote: 'fork' } } }),
+		'fork'
+	)
+})
+
+test('resolveArchonRemote falls back to origin when worktree.remote is unset', () => {
+	assert.equal(resolveArchonRemote({ remotes: ['origin', 'fork'], archonConfig: null }), 'origin')
+})
+
+test('resolveArchonRemote falls back to the sole remote when origin is absent', () => {
+	assert.equal(resolveArchonRemote({ remotes: ['fork'], archonConfig: null }), 'fork')
+})
+
+test('resolveArchonRemote resolves to null when ambiguous', () => {
+	assert.equal(resolveArchonRemote({ remotes: ['fork-a', 'fork-b'], archonConfig: null }), null)
 })

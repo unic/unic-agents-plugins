@@ -1,6 +1,9 @@
 # 0021. A box earns a shipped implementation only if it adds value; reference verbatim skills
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended by [ADR-0030](0030-harness-hosts-methods.md)
+
+> ADR-0030 makes this test mechanical. "Adds Unic value" became a judgement each Box answered for
+> itself; the bar is now structural — a Box survives only for what no Method can supply.
 
 ## Context
 

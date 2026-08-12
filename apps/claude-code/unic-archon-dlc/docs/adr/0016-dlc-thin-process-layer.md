@@ -1,6 +1,18 @@
 # 0016. DLC is a thin process layer; compose team system-skills for the _how_
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended by [ADR-0030](0030-harness-hosts-methods.md)
+
+> ADR-0030 keeps this decision and sharpens its name: the plugin is a **Harness**, and "thin process
+> layer" is retained below only as the original wording. The composition stance is unchanged.
+
+> **Amended (2026-08-04, Matt v1.1.0 migration tranche 2 — #280):** the Method names in Decision below
+> are pre-v1.1.0. `to-prd` is now `to-spec`, `to-issues` is `to-tickets`, and `grill-with-docs` is no
+> longer a method — it became a six-line pointer, so `/specs` reads `grilling` and `domain-modeling`
+> where the content now lives. Read that bullet as naming a set, not a current list: the one list lives
+> in [`lib/methods-manifest.mjs`](../../lib/methods-manifest.mjs) and the generated table in
+> `README.md`. "Compose" also narrowed for Methods specifically — a Box **reads** a Method by resolved
+> path ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)) and never invokes it as a skill;
+> composition by name still describes how the DLC reaches a team's tracker/docs/design system-skills.
 
 ## Context
 

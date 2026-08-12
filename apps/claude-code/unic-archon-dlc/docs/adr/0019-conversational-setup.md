@@ -25,3 +25,4 @@ The runtime Archon version check moves to a **behavioural min-floor check (`≥ 
 - New config keys (`gates.<box>: hitl|afk`, `build.fresh_context_red_green`, `templates`, `tracker.access`, `docs.type`) are written by the conversational flow, validated by the thin lib.
 - Idempotency and mandatory-field invariants are preserved by the thin lib, not lost to prose.
 - Implementation (dissolving the libs, JSON→YAML migration, the version-check fix) is owned by the `/setup` redesign step, not this foundations PR.
+- **What `/setup` asks about labels** — the one tier-grouped question, the refusal to inspect a tracker or create a label, the absence of a seeded default, and the closed key set — is recorded in [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-11 amendment, which owns the `classification.labels` contract.

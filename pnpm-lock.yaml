@@ -19,8 +19,8 @@ catalogs:
       specifier: 5.8.3
       version: 5.8.3
     yaml:
-      specifier: 2.6.1
-      version: 2.6.1
+      specifier: 2.9.0
+      version: 2.9.0
 
 importers:
 
@@ -73,7 +73,7 @@ importers:
     dependencies:
       yaml:
         specifier: 'catalog:'
-        version: 2.6.1
+        version: 2.9.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -144,6 +144,18 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+
+  packages/tracker-streams:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+      '@unic/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       typescript:
         specifier: 'catalog:'
         version: 5.8.3
@@ -230,9 +242,9 @@ packages:
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
-  yaml@2.6.1:
-    resolution: {integrity: sha512-7r0XPzioN/Q9kXBro/XPnA6kznR73DHq+GXh5ON7ZozRO6aMjbmiBuKste2wslTFkC5d1dw0GooOCepZXJ2SAg==}
-    engines: {node: '>= 14'}
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+    engines: {node: '>= 14.6'}
     hasBin: true
 
 snapshots:
@@ -284,4 +296,4 @@ snapshots:
 
   undici-types@7.16.0: {}
 
-  yaml@2.6.1: {}
+  yaml@2.9.0: {}

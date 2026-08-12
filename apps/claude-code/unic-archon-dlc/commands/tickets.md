@@ -14,9 +14,8 @@ description: 'Decompose an approved PRD into independently-grabbable vertical-sl
 per slice), validates the whole set, publishes the issues to the team's tracker, and stops at the
 tickets gate. It is an **in-session command/skill** (slicing is a live conversation — ADR-0017), and
 it **owns the _what_** (the slicing flow, the build-ready checks, the DAG of `blocked_by` edges)
-while **composing the _how_**: Matt Pocock's `/to-issues` for slicing and the configured **tracker
-system-skill** (MCP-first, CLI-fallback) for publishing. Compose those by name — never reimplement or
-vendor them.
+while **composing the _how_**: the `to-tickets` Method for slicing — read by resolved path, per
+Step 1 — and the configured **tracker system-skill** (MCP-first, CLI-fallback) for publishing.
 
 `/tickets` **stops at a build-ready `issues.json`** (dependency-ordered, each slice carrying its
 acceptance criteria + test command) plus the published tracker issues. It does **not** generate a
@@ -42,9 +41,14 @@ node --input-type=module <<'EOJS'
 let output
 try {
   const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
   const { existsSync } = await import('node:fs')
   const { join } = await import('node:path')
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
+  // which says nothing about what to do next.
+  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
+  const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
+  const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
   const cwd = process.cwd()
 
   const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
@@ -61,6 +65,11 @@ try {
         output = { ok: false, message: `Config incomplete (${validation.missing.join(', ')}). Run /unic-archon-dlc:setup.` }
       } else {
         const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
+        const wanted = ['to-tickets']
+        const methods = wanted.map((name) => {
+          const m = resolver.resolveMethod(name, { repoRoot: cwd, config, box: 'tickets' })
+          return 'error' in m ? { name, error: m.message } : { name, path: m.path, tier: m.tier }
+        })
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
@@ -70,7 +79,7 @@ try {
           issue_template: g('templates.issue'),
           bug_template: g('templates.bug'),
           labels: g('classification.labels'),
-          matt_suite: g('skills.matt_suite'),
+          methods,
         }
       }
     }
@@ -84,10 +93,43 @@ EOJS
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
 `ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
-`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `MATT_SUITE`.
+`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `METHODS`.
 
-If `MATT_SUITE.present` is `false`, warn that `/to-issues` is a declared dependency and slicing
-quality will degrade, then continue (non-blocking).
+### Resolve the target repository
+
+`TARGET_REPO` is the repository this run publishes issues to and opens its PR against. **Derive it;
+never let a tool infer it.**
+
+1. Run `git remote get-url origin`. That URL is `TARGET_REPO`.
+2. `project.repo_ref` in `.archon/unic-dlc.config.yaml` is an **optional override**, absent from a
+   default config. When it is set, it wins verbatim.
+3. When no override is set, list the remotes (`git remote -v`) and compare their fetch URLs,
+   normalising away a trailing `.git`, the `user@host:path` vs `https://host/path` spelling, and case.
+   If a remote other than `origin` names a **different** repository, this checkout is a fork and a
+   host tool would act on the parent. **Stop** and ask the user to set `project.repo_ref` to the
+   repository this run must act on. A checkout whose only remote is `origin` never reaches this stop,
+   so no existing project is affected.
+
+Print `TARGET_REPO` with the tier line below, so a surprising issue or PR target is diagnosable.
+
+### The Method this Box reads
+
+`METHODS` carries one entry — `to-tickets` — with the tier it resolved from: `config` (a
+`methods.to-tickets.source` the team declared), `local` (`.archon/methods.local/`), or `bundle`
+(`.archon/methods/`, written by `/unic-archon-dlc:setup`).
+
+If the entry carries `error`, print it verbatim and **stop**. A Box cannot run a procedure it cannot
+read; the fix is to run `/unic-archon-dlc:setup`.
+
+Otherwise print the tier line before continuing, so a surprising result is diagnosable:
+
+```
+methods: to-tickets(bundle)
+```
+
+Then read the entry's `path` in full. That text **is** the slicing procedure — the steps below add
+only what the Harness owns, and never restate, summarise or improve a Method
+([ADR-0030](docs/adr/0030-harness-hosts-methods.md)).
 
 ## Step 2 — Slug + re-entry
 
@@ -110,18 +152,29 @@ root `CONTEXT.md` / `CONTEXT-MAP.md`, per-context `CONTEXT.md` files, all ADRs i
 PRD's **User Stories** + **Acceptance criteria** — every slice must trace back to them and use the
 project's domain vocabulary.
 
-## Step 4 — Slice into vertical tracer bullets (compose `/to-issues`)
+## Step 4 — Slice into vertical tracer bullets
 
-Decompose the PRD by **composing Matt's `/to-issues`** — do not reimplement it. Each slice is a thin
-**vertical tracer bullet**: a narrow but COMPLETE path through ALL layers (schema, API, UI, tests),
-demoable or verifiable on its own, ordered by a `blocked_by` DAG (no cycles). Do any prefactoring
-first ("make the change easy, then make the easy change").
+Decompose the PRD by following the resolved `to-tickets` Method — its slice rules, its blocking edges,
+its prefactoring guidance, and its wide-refactor exception all govern here.
 
-**Granularity heuristic (the litmus for "thin enough"):** one slice = **one demoable behaviour** —
-thin enough that a single failing test can capture it and a minimal implementation can satisfy it, so
-strict red/green (contract B) is safe. If a slice needs more than one failing test to express its
-behaviour, or bundles two independently-demoable behaviours, split it. If a slice can't be
-demonstrated without another, wire the dependency instead of merging.
+Three things the Harness adds or overrides on top of it:
+
+- **Granularity litmus (the DLC's "thin enough" test):** one slice = **one demoable behaviour** — thin
+  enough that a single failing test can capture it and a minimal implementation can satisfy it, so
+  strict red/green (contract B) is safe. If a slice needs more than one failing test to express its
+  behaviour, or bundles two independently-demoable behaviours, split it. If a slice can't be
+  demonstrated without another, wire the dependency instead of merging. The litmus does **not** apply
+  to the Method's **wide-refactor** exception: an expand–contract sequence is not a tracer bullet by
+  design, and green is promised where the Method says it is.
+- **A prefactor is an ordinary slice.** `issues.json` has no prefactor field and needs none: give the
+  prefactor `type: tech-debt` and `blocked_by: []`, then name it in the `blocked_by` of every slice it
+  unblocks. The dependency order from Step 8 then ships it first, and `/build` needs no extra rule.
+- **Publish to the tracker, never to a file in the repo root.** The Method offers a local `tickets.md`
+  as one of its two publishing shapes; in the DLC the durable baton is `issues.json` (Step 8) plus the
+  tracker issues (Step 9). Its closing "work the frontier one ticket at a time with `/implement`" maps
+  to `/unic-archon-dlc:build`. And its "run `/setup-matt-pocock-skills` if not" fallback never
+  applies — Step 1 provided that config, and running that skill would create a second label file that
+  drifts from `.archon/unic-dlc.config.yaml` ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
 
 Draft each slice with these fields (the `issues-schema` shape):
 
@@ -238,14 +291,18 @@ dependency-ordered baton `/build` consumes — it carries each slice's `acceptan
 
 ## Step 9 — Publish issues to the tracker (dependency order)
 
-Publish each slice to the team's tracker by **composing the configured tracker system-skill**
-(MCP-first) or its CLI (`gh` / `az` / `jira` per `TRACKER.access`; or the `azure-devops-cli` skill) —
-read `TRACKER.type` / `TRACKER.coords` from config; never hardcode a tracker. Publish in the
-dependency `order` from Step 8 (**blockers first**) so each issue can reference the real tracker IDs
-of its blockers.
+Publish each slice to `TARGET_REPO` — that repository, named explicitly in every call, never the one a
+tool infers from the checkout. Compose the system-skill registered under `TRACKER.access` (MCP first,
+its CLI as fallback) and build each call from that skill's own current interface: read `TRACKER.type` /
+`TRACKER.coords` from config, but do not write a host command, subcommand, or flag here and do not
+branch on which provider `TRACKER.type` names — this Box owns the _what_ and none of the _how_
+([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the registered skill cannot target a
+repository explicitly, stop and say which capability is missing rather than publishing to an inferred
+repository. Publish in the dependency `order` from Step 8 (**blockers first**) so each issue can
+reference the real tracker IDs of its blockers.
 
 For each slice, build the issue body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`;
-fall back to Matt's `/to-issues` body template if the config template is null). The body MUST carry
+fall back to the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
 the slice's **acceptance criteria** (contract C — intent lives on the tracker issue) and its
 **Blocked by** references (real tracker IDs, or "None — can start immediately"). Apply the
 ready-for-agent triage label from `LABELS` unless the user says otherwise. Do NOT close or modify any
@@ -255,22 +312,34 @@ parent issue.
 
 The plan is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
-- **`open-pr`** (default): create `feature/tickets/<SLUG>`, stage `issues.json`, commit, and open a
-  PR to `develop`, then **stop** for human review:
+Both gates stage the **same named path**, and nothing else: `<ARTIFACTS_DIR>/<SLUG>/issues.json`.
+
+**Staging rule — named paths only.** Run one `git add <path>` per path above. Never `git add -A`,
+`git add .`, or `git add -u`. Never stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under
+`$ARTIFACTS_DIR` (Archon's per-run directory, which resolves outside the repo tree under
+`~/.archon/workspaces/<name>/artifacts/`; `<ARTIFACTS_DIR>` from config is a different, repo-relative
+path and is staged above). Then run `git status --porcelain` and confirm every staged entry is one of
+the named paths. Unstage anything else with `git restore --staged <path>` and say what you unstaged.
+
+- **`open-pr`** (default): create `feature/tickets/<SLUG>`, stage the named path, commit, push, and
+  open a PR to `develop`, then **stop** for human review:
 
   ```bash
   git checkout -b feature/tickets/<SLUG>
   git add <ARTIFACTS_DIR>/<SLUG>/issues.json
+  git status --porcelain               # confirm nothing else is staged
   git commit -m "tickets(<SLUG>): vertical-slice issues"
   git push origin feature/tickets/<SLUG>
-  gh pr create --base develop --title "tickets(<SLUG>): vertical-slice issues" --body "<why + slice summary + tracker links>"
   ```
 
-  (Adapt the host commands to `TRACKER` if the project is not GitHub.) On **reject**, return to
-  Step 4 and revise the breakdown, then re-run from Step 8.
+  Then open the PR **against `TARGET_REPO`**, base `develop`, title
+  `tickets(<SLUG>): vertical-slice issues`, body `<why + slice summary + tracker links>`, composing
+  the same registered system-skill Step 9 used and naming `TARGET_REPO` explicitly. On **reject**,
+  return to Step 4 and revise the breakdown, then re-run from Step 8.
 
-- **`stage-only`**: write `issues.json` (already done in Step 8) and `git add` it, print a suggested
-  PR title/body, and **stop** — leave the branch, commit, push, and PR to the user.
+- **`stage-only`**: write `issues.json` (already done in Step 8), stage the same named path under the
+  same staging rule, print a suggested PR title/body, and **stop** — leave the commit, push, and PR
+  to the user.
 
 ## Step 11 — Summary
 
@@ -280,7 +349,9 @@ Print a concise summary:
 /tickets complete — slug: <SLUG>
   issues:   <ARTIFACTS_DIR>/<SLUG>/issues.json (<count> slices)
   order:    <id → id → …>  (dependency order)
+  repo:     <TARGET_REPO>  (origin | project.repo_ref override)
   tracker:  <published issue refs>
+  methods:  <name>(<tier>) (as printed in Step 1)
   gate:     <open-pr → PR #… | stage-only → staged>
   next:     run /build <SLUG> once the tickets are approved
 ```

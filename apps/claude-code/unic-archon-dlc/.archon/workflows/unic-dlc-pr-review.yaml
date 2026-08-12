@@ -1,14 +1,16 @@
 name: unic-dlc-pr-review
 description: >
-  Generic, self-contained PR review. Fans out seven review aspects (code-quality, test-coverage,
-  silent-failure, type-design, comment-rot, code-simplification, and intent/AC-coverage) as parallel
-  fresh Archon nodes, each grounded in a shared Intent Brief composed once in prep from the linked work
-  items, Confluence/MD docs, the PR description, and PRD.md. Synthesises this run's findings, reconciles
-  them against the prior iteration (new / still-present / fixed / regressed), then — after a config-gated
-  human confirm — posts/updates one structured summary comment plus inline comments on the current PR via
-  the configured tracker (MCP-first, CLI-fallback). Harvests unic-pr-review's review learnings without its
-  ADO code or any dependency (ADR-0016/0017). Ported to the key-discriminated node schema (ADR-0011);
-  inherits /build's self-contained-node conventions (ADR-0023 §5). See ADR-0026.
+  Generic, self-contained PR review. One `review` node reads the `code-review` Method by path and runs
+  its own two-axis fan-out — Standards (repo standards plus the twelve-item Fowler smell baseline, which
+  is where refactoring lives now that /build's loop has no REFACTOR phase) and Spec (does the diff match
+  what was asked for) — as parallel sub-agents, grounded in the Intent Brief composed once in prep from
+  the linked work items, the referenced docs pages, the PR description, and PRD.md. Synthesises this run's
+  findings, reconciles them against the prior iteration (new / still-present / fixed / regressed), then —
+  after a config-gated human confirm — posts/updates one structured summary comment plus inline comments
+  on the current PR via the configured tracker (MCP-first, CLI-fallback). Harvests unic-pr-review's review
+  learnings without its host-specific code or any dependency (ADR-0016/0017). Ported to the key-discriminated node
+  schema (ADR-0011); inherits /build's self-contained-node conventions (ADR-0023 §5). This Box holds the
+  only posting authority in the lifecycle. See ADR-0026, ADR-0030, ADR-0031.
 
 # Required at the workflow level so the review-gate approval message reaches the user (ADR-0011).
 interactive: true
@@ -36,25 +38,39 @@ nodes:
              `gates.pr-review`                (default "hitl")
              `pr-review.confidence_threshold` (default 60)
              `pr-review.inline_comments`      (default true)
-             `tracker.type`                   (e.g. github / ado / jira / local-markdown)
+             `tracker.type`                   (read it; never branch on which provider it names)
              `docs.type` / `docs.access`      (for intent composition from docs)
              `project.branching`              (default "gitflow")
-      3. If slug and config are both present → status "ready". (There is no PRD precondition: intent is
-         composed from whatever sources resolve — see prep.)
+      3. Resolve the TARGET REPOSITORY that every PR read and every posted comment must name. It is
+         DERIVED from this worktree, not configured:
+         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
+         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
+            set, it wins verbatim and `repo_ref_source` is "override".
+         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
+            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
+            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
+            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
+            instead of `origin`, and this Box POSTS — so the target is genuinely ambiguous → status
+            "ambiguous-repo", with `message` naming the remotes that disagree. A checkout whose only
+            remote is `origin` is never ambiguous, so an existing project never reaches that guard.
+         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
+      4. If slug and config are both present and the repository is unambiguous → status "ready".
+         (There is no PRD precondition: intent is composed from whatever sources resolve — see prep.)
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
-      ALWAYS emit EVERY required field, including in the no-slug / no-config branches, so the object
-      validates before `guard-not-ready` can cancel. When a value cannot be read, fall back to: slug ""
-      (if no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
-      "true", tracker_type "", branching "gitflow", expected_base "develop". `inline_comments` is emitted
-      as the STRING "true"/"false" (enum) so downstream `when` comparisons are reliable. Set `message` to
-      a human-readable reason for any non-ready status.
+      ALWAYS emit EVERY required field, including in the no-slug / no-config / ambiguous-repo branches,
+      so the object validates before a guard can cancel. When a value cannot be read, fall back to: slug
+      "" (if no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
+      "true", tracker_type "", branching "gitflow", expected_base "develop", repo_ref "",
+      repo_ref_source "origin". `inline_comments` is emitted as the STRING "true"/"false" (enum) so
+      downstream `when` comparisons are reliable. Set `message` to a human-readable reason for any
+      non-ready status.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config]
+          enum: [ready, no-slug, no-config, ambiguous-repo]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -67,27 +83,52 @@ nodes:
         tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
+        repo_ref: { type: string }
+        repo_ref_source:
+          type: string
+          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, branching, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, branching, expected_base, repo_ref, repo_ref_source, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail).
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). Two guards,
+  # mutually exclusive on status, so each cancel message names the one thing to fix.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready'"
+    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
     cancel: >
       /pr-review preconditions not met — see the bootstrap output for whether the slug or
       .archon/unic-dlc.config.yaml is missing. Pass a slug (`/unic-dlc-pr-review <slug>`) and run
       /unic-archon-dlc:setup first if there is no config.
 
   # ---------------------------------------------------------------------------------------------
+  # guard-ambiguous-repo — the ONLY repository precondition. It fires when this checkout is a fork
+  # whose parent differs from `origin` and no `project.repo_ref` override is set, because a host tool
+  # would then read and comment on the parent's PR. A checkout with only `origin` never reaches it, so
+  # no existing project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-ambiguous-repo
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ambiguous-repo'"
+    cancel: >
+      /pr-review cannot tell which repository to review — see the bootstrap message for the remotes
+      that disagree. This checkout names more than one repository, so a tool that infers the target
+      from the checkout would post a review on the wrong project. Set `project.repo_ref` in
+      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
+
+  # ---------------------------------------------------------------------------------------------
   # prep — the shared context builder. Identifies the open PR, computes the diff, categorises the
-  # changed files (for the spawn gates), composes ONE Intent Brief from every available source, detects
-  # the prior review iteration, and writes everything to <artifacts_dir>/<slug>/pr-review/ so the fanned
-  # aspect nodes read it off disk (fresh nodes share no memory — ADR-0012/0015). Composing intent once
-  # and injecting it into every aspect is the primary quality lever (ADR-0026): each aspect judges the
-  # diff against what the PR is SUPPOSED to do.
+  # changed files, composes ONE Intent Brief from every available source, detects the prior review
+  # iteration, and writes everything to <artifacts_dir>/<slug>/pr-review/ so the review node reads it
+  # off disk (fresh nodes share no memory — ADR-0012/0015). Composing intent once and injecting it into
+  # both review axes is the primary quality lever (ADR-0026): each axis judges the diff against what the
+  # PR is SUPPOSED to do.
+  #
+  # The five changed-file category booleans no longer gate node spawning — the seven conditionally
+  # spawned aspect nodes collapsed into one always-running `review` node (#281). They stay because they
+  # are durable diff metadata in prep.json that a reader (and a future spawn decision) can use; nothing
+  # reads them today. Retire them or find them a consumer in a follow-up, not in a rewiring slice.
   # ---------------------------------------------------------------------------------------------
   - id: prep
     depends_on: [bootstrap]
@@ -102,14 +143,25 @@ nodes:
         ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
         SESSION       = <ARTIFACTS_DIR>/<SLUG>/pr-review/
         TRACKER       = $bootstrap.output.tracker_type
+        TARGET_REPO   = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
       Create SESSION if it does not exist.
 
+      ## Act on THIS repository
+      Name TARGET_REPO explicitly in every tracker call in this node. Act on THIS repository, never the
+      one a tool infers from the checkout — in a fork clone those differ, and you would review the
+      parent's PR instead of this one. Compose the system-skill the team registered under
+      `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading
+      that skill's own current interface and building the call from it. Do NOT write a command,
+      subcommand or flag here, and do NOT branch on which provider `tracker.type` names: the DLC owns
+      the what and none of the how (ADR-0016), and a flag table frozen in this file is stale the moment
+      the tool changes. If the registered skill cannot target a repository explicitly, STOP: print
+      "BLOCKED: the registered tracker skill cannot target a repository explicitly — <the missing
+      capability>" and do not fall back to an inferred repository.
+
       ## 1. Identify the open PR + read its description
-      Compose the configured tracker (MCP-first, CLI-fallback — never hardcode a host, ADR-0016), reading
-      `tracker` from `.archon/unic-dlc.config.yaml`:
-        - github → `gh pr view --json number,title,body,headRefName,baseRefName`
-        - ado    → `az repos pr list --status active` then `az repos pr show` for the current branch
-        - jira / local-markdown / other → there may be no queryable PR; note it and continue.
+      Ask the composed skill for the open PR whose source branch is the current branch on TARGET_REPO,
+      and read its number, title, description body, source branch and target branch. If the configured
+      tracker has no queryable PR at all, note that and continue — the review still runs off the diff.
       Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an intent source).
 
       ## 2. Compute the diff + categorise changed files
@@ -124,11 +176,11 @@ nodes:
         has_docs                — any .md/.mdx/doc file OR added/removed comment lines
         touches_error_handling  — the diff adds/changes try/catch, `.catch(`, `??`/`||` fallbacks, or early returns on error
 
-      ## 3. Compose ONE Intent Brief (inject into every aspect)
+      ## 3. Compose ONE Intent Brief (injected into both review axes)
       Gather intent from EVERY source that resolves — none is individually required:
-        a. Linked work items — the PR's linked User Story / Bug / Jira ticket (from the PR body, branch
-           name, or tracker links). Fetch via the configured tracker (MCP-first, CLI-fallback).
-        b. Confluence / MD docs — pages referenced in the work item or PR body, or discoverable via the
+        a. Linked work items — the PR's linked User Story / Bug / ticket (from the PR body, branch
+           name, or tracker links), read from TARGET_REPO via the composed tracker skill as above.
+        b. Docs pages — pages referenced in the work item or PR body, or discoverable via the
            configured docs system-skill (`docs.type`/`docs.access`).
         c. The PR description body (from step 1).
         d. `<ARTIFACTS_DIR>/<SLUG>/PRD.md` if it exists (what /specs wrote).
@@ -178,150 +230,121 @@ nodes:
       required: [pr_id, pr_title, base_ref, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_findings]
 
   # =============================================================================================
-  # ASPECT FAN-OUT — seven parallel fresh nodes, each depends_on [prep]. Every aspect reads the shared
-  # SESSION/intent-brief.md (intent-grounded), reads SESSION/diff.patch + SESSION/changed-files.txt, and
-  # WRITES its findings to SESSION/findings/<aspect>.json so synthesize reads them off disk (a skipped
-  # aspect simply writes nothing — no skipped-node-output reference). Conditional spawn gates
-  # (harvested SPAWN_TABLE, biased to over-spawn): code-quality + intent-check always run.
+  # review — ONE node hosting the `code-review` Method's OWN two-axis fan-out (Standards · Spec).
   #
-  # Every aspect applies the SAME finding contract:
+  # This replaced seven hand-written aspect nodes (code-quality, tests, silent-failure, type-design,
+  # comment-rot, simplifier, intent-check) whose prompts restated ground `code-review` already covers
+  # and upstream now maintains. The Method implements its own parallelism — its step 4 spawns two
+  # sub-agents — so the Harness delegating to it is the whole point: nothing about running two
+  # sub-agents needs the Harness, and re-implementing step 4 as two Archon nodes is the exact defect
+  # ADR-0030's structural bar forbids. The Harness keeps what no Method supplies: the Intent Brief,
+  # the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces
+  # (#281, amending ADR-0026).
+  #
+  # The finding contract this node applies to EVERY Standards/Spec finding:
   #   - Confidence 0–100 → severity: 90–100 critical, 80–89 important, 60–79 minor,
   #     < $bootstrap.output.confidence_threshold → DROP before writing.
   #   - Finding shape: { aspect, severity, confidence, file, line, title (≤80 chars, no trailing period),
   #     body (1–4 sentences), suggestion? (only when a mechanical drop-in fix exists),
   #     hash (stable: sha1-ish of aspect+file+normalised-title, NOT the line number) }
+  #   - `aspect` is "standards" or "spec" — reconcile matches on the hash, so the aspect must be stable
+  #     across iterations or every finding reads as new.
   #   - Calibrate against the Intent Brief: do NOT flag a spec-mandated choice as a defect; DO flag a
   #     documented requirement the diff misses.
   #   - Also collect `positives` (things done well) for the "What's good" section.
-  # Write {"findings": [...], "positives": [...]} to SESSION/findings/<aspect>.json.
   # =============================================================================================
 
-  - id: code-quality
+  - id: review
     depends_on: [prep]
     context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
+    allowed_tools: [Read, Write, Bash, Glob, Grep, Agent]
     prompt: |
-      Aspect: code-quality. Read the shared finding contract from the workflow (severity rubric, finding
-      shape, intent calibration). SLUG=$bootstrap.output.slug, SESSION=<artifacts_dir>/<slug>/pr-review/,
-      threshold=$bootstrap.output.confidence_threshold.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt, and the project's
-      conventions (CLAUDE.md / AGENTS.md). Review the diff for readability, naming that communicates
-      intent, over-long/multi-purpose functions, duplicated logic, and project-convention adherence
-      (indentation, quotes, semicolons, early returns). Always runs (baseline aspect). Write
-      SESSION/findings/code-quality.json.
+      You are the review node of /pr-review for slug "$bootstrap.output.slug".
+      SESSION = <artifacts_dir>/<slug>/pr-review/ (artifacts_dir=$bootstrap.output.artifacts_dir).
+      threshold = $bootstrap.output.confidence_threshold.
 
-  - id: tests
-    depends_on: [prep]
-    when: "$prep.output.has_tests == 'true'"
-    context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
-    prompt: |
-      Aspect: tests (test-coverage adequacy). Apply the shared finding contract.
-      SESSION=<artifacts_dir>/$bootstrap.output.slug/pr-review/, threshold=$bootstrap.output.confidence_threshold.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt. Flag: new branches/
-      functions with no test, happy-path-only tests missing sad/edge paths, assertions on implementation
-      detail rather than behaviour, mocked internal collaborators (only true external boundaries should
-      be mocked), async under test with no rejection assertion, and Acceptance Criteria (from the Intent
-      Brief) with no visible test coverage. Write SESSION/findings/tests.json.
+      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. Never
+      call `resolveMethod` — this is an Archon node, it cannot import plugin `lib/` (ADR-0023 §5), so
+      the config and `.local` override tiers do not apply here (ADR-0031). If the file is missing that
+      is FATAL for this node: print "code-review Method not found at
+      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop. Do not review from
+      memory of what the Method says.
 
-  - id: silent-failure
-    depends_on: [prep]
-    when: "$prep.output.has_source == 'true' || $prep.output.touches_error_handling == 'true'"
-    context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
-    prompt: |
-      Aspect: silent-failure. Apply the shared finding contract.
-      SESSION=<artifacts_dir>/$bootstrap.output.slug/pr-review/, threshold=$bootstrap.output.confidence_threshold.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt. Flag: empty catch
-      blocks, `.catch(() => {})`, swallowed exceptions (caught + logged but not rethrown/propagated),
-      inappropriate `?? default` / `|| fallback` masking missing config or corrupt state, retries that
-      exhaust then proceed silently, wrong error-property access, ignored error-signalling return values,
-      and lost-signal / observability gaps (a fallback or early-return branch that skips a telemetry /
-      analytics / Sentry event the normal path emits — especially one the Intent Brief requires). Write
-      SESSION/findings/silent-failure.json.
+      Follow its Process steps 1–5. It asks a live human for two inputs; there is no human in this node,
+      so both are supplied here and you must NOT ask:
 
-  - id: type-design
-    depends_on: [prep]
-    when: "$prep.output.has_types == 'true'"
-    context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
-    prompt: |
-      Aspect: type-design. Apply the shared finding contract.
-      SESSION=<artifacts_dir>/$bootstrap.output.slug/pr-review/, threshold=$bootstrap.output.confidence_threshold.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt. Flag: types too wide
-      (`any`, `{}`, bare `string` where a union/branded type fits), types admitting illegal states,
-      primitive obsession, anemic data-bag types, assertions that should be narrowing guards, missing
-      exhaustiveness checks, exposed mutable internals, invariants enforced by convention rather than the
-      type/constructor, and (for `.mjs` `// @ts-check` files) missing JSDoc on exported params/returns.
-      Write SESSION/findings/type-design.json.
+      - **Step 1, the fixed point:** `$prep.output.base_ref` — prep already computed it as the
+        merge-base of the PR base branch and HEAD. Confirm it resolves and the diff is non-empty before
+        spawning anything, as the Method requires. prep also wrote the diff to SESSION/diff.patch and
+        the changed-file list to SESSION/changed-files.txt; use them rather than recomputing.
+      - **Step 2, the spec source:** `SESSION/intent-brief.md` — prep already distilled it from the
+        linked work items, the referenced docs, the PR description and PRD.md, with a numbered
+        Acceptance Criteria list. Never ask where the spec is. If
+        `$prep.output.intent_available == "false"` the brief says so explicitly: then, per the Method,
+        skip the Spec sub-agent and record "no spec available".
+      - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
+        applies.** `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and
+        `setup-matt-pocock-skills` is not a Plugin dependency — running it would write a competing
+        label file (ADR-0024). Never run it.
 
-  - id: comment-rot
-    depends_on: [prep]
-    when: "$prep.output.has_docs == 'true'"
-    context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
-    prompt: |
-      Aspect: comment-rot. Apply the shared finding contract.
-      SESSION=<artifacts_dir>/$bootstrap.output.slug/pr-review/, threshold=$bootstrap.output.confidence_threshold.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt. Flag: comments
-      describing behaviour the diff changed, JSDoc `@param`/`@returns` mismatching the signature,
-      over-documentation restating code, stale TODO/FIXME, markdown docs contradicted by the diff, and
-      "temporary/for now" comments the diff makes permanent. Write SESSION/findings/comment-rot.json.
+      Then steps 3–5 verbatim:
+      - Step 3: gather this repo's standards sources (CLAUDE.md / AGENTS.md / CONTRIBUTING.md /
+        CODING_STANDARDS.md — whatever exists) and take the Method's twelve-item Fowler smell baseline
+        as written. This baseline is where refactoring now lives: /build's loop has no REFACTOR phase,
+        because `tdd` puts refactoring in the review stage (#281).
+      - Step 4: send ONE message with two `Agent` tool calls, `general-purpose` subagent for both.
+        **Paste the twelve-item smell baseline IN FULL into the Standards sub-agent's prompt** — step 4
+        is explicit that the sub-agent has no other access to it, and an abridged paste silently
+        narrows the review. Add SESSION/intent-brief.md to BOTH sub-agent prompts: intent-grounding is
+        this Box's quality lever, so neither axis judges the diff without knowing what it was for.
+      - Step 5: aggregate under `## Standards` and `## Spec`. Never merge or rerank the two axes.
 
-  - id: simplifier
-    depends_on: [prep]
-    when: "$prep.output.has_source == 'true'"
-    context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
-    prompt: |
-      Aspect: simplifier (unnecessary complexity). Apply the shared finding contract.
-      SESSION=<artifacts_dir>/$bootstrap.output.slug/pr-review/, threshold=$bootstrap.output.confidence_threshold.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt. Flag: nested
-      conditionals flattenable to guard clauses, over-long multi-purpose functions, duplicated logic,
-      clever one-liners hurting readability, boolean-flag params, `if (x) return true else return false`,
-      needless `async`, `.then` chains that should be `await`, and nested ternaries. Prefer findings that
-      preserve behaviour exactly. Write SESSION/findings/simplifier.json.
+      ## Then convert both axes into this Harness's finding contract
+      Apply the contract from the workflow comment above to every finding from either axis: score
+      confidence, map it to severity, DROP anything below the threshold, and set `aspect` to
+      "standards" or "spec". Echo any `$prep.output.contradictions` as findings so they reach the
+      summary. Collect `positives` across both axes.
 
-  - id: intent-check
-    depends_on: [prep]
-    context: fresh
-    allowed_tools: [Read, Bash, Glob, Grep]
-    prompt: |
-      Aspect: intent-check (AC-coverage). Apply the shared finding contract for any quality findings, but
-      your PRIMARY output is per-AC verdicts. SESSION=<artifacts_dir>/$bootstrap.output.slug/pr-review/.
-      Read SESSION/intent-brief.md, SESSION/diff.patch, SESSION/changed-files.txt.
-      - If $prep.output.intent_available == "false": write SESSION/findings/intent-check.json as
-        {"findings": [], "positives": [], "ac_verdicts": [], "note": "no intent sources"} and stop.
-      - Otherwise, for each Acceptance Criterion in the Intent Brief, judge diff coverage and emit a
-        verdict: "addressed" | "partially addressed" | "unaddressed" (this is a coverage judgment, not a
-        code-quality one). Echo any `contradictions` from prep as findings so they surface in the summary.
-      Write SESSION/findings/intent-check.json as
-      {"findings": [...], "positives": [...], "ac_verdicts": [{"id","text","verdict"}...]}.
+      Write SESSION/findings/review.json as:
+        {"findings": [...], "positives": [...],
+         "standards_report": "<the ## Standards text>", "spec_report": "<the ## Spec text>"}
+      Keep `standards_report` and `spec_report` as the Method's own prose — synthesize renders
+      `spec_report` as the Intent Check section, which is how AC-coverage survives the collapse of the
+      old intent-check node.
+
+      If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
+      silently restructure the review into something else (not one axis, not seven aspects): print
+      "REVIEW BLOCKED: Agent tool unavailable in an Archon prompt node — code-review step 4 cannot run
+      as written", write SESSION/findings/review.json with that sentence as `standards_report` and
+      empty arrays, and stop. That is a real finding about the container, not a detail to route around.
 
   # ---------------------------------------------------------------------------------------------
-  # synthesize — THIS RUN ONLY. Reads every SESSION/findings/<aspect>.json that exists (skipped aspects
-  # wrote none), dedupes overlaps, buckets by severity, assigns each finding its stable hash marker, and
+  # synthesize — THIS RUN ONLY. Reads the review node's single SESSION/findings/review.json, dedupes
+  # overlaps across the two axes, buckets by severity, assigns each finding its stable hash marker, and
   # assembles the severity-grouped body sections + the Intent Check section + the contradictions callout.
-  # No prior-iteration awareness here — that is reconcile's job. trigger_rule: all_done so skipped
-  # aspects (when=false) do not block it.
+  # No prior-iteration awareness here — that is reconcile's job. `trigger_rule: all_done` is gone with
+  # the seven skippable aspect siblings: `review` always runs, so a plain dependency is honest.
   # ---------------------------------------------------------------------------------------------
   - id: synthesize
-    depends_on: [code-quality, tests, silent-failure, type-design, comment-rot, simplifier, intent-check]
-    trigger_rule: all_done
+    depends_on: [review]
     context: fresh
-    allowed_tools: [Read, Bash, Glob]
+    allowed_tools: [Read, Write, Bash, Glob]
     prompt: |
       You are the synthesize node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/  (artifacts_dir=$bootstrap.output.artifacts_dir).
 
-      1. Read every file in SESSION/findings/*.json that exists (a skipped aspect wrote none).
-      2. Merge all `findings`, DEDUPE overlaps (same file + near-identical title across aspects → keep the
-         highest-confidence one, note the other aspects). Ensure each finding has its stable `hash`.
-      3. Bucket by severity (critical / important / minor). Collect `positives` across aspects.
-      4. Collect the intent-check `ac_verdicts` and any contradictions.
+      1. Read SESSION/findings/review.json — the review node's Standards + Spec output.
+      2. Merge its `findings`, DEDUPE overlaps (same file + near-identical title across the two axes →
+         keep the highest-confidence one, note the other axis). Ensure each finding has its stable
+         `hash`. Do NOT rerank one axis against the other; deduping identical findings is not reranking.
+      3. Bucket by severity (critical / important / minor). Collect `positives`.
+      4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
-           - `### Intent Check` with `- AC-N: <verdict>` lines (omit only if intent unavailable)
+           - `### Intent Check` — render the review node's `spec_report` verbatim. The Spec axis IS the
+             AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
+             implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
+             when `$prep.output.intent_available == "false"`.
            - `### 🔴 Critical (N)` / `### 🟠 Important (N)` / `### 🟡 Minor / Suggestions` — each finding a
              bold `` `file:line` `` + title, body beneath; omit an empty severity section.
            - `### ✅ What's good` — always present, from `positives`.
@@ -350,7 +373,12 @@ nodes:
 
       1. Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration).
       2. Classify each finding by matching its `hash` against prior_findings (tolerate small line drift —
-         match on aspect + file + semantic title, NOT the exact line number):
+         match on aspect + file + semantic title, NOT the exact line number).
+         One-off note: a prior iteration posted before #281 carries the retired seven aspect names
+         (code-quality, tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where
+         this run carries "standards" / "spec". Match those on file + semantic title ALONE, ignoring the
+         aspect, so the first re-review after the rewiring does not report every finding as new.
+         Classifications:
            - new           — no prior match
            - still-present — matched a prior finding still valid this run
            - fixed         — a prior finding with NO match this run (it no longer reproduces)
@@ -418,31 +446,40 @@ nodes:
       You are the post node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/. ITERATION = $reconcile.output.iteration.
       PR_ID = $prep.output.pr_id. inline_comments = $bootstrap.output.inline_comments.
+      TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
 
-      Compose the configured tracker from `.archon/unic-dlc.config.yaml` (`tracker.type`; MCP-first,
-      CLI-fallback — never hardcode a host, ADR-0016).
+      ## Act on THIS repository
+      This node is the only one in the lifecycle that writes a review, so name TARGET_REPO explicitly in
+      every call. Act on THIS repository, never the one a tool infers from the checkout — in a fork clone
+      those differ, and the review lands on a stranger's PR. Compose the system-skill the team registered
+      under `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by
+      reading that skill's own current interface and building each call from it. Do NOT write a command,
+      subcommand or flag here, and do NOT branch on which provider `tracker.type` names: the DLC owns the
+      what and none of the how (ADR-0016), and a flag table frozen in this file is stale the moment the
+      tool changes — it also invents subcommands that never existed, which no test without a live tenant
+      can catch. Ask the skill what it supports; do not assume. If it cannot target a repository
+      explicitly, STOP: print "BLOCKED: the registered tracker skill cannot target a repository
+      explicitly — <the missing capability>" and post nothing.
 
       ## Summary comment (always)
-      Read SESSION/comment.md. Search the PR's comments for the FIRST comment containing the marker
-      `<!-- unic-dlc-pr-review:iteration=` (match the marker, NEVER the author).
-        - github → find via `gh pr view "$PR_ID" --json comments`; PATCH the matched comment with
-          `gh api ... -X PATCH -f body=@SESSION/comment.md`, else `gh pr comment "$PR_ID" --body-file`.
-        - ado    → `az repos pr thread list`; update the matched general-comment thread's first comment,
-          else create a new general-comment thread.
-        - jira / local-markdown → update the marked comment / overwrite SESSION/comment.md as the record.
+      Read SESSION/comment.md. List the PR's existing comments on TARGET_REPO and take the FIRST one
+      containing the marker `<!-- unic-dlc-pr-review:iteration=` (match the marker, NEVER the author).
+        - A match → update THAT comment's body in place with SESSION/comment.md, so a re-run never
+          duplicates the summary.
+        - No match → add SESSION/comment.md as a new PR-level comment.
+        - The tracker cannot comment on a PR at all → leave SESSION/comment.md as the record and say so.
       The comment.md already carries the bumped `iteration=<ITERATION>` marker + footer.
 
       ## Inline comments (when inline_comments == "true" AND the tracker supports inline threads)
-      Read SESSION/inline.json. github + ado support inline threads; jira / local-markdown DO NOT →
-      print "inline: tracker <type> has no inline threads — summary only" and skip. For each entry, match
-      an existing inline thread by its `<!-- unic-dlc-pr-review:finding=<hash> -->` marker and reconcile
-      by `classification`:
+      Read SESSION/inline.json. Ask the composed skill whether it can comment on a specific file and line
+      of the PR. If it cannot, print "inline: the configured tracker has no inline threads — summary
+      only" and skip this section. Otherwise, for each entry match an existing inline thread by its
+      `<!-- unic-dlc-pr-review:finding=<hash> -->` marker and reconcile by `classification`:
         - still-present → update the existing thread comment in place.
         - fixed         → reply "✅ resolved in iteration <ITERATION>" and resolve the thread where the
                           tracker supports a resolved status (best-effort; otherwise just reply).
         - regressed     → reopen the thread (or open a new one) noting the regression.
         - new           → create a new inline thread at file:line.
-      (github: `gh api` review comments; ado: `az repos pr thread create/update` with threadContext.)
 
       Finally print: "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
       <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved). ✓"

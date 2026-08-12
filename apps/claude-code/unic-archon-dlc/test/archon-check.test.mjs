@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkArchon, INCOMPATIBLE_ARCHON_VERSIONS, MIN_ARCHON_VERSION } from '../lib/archon-check.mjs'
+import { checkArchon, INCOMPATIBLE_ARCHON_VERSIONS, MIN_ARCHON_VERSION, parseVersion } from '../lib/archon-check.mjs'
 
 /** @typedef {import('../lib/archon-check.mjs').ExecFn} ExecFn */
 
@@ -29,8 +29,18 @@ test('rejects a version below the min-floor', () => {
 	assert.ok(result.message.includes(MIN_ARCHON_VERSION), `message should include the floor: ${result.message}`)
 })
 
+test('rejects a version that satisfied the OLD 0.5.0 floor but not the NEW 0.7.0 floor', () => {
+	// AC 1 (#290): proves the floor actually moved, not just that some floor is enforced.
+	const result = checkArchon(() => '0.6.9')
+	assert.ok(!result.ok, 'a pre-0.7.0 version must now fail')
+	if (result.ok) return
+	assert.equal(result.code, 'incompatible')
+	assert.ok(result.message.includes('0.6.9'), `message should include the found version: ${result.message}`)
+	assert.ok(result.message.includes('0.7.0'), `message should include the new floor: ${result.message}`)
+})
+
 test('parses a version string with a program-name / v prefix', () => {
-	assert.ok(checkArchon(() => 'archon v0.6.1').ok, 'prefixed version >= floor should be ok')
+	assert.ok(checkArchon(() => 'archon v0.7.1').ok, 'prefixed version >= floor should be ok')
 	assert.ok(!checkArchon(() => 'archon v0.3.0').ok, 'prefixed version < floor should fail')
 })
 
@@ -84,6 +94,14 @@ test('returns other failure with stderr when process fails', () => {
 	assert.equal(result.code, 'other')
 	assert.ok(result.message.includes('stderr:'), `message should include stderr label: ${result.message}`)
 	assert.ok(result.message.includes('illegal option'), `message should include stderr content: ${result.message}`)
+})
+
+test('parseVersion is public API: it tolerates a program-name and v prefix, and returns null on garbage', () => {
+	// Exported for `/archon-upgrade`, which compares the installed version against the floor and
+	// against each release tag it enumerates. Locked here now that it is public.
+	assert.deepEqual(parseVersion('archon v0.7.1'), [0, 7, 1])
+	assert.deepEqual(parseVersion('0.7.0'), [0, 7, 0])
+	assert.equal(parseVersion('not a version'), null)
 })
 
 test('INCOMPATIBLE_ARCHON_VERSIONS is frozen and starts empty', () => {

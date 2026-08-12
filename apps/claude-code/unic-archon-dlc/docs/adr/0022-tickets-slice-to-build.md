@@ -2,6 +2,15 @@
 
 **Status:** Accepted (2026-07-02)
 
+> **Amended (2026-08-04, Matt v1.1.0 migration tranche 2 — #280):** `/to-issues` below is the
+> pre-v1.1.0 name of `to-tickets`, and `/tickets` now **reads** it by resolved path rather than
+> invoking it ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)). One decision this ADR left
+> open is now settled: **`issues.json` gains no prefactor field.** Upstream added prefactoring guidance
+> to the Method; a prefactor is expressed as an ordinary slice — `type: tech-debt`, `blocked_by: []`,
+> named in the `blocked_by` of every slice it unblocks — so the dependency order this ADR already
+> mandates ships it first and `/build`'s generic loop needs no new rule. The HITL/AFK slice typing
+> upstream dropped was never in `lib/issues-schema.mjs`, so nothing was removed.
+
 ## Context
 
 `/tickets` is the second main-line box ([ADR-0014](0014-workflow-per-box-decomposition.md) box set):

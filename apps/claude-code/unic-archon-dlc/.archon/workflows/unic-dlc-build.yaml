@@ -2,13 +2,22 @@ name: unic-dlc-build
 description: >
   Keystone build box. Consumes the dependency-ordered issues.json that /tickets produced and
   implements every slice test-first with structural anti-cheating: a single generic loop advances
-  each slice through three FRESH-context phases — RED (write a provably-failing test), GREEN (minimum
-  implementation), REFACTOR (clean up under a green suite) — serially in dependency order. The baton
-  between phases is artefacts on disk (committed test, committed impl), never session memory
-  (ADR-0012). Then verify, goals-check, report, and gate a PR to develop (ADR-0011/0022/0023).
+  each slice through two FRESH-context phases — RED (write a provably-failing test) and GREEN
+  (minimum implementation) — serially in dependency order. The baton between phases is artefacts on
+  disk (committed test, committed impl), never session memory (ADR-0012). Procedure comes from the
+  `tdd` and `implement` Methods, read by path from `.archon/methods/`; refactoring is deliberately
+  NOT in the loop — `tdd` puts it in the review stage, so it lives in /pr-review's `code-review`
+  Fowler smells (#281, amending ADR-0023). Then a local non-posting code-review pre-check, verify,
+  goals-check, report, and gate a PR to develop (ADR-0011/0022/0023/0030/0031).
 
 # Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
 interactive: true
+
+# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists — the
+# `evidence` node below is the only writer; the engine gates on presence only, the content
+# contract is this workflow's own (ADR-0034).
+evidence_policy:
+  required: true
 
 nodes:
   # ---------------------------------------------------------------------------------------------
@@ -28,19 +37,41 @@ nodes:
       2. Read `.archon/unic-dlc.config.yaml` at the repo root.
          - If it is absent or unreadable → status "no-config".
          - Otherwise read: `artifacts_dir` (default "workflows"), `gates.build` (default "hitl"),
-           `build.e2e_command` (may be null), `build.coverage_threshold` (may be null).
+           `build.e2e_command` (may be null), `build.coverage_threshold` (may be null),
+           `project.branching` (default "gitflow").
       3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
          - If it is absent → status "no-issues".
-      4. If slug, config, and issues.json are all present → status "ready".
+      4. Resolve the TARGET REPOSITORY that the PR this run opens must be opened against. It is
+         DERIVED from this worktree, not configured:
+         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
+         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
+            set, it wins verbatim and `repo_ref_source` is "override".
+         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
+            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
+            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
+            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
+            instead of `origin`, and the PR would open on someone else's project — so the target is
+            genuinely ambiguous → status "ambiguous-repo", with `message` naming the remotes that
+            disagree. A checkout whose only remote is `origin` is never ambiguous, so an existing
+            project never reaches that guard.
+         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
+      5. If slug, config, and issues.json are all present and the repository is unambiguous →
+         status "ready".
+
+      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
+      Emit it in EVERY branch (fall back to "develop" when config cannot be read) — the
+      implement-review-precheck node pins its code-review fixed point to it.
 
       Emit ONLY the structured object. `test_command` is the repo default test command you can infer
-      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one.
+      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one. In every
+      non-ready branch still emit each required field: `repo_ref` "" and `repo_ref_source` "origin"
+      when they cannot be resolved.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, no-issues]
+          enum: [ready, no-slug, no-config, no-issues, ambiguous-repo]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -49,19 +80,40 @@ nodes:
         e2e_command: { type: [string, 'null'] }
         coverage_threshold: { type: [number, 'null'] }
         test_command: { type: [string, 'null'] }
+        expected_base: { type: string }
+        repo_ref: { type: string }
+        repo_ref_source:
+          type: string
+          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, message]
+      required: [status, slug, artifacts_dir, gate, expected_base, repo_ref, repo_ref_source, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail).
+  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). Two
+  # guards, mutually exclusive on status, so each cancel message names the one thing to fix.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready'"
+    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
     cancel: >
       /build preconditions not met — see the bootstrap output for which of slug, config, or
       issues.json is missing. Run /unic-archon-dlc:tickets <slug> first to produce
       <artifacts_dir>/<slug>/issues.json.
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-ambiguous-repo — the ONLY repository precondition. It fires when this checkout is a fork
+  # whose parent differs from `origin` and no `project.repo_ref` override is set, because a host tool
+  # would then open the PR on the parent. A checkout with only `origin` never reaches it, so no
+  # existing project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-ambiguous-repo
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ambiguous-repo'"
+    cancel: >
+      /build cannot tell which repository to open the PR against — see the bootstrap message for the
+      remotes that disagree. This checkout names more than one repository, so a tool that infers the
+      target from the checkout would act on the wrong one. Set `project.repo_ref` in
+      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
 
   # ---------------------------------------------------------------------------------------------
   # slopcheck — verify every NEW package against the npm registry before any code runs.
@@ -70,6 +122,9 @@ nodes:
   - id: slopcheck
     depends_on: [bootstrap]
     when: "$bootstrap.output.status == 'ready'"
+    # always_run: true — a resume must re-verify package.json's CURRENT contents; exit 0 says
+    # nothing about packages added since the last completed attempt (ADR-0033).
+    always_run: true
     runtime: bun
     timeout: 120000
     script: |
@@ -144,8 +199,12 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # run-build — THE keystone. One fresh session per iteration advances ONE slice by ONE phase.
-  # Red/green/refactor never share a session; the baton is committed artefacts + build-state.json
+  # Red and green never share a session; the baton is committed artefacts + build-state.json
   # (ADR-0012 / ADR-0023). Serial in the dependency order already baked into issues.json.
+  #
+  # The loop's PROCEDURE is not written here: `tdd` and `implement` own it, read by path from
+  # `.archon/methods/` (ADR-0030/0031). What stays below is Harness-only — the exit-code anti-cheat
+  # proof, the per-phase commit convention and build-state.json, none of which a Method can supply.
   # ---------------------------------------------------------------------------------------------
   - id: run-build
     depends_on: [slopcheck]
@@ -165,10 +224,48 @@ nodes:
           Issues        = <ARTIFACTS_DIR>/<SLUG>/issues.json      (dependency-ordered, read-only)
           State         = <ARTIFACTS_DIR>/<SLUG>/build-state.json (you create/update it)
 
+        ## Step 0 — Read the Methods; the seams are already confirmed
+        Read these files in full, by this literal repo-relative path:
+          - `.archon/methods/tdd/SKILL.md`, plus its `.archon/methods/tdd/tests.md` and
+            `.archon/methods/tdd/mocking.md`
+          - `.archon/methods/implement/SKILL.md`
+        Never call `resolveMethod`: this is an Archon node, it cannot import plugin `lib/`
+        (ADR-0023 §5), so it reads the installed bundle tier directly and the config / `.local`
+        override tiers do not apply here (ADR-0031). If a file is missing, that is FATAL for this
+        node — print "tdd/implement Method not found under .archon/methods/ — run
+        /unic-archon-dlc:setup" and stop. Do not proceed from memory of what these Methods say.
+
+        The Methods own the procedure. They ask a live human three things; a loop iteration has no
+        human, so the answers are supplied here and you must NOT ask:
+
+        1. **Seams.** `tdd` says "before writing any test, write down the seams under test and confirm
+           them with the user. No test is written at an unconfirmed seam." For every slice carrying a
+           `test_command`, that confirmation ALREADY HAPPENED, twice: at `/specs` Step 5 (the
+           seam-approval halt, recorded in `<ARTIFACTS_DIR>/<SLUG>/PRD.md` § Testing Decisions) and
+           again at `/tickets`' Nyquist-map gate, which is why the slice carries a `test_command` at
+           all. Read those two sources and treat the seams as confirmed.
+        2. **A slice with `test_command_planned: true` has no pre-agreed seam** — no runner exists yet,
+           or the test IS the deliverable. Choose the seam yourself during RED and record the choice:
+           append `seam chosen: <issue-id> — <seam description>` to that slice's `notes` in
+           build-state.json. Do NOT halt the slice and do NOT ask. The choice is auditable after the
+           fact by /pr-review and /improve-architecture; an unrecorded choice is the defect.
+        3. **`/setup-matt-pocock-skills` never applies.** The Methods offer it as a fallback when
+           `docs/agents/issue-tracker.md` is absent. `.archon/unic-dlc.config.yaml` is this Harness's
+           single source of truth, and `setup-matt-pocock-skills` is not a Plugin dependency — running
+           it would write a competing label file (ADR-0024). Never run it.
+
+        Note what `tdd` says about refactoring: it is NOT part of the red → green loop, it belongs to
+        the review stage. This loop therefore has no REFACTOR phase — /pr-review's `code-review` axis
+        carries the Fowler smell baseline instead (#281).
+
         ## Step 1 — Load state
         Read issues.json (an ordered array; blockers come first — honour that order).
         Read build-state.json if it exists; otherwise treat every slice as phase "pending".
-        build-state.json shape: { "<issue-id>": { "phase": "pending|red-done|green-done|refactor-done",
+        Normalise on read: a slice whose phase is "refactor-done" — the phase 0.14.0 wrote and this
+        version retired — is read as "green-done". The work it names is finished; only the tidy step
+        that followed it is gone. Without this the slice matches no Step 2 branch below, never
+        satisfies the COMPLETE condition, and freezes every slice that lists it as a blocker.
+        build-state.json shape: { "<issue-id>": { "phase": "pending|red-done|green-done",
         "red_exit": <number|null>, "red_unexpected_pass": <bool>, "notes": "<string>" }, ... }.
 
         ## Step 2 — Pick the NEXT action (exactly one phase, one slice)
@@ -176,26 +273,46 @@ nodes:
         print "BLOCKED: <id> red-unexpected-pass — needs human review", do NOT emit COMPLETE, and end
         the iteration. (A human resolves the mis-written test out of band.)
         Otherwise walk issues.json IN ORDER and pick the first slice whose blockers are all
-        "refactor-done" and:
+        "green-done" and:
           - phase "pending"    → do RED for it
           - phase "red-done"   → do GREEN for it
-          - phase "green-done" → do REFACTOR for it
-        If EVERY slice is "refactor-done" → print "All slices complete." and emit
+        If EVERY slice is "green-done" → print "All slices complete." and emit
         <promise>COMPLETE</promise>. Do nothing else.
+
+        ## Step 2.5 — The staging rule, which both phases below obey
+        Every commit in this loop stages NAMED paths — the test file(s) in RED, the implementation
+        file(s) in GREEN — one `git add <path>` per path. NEVER `git add -A`, `git add .` or
+        `git add -u`: you are a FRESH session in an isolated worktree, so you cannot tell your own
+        output from whatever else is on disk, and "everything changed" sweeps that in.
+        NEVER stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under `$ARTIFACTS_DIR` —
+        Archon's per-run directory, which resolves OUTSIDE the repo tree under
+        `~/.archon/workspaces/<name>/artifacts/`. (The repo-relative session dir under ARTIFACTS_DIR
+        above is a different thing; see the next rule for what happens to it.)
+        NEVER stage or commit build-state.json in a loop iteration. You rewrite it on every one of up
+        to 60 iterations; committing it here would put 60 revisions of a scratch-looking file in the
+        PR. The `open-pr` node commits it ONCE, at the end — that single commit is the durable proof
+        of this loop's anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase
+        order), which otherwise dies when `/cleanup` prunes this worktree (ADR-0012).
+        After each `git add`, run `git status --porcelain` and confirm the staged set is exactly the
+        file(s) you named. Unstage anything else with `git restore --staged <path>` before committing.
 
         ## Step 3 — Execute the chosen phase
 
         The slice's INTENT is its `acceptance_criteria` + `summary` from issues.json. Its verification
-        seam is `test_command` (or, if `test_command_planned` is true, the test is part of the slice —
-        you write it, then use the command you introduce).
+        seam is `test_command` (or, if `test_command_planned` is true, the seam you chose per Step 0.2 —
+        you write the test, then use the command you introduce).
 
         ### RED  (write a provably-failing test — this is the anti-cheat proof)
           1. From the slice INTENT alone, write the failing test(s) for ONE demoable behaviour.
              Do NOT write or modify implementation code in this phase.
+             For HOW to write it — what a good test is, where the seam lies, the anti-patterns in
+             `tests.md` and `mocking.md`, one vertical slice rather than bulk tests — follow `tdd`.
+             It is the reference; do not re-derive its rules or substitute your own.
           2. Run the slice's `test_command`. Capture the exit code.
           3. If exit code != 0 (test fails as required):
-               - `git add` the test file(s) and commit: `test(<SLUG>): failing test for <id> — <title>`
-               - Update build-state.json: phase "red-done", red_exit = <code>.
+               - Stage the test file(s) BY NAME per Step 2.5 and commit:
+                 `test(<SLUG>): failing test for <id> — <title>`
+               - Update build-state.json: phase "red-done", red_exit = <code>. Leave it UNSTAGED.
           4. If exit code == 0 (test unexpectedly PASSES before any impl):
                - Do NOT commit. The test does not capture new behaviour.
                - Update build-state.json: red_unexpected_pass = true, notes = why.
@@ -204,30 +321,101 @@ nodes:
         ### GREEN  (minimum implementation)
           The committed failing test on disk is your contract. You did NOT see how RED reasoned — read
           the committed test + the slice INTENT.
-          1. Write the MINIMUM implementation to make the committed test pass. No speculative features,
-             no extra abstractions, no unrelated files.
+          1. Write the MINIMUM implementation to make the committed test pass, per `implement` and
+             `tdd`'s "red before green / one slice at a time" rules: no speculative features, no
+             extra abstractions, no unrelated files. Run typechecking and the single test file as you
+             go, as `implement` prescribes.
           2. Run `test_command`. It MUST now pass (exit 0). If it does not, iterate on the impl only
              (never weaken the test) until green, within this iteration.
-          3. `git add` the implementation and commit: `feat(<SLUG>): implement <id> — <title>`
-             (use `fix(...)` when the slice `type` is bug).
-          4. Update build-state.json: phase "green-done".
+          3. Stage the implementation file(s) BY NAME per Step 2.5 and commit:
+             `feat(<SLUG>): implement <id> — <title>` (use `fix(...)` when the slice `type` is bug).
+          4. Update build-state.json: phase "green-done". Leave it UNSTAGED.
 
-        ### REFACTOR  (clean up under a green suite)
-          1. Read the committed implementation for this slice. Improve clarity/duplication/naming ONLY;
-             change no observable behaviour and add no features.
-          2. Run `test_command`. It MUST stay green. If a change breaks it, revert that change.
-          3. If you made changes, `git add` and commit: `refactor(<SLUG>): tidy <id> — <title>`.
-             If nothing needed changing, make NO commit.
-          4. Update build-state.json: phase "refactor-done".
+        ## Step 4 — Never emit COMPLETE unless Step 2 found every slice "green-done".
+        Do exactly one phase per iteration, then stop. `implement`'s closing "once done, use
+        /code-review" step is NOT yours: the implement-review-precheck node runs it once, after the
+        whole loop completes.
 
-        ## Step 4 — Never emit COMPLETE unless Step 2 found every slice "refactor-done".
-        Do exactly one phase per iteration, then stop.
+  # ---------------------------------------------------------------------------------------------
+  # implement-review-precheck — realises `implement`'s closing "once done, use /code-review" step,
+  # once, after the whole loop. A LOCAL PRE-CHECK THAT POSTS NOTHING: its findings go into report.md
+  # and nowhere else, so /pr-review keeps sole posting authority (#281 AC 4). Runs `code-review`'s own
+  # two-axis parallelism internally rather than the Harness re-implementing it (ADR-0030).
+  # ---------------------------------------------------------------------------------------------
+  - id: implement-review-precheck
+    depends_on: [run-build]
+    context: fresh
+    allowed_tools: [Read, Bash, Glob, Grep, Agent]
+    prompt: |
+      You are the implement-review-precheck node of /build for slug "$bootstrap.output.slug".
+
+      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. Never
+      call `resolveMethod` — this is an Archon node, it cannot import plugin `lib/` (ADR-0023 §5), so
+      the config and `.local` override tiers do not apply here (ADR-0031). If the file is missing that
+      is FATAL for this node: print "code-review Method not found at
+      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop.
+
+      This node exists because `implement` ends with "once done, use /code-review to review the work".
+      It is a LOCAL PRE-CHECK. Follow the Method's Process steps 1–5 with these answers supplied — the
+      Method asks a live human for two of them and there is no human here, so do NOT ask:
+
+      - **Step 1, the fixed point:** the branch point of this build branch —
+        `git merge-base origin/$bootstrap.output.expected_base HEAD`, falling back to
+        `git merge-base $bootstrap.output.expected_base HEAD` if `origin/<ref>` doesn't resolve. If
+        NEITHER resolves, do NOT fall back to the branch's first commit — that guarantees a
+        "non-empty" diff that is not the Method's fixed point. Instead print "PRECHECK BLOCKED:
+        cannot resolve expected_base '$bootstrap.output.expected_base' via origin or local — no
+        merge-base found", emit that sentence as `findings`, and stop. Otherwise confirm the diff is
+        non-empty before spawning anything, as the Method requires.
+      - **Step 2, the spec source:** already on disk for this slug — read
+        `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` and
+        `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker issue
+        for each slice. Read those issues from `$bootstrap.output.repo_ref` — THIS repository, named
+        explicitly, never the one a tool infers from the checkout — by composing the system-skill the
+        team registered under `tracker.access` in `.archon/unic-dlc.config.yaml`, MCP first and its
+        CLI as fallback. Read that skill's own current interface and build the call from it; do NOT
+        write a command or flag here, and do NOT branch on which provider `tracker.type` names
+        (ADR-0016). Degrade gracefully: if the tracker cannot be queried, the PRD + issues.json are
+        enough. Never ask where the spec is.
+      - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
+        applies.** `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and
+        `setup-matt-pocock-skills` is not a Plugin dependency — running it would write a competing
+        label file (ADR-0024). Never run it.
+
+      Then follow the Method's steps 3–5 verbatim, including its own parallelism: send ONE message
+      with two `Agent` tool calls using the `general-purpose` subagent, one per axis. Paste the Method's
+      twelve-item Fowler smell baseline IN FULL into the Standards sub-agent's prompt — step 4 is
+      explicit that the sub-agent has no other access to it. Aggregate under `## Standards` and
+      `## Spec`; never merge or rerank the two axes.
+
+      ## This node POSTS NOTHING
+      Run no tracker or PR mutation of any kind: no PR comment, no comment edit, no write call
+      against the tracker's API by any route, no issue creation, no label change, no thread. The
+      read-only issue queries in step 2 are the only tracker traffic allowed here. /pr-review is the
+      only Box with posting authority; this axis pair is here to inform the build report and the human
+      at build-pr-gate. Emit the aggregated `## Standards` / `## Spec` text as `findings` for the
+      report node to fold in.
+
+      If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
+      silently restructure the review into something else: print "PRECHECK BLOCKED: Agent tool
+      unavailable in an Archon prompt node — code-review step 4 cannot run as written" and emit that
+      same sentence as `findings`. That is a real finding about the container, not a detail to route
+      around.
+    output_format:
+      type: object
+      properties:
+        findings: { type: string }
+      required: [findings]
 
   # ---------------------------------------------------------------------------------------------
   # verification — full suite + stub scan on the diff. Self-contained prompt (ADR-0023 §5).
   # ---------------------------------------------------------------------------------------------
   - id: verification
-    depends_on: [run-build]
+    depends_on: [implement-review-precheck]
+    # always_run: true — the exit code is a prose report, not a promise; a resume must re-run the
+    # suite against the CURRENT tree, never replay a cached PASSED from before a since-applied fix
+    # (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
@@ -246,11 +434,31 @@ nodes:
            verification: PASSED ✓    (tests green, no stubs, coverage ≥ threshold)
          or
            verification: FAILED ✗ — <the specific failures>
+      5. Return the verdict block from step 4, plus everything you found worth reporting (counts,
+         coverage figure, the stub list), as the `verdict` string — that field is the prose the
+         report node reads, so it must stand alone. Then set a `passed` boolean (true only if the
+         suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
+         and a `failures` array of short strings, one per distinct failure. List blockers ONLY in
+         `failures` — never a non-blocking note. The prose is for the human at build-pr-gate; the
+         `evidence` node reads `passed` and `failures` and withholds on either signal, and
+         `evidence_policy` then gates on the file that node writes.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
+    output_format:
+      type: object
+      properties:
+        verdict: { type: string }
+        passed: { type: boolean }
+        failures:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures]
 
   # ---------------------------------------------------------------------------------------------
   - id: goals-check
     depends_on: [verification]
+    # always_run: true — same reason as verification: the coverage matrix is a fact about the
+    # CURRENT diff, and a resume must recompute it rather than reuse a cached verdict (ADR-0033).
+    always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
     prompt: |
@@ -266,11 +474,114 @@ nodes:
          A criterion is COVERED only when BOTH a test and an implementation exist.
       4. If any row is MISSING: print "goals-check: FAILED — N uncovered criteria" and list them.
          Else print "goals-check: PASSED — all acceptance criteria covered. ✓".
-      Keep the matrix in your output; the report node pastes it verbatim.
+      5. Return the whole Markdown table plus the PASSED/FAILED line as the `verdict` string — that
+         field is what the report node pastes verbatim, so the matrix must be inside it. Then set a
+         `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
+         short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
+         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` and
+         withholds on either signal, and `evidence_policy` then gates on the file that node writes.
+    output_format:
+      type: object
+      properties:
+        verdict: { type: string }
+        passed: { type: boolean }
+        failures:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures]
+
+  # ---------------------------------------------------------------------------------------------
+  # evidence — writes $ARTIFACTS_DIR/evidence.json ONLY when both verdicts are green; its mere
+  # PRESENCE is what workflow-level evidence_policy checks before allowing terminal `completed`
+  # (the engine gates on presence only — the content contract is this node's, ADR-0034). A SCRIPT,
+  # never a prompt: a prompt that both judges and certifies grades its own homework.
+  # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive
+  # presence from the CURRENT verification/goals-check output, never trust a stale file (also why
+  # it deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # ---------------------------------------------------------------------------------------------
+  - id: evidence
+    depends_on: [verification, goals-check]
+    always_run: true
+    runtime: bun
+    script: |
+      import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
+      import { join } from 'node:path'
+
+      // The engine exports ARTIFACTS_DIR to script nodes; this is the plugin's only read of it, and
+      // an absent value must fail loudly. Unset throws inside join() with a node:path message that
+      // names nothing about the contract. Empty string is worse and is why this guard checks
+      // falsiness rather than undefined: join('', 'evidence.json') returns a RELATIVE path and does
+      // not throw, so this node logs "wrote evidence.json" while the engine's presence gate reads
+      // the real ARTIFACTS_DIR and finds nothing — a run failing closed with a success line in its
+      // log. Do NOT fall back to the Session dir: the gate reads only this path, so a fallback
+      // would make that silent case permanent (ADR-0033/0034).
+      const artifactsDir = process.env.ARTIFACTS_DIR
+      if (!artifactsDir) {
+        console.error(
+          'evidence: ARTIFACTS_DIR is unset or empty — the engine did not export it to this script node. ' +
+            'The evidence gate requires Archon >= 0.7.0 (ADR-0033/0034).'
+        )
+        process.exit(1)
+      }
+      const evidencePath = join(artifactsDir, 'evidence.json')
+      const sessionDir = join('$bootstrap.output.artifacts_dir', '$bootstrap.output.slug')
+      const mirrorPath = join(sessionDir, 'evidence.json')
+
+      // Delete BOTH copies first: a resumed run reuses the same $ARTIFACTS_DIR and the same
+      // Session dir, so a prior attempt's file would certify a red tree if this attempt fails
+      // before writing a fresh one. The mirror needs this most — the engine's presence gate reads
+      // only the $ARTIFACTS_DIR copy, so a stale mirror survives an engine refusal and is what
+      // open-pr stages and a reviewer reads.
+      if (existsSync(evidencePath)) rmSync(evidencePath)
+      if (existsSync(mirrorPath)) rmSync(mirrorPath)
+
+      // A node-output field reference substitutes RAW: booleans land as `true`/`false` and arrays
+      // as JSON array literals (both valid JS); strings land unquoted, so every quoted
+      // node-output reference below carries its own quotes. Do not "tidy" that quoting away — it
+      // is load-bearing.
+      // (Never write a placeholder node id anywhere in this body, comments included. The DAG
+      // loader reads every dollar-prefixed node-output token here as a real edge, so a placeholder
+      // makes the whole Box fail to load with "references unknown node". A comment on this very
+      // spot once did exactly that. `test/box-workflow-node-refs.test.mjs` now guards it.)
+      const verificationPassed = $verification.output.passed
+      const goalsCheckPassed = $goals-check.output.passed
+      const verificationFailures = $verification.output.failures
+      const goalsCheckFailures = $goals-check.output.failures
+
+      // `passed` is self-reported by the same prompt that wrote `failures`, so neither field alone
+      // is trustworthy — but disagreement BETWEEN them is. Certifying on `passed` alone let a
+      // `passed: true` with a non-empty `failures` array write a certificate whose own body listed
+      // the failures. Both prompts define `failures` as blockers only, so a non-empty list is a
+      // red verdict whatever the boolean says. This does not make the gate independent of the
+      // judge — only re-running the suite would, and ADR-0023 §5 rules that out (ADR-0034).
+      const verificationGreen = verificationPassed === true && verificationFailures.length === 0
+      const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
+
+      if (!verificationGreen || !goalsCheckGreen) {
+        console.log(`evidence: withholding — verification(passed=${verificationPassed}, failures=${verificationFailures.length}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+        process.exit(0)
+      }
+
+      // Both arrays are empty by construction here — the guard above returns on either being
+      // non-empty. They stay in the artefact so a reviewer reading evidence.json sees the two
+      // fields the gate checked rather than having to know which fields it consulted.
+      const evidence = {
+        slug: '$bootstrap.output.slug',
+        verification_failures: verificationFailures,
+        goals_check_failures: goalsCheckFailures,
+      }
+      writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
+      console.log(`evidence: wrote ${evidencePath} ✓`)
+
+      // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
+      // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
+      mkdirSync(sessionDir, { recursive: true })
+      copyFileSync(evidencePath, mirrorPath)
+      console.log(`evidence: mirrored to ${mirrorPath} ✓`)
 
   # ---------------------------------------------------------------------------------------------
   - id: report
-    depends_on: [goals-check]
+    depends_on: [evidence]
     context: fresh
     allowed_tools: [Read, Write, Bash]
     prompt: |
@@ -281,10 +592,17 @@ nodes:
         1. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
            If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
            criteria — see matrix below."
-        2. Goals-Check Coverage Matrix — paste $goals-check.output verbatim.
-        3. Test Outcomes — pass/fail counts + coverage from $verification.output; note skipped/flaky.
+        2. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
+        3. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
+           skipped/flaky.
         4. Decisions Made — technical decisions worth recording; for each significant one, draft an
-           ADR inline (docs/adr/NNNN-<slug>.md) for review.
+           ADR inline (docs/adr/NNNN-<slug>.md) for review. Also fold in, verbatim:
+             - `$implement-review-precheck.output.findings` — the local code-review pre-check's
+               `## Standards` / `## Spec` axes. Label the subsection "Local code-review pre-check (not
+               posted — /pr-review posts)" so nobody mistakes it for a posted review.
+             - every `seam chosen: <issue-id> — <seam>` line in build-state.json's per-slice `notes`.
+               These are the seams an agent picked for `test_command_planned` slices, with no human
+               approval on record — list them so /pr-review and /improve-architecture can audit them.
         5. Tech Debt Flagged — accepted stubs, known limits, shortcuts (feed into /cleanup).
       Print: "report written to $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md".
 
@@ -298,10 +616,45 @@ nodes:
     prompt: |
       You are the open-pr node of /build for slug "$bootstrap.output.slug".
 
-      1. Stage everything changed by the build: source + tests, the session report
-         (`$bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md`), and any new
-         `docs/adr/NNNN-*.md` drafted by the report node.
-      2. Open a PR targeting `develop`:
+      Constants:
+        SESSION     = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
+        TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
+
+      1. Build the stage list. It is EXACTLY these named paths — an explicit list, never "everything
+         changed by the build":
+           - each source file the loop wrote that is still uncommitted, by name
+           - each test file the loop wrote that is still uncommitted, by name
+           - SESSION/PRD.md
+           - SESSION/issues.json
+           - SESSION/report.md
+           - SESSION/build-state.json
+           - SESSION/evidence.json — ONLY if that file exists. The `evidence` node withholds it on
+             a red verdict, and `git add` on a path that does not exist fails with exit 128 and
+             takes the whole staging step with it. Check first; if it is absent, skip it and say so.
+           - each new `docs/adr/NNNN-*.md` the report node drafted, by name
+         Derive the source/test entries by reading `git status --porcelain` and picking out the
+         source and test files — then add them one at a time by name. A path already committed by a
+         RED or GREEN phase, or unchanged, simply adds nothing; list it anyway rather than guessing.
+         That applies to committed and unchanged paths — NOT to paths that do not exist at all.
+         SESSION/build-state.json is committed HERE and ONLY here — the loop never commits it. This
+         one commit is the durable proof of the loop's anti-cheat record (`red_exit`,
+         `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
+         prunes this worktree (ADR-0012).
+
+      ## Staging — named paths only
+      Run one `git add <path>` per path in the list above. NEVER `git add -A`, `git add .` or
+      `git add -u`: this node runs in an isolated worktree with fresh context, so "everything changed"
+      sweeps in scratch files it cannot see the origin of.
+      NEVER stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under `$ARTIFACTS_DIR` —
+      Archon's per-run directory, which resolves OUTSIDE the repo tree under
+      `~/.archon/workspaces/<name>/artifacts/`. (SESSION above is repo-relative and IS staged; write
+      the PR body inline rather than to a file, so there is no body file to leak.)
+      Then run `git status --porcelain` and confirm every staged entry is one of the named paths.
+      Unstage anything else with `git restore --staged <path>` and say what you unstaged.
+
+      2. Commit the staged set: `build($bootstrap.output.slug): session artefacts`.
+
+      3. Open a PR against TARGET_REPO, targeting `$bootstrap.output.expected_base`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
                   ## Review Checklist
@@ -310,8 +663,20 @@ nodes:
                   - [ ] Coverage meets the configured threshold
                   - [ ] Tech-debt section in report.md is accurate
                   - [ ] Drafted ADRs (if any) are ready to record
-         Compose the host from config (gh / az / the azure-devops-cli skill per the tracker); do NOT
-         hardcode a host. Print the PR URL.
+
+      ## Act on THIS repository
+      Name TARGET_REPO explicitly when you open the PR. Act on THIS repository, never the one a tool
+      infers from the checkout — in a fork clone those differ, and the PR opens on someone else's
+      project. Compose the system-skill the team registered under `tracker.access` in
+      `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading that skill's own
+      current interface and building the call from it. Do NOT write a command, subcommand or flag
+      here, and do NOT branch on which provider `tracker.type` names: the DLC owns the what and none
+      of the how (ADR-0016), and a flag table frozen in this file is stale the moment the tool
+      changes. If the registered skill cannot target a repository explicitly, STOP: print "BLOCKED:
+      the registered tracker skill cannot target a repository explicitly — <the missing capability>"
+      and open nothing.
+
+      4. Print the PR URL and TARGET_REPO.
 
   # ---------------------------------------------------------------------------------------------
   # build-pr-gate — HITL by default; skipped when gates.build == afk (PR already open above).
@@ -323,7 +688,8 @@ nodes:
     approval:
       message: >
         Build implementation, goals-check matrix, and report are ready. Review the PR opened against
-        develop. Approve to finish, or reject with feedback to trigger a verify-and-fix pass.
+        $bootstrap.output.expected_base. Approve to finish, or reject with feedback to trigger a
+        verify-and-fix pass.
       on_reject:
         prompt: |
           The reviewer rejected the build PR with this feedback:
@@ -333,5 +699,15 @@ nodes:
           1. Address the feedback with the minimum change (fix impl and/or tests).
           2. Re-run the test suite and the stub scan; confirm green.
           3. Update the session report.md if outcomes changed, and push the fix to the PR branch.
+
+          ## Staging — named paths only
+          Stage only the files you changed for this fix, one `git add <path>` per path. NEVER
+          `git add -A`, `git add .` or `git add -u`. NEVER stage `pr-body.md`, `*.tmp.md`,
+          `*.scratch.md`, or anything under `$ARTIFACTS_DIR` — Archon's per-run directory, which
+          resolves OUTSIDE the repo tree under `~/.archon/workspaces/<name>/artifacts/`. Then run
+          `git status --porcelain` and confirm the staged set is exactly the files you named,
+          unstaging anything else with `git restore --staged <path>`. Push to the PR branch that is
+          already open on $bootstrap.output.repo_ref — this repository, never one a tool infers.
+
           Then the gate re-pauses for another review.
         max_attempts: 3

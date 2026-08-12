@@ -1,6 +1,9 @@
-# 0023. `/build` is one generic red/green/refactor loop over `issues.json`
+# 0023. `/build` is one generic red/green loop over `issues.json`
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended 2026-08-04 — refactor left the loop and moved to
+`/pr-review`'s `code-review` Fowler smells, and the loop's procedure is now the `tdd` and `implement`
+Methods rather than prose written here (#281). See §7. The filename keeps its original slug; five
+sibling documents link to it by name, and renaming it would buy nothing behavioural.
 
 ## Context
 
@@ -37,7 +40,11 @@ is **no generated child workflow**, so `run-build` runs the loop **inline** — 
 retired**. Independent-slice parallelism is dropped on purpose ([ADR-0022](0022-tickets-slice-to-build.md)):
 slices in one feature often touch overlapping files, so serial is also collision-safe in the worktree.
 
-### 2. Three fresh phases per slice, state on disk
+### 2. Two fresh phases per slice, state on disk
+
+> **Amended by §7 (#281).** This section is preserved as written, with `refactor-done` and the REFACTOR
+> row now historical: the loop advances each slice through TWO phases, and the phase set is
+> `pending → red-done → green-done`. The anti-cheat argument below is unchanged and still load-bearing.
 
 A loop iteration is **one fresh session**, so RED and GREEN cannot both live in one iteration without
 sharing context — the exact cheat [ADR-0012](0012-fresh-context-red-green-separation.md) forbids.
@@ -104,6 +111,66 @@ gate is `hitl` and is skipped when `afk` (the PR is still opened by the precedin
 **reject**, `approval.on_reject.prompt` re-runs verification-and-fix from the reviewer's feedback and
 re-pauses at the same gate (`max_attempts: 3`) — it does **not** restart the whole build.
 
+### 7. Refactor leaves the loop; the `tdd` and `implement` Methods replace the hand-rolled prose
+
+_Amended 2026-08-04 (#281), tranche 3 of the Matt v1.1.0 migration. Applies
+[ADR-0030](0030-harness-hosts-methods.md)'s structural bar to this Box: a Box survives only for what no
+Method can supply._
+
+**Refactor is no longer a phase.** The `tdd` Method states it outright — "refactoring is not part of the
+loop. It belongs to the review stage (see the `code-review` skill)". The loop therefore runs
+`pending → red-done → green-done`, `<promise>COMPLETE</promise>` fires when every slice is `green-done`,
+and there is no `refactor(<SLUG>): tidy …` commit. Refactoring did not disappear: it reappears in
+`/pr-review`, whose single `review` node carries `code-review`'s twelve-item Fowler smell baseline
+([ADR-0026](0026-pr-review-generic-archon-harvest.md) §8). Ground this Box used to maintain by hand is
+now ground upstream maintains.
+
+**The loop reads its procedure, it does not restate it.** The `run-build` node reads
+`.archon/methods/tdd/SKILL.md` (plus `tests.md` and `mocking.md`) and `.archon/methods/implement/SKILL.md`
+in full, by literal repo-relative path. What stays written in the node is Harness-only and no Method
+supplies it: the exit-code proof of §3, the per-phase commit convention, `build-state.json`, and the
+serial dependency order.
+
+**Reading a Method inside an Archon node is bundle-tier only — a real asymmetry with the command Boxes.**
+`resolveMethod` lives in plugin `lib/`, which a node cannot import (§5). A node therefore reads
+`.archon/methods/<name>/SKILL.md` directly, so the config and `.local` override tiers
+([ADR-0031](0031-methods-bundled-three-tier-resolution.md)) **do not apply inside an Archon Box**, and
+there is no resolved-tier log line either. A missing Method file is fatal for the node; the fix is
+`/unic-archon-dlc:setup`, which installs the tree. `test/archon-box-methods.test.mjs` holds all four
+Archon workflows to the manifest and forbids a `resolveMethod(` call, mirroring what
+`test/command-methods.test.mjs` does for the four command Boxes under the opposite convention.
+
+**`implement`'s closing review step runs as a local pre-check that posts nothing.** `implement` ends with
+"once done, use /code-review to review the work". A new `implement-review-precheck` node
+(`depends_on: [run-build]`, upstream of `verification`) runs `code-review` once over the whole build and
+folds its `## Standards` / `## Spec` output into `report.md`'s "Decisions Made". It runs **no** tracker or
+PR mutation: `/pr-review` keeps sole review-posting authority, so a build cannot double-comment the PR it
+just opened. Read-only tracker queries, for the spec source, are the only tracker traffic allowed.
+
+**Three Method questions are answered by injection, never by a new gate.** Each Method was written for a
+live session and stops to ask something no one is present to answer. An `approval:` node would be the
+wrong instrument, and not merely redundant: every gate in this Plugin is written
+`when: "$bootstrap.output.gate == 'hitl'"`, so a gate added for `tdd`'s seam rule would fire only when a
+human is already there and be **silently skipped in AFK** — leaving the node to proceed on unconfirmed
+seams, the exact outcome the rule exists to prevent. Injection holds in both modes.
+
+| Method asks                                                                                                     | Injected answer                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tdd`: confirm the seams with the user before writing any test                                                  | Already approved twice — at `/specs` Step 5 (the seam-approval halt, recorded in `PRD.md` § Testing Decisions) and again at `/tickets`' Nyquist-map gate, which is why the slice carries a `test_command`. The node is told the seams **are** confirmed and where to read them. |
+| `code-review`: the fixed point, "if they didn't specify one, ask for it"                                        | The branch point of the build branch — `git merge-base origin/<expected_base> HEAD`, with `expected_base` computed by `bootstrap` from `project.branching`.                                                                                                                     |
+| `code-review`: "if nothing is found, ask the user where the spec is"                                            | `PRD.md` + `issues.json` for the slug, plus the tracker issue per slice.                                                                                                                                                                                                        |
+| `code-review`, `implement`, `tdd`: run `/setup-matt-pocock-skills` if `docs/agents/issue-tracker.md` is missing | Never. `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and that skill writes a competing label file ([ADR-0024](0024-triage-intake-on-ramp.md)).                                                                                                       |
+
+**The asymmetry worth naming: `test_command_planned` slices get an agent-chosen seam.** A slice may carry
+`test_command_planned: true` instead of a `test_command` — no runner exists yet, or the test is itself the
+deliverable (`commands/tickets.md` Step 5). There is no pre-agreed seam to inject for those, and `tdd`
+forbids writing a test at an unconfirmed seam. The node **chooses the seam and records the choice** as a
+`seam chosen: <issue-id> — <seam>` line in that slice's `notes` in `build-state.json`, which `report.md`
+surfaces. So a slice with a pinned `test_command` inherits a human-approved seam, while a
+`test_command_planned` slice gets an agent-chosen one that is **auditable after the fact** by
+`/pr-review` and `/improve-architecture`. Halting the slice instead would have shrunk AFK coverage, which
+this tranche exists to grow; an unrecorded choice is the defect, not the choice itself.
+
 ## Consequences
 
 - The keystone contract B ([ADR-0012](0012-fresh-context-red-green-separation.md)) is **preserved**; only
@@ -114,6 +181,13 @@ re-pauses at the same gate (`max_attempts: 3`) — it does **not** restart the w
 - The self-contained-script convention (§5) is the pattern the next Archon boxes follow; it is recorded
   here because `/build` is the first port.
 - `docs/workflow/<slug>/` artefact paths become `<artifacts_dir>/<slug>/` ([ADR-0015](0015-workflows-slug-artifact-home.md)).
+- **Amended 2026-08-04 (#281):** `max_iterations: 60` was sized for 20 slices × 3 phases. With refactor
+  gone the same ceiling covers 30 slices × 2 phases, so the limit loosened rather than tightened; it is
+  left at 60 deliberately, since lowering it would only narrow the margin.
+- **Amended 2026-08-04 (#281):** the loop's procedure now lives upstream, so an upstream `tdd` or
+  `implement` edit changes how this Box behaves without a change in this repo. That is the intended
+  trade of [ADR-0030](0030-harness-hosts-methods.md); the Bundle tag in `lib/methods-manifest.mjs` is the
+  pin that makes the change deliberate rather than continuous.
 - Full behavioural validation (gates pause, loop iterates, fresh context isolates) is required beyond
   `archon validate` ([ADR-0011](0011-archon-schema-target.md) §6), since `validate` passes the inert
   forms too.

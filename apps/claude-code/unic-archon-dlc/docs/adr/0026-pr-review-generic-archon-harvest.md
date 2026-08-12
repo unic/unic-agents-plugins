@@ -1,6 +1,7 @@
 # 0026. `/pr-review` is a generic fan-out Archon workflow that harvests unic-pr-review's learnings, not its code
 
-**Status:** Accepted (2026-07-03)
+**Status:** Accepted (2026-07-03); amended 2026-08-04 — the seven hand-written aspect nodes collapsed
+into one `review` node that runs the `code-review` Method's own two-axis fan-out (#281). See §8.
 
 ## Context
 
@@ -58,6 +59,9 @@ references a skipped node's output — and it uses `trigger_rule: all_done` so t
 
 ### 3. Intent composed once in prep, injected into every aspect
 
+> **Amended by §8 (#281).** "Every aspect" now means both review axes. The lever itself is unchanged and
+> is the reason `prep` survives the collapse untouched.
+
 `prep` composes **one Intent Brief** from every source that resolves — the linked work items (User Story /
 Bug / Jira ticket, via the configured tracker), Confluence/MD docs (via the configured docs system-skill),
 the **PR description body**, and `PRD.md` if present — and every aspect reads it. This is the primary
@@ -69,6 +73,9 @@ missing `PRD.md` alone is not a reason to skip. When sources **contradict**, `pr
 contradiction surfaces both at the gate and in the summary — the review never silently picks a winner.
 
 ### 4. Conditional spawn gates, confidence rubric
+
+> **Amended by §8 (#281).** The spawn gates are retired with the seven nodes they gated; the confidence
+> rubric and finding contract are unchanged and are now applied by the single `review` node.
 
 Aspects are spawned only when meaningful (the harvested SPAWN_TABLE, biased to over-spawn — a false spawn
 is a cheap empty result, a false skip silently drops a finding set): code-quality + intent-check always
@@ -105,6 +112,67 @@ A `'pr-review': { confidence_threshold: 60, inline_comments: true }` block joins
 `mergeConfig` auto-fills it for configs that predate it, so **no `/setup` change is required** this step
 (same pattern as [ADR-0024](0024-triage-intake-on-ramp.md)/[ADR-0025](0025-qa-pipeline-onramp.md) §2). The
 `gates.pr-review` key already existed in `defaultConfig()`.
+
+### 8. Seven hand-written aspects become one node hosting `code-review`'s own two axes
+
+_Amended 2026-08-04 (#281), tranche 3 of the Matt v1.1.0 migration. Applies
+[ADR-0030](0030-harness-hosts-methods.md)'s structural bar to this Box._
+
+The seven aspect nodes — `code-quality`, `tests`, `silent-failure`, `type-design`, `comment-rot`,
+`simplifier`, `intent-check` — carried hand-written prompts describing ground the `code-review` Method
+already covers along two axes: **Standards** (does the diff follow this repo's documented standards, plus
+a twelve-item Fowler smell baseline) and **Spec** (does the diff match what the originating issue asked
+for). The Plugin was maintaining review criteria upstream now maintains. They are replaced by a single
+`review` node that reads `.archon/methods/code-review/SKILL.md` by literal repo-relative path.
+
+**The DAG shrinks from seven parallel nodes to one, and that is the point, not a regression.** The Method
+implements its own parallelism — its step 4 says "send a single message with two `Agent` tool calls, use
+the `general-purpose` subagent for both" — for the same reason the old fan-out existed: so the axes do not
+pollute each other's context. Re-implementing step 4 as two Archon nodes would keep a prettier DAG while
+re-doing what the Method already does, which is precisely the defect ADR-0030's bar forbids: nothing about
+running two sub-agents needs the Harness. `synthesize` therefore consumes ONE `SESSION/findings/review.json`
+instead of seven aspect files, and it drops `trigger_rule: all_done` — that existed only to keep skipped
+aspect siblings from blocking it, and `review` always runs.
+
+**Refactoring arrives here.** `/build`'s loop no longer has a REFACTOR phase, because `tdd` puts
+refactoring in the review stage ([ADR-0023](0023-build-generic-red-green-refactor-loop.md) §7). The Fowler
+smell baseline inside the Standards axis is where it lands. The `review` node **must paste that baseline in
+full** into the Standards sub-agent's prompt: the Method's step 4 is explicit that the sub-agent has no
+other access to it, so an abridged paste silently narrows the review, and this Box now owns that duty
+because it is the node spawning the axes.
+
+**What the Harness keeps, because no Method supplies it.** The Intent Brief `prep` composes and both axes
+receive; the confidence→severity finding contract and threshold; the hash-keyed re-review classification
+on the `<!-- unic-dlc-pr-review:iteration=N -->` marker; the `gates.pr-review` confirm-before-post; and
+both posting surfaces. This Box holds the **only review-posting authority** in the lifecycle — `/build`'s
+new `implement-review-precheck` deliberately posts nothing.
+
+**Two Method questions are answered by injection, never asked.** The Method asks a live human for the fixed
+point and for the spec location; `prep` already resolved both. The fixed point is `$prep.output.base_ref`
+(the merge-base it computed); the spec source is `SESSION/intent-brief.md`. When
+`$prep.output.intent_available` is `"false"` the Method's own rule applies — skip the Spec sub-agent and
+report "no spec available". The Methods' `/setup-matt-pocock-skills` fallback never applies
+([ADR-0024](0024-triage-intake-on-ramp.md)).
+
+**AC coverage survives the loss of `intent-check`.** The Spec axis _is_ the AC-coverage judgement —
+requirements missing or partial, scope creep, requirements implemented wrongly — so `synthesize` renders
+the review node's `spec_report` verbatim under the existing `### Intent Check` heading. The summary keeps
+its shape; the per-AC verdict list becomes the Spec axis's prose, which cites the spec line per finding.
+
+**One migration wrinkle, handled in `reconcile`.** A prior iteration posted before this change carries the
+retired seven aspect names in its finding hashes, where this run carries `standards` / `spec`. `reconcile`
+is instructed to match those on file + semantic title alone, ignoring the aspect, so the first re-review
+after the rewiring does not report every existing finding as new.
+
+**Verification status, recorded rather than implied.** `archon validate` accepts all four workflows on
+Archon v0.7.0, and its `allowed_tools` check confirmed the sub-agent tool is `Agent`, not `Task` — the old
+name "is silently ignored at runtime", so the axes would never have spawned and no error would have been
+raised. That is why the node declares `Agent`. What is **not** yet exercised is a real
+`archon workflow run` proving the two sub-agents spawn from inside a prompt node; the design fork was
+resolved by reading, and the node is instructed to fail loud ("REVIEW BLOCKED: Agent tool unavailable…")
+rather than quietly reverting to a one-axis or seven-aspect shape if it turns out otherwise. This is the
+same posture this ADR and [ADR-0029](0029-explore-research-spike-onramp.md) already take for the
+shipped-but-unexercised Archon Boxes.
 
 ## Consequences
 

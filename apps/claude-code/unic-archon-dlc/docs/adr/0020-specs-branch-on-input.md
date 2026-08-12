@@ -11,6 +11,12 @@
 > - **PRD gate is configurable:** `specs.gate = open-pr | stage-only` (default `open-pr`: commit `PRD.md` + any new ADRs on `feature/specs/<slug>` and open a PR to `develop` — never merged; `stage-only`: write + stage, the human commits/PRs).
 > - **PRD template dissolved to config:** the 7-section scaffold lives in `templates.prd` ([ADR-0018](0018-generic-core-config-compose.md), default in `config-schema.mjs`); `prd-writer.mjs` keeps only the generic structure validator (`validatePrdSections`) + file IO (`writePrd`/`readPrd`, path from `artifacts_dir`).
 
+> **Amended (2026-08-04, Matt v1.1.0 migration tranche 2 — #280):**
+>
+> - **The Method names above are pre-v1.1.0.** `to-prd` is now `to-spec`, and `grill-with-docs` no longer exists as a method: it is a six-line pointer whose content moved into `domain-modeling`. `/specs` therefore reads three Methods — `to-spec`, `grilling`, `domain-modeling` — **by resolved path** via `resolveMethod` ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)), not by invoking a skill. Invocation had to go regardless of the renames: most of these skills carry `disable-model-invocation: true`, so they are absent from the model's skill list even on a healthy install. Read `discuss_mode = discuss` above as "follow `grilling` + `domain-modeling`".
+> - **Three approval halts, and `specs.gate` is the only gate.** v1.1.0 added "do not enact the plan until I confirm we have reached a shared understanding" to `grilling`. `/specs` now carries that as an explicit confirmation at the end of Step 4, fired on **every** branch — the interview's own confirmation in `discuss` mode, the last assumption in `assumptions` mode, the synthesis review in `ingest`/`hybrid` — so the command has one shape whatever the input. It joins the Step 5 seam check and the Step 8 `specs.gate`. Only `specs.gate` is an **approval gate**: it is the halt that produces a durable artefact and puts it in front of a human, and it is where `grilling`'s "do not enact" lands, because in `/specs` enacting the plan means writing and PR-ing the PRD.
+> - **A halt is not an interview turn.** How many questions a Method asks is the Method's business; the Box never counts, caps or restates the interview. If upstream adds questions, `/specs` asks more questions and still has three halts.
+
 ## Context
 
 Two spec-building philosophies were in tension for `/specs`:

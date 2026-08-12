@@ -1,23 +1,43 @@
 # unic-archon-dlc
 
-A **thin process layer** for an AI development lifecycle. It owns the _what_ (the box set — main line
+A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
-off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/handoff`) and **composes the
-team's system-skills for the _how_**. Each box's container follows its structural need: Archon
-workflows for the AFK-isolated legs, Claude Code commands/skills for the interactive ones.
-Configured via the `/unic-archon-dlc:setup` slash command. See `docs/adr/0016`–`0018` for the
-two-axis architecture and `docs/adr/0014` for the box set.
+off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`, `/handoff`) and **composes the
+team's system-skills for the _how_**. Procedure belongs to the **Methods** it hosts, not to the
+Harness. Each box's container follows its structural need: Archon workflows for the AFK-isolated legs,
+Claude Code commands/skills for the interactive ones. Configured via the `/unic-archon-dlc:setup`
+slash command. See `docs/adr/0016`–`0018` for the two-axis architecture, `docs/adr/0014` for the box
+set, and `docs/adr/0030`–`0032` for the Harness/Method division.
 
-Requires the Archon workflow engine (version ≥ 0.5.0) in the target project.
+Requires the Archon workflow engine (version ≥ 0.7.0) in the target project.
 
 ## Language
 
 ### Architecture
 
-**Thin process layer**:
-The DLC owns the _what_ (the lifecycle and artefact shapes) and composes the team's system-skills
-for the _how_. See `docs/adr/0016-dlc-thin-process-layer.md`.
-_Avoid_: framework, integration layer
+**Harness**:
+What the DLC is to a Method: the owner of everything outside the procedure. See
+`docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: thin process layer, framework, integration layer, orchestrator
+
+**Box**:
+One step of the lifecycle. See `docs/adr/0030-harness-hosts-methods.md`.
+_Avoid_: step, stage, phase
+
+**Method**:
+The skill text a Box reads for procedure. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
+
+**Local Method**:
+A team's own version of a Method, which takes precedence over the shipped one. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: custom skill, local skill, patch, fork
+
+**Bundle**:
+The set of Methods the plugin ships, fixed to one upstream version. See
+`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+_Avoid_: vendor directory, snapshot, cache
 
 **System-skill**:
 A team-provided capability that talks to one of their systems (a Confluence skill, the
@@ -36,6 +56,14 @@ The rich per-project `.archon/unic-dlc.config.yaml` (converged with `unic-ticket
 holding all tracker/tenant/OS/template specifics; boxes read it and compose accordingly (MCP-first,
 CLI-fallback). See `docs/adr/0018-generic-core-config-compose.md`.
 _Avoid_: config.json (the retired thin form)
+
+**Repository derivation**:
+How a Box knows which repository to act on: derived from the worktree's `origin` remote in
+`bootstrap`, never inferred by the composed system-skill from ambient checkout state.
+`project.repo_ref` overrides it (absent by default); the guard that cancels on an ambiguous
+checkout is the one case ADR-0011's cancel-vs-fail distinction fires for this concern. See
+`docs/adr/0011-archon-schema-target.md`.
+_Avoid_: repo pinning (imprecise — nothing is "pinned", it's derived with an optional override)
 
 **Deterministic output** (emergent — not a workflow):
 The stakeholder-facing property that "the same component, fed the same inputs, produces the same
@@ -68,11 +96,29 @@ to consume. Produced by the `/triage` intake on-ramp, `/tickets` slicing, `/qa` 
 See `docs/adr/0014-workflow-per-box-decomposition.md`.
 _Avoid_: ticket, ready ticket, groomed issue
 
+**Canonical role**:
+The name a Box uses for a state, type or priority. Owned by the Harness and fixed: the team names the
+Label string a role resolves to, never the role itself, because the roles are the protocol the Boxes
+share. `/triage`, `/tickets` and `/qa` write states; no Box reads one, so a state signals to a human
+rather than routing work — the handoff between Boxes is the Slug. A canonical role is never written to
+a tracker: it resolves to a Label string first.
+_Avoid_: label (a label is the string, not the role), status, tag, canonical label
+
+**Label string**:
+The tracker's own text for a Canonical role. Owned by the team, named during
+`/unic-archon-dlc:setup`, held in `classification.labels`, and read by every Box through `LABELS` and
+from nowhere else. Two teams may render the same role as `needs-specs` and `3-Analysis`; both are
+correct, and no Box can tell the difference. The tier a role sits in — `state`, `type` or `priority` —
+tells the composed tracker skill which axis to write, so a Box never learns whether the tracker holds
+the string as a label, a status, a work-item type or a field. The names the Plugin ships are what
+`/setup` offers in that conversation, never a default it writes on the team's behalf.
+_Avoid_: canonical label, default label, tracker label
+
 ### Planning artifacts
 
 **PRD**:
-Product Requirements Document produced by the `/specs` command (branch-on-input; via Matt's
-`to-prd`) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
+Product Requirements Document produced by the `/specs` command (branch-on-input; via the `to-spec`
+Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
 and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
@@ -108,14 +154,8 @@ The build-loop phase that writes the minimum implementation to make the committe
 It reads the slice intent + the committed test off disk — never RED's session.
 _Avoid_: implementation, code-green node
 
-**REFACTOR phase**:
-The build-loop phase that cleans up the committed implementation under a green suite — no behaviour
-change, no new features. Re-runs `test_command` to confirm still-green; a no-op when nothing needs
-tidying.
-_Avoid_: cleanup, tidy phase
-
 **red/green fresh-context**:
-The anti-cheating separation in `/build`: RED, GREEN, and REFACTOR run as SEPARATE fresh loop
+The anti-cheating separation in `/build`: RED and GREEN run as SEPARATE fresh loop
 iterations (`loop.fresh_context: true`), so GREEN inherits only the slice intent and the committed
 failing test — never RED's reasoning. Structurally prevents test/impl collusion in unattended (AFK)
 runs. See `docs/adr/0012-fresh-context-red-green-separation.md` and
@@ -129,9 +169,32 @@ _Avoid_: package check, dependency audit
 
 **Build state**:
 The `<artifacts_dir>/<slug>/build-state.json` file the `/build` loop reads and updates each iteration
-to track every slice's phase (`pending → red-done → green-done → refactor-done`). It is the on-disk
-memory that lets fresh, memoryless iterations compute the next `(slice, phase)`.
+to track every slice's phase (`pending → red-done → green-done`). It is the on-disk memory that lets
+fresh, memoryless iterations compute the next `(slice, phase)`. A slice with `test_command_planned`
+also carries a `seam chosen: …` line in its `notes`, recording the seam an agent picked where no human
+approved one (ADR-0023 §7).
 _Avoid_: progress file, checkpoint
+
+**Evidence gate**:
+The workflow-level `evidence_policy: { required: true }` on `/build` that refuses terminal
+`completed` unless `$ARTIFACTS_DIR/evidence.json` exists. The engine checks file presence only;
+producing valid evidence is the `evidence` node's contract, never a prompt's. See
+`docs/adr/0034-evidence-gate-deterministic-writer.md`.
+_Avoid_: verification gate, quality gate
+
+**Evidence set**:
+The Session-artifact mirror of the evidence gate's content, at `<artifacts_dir>/<slug>/evidence.json`
+— written by the same `evidence` node that satisfies the engine's presence check at
+`$ARTIFACTS_DIR/evidence.json`, so a reviewer (and `open-pr`, which stages it) can see what the gate
+saw after `/cleanup` prunes the worktree.
+_Avoid_: evidence.json (ambiguous — two files share the name at two different paths), evidence file
+
+**Sub-run**:
+Archon 0.7.0's `workflow:` node — a child workflow run with its own row, artifacts, gates, and cost
+line, whose terminal output threads back as `$nodeId.output`. Deferred for this Harness
+(`docs/adr/0033-archon-070-schema-target.md`): the wanted use, one child run per `/build` slice, is
+blocked because slice count is runtime data and 0.7.0's sub-run fan-out rejects it fail-fast.
+_Avoid_: child workflow, nested workflow, sub-workflow
 
 ### Plugin entry points
 
@@ -151,10 +214,20 @@ Rendered by Claude at user-invocation time. `commands/setup.md` becomes `/unic-a
 _Avoid_: command, command template (which means something else here)
 
 **Archon workflow command template**:
-A markdown file under `.archon/commands/` (e.g. `unic-dlc-build.md`). Rendered by the Archon
-workflow engine inside a workflow node, not by Claude directly. Same file extension as a slash
-command, completely different runtime.
+A markdown file under `.archon/commands/`, resolved by a workflow's own `command:` node — Archon's
+own doctrine: "Commands are referenced by name (without `.md`) in workflow YAML files." Rendered by
+the Archon workflow engine inside a workflow node, not by Claude directly. Same file extension as a
+slash command, completely different runtime. None of this Plugin's shipped Boxes currently
+reference one — see Box operator doc below — but a Box that adds a `command:` node later costs one
+entry in `/setup`'s install set, not a new concept.
 _Avoid_: slash command, workflow command (ambiguous)
+
+**Box operator doc**:
+A markdown file under `docs/boxes/` (e.g. `unic-dlc-build.md`) documenting one Box for a human
+operator — usage, prerequisites, what the workflow does, its `archon workflow run <name> "<slug>"`
+invocation. Never installed by `/setup`: it is read in this Plugin's own repo, not shipped into a
+Consumer. Not an Archon workflow command template — no `command:` node resolves it.
+_Avoid_: command stub, command doc (both suggest the runtime template above)
 
 ### Architecture-health artifacts
 
@@ -198,22 +271,30 @@ _Avoid_: review report, findings.md (the /explore artifact), code review (the ar
 
 **Intent Brief**:
 The single narrative + numbered Acceptance Criteria that `/pr-review`'s `prep` node composes once from the
-linked work items, Confluence/MD docs, the PR description, and `PRD.md`, then injects into every review
-aspect so each judges the diff against intended behaviour. Contradictions across sources are surfaced, not
+linked work items, Confluence/MD docs, the PR description, and `PRD.md`, then injects into both review
+axes so each judges the diff against intended behaviour. Contradictions across sources are surfaced, not
 silently resolved.
 _Avoid_: spec, PRD (which is one input source, not the brief)
 
-**Review aspect**:
-One of the seven parallel fresh nodes `/pr-review` fans out — code-quality, test-coverage, silent-failure,
-type-design, comment-rot, code-simplification, and intent/AC-coverage — each conditionally spawned by the
-changed-file categories and scoring findings on the confidence→severity rubric.
-_Avoid_: reviewer, agent, check
+**Review axis**:
+One of the two lenses `/pr-review`'s single `review` node spawns as parallel sub-agents, reading the
+`code-review` Method: **Standards** (this repo's documented standards plus the twelve-item Fowler smell
+baseline — where refactoring lives, having left `/build`'s loop) and **Spec** (does the diff implement
+what the originating issue asked for). The two are reported side by side and never merged or reranked;
+each finding is scored on the confidence→severity rubric. Replaced the seven hand-written review aspects
+(ADR-0026 §8).
+_Avoid_: review aspect, reviewer, agent, check
 
 ## Relationships
 
+- The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
+- A **Method** resolves from the first tier that answers — a team's declared source, then a **Local Method**, then the **Bundle** that **Setup** installed (ADR-0031)
+- **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
-- `/build` runs a generic **red → green → refactor** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
+- `/build` runs a generic **red → green** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
+- Refactoring is **not** in that loop: the `tdd` Method puts it in the review stage, so it reaches the code as `/pr-review`'s Standards **Review axis** and its Fowler smell baseline (ADR-0023 §7 / ADR-0026 §8)
+- A **Method** read inside an Archon Box resolves from the **Bundle** tier only — a node cannot import plugin `lib/`, so the team-source and **Local Method** tiers reach the command Boxes but not the Archon ones (ADR-0023 §5 / ADR-0031)
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`

@@ -1,6 +1,12 @@
 # Project-scoped Archon config
 # Inherits defaults from ~/.archon/config.yaml.
 # Reference: https://archon.diy/reference/configuration/
+
+# Gitflow: every Archon worktree forks from `develop`, never `main`.
+# Without this key Archon auto-detects the base and picks `main`, which silently
+# produced a 44-commit-stale branch for issue #289 (PR #306, closed unmerged).
+baseBranch: develop
+
 #
 # Examples:
 #   assistants:

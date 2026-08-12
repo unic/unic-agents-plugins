@@ -1,16 +1,42 @@
 # Triage Labels
 
-The skills speak in terms of triage roles. This file maps those roles to the label strings used in this repo's issue tracker.
+Repo-owned. Hand-maintained — no generator writes this file.
 
-| Role             | Label             | Meaning                                          |
-| ---------------- | ----------------- | ------------------------------------------------ |
-| Needs evaluation | `needs-triage`    | Maintainer needs to evaluate this issue          |
-| Needs info       | `needs-info`      | Waiting on reporter for more information         |
-| Needs specs      | `needs-specs`     | Enough info from reporter; ready to write a spec |
-| Ready for agent  | `ready-for-agent` | Fully specified, ready for an AFK agent          |
-| Ready for human  | `ready-for-human` | Requires human implementation                    |
-| Resolved         | `resolved`        | Implemented; ready for a PR                      |
-| Closed           | `closed`          | PR has been merged                               |
-| Rejected         | `rejected`        | Will not be actioned                             |
+`/triage` speaks in **canonical roles**. This file maps every role it can name onto the label strings this repo actually uses. Left column entries are the skill's literal role names, so a lookup never needs interpretation. The full tracker taxonomy is in [`labels.md`](labels.md).
 
-When a skill mentions a role (e.g. "apply the AFK-ready label"), use the corresponding label string from this table.
+## Category roles
+
+| Canonical role | Label in this repo | Note                                                                                                                                                                |
+| -------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bug`          | `bug`              | —                                                                                                                                                                   |
+| `enhancement`  | `feature`          | This repo has no `enhancement` label. **Never create one** — [ADR-0032](../adr/0032-label-taxonomy.md) merged 48 `enhancement` issues into `feature` and deleted it |
+
+The type tier carries four more labels no canonical role names — `spike`, `tech-debt`, `docs`, `release`. Apply them directly when they fit better than `feature`.
+
+## State roles
+
+| Canonical role    | Label in this repo | Meaning                                  |
+| ----------------- | ------------------ | ---------------------------------------- |
+| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this issue  |
+| `needs-info`      | `needs-info`       | Waiting on reporter for more information |
+| `ready-for-agent` | `ready-for-agent`  | Fully specified, ready for an AFK agent  |
+| `ready-for-human` | `ready-for-human`  | Requires human implementation            |
+| `wontfix`         | `rejected`         | Will not be actioned                     |
+
+**`rejected` is this repo's label, never `wontfix`.** The skill's canonical role keeps the older name; the label does not.
+
+## Repo-only states
+
+Three more state labels exist that no canonical role names. They extend the skill's five-state machine rather than replacing it — `/triage` will not apply them on its own, so set them by hand or by whichever command owns that transition.
+
+`ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. Treat that label as final — do not re-triage freshly published tickets.
+
+It carries two different meanings depending on which issue holds it. On a **ticket** from `/to-tickets` it means an agent may implement this. On the **spec issue** from `/to-spec` it means the spec is settled — the body is user stories, with no `## What to build` and no `## Blocked by` edges, so it is not implementable. Check the shape, not just the label, before dispatching.
+
+| Label         | Meaning                                         | Sits between                 |
+| ------------- | ----------------------------------------------- | ---------------------------- |
+| `needs-specs` | Enough info from the reporter; ready for a spec | `needs-info` → `ready-for-*` |
+| `resolved`    | Implemented; ready for a PR                     | `ready-for-*` → `closed`     |
+| `closed`      | PR has been merged                              | after `resolved`             |
+
+Full order: `needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, with `rejected` reachable at any point.
