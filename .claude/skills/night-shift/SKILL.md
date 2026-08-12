@@ -55,8 +55,9 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
 An issue written before the last merge describes a tree that no longer exists. Audit each one in a
 fresh context, on Gate 3's terms, against the tree it is about to run on. Four checks:
 
-1. Every `file:line` the issue cites resolves, and still says what the issue claims.
-2. The criteria read as one list. `docs/process/ai-development.md` §4 is the method.
+1. Whether every `file:line` the issue cites resolves, and still says what the issue claims.
+2. Which pair of criteria cannot both hold, and which gap between them an implementer would fill.
+   Read them as one list — `docs/process/ai-development.md` §4 is the method.
 3. Which criteria an implementer satisfies by changing nothing. A vacuous criterion is a finding.
 4. What the last merge moved, deleted or reshaped underneath the issue.
 
@@ -71,8 +72,9 @@ The verdict is one word: `dispatchable` or `needs-amendment`.
 3. **Skip that issue and dispatch the next slice.** One bad ticket costs one slice, not the night.
 
 An issue that blocks another takes the blocked ones with it: skip all of them, and name the blocker in
-each comment. Read blocking as **Order the chain** defines it, and treat a criterion that cannot be
-written until another issue lands as a block whatever the tracker says.
+each comment. Blocking is wider here than in **Order the chain**, which orders the chain on a native
+`blocked_by` relation alone. A skip also follows a criterion that cannot be written until another
+issue lands, relation or none — that dependency is real whether or not anyone recorded it.
 
 A human amends the criteria. When asked for a draft replacement, post it as a comment and mark every
 choice in it as the drafter's.
