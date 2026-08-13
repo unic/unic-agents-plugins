@@ -12,7 +12,7 @@ description: 'Configure unic-archon-dlc for this project: detect the stack, regi
 
 `/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` — the config substrate the redesigned boxes read (each box is migrated onto it in its own redesign step; pre-redesign workflows under `.archon/workflows/` still reference the old JSON/keys until then). Only one deterministic concern is delegated to tested code — schema-validate + idempotent merge + YAML emit — in `lib/config-schema.mjs`. Conduct the conversation yourself; do not invent config keys the schema doesn't define.
 
-Follow these steps in order. Do not skip any step. Do not write any files except through Step 5 (config), Step 6 (Methods bundle), and Step 7 (docs).
+Follow these steps in order. Do not skip any step. Do not write any files except through Step 5 (config), Step 6 (Methods bundle), and Step 7 (CLAUDE.md block).
 
 > **Shell requirement**: Steps 1, 2, 5, and 6 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
 
@@ -162,7 +162,7 @@ Fields (map answers onto the schema paths — see `docs/adr/0018-generic-core-co
 
 - **project** — `project.name`, `project.branching` (`gitflow | github-flow`), `project.pr_strategy` (`merge | squash | rebase`). _(mandatory: branching, pr_strategy)_ Do **not** ask for `project.repo_ref` and do not write it: every box derives the target repository from the worktree's `origin` remote. It is an optional override for the one case that derivation cannot settle — a fork checkout whose parent differs from `origin`, where a box cancels rather than guess. Write it only if the user asks for it by name.
 - **tracker** — `tracker.type` (`github | ado | jira | local-markdown`) _(mandatory)_; `tracker.coords` (e.g. `{owner, repo}` for github, `{org, project, repo}` for ado); `tracker.access` filled from Step 3 (`{mcp, cli}`).
-- **docs** — `docs.type` (`confluence | markdown | none`) — where the team's **product specs** live; `docs.publish` (default `false`, opt-in). `docs.access` from Step 3. _(Independent of the `docs/agents/*.md` files Step 6 always writes.)_
+- **docs** — `docs.type` (`confluence | markdown | none`) — where the team's **product specs** live; `docs.publish` (default `false`, opt-in). `docs.access` from Step 3.
 - **design** — `design.type` (`figma | none`), `design.access` from Step 3.
 - **classification** — `classification.labels` _(mandatory)_, the Canonical role → Label string
   mapping every Box resolves a role through. Ask **one** question. Show the three tables below as they
@@ -345,11 +345,36 @@ Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop t
 
 If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_WRITTEN`, and `WORKFLOWS_DELETED` for the Step 8 summary. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
 
-## Step 7 — Update agent docs (idempotent)
+## Step 7 — Refresh the `CLAUDE.md` marker block (idempotent)
 
-Write/refresh the auto-managed `## Agent skills` block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace only the content **between** the markers (preserve everything outside verbatim); if the file or block is absent, create it. The block points readers at the box set (`/specs → /tickets → /build → /pr-review → /qa`; on-ramps `/triage`, `/qa`; off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`) and at `.archon/unic-dlc.config.yaml` as the config source of truth. This runs regardless of `docs.type`.
+Write/refresh the block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace the whole marker-delimited block, **markers included**, and preserve everything outside it verbatim; if the file or block is absent, create it. This runs regardless of `docs.type`.
 
-The block also carries one sentence naming `classification.labels` as the Canonical role → tracker Label string mapping this project answered during setup, and pointing at `/unic-archon-dlc:setup reconfigure` as the way to review or change it. This block is the only surface that ships into a Consumer's repo, so without that sentence the seventeen lines in the config have no thread to pull.
+The block describes what this run installed on the consumer's own disk, and nothing about this Plugin's own shape: it names no pipeline stage, and no Box but `/unic-archon-dlc:setup` itself — it cannot say what regenerates the block without naming it — because a Plugin release renames, reorders and drops both without touching the consumer's repo. Everything it carries is instead a path the reader can open, a command they can run, or a link. It also carries one sentence naming `classification.labels` as the Canonical role → tracker Label string mapping this project answered during setup, and pointing at `/unic-archon-dlc:setup reconfigure` as the way to review or change it — this block is the only surface that ships into a Consumer's repo, so without that sentence the seventeen lines in the config have no thread to pull.
+
+Write exactly this, markers included, as the whole block. Every line is static; fill nothing in:
+
+```markdown
+<!-- unic-archon-dlc:begin -->
+
+## unic-archon-dlc
+
+This project is configured for `unic-archon-dlc`. `/unic-archon-dlc:setup` writes this block —
+anything between the markers is replaced on the next run.
+
+- **Configuration** — `.archon/unic-dlc.config.yaml`. Its `classification.labels` map is the
+  Canonical role → tracker Label string mapping every Box resolves a role through. Run
+  `/unic-archon-dlc:setup reconfigure` to review or change it.
+- **Interactive boxes** — this plugin's slash commands. Claude Code lists them in the session.
+- **Archon Boxes** — the `unic-dlc-*.yaml` files in `.archon/workflows/`. List what is installed here
+  with `archon workflow list`; run one with `archon workflow run <name> "<slug>"`. They are
+  generated: `/unic-archon-dlc:setup` replaces them on every run.
+- **Methods** — `.archon/methods/` is replaced wholesale on every `/unic-archon-dlc:setup` run. Put a
+  local override in `.archon/methods.local/` instead.
+- **What each box does** —
+  <https://github.com/unic/unic-agents-plugins/blob/main/apps/claude-code/unic-archon-dlc/README.md>
+
+<!-- unic-archon-dlc:end -->
+```
 
 Keep the edit idempotent: re-running `/setup` replaces the block in place, never appends a second one.
 

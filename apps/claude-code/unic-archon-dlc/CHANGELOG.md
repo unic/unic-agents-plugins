@@ -11,6 +11,58 @@
 ### Fixed
 - (none)
 
+## [0.20.0] — 2026-08-13
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- **The `CLAUDE.md` block `/setup` writes describes the Consumer's own disk, and its heading is now
+  `## unic-archon-dlc`.** Step 7 used to restate this Plugin's box set and pipeline order, both of
+  which a Plugin release renames and reorders with no change on the Consumer's side —
+  `/archon-upgrade` had already fallen out of the list unnoticed. The block now names no pipeline
+  stage, and no Box but `/unic-archon-dlc:setup`, which it cannot leave out without losing the one
+  name that says what regenerates it. It carries the config path and its `classification.labels` sentence,
+  `.archon/workflows/` with the `unic-dlc-*.yaml` naming plus `archon workflow list` and
+  `archon workflow run <name> "<slug>"` to see and run what is installed there, `.archon/methods/`
+  as replaced wholesale on every run with `.archon/methods.local/` as the override tier, and a link
+  to this Plugin's README for what each Box does. The `<!-- unic-archon-dlc:begin -->` /
+  `<!-- unic-archon-dlc:end -->` markers are unchanged, so an existing Consumer's next `/setup` run
+  replaces the old block in place. Step 7 now says in one voice that the **whole** marker-delimited
+  block is what gets replaced, markers included — the canonical snippet it prescribes opens and
+  closes with those markers, and "write this between the markers" would have nested a second pair on
+  every refresh. The "auto-managed" framing is dropped: nothing detects a hand-edit between the
+  markers, and nothing will. See
+  [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md) (amended 2026-08-13), whose known item this
+  settles.
+- **Amending a Plugin ADR now has a recorded form.** `docs/adr/README.md` binds every later amender
+  to a dated `> **Amended (YYYY-MM-DD):**` blockquote below the status line, plus a status-line note
+  and an index update — never the root repository's `## Amendment (YYYY-MM)` section. The rule is
+  named here because the next amender reads this file, not the ADR index.
+- **`AGENTS.md` and `CONTEXT.md` follow the rename**, `AGENTS.md`'s doctrine bullet states the rule
+  the block now follows, and both stop listing `/handoff` as a Box this Plugin owns — it is one of
+  Matt's skills, referenced in prose and never implemented here.
+
+### Removed
+- **`lib/dogfood-banner.mjs` and `test/dogfood-banner.test.mjs` are deleted.** No importer outside
+  that test. Its `AGENT_DOC_BANNER` named `lib/agent-docs-writer.mjs` as its source and
+  `runInstall()` in `lib/install-runner.mjs` as its regenerator — neither module exists — making it
+  the last live claim in `lib/` that `/setup` writes agent docs.
+- **`lib/handoff-generator.mjs` and `test/handoff-generator.test.mjs` are deleted.** No importer
+  outside that test. `updateRoadmap` wrote a `docs/workflow/ROADMAP.md` that
+  [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md) retired, and `/handoff` is Matt's
+  skill, referenced and never implemented here. Both test file names left `package.json`'s `test`
+  script with them.
+
+### Fixed
+- **Step 4's `docs` field no longer claims Step 6 writes `docs/agents/*.md` files.** It installs the
+  Methods bundle and the Box workflows; the parenthetical was residue from a generator deleted in
+  `b27d1e5`. Step 7 also stops calling itself a docs step, in its heading and in the
+  "Follow these steps in order" paragraph.
+
 ## [0.19.0] — 2026-08-12
 
 ### Breaking

@@ -2,7 +2,8 @@
 
 A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
-off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`, `/handoff`) and **composes the
+off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`; + `/handoff` — Matt's,
+referenced) and **composes the
 team's system-skills for the _how_**. Procedure belongs to the **Methods** it hosts, not to the
 Harness. Each box's container follows its structural need: Archon workflows for the AFK-isolated legs,
 Claude Code commands/skills for the interactive ones. Configured via the `/unic-archon-dlc:setup`
@@ -201,7 +202,7 @@ _Avoid_: child workflow, nested workflow, sub-workflow
 **Setup**:
 The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
 `/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.yaml`, discovers and registers the team's system-skills,
-and refreshes the marker-delimited `## Agent skills` block in `CLAUDE.md`. Idempotent (a thin tested
+and refreshes the marker-delimited `## unic-archon-dlc` block in `CLAUDE.md`. Idempotent (a thin tested
 lib does schema-validate + merge): re-running
 with no arguments prints the current config when fully populated, asks only for missing fields
 when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
@@ -316,4 +317,4 @@ _Avoid_: review aspect, reviewer, agent, check
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`
-- The **Setup** slash command writes `.archon/unic-dlc.config.yaml`, registers the team's system-skills, and refreshes the `## Agent skills` block in `CLAUDE.md` in the target project
+- The **Setup** slash command writes `.archon/unic-dlc.config.yaml`, registers the team's system-skills, and refreshes the `## unic-archon-dlc` block in `CLAUDE.md` in the target project

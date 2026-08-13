@@ -1,6 +1,8 @@
 # 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to DLC config as the single source of truth
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended 2026-08-13 — the known item under § Consequences is
+settled: `/setup` now owns a `## unic-archon-dlc` block, so the block-ownership overlap with
+`setup-matt-pocock-skills` is gone (#296).
 
 > **Amended (2026-08-11, extended 2026-08-13):** this ADR ended its label section with "Teams override `classification.labels` in YAML" and never said who fills the mapping. So `defaultConfig()` seeded one and `/setup` never raised the subject, shipping a guess that is correct only for a tracker already using the Plugin's own vocabulary (#329). Seven decisions complete the sentence — the first five recorded on 2026-08-11, the last two on 2026-08-13 when #329 was implemented and an audit found them recorded on the issue alone.
 >
@@ -13,6 +15,8 @@
 > - **The written YAML carries no comments** _(2026-08-13)_. `toYaml` stays a single `stringifyYaml(config)` call. Per-tier comments would need a `yaml` `Document`, because `mergeConfig` works on plain objects and drops comments on a re-run — so they would have to be re-stamped on every write, which fights an operator who adds their own and churns the diff. The config is meant to be hand-edited; a generator that rewrites its comments is friction. The explanation lives in the `CLAUDE.md` marker block instead, which is the one surface `/setup` installs into a Consumer.
 >
 > Recorded because it surprised the session that produced this amendment: **no Box reads a state Label string today.** `/triage`, `/tickets` and `/qa` write states; nothing selects work by label, and the handoff between Boxes is the Slug a human passes. Key-closure still earns its place, because a missing key breaks the **writer** — `/triage` resolving `needs-specs` through `LABELS` either fails mid-run or invents a string, which is #329's failure mode. Whether the reads should exist is #332.
+
+> **Amended (2026-08-13):** the known item under § Consequences — "the block-ownership overlap remains for a later `/setup`/finalize step" — is settled. #296 is that step: `/setup` renames the block it writes in a Consumer's `CLAUDE.md` from `## Agent skills` to `## unic-archon-dlc`, so the two installers no longer manage a heading of the same name and nothing in the block is a registered skill (the Methods this Plugin ships are read by path — [ADR-0031](0031-methods-bundled-three-tier-resolution.md)). The `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->` markers are unchanged, so the rename costs an existing Consumer nothing. The same issue drops the "auto-managed" framing (nothing detects a hand-edit between the markers, and nothing will) and rewrites the block to name no Box and no pipeline stage: it carries paths on the Consumer's own disk, `archon workflow list` to enumerate what is installed there, and a link to this Plugin's README. The § Consequences bullet below stands as written on 2026-07-02.
 
 ## Context
 
