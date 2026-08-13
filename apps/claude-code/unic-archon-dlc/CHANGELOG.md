@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.21.0] — 2026-08-14
+
+### Breaking
+- (none)
+
+### Added
 - **The `/setup` Step 8 summary says which version it upgraded from, and which Boxes are new.** The
   summary listed the paths it wrote and the paths it swept, so an unchanged re-install and an upgrade
   read identically, and a newly shipped Box was indistinguishable from one that was already installed
