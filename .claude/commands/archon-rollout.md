@@ -67,7 +67,13 @@ created  archon/task-feature-unic-archon-dlc-294-install-archon-artefac
 
 `--branch` still matters — it is what makes the issue number and slug legible on the remote — but Standing rule #1's `feature/<scope>/<issue#>-<slug>` describes what you **pass**, not what lands. Read the real name from `archon workflow status` or `git ls-remote --heads origin`, and never assume the branch you named exists.
 
-Two consequences when you inspect that branch locally. A trailing `-` breaks `git show "$BR:path"`, so fetch it into a name you choose: `git fetch origin 'refs/heads/<real-name>:refs/heads/pr<n>'`. And never reach for `FETCH_HEAD` — any intervening `git fetch origin` repoints it silently, so `git checkout -B work FETCH_HEAD` can land you on `develop` while you believe you are on the PR branch. Check `git rev-parse --short HEAD` against the PR's head commit before you edit anything.
+Two consequences when you inspect that branch locally. A trailing `-` breaks `git show <branch>:<path>`, so fetch it into a name you choose — the refspec needs no quoting, which keeps it working in `cmd.exe` as well as a POSIX shell:
+
+```sh
+git fetch origin refs/heads/<real-name>:refs/heads/pr<n>
+```
+
+And never reach for `FETCH_HEAD` — any intervening `git fetch origin` repoints it silently, so `git checkout -B work FETCH_HEAD` can land you on `develop` while you believe you are on the PR branch. Check `git rev-parse --short HEAD` against the PR's head commit before you edit anything.
 
 **Parallelism rule:** dispatch concurrently **only** when issues share zero files (different package/plugin, no overlapping module). Issues editing the same file, or one `blocked-by` another, run **serially** — dispatch the next only after the prior PR **merges to `develop`**.
 
