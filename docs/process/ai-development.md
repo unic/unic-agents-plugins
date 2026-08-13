@@ -37,12 +37,14 @@ GitHub Issue / /triage  ← raw capture, no review required
 /to-spec                ← human approves the seams, then it publishes
        ↓
 /to-tickets             ← human approves the breakdown, then it publishes
-                           `ready-for-agent` — this is the last checkpoint
+                           `ready-for-agent`
+       ↓
+pre-dispatch audit      ← against a named commit, on criteria that were run
        ↓
 /tdd or /implement      ← execution, or /archon-rollout for a chain
 ```
 
-The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution there is no human in the loop until PR review.
+The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution the pre-dispatch audit is the check that catches it, run against a named commit before the agent starts, not a second conversation.
 
 ### A gate that cannot fail is not a gate
 
@@ -116,7 +118,7 @@ An issue's `## Acceptance criteria` is doing two jobs: it is the definition of d
 - [ ] Tests pass
 ```
 
-The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies is that approval. Nothing downstream re-checks, so this in-session review is the last human checkpoint before AFK execution. Use it.
+The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies is that approval. That approval is not the last check: a pre-dispatch audit runs after it, against a named commit, on criteria whose commands were run. See below.
 
 If an issue's acceptance criteria are too vague to verify without judgment, do not approve the breakdown. Send the ticket back for rework in the same session, or once published, relabel it `needs-specs`.
 
@@ -141,6 +143,32 @@ Three habits help:
 - **Turn the diagnosis on the cure.** If the criteria's fix has the shape the issue condemns, it will pass review and fail in the same way a year later.
 
 When you find one after dispatch, amend the ticket and re-dispatch. Do not merge a green PR that faithfully implements a wrong criterion — it becomes the precedent the next agent reads.
+
+### The pre-dispatch audit
+
+`ready-for-agent` means: an audit passed, against a named commit, on criteria whose commands were run. The in-session approval inside `/to-tickets` is not that audit — it is what happens before publish. The audit runs after, against the tree the issue is about to run on, not the tree it was written against.
+
+**A criterion that names a command carries that command's real output.** The author runs it before publishing and pastes the output and the exit code. A criterion is a claim about what a command does; an unrun claim is a guess. `rg -c` is the cheapest example of why running matters more than reading carefully — it disagrees with intuition about empty results, printing nothing and exiting 1 rather than the string `0`:
+
+```
+$ rg -c 'zzz-definitely-not-present-zzz' docs/process/ai-development.md
+EXIT=1                     # no output at all — never the string "0"
+```
+
+A criterion asserting "returns 0" reads correctly and is satisfied by an implementer who runs it, sees the trap, and changes nothing.
+
+**Prose criteria are not grep criteria.** A criterion about a document's wording says precisely what the document must state, checked by reading it — not that a `grep` finds a sentence. A correct rewording can fail a grep; a sentence preserved verbatim can outlive the section that gave it meaning. The rule above applies to a criterion that names a command as the check's subject, not to a criterion about prose.
+
+**A grilling ends by listing what it did not decide.** "Either is acceptable", "unless it genuinely needs one", and "whichever fits" are the phrasings that most often hide a question nobody answered — write each one down as an open question before publishing, or decide it there.
+
+**The ready queue is the hazard, not the backlog.** Every merge invalidates every pending issue that cites a path it touched, so risk scales with how many issues sit in `ready-for-agent`, not with how many exist overall. Grill late, dispatch soon, and keep the ready queue short.
+
+A pre-dispatch audit runs four checks, in one place, so the author and the auditor work from the same list:
+
+1. Every citation resolves, and still says what the issue claims.
+2. The criteria read as one list, not one at a time — see "Read the criteria as a set, not one at a time" above.
+3. Which criteria an implementer satisfies by changing nothing.
+4. What the last merge moved, deleted, or reshaped underneath the issue.
 
 ---
 

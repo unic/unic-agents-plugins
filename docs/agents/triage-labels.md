@@ -29,7 +29,7 @@ The type tier carries four more labels no canonical role names — `spike`, `tec
 
 Three more state labels exist that no canonical role names. They extend the skill's five-state machine rather than replacing it — `/triage` will not apply them on its own, so set them by hand or by whichever command owns that transition.
 
-`ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. Treat that label as final — do not re-triage freshly published tickets.
+`ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. The label is final as a state — do not re-triage freshly published tickets. Whether the ticket has earned it is not final: a pre-dispatch audit checks that afterwards, against the commit named in the comment that grants the label (see [`docs/process/ai-development.md`](../process/ai-development.md) §4).
 
 It carries two different meanings depending on which issue holds it. On a **ticket** from `/to-tickets` it means an agent may implement this. On the **spec issue** from `/to-spec` it means the spec is settled — the body is user stories, with no `## What to build` and no `## Blocked by` edges, so it is not implementable. Check the shape, not just the label, before dispatching.
 
