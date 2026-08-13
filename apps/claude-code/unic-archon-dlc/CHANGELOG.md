@@ -8,6 +8,17 @@
 ### Added
 - (none)
 
+### Fixed
+- (none)
+
+## [0.20.0] — 2026-08-13
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
 ### Changed
 - **The `CLAUDE.md` block `/setup` writes describes the Consumer's own disk, and its heading is now
   `## unic-archon-dlc`.** Step 7 used to restate this Plugin's box set and pipeline order, both of
