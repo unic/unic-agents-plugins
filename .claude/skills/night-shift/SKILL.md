@@ -200,5 +200,5 @@ A slice that handed back is the gate working. Say so plainly and move on.
 
 - `.claude/commands/archon-rollout.md` — dispatch shape, fork-point verification, clean re-run runbook
 - `.claude/commands/archon-pr-review.md` — the review pass this composes
-- `docs/process/ai-development.md` §2 — gates that fail open, and why two reviewers see different things
+- `docs/process/ai-development.md` §2 — gates that fail open, and why the pre-audit, the AC audit and the code review each miss what the others catch
 - #345 terminal issue state · #346 killed-run recovery · #347 hardening this skill
