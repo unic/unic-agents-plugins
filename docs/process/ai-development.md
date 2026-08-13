@@ -48,23 +48,36 @@ The pipeline is load-bearing. The quality of the execution at the bottom depends
 
 State every check so that **not having run** fails it. A check whose "found nothing" is indistinguishable from "never executed" reports success for work it did not do, and it does so most convincingly on the night nobody is watching.
 
-Three instances, all found in this repo within a week:
+Four instances, all found in this repo within a fortnight:
 
 | Check                                                                                   | How it failed open                                                                                                    |
 | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | A PR-review gate written as "the review has returned and carries no unresolved finding" | A review that never happened has no findings. Absence satisfied it                                                    |
 | `pnpm --filter <pkg> --if-present verify:changelog`                                     | A package with no such script reported success, hiding that the gate never ran (#340)                                 |
 | The changelog gate's allow-list of guarded paths                                        | It omitted `lib/**`, so a change confined there was ungated. An allow-list rots every time a plugin grows a directory |
+| A test guarding three sentences of prose in `commands/setup.md` (#329)                  | Its comment claimed it protected the paragraph; each regex anchored one line, and the load-bearing sentence had none  |
 
 The repair is the same in each case: assert the positive. A review must **exist** and be newer than the head commit. A configured step must actually have a script. A guard should deny-list what is exempt rather than allow-list what is covered, so a new directory is covered on arrival.
 
-### Two reviewers see different things, and you need both
+The fourth is worth its own sentence, because it is the one that looks least like a gate. A **prose guard** — a test asserting that a sentence still exists in a Markdown prompt — is the only protection an instruction gets, since no test executes it. Its comment describes the intent; its regexes describe the coverage; nobody compares the two. Count the assertions against the sentences you meant to hold, and prove each one by deleting its sentence and watching the test go red.
 
-An acceptance-criteria audit checks the code against **what the ticket asked for**. An automated code review checks the code against **itself** — escaping, error handling, dead branches, inconsistency. Neither subsumes the other.
+### Three readers see different things, and you need all three
+
+Each reader holds the code against a different thing, and each is blind where the others look:
+
+| Reader                        | Holds the code against          | Blind to                                                     |
+| ----------------------------- | ------------------------------- | ------------------------------------------------------------ |
+| **Pre-dispatch audit**        | the tree the ticket will run on | anything the implementation does that the ticket never named |
+| **Acceptance-criteria audit** | what the ticket asked for       | anything no criterion mentions                               |
+| **Automated code review**     | the code itself                 | what the ticket wanted                                       |
 
 A PR merged in this repo passed nine CI checks and an AC audit that found every criterion met, and still implemented the wrong rule: it gated a deletion on a file header rather than on the file's name, so the very artefacts the issue existed to remove survived. What caught it was a review comment pointing at a **different** file — the README sentence promising behaviour the code did not provide. The audit could not have found it, because no criterion mentioned that sentence.
 
-Run both. When they disagree, the disagreement is the finding.
+The pre-dispatch audit has the same shape of blind spot, one stage earlier. On #329 it concluded the issue "needs no documentation criterion", having verified that `AGENTS.md` and `CONTEXT.md` already described the post-fix behaviour. It never opened `README.md`, whose configuration reference still advertised the default the issue existed to delete — in the one document a confused Consumer opens. The AC audit found it after the code existed, on a PR where every criterion was met.
+
+Read that pair together. A pre-dispatch audit reasons about what the ticket **will** touch, so it stops at the surfaces the ticket names; the AC audit reads a diff, so it sees the surfaces the ticket forgot. Neither is a cheaper version of the other, and passing one is not evidence about the other.
+
+Run all three. When two disagree, the disagreement is the finding. When one is skipped, say so — on that same PR, the automated review ran with two of its dimensions silently absent, and the completion report flagged them rather than counting them clean. That flag was the only reason anyone knew the review was narrower than green suggested.
 
 ---
 
@@ -117,10 +130,15 @@ Individually reasonable criteria can be **collectively impossible**. One issue i
 
 The third is the dangerous shape: not a contradiction between two criteria, but a **gap between them** that an implementer fills with a defensible-sounding decision. It produces a green pull request that faithfully implements the wrong thing.
 
-Two habits help:
+A fourth shape sits above all of them, in the fix rather than in any one criterion: **the remedy repeats the defect one level up.** #309 reported that a provider-agnosticism barrier was a hand-written list of files, so it drifted. Its criteria replaced that with a hand-written list of _directories_ — and the new list was already wrong on the day it was written, naming a directory another merge had emptied and omitting the two the guarded files had moved to. Every criterion was individually checkable. The set describes a fix that reproduces the defect at the next level, ships green, and reads as progress.
+
+The tell is that the issue's own words apply to its own remedy. When a ticket says a thing rots because it is written by hand, read the criteria back and ask what is still written by hand.
+
+Three habits help:
 
 - **Before publishing, read the criteria as one list and ask which pair cannot both hold.** A single pass costs minutes; discovering it after an AFK run costs the run.
 - **When a criterion says what must happen, check it also says on what basis.** "Delete the stale file" is not checkable without "stale is decided by name, not by contents".
+- **Turn the diagnosis on the cure.** If the criteria's fix has the shape the issue condemns, it will pass review and fail in the same way a year later.
 
 When you find one after dispatch, amend the ticket and re-dispatch. Do not merge a green PR that faithfully implements a wrong criterion — it becomes the precedent the next agent reads.
 
