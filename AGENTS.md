@@ -132,7 +132,7 @@ To ship a new plugin version:
 
 ## Feature-driven development
 
-New work enters through the issue tracker as Features. Plan with `/wayfinder` when the work is too big for one agent session, or `/grill-with-docs` when it fits in one; then `/to-spec` → `/to-tickets` → `/archon-rollout`. Use `/tdd` and `/implement` for individual issues.
+New work enters through the issue tracker as Features. Plan with `/wayfinder` when the work is too big for one agent session, or `/grill-with-docs` when it fits in one; then `/to-spec` → `/to-tickets` → pre-dispatch audit → `/archon-rollout`. The audit is what makes `ready-for-agent` mean audited, and it runs against a named commit — see [`docs/process/ai-development.md`](docs/process/ai-development.md) §4. Use `/tdd` and `/implement` for individual issues.
 
 `unic-archon-dlc` is **not** installed here — this repo builds it, it does not run it. See [ADR-0033](docs/adr/0033-de-dogfood-unic-archon-dlc.md).
 
