@@ -229,6 +229,24 @@ invocation. Never installed by `/setup`: it is read in this Plugin's own repo, n
 Consumer. Not an Archon workflow command template — no `command:` node resolves it.
 _Avoid_: command stub, command doc (both suggest the runtime template above)
 
+**Install set**:
+What `/setup` writes into a Consumer, and the rule by which each entry is replaced. Two shapes: a
+**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**,
+which owns only the names its pattern matches inside a directory it shares with the Consumer
+(`unic-dlc-*.yaml` inside `.archon/workflows/`). One engine, `installArtefacts` — but not one
+declared list: two callers pass entries to it independently, and Step 5 writes the config outside it
+altogether. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
+install set" as that shared engine, never as a single enumeration something iterates.
+_Avoid_: install manifest, artefact list
+
+**Generated header**:
+The two comment lines `/setup` stamps onto every installed Box YAML, naming this Plugin and the
+version that wrote the file, and stating that the next run replaces it (`renderGeneratedHeader` in
+`lib/artefact-install.mjs`). This is where a Consumer's install provenance lives — per file, and in
+no separate record. It never decides ownership: the stale sweep retires a name whether or not the
+file carries the header ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
+_Avoid_: provenance file, install record (neither exists)
+
 ### Architecture-health artifacts
 
 **arch-review**:
