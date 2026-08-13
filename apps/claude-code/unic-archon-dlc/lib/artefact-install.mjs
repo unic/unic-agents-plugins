@@ -89,9 +89,14 @@ function errnoCode(err) {
 }
 
 /**
- * `added` is the subset of `written` whose destination name was absent before this run — what a new
- * Plugin version brought that the Consumer did not already have. It is a set difference over the
- * names the stale sweep already reads, never a second `readdir` (#295).
+ * `added` names every shipped destination whose name was absent before this run — what a new Plugin
+ * version brings that the Consumer does not already have. It is a set difference over the names the
+ * stale sweep already reads, never a second `readdir` (#295).
+ *
+ * It is computed before the write loop, so on an `ok: true` return it is a subset of `written`, and
+ * on an `ok: false` return it is not: it still names the destinations the run would have added, and
+ * a write that failed part-way leaves some of them unwritten. Read it with `written` beside it when
+ * diagnosing a partial install.
  *
  * @typedef {{ ok: true, written: string[], deleted: string[], added: string[], skipped: SkippedArtefact[] } | { ok: false, written: string[], deleted: string[], added: string[], skipped: SkippedArtefact[], stage: string, failed: string, cause: string }} InstallArtefactsResult
  */
@@ -194,9 +199,10 @@ export function installArtefacts({
 
 		// The complement of the stale sweep, from the same two name sets and no further `readdir`: a
 		// shipped name absent from the destination is one this run adds rather than overwrites (#295).
-		// `entry.files` is iterated, not `shippedNames`, to keep the shipped order the write loop below
-		// uses — a `Set` carries insertion order, but the sorted order an operator reads in the Step 8
-		// summary is `entry.files`'s, and only one of the two is a stated guarantee.
+		// `entry.files` is iterated, not `shippedNames`, because the write loop below iterates it too
+		// and one source of order is easier to keep true than two. The two orders happen to be equal
+		// today — `shippedNames` is built from `entry.files` — so this is a choice about which one is
+		// the stated guarantee, not a correction of a difference.
 		const existingSet = new Set(existingNames)
 		for (const file of entry.files) {
 			if (!existingSet.has(file.name)) added.push(join(entry.destinationDir, file.name))
