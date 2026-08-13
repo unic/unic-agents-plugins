@@ -1,6 +1,6 @@
 # ADRs — unic-archon-dlc plugin
 
-Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` at the monorepo root. See the root `docs/adr/README.md` for format and numbering conventions.
+Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` at the monorepo root. See the root `docs/adr/README.md` for format and numbering conventions. One exception applies from here on: an amendment to a Plugin ADR is recorded as a dated `> **Amended (YYYY-MM-DD):**` blockquote below the status line, plus that amendment named in an extended status line (`; amended YYYY-MM-DD — <what>`) and in this index's Status column — never the root's `## Amendment (YYYY-MM)` section, whose anchor link no Plugin ADR resolves. ADR-0024 is the worked example.
 
 ## Index
 
@@ -29,7 +29,7 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030       |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                            |
 | 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281)             |
-| 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted                            |
+| 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296)             |
 | 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted                            |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281)             |
 | 0027 | `/improve-architecture` is a skill composing Matt's method + owns ADR superseding          | Accepted                            |
