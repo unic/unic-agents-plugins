@@ -151,11 +151,13 @@ When you find one after dispatch, amend the ticket and re-dispatch. Do not merge
 **A criterion that names a command carries that command's real output.** The author runs it before publishing and pastes the output and the exit code. A criterion is a claim about what a command does; an unrun claim is a guess. `rg -c` is the cheapest example of why running matters more than reading carefully — it disagrees with intuition about empty results, printing nothing and exiting 1 rather than the string `0`:
 
 ```
-$ rg -c 'zzz-definitely-not-present-zzz' docs/process/ai-development.md
+$ rg -c 'zzz-definitely-not-present-zzz' README.md; echo "EXIT=$?"
 EXIT=1                     # no output at all — never the string "0"
 ```
 
 A criterion asserting "returns 0" reads correctly and is satisfied by an implementer who runs it, sees the trap, and changes nothing.
+
+**Run the command, then read what it printed.** Real output pasted beside a summary that contradicts it is the same unrun claim with a transcript attached.
 
 **Prose criteria are not grep criteria.** A criterion about a document's wording says precisely what the document must state, checked by reading it — not that a `grep` finds a sentence. A correct rewording can fail a grep; a sentence preserved verbatim can outlive the section that gave it meaning. The rule above applies to a criterion that names a command as the check's subject, not to a criterion about prose.
 
