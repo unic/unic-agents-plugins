@@ -347,11 +347,11 @@ If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_W
 
 ## Step 7 — Refresh the `CLAUDE.md` marker block (idempotent)
 
-Write/refresh the block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace only the content **between** the markers (preserve everything outside verbatim); if the file or block is absent, create it. This runs regardless of `docs.type`.
+Write/refresh the block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace the whole marker-delimited block, **markers included**, and preserve everything outside it verbatim; if the file or block is absent, create it. This runs regardless of `docs.type`.
 
-The block describes what this run installed on the consumer's own disk, and nothing about this Plugin's own shape: it names no Box and no pipeline stage, because a Plugin release renames, reorders and drops both without touching the consumer's repo. Everything it carries is instead a path the reader can open, a command they can run, or a link. It also carries one sentence naming `classification.labels` as the Canonical role → tracker Label string mapping this project answered during setup, and pointing at `/unic-archon-dlc:setup reconfigure` as the way to review or change it — this block is the only surface that ships into a Consumer's repo, so without that sentence the seventeen lines in the config have no thread to pull.
+The block describes what this run installed on the consumer's own disk, and nothing about this Plugin's own shape: it names no pipeline stage, and no Box but `/unic-archon-dlc:setup` itself — it cannot say what regenerates the block without naming it — because a Plugin release renames, reorders and drops both without touching the consumer's repo. Everything it carries is instead a path the reader can open, a command they can run, or a link. It also carries one sentence naming `classification.labels` as the Canonical role → tracker Label string mapping this project answered during setup, and pointing at `/unic-archon-dlc:setup reconfigure` as the way to review or change it — this block is the only surface that ships into a Consumer's repo, so without that sentence the seventeen lines in the config have no thread to pull.
 
-Write exactly this between the markers. Every line is static; fill nothing in:
+Write exactly this, markers included, as the whole block. Every line is static; fill nothing in:
 
 ```markdown
 <!-- unic-archon-dlc:begin -->

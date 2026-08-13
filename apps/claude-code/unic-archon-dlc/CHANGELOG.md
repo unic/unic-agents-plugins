@@ -23,17 +23,25 @@
 - **The `CLAUDE.md` block `/setup` writes describes the Consumer's own disk, and its heading is now
   `## unic-archon-dlc`.** Step 7 used to restate this Plugin's box set and pipeline order, both of
   which a Plugin release renames and reorders with no change on the Consumer's side —
-  `/archon-upgrade` had already fallen out of the list unnoticed. The block now names no Box and no
-  pipeline stage. It carries the config path and its `classification.labels` sentence,
+  `/archon-upgrade` had already fallen out of the list unnoticed. The block now names no pipeline
+  stage, and no Box but `/unic-archon-dlc:setup`, which it cannot leave out without losing the one
+  name that says what regenerates it. It carries the config path and its `classification.labels` sentence,
   `.archon/workflows/` with the `unic-dlc-*.yaml` naming plus `archon workflow list` and
   `archon workflow run <name> "<slug>"` to see and run what is installed there, `.archon/methods/`
   as replaced wholesale on every run with `.archon/methods.local/` as the override tier, and a link
   to this Plugin's README for what each Box does. The `<!-- unic-archon-dlc:begin -->` /
   `<!-- unic-archon-dlc:end -->` markers are unchanged, so an existing Consumer's next `/setup` run
-  replaces the old block in place. The "auto-managed" framing is dropped: nothing detects a
-  hand-edit between the markers, and nothing will. See
+  replaces the old block in place. Step 7 now says in one voice that the **whole** marker-delimited
+  block is what gets replaced, markers included — the canonical snippet it prescribes opens and
+  closes with those markers, and "write this between the markers" would have nested a second pair on
+  every refresh. The "auto-managed" framing is dropped: nothing detects a hand-edit between the
+  markers, and nothing will. See
   [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md) (amended 2026-08-13), whose known item this
   settles.
+- **Amending a Plugin ADR now has a recorded form.** `docs/adr/README.md` binds every later amender
+  to a dated `> **Amended (YYYY-MM-DD):**` blockquote below the status line, plus a status-line note
+  and an index update — never the root repository's `## Amendment (YYYY-MM)` section. The rule is
+  named here because the next amender reads this file, not the ADR index.
 - **`AGENTS.md` and `CONTEXT.md` follow the rename**, `AGENTS.md`'s doctrine bullet states the rule
   the block now follows, and both stop listing `/handoff` as a Box this Plugin owns — it is one of
   Matt's skills, referenced in prose and never implemented here.
