@@ -50,7 +50,7 @@ This query lists how every comment on the PR opens — one output line per comme
 gh pr view <n> --repo unic/unic-agents-plugins --json comments --jq ".comments[] | (.body | split(\"\n\")[0])[0:100]"
 ```
 
-In that output, find `archon-pr-review-verification` for this command's own comment and `comprehensive-review-report` for the run's. The width is 100 because the run's marker is 94 characters and ` part=` opens at column 79 — an 80-character slice shows the marker and hides which half of the run wrote it.
+In that output, find `archon-pr-review-verification` for this command's own comment and `comprehensive-review-report` for the run's. The width is 100 because the longer of the run's two markers (`part=review`) is 94 characters and ` part=` opens at column 79 — an 80-character slice shows the marker and hides which half of the run wrote it.
 
 **The quoting of this filter is not verified on `cmd.exe`.** It is the one snippet in this file allowed to hold an inner string literal, and it needs one: reaching a comment's _first_ line takes `split("\n")`, jq offers no literal-free way to split on a newline, and the first line is where both markers live. No other snippet added here may hold one, and the exemption does not extend to a filter that selects on the marker string.
 
