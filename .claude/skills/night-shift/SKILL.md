@@ -60,6 +60,17 @@ them, so one list exists and not two.
 
 The verdict is one word: `dispatchable` or `needs-amendment`.
 
+If §4's checklist cannot be read, there is no verdict. Stop the run and hand back to a human — a
+missing method is not the ticket's defect, so `needs-amendment` would blame the wrong thing, and
+`dispatchable` would pass an issue on four check names with no method behind them.
+
+### On `dispatchable`
+
+**Comment** the confirmation: name the commit the audit passed against — `git rev-parse HEAD` on the
+tree you audited. Publish applied the label; this comment is what makes it mean audited, and it is
+the only place the audited commit lives (`docs/process/ai-development.md` §4, "The pre-dispatch
+audit"). Then dispatch the slice.
+
 ### On `needs-amendment`
 
 1. **Comment** with the findings and their evidence. This is the amendment brief, so write what a

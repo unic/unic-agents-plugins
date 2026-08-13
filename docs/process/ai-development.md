@@ -118,7 +118,7 @@ An issue's `## Acceptance criteria` is doing two jobs: it is the definition of d
 - [ ] Tests pass
 ```
 
-The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies is that approval. That approval is not the last check: a pre-dispatch audit runs after it, against a named commit, on criteria whose commands were run. See below.
+The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies records that approval. It does not yet mean audited: a pre-dispatch audit runs after publish, against a named commit, on criteria whose commands were run, and confirms the label. See below.
 
 If an issue's acceptance criteria are too vague to verify without judgment, do not approve the breakdown. Send the ticket back for rework in the same session, or once published, relabel it `needs-specs`.
 
@@ -169,7 +169,7 @@ A pre-dispatch audit runs four checks, in one place, so the author and the audit
 
 1. Every citation resolves, and still says what the issue claims.
 2. The criteria read as one list, not one at a time — see "Read the criteria as a set, not one at a time" above.
-3. Which criteria an implementer satisfies by changing nothing.
+3. Which criteria an implementer satisfies by changing nothing. A vacuous criterion is a finding.
 4. What the last merge moved, deleted, or reshaped underneath the issue.
 
 ---
