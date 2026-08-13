@@ -89,7 +89,11 @@ function errnoCode(err) {
 }
 
 /**
- * @typedef {{ ok: true, written: string[], deleted: string[], skipped: SkippedArtefact[] } | { ok: false, written: string[], deleted: string[], skipped: SkippedArtefact[], stage: string, failed: string, cause: string }} InstallArtefactsResult
+ * `added` is the subset of `written` whose destination name was absent before this run — what a new
+ * Plugin version brought that the Consumer did not already have. It is a set difference over the
+ * names the stale sweep already reads, never a second `readdir` (#295).
+ *
+ * @typedef {{ ok: true, written: string[], deleted: string[], added: string[], skipped: SkippedArtefact[] } | { ok: false, written: string[], deleted: string[], added: string[], skipped: SkippedArtefact[], stage: string, failed: string, cause: string }} InstallArtefactsResult
  */
 
 /**
@@ -110,6 +114,8 @@ export function installArtefacts({
 	const written = []
 	/** @type {string[]} */
 	const deleted = []
+	/** @type {string[]} */
+	const added = []
 	/** @type {SkippedArtefact[]} */
 	const skipped = []
 
@@ -122,6 +128,7 @@ export function installArtefacts({
 					ok: false,
 					written,
 					deleted,
+					added,
 					skipped,
 					stage: 'directory-clean',
 					failed: entry.destinationDir,
@@ -137,6 +144,7 @@ export function installArtefacts({
 						ok: false,
 						written,
 						deleted,
+						added,
 						skipped,
 						stage: 'directory-copy',
 						failed: item.to,
@@ -156,6 +164,7 @@ export function installArtefacts({
 				ok: false,
 				written,
 				deleted,
+				added,
 				skipped,
 				stage: 'named-mkdir',
 				failed: entry.destinationDir,
@@ -174,12 +183,23 @@ export function installArtefacts({
 					ok: false,
 					written,
 					deleted,
+					added,
 					skipped,
 					stage: 'named-readdir',
 					failed: entry.destinationDir,
 					cause: /** @type {Error} */ (err).message,
 				}
 			}
+		}
+
+		// The complement of the stale sweep, from the same two name sets and no further `readdir`: a
+		// shipped name absent from the destination is one this run adds rather than overwrites (#295).
+		// `entry.files` is iterated, not `shippedNames`, to keep the shipped order the write loop below
+		// uses — a `Set` carries insertion order, but the sorted order an operator reads in the Step 8
+		// summary is `entry.files`'s, and only one of the two is a stated guarantee.
+		const existingSet = new Set(existingNames)
+		for (const file of entry.files) {
+			if (!existingSet.has(file.name)) added.push(join(entry.destinationDir, file.name))
 		}
 
 		// Stale sweep, scoped strictly to namePattern. A stale match is deleted regardless of its
@@ -227,6 +247,7 @@ export function installArtefacts({
 					ok: false,
 					written,
 					deleted,
+					added,
 					skipped,
 					stage: 'named-write',
 					failed: path,
@@ -241,6 +262,7 @@ export function installArtefacts({
 			ok: false,
 			written,
 			deleted,
+			added,
 			skipped,
 			stage: 'stale-sweep',
 			failed: skipped.map((entry) => entry.path).join(', '),
@@ -248,7 +270,7 @@ export function installArtefacts({
 		}
 	}
 
-	return { ok: true, written, deleted, skipped }
+	return { ok: true, written, deleted, added, skipped }
 }
 
 /** The first line of every artefact this engine header-stamps. Never matched as a substring. */
@@ -280,6 +302,21 @@ export function renderGeneratedHeader({ pluginVersion }) {
 export function hasGeneratedHeader(contents) {
 	const firstLine = contents.split(/\r?\n/, 1)[0] ?? ''
 	return firstLine.startsWith(GENERATED_HEADER_PREFIX)
+}
+
+/**
+ * The version named in a generated header's first line, or null when that line does not open with
+ * {@link GENERATED_HEADER_PREFIX} or carries no `@<version>` after it. Same first-line-prefix rule as
+ * {@link hasGeneratedHeader}, never a substring search over the body.
+ *
+ * @param {string} contents
+ * @returns {string | null}
+ */
+function parseGeneratedHeaderVersion(contents) {
+	const firstLine = contents.split(/\r?\n/, 1)[0] ?? ''
+	if (!firstLine.startsWith(GENERATED_HEADER_PREFIX)) return null
+	const match = firstLine.slice(GENERATED_HEADER_PREFIX.length).match(/^@(\S+)/)
+	return match ? match[1] : null
 }
 
 /** Every `unic-dlc-*.yaml` Box workflow, and nothing else — the naming convention, not a Box name. */
@@ -348,10 +385,59 @@ export function discoverBoxWorkflowEntry({
  */
 
 /**
+ * `previousVersion` is the version that wrote the Boxes already installed, or null when this run
+ * cannot name one — a fresh Consumer, a file with no generated header, a header with no `@version`.
+ *
+ * @typedef {InstallArtefactsResult & { previousVersion: string | null }} InstallBoxWorkflowsResult
+ */
+
+/**
+ * The version stamped on the Boxes already in the Consumer's `.archon/workflows/`, read **before**
+ * anything is written — after the install every header names the version being installed, so this
+ * value only exists ahead of the write loop (#295).
+ *
+ * One file is read: the first name in sorted order that this run both ships and finds on disk. Headers
+ * are never cross-checked between files — they disagree only after a partially failed install, which
+ * Step 6 already reports as a failure. A missing directory, an unreadable file and an unparseable
+ * header are all the same answer here — null — because the summary line this feeds says
+ * `upgraded from: unknown`, and no caller acts on which of the three it was.
+ *
+ * @param {NamedEntry} entry
+ * @param {{ readdirFn: (path: string) => string[], readFileFn: (path: string) => string, existsFn: (path: string) => boolean }} fns
+ * @returns {string | null}
+ */
+function readInstalledBoxVersion(entry, { readdirFn, readFileFn, existsFn }) {
+	if (!existsFn(entry.destinationDir)) return null
+	/** @type {string[]} */
+	let existingNames
+	try {
+		existingNames = readdirFn(entry.destinationDir)
+	} catch {
+		return null
+	}
+	const present = new Set(existingNames)
+	const first = entry.files
+		.map((file) => file.name)
+		.sort()
+		.find((name) => present.has(name))
+	if (!first) return null
+	try {
+		return parseGeneratedHeaderVersion(readFileFn(join(entry.destinationDir, first)))
+	} catch {
+		return null
+	}
+}
+
+/**
  * Discover and install the Box workflow YAMLs into the Consumer's `.archon/workflows/`.
  *
+ * The destination directory is listed twice — once here for the header read, once inside
+ * {@link installArtefacts} for its own `existingNames`. That is accepted rather than avoided: folding
+ * the two would move the header parse inside the engine, which knows nothing about Box versions
+ * (#295 D2).
+ *
  * @param {InstallBoxWorkflowsOptions} options
- * @returns {InstallArtefactsResult}
+ * @returns {InstallBoxWorkflowsResult}
  */
 export function installBoxWorkflows({
 	pluginRoot,
@@ -365,5 +451,11 @@ export function installBoxWorkflows({
 	existsFn,
 }) {
 	const entry = discoverBoxWorkflowEntry({ pluginRoot, repoRoot, pluginVersion, readdirFn, readFileFn })
-	return installArtefacts({ entries: [entry], rmFn, mkdirFn, readdirFn, readFileFn, writeFileFn, existsFn })
+	const previousVersion = readInstalledBoxVersion(entry, {
+		readdirFn: readdirFn ?? ((path) => readdirSync(path)),
+		readFileFn: readFileFn ?? ((path) => readFileSync(path, 'utf8')),
+		existsFn: existsFn ?? ((path) => existsSync(path)),
+	})
+	const result = installArtefacts({ entries: [entry], rmFn, mkdirFn, readdirFn, readFileFn, writeFileFn, existsFn })
+	return { ...result, previousVersion }
 }
