@@ -140,7 +140,7 @@ New work enters through the issue tracker as Features. Plan with `/wayfinder` wh
 
 **This repo's product is prose** — commands, skills, `AGENTS.md` files, ADRs. So a criterion names an **observable outcome**: what a document must state, checked by reading it. It does not name a command carrying its pasted output, and no `file:line` citation inside a criterion is binding — the next merge moves the line, so a criterion written around one rots on a schedule nobody controls.
 
-**Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `apps/claude-code/unic-archon-dlc/lib/slopcheck.mjs` is the worked example: it exists only to be tested, while `unic-dlc-build.yaml` inlines its own copy and imports nothing.
+**Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `apps/claude-code/unic-archon-dlc/lib/slopcheck.mjs` is the worked example: it exists only to be tested, while `apps/claude-code/unic-archon-dlc/.archon/workflows/unic-dlc-build.yaml` inlines its own copy and imports nothing.
 
 Four reads catch what a criterion-by-criterion pass cannot. Run them while writing the criteria, inside `/to-tickets`, because nothing downstream runs them for you:
 

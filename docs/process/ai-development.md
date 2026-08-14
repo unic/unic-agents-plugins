@@ -67,7 +67,7 @@ The fourth is worth its own sentence, because it is the one that looks least lik
 
 ### A sweep confirms its instrument, not its claim
 
-A claim is made by **shape** as often as by phrasing, so a completeness sweep searches for both. #363 published a phrase sweep — `last checkpoint`, `only gate`, `nothing downstream` — and five audit rounds re-ran it and confirmed it. `AGENTS.md:135` carried the same claim with none of those words: it made it as a pipeline arrow chain with no audit stage in it. Nobody found it by sweeping. The shape sweep written afterwards has its own blind spot — its regex refuses to cross a `|`, so it cannot see a table row, which is where `docs/process/development-workflow.md` was still saying the old thing.
+A claim is made by **shape** as often as by phrasing, so a completeness sweep searches for both. #363 published a phrase sweep — `last checkpoint`, `only gate`, `nothing downstream` — and five audit rounds re-ran it and confirmed it. The root `AGENTS.md` carried the same claim in its Feature-driven development paragraph, with none of those words: it made it as a pipeline arrow chain with no audit stage in it. Nobody found it by sweeping. The shape sweep written afterwards has its own blind spot — its regex refuses to cross a `|`, so it cannot see a table row, which is where `docs/process/development-workflow.md` was still saying the old thing.
 
 Two instruments, two blind spots, and their union is still not provably complete. So **reading is the instrument and the sweep is the check on the reading**, never the other way round. Re-running someone else's command tells you their command still behaves the same way. It tells you nothing about whether the claim is true.
 
