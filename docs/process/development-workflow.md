@@ -82,7 +82,7 @@ This publishes **one GitHub issue per ticket**, in dependency order so each can 
 
 Two things to know about the output:
 
-- **The human gate sits inside the skill, not after it.** `/to-tickets` iterates on the breakdown until you approve it, and only then publishes — so the `ready-for-agent` label it applies already carries your approval. Do not run `/triage` again over freshly published tickets. Approve properly inside the skill: a pre-dispatch audit follows publish, against a named commit, on criteria that were run — but it audits what the ticket says against the tree, not the judgment call you made approving it. `/triage` stays the on-ramp for raw work that arrives unspecified: bug reports, external PRs, ideas. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
+- **The human gate sits inside the skill, not after it.** `/to-tickets` iterates on the breakdown until you approve it, and only then publishes — so the `ready-for-agent` label it applies already carries your approval. Do not run `/triage` again over freshly published tickets. Approve properly inside the skill: nothing re-checks the criteria after it publishes, so that approval is the last look anyone takes at them before an agent runs them. `/triage` stays the on-ramp for raw work that arrives unspecified: bug reports, external PRs, ideas. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
 - **Two kinds of issue now carry `ready-for-agent`, and only one is implementable.** The spec issue from Phase 5 has it too, and a `wayfinder:map` and its decision tickets are labelled by a different scheme entirely. Before dispatching, check the Issue has the `## What to build` / `## Acceptance criteria` shape — a label match alone is not enough. `/archon-rollout` does not yet filter these out; treat its issue list as needing a glance.
 - **`docs/issues/<slug>/` is a repo convention, not skill output.** Nothing generates it since upstream v1.1 — `to-tickets`' local-file mode writes `.scratch/<slug>/issues/` and is only reached when no real tracker is configured. Existing `docs/issues/<slug>/` directories are the durable artefact set from earlier Features; create one by hand when a Feature wants file-based tickets.
 
@@ -96,7 +96,7 @@ Respect the issue ordering signalled by `## Blocked by` (see [ADR-0007](../../ap
 
 ### AFK execution with `/archon-rollout`
 
-Dispatch a chain of `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Each run lands its own PR targeting `develop`.
+Dispatch a chain of `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Nothing re-checks a ticket on its way in. Each run lands its own PR targeting `develop`.
 
 `unic-dlc-build` (shipped by `unic-archon-dlc`) is **not** the AFK path here. That plugin is a product this repo builds for Consumer repos; it is not installed against this one — see [ADR-0033](../adr/0033-de-dogfood-unic-archon-dlc.md).
 

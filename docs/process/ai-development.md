@@ -39,12 +39,14 @@ GitHub Issue / /triage  ← raw capture, no review required
 /to-tickets             ← human approves the breakdown, then it publishes
                            `ready-for-agent`
        ↓
-pre-dispatch audit      ← against a named commit, on criteria that were run
-       ↓
 /tdd or /implement      ← execution, or /archon-rollout for a chain
 ```
 
-The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution the pre-dispatch audit is the check that catches it, run against a named commit before the agent starts, not a second conversation.
+The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution nothing catches it, which is why the approval inside `/to-tickets` is the checkpoint that has to hold.
+
+What makes a criterion good enough for both audiences lives in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose" — always loaded, so no session has to reach for it.
+
+**Keep the ready queue short: grill late, dispatch soon.** A ticket that has sat `ready-for-agent` for more than a few days describes a tree that has moved; re-grill it or close it rather than auditing it back into shape. This is the trade that replaced a pre-dispatch audit — occasionally a stale ticket ships a wrong pull request, and the cost is that one run against the two and a half hours the audit charged before every night shift.
 
 ### A gate that cannot fail is not a gate
 
@@ -63,23 +65,26 @@ The repair is the same in each case: assert the positive. A review must **exist*
 
 The fourth is worth its own sentence, because it is the one that looks least like a gate. A **prose guard** — a test asserting that a sentence still exists in a Markdown prompt — is the only protection an instruction gets, since no test executes it. Its comment describes the intent; its regexes describe the coverage; nobody compares the two. Count the assertions against the sentences you meant to hold, and prove each one by deleting its sentence and watching the test go red.
 
-### Three readers see different things, and you need all three
+### A sweep confirms its instrument, not its claim
 
-Each reader holds the code against a different thing, and each is blind where the others look:
+A claim is made by **shape** as often as by phrasing, so a completeness sweep searches for both. #363 published a phrase sweep — `last checkpoint`, `only gate`, `nothing downstream` — and five audit rounds re-ran it and confirmed it. The root `AGENTS.md` carried the same claim in its Feature-driven development paragraph, with none of those words: it made it as a pipeline arrow chain with no audit stage in it. Nobody found it by sweeping. The shape sweep written afterwards has its own blind spot — its regex refuses to cross a `|`, so it cannot see a table row, which is where `docs/process/development-workflow.md` was still saying the old thing.
 
-| Reader                        | Holds the code against          | Blind to                                                     |
-| ----------------------------- | ------------------------------- | ------------------------------------------------------------ |
-| **Pre-dispatch audit**        | the tree the ticket will run on | anything the implementation does that the ticket never named |
-| **Acceptance-criteria audit** | what the ticket asked for       | anything no criterion mentions                               |
-| **Automated code review**     | the code itself                 | what the ticket wanted                                       |
+Two instruments, two blind spots, and their union is still not provably complete. So **reading is the instrument and the sweep is the check on the reading**, never the other way round. Re-running someone else's command tells you their command still behaves the same way. It tells you nothing about whether the claim is true.
+
+### Two readers see different things, and you need both
+
+Both read a diff, after the code exists. Each holds it against a different thing, and each is blind where the other looks:
+
+| Reader                        | Holds the code against    | Blind to                       |
+| ----------------------------- | ------------------------- | ------------------------------ |
+| **Acceptance-criteria audit** | what the ticket asked for | anything no criterion mentions |
+| **Automated code review**     | the code itself           | what the ticket wanted         |
 
 A PR merged in this repo passed nine CI checks and an AC audit that found every criterion met, and still implemented the wrong rule: it gated a deletion on a file header rather than on the file's name, so the very artefacts the issue existed to remove survived. What caught it was a review comment pointing at a **different** file — the README sentence promising behaviour the code did not provide. The audit could not have found it, because no criterion mentioned that sentence.
 
-The pre-dispatch audit has the same shape of blind spot, one stage earlier. On #329 it concluded the issue "needs no documentation criterion", having verified that `AGENTS.md` and `CONTEXT.md` already described the post-fix behaviour. It never opened `README.md`, whose configuration reference still advertised the default the issue existed to delete — in the one document a confused Consumer opens. The AC audit found it after the code existed, on a PR where every criterion was met.
+Both readers work on a diff, and that is the point. Reading a ticket against a tree — guessing which surfaces the work **will** touch — stops at the surfaces the ticket names, which is how #329's `README.md` survived a check that had already read `AGENTS.md` and `CONTEXT.md` and concluded the issue needed no documentation criterion. The AC audit found it once the code existed. Neither reader is a cheaper version of the other, and passing one is not evidence about the other.
 
-Read that pair together. A pre-dispatch audit reasons about what the ticket **will** touch, so it stops at the surfaces the ticket names; the AC audit reads a diff, so it sees the surfaces the ticket forgot. Neither is a cheaper version of the other, and passing one is not evidence about the other.
-
-Run all three. When two disagree, the disagreement is the finding. When one is skipped, say so — on that same PR, the automated review ran with two of its dimensions silently absent, and the completion report flagged them rather than counting them clean. That flag was the only reason anyone knew the review was narrower than green suggested.
+Run both. When they disagree, the disagreement is the finding. When one is skipped, say so — on that same PR, the automated review ran with two of its dimensions silently absent, and the completion report flagged them rather than counting them clean. That flag was the only reason anyone knew the review was narrower than green suggested.
 
 ---
 
@@ -95,86 +100,7 @@ Phase 2 is where that chain is forged — `/wayfinder` across sessions, or `/gri
 
 ---
 
-## 4. Writing issues that AFK agents can execute
-
-An issue's `## Acceptance criteria` is doing two jobs: it is the definition of done for the human reviewer, and it is the planning conversation substitute for any AFK agent. It must be specific enough for both audiences.
-
-**Good acceptance criteria** are checkable without ambiguity:
-
-```markdown
-## Acceptance criteria
-
-- [ ] `grep -nF '🤖 *Reviewed by Claude Code*' commands/review-pr.md` → matches at every signature location
-- [ ] `pnpm --filter pr-review test` passes
-- [ ] `pnpm typecheck` passes
-```
-
-**Bad acceptance criteria** leave the agent to interpret intent:
-
-```markdown
-## Acceptance criteria
-
-- [ ] The feature works correctly
-- [ ] Tests pass
-```
-
-The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies records that approval. It does not yet mean audited: a pre-dispatch audit runs after publish, against a named commit, on criteria whose commands were run, and confirms the label. See below.
-
-If an issue's acceptance criteria are too vague to verify without judgment, do not approve the breakdown. Send the ticket back for rework in the same session, or once published, relabel it `needs-specs`.
-
-### Read the criteria as a set, not one at a time
-
-Individually reasonable criteria can be **collectively impossible**. One issue in this repo shipped with three such pairs, none noticed during grilling, all three found only when an implementation ran against them:
-
-- One forbade a name appearing as a literal in a test fixture; another required a guarded list to be "repointed in place", which needs those literals.
-- One forbade a name in the README; another required the README's quick start to show a command containing that name.
-- One said _what_ to delete but never _how ownership is decided_, so an implementation chose a different rule, documented its reasoning, and passed.
-
-The third is the dangerous shape: not a contradiction between two criteria, but a **gap between them** that an implementer fills with a defensible-sounding decision. It produces a green pull request that faithfully implements the wrong thing.
-
-A fourth shape sits above all of them, in the fix rather than in any one criterion: **the remedy repeats the defect one level up.** #309 reported that a provider-agnosticism barrier was a hand-written list of files, so it drifted. Its criteria replaced that with a hand-written list of _directories_ — and the new list was already wrong on the day it was written, naming a directory another merge had emptied and omitting the two the guarded files had moved to. Every criterion was individually checkable. The set describes a fix that reproduces the defect at the next level, ships green, and reads as progress.
-
-The tell is that the issue's own words apply to its own remedy. When a ticket says a thing rots because it is written by hand, read the criteria back and ask what is still written by hand.
-
-Three habits help:
-
-- **Before publishing, read the criteria as one list and ask which pair cannot both hold.** A single pass costs minutes; discovering it after an AFK run costs the run.
-- **When a criterion says what must happen, check it also says on what basis.** "Delete the stale file" is not checkable without "stale is decided by name, not by contents".
-- **Turn the diagnosis on the cure.** If the criteria's fix has the shape the issue condemns, it will pass review and fail in the same way a year later.
-
-When you find one after dispatch, amend the ticket and re-dispatch. Do not merge a green PR that faithfully implements a wrong criterion — it becomes the precedent the next agent reads.
-
-### The pre-dispatch audit
-
-`ready-for-agent` means: an audit passed, against a named commit, on criteria whose commands were run. The in-session approval inside `/to-tickets` is not that audit — it is what happens before publish. The audit runs after, against the tree the issue is about to run on, not the tree it was written against.
-
-**A criterion that names a command carries that command's real output.** The author runs it before publishing and pastes the output and the exit code. A criterion is a claim about what a command does; an unrun claim is a guess. `rg -c` is the cheapest example of why running matters more than reading carefully — it disagrees with intuition about empty results, printing nothing and exiting 1 rather than the string `0`:
-
-```
-$ rg -c 'zzz-definitely-not-present-zzz' README.md; echo "EXIT=$?"
-EXIT=1                     # no output at all — never the string "0"
-```
-
-A criterion asserting "returns 0" reads correctly and is satisfied by an implementer who runs it, sees the trap, and changes nothing.
-
-**Run the command, then read what it printed.** Real output pasted beside a summary that contradicts it is the same unrun claim with a transcript attached.
-
-**Prose criteria are not grep criteria.** A criterion about a document's wording says precisely what the document must state, checked by reading it — not that a `grep` finds a sentence. A correct rewording can fail a grep; a sentence preserved verbatim can outlive the section that gave it meaning. The rule above applies to a criterion that names a command as the check's subject, not to a criterion about prose.
-
-**A grilling ends by listing what it did not decide.** "Either is acceptable", "unless it genuinely needs one", and "whichever fits" are the phrasings that most often hide a question nobody answered — write each one down as an open question before publishing, or decide it there.
-
-**The ready queue is the hazard, not the backlog.** Every merge invalidates every pending issue that cites a path it touched, so risk scales with how many issues sit in `ready-for-agent`, not with how many exist overall. Grill late, dispatch soon, and keep the ready queue short.
-
-A pre-dispatch audit runs four checks, in one place, so the author and the auditor work from the same list:
-
-1. Every citation resolves, and still says what the issue claims.
-2. The criteria read as one list, not one at a time — see "Read the criteria as a set, not one at a time" above.
-3. Which criteria an implementer satisfies by changing nothing. A vacuous criterion is a finding.
-4. What the last merge moved, deleted, or reshaped underneath the issue.
-
----
-
-## 5. Dependency ordering
+## 4. Dependency ordering
 
 `to-tickets` publishes blockers first, so issue numbers usually ascend in dependency order — and in its local-file mode, filenames carry an explicit `01-`, `02-` prefix for readability. Either way, **that order is not the execution contract**.
 
@@ -186,7 +112,7 @@ The dependency graph also reveals which issues are parallelisable (those with no
 
 ---
 
-## 6. CONTEXT.md and ADRs as living constraints
+## 5. CONTEXT.md and ADRs as living constraints
 
 `CONTEXT.md` and `docs/adr/` are not documentation you write once and forget. They are the vocabulary and constraint layer that every agent reads before writing code. Their quality directly affects the quality of every execution — manual or AFK.
 
@@ -200,7 +126,7 @@ The commits from your grilling sessions carry this context forward. When an AFK 
 
 ---
 
-## 7. Historical: docs/plans/ and the interim `/implement-feature` skill
+## 6. Historical: docs/plans/ and the interim `/implement-feature` skill
 
 Two earlier execution paths have been retired:
 
