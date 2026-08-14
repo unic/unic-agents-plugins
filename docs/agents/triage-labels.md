@@ -15,13 +15,13 @@ The type tier carries four more labels no canonical role names — `spike`, `tec
 
 ## State roles
 
-| Canonical role    | Label in this repo | Meaning                                  |
-| ----------------- | ------------------ | ---------------------------------------- |
-| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this issue  |
-| `needs-info`      | `needs-info`       | Waiting on reporter for more information |
-| `ready-for-agent` | `ready-for-agent`  | Fully specified, ready for an AFK agent  |
-| `ready-for-human` | `ready-for-human`  | Requires human implementation            |
-| `wontfix`         | `rejected`         | Will not be actioned                     |
+| Canonical role    | Label in this repo | Meaning                                                                      |
+| ----------------- | ------------------ | ---------------------------------------------------------------------------- |
+| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this issue                                      |
+| `needs-info`      | `needs-info`       | Waiting on reporter for more information                                     |
+| `ready-for-agent` | `ready-for-agent`  | Approved and published; check the issue shape before dispatching — see below |
+| `ready-for-human` | `ready-for-human`  | Requires human implementation                                                |
+| `wontfix`         | `rejected`         | Will not be actioned                                                         |
 
 **`rejected` is this repo's label, never `wontfix`.** The skill's canonical role keeps the older name; the label does not.
 
