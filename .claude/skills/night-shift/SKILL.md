@@ -50,53 +50,22 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
 
 ---
 
-## Pre-audit every issue before dispatch
-
-An issue written before the last merge describes a tree that no longer exists. Audit each one in a
-fresh context, on Gate 3's terms, against the tree it is about to run on, running the four reads in
-the root `AGENTS.md`, "Acceptance criteria are prose" — the criteria as one set, the diagnosis turned
-on the cure, the vacuous criteria, and what the grilling left undecided. That section defines each
-one; this skill does not restate them, so one list exists and not two.
-
-The verdict is one word: `dispatchable` or `needs-amendment`.
-
-### On `dispatchable`
-
-**Comment** the confirmation: name the commit the audit passed against — `git rev-parse HEAD` on the
-tree you audited. Publish applied the label; this comment is what makes it mean audited, and it is
-the only place the audited commit lives (`docs/agents/triage-labels.md`, "Repo-only states"). Then
-dispatch the slice.
-
-### On `needs-amendment`
-
-1. **Comment** with the findings and their evidence. This is the amendment brief, so write what a
-   human has to decide, not only what is wrong.
-2. **Relabel** `ready-for-agent` → `needs-specs`. An issue keeping `ready-for-agent` stays takeable,
-   and the next unattended rollout takes it.
-3. **Skip that issue and dispatch the next slice.** One bad ticket costs one slice, not the night.
-
-An issue that blocks another takes the blocked ones with it: skip all of them, and name the blocker in
-each comment. Blocking is wider here than in **Order the chain**, which orders the chain on a native
-`blocked_by` relation alone. A skip also follows a criterion that cannot be written until another
-issue lands, relation or none — that dependency is real whether or not anyone recorded it.
-
-A human amends the criteria. When asked for a draft replacement, post it as a comment and mark every
-choice in it as the drafter's.
-
----
-
 ## Per slice
 
-1. **Pre-audit the issue.** `needs-amendment` skips it and frees the slice for the next one.
-2. **Fast-forward `develop`** so the fork point carries the previous merge.
-3. **Dispatch** via `/archon-rollout`. Always `--from develop`, always `--branch`.
-4. **Verify the fork point** before anything else — the worktree HEAD must equal `develop`. Archon
+Take the chain in order and go. Nothing is audited before dispatch — `/to-tickets` settled the
+criteria with a human in the session that wrote them, and re-reading them days later in a fresh
+context is a worse first opinion, not a second one. The gates below run after the code exists, which
+is where they earn their cost.
+
+1. **Fast-forward `develop`** so the fork point carries the previous merge.
+2. **Dispatch** via `/archon-rollout`. Always `--from develop`, always `--branch`.
+3. **Verify the fork point** before anything else — the worktree HEAD must equal `develop`. Archon
    forks from `main` by default whatever the branch name says.
-5. **Wait.** Arm a Monitor keyed on the run ID, never on a global active count.
-6. **Check the PR base.** Archon has retargeted PRs to `main` after opening them, more than once.
-7. **Apply the three gates.** All three, in full, before any merge.
-8. **Merge**, per `AGENTS.md`'s merge rule.
-9. **Log one line**, naming the slice, the gate verdicts and the merge commit. Then the next slice.
+4. **Wait.** Arm a Monitor keyed on the run ID, never on a global active count.
+5. **Check the PR base.** Archon has retargeted PRs to `main` after opening them, more than once.
+6. **Apply the three gates.** All three, in full, before any merge.
+7. **Merge**, per `AGENTS.md`'s merge rule.
+8. **Log one line**, naming the slice, the gate verdicts and the merge commit. Then the next slice.
 
 ---
 
@@ -172,9 +141,8 @@ advance rather than in the morning.
 - **A run leaves the active list without opening a PR.** Inspect the worktree for unpushed commits
   before concluding it produced nothing — one killed run held three commits and a passing suite.
   Recovery is #346; until then this hands back.
-- **The next move is a design call**, on a slice already dispatched. Amending an acceptance criterion
-  is always one — a green pull request that faithfully implements a wrong criterion becomes the
-  precedent the next agent reads. Found before dispatch, the same call is a pre-audit skip.
+- **The next move is a design call.** Amending an acceptance criterion is always one — a green pull
+  request that faithfully implements a wrong criterion becomes the precedent the next agent reads.
 - **The next move needs a credential this session lacks.** Hand back; the credential stays as it is.
 - **A run is still in the active list.** Its PR waits — `archon-fix-github-issue` keeps working
   after it opens one.
@@ -204,5 +172,5 @@ A slice that handed back is the gate working. Say so plainly and move on.
 
 - `.claude/commands/archon-rollout.md` — dispatch shape, fork-point verification, clean re-run runbook
 - `.claude/commands/archon-pr-review.md` — the review pass this composes
-- `docs/process/ai-development.md` §2 — gates that fail open, and why the pre-audit, the AC audit and the code review each miss what the others catch
+- `docs/process/ai-development.md` §2 — gates that fail open, and why the AC audit and the code review each miss what the other catches
 - #345 terminal issue state · #346 killed-run recovery · #347 hardening this skill

@@ -39,14 +39,14 @@ GitHub Issue / /triage  ← raw capture, no review required
 /to-tickets             ← human approves the breakdown, then it publishes
                            `ready-for-agent`
        ↓
-pre-dispatch audit      ← against a named commit, on the criteria read as one set
-       ↓
 /tdd or /implement      ← execution, or /archon-rollout for a chain
 ```
 
-The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution the pre-dispatch audit is the check that catches it, run against a named commit before the agent starts.
+The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution nothing catches it, which is why the approval inside `/to-tickets` is the checkpoint that has to hold.
 
-What makes a criterion good enough for both audiences, and the four reads the audit runs, live in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose" — always loaded, so no session has to reach for it.
+What makes a criterion good enough for both audiences lives in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose" — always loaded, so no session has to reach for it.
+
+**Keep the ready queue short: grill late, dispatch soon.** A ticket that has sat `ready-for-agent` for more than a few days describes a tree that has moved; re-grill it or close it rather than auditing it back into shape. This is the trade that replaced a pre-dispatch audit — occasionally a stale ticket ships a wrong pull request, and the cost is that one run against the two and a half hours the audit charged before every night shift.
 
 ### A gate that cannot fail is not a gate
 
@@ -71,23 +71,20 @@ A claim is made by **shape** as often as by phrasing, so a completeness sweep se
 
 Two instruments, two blind spots, and their union is still not provably complete. So **reading is the instrument and the sweep is the check on the reading**, never the other way round. Re-running someone else's command tells you their command still behaves the same way. It tells you nothing about whether the claim is true.
 
-### Three readers see different things, and you need all three
+### Two readers see different things, and you need both
 
-Each reader holds the code against a different thing, and each is blind where the others look:
+Both read a diff, after the code exists. Each holds it against a different thing, and each is blind where the other looks:
 
-| Reader                        | Holds the code against          | Blind to                                                     |
-| ----------------------------- | ------------------------------- | ------------------------------------------------------------ |
-| **Pre-dispatch audit**        | the tree the ticket will run on | anything the implementation does that the ticket never named |
-| **Acceptance-criteria audit** | what the ticket asked for       | anything no criterion mentions                               |
-| **Automated code review**     | the code itself                 | what the ticket wanted                                       |
+| Reader                        | Holds the code against    | Blind to                       |
+| ----------------------------- | ------------------------- | ------------------------------ |
+| **Acceptance-criteria audit** | what the ticket asked for | anything no criterion mentions |
+| **Automated code review**     | the code itself           | what the ticket wanted         |
 
 A PR merged in this repo passed nine CI checks and an AC audit that found every criterion met, and still implemented the wrong rule: it gated a deletion on a file header rather than on the file's name, so the very artefacts the issue existed to remove survived. What caught it was a review comment pointing at a **different** file — the README sentence promising behaviour the code did not provide. The audit could not have found it, because no criterion mentioned that sentence.
 
-The pre-dispatch audit has the same shape of blind spot, one stage earlier. On #329 it concluded the issue "needs no documentation criterion", having verified that `AGENTS.md` and `CONTEXT.md` already described the post-fix behaviour. It never opened `README.md`, whose configuration reference still advertised the default the issue existed to delete — in the one document a confused Consumer opens. The AC audit found it after the code existed, on a PR where every criterion was met.
+Both readers work on a diff, and that is the point. Reading a ticket against a tree — guessing which surfaces the work **will** touch — stops at the surfaces the ticket names, which is how #329's `README.md` survived a check that had already read `AGENTS.md` and `CONTEXT.md` and concluded the issue needed no documentation criterion. The AC audit found it once the code existed. Neither reader is a cheaper version of the other, and passing one is not evidence about the other.
 
-Read that pair together. A pre-dispatch audit reasons about what the ticket **will** touch, so it stops at the surfaces the ticket names; the AC audit reads a diff, so it sees the surfaces the ticket forgot. Neither is a cheaper version of the other, and passing one is not evidence about the other.
-
-Run all three. When two disagree, the disagreement is the finding. When one is skipped, say so — on that same PR, the automated review ran with two of its dimensions silently absent, and the completion report flagged them rather than counting them clean. That flag was the only reason anyone knew the review was narrower than green suggested.
+Run both. When they disagree, the disagreement is the finding. When one is skipped, say so — on that same PR, the automated review ran with two of its dimensions silently absent, and the completion report flagged them rather than counting them clean. That flag was the only reason anyone knew the review was narrower than green suggested.
 
 ---
 

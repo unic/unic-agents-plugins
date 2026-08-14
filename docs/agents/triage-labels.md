@@ -15,13 +15,13 @@ The type tier carries four more labels no canonical role names — `spike`, `tec
 
 ## State roles
 
-| Canonical role    | Label in this repo | Meaning                                                    |
-| ----------------- | ------------------ | ---------------------------------------------------------- |
-| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this issue                    |
-| `needs-info`      | `needs-info`       | Waiting on reporter for more information                   |
-| `ready-for-agent` | `ready-for-agent`  | Specified and approved; audited when confirmed (see below) |
-| `ready-for-human` | `ready-for-human`  | Requires human implementation                              |
-| `wontfix`         | `rejected`         | Will not be actioned                                       |
+| Canonical role    | Label in this repo | Meaning                                  |
+| ----------------- | ------------------ | ---------------------------------------- |
+| `needs-triage`    | `needs-triage`     | Maintainer needs to evaluate this issue  |
+| `needs-info`      | `needs-info`       | Waiting on reporter for more information |
+| `ready-for-agent` | `ready-for-agent`  | Fully specified, ready for an AFK agent  |
+| `ready-for-human` | `ready-for-human`  | Requires human implementation            |
+| `wontfix`         | `rejected`         | Will not be actioned                     |
 
 **`rejected` is this repo's label, never `wontfix`.** The skill's canonical role keeps the older name; the label does not.
 
@@ -29,7 +29,7 @@ The type tier carries four more labels no canonical role names — `spike`, `tec
 
 Three more state labels exist that no canonical role names. They extend the skill's five-state machine rather than replacing it — `/triage` will not apply them on its own, so set them by hand or by whichever command owns that transition.
 
-`ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. The label is final as a state — do not re-triage freshly published tickets. Whether the ticket has earned it is granted in two moments: publish records your in-session approval, and a pre-dispatch audit confirms it afterwards. Only that confirmation makes it mean audited. Post the confirmation as a comment on the issue, naming the commit the audit passed against — the label carries no commit of its own, so that comment is the only place the audited commit lives. The four reads that audit runs are in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose".
+`ready-for-agent` has a second author: `/to-spec` and `/to-tickets` apply it themselves on publish, after you approve their output in-session. That approval is the whole of it — nothing re-checks the ticket downstream, so the label is final as a state and freshly published tickets are not re-triaged. The reads that make an approval worth giving are in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose".
 
 It carries two different meanings depending on which issue holds it. On a **ticket** from `/to-tickets` it means an agent may implement this. On the **spec issue** from `/to-spec` it means the spec is settled — the body is user stories, with no `## What to build` and no `## Blocked by` edges, so it is not implementable. Check the shape, not just the label, before dispatching.
 
