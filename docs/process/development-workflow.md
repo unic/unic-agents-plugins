@@ -96,7 +96,7 @@ Respect the issue ordering signalled by `## Blocked by` (see [ADR-0007](../../ap
 
 ### AFK execution with `/archon-rollout`
 
-Dispatch a chain of `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Nothing re-checks a ticket on its way in, so keep the queue short — re-grill anything that has sat for more than a few days rather than dispatching it. Each run lands its own PR targeting `develop`.
+Dispatch a chain of `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Nothing re-checks a ticket on its way in. Each run lands its own PR targeting `develop`.
 
 `unic-dlc-build` (shipped by `unic-archon-dlc`) is **not** the AFK path here. That plugin is a product this repo builds for Consumer repos; it is not installed against this one — see [ADR-0033](../adr/0033-de-dogfood-unic-archon-dlc.md).
 
