@@ -93,10 +93,11 @@ function errnoCode(err) {
  * version brings that the Consumer does not already have. It is a set difference over the names the
  * stale sweep already reads, never a second `readdir` (#295).
  *
- * It is computed before the write loop, so on an `ok: true` return it is a subset of `written`, and
- * on an `ok: false` return it is not: it still names the destinations the run would have added, and
- * a write that failed part-way leaves some of them unwritten. Read it with `written` beside it when
- * diagnosing a partial install.
+ * It is computed before the write loop, so it names what the run set out to add rather than what it
+ * managed to write. On `ok: true`, and on an `ok: false` whose `stage` is `stale-sweep`, the write
+ * loop ran to completion and `added` is a subset of `written`. It is not a subset only where a
+ * `return` fires mid-write-loop — `stage: 'named-write'`, and any entry after one that failed. Read
+ * it with `written` beside it when diagnosing a partial install.
  *
  * @typedef {{ ok: true, written: string[], deleted: string[], added: string[], skipped: SkippedArtefact[] } | { ok: false, written: string[], deleted: string[], added: string[], skipped: SkippedArtefact[], stage: string, failed: string, cause: string }} InstallArtefactsResult
  */
