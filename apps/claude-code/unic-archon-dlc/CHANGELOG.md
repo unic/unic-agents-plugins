@@ -11,6 +11,35 @@
 ### Fixed
 - (none)
 
+## [0.21.0] — 2026-08-14
+
+### Breaking
+- (none)
+
+### Added
+- **The `/setup` Step 8 summary says which version it upgraded from, and which Boxes are new.** The
+  summary listed the paths it wrote and the paths it swept, so an unchanged re-install and an upgrade
+  read identically, and a newly shipped Box was indistinguishable from one that was already installed
+  and overwritten. Both answers were already computed inside the install and discarded. Step 8 now
+  opens with a version line in one of three forms — `first install`, `upgraded from: unknown`, or
+  `upgraded from: {previous} → {current}` — and carries a `workflows added:` line beside the existing
+  `workflows written:` and `workflows removed:` lines. All three name paths, never a count. The line
+  is informational: Step 6 runs unattended on the upgrade path, so nothing here prompts or gates.
+  `installArtefacts` returns `added`, derived from the two name sets its stale sweep already reads and
+  issuing no second `readdir`; `installBoxWorkflows` returns `previousVersion`, parsed from the
+  generated header of the first shipped-and-present Box in sorted order and read **before** the write
+  loop — after it, every header names the version being installed. `previousVersion` is `null` on a
+  fresh Consumer, against a file carrying no generated header, and against a header naming no version;
+  headers are never cross-checked between files. No install record, no hash and no timestamp: install
+  provenance is the per-file generated header, and a timestamp would dirty `git diff` on every
+  idempotent re-run. See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md), amended
+  2026-08-14 — its D1 wording ("one declared install set") describes the shared `installArtefacts`
+  engine, which has two independent callers plus Step 5's own config write, and the record file it
+  deferred to this change is not built.
+
+### Fixed
+- (none)
+
 ## [0.20.0] — 2026-08-13
 
 ### Breaking

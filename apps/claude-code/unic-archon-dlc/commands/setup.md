@@ -329,6 +329,9 @@ try {
             tiers,
             workflowsWritten: workflows.written,
             workflowsDeleted: workflows.deleted,
+            workflowsAdded: workflows.added,
+            previousVersion: workflows.previousVersion,
+            pluginVersion,
           }
         }
       }
@@ -343,7 +346,7 @@ EOJS
 
 Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — each failure mode (`licence`, `bundle`, `install`, `workflows`, `unexpected`) means the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` or `workflows` failure, the message already tells the operator how much landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the affected tree). A `workflows` failure whose stage is `stale-sweep` means a `unic-dlc-*.yaml` this Plugin no longer ships could not be read or removed — its path and the read/remove error are already named in `message`, so `/setup` never reports success while that stale Box is still on disk.
 
-If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_WRITTEN`, and `WORKFLOWS_DELETED` for the Step 8 summary. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
+If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_WRITTEN`, `WORKFLOWS_DELETED`, `WORKFLOWS_ADDED` (`workflowsAdded`), `PREVIOUS_VERSION` (`previousVersion`) and `PLUGIN_VERSION` (`pluginVersion`) for the Step 8 summary. `PREVIOUS_VERSION` is the version that wrote the Boxes already on disk, read before this run overwrote them, and is `null` on a fresh Consumer or against a Box carrying no readable generated header; `PLUGIN_VERSION` is this Plugin's own version, taken from the result object and **never re-read** in Step 8. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
 
 ## Step 7 — Refresh the `CLAUDE.md` marker block (idempotent)
 
@@ -384,6 +387,7 @@ Print a concise summary. List every Method with the tier it resolved from, and o
 
 ```
 unic-archon-dlc configured.
+  upgraded from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}
   config:   {configPath}
   archon remote: {ARCHON_REMOTE_RESOLVED} (Archon's own worktree.remote — verified, never written by this plugin)
   tracker:  {tracker.type} (access: {mcp|cli})
@@ -393,6 +397,7 @@ unic-archon-dlc configured.
   overrides: none
   workflows written: {path} · {path} · …
   workflows removed: none
+  workflows added: {path} · {path} · …
 ```
 
 Fill `{configPath}` from `configPath` (Step 5's output) or, when Step 5 was skipped, from `CONFIG_PATH` (Step 2's output).
@@ -403,6 +408,14 @@ Build the `methods:` line from `TIERS` — one `{name}({tier})` per manifest ent
 
 Build the `overrides:` line from `OVERRIDES`: `none` when it is empty, otherwise one entry per override whose `matchesBundle` is `false`, e.g. `overrides: tdd — forked_from mismatch (expected {BUNDLE_TAG}, got v1.0.0|missing)`. Overrides that match the Bundle tag need no flag.
 
-Build the `workflows written:` line from `WORKFLOWS_WRITTEN` — every path this run wrote into `.archon/workflows/`, `·`-separated. Build `workflows removed:` from `WORKFLOWS_DELETED` — `none` when it is empty, otherwise every stale `unic-dlc-*.yaml` path this run swept because the current Plugin version no longer ships it. Both lists name **paths written and paths deleted**, never a count alone — the point is a reviewable diff, not a summary number.
+Build the `workflows written:` line from `WORKFLOWS_WRITTEN` — every path this run wrote into `.archon/workflows/`, `·`-separated. Build `workflows removed:` from `WORKFLOWS_DELETED` — `none` when it is empty, otherwise every stale `unic-dlc-*.yaml` path this run swept because the current Plugin version no longer ships it. Build `workflows added:` from `WORKFLOWS_ADDED` — `none` when it is empty, otherwise every path this run wrote that the Consumer did not already have, i.e. the Boxes this Plugin version brings. `WORKFLOWS_ADDED` is a subset of `WORKFLOWS_WRITTEN`; the paths in one and not the other were already installed and were overwritten. All three lists name **paths written, paths deleted and paths added**, never a count alone — the point is a reviewable diff, not a summary number.
+
+Build the version line from `PREVIOUS_VERSION` and `PLUGIN_VERSION`, in one of three forms, and compute it nowhere else:
+
+- `PREVIOUS_VERSION` is null **and** `WORKFLOWS_ADDED` holds as many paths as `WORKFLOWS_WRITTEN` — nothing was on disk to read a version from and every Box is new, so print `first install`.
+- `PREVIOUS_VERSION` is null and that count does not match — Boxes were already installed but none names a version, so print `upgraded from: unknown`.
+- Otherwise print `upgraded from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}`, printing both versions even when they are equal: a re-run at the same version is a fact worth showing, not a case to special-case away.
+
+The line is informational and gates nothing. Step 6 runs unattended on the upgrade path, so never turn it into a prompt.
 
 Then note: **re-run `/unic-archon-dlc:setup` after updating the plugin** to pick up new config keys (the merge is idempotent — your existing values are preserved).

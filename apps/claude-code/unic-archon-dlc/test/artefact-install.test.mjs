@@ -119,8 +119,30 @@ test('installArtefacts (directory) removes the whole destination once, then copi
 		ok: true,
 		written: ['/repo/.archon/methods/a', '/repo/.archon/methods/b'],
 		deleted: [],
+		added: [],
 		skipped: [],
 	})
+})
+
+test('installArtefacts (directory) contributes nothing to added — a directory entry has no per-name history', () => {
+	// `added` answers "which names are new to this Consumer", which only a named entry can know: a
+	// directory entry removes its whole destination first, so every item it copies is trivially new
+	// and the answer would be noise (#295 AC-3).
+	const result = installArtefacts({
+		entries: [
+			{
+				kind: 'directory',
+				destinationDir: '/repo/.archon/methods',
+				items: [{ name: 'a', from: '/bundle/a', to: '/repo/.archon/methods/a' }],
+			},
+		],
+		rmFn: () => {},
+		cpFn: () => {},
+	})
+
+	assert.equal(result.ok, true)
+	assert.deepEqual(result.added, [])
+	assert.deepEqual(result.written, ['/repo/.archon/methods/a'])
 })
 
 test('installArtefacts (directory) reports which item failed and which already landed, without throwing', () => {
@@ -176,6 +198,46 @@ test('installArtefacts (named) creates the destination directory before touching
 	assert.deepEqual(fs.mkdirCalls, [{ path: DEST, options: { recursive: true } }])
 	assert.equal(result.ok, true)
 	assert.deepEqual(result.written, [join(DEST, 'unic-dlc-a.yaml')])
+})
+
+test('installArtefacts (named) reports as added only the shipped names the destination did not already hold', () => {
+	const fs = fakeFs({
+		dirs: { [DEST]: ['unic-dlc-a.yaml', 'team-variant.yaml'] },
+		files: { [join(DEST, 'unic-dlc-a.yaml')]: 'previously installed\n' },
+	})
+
+	const result = installArtefacts({
+		entries: [
+			{
+				kind: 'named',
+				destinationDir: DEST,
+				namePattern: BOX_WORKFLOW_NAME_PATTERN,
+				files: [
+					{ name: 'unic-dlc-a.yaml', contents: 'a\n' },
+					{ name: 'unic-dlc-b.yaml', contents: 'b\n' },
+					{ name: 'unic-dlc-c.yaml', contents: 'c\n' },
+				],
+			},
+		],
+		mkdirFn: fs.mkdirFn,
+		readdirFn: fs.readdirFn,
+		readFileFn: fs.readFileFn,
+		writeFileFn: fs.writeFileFn,
+		rmFn: fs.rmFn,
+		existsFn: fs.existsFn,
+	})
+
+	assert.equal(result.ok, true)
+	// `written` is the whole shipped set; `added` is the part of it that is new to this Consumer.
+	assert.deepEqual(result.written, [
+		join(DEST, 'unic-dlc-a.yaml'),
+		join(DEST, 'unic-dlc-b.yaml'),
+		join(DEST, 'unic-dlc-c.yaml'),
+	])
+	assert.deepEqual(result.added, [join(DEST, 'unic-dlc-b.yaml'), join(DEST, 'unic-dlc-c.yaml')])
+	// One listing of the destination serves both the stale sweep and `added` — a second would be a
+	// second answer, and the two could disagree if anything wrote in between.
+	assert.deepEqual(fs.readdirCalls, [DEST])
 })
 
 test('installArtefacts (named) writes every shipped file, overwriting unconditionally without reading the old contents', () => {
@@ -475,6 +537,113 @@ test('installBoxWorkflows writes in name order, so written[] and the Step 8 summ
 	])
 })
 
+// --- installBoxWorkflows: previousVersion --------------------------------------------------------
+
+const PLUGIN_SOURCE = join('/plugin', '.archon', 'workflows')
+const CONSUMER_DEST = join('/repo', '.archon', 'workflows')
+
+test('installBoxWorkflows reports no previous version and every shipped path as added on a fresh Consumer', () => {
+	// Nothing on disk to read a header from, and nothing already installed — so every shipped Box is
+	// new here, and the summary has no "upgraded from" to print.
+	const fs = fakeFs({
+		dirs: { [PLUGIN_SOURCE]: ['unic-dlc-a.yaml', 'unic-dlc-b.yaml'] },
+		files: {
+			[join(PLUGIN_SOURCE, 'unic-dlc-a.yaml')]: 'kind: workflow\n',
+			[join(PLUGIN_SOURCE, 'unic-dlc-b.yaml')]: 'kind: workflow\n',
+		},
+	})
+
+	const result = installBoxWorkflows({
+		pluginRoot: '/plugin',
+		repoRoot: '/repo',
+		pluginVersion: '0.21.0',
+		readdirFn: fs.readdirFn,
+		readFileFn: fs.readFileFn,
+		mkdirFn: fs.mkdirFn,
+		writeFileFn: fs.writeFileFn,
+		rmFn: fs.rmFn,
+		existsFn: fs.existsFn,
+	})
+
+	assert.equal(result.ok, true)
+	assert.equal(result.previousVersion, null)
+	assert.deepEqual(result.added, [join(CONSUMER_DEST, 'unic-dlc-a.yaml'), join(CONSUMER_DEST, 'unic-dlc-b.yaml')])
+})
+
+test('installBoxWorkflows reports no previous version when the installed Box carries no generated header', () => {
+	const fs = fakeFs({
+		dirs: { [PLUGIN_SOURCE]: ['unic-dlc-a.yaml'], [CONSUMER_DEST]: ['unic-dlc-a.yaml'] },
+		files: {
+			[join(PLUGIN_SOURCE, 'unic-dlc-a.yaml')]: 'kind: workflow\n',
+			[join(CONSUMER_DEST, 'unic-dlc-a.yaml')]: 'kind: workflow\n# hand-seeded, predates the header\n',
+		},
+	})
+
+	const result = installBoxWorkflows({
+		pluginRoot: '/plugin',
+		repoRoot: '/repo',
+		pluginVersion: '0.21.0',
+		readdirFn: fs.readdirFn,
+		readFileFn: fs.readFileFn,
+		mkdirFn: fs.mkdirFn,
+		writeFileFn: fs.writeFileFn,
+		rmFn: fs.rmFn,
+		existsFn: fs.existsFn,
+	})
+
+	assert.equal(result.ok, true)
+	assert.equal(result.previousVersion, null)
+	assert.deepEqual(result.added, [])
+})
+
+test('installBoxWorkflows reports no previous version when the header names none', () => {
+	// The prefix is there, the `@<version>` is not. Null, not the prefix line itself — the summary
+	// prints this straight to an operator.
+	const fs = fakeFs({
+		dirs: { [PLUGIN_SOURCE]: ['unic-dlc-a.yaml'], [CONSUMER_DEST]: ['unic-dlc-a.yaml'] },
+		files: {
+			[join(PLUGIN_SOURCE, 'unic-dlc-a.yaml')]: 'kind: workflow\n',
+			[join(CONSUMER_DEST, 'unic-dlc-a.yaml')]: `${GENERATED_HEADER_PREFIX} — no version here\nkind: workflow\n`,
+		},
+	})
+
+	const result = installBoxWorkflows({
+		pluginRoot: '/plugin',
+		repoRoot: '/repo',
+		pluginVersion: '0.21.0',
+		readdirFn: fs.readdirFn,
+		readFileFn: fs.readFileFn,
+		mkdirFn: fs.mkdirFn,
+		writeFileFn: fs.writeFileFn,
+		rmFn: fs.rmFn,
+		existsFn: fs.existsFn,
+	})
+
+	assert.equal(result.ok, true)
+	assert.equal(result.previousVersion, null)
+})
+
+test('installBoxWorkflows reads the previous version before this run overwrites it', () => {
+	// The whole point of the value, and the one bug that would pass every other assertion here: read
+	// the header AFTER the write loop and it names the version being installed, on every run.
+	const pluginRoot = tempDir()
+	const repoRoot = tempDir()
+	mkdirSync(join(pluginRoot, '.archon', 'workflows'), { recursive: true })
+	writeFileSync(join(pluginRoot, '.archon', 'workflows', 'unic-dlc-alpha.yaml'), 'kind: workflow\nname: alpha\n')
+
+	const first = installBoxWorkflows({ pluginRoot, repoRoot, pluginVersion: '0.20.0' })
+	assert.equal(first.ok, true)
+	assert.equal(first.previousVersion, null)
+	assert.deepEqual(first.added, [join(repoRoot, '.archon', 'workflows', 'unic-dlc-alpha.yaml')])
+
+	// Same plugin content, newer version: nothing is added, and the version on disk is the one the
+	// first run stamped.
+	const second = installBoxWorkflows({ pluginRoot, repoRoot, pluginVersion: '0.21.0' })
+	assert.equal(second.ok, true)
+	assert.equal(second.previousVersion, '0.20.0')
+	assert.deepEqual(second.added, [])
+})
+
 test('discoverBoxWorkflowEntry stamps every discovered file with the generated header naming the version', () => {
 	const entry = discoverBoxWorkflowEntry({
 		pluginRoot: '/plugin',
@@ -562,6 +731,30 @@ test('installBoxWorkflows leaves a Consumer file outside the naming untouched ac
 	installBoxWorkflows({ pluginRoot: PLUGIN_ROOT, repoRoot, pluginVersion: '9.9.9' })
 
 	assert.equal(readFileSync(variantPath, 'utf8'), 'kind: workflow\nname: team-variant\n')
+})
+
+// --- the Step 8 summary prose --------------------------------------------------------------------
+
+test('commands/setup.md Step 8 reports the previous version and the added workflows', () => {
+	// The pattern `config-schema.test.mjs` already uses on this same file: doc-only prose with no
+	// other test surface. Its limit is worth stating — it proves the two lines and the three version
+	// forms are present, not that the agent branches correctly between them at run time. That
+	// branching rests on review.
+	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
+
+	assert.match(setupDoc, /workflows added:/, 'Step 8 must gain a workflows added: line')
+	assert.match(setupDoc, /print `first install`/, 'Step 8 must state the first-install version form')
+	assert.match(setupDoc, /print `upgraded from: unknown`/, 'Step 8 must state the unknown-previous-version form')
+	assert.match(
+		setupDoc,
+		/print `upgraded from: \{PREVIOUS_VERSION\} → \{PLUGIN_VERSION\}`/,
+		'Step 8 must state the known-upgrade version form'
+	)
+	assert.match(
+		setupDoc,
+		/`WORKFLOWS_ADDED` \(`workflowsAdded`\), `PREVIOUS_VERSION` \(`previousVersion`\) and `PLUGIN_VERSION` \(`pluginVersion`\)/,
+		'Step 6 must keep naming WORKFLOWS_ADDED, PREVIOUS_VERSION and PLUGIN_VERSION among the variables Step 8 receives'
+	)
 })
 
 // --- header helpers ----------------------------------------------------------------------------
