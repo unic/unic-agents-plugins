@@ -142,13 +142,14 @@ New work enters through the issue tracker as Features. Plan with `/wayfinder` wh
 
 **Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `apps/claude-code/unic-archon-dlc/lib/slopcheck.mjs` is the worked example: it exists only to be tested, while `unic-dlc-build.yaml` inlines its own copy and imports nothing.
 
-Three reads catch what a criterion-by-criterion pass cannot. A pre-dispatch audit runs them, and so does anyone writing criteria:
+Four reads catch what a criterion-by-criterion pass cannot. A pre-dispatch audit runs them, and so does anyone writing criteria:
 
 - **Read the criteria as one set.** Individually reasonable criteria can be collectively impossible, and the dangerous shape is a **gap** between two of them that an implementer fills with a defensible-sounding decision — a green PR that faithfully implements the wrong thing. Amend the ticket and re-dispatch; do not merge it, because it becomes the precedent the next agent reads.
 - **Turn the diagnosis on the cure.** When a ticket says a thing rots because it is written by hand, read the fix back and ask what is still written by hand.
+- **Ask which criteria an implementer satisfies by changing nothing.** A vacuous criterion is a finding. It reads as coverage, buys none, and costs an audit round to discover after the code exists.
 - **Close a grilling by listing what it did not decide.** "Either is acceptable" and "whichever fits" are where an unanswered question hides. Write each one down as an open question, or decide it there.
 
-**If this section moves out of `AGENTS.md`, `.claude/skills/night-shift` needs its guard back.** That skill's pre-audit refuses to give a verdict when the three reads cannot be read, and the clause was dropped because an always-loaded file cannot be unreachable. Move the section behind a pointer and that assumption fails silently: the pre-audit passes issues on three check names with no method behind them.
+**If this section moves out of `AGENTS.md`, `.claude/skills/night-shift` needs its guard back.** That skill's pre-audit refuses to give a verdict when the four reads cannot be read, and the clause was dropped because an always-loaded file cannot be unreachable. Move the section behind a pointer and that assumption fails silently: the pre-audit passes issues on four check names with no method behind them.
 
 ## Do not add
 

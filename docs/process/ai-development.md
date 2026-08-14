@@ -46,7 +46,7 @@ pre-dispatch audit      ← against a named commit, on the criteria read as one 
 
 The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution the pre-dispatch audit is the check that catches it, run against a named commit before the agent starts.
 
-What makes a criterion good enough for both audiences, and the three reads the audit runs, live in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose" — always loaded, so no session has to reach for it.
+What makes a criterion good enough for both audiences, and the four reads the audit runs, live in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose" — always loaded, so no session has to reach for it.
 
 ### A gate that cannot fail is not a gate
 
@@ -64,6 +64,12 @@ Four instances, all found in this repo within a fortnight:
 The repair is the same in each case: assert the positive. A review must **exist** and be newer than the head commit. A configured step must actually have a script. A guard should deny-list what is exempt rather than allow-list what is covered, so a new directory is covered on arrival.
 
 The fourth is worth its own sentence, because it is the one that looks least like a gate. A **prose guard** — a test asserting that a sentence still exists in a Markdown prompt — is the only protection an instruction gets, since no test executes it. Its comment describes the intent; its regexes describe the coverage; nobody compares the two. Count the assertions against the sentences you meant to hold, and prove each one by deleting its sentence and watching the test go red.
+
+### A sweep confirms its instrument, not its claim
+
+A claim is made by **shape** as often as by phrasing, so a completeness sweep searches for both. #363 published a phrase sweep — `last checkpoint`, `only gate`, `nothing downstream` — and five audit rounds re-ran it and confirmed it. `AGENTS.md:135` carried the same claim with none of those words: it made it as a pipeline arrow chain with no audit stage in it. Nobody found it by sweeping. The shape sweep written afterwards has its own blind spot — its regex refuses to cross a `|`, so it cannot see a table row, which is where `docs/process/development-workflow.md` was still saying the old thing.
+
+Two instruments, two blind spots, and their union is still not provably complete. So **reading is the instrument and the sweep is the check on the reading**, never the other way round. Re-running someone else's command tells you their command still behaves the same way. It tells you nothing about whether the claim is true.
 
 ### Three readers see different things, and you need all three
 

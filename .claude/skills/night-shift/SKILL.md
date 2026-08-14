@@ -53,10 +53,10 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
 ## Pre-audit every issue before dispatch
 
 An issue written before the last merge describes a tree that no longer exists. Audit each one in a
-fresh context, on Gate 3's terms, against the tree it is about to run on, running the three reads in
+fresh context, on Gate 3's terms, against the tree it is about to run on, running the four reads in
 the root `AGENTS.md`, "Acceptance criteria are prose" — the criteria as one set, the diagnosis turned
-on the cure, and what the grilling left undecided. That section defines each one; this skill does not
-restate them, so one list exists and not two.
+on the cure, the vacuous criteria, and what the grilling left undecided. That section defines each
+one; this skill does not restate them, so one list exists and not two.
 
 The verdict is one word: `dispatchable` or `needs-amendment`.
 
