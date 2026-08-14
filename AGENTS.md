@@ -148,6 +148,8 @@ Three reads catch what a criterion-by-criterion pass cannot. A pre-dispatch audi
 - **Turn the diagnosis on the cure.** When a ticket says a thing rots because it is written by hand, read the fix back and ask what is still written by hand.
 - **Close a grilling by listing what it did not decide.** "Either is acceptable" and "whichever fits" are where an unanswered question hides. Write each one down as an open question, or decide it there.
 
+**If this section moves out of `AGENTS.md`, `.claude/skills/night-shift` needs its guard back.** That skill's pre-audit refuses to give a verdict when the three reads cannot be read, and the clause was dropped because an always-loaded file cannot be unreachable. Move the section behind a pointer and that assumption fails silently: the pre-audit passes issues on three check names with no method behind them.
+
 ## Do not add
 
 - External runtime deps to plugins unless truly essential (`auto-format` has zero; that's the bar)
