@@ -75,8 +75,9 @@ All work enters through the issue tracker as a Feature. The recommended flow:
 1. Capture the idea — open a GitHub Issue directly, or run `/triage` to walk it through the state machine.
 2. Chart the work. If it is too big for one agent session, run `/wayfinder`: it maps the open decisions as a `wayfinder:map` issue with child tickets and resolves them one at a time. If it fits in one session, grill it with `/grill-me` or `/grill-with-docs` instead.
 3. Create a spec and tickets with `/to-spec` → `/to-tickets`.
-4. Implement each issue with `/tdd` or `/implement`, or dispatch a chain of `ready-for-agent` issues with `/archon-rollout`.
-5. Open a PR targeting `develop`.
+4. Audit each ticket against the tree it will run on — `/to-tickets` applies `ready-for-agent` at publish, which records approval, not an audit.
+5. Implement each issue with `/tdd` or `/implement`, or dispatch a chain of audited issues with `/archon-rollout`.
+6. Open a PR targeting `develop`.
 
 See [`docs/process/development-workflow.md`](docs/process/development-workflow.md) for the full 8-phase lifecycle.
 

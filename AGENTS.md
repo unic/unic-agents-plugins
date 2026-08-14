@@ -132,9 +132,21 @@ To ship a new plugin version:
 
 ## Feature-driven development
 
-New work enters through the issue tracker as Features. Plan with `/wayfinder` when the work is too big for one agent session, or `/grill-with-docs` when it fits in one; then `/to-spec` → `/to-tickets` → pre-dispatch audit → `/archon-rollout`. The audit is what makes `ready-for-agent` mean audited, and it runs against a named commit — see [`docs/process/ai-development.md`](docs/process/ai-development.md) §4. Use `/tdd` and `/implement` for individual issues.
+New work enters through the issue tracker as Features. Plan with `/wayfinder` when the work is too big for one agent session, or `/grill-with-docs` when it fits in one; then `/to-spec` → `/to-tickets` → pre-dispatch audit → `/archon-rollout`. `/to-tickets` applies `ready-for-agent` on publish, recording your in-session approval; the pre-dispatch audit confirms it afterwards, against a named commit, and posts that commit as a comment. Use `/tdd` and `/implement` for individual issues. See [`docs/process/ai-development.md`](docs/process/ai-development.md) for the mental model.
 
 `unic-archon-dlc` is **not** installed here — this repo builds it, it does not run it. See [ADR-0033](docs/adr/0033-de-dogfood-unic-archon-dlc.md).
+
+### Acceptance criteria are prose
+
+**This repo's product is prose** — commands, skills, `AGENTS.md` files, ADRs. So a criterion names an **observable outcome**: what a document must state, checked by reading it. It does not name a command carrying its pasted output, and no `file:line` citation inside a criterion is binding — the next merge moves the line, so a criterion written around one rots on a schedule nobody controls.
+
+**Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `apps/claude-code/unic-archon-dlc/lib/slopcheck.mjs` is the worked example: it exists only to be tested, while `unic-dlc-build.yaml` inlines its own copy and imports nothing.
+
+Three reads catch what a criterion-by-criterion pass cannot. A pre-dispatch audit runs them, and so does anyone writing criteria:
+
+- **Read the criteria as one set.** Individually reasonable criteria can be collectively impossible, and the dangerous shape is a **gap** between two of them that an implementer fills with a defensible-sounding decision — a green PR that faithfully implements the wrong thing. Amend the ticket and re-dispatch; do not merge it, because it becomes the precedent the next agent reads.
+- **Turn the diagnosis on the cure.** When a ticket says a thing rots because it is written by hand, read the fix back and ask what is still written by hand.
+- **Close a grilling by listing what it did not decide.** "Either is acceptable" and "whichever fits" are where an unanswered question hides. Write each one down as an open question, or decide it there.
 
 ## Do not add
 

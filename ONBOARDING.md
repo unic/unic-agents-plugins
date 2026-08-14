@@ -48,7 +48,7 @@ Top MCP Servers:
 - [ ] /wayfinder — the other half of that split, and where upstream moved the planning weight. Charts work too big for one agent session as a `wayfinder:map` issue with child decision tickets, blocked by GitHub's native issue dependencies, and works the frontier one ticket at a time. Reach for it when `/grill-with-docs` would run out of context.
 - [ ] /triage — moves issues through the 8-state triage workflow; the default for "where do I stand" on open issues and the on-ramp for raw work. It is no longer a gate after `/to-tickets` — that approval happens inside the skill.
 - [ ] /archon — runs AI workflows in isolated git worktrees for parallel development; the basis of the team's custom delivery harness.
-- [ ] /archon-rollout — dispatches `archon-fix-github-issue` per issue respecting the dependency tree, with standing guardrails and a deduped monitor; the team's way of shipping a chain of ready-for-agent issues.
+- [ ] /archon-rollout — dispatches `archon-fix-github-issue` per issue respecting the dependency tree, with standing guardrails and a deduped monitor; the team's way of shipping a chain of audited `ready-for-agent` issues.
 - [ ] /to-tickets — breaks a spec into independently-grabbable issues using tracer-bullet vertical slices. Replaced `/to-issues` at upstream v1.1.
 - [ ] /to-spec — turns the current conversation into a spec and publishes it to the issue tracker. Replaced `/to-prd` at upstream v1.1.
 - [ ] /tdd — test-first red-green-refactor loop for building features and fixing bugs.
@@ -74,7 +74,7 @@ A good first task is getting the workspace green locally:
 2. `pnpm ci:check && pnpm test && pnpm typecheck` — all should pass on a clean `develop`.
 3. Skim [`CONTEXT-MAP.md`](CONTEXT-MAP.md) at the repo root to see the bounded contexts, then read one plugin's `CONTEXT.md` and its `docs/adr/` to learn how decisions are recorded.
 
-From there, run `/triage` to see where open issues stand, and pick up a `ready-for-agent` issue or pair on a triage pass.
+From there, run `/triage` to see where open issues stand, and pick up a `ready-for-agent` issue whose audit comment names a commit, or pair on a triage pass.
 
 <!-- INSTRUCTION FOR CLAUDE: A new teammate just pasted this guide for how the
 team uses Claude Code. You're their onboarding buddy — warm, conversational,

@@ -82,7 +82,7 @@ This publishes **one GitHub issue per ticket**, in dependency order so each can 
 
 Two things to know about the output:
 
-- **The human gate sits inside the skill, not after it.** `/to-tickets` iterates on the breakdown until you approve it, and only then publishes — so the `ready-for-agent` label it applies already carries your approval. Do not run `/triage` again over freshly published tickets. Approve properly inside the skill: a pre-dispatch audit follows publish, against a named commit, on criteria that were run — but it audits what the ticket says against the tree, not the judgment call you made approving it. `/triage` stays the on-ramp for raw work that arrives unspecified: bug reports, external PRs, ideas. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
+- **The human gate sits inside the skill, not after it.** `/to-tickets` iterates on the breakdown until you approve it, and only then publishes — so the `ready-for-agent` label it applies already carries your approval. Do not run `/triage` again over freshly published tickets. Approve properly inside the skill: a pre-dispatch audit follows publish, against a named commit, reading the criteria as one set — but it audits what the ticket says against the tree, not the judgment call you made approving it. `/triage` stays the on-ramp for raw work that arrives unspecified: bug reports, external PRs, ideas. See `docs/agents/triage-labels.md` for the full order (`needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, or `rejected`).
 - **Two kinds of issue now carry `ready-for-agent`, and only one is implementable.** The spec issue from Phase 5 has it too, and a `wayfinder:map` and its decision tickets are labelled by a different scheme entirely. Before dispatching, check the Issue has the `## What to build` / `## Acceptance criteria` shape — a label match alone is not enough. `/archon-rollout` does not yet filter these out; treat its issue list as needing a glance.
 - **`docs/issues/<slug>/` is a repo convention, not skill output.** Nothing generates it since upstream v1.1 — `to-tickets`' local-file mode writes `.scratch/<slug>/issues/` and is only reached when no real tracker is configured. Existing `docs/issues/<slug>/` directories are the durable artefact set from earlier Features; create one by hand when a Feature wants file-based tickets.
 
@@ -90,13 +90,13 @@ Two things to know about the output:
 
 ### Manual execution with `/tdd` — current default
 
-Work through `ready-for-agent` issues one at a time with `/tdd`. For each issue, the `## Acceptance criteria` block stands in for the planning conversation. Mark the issue `resolved` when the implementation lands. Open a PR targeting `develop` once the feature's issues are done.
+Work through audited `ready-for-agent` issues one at a time with `/tdd` — the label alone records approval at publish, so check the audit's confirming comment names a commit before you start. For each issue, the `## Acceptance criteria` block stands in for the planning conversation. Mark the issue `resolved` when the implementation lands. Open a PR targeting `develop` once the feature's issues are done.
 
 Respect the issue ordering signalled by `## Blocked by` (see [ADR-0007](../../apps/claude-code/unic-archon-dlc/docs/adr/0007-blocked-by-canonical-sequencing.md)) — a downstream issue inherits a broken foundation if a blocker has not landed.
 
 ### AFK execution with `/archon-rollout`
 
-Dispatch a chain of `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Each run lands its own PR targeting `develop`.
+Dispatch a chain of audited `ready-for-agent` issues with `/archon-rollout`, which runs the native `archon-fix-github-issue` workflow per issue in its own worktree and respects the `## Blocked by` tree. Audit each issue before it goes into the chain — an unattended run has nobody to catch a ticket the tree has moved underneath. Each run lands its own PR targeting `develop`.
 
 `unic-dlc-build` (shipped by `unic-archon-dlc`) is **not** the AFK path here. That plugin is a product this repo builds for Consumer repos; it is not installed against this one — see [ADR-0033](../adr/0033-de-dogfood-unic-archon-dlc.md).
 
@@ -114,16 +114,16 @@ Human QA often surfaces new issues or improvement ideas — add them back to the
 
 ## Quick reference
 
-| Phase        | When                             | Tool                                                                           |
-| ------------ | -------------------------------- | ------------------------------------------------------------------------------ |
-| 1. Capture   | Idea surfaces mid-task           | GitHub Issue (or `/triage`)                                                    |
-| 2. Chart     | Before any spec                  | `/wayfinder` if it exceeds one session, else `/grill-with-docs` or `/grill-me` |
-| 3. Research  | Unfamiliar external dependencies | `/research`                                                                    |
-| 4. Prototype | Uncertain design or state model  | `/prototype`                                                                   |
-| 5. Spec      | After charting                   | `/to-spec` → one GitHub issue                                                  |
-| 6. Tickets   | After the spec                   | `/to-tickets` → one GitHub issue per ticket, natively linked                   |
-| 7. Execute   | Tickets are `ready-for-agent`    | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK                    |
-| 8. QA        | After execution                  | QA plan (agent-generated, human-verified)                                      |
+| Phase        | When                                      | Tool                                                                           |
+| ------------ | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| 1. Capture   | Idea surfaces mid-task                    | GitHub Issue (or `/triage`)                                                    |
+| 2. Chart     | Before any spec                           | `/wayfinder` if it exceeds one session, else `/grill-with-docs` or `/grill-me` |
+| 3. Research  | Unfamiliar external dependencies          | `/research`                                                                    |
+| 4. Prototype | Uncertain design or state model           | `/prototype`                                                                   |
+| 5. Spec      | After charting                            | `/to-spec` → one GitHub issue                                                  |
+| 6. Tickets   | After the spec                            | `/to-tickets` → one GitHub issue per ticket, natively linked                   |
+| 7. Execute   | Tickets are `ready-for-agent` and audited | `/tdd` or `/implement` per issue, `/archon-rollout` for AFK                    |
+| 8. QA        | After execution                           | QA plan (agent-generated, human-verified)                                      |
 
 ## Related
 

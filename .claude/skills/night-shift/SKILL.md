@@ -53,23 +53,19 @@ an issue body is not, and the streams-page generator deliberately refuses to rea
 ## Pre-audit every issue before dispatch
 
 An issue written before the last merge describes a tree that no longer exists. Audit each one in a
-fresh context, on Gate 3's terms, against the tree it is about to run on, running all four checks in
-`docs/process/ai-development.md` §4's pre-dispatch-audit checklist — citations, criteria-as-a-set,
-vacuous criteria, and what the last merge moved. §4 defines each one; this skill does not restate
-them, so one list exists and not two.
+fresh context, on Gate 3's terms, against the tree it is about to run on, running the three reads in
+the root `AGENTS.md`, "Acceptance criteria are prose" — the criteria as one set, the diagnosis turned
+on the cure, and what the grilling left undecided. That section defines each one; this skill does not
+restate them, so one list exists and not two.
 
 The verdict is one word: `dispatchable` or `needs-amendment`.
-
-If §4's checklist cannot be read, there is no verdict. Stop the run and hand back to a human — a
-missing method is not the ticket's defect, so `needs-amendment` would blame the wrong thing, and
-`dispatchable` would pass an issue on four check names with no method behind them.
 
 ### On `dispatchable`
 
 **Comment** the confirmation: name the commit the audit passed against — `git rev-parse HEAD` on the
 tree you audited. Publish applied the label; this comment is what makes it mean audited, and it is
-the only place the audited commit lives (`docs/process/ai-development.md` §4, "The pre-dispatch
-audit"). Then dispatch the slice.
+the only place the audited commit lives (`docs/agents/triage-labels.md`, "Repo-only states"). Then
+dispatch the slice.
 
 ### On `needs-amendment`
 
