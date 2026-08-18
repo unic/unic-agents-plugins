@@ -37,77 +37,42 @@ nodes:
          - Otherwise read:
              `artifacts_dir`        (default "workflows")
              `gates.explore`        (default "hitl")
-             `tracker.type`         (read it; never branch on which provider it names)
              `project.branching`    (default "gitflow")
-      3. Resolve the TARGET REPOSITORY that every tracker call this run makes must name. It is
-         DERIVED from this worktree, not configured:
-         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
-         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
-            set, it wins verbatim and `repo_ref_source` is "override".
-         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
-            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
-            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
-            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
-            instead of `origin` — so the target is genuinely ambiguous → status "ambiguous-repo",
-            with `message` naming the remotes that disagree. A checkout whose only remote is
-            `origin` is never ambiguous, so an existing project never reaches that guard.
-         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
-      4. If slug and config are both present and the repository is unambiguous → status "ready".
+      3. If slug and config are both present → status "ready".
 
       /explore has no PRD or findings precondition — it is an off-line precursor that PRODUCES
-      findings.md, so `ready` needs only a slug + a readable config + an unambiguous repository.
+      findings.md, so `ready` needs only a slug and a readable config.
 
-      Emit ONLY the structured object. ALWAYS emit EVERY required field, including in the no-slug /
-      no-config / ambiguous-repo branches, so the object validates before a guard can cancel. When a
-      value cannot be read, fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate
-      "hitl", tracker_type "", branching "gitflow", repo_ref "", repo_ref_source "origin". Set
-      `message` to a human-readable reason for any non-ready status.
+      Emit ONLY the structured object. ALWAYS emit EVERY required field, including in the no-slug and
+      no-config branches, so the object validates before a guard can cancel. When a value cannot be
+      read, fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl", branching
+      "gitflow". Set `message` to a human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, ambiguous-repo]
+          enum: [ready, no-slug, no-config]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
           type: string
           enum: [hitl, afk]
-        tracker_type: { type: string }
         branching: { type: string }
-        repo_ref: { type: string }
-        repo_ref_source:
-          type: string
-          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, tracker_type, repo_ref, repo_ref_source, message]
+      required: [status, slug, artifacts_dir, gate, branching, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). Two guards,
-  # mutually exclusive on status, so each cancel message names the one thing to fix.
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
+  # because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
+    when: "$bootstrap.output.status != 'ready'"
     cancel: >
       /explore preconditions not met — see the bootstrap output. Pass a kebab-case slug
       (`/unic-archon-dlc:explore <slug>`) and run /unic-archon-dlc:setup first so
       `.archon/unic-dlc.config.yaml` exists.
-
-  # ---------------------------------------------------------------------------------------------
-  # guard-ambiguous-repo — the ONLY repository precondition. It fires when this checkout is a fork
-  # whose parent differs from `origin` and no `project.repo_ref` override is set, because a host tool
-  # would then act on the parent. A checkout with only `origin` never reaches it, so no existing
-  # project breaks on upgrade (ADR-0011: an expected precondition failure cancels, it does not fail).
-  # ---------------------------------------------------------------------------------------------
-  - id: guard-ambiguous-repo
-    depends_on: [bootstrap]
-    when: "$bootstrap.output.status == 'ambiguous-repo'"
-    cancel: >
-      /explore cannot tell which repository to act on — see the bootstrap message for the remotes
-      that disagree. This checkout names more than one repository, so a tool that infers the target
-      from the checkout would act on the wrong one. Set `project.repo_ref` in
-      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
 
   # ---------------------------------------------------------------------------------------------
   # research-stack — parallel research dimension 1 of 4. Read-only, fresh context. Emits its findings
@@ -382,11 +347,11 @@ nodes:
       required: [verdict_summary, spike_paths]
 
   # ---------------------------------------------------------------------------------------------
-  # spike-ticket — file (or update) a spike ticket in the configured tracker. Runs BEFORE the branch
-  # gate so the durable output survives a "discard" (the approval schema only supports on_reject, which
-  # cancels/reworks — it never proceeds past a reject). Composes the tracker MCP-first/CLI-fallback and
-  # takes labels ONLY from classification.labels (single source of truth — ADR-0024), never a
-  # labels-config lib and never Matt's docs/agents/*.
+  # spike-ticket — file (or update) a spike ticket on the tracker. Runs BEFORE the branch gate so the
+  # durable output survives a "discard" (the approval schema only supports on_reject, which
+  # cancels/reworks — it never proceeds past a reject). Reads the tracker contract at
+  # docs/agents/issue-tracker.md and docs/agents/triage-labels.md, which is where every host word
+  # lives (ADR-0024, amended).
   # ---------------------------------------------------------------------------------------------
   - id: spike-ticket
     depends_on: [spike]
@@ -398,40 +363,40 @@ nodes:
       Constants:
         SLUG          = $bootstrap.output.slug
         ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
-        TRACKER       = $bootstrap.output.tracker_type
-        TARGET_REPO   = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
         Verdicts      = $spike.output.verdict_summary
 
-      ## Act on THIS repository
-      Name TARGET_REPO explicitly in every tracker call below. Act on THIS repository, never the one
-      a tool infers from the checkout — in a fork clone those differ, and the ticket lands on someone
-      else's project. If the registered skill cannot target a repository explicitly, STOP: print
-      "BLOCKED: the registered tracker skill cannot target a repository explicitly — <the missing
-      capability>" and file nothing.
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. Read both before the first tracker call.
+      - **Access** — `issue-tracker.md` § Access names the MCP server or skill that serves this
+        tracker. Read that server's own current tool list and build every call from it. Write no
+        command, subcommand or flag here and name no provider: the DLC owns the what and none of the
+        how (ADR-0016), and a flag table frozen in this file is stale the moment the tool changes.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      - **Work-item scope** — its § Work-item scope names the one filter every search applies. Apply
+        it to step 1's idempotency search and set it on anything step 2a creates. A search that skips
+        the filter matches a sibling repository's tickets, and the idempotency check then finds a
+        ticket that is not this one.
+      - **Roles** — `triage-labels.md` gives each role a value and names the axis that carries it.
+        Name a role, resolve it there, and write no host field name yourself.
+      If either file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/" and file nothing.
 
-      1. Read `.archon/unic-dlc.config.yaml` for `tracker` (`type` / `access` / `coords`) and
-         `classification.labels`. Compose the system-skill the team registered under `tracker.access`
-         — MCP first, its CLI as fallback — by reading that skill's own current interface and
-         building the call from it. Do NOT write a command, subcommand or flag here, and do NOT
-         branch on which provider `tracker.type` names: the DLC owns the what and none of the how
-         (ADR-0016), and a flag table frozen in this file is stale the moment the tool changes.
-         Labels come ONLY from `classification.labels` (single source of truth — ADR-0024); do NOT
-         read docs/agents/triage-labels.md or issue-tracker.md.
-      2. Check whether a spike ticket for this SLUG already exists in TARGET_REPO (search by
-         title/label containing the slug, through the same composed skill). Be idempotent.
-      3a. If NONE exists → create a ticket:
+      1. Check whether a spike ticket for this SLUG already exists (search by title or role for the
+         slug, inside the work-item scope). Be idempotent.
+      2a. If NONE exists → create a ticket:
             - Title: "Spike: <SLUG> — <Verdicts>"
-            - Labels: type `spike` + a low priority (resolved through classification.labels).
+            - Roles: type `spike`, plus a low priority role.
             - Body: link to <ARTIFACTS_DIR>/<SLUG>/findings.md, then the full "## Spike verdicts"
               section text.
             - Prepend the mandated disclaimer as the first body line:
               `> *This was generated by AI during exploration.*`
-      3b. If one EXISTS → append the new `<Verdicts>` summary to its body and (re)set its triage/state
-          label per classification.labels.
-      4. If the composed skill cannot create an issue at all, print the manual steps a human should
-         follow — naming TARGET_REPO — instead of failing.
-      5. Print one of: "Spike ticket created: <title>" / "Spike ticket updated: <id>", with
-         TARGET_REPO.
+      2b. If one EXISTS → append the new `<Verdicts>` summary to its body and (re)set its state role.
+      3. If the tracker cannot create an item at all, print the manual steps a human should follow —
+         naming the repository — instead of failing.
+      4. Print one of: "Spike ticket created: <title>" / "Spike ticket updated: <id>", with the
+         repository and the tracker id.
 
   # ---------------------------------------------------------------------------------------------
   # spike-branch-gate — HITL by default (gates.explore); skipped in AFK. APPROVE → proceed to

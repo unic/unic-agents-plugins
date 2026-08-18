@@ -17,10 +17,10 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 ## What this workflow does
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
-   (`artifacts_dir`, `gates.build`, `build.*`), confirm `issues.json` exists, and **derive the target
-   repository** from the worktree's `origin` remote (`project.repo_ref` is an optional override, absent
-   by default). Missing preconditions cancel cleanly with a "run /tickets first" message; an ambiguous
-   repository cancels with its own message.
+   (`artifacts_dir`, `gates.build`, `build.*`, `project.branching`) and confirm `issues.json` exists.
+   It resolves **no** repository: `docs/agents/issue-tracker.md` § Addressing names it, and the nodes
+   that reach the tracker read that file themselves. Missing preconditions cancel cleanly with a
+   "run /tickets first" message.
 
 2. **slopcheck** — verify every package introduced since the last commit against the npm registry.
    Packages that can't be confirmed are flagged `[ASSUMED]` and halt the build until a human resolves
@@ -73,7 +73,8 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 - `/unic-archon-dlc:tickets <slug>` has run and its tickets PR is approved.
 - `<artifacts_dir>/<slug>/issues.json` exists.
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
-- The checkout has an `origin` remote, or `project.repo_ref` is set.
+- `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` are present — this repository's
+  tracker contract, which names the server, the repository, the work-item scope and every role.
 - Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Runs

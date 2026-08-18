@@ -67,7 +67,6 @@ try {
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
-          tracker: config.tracker,
           docs: config.docs,
           design: config.design,
           estimations: config.estimations,
@@ -86,25 +85,25 @@ EOJS
 ```
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `DOCS` (`.type`/`.publish`/`.access`),
+`ARTIFACTS_DIR`, `DOCS` (`.type`/`.publish`/`.access`),
 `DESIGN` (`.type`/`.access`), `ESTIMATIONS`, `DISCUSS_MODE` (`specs.discuss_mode`), `GATE`
 (`specs.gate`), `PRD_TEMPLATE`, and `METHODS`.
 
-### Resolve the target repository
+### Read the tracker contract
 
-`TARGET_REPO` is the repository this run acts on. **Derive it; never let a tool infer it.**
+`docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the tracker
+contract. `/specs` files nothing, so it needs only the first, and only when Step 3 ingests an existing
+tracker item. Read it then:
 
-1. Run `git remote get-url origin`. That URL is `TARGET_REPO`.
-2. `project.repo_ref` in `.archon/unic-dlc.config.yaml` is an **optional override**, absent from a
-   default config. When it is set, it wins verbatim.
-3. When no override is set, list the remotes (`git remote -v`) and compare their fetch URLs,
-   normalising away a trailing `.git`, the `user@host:path` vs `https://host/path` spelling, and case.
-   If a remote other than `origin` names a **different** repository, this checkout is a fork and a
-   host tool would act on the parent. **Stop** and ask the user to set `project.repo_ref` to the
-   repository this run must act on. A checkout whose only remote is `origin` never reaches this stop,
-   so no existing project is affected.
+- **Access** — its § Access names the MCP server or skill that serves this tracker. Read that server's
+  own current tool list and build the call from it. Name no provider and write no command, subcommand
+  or flag ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)).
+- **Addressing** — its § Addressing names the repository this run acts on. Name it explicitly, and
+  derive nothing from a remote URL.
+- **Work-item scope** — its § Work-item scope names the filter every search applies.
 
-Print `TARGET_REPO` with the tier line below, so a surprising PR target is diagnosable.
+If the file is absent when Step 3 needs it, say so and ingest from the other sources instead. Print
+the repository § Addressing names with the tier line below, so a surprising target is diagnosable.
 
 ### The Methods this Box reads
 
@@ -160,7 +159,8 @@ Classify `SOURCE` and take the cheapest path to an aligned understanding:
   **composing the configured system-skill** (MCP-first, CLI-fallback):
   - docs (`DOCS.type` is set) → the team's docs skill / MCP via `DOCS.access`;
   - design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`;
-  - tracker issue → the tracker skill / CLI via `TRACKER.access`, naming `TARGET_REPO`.
+  - tracker item → the server `docs/agents/issue-tracker.md` § Access names, addressing the
+    repository its § Addressing names.
     Synthesise what the source says, then have the **human review** your synthesis (the #257 model).
     Reuse `to-spec`'s PRD _shaping_; there is nothing to interview, so `grilling` does not apply here.
 - **Partial** (a source exists but has gaps) → **hybrid**. Ingest what exists (as above), then grill
@@ -208,9 +208,10 @@ Two things in `to-spec` are **overridden** here, because the Harness owns them:
   `/specs` writes `<ARTIFACTS_DIR>/<SLUG>/PRD.md` (below) and optionally publishes to `DOCS`. Filing
   tracker issues is `/tickets`' job — do not file any here.
 - Its "the issue tracker and triage label vocabulary should have been provided to you — run
-  `/setup-matt-pocock-skills` if not" fallback never applies. Step 1 provided that config, and
-  `setup-matt-pocock-skills` must not be run: it writes a second label file that drifts from
-  `.archon/unic-dlc.config.yaml` ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
+  `/setup-matt-pocock-skills` if not" fallback never applies. `docs/agents/issue-tracker.md` and
+  `docs/agents/triage-labels.md` are that vocabulary, and `setup-matt-pocock-skills` must not be run
+  over them: it writes another host's template over the first and reverts the second to a five-role
+  `wontfix` vocabulary ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended).
 
 Substitute `{PRD_CONTENT_JSON}` with the rendered PRD markdown as a JSON string, and
 `{ARTIFACTS_DIR_JSON}` / `{PRD_TEMPLATE_JSON}` with the config values (all placed directly inside the
@@ -291,14 +292,14 @@ the named paths. Unstage anything else with `git restore --staged <path>` and sa
   git push origin feature/specs/<SLUG>
   ```
 
-  Then open the PR **against `TARGET_REPO`**, base `develop`, title
-  `plan(<SLUG>): PRD and ADRs`, body `<why + summary>`. Act on **that** repository, named explicitly —
-  never the one a tool infers from the checkout, which in a fork clone is the parent. Compose the
-  system-skill registered under `TRACKER.access` (MCP first, its CLI as fallback) and build the call
-  from that skill's own current interface: do not write a host command, subcommand, or flag here, and
-  do not branch on which provider `TRACKER.type` names — this Box owns the _what_ and none of the
-  _how_ ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the registered skill cannot target a
-  repository explicitly, stop and say which capability is missing rather than opening the PR.
+  Then open the PR against the repository `docs/agents/issue-tracker.md` § Addressing names, base
+  `develop`, title `plan(<SLUG>): PRD and ADRs`, body `<why + summary>`. Name that repository
+  explicitly and derive nothing from a remote URL. Reach the host through the server its § Access
+  names, reading that server's own current tool list to build the call: write no command, subcommand
+  or flag here and name no provider — this Box owns the _what_ and none of the _how_
+  ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the tracker contract is absent, or the
+  server cannot target a repository explicitly, stop and say which of the two it was rather than
+  opening the PR.
 
   On **reject**, return to Step 4 and grill the open points, then re-run from Step 7.
 
@@ -313,7 +314,7 @@ Print a concise summary:
 ```
 /specs complete — slug: <SLUG>
   path:     <ARTIFACTS_DIR>/<SLUG>/PRD.md
-  repo:     <TARGET_REPO>  (origin | project.repo_ref override)
+  repo:     <the repository docs/agents/issue-tracker.md § Addressing names>
   input:    <converse | ingest | hybrid>
   seams:    <the approved testing seam(s)>
   ADRs:     <NNNN-slug.md … | none>

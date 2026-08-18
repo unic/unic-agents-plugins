@@ -338,61 +338,53 @@ test('/build commits build-state.json once, at open-pr, and never in the loop', 
 	)
 })
 
-test('every Archon Box derives the repository from origin, with repo_ref as an optional override', () => {
-	// #289 AC 7. Derived, not configured: `project.repo_ref` is absent from a default config, so a
-	// Consumer upgrading to this version needs no config change. The ambiguity guard fires only for a
-	// fork checkout whose parent differs from `origin` — a checkout with one remote never reaches it.
+test('every Archon Box reads the repository from the tracker contract and derives nothing', () => {
+	// #389. The repository is a fact about the tenant, written in `docs/agents/issue-tracker.md`
+	// § Addressing. A remote URL is not that fact: one remote has several spellings and a fork clone
+	// names two repositories, so a bootstrap that derived one then needed a guard for the derivation.
+	// Both are gone. A missing contract is handled per node, where the node knows what it was about
+	// to write.
 	for (const workflow of WORKFLOWS) {
 		const contents = readGuarded(['.archon', 'workflows', `${workflow}.yaml`])
 		const bootstrap = nodeSource(contents, 'bootstrap')
 		assert.ok(bootstrap, `${workflow}.yaml lost its bootstrap node`)
 
-		assert.match(
+		assert.doesNotMatch(
 			bootstrap,
 			/git remote get-url origin/,
-			`${workflow}.yaml's bootstrap must derive the repository from the worktree's origin remote (#289 AC 7)`
+			`${workflow}.yaml's bootstrap must derive no repository from a remote (#389)`
 		)
-		assert.match(
-			flatten(bootstrap),
-			/`project\.repo_ref` is an OPTIONAL override/,
-			`${workflow}.yaml's bootstrap must record that project.repo_ref is an optional override (#289 AC 7)`
+		assert.doesNotMatch(
+			contents,
+			/\brepo_ref\b/,
+			`${workflow}.yaml must name no repo_ref — docs/agents/issue-tracker.md names the repository (#389)`
 		)
-		assert.match(
-			bootstrap,
-			/required: \[[^\]]*\brepo_ref\b[^\]]*\]/,
-			`${workflow}.yaml's bootstrap must emit repo_ref as a required field — downstream nodes name it`
+		assert.ok(
+			contents.includes('docs/agents/issue-tracker.md'),
+			`${workflow}.yaml must read the tracker contract at docs/agents/issue-tracker.md (#389)`
 		)
 
-		// CANCEL, not fail: an ambiguous target is an expected precondition failure (ADR-0011).
+		// The guard went with the derivation: there is nothing left to be ambiguous about.
 		assert.ok(
-			contents.includes('- id: guard-ambiguous-repo'),
-			`${workflow}.yaml lost its guard-ambiguous-repo node (#289 AC 7)`
+			!contents.includes('- id: guard-ambiguous-repo'),
+			`${workflow}.yaml still carries a guard-ambiguous-repo node (#389)`
 		)
-		const guard = nodeSource(contents, 'guard-ambiguous-repo')
-		assert.ok(guard, `${workflow}.yaml's guard-ambiguous-repo node body could not be extracted`)
-		assert.match(
-			guard,
-			/when: "\$bootstrap\.output\.status == 'ambiguous-repo'"/,
-			`${workflow}.yaml's guard-ambiguous-repo must fire on exactly the ambiguous-repo status`
-		)
-		assert.match(guard, /cancel:/, `${workflow}.yaml's guard-ambiguous-repo must cancel, not fail (ADR-0011)`)
-		// The two guards must be mutually exclusive, or both fire on an ambiguous repository and the
-		// operator reads the generic "run /tickets first" message instead of the one that helps.
+		assert.doesNotMatch(contents, /ambiguous-repo/, `${workflow}.yaml still names the ambiguous-repo status (#389)`)
 		const guardNotReady = nodeSource(contents, 'guard-not-ready')
 		assert.ok(guardNotReady, `${workflow}.yaml's guard-not-ready node body could not be extracted`)
 		assert.match(
 			guardNotReady,
-			/status != 'ready' && \$bootstrap\.output\.status != 'ambiguous-repo'/,
-			`${workflow}.yaml's guard-not-ready must exclude ambiguous-repo so only one guard fires`
+			/when: "\$bootstrap\.output\.status != 'ready'"/,
+			`${workflow}.yaml's guard-not-ready must fire on every non-ready status, with no exclusion left`
 		)
 	}
 })
 
 test('every PR-touching prompt states the repository invariant inline', () => {
-	// #289 AC 6/AC 8. The invariant is the whole point and it is one sentence: act on THIS repository,
-	// never the one a tool infers from the checkout. Asserted per NODE rather than per file, because a
-	// file-level check passes as soon as any one node carries it.
-	const invariant = /never the one a tool infers from the checkout/
+	// #289 AC 6/AC 8, restated for #389. The invariant is still one sentence and still per NODE — a
+	// file-level check passes as soon as any one node carries it — but the sentence changed: the
+	// repository comes from `docs/agents/issue-tracker.md` § Addressing, not from a remote.
+	const invariant = /§ Addressing names the repository/
 
 	/** @type {ReadonlyArray<[string, string]>} */
 	const prTouching = [
@@ -413,10 +405,9 @@ test('every PR-touching prompt states the repository invariant inline', () => {
 			invariant,
 			`${workflow}.yaml's ${nodeId} node must state the repository invariant (#289 AC 6)`
 		)
-		assert.match(
-			node,
-			/\$bootstrap\.output\.repo_ref/,
-			`${workflow}.yaml's ${nodeId} node must name the derived repository, not leave it implicit (#289 AC 7)`
+		assert.ok(
+			node.includes('docs/agents/issue-tracker.md'),
+			`${workflow}.yaml's ${nodeId} node must name the contract file it reads, not leave it implicit (#389)`
 		)
 	}
 
@@ -430,24 +421,29 @@ test('every PR-touching prompt states the repository invariant inline', () => {
 			invariant,
 			`${label(doc)} must state the repository invariant at its PR gate (#289 AC 6)`
 		)
-		assert.match(
+		assert.ok(
+			contents.includes('docs/agents/issue-tracker.md'),
+			`${label(doc)} must read its target repository from the tracker contract (#389)`
+		)
+		assert.doesNotMatch(
 			contents,
 			/git remote get-url origin/,
-			`${label(doc)} must derive its target repository from the origin remote (#289 AC 7)`
+			`${label(doc)} must derive no repository from a remote (#389)`
 		)
 	}
 })
 
-test('the composed skill is asked for a capability, never assumed to have one', () => {
-	// #289 AC 7's closing clause: "if the composed system-skill cannot target a repository explicitly,
-	// cancel naming the missing capability." Without this a Box silently falls back to an inferred
-	// repository, which is the original defect wearing a composition-shaped hat.
+test('a missing tracker contract stops the Box rather than being worked around', () => {
+	// #289 AC 7's closing clause, restated for #389. The capability question moved: what a Box can no
+	// longer assume is that the contract file exists. Without this assertion a Box falls back to
+	// guessing a repository or a role, which is the original defect wearing a new hat.
 	for (const workflow of WORKFLOWS) {
 		const contents = readGuarded(['.archon', 'workflows', `${workflow}.yaml`])
+		// flatten first: the phrase is hard-wrapped at 100 columns and routinely spans two lines.
 		assert.match(
-			contents,
-			/cannot target a repository explicitly/,
-			`${workflow}.yaml must handle a registered skill that cannot target a repository explicitly (#289 AC 7)`
+			flatten(contents),
+			/no tracker contract/,
+			`${workflow}.yaml must say what happens when docs/agents/issue-tracker.md is absent (#389)`
 		)
 	}
 })

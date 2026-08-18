@@ -54,17 +54,22 @@ _Avoid_: using "workflow" as a synonym for a box
 
 **config.yaml**:
 The rich per-project `.archon/unic-dlc.config.yaml` (converged with `unic-ticket-specification`)
-holding all tracker/tenant/OS/template specifics; boxes read it and compose accordingly (MCP-first,
-CLI-fallback). See `docs/adr/0018-generic-core-config-compose.md`.
-_Avoid_: config.json (the retired thin form)
+holding the gates, the per-Box knobs, the docs and design system-skills, and the templates. It holds
+**no tracker facts**: those are the Tracker contract below. See
+`docs/adr/0018-generic-core-config-compose.md`.
+_Avoid_: config.json (the retired thin form), tracker config
 
-**Repository derivation**:
-How a Box knows which repository to act on: derived from the worktree's `origin` remote in
-`bootstrap`, never inferred by the composed system-skill from ambient checkout state.
-`project.repo_ref` overrides it (absent by default); the guard that cancels on an ambiguous
-checkout is the one case ADR-0011's cancel-vs-fail distinction fires for this concern. See
-`docs/adr/0011-archon-schema-target.md`.
-_Avoid_: repo pinning (imprecise — nothing is "pinned", it's derived with an optional override)
+**Tracker contract**:
+The two repo-local prose files a Box reads instead of asking config for a host word:
+`docs/agents/issue-tracker.md` (which server serves the tracker, the repository to address, and the
+work-item scope every search filters on) and `docs/agents/triage-labels.md` (the seventeen roles, each
+row naming the axis that carries it). A Box names a role and a file; it never names an organisation, a
+field or a provider. `/unic-archon-dlc:setup` owns both, and `setup-matt-pocock-skills` must never run
+over them. A section earns its place there only when it states a fact about this tenant — an MCP server
+discovers its own API, so writing operations down freezes a flag table in Markdown. See
+`docs/adr/0024-triage-intake-on-ramp.md` (amended 2026-08-18).
+_Avoid_: repository derivation (deleted — nothing is derived from a remote), repo pinning, label
+mapping (`classification.labels` is gone), tracker config
 
 **Deterministic output** (emergent — not a workflow):
 The stakeholder-facing property that "the same component, fed the same inputs, produces the same
@@ -99,21 +104,21 @@ _Avoid_: ticket, ready ticket, groomed issue
 
 **Canonical role**:
 The name a Box uses for a state, type or priority. Owned by the Harness and fixed: the team names the
-Label string a role resolves to, never the role itself, because the roles are the protocol the Boxes
-share. `/triage`, `/tickets` and `/qa` write states; no Box reads one, so a state signals to a human
+value and the Axis a role resolves to, never the role itself, because the roles are the protocol the
+Boxes share. `/triage`, `/tickets` and `/qa` write states; no Box reads one, so a state signals to a human
 rather than routing work — the handoff between Boxes is the Slug. A canonical role is never written to
-a tracker: it resolves to a Label string first.
+a tracker: it resolves through the Tracker contract first.
 _Avoid_: label (a label is the string, not the role), status, tag, canonical label
 
-**Label string**:
-The tracker's own text for a Canonical role. Owned by the team, named during
-`/unic-archon-dlc:setup`, held in `classification.labels`, and read by every Box through `LABELS` and
-from nowhere else. Two teams may render the same role as `needs-specs` and `3-Analysis`; both are
-correct, and no Box can tell the difference. The tier a role sits in — `state`, `type` or `priority` —
-tells the composed tracker skill which axis to write, so a Box never learns whether the tracker holds
-the string as a label, a status, a work-item type or a field. The names the Plugin ships are what
-`/setup` offers in that conversation, never a default it writes on the team's behalf.
-_Avoid_: canonical label, default label, tracker label
+**Axis**:
+What carries a Canonical role on this tracker — a state field, a tag, a work-item type, or a named
+field. `docs/agents/triage-labels.md` gives every role a value **and** an axis, because the axis
+belongs to the role and not to its tier: on a real tenant two of the eight state roles cannot be states
+at all, and three are written nowhere, because writing them moves an already-active item backwards on
+the board. Two teams may render the same role as `needs-specs` and `3-Analysis`, on different axes, and
+no Box can tell the difference.
+_Avoid_: tier (the tier groups roles; it does not decide the axis), label string, canonical label,
+default label
 
 ### Planning artifacts
 

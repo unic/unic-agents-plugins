@@ -69,13 +69,16 @@ const HARNESS_DOCS = new Set([
 	'report.md',
 	'arch-review.md',
 	'findings.md',
-	// Named only to forbid: the local publishing shape `to-tickets` offers, the two label files
-	// Matt's own setup writes, which `/triage` must never read, and the scratch PR-body file every
-	// staging rule denies by name (#289 AC 4).
+	// The local publishing shape `to-tickets` offers, named only to forbid, and the scratch PR-body
+	// file every staging rule denies by name (#289 AC 4).
 	'tickets.md',
+	'pr-body.md',
+	// This repository's own tracker contract (#389), which every Box reads. Both spellings: prose
+	// names the full path once per block and the basename thereafter, and this reader sees each.
 	'docs/agents/issue-tracker.md',
 	'docs/agents/triage-labels.md',
-	'pr-body.md',
+	'issue-tracker.md',
+	'triage-labels.md',
 ])
 
 /** Every backtick-wrapped, slash-prefixed token — `` `/build` ``, `` `/implement` ``. */

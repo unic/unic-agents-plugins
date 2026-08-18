@@ -6,8 +6,9 @@ description: >
   what was asked for) — as parallel sub-agents, grounded in the Intent Brief composed once in prep from
   the linked work items, the referenced docs pages, the PR description, and PRD.md. Synthesises this run's
   findings, reconciles them against the prior iteration (new / still-present / fixed / regressed), then —
-  after a config-gated human confirm — posts/updates one structured summary comment plus inline comments
-  on the current PR via the configured tracker (MCP-first, CLI-fallback). Harvests unic-pr-review's review
+  after a config-gated human confirm — posts/updates one structured summary discussion plus per-line
+  discussions on the current PR, through the tracker its contract at `docs/agents/issue-tracker.md`
+  names. Harvests unic-pr-review's review
   learnings without its host-specific code or any dependency (ADR-0016/0017). Ported to the key-discriminated node
   schema (ADR-0011); inherits /build's self-contained-node conventions (ADR-0023 §5). This Box holds the
   only posting authority in the lifecycle. See ADR-0026, ADR-0030, ADR-0031.
@@ -38,39 +39,24 @@ nodes:
              `gates.pr-review`                (default "hitl")
              `pr-review.confidence_threshold` (default 60)
              `pr-review.inline_comments`      (default true)
-             `tracker.type`                   (read it; never branch on which provider it names)
              `docs.type` / `docs.access`      (for intent composition from docs)
              `project.branching`              (default "gitflow")
-      3. Resolve the TARGET REPOSITORY that every PR read and every posted comment must name. It is
-         DERIVED from this worktree, not configured:
-         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
-         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
-            set, it wins verbatim and `repo_ref_source` is "override".
-         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
-            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
-            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
-            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
-            instead of `origin`, and this Box POSTS — so the target is genuinely ambiguous → status
-            "ambiguous-repo", with `message` naming the remotes that disagree. A checkout whose only
-            remote is `origin` is never ambiguous, so an existing project never reaches that guard.
-         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
-      4. If slug and config are both present and the repository is unambiguous → status "ready".
+      3. If slug and config are both present → status "ready".
          (There is no PRD precondition: intent is composed from whatever sources resolve — see prep.)
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
-      ALWAYS emit EVERY required field, including in the no-slug / no-config / ambiguous-repo branches,
-      so the object validates before a guard can cancel. When a value cannot be read, fall back to: slug
-      "" (if no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
-      "true", tracker_type "", branching "gitflow", expected_base "develop", repo_ref "",
-      repo_ref_source "origin". `inline_comments` is emitted as the STRING "true"/"false" (enum) so
-      downstream `when` comparisons are reliable. Set `message` to a human-readable reason for any
-      non-ready status.
+      ALWAYS emit EVERY required field, including in the no-slug and no-config branches, so the object
+      validates before a guard can cancel. When a value cannot be read, fall back to: slug "" (if
+      no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
+      "true", branching "gitflow", expected_base "develop". `inline_comments` is emitted as the STRING
+      "true"/"false" (enum) so downstream `when` comparisons are reliable. Set `message` to a
+      human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, ambiguous-repo]
+          enum: [ready, no-slug, no-config]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -80,42 +66,22 @@ nodes:
         inline_comments:
           type: string
           enum: ['true', 'false']
-        tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
-        repo_ref: { type: string }
-        repo_ref_source:
-          type: string
-          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, tracker_type, branching, expected_base, repo_ref, repo_ref_source, message]
+      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, branching, expected_base, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). Two guards,
-  # mutually exclusive on status, so each cancel message names the one thing to fix.
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
+  # because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
+    when: "$bootstrap.output.status != 'ready'"
     cancel: >
       /pr-review preconditions not met — see the bootstrap output for whether the slug or
       .archon/unic-dlc.config.yaml is missing. Pass a slug (`/unic-dlc-pr-review <slug>`) and run
       /unic-archon-dlc:setup first if there is no config.
-
-  # ---------------------------------------------------------------------------------------------
-  # guard-ambiguous-repo — the ONLY repository precondition. It fires when this checkout is a fork
-  # whose parent differs from `origin` and no `project.repo_ref` override is set, because a host tool
-  # would then read and comment on the parent's PR. A checkout with only `origin` never reaches it, so
-  # no existing project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
-  # ---------------------------------------------------------------------------------------------
-  - id: guard-ambiguous-repo
-    depends_on: [bootstrap]
-    when: "$bootstrap.output.status == 'ambiguous-repo'"
-    cancel: >
-      /pr-review cannot tell which repository to review — see the bootstrap message for the remotes
-      that disagree. This checkout names more than one repository, so a tool that infers the target
-      from the checkout would post a review on the wrong project. Set `project.repo_ref` in
-      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
 
   # ---------------------------------------------------------------------------------------------
   # prep — the shared context builder. Identifies the open PR, computes the diff, categorises the
@@ -142,26 +108,25 @@ nodes:
         SLUG          = $bootstrap.output.slug
         ARTIFACTS_DIR = $bootstrap.output.artifacts_dir
         SESSION       = <ARTIFACTS_DIR>/<SLUG>/pr-review/
-        TRACKER       = $bootstrap.output.tracker_type
-        TARGET_REPO   = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
       Create SESSION if it does not exist.
 
-      ## Act on THIS repository
-      Name TARGET_REPO explicitly in every tracker call in this node. Act on THIS repository, never the
-      one a tool infers from the checkout — in a fork clone those differ, and you would review the
-      parent's PR instead of this one. Compose the system-skill the team registered under
-      `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading
-      that skill's own current interface and building the call from it. Do NOT write a command,
-      subcommand or flag here, and do NOT branch on which provider `tracker.type` names: the DLC owns
-      the what and none of the how (ADR-0016), and a flag table frozen in this file is stale the moment
-      the tool changes. If the registered skill cannot target a repository explicitly, STOP: print
-      "BLOCKED: the registered tracker skill cannot target a repository explicitly — <the missing
-      capability>" and do not fall back to an inferred repository.
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first. Read it before the first tracker call.
+      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
+        server's own current tool list and build every call from it. Write no command, subcommand or
+        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag table frozen in this file is stale the moment the tool changes.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      - **Work-item scope** — its § Work-item scope names the one filter every search applies.
+      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/issue-tracker.md", and read nothing from the tracker.
 
       ## 1. Identify the open PR + read its description
-      Ask the composed skill for the open PR whose source branch is the current branch on TARGET_REPO,
-      and read its number, title, description body, source branch and target branch. If the configured
-      tracker has no queryable PR at all, note that and continue — the review still runs off the diff.
+      Ask the tracker for the open PR whose source branch is the current branch on that repository, and
+      read its number, title, description body, source branch and target branch. If the tracker has no
+      queryable PR at all, note that and continue — the review still runs off the diff.
       Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an intent source).
 
       ## 2. Compute the diff + categorise changed files
@@ -178,8 +143,8 @@ nodes:
 
       ## 3. Compose ONE Intent Brief (injected into both review axes)
       Gather intent from EVERY source that resolves — none is individually required:
-        a. Linked work items — the PR's linked User Story / Bug / ticket (from the PR body, branch
-           name, or tracker links), read from TARGET_REPO via the composed tracker skill as above.
+        a. Linked work items — the tracker items this PR links to, read through its links collection
+           first and from the PR body or branch name only when that collection is empty.
         b. Docs pages — pages referenced in the work item or PR body, or discoverable via the
            configured docs system-skill (`docs.type`/`docs.access`).
         c. The PR description body (from step 1).
@@ -197,8 +162,9 @@ nodes:
       (match on the MARKER, never on comment author). Take the HIGHEST N found. Set `iteration` = N+1
       (or 1 if none). Parse the prior findings from the prior summary + inline markers
       (`<!-- unic-dlc-pr-review:finding=<hash> -->`) into `prior_findings` (each: hash, aspect, file,
-      title) so reconcile can classify against them. If the tracker cannot list comments, set iteration 1
-      and prior_findings []. Write `SESSION/prep.json` mirroring the emitted object for durability.
+      title) so reconcile can classify against them. A host may nest a reply under its parent rather
+      than listing every comment flat, so walk each thread's replies too. If the tracker exposes no
+      discussion at all, set iteration 1 and prior_findings []. Write `SESSION/prep.json` mirroring the emitted object for durability.
 
       ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
       they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". `contradictions` and
@@ -283,9 +249,9 @@ nodes:
         `$prep.output.intent_available == "false"` the brief says so explicitly: then, per the Method,
         skip the Spec sub-agent and record "no spec available".
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
-        applies.** `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and
-        `setup-matt-pocock-skills` is not a Plugin dependency — running it would write a competing
-        label file (ADR-0024). Never run it.
+        applies.** `/unic-archon-dlc:setup` owns that file and `docs/agents/triage-labels.md`, and
+        `setup-matt-pocock-skills` is not a Plugin dependency — a run writes another host's template over
+        the first and reverts the second to a five-role vocabulary (ADR-0024). Never run it.
 
       Then steps 3–5 verbatim:
       - Step 3: gather this repo's standards sources (CLAUDE.md / AGENTS.md / CONTRIBUTING.md /
@@ -429,13 +395,14 @@ nodes:
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
         $reconcile.output.still_present still present · $reconcile.output.regressed regressed ·
         $reconcile.output.new new. Review SESSION/comment.md (the composed summary) and SESSION/inline.json
-        (the inline plan). APPROVE to post/update the summary + inline comments on the PR. REJECT to halt
+        (the inline plan). APPROVE to post/update the summary discussion and the per-line ones on the
+        PR. REJECT to halt
         without posting.
 
   # ---------------------------------------------------------------------------------------------
   # post — write the review to the PR. trigger_rule: all_done so it runs when review-gate is SKIPPED in
-  # AFK (skipped counts as terminal); a rejected gate cancels the run before this node. Composes the
-  # configured tracker; matches by hidden marker so a re-run UPDATES in place rather than duplicating.
+  # AFK (skipped counts as terminal); a rejected gate cancels the run before this node. Reads the
+  # tracker contract; matches by hidden marker so a re-run UPDATES in place rather than duplicating.
   # ---------------------------------------------------------------------------------------------
   - id: post
     depends_on: [review-gate]
@@ -446,40 +413,48 @@ nodes:
       You are the post node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/. ITERATION = $reconcile.output.iteration.
       PR_ID = $prep.output.pr_id. inline_comments = $bootstrap.output.inline_comments.
-      TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
 
-      ## Act on THIS repository
-      This node is the only one in the lifecycle that writes a review, so name TARGET_REPO explicitly in
-      every call. Act on THIS repository, never the one a tool infers from the checkout — in a fork clone
-      those differ, and the review lands on a stranger's PR. Compose the system-skill the team registered
-      under `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by
-      reading that skill's own current interface and building each call from it. Do NOT write a command,
-      subcommand or flag here, and do NOT branch on which provider `tracker.type` names: the DLC owns the
-      what and none of the how (ADR-0016), and a flag table frozen in this file is stale the moment the
-      tool changes — it also invents subcommands that never existed, which no test without a live tenant
-      can catch. Ask the skill what it supports; do not assume. If it cannot target a repository
-      explicitly, STOP: print "BLOCKED: the registered tracker skill cannot target a repository
-      explicitly — <the missing capability>" and post nothing.
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first, and it is the only node in the lifecycle that
+      writes a review — so read it before the first call.
+      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
+        server's own current tool list and build every call from it. Write no command, subcommand or
+        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), a flag
+        table frozen in this file is stale the moment the tool changes, and inventing a subcommand is
+        the one defect no test without a live tenant can catch. Ask what the tracker supports; do not
+        assume.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/issue-tracker.md", and post nothing.
 
-      ## Summary comment (always)
-      Read SESSION/comment.md. List the PR's existing comments on TARGET_REPO and take the FIRST one
-      containing the marker `<!-- unic-dlc-pr-review:iteration=` (match the marker, NEVER the author).
-        - A match → update THAT comment's body in place with SESSION/comment.md, so a re-run never
+      ## The summary discussion (always)
+      Read SESSION/comment.md. **A discussion on the pull request itself** is what carries it — the
+      review addresses the whole PR, not one line of it. Hosts carry that differently: one opens a
+      discussion thread with no file anchored to it, another adds a comment to the pull request. Ask
+      the tracker which it offers and use that; the two are the same act with two names.
+
+      List the PR's existing discussions and take the FIRST entry containing the marker
+      `<!-- unic-dlc-pr-review:iteration=` (match the marker, NEVER the author). A host may nest a
+      reply under its parent, so walk each thread's replies as well as its first comment.
+        - A match → update THAT entry's body in place with SESSION/comment.md, so a re-run never
           duplicates the summary.
-        - No match → add SESSION/comment.md as a new PR-level comment.
-        - The tracker cannot comment on a PR at all → leave SESSION/comment.md as the record and say so.
+        - No match → open a new one carrying SESSION/comment.md.
+        - The tracker exposes no pull-request discussion at all → leave SESSION/comment.md as the
+          record and say so.
       The comment.md already carries the bumped `iteration=<ITERATION>` marker + footer.
 
-      ## Inline comments (when inline_comments == "true" AND the tracker supports inline threads)
-      Read SESSION/inline.json. Ask the composed skill whether it can comment on a specific file and line
-      of the PR. If it cannot, print "inline: the configured tracker has no inline threads — summary
-      only" and skip this section. Otherwise, for each entry match an existing inline thread by its
-      `<!-- unic-dlc-pr-review:finding=<hash> -->` marker and reconcile by `classification`:
-        - still-present → update the existing thread comment in place.
-        - fixed         → reply "✅ resolved in iteration <ITERATION>" and resolve the thread where the
-                          tracker supports a resolved status (best-effort; otherwise just reply).
-        - regressed     → reopen the thread (or open a new one) noting the regression.
-        - new           → create a new inline thread at file:line.
+      ## Per-line discussions (when inline_comments == "true" and the tracker anchors one to a line)
+      Read SESSION/inline.json. Ask the tracker whether it can anchor a discussion to a file and line
+      of the PR. If it cannot, print "inline: this tracker anchors no discussion to a line — summary
+      only" and skip this section. Otherwise, for each entry match an existing anchored discussion by
+      its `<!-- unic-dlc-pr-review:finding=<hash> -->` marker and reconcile by `classification`:
+        - still-present → update that discussion's body in place.
+        - fixed         → reply "✅ resolved in iteration <ITERATION>" and mark it resolved where the
+                          tracker carries a resolved status (best-effort; otherwise just reply).
+        - regressed     → reopen it (or open a new one) noting the regression.
+        - new           → open a new discussion anchored at file:line.
 
       Finally print: "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
       <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved). ✓"

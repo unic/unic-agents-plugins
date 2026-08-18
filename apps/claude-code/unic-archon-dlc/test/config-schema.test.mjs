@@ -128,68 +128,30 @@ test('loadConfig returns structured error for malformed content (setup relies on
 })
 
 test('validateConfig flags each missing mandatory path', () => {
-	// Mandatory leaves are null and `classification.labels` is absent entirely — so it reports the one
-	// path, never seventeen sub-paths, which would be noise on a fresh install.
+	// One path, since #389 moved the tracker contract into `docs/agents/`. `project.branching` is the
+	// only thing left that a Box cannot read anywhere else — it decides the base branch.
 	const result = validateConfig(defaultConfig())
 	assert.ok('error' in result && result.error === true)
 	if (!('error' in result)) return
-	assert.deepEqual(result.missing.sort(), [
-		'classification.labels',
-		'project.branching',
-		'project.pr_strategy',
-		'tracker.type',
-	])
+	assert.deepEqual(result.missing.sort(), ['project.branching'])
+})
+
+test('validateConfig ignores a config that still carries the keys #389 retired', () => {
+	// A Consumer installed before #389 has `tracker`, `classification.labels` and
+	// `project.pr_strategy` on disk. Nothing reads them now; rejecting them would break a working
+	// install to no end, so they are accepted and ignored — including a hand-mangled shape.
+	const stale = mergeConfig(answeredConfig(), {
+		tracker: { type: null },
+		classification: { labels: 'not-an-object' },
+		project: { pr_strategy: null },
+	})
+	assert.ok(!('error' in validateConfig(stale)), 'a retired key must not be a fault')
+	assert.ok(!('error' in toYaml(stale)), 'and it must still write')
 })
 
 test('validateConfig passes once mandatory paths are filled', () => {
 	const result = validateConfig(answeredConfig())
 	assert.ok(!('error' in result), 'expected a valid config')
-})
-
-test('validateConfig accepts an extra classification.labels role and ignores it', () => {
-	// `migrateLegacy` preserves a hand-added type such as `release` on purpose. The role walk
-	// enumerates the required roles and never the keys present, so an extra one is invisible to it.
-	const labels = identityLabels()
-	const config = answeredConfig({
-		classification: { labels: { ...labels, type: { ...labels.type, release: 'release' } } },
-	})
-
-	assert.ok(!('error' in validateConfig(config)), 'a hand-added extra role must not be rejected')
-	assert.ok(!('error' in toYaml(config)), 'and it must still write')
-})
-
-test('validateConfig names the exact role a classification.labels is short of', () => {
-	const labels = identityLabels()
-	const { docs: _docs, ...typeWithoutDocs } = labels.type
-	const config = answeredConfig({ classification: { labels: { ...labels, type: typeWithoutDocs } } })
-
-	const result = validateConfig(config)
-	assert.ok('error' in result && result.error === true)
-	if (!('error' in result)) return
-	assert.deepEqual(result.missing, ['classification.labels.type.docs'], 'only the missing role is reported')
-})
-
-test('validateConfig treats a team-renamed Label string as answered', () => {
-	// The team owns the right-hand column: `needs-triage` mapped onto `3-Analysis` is a complete
-	// answer, not a missing role.
-	const labels = identityLabels()
-	const config = answeredConfig({
-		classification: { labels: { ...labels, state: { ...labels.state, 'needs-triage': '3-Analysis' } } },
-	})
-
-	assert.ok(!('error' in validateConfig(config)), 'a renamed Label string is still a mapped role')
-})
-
-test('validateConfig rejects a classification.labels that is not a plain object', () => {
-	// A hand-edit that collapses `labels:` from a mapping to a scalar is a structural fault, not an
-	// unanswered field — MANDATORY_PATHS alone would pass it through as "present".
-	const config = answeredConfig({ classification: { labels: 'not-an-object' } })
-
-	const result = validateConfig(config)
-	assert.ok('error' in result && result.error === true, 'a wrong-shaped labels value must be a fault')
-	if (!('error' in result)) return
-	assert.deepEqual(result.missing, ['classification.labels'])
-	assert.ok('error' in toYaml(config), 'toYaml must refuse to write a wrong-shaped labels value')
 })
 
 test('mergeConfig precedence: defaults < existing < answers', () => {
@@ -243,30 +205,30 @@ test('migrateLegacy preserves hand-added label types such as `release`', () => {
 	assert.equal(Object.keys(labels.state).length, 8)
 })
 
-test('defaultConfig emits no classification key at all — the mapping is answered, never seeded', () => {
+test('defaultConfig emits no classification key at all', () => {
 	const config = defaultConfig()
 	assert.ok(!('classification' in config), 'defaultConfig must not seed classification.labels')
 	assert.ok(!('classification' in mergeConfig()), 'and a default merge must not reintroduce it')
-	assert.ok(MANDATORY_PATHS.includes('classification.labels'), 'so it has to be mandatory instead')
+	assert.ok(
+		!MANDATORY_PATHS.includes('classification.labels'),
+		'and it is not mandatory either — docs/agents/triage-labels.md carries the roles (#389)'
+	)
 })
 
-test('a legacy config short of one role reaches /setup as `partial` rather than an unexplained error', () => {
-	// The trap this issue turns on. The seed used to backfill the gap during mergeConfig, before
-	// anything could notice; with it gone the gap survives, and the escape route has to be the same
-	// `partial` → collect path /setup already runs, not a relaxed toYaml.
+test('a legacy config short of one role still writes — the roles left this file', () => {
+	// Before #389 this config read as `partial` so `/setup` would collect the missing role. The role
+	// vocabulary now lives in `docs/agents/triage-labels.md`, so the gap is no longer this file's
+	// business: the config validates, and a hand-added role still survives the migration.
 	const config = mergeConfig(migrateLegacy(LEGACY_MISSING_ROLE_JSON))
 
-	const validation = validateConfig(config)
-	assert.ok('error' in validation && validation.error === true)
-	if (!('error' in validation)) return
-	assert.deepEqual(validation.missing, ['classification.labels.type.docs'], 'the config reads as partial')
+	assert.ok(!('error' in validateConfig(config)), 'a missing role is no longer a config fault')
 	assert.equal(
 		/** @type {any} */ (config.classification).labels.type.release,
 		'release',
 		'and the hand-added role survives the trip'
 	)
 
-	assert.ok('error' in toYaml(config), 'toYaml refuses while the role is unanswered')
+	assert.ok(!('error' in toYaml(config)), 'toYaml writes it')
 
 	// What /setup does next: it asks for the missing role, keeping the strings already mapped.
 	const labels = /** @type {any} */ (config.classification).labels
@@ -464,47 +426,20 @@ test('mergeConfig preserves a team override of specs and templates.prd, filling 
 	assert.equal(templates.issue, null, 'sibling template default retained')
 })
 
-test('project.repo_ref is absent by default — the repository is derived, not configured', () => {
-	// #289 AC 7. Each Box's bootstrap resolves the target repository from the worktree's `origin`
-	// remote, so a Consumer needs no config change to upgrade. A `repo_ref: null` in the defaults would
-	// look identical in YAML but read as "a mandatory leaf nobody has answered" under this schema's own
-	// convention — hence absent, not null.
+test('project.repo_ref is retired — nothing seeds it and nothing requires it', () => {
+	// #389 deleted it. `docs/agents/issue-tracker.md` § Addressing names the repository, so there is no
+	// derivation from a remote left for an override to correct. A config that still carries the key
+	// keeps it — an operator's hand-edit is never stripped — but no Box reads it.
+	// `test/box-staging-and-repo-pinning.test.mjs` asserts that absence across every Box.
 	const project = /** @type {any} */ (defaultConfig().project)
 	assert.ok(!('repo_ref' in project), 'project.repo_ref must not be in the default config')
 
 	const merged = /** @type {any} */ (mergeConfig())
 	assert.ok(!('repo_ref' in merged.project), 'a default merge must not introduce project.repo_ref')
-})
 
-test('project.repo_ref survives a merge when a team sets it as an override', () => {
-	// The override is the escape hatch for a fork checkout, where `origin` and the parent differ and
-	// the ambiguity guard cancels the run. It has to survive `mergeConfig` to be usable at all.
-	const merged = /** @type {any} */ (mergeConfig({ project: { repo_ref: 'unic/unic-agents-plugins' } }, {}))
-	assert.equal(merged.project.repo_ref, 'unic/unic-agents-plugins', 'an explicit override must be preserved')
-	assert.equal(merged.project.branching, null, 'untouched sibling keys still come from the defaults')
-
-	const twice = mergeConfig(merged)
-	assert.deepEqual(twice, merged, 'merging again must not drop or duplicate the override')
-})
-
-test('project.repo_ref stays out of MANDATORY_PATHS — the regression #290 AC 10 guards', () => {
-	// #290 AC 10. Criteria 2 and 10 were amended 2026-08-10 to preserve the #289 design (derive from
-	// origin, repo_ref is an optional override) rather than re-promote it to mandatory — promoting it
-	// would break every installed Consumer on upgrade. This asserts the two surfaces that regression
-	// would touch: the mandatory-paths list, and commands/setup.md's own instruction not to ask for or
-	// write it. The default config is covered by the two tests above.
-	// `test/box-staging-and-repo-pinning.test.mjs` separately asserts every bootstrap node still
-	// derives from `origin` — this test does not repeat that coverage.
 	assert.ok(
 		!MANDATORY_PATHS.some((path) => path.includes('repo_ref')),
 		'project.repo_ref must never become a mandatory config path'
-	)
-
-	const setupDoc = readFileSync(join(import.meta.dirname, '..', 'commands', 'setup.md'), 'utf8')
-	assert.match(
-		setupDoc,
-		/Do \*\*not\*\* ask for `project\.repo_ref` and do not write it/,
-		'commands/setup.md must keep telling the agent not to ask for or write project.repo_ref'
 	)
 })
 
