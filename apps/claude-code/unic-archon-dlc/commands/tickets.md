@@ -107,8 +107,16 @@ print `This repository has no tracker contract at docs/agents/. Run /unic-archon
   against. Name it explicitly in every call, and derive nothing from a remote URL.
 - **Work-item scope** — its § Work-item scope names the one filter every search applies, and the scope
   every item you create carries.
-- **Roles** — `triage-labels.md` gives each role a value and names the axis that carries it. Resolve
-  every role through that file and write no host field name yourself.
+- **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+  that axis **holds** one value or many. Name a role, resolve it there, and write no host field name
+  yourself. Two rules follow from that table, and both are mandatory:
+  - **A row with no axis writes nothing.** Report which role you resolved and that its row asks for
+    no write.
+  - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true of an
+    item at a time. Before you write such a role, read the other rows of that tier and retract every
+    one whose axis holds many values. An axis that holds one value retracts the old value itself, so
+    there is nothing extra to do. Read `holds`, never the axis name: an axis name is a host word and
+    the next host spells it differently.
 
 Print the repository § Addressing names with the tier line below, so a surprising target is
 diagnosable.

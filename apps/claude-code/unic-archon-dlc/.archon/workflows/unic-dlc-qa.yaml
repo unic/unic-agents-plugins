@@ -234,8 +234,16 @@ nodes:
                that repository explicitly in every call, and derive nothing from a remote URL.
              - **Work-item scope** — its § Work-item scope names the filter every search applies, and
                the scope every item you create carries.
-             - **Roles** — `triage-labels.md` gives each role a value and names the axis that carries
-               it. Name a role, resolve it there, and write no host field name yourself.
+             - **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+               that axis **holds** one value or many. Name a role, resolve it there, and write no host field name
+               yourself. Two rules follow from that table, and both are mandatory:
+               - **A row with no axis writes nothing.** Report which role you resolved and that its row asks for
+                 no write.
+               - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true of an
+                 item at a time. Before you write such a role, read the other rows of that tier and retract every
+                 one whose axis holds many values. An axis that holds one value retracts the old value itself, so
+                 there is nothing extra to do. Read `holds`, never the axis name: an axis name is a host word and
+                 the next host spells it differently.
              If either file is absent, STOP and print "BLOCKED: this repository has no tracker
              contract at docs/agents/" and file nothing — the findings stay in $REJECTION_REASON.
           2. Decide single-issue vs breakdown this way: prefer many thin, independently fixable issues
@@ -333,23 +341,44 @@ nodes:
 
       ## The tracker contract
       `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
-      tracker contract. This node is the one irreversible act in the lifecycle, so read both before
-      the merge call — the manual fallback below names a role. Its § Access names the MCP server or skill
+      tracker contract. This node is the one irreversible act in the lifecycle, and step 2 below writes
+      a role, so read both before the merge call. Its § Access names the MCP server or skill
       that serves this tracker — read that server's own current tool list and build the call from it,
       writing no command, subcommand or flag here and naming no provider (ADR-0016). Its § Addressing
       names the repository to merge in; name that repository explicitly, and derive nothing from a
       remote URL. If the file is absent, STOP and print "BLOCKED: this repository has no tracker
       contract at docs/agents/issue-tracker.md" and merge nothing.
 
-      Merge the open PR for the current feature branch on that repository. **The merge style is the
-      host's to enforce, not this Box's to choose.** Use whatever the repository's own branch policy
-      allows; where it allows more than one, the team's `CLAUDE.md` states the rule — read it. Pick
-      nothing yourself, and do not override a policy that refuses a style.
-      If the tracker has no merge capability at all, merge nothing and print the manual steps for a
-      human instead, including moving the linked tracker item to the role `resolved` names.
+      1. Merge the open PR for the current feature branch on that repository. **The merge style is the
+         host's to enforce, not this Box's to choose.** Use whatever the repository's own branch policy
+         allows; where it allows more than one, the team's `CLAUDE.md` states the rule — read it. Pick
+         nothing yourself, and do not override a policy that refuses a style.
+         If the tracker has no merge capability at all, merge nothing, skip step 2, and print the manual
+         steps for a human instead — including the role `resolved` and the value its row gives.
 
-      On Gitflow ($bootstrap.output.branching == "gitflow"), after a successful merge: check out the base
+      2. **After the merge lands, write the `resolved` role on every item the PR links.** Read the PR's
+         links collection for them; nothing else is authoritative, and this is why `open-pr` created
+         those links. This is the one point in the lifecycle where a state role moves after `/tickets`
+         wrote `ready-for-agent` — so the retraction below is not optional here, it is the whole reason
+         a merged item stops reading as ready for an agent.
+
+         - **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+           that axis **holds** one value or many. Name the role `resolved`, resolve it there, and write
+           no host field name yourself. Two rules follow from that table, and both are mandatory:
+           - **A row with no axis writes nothing.** If the `resolved` row asks for no write, write
+             nothing and report that its row says so.
+           - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true
+             of an item at a time. Before you write `resolved`, read the other `state` rows and retract
+             every one whose axis holds many values — `ready-for-agent` is the one that matters here.
+             An axis that holds one value retracts the old value itself, so there is nothing extra to
+             do. Read `holds`, never the axis name: an axis name is a host word and the next host
+             spells it differently.
+
+         The PR is already merged when this runs, so a failure here is reported and never retried into
+         a second merge: print which items took the role, which were retracted, and which failed.
+
+      3. On Gitflow ($bootstrap.output.branching == "gitflow"), after a successful merge: check out the base
       branch and delete the merged `feature/*` branch. Under any other branching model, leave branch
       cleanup to whatever auto-delete the host provides.
 
-      Finally print: "merge: QA for \"$bootstrap.output.slug\" complete. ✓"
+      Finally print: "merge: QA for \"$bootstrap.output.slug\" complete — <n> item(s) resolved. ✓"

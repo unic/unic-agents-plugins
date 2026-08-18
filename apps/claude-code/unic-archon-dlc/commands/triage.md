@@ -134,9 +134,18 @@ do not guess a role value and do not run `setup-matt-pocock-skills`.
 - **Work-item scope** — its § Work-item scope names the one filter every search applies. A search that
   skips it matches a sibling repository's items, and a prior-rejection check then finds one that is
   not ours.
-- **Roles** — `triage-labels.md` gives each role a value and names the axis that carries it. Resolve
-  every canonical category and state role the Method names through that file. The axis belongs to the
-  role, not to the tier: one role can be a state and its neighbour a tag.
+- **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+  that axis **holds** one value or many. Name a role, resolve it there, and write no host field name
+  yourself. Two rules follow from that table, and both are mandatory:
+  - **A row with no axis writes nothing.** Report which role you resolved and that its row asks for
+    no write.
+  - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true of an
+    item at a time. Before you write such a role, read the other rows of that tier and retract every
+    one whose axis holds many values. An axis that holds one value retracts the old value itself, so
+    there is nothing extra to do. Read `holds`, never the axis name: an axis name is a host word and
+    the next host spells it differently.
+  The axis belongs to the role, not to the tier: one role can sit on a single-value field and its
+  neighbour on a multi-value one.
 - **Role → DLC-state map** — the DLC taxonomy is a superset of the Method's roles. Bind them:
   - Category `bug` → type `bug`; category `enhancement` → type `feature`.
   - States `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` → same-named DLC state.
@@ -194,8 +203,10 @@ Apply the agreed outcome (a human is present — write directly, no PR gate):
 - **`closed`** (already implemented) — comment pointing to where the behaviour already lives, write
   `closed`, and close. Do **not** write to the out-of-scope KB.
 
-A role whose row in `triage-labels.md` says it is not written writes nothing. Say which role you
-resolved and to what value, so the resolution is auditable from the transcript.
+Apply the two Step 2 role rules at every outcome above: a row with no axis writes nothing, and
+writing a state role retracts every other state role whose axis holds many values. Report which role
+you resolved, to what value, and what you retracted — so the resolution is auditable from the
+transcript.
 
 `/triage` produces no `issues.json` / PRD. A `ready-for-agent` item flows into `/tickets` (the
 convergence point — it will be sliced there) or, if already atomic and build-ready, into `/build`.

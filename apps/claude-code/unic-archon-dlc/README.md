@@ -198,7 +198,7 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | File                           | What it carries                                                                                                                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `docs/agents/issue-tracker.md` | **Access** — which MCP server or skill serves this tracker. **Addressing** — the repository. **Work-item scope** — the one filter every search applies. **Operations** — written only where no server can supply the how. |
-| `docs/agents/triage-labels.md` | **Roles** — the seventeen canonical roles, each row naming its value **and** the axis that carries it: a state field, a tag, a work-item type, or a named field.                                                          |
+| `docs/agents/triage-labels.md` | **Roles** — the seventeen canonical roles. Each row names the role's value, the **axis** that carries it (a state field, a tag, a work-item type, a named field), and whether that axis **holds** one value or many. |
 
 A Box names a role and a file. It never names an organisation, a field, a provider, a command or a
 flag — a server describes its own current interface, and a flag table frozen in a prompt is stale the
@@ -210,9 +210,32 @@ discovers its own API; it cannot discover that a role means one particular tag o
 
 The canonical roles: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
-`tech-debt` · `docs`; priorities `p0` · `p1` · `p2` · `p3`. A role whose row says it is not written
-writes nothing — on a real tenant, writing three of the state roles moves an already-active item
-backwards on the board.
+`tech-debt` · `docs`; priorities `p0` · `p1` · `p2` · `p3`.
+
+A team owns each role's value, its axis and its cardinality. It never owns the role set: a Box names
+its roles literally, so **an extra row changes no Box**. A team that wants a Box to behave differently
+forks the Method — a transition is procedure, not a parameter.
+
+Two rules the `holds` column drives, both stated inline in every Box that writes a role:
+
+- **A row with no axis writes nothing.** On a real tenant, writing three of the state roles moves an
+  already-active item backwards on the board, so those rows ask for no write.
+- **A `state`, `type` or `priority` role is single-valued.** Before a Box writes one it retracts every
+  other role of that tier whose axis holds many values; a single-value axis retracts itself. So merging
+  a pull request writes `resolved` **and** clears `ready-for-agent`, whichever surfaces this tenant puts
+  them on.
+
+A shape that satisfies the contract:
+
+```md
+| Role              | Axis           | Holds | Value                    |
+| ----------------- | -------------- | ----- | ------------------------ |
+| `needs-specs`     | tag            | many  | `Specification`          |
+| `ready-for-agent` | tag            | many  | `readyForImplementation` |
+| `resolved`        | state field    | one   | `Resolved`               |
+| `feature`         | work-item type | one   | `User Story`             |
+| `needs-triage`    | —              | —     | Not written.             |
+```
 
 See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
 

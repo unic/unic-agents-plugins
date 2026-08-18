@@ -3,17 +3,38 @@
 ## [Unreleased]
 
 ### Breaking
+
 - (none)
 
 ### Added
+
 - (none)
 
 ### Fixed
+
 - (none)
 
 ## [0.22.0] — 2026-08-18
 
 ### Breaking
+
+- **A `state`, `type` or `priority` role is single-valued, and a Box now retracts before it writes.**
+  Moving the axis into the contract made a defect reachable that the config shape could not express:
+  before this, every state role resolved to a single-value field, so writing one replaced the last. A
+  contract may put a state role on a **multi-value** axis, where writing adds and the previous role
+  stays — so `/tickets` wrote a role nothing cleared and a shipped item still read as ready for an
+  agent. Every Box and command that writes a role now reads the other rows of that tier and retracts
+  each one whose axis holds many values. A single-value axis retracts itself.
+- **`docs/agents/triage-labels.md` carries a `Holds` column**, `one` or `many`, on every row. A Box
+  reasons about cardinality and **never** about an axis name: `Tag` and `Label` are host words, and a
+  rule phrased on one is wrong on the next host — the defect ADR-0016 forbids in a prompt, one level
+  up. A contract written before this needs the column added.
+- **`/qa`'s `merge` node writes the `resolved` role on every item the pull request links**, after the
+  merge lands, reading the links collection `/build`'s `open-pr` created. This is the one point where a
+  state role moves after `/tickets` wrote `ready-for-agent`, so it is where the retraction above fires.
+  A tracker that cannot set the role says so and merges anyway; the PR is already merged when this
+  runs, so a failure here is reported and never retried into a second merge.
+
 - **The tracker contract left `.archon/unic-dlc.config.yaml` and moved into two repo-local prose
   files.** `docs/agents/issue-tracker.md` carries **Access** (which MCP server or skill serves this
   tracker), **Addressing** (the repository) and **Work-item scope** (the one filter every search
@@ -33,6 +54,18 @@
   team's own `CLAUDE.md` states the rule.
 
 ### Added
+
+- **The transition table in `AGENTS.md` — every point the Harness writes a Canonical role, and which
+  one.** The two holes above stayed invisible while the writes were scattered, and "before you write a
+  role" cannot be checked without a list of the places that do. One row records that **`/build` writes
+  no role on purpose**: `open-pr` links each work item to the pull request and every host surfaces that
+  link on the item, so "an agent has started this" needs no `in-progress` role — adding one would
+  change the protocol every Box shares to duplicate a signal the host already gives.
+- **The plugin states that an extra row in `triage-labels.md` changes no Box.** A Box names its roles
+  literally, so a team-added role is inert, by design: the Canonical roles are the protocol the Boxes
+  share. A team owns each role's value, axis and cardinality, never the role set, and the door for
+  different behaviour is a Method fork — a transition is procedure, not a parameter.
+
 - **`/tickets` writes each published item's tracker id into `issues.json`.** A slice's `id` addresses
   nothing outside the file, so without a `tracker_id` nothing downstream can reach the tracker item:
   `/build`'s code-review pre-check cannot read its intent and `open-pr` cannot link it. The gap is
@@ -46,6 +79,12 @@
   a note that the links were not created.
 
 ### Fixed
+
+- **The rule that a row with no axis writes nothing now appears at every surface that writes a role.**
+  It shipped in `/triage` alone, which left the escape hatch documented in one place and unimplemented
+  in three: `/tickets`, `/explore`'s `spike-ticket` and `/qa`'s finding-capture.
+- **`CONTEXT.md` defines `Holds`.**
+
 - **`/pr-review` promises a pull-request *discussion*, not a PR-level comment.** The review addresses
   the whole PR, so it posts a discussion on the pull request itself: one host carries that as a thread
   with no file anchored to it, another as a comment on the PR, and the Box asks which rather than

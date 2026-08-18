@@ -120,6 +120,16 @@ no Box can tell the difference.
 _Avoid_: tier (the tier groups roles; it does not decide the axis), label string, canonical label,
 default label
 
+**Holds**:
+Whether an Axis carries one value at a time or many. The third thing every
+`docs/agents/triage-labels.md` row states, and the only property a Box reasons about — a Box reads
+`holds` and never an axis name, because an axis name is a host word and the next host spells it
+differently. It decides what a write means: on `one`, writing a role replaces the previous value; on
+`many`, writing adds and the previous value stays. That asymmetry is why a `state`, `type` or
+`priority` role is single-valued by rule rather than by the field — a Box retracts the tier's other
+roles that sit on a `many` Axis before it writes one.
+_Avoid_: cardinality (correct, but not the word in the file), multi-value field, array field, tag axis
+
 ### Planning artifacts
 
 **PRD**:
