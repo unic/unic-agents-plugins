@@ -18,10 +18,10 @@ amendment is the one to read first: it kills two rules the rest of this ADR stil
 >   `setup-matt-pocock-skills` must never be run over them.
 > - **"The tier carries the axis" is disproved.** The 2026-08-11 amendment claimed a Box hands the
 >   composed skill the tier alongside the string, so the skill knows whether to write a state, a status
->   or a label. Measured against a live tenant, two state roles cannot be states at all — they have to
->   be tags — while three others are written not at all, because writing them moves an already-active
->   item backwards on the board. **The axis belongs to the role, not to the tier**, which is why
->   `triage-labels.md` names an axis per row.
+>   or a label. Measured against a live tenant, five of the eight state roles cannot be states at all:
+>   writing a state while the work is still open moves an already-active item backwards on the board, so
+>   only the three terminal roles are states there and the rest are tags. **The axis belongs to the
+>   role, not to the tier**, which is why `triage-labels.md` names an axis per row.
 >
 > What survives unchanged: `/triage` is a thin binding wrapper, the container decision, the
 > label-taxonomy mapping between Matt's five roles and the DLC's seventeen, best-effort verification,

@@ -113,10 +113,10 @@ _Avoid_: label (a label is the string, not the role), status, tag, canonical lab
 **Axis**:
 What carries a Canonical role on this tracker — a state field, a tag, a work-item type, or a named
 field. `docs/agents/triage-labels.md` gives every role a value **and** an axis, because the axis
-belongs to the role and not to its tier: on a real tenant two of the eight state roles cannot be states
-at all, and three are written nowhere, because writing them moves an already-active item backwards on
-the board. Two teams may render the same role as `needs-specs` and `3-Analysis`, on different axes, and
-no Box can tell the difference.
+belongs to the role and not to its tier: on a real tenant five of the eight state roles cannot be states
+at all, because writing a state while the work is still open moves an already-active item backwards on
+the board — only the three terminal roles are states there. Two teams may render the same role as
+`needs-specs` and `3-Analysis`, on different axes, and no Box can tell the difference.
 _Avoid_: tier (the tier groups roles; it does not decide the axis), label string, canonical label,
 default label
 

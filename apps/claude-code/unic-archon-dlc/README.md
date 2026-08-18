@@ -218,8 +218,8 @@ forks the Method — a transition is procedure, not a parameter.
 
 Two rules the `holds` column drives, both stated inline in every Box that writes a role:
 
-- **A row with no axis writes nothing.** On a real tenant, writing three of the state roles moves an
-  already-active item backwards on the board, so those rows ask for no write.
+- **A row with no axis writes nothing.** Some tenants have a role no surface should carry; that row
+  writes nothing, and a Box reports that its row said so rather than inventing a value.
 - **A `state`, `type` or `priority` role is single-valued.** Before a Box writes one it retracts every
   other role of that tier whose axis holds many values; a single-value axis retracts itself. So merging
   a pull request writes `resolved` **and** clears `ready-for-agent`, whichever surfaces this tenant puts

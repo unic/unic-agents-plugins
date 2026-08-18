@@ -97,8 +97,9 @@
 - **ADR-0024 says which of its rules are dead.** Its compose rule — that Matt's setup artefacts are
   never consulted in a DLC flow — is reversed: those two files are the contract now, and the two-writer
   problem the rule solved is solved instead by removing one writer. Its 2026-08-11 "the tier carries
-  the axis" amendment is disproved: measured on a live tenant, two of the eight state roles cannot be
-  states at all and three are written nowhere, so **the axis belongs to the role**. ADR-0025, 0028,
+  the axis" amendment is disproved: measured on a live tenant, five of the eight state roles cannot be
+  states at all — writing a state while work is open moves an already-active item backwards on the
+  board — so **the axis belongs to the role**. ADR-0025, 0028,
   0029, 0032 and 0033 carry a pointer to the amendment; ADR-0033's "Repository derivation" section
   describes a mechanism that no longer exists.
 - **`CONTEXT.md` defines **Tracker contract** and **Axis** where it defined **Repository derivation**
