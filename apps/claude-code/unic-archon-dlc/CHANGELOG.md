@@ -64,6 +64,10 @@
   describes a mechanism that no longer exists.
 - **`CONTEXT.md` defines **Tracker contract** and **Axis** where it defined **Repository derivation**
   and **Label string**.**
+- **`AGENTS.md` records that a project-scoped MCP server in the Consumer's `.mcp.json` reaches a Box.**
+  Every Box that composes the server its contract names depends on this and nothing had tested it: an
+  Archon run under `~/.archon/workspaces/…/worktrees/` loaded the registered tracker server and read
+  work items, pull requests and threads. A personal-scope server does not travel that way.
 
 ## [0.21.0] — 2026-08-14
 

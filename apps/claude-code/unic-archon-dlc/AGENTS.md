@@ -78,6 +78,7 @@ Load-bearing invariants. These either originate in a Plugin ADR or are policy de
 
 ## External dependencies
 
+- **A project-scoped MCP server in the Consumer's `.mcp.json` reaches a Box.** Every Box that composes "the server § Access names" depends on this, and nothing had tested it until 2026-08-18: an Archon run under `~/.archon/workspaces/<org>/<repo>/worktrees/…` loaded the Consumer's registered tracker server and read work items, pull requests and threads. Project scope travels with the worktree, so a node gets the access an interactive session gets — at a path no human approved. A **personal**-scope server does not travel, which is why `/setup` tells a team to register theirs at project scope.
 - **Archon workflow engine, version ≥ 0.7.0** (the 0.x line churns fast — 0.3.12 → 0.5.0 → 0.7.0 across weeks; the node schema is the stable contract, not the release number), present in the Consumer project. Setup verifies the version floor before writing any artefacts. A Box needs no git remote: the repository is a fact in `docs/agents/issue-tracker.md`, never something read off the checkout. Workflows follow the key-discriminated node schema plus `evidence_policy`/`always_run` — see [ADR-0011](docs/adr/0011-archon-schema-target.md) and [ADR-0033](docs/adr/0033-archon-070-schema-target.md).
 
 ## Do not add
