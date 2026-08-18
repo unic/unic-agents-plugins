@@ -79,6 +79,8 @@ Every plugin must work on **macOS, Windows, and Linux**. Use Node.js APIs (`node
 
 Plugins are versioned independently. `plugin.json` is the source of truth. Use `pnpm --filter <name> bump <patch|minor|major>` — never hand-edit `marketplace.json`.
 
+**On a `0.x` plugin a breaking change is a `minor` bump, and `major` is reserved for the `1.0.0` release itself.** SemVer §4 makes the `0.x` API unstable by definition, and `1.0.0` is reached by meeting that plugin's own release bar — never by making a breaking change. So the `### Breaking` changelog entry is what warns a consumer there, not the version number: write the entry, and never reach for `bump major` to signal it. Read the plugin's current version off its `plugin.json` to know which rule applies. Above `1.0.0` the ordinary contract holds. See [ADR-0022](docs/adr/0022-semver-per-plugin.md).
+
 Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
 
 **CHANGELOG version headers** must use the format `## [X.Y.Z] — YYYY-MM-DD` (em dash, then ISO date). `pnpm bump` writes this format and `verify:changelog` (in `packages/release-tools`) structurally enforces ` — YYYY-MM-DD` on every versioned header. Do not change the separator or the date format: CI and the release flow depend on it.
