@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.22.0] — 2026-08-18
+
+### Breaking
 - **The tracker contract left `.archon/unic-dlc.config.yaml` and moved into two repo-local prose
   files.** `docs/agents/issue-tracker.md` carries **Access** (which MCP server or skill serves this
   tracker), **Addressing** (the repository) and **Work-item scope** (the one filter every search
