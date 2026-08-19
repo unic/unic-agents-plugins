@@ -159,6 +159,20 @@ The reasons that do hold:
    (install provenance) depends on this.
 4. A fresh clone can dispatch a Box without first installing this Claude Code plugin.
 
+## Amendment, 2026-08-20 (#381): the rules stand, the module does not
+
+`lib/artefact-install.mjs` and `lib/methods-bundle.mjs` are deleted with the rest of `lib/`, so every
+`installArtefacts` / `installMethods` / `installBoxWorkflows` reference below names a function that no
+longer exists. **Every decision this ADR records is unchanged** — the install set is name-scoped, the
+stale sweep retires a `unic-dlc-*.yaml` whether or not it carries the generated header, a name outside
+that pattern is never read, and the set is discovered from the directory rather than listed by hand.
+`/setup` Step 6 now states those rules in prose and the agent applies them with its own tools.
+
+One rule this ADR relied on the module for is now the operator's: `/setup` must locate the Plugin's own
+installed directory before it can copy anything out of it, because `$CLAUDE_PLUGIN_ROOT` is not set
+inside the Bash tool. Step 6 finds the directory, confirms it, and stops rather than guessing. #383
+settles the mechanism.
+
 ## Consequences
 
 - `installMethods` keeps its exact signature and every existing test unmodified, now delegating to

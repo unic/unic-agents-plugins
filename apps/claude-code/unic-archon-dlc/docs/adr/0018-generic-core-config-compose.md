@@ -33,6 +33,18 @@ DISSOLVE into config + prose composition:
 
 **Access convention: MCP-first, CLI-fallback.** Boxes prefer a configured MCP server for a system; fall back to its CLI (`gh`/`az`/`jira`, or the `azure-devops-cli` skill). Even `tracker-adapter`'s CLI-string generation is dissolved: command templates read config and compose the tool in prose (#257-style), rather than a lib building CLI strings.
 
+## Amendment, 2026-08-20 (#381): the deterministic core reached zero
+
+This ADR drew a line between tested code and config-plus-composition, and expected the `lib/` surface to
+shrink to a deterministic core. It shrank to nothing: `lib/` and `test/` are deleted, and the Plugin ships
+prose, four Box YAMLs and the Method Bundle. The line this ADR drew still holds — it just landed at the
+far end, because an installed Plugin cannot resolve a module or an external package at all
+([ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5, amended).
+
+The one decision that moves with it: `templates.prd` is still the key a team overrides the PRD shape
+with, and the **default** scaffold text now lives in `commands/specs.md` Step 7 — the one Box that writes
+a PRD — rather than in `DEFAULT_PRD_TEMPLATE`. Config still owns the shape; the default is prose.
+
 ## Consequences
 
 - **The Axis-2 line is crisp:** tested lib ⟺ _tracker-agnostic_ deterministic IP. Tracker-_specific_ translation is prose composition driven by config, not lib.

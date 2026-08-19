@@ -85,12 +85,12 @@ Beyond the Archon workflow engine (see [Configuration reference](#configuration-
 reimplement it. The Methods ship inside this plugin and `/unic-archon-dlc:setup` installs them, so there
 is nothing to install separately (see [The Method bundle](#the-method-bundle)).
 
-**This table is the single dependency list, and `providedTo` in
-[`lib/methods-manifest.mjs`](lib/methods-manifest.mjs) is its source of truth.** A test in
-`test/methods-manifest.test.mjs` parses the table and fails if the two disagree, so edit the manifest
-first and bring the table into line with it — and do not restate the list anywhere else. Before the
-manifest existed, `commands/setup.md` named 7 Methods and this file named 6, while the plugin composed
-11; the upstream v1.1.0 rename wave then broke `/specs` and `/tickets` with CI green.
+**This table is the dependency list.** It is the only place a Method name sits beside the Box that
+reads it, and nothing generates it or checks it — so edit it by hand, in the same commit as the Box or
+command that changed, and do not restate the list anywhere else. Restating is the failure this table
+exists to prevent: `commands/setup.md` once named 7 Methods and this file named 6 while the plugin
+composed 11, and the upstream v1.1.0 rename wave then broke `/specs` and `/tickets` with CI green.
+A rename wave is now found by running a Box against a live Consumer, not by a test here.
 
 <!-- methods-table:begin -->
 
@@ -188,7 +188,6 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                  |
 | `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                              |
 | `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                       |
-| `methods.<name>.source`                                  | unset                  | repo-relative path                            | Team fork of a Method; the top tier of Method resolution, above `.archon/methods.local/` and the Bundle                             |
 
 ### The tracker contract
 
@@ -242,23 +241,21 @@ See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
 ### The Method bundle
 
 The Methods the boxes compose ship inside this plugin, at `vendor/mattpocock-skills/` — the upstream
-`mattpocock/skills` files at a pinned tag, recorded as `METHODS_BUNDLE` in
-[`lib/methods-manifest.mjs`](lib/methods-manifest.mjs). `/setup` Step 6 installs them into the
-consumer's `.archon/methods/`, overwriting that directory on every upgrade and never touching
-`.archon/methods.local/`.
+`mattpocock/skills` files at a pinned tag, recorded in `vendor/mattpocock-skills/README.md`, which names
+the repository, the tag and the commit. `/setup` Step 6 installs them into the consumer's
+`.archon/methods/`, overwriting that directory on every upgrade.
 
-**Bundle integrity is not a config key.** It is verified on every `/setup` run by
-[`lib/methods-bundle.mjs`](lib/methods-bundle.mjs): `verifyLicence` hashes the vendored `LICENSE`
-against the pinned tag's, and `verifyBundle` checks the manifest closure against the files on disk.
+**Bundle integrity is not a config key.** `/setup` Step 6 verifies it by reading: every Method
+directory carries its `SKILL.md` and the companion files that Method reads, and `LICENSE` is present.
 Either failure stops setup, because both mean the shipped plugin is incomplete or altered — nothing a
-consumer can configure around. This replaced the old `skills.matt_suite` discovery key, which
-`mergeConfig` now strips from any config that still carries it.
+consumer can configure around. This replaced the old `skills.matt_suite` discovery key.
 
-A Method resolves from the first of three tiers that answers
-([`lib/methods-resolver.mjs`](lib/methods-resolver.mjs)): `methods.<name>.source` in config, then
-`.archon/methods.local/<name>/SKILL.md`, then the installed bundle. A Local override should record
-the bundle tag it forked from in its own frontmatter (`forked_from: v1.1.0`); `/setup` flags any
-override whose value differs from the bundled tag, or is absent.
+**A Method resolves from one path**: `.archon/methods/<name>/SKILL.md`. Every Box and every command
+reads it there and nowhere else, so there is no resolution order to report and no tier line to print.
+The two override tiers this plugin used to offer — `methods.<name>.source` in config, and
+`.archon/methods.local/<name>/SKILL.md` — are retired: to change a Method, edit the installed file and
+expect the next `/setup` run to overwrite it. See
+[ADR-0031](docs/adr/0031-methods-bundled-three-tier-resolution.md), amended.
 
 **Methods are read by path and never registered as skills.** `/setup` writes them to
 `.archon/methods/`, not to `.claude/skills/` or `.agents/skills/`, and no box invokes one as a skill.

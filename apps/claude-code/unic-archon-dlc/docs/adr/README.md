@@ -23,12 +23,12 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0015 | `workflows/<slug>/` is the artifact home                                                   | Accepted                            |
 | 0016 | DLC is a thin process layer; compose team system-skills for the _how_                      | Accepted; amended by ADR-0030       |
 | 0017 | Container follows structural need (Archon for AFK, commands/skills for interactive)        | Accepted                            |
-| 0018 | Generic core + per-project config; tested lib only for tracker-agnostic deterministic IP   | Accepted                            |
+| 0018 | Generic core + per-project config; the tested-lib surface reached zero                     | Accepted (amended #381)             |
 | 0019 | Conversational `/setup` + one thin tested schema lib                                       | Accepted                            |
 | 0020 | `/specs` reaches an aligned PRD by branch-on-input                                         | Accepted (amended)                  |
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030       |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                            |
-| 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281)             |
+| 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281, #381)       |
 | 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296, #389)       |
 | 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (amended #389)             |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281)             |
@@ -36,9 +36,9 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted (amended #389)             |
 | 0029 | `/explore` is an off-line research + AFK-spike on-ramp; findings.md is the /specs baton    | Accepted (amended #281, #389)       |
 | 0030 | The DLC is a Harness hosting Methods; a Box survives only for what no Method can supply    | Accepted                            |
-| 0031 | Methods are bundled, the plugin version is the pin, resolution is three-tier               | Accepted                            |
+| 0031 | Methods are bundled, the plugin version is the pin, resolution is one path                 | Accepted (amended #381)             |
 | 0032 | Vocabulary: Box, Method, Local Method, Bundle; config is parameters, a Method is procedure | Accepted (amended #389)             |
 | 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted (amended #389)             |
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted                            |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted                            |
-| 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295)             |
+| 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295, #381)       |

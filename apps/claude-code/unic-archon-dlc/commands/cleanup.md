@@ -33,67 +33,31 @@ pruning explicitly skips them.
 
 Follow these steps in order. Do not skip any step.
 
-> **Shell requirement**: Step 1 uses `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible
-> shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All
-> filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
-
 ## Step 1 — Load config (lenient; tracker read-only)
 
-`/cleanup` reads (never writes) `.archon/unic-dlc.config.yaml`. Like `/improve-architecture` it is an
-**off-line** box, so a missing or incomplete config is **non-blocking** — it degrades to defaults and
-continues. It does reach the tracker **read-only** (to check PR/branch state), through the contract in
-`docs/agents/` read in Step 2; if that contract is absent, the PR/branch-state and slug-dir categories
-degrade with a warning rather than halting. Run:
+`/cleanup` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own tools. Do not
+shell out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed
+Plugin ships no `node_modules`, and that variable is not set inside the Bash tool
+([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+their config this way already; this is the same shape.
 
-```bash
-node --input-type=module <<'EOJS'
-let output
-try {
-  const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
-  const { existsSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const cwd = process.cwd()
+Like `/improve-architecture` this is an **off-line** box, so an absent or unreadable config is
+**non-blocking**: print a one-line warning naming what happened, take the defaults below, and continue.
+No key is mandatory. It does reach the tracker **read-only** (to check PR and branch state) through the
+contract in `docs/agents/` read below; if that contract is absent, the PR/branch-state and slug-dir
+categories degrade with a warning rather than halting.
 
-  const pick = (config) => ({
-    artifacts_dir: config.artifacts_dir,
-    cleanup: config.cleanup,
-    project: config.project,
-  })
+| Key | Default | Keep as |
+| --- | --- | --- |
+| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
+| `cleanup.stale_days` | `7` | `CLEANUP.stale_days` |
+| `cleanup.dry_run` | `true` | `CLEANUP.dry_run` |
+| `cleanup.prune_slug_dirs` | `false` | `CLEANUP.prune_slug_dirs` |
+| `project.branching` | unset | `PROJECT.branching` |
 
-  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
-  if (!existsSync(yamlPath)) {
-    // Off-line box: no config is fine — fall back to defaults and continue.
-    output = { ok: true, degraded: true, reason: 'no-config', ...pick(mod.mergeConfig()) }
-  } else {
-    const r = mod.loadConfig(yamlPath)
-    if ('error' in r) {
-      output = { ok: true, degraded: true, reason: `config-unreadable: ${r.message}`, ...pick(mod.mergeConfig()) }
-    } else {
-      output = { ok: true, degraded: false, ...pick(mod.mergeConfig(r.config)) }
-    }
-  }
-} catch (err) {
-  // Even a plugin load error should not stop an off-line janitor — default and warn.
-  output = {
-    ok: true,
-    degraded: true,
-    reason: `plugin-load: ${err?.message ?? String(err)}`,
-    artifacts_dir: 'workflows',
-    cleanup: { stale_days: 7, dry_run: true, prune_slug_dirs: false },
-    project: null,
-  }
-}
-process.stdout.write(JSON.stringify(output) + '\n')
-EOJS
-```
-
-Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `CLEANUP` (`.stale_days` default `7`,
-`.dry_run` default `true`, `.prune_slug_dirs` default `false`), and `PROJECT` (`.branching`; a
-**hint** for the main branch — it may be `null`). If `degraded` is `true`, print a one-line warning
-naming `reason` and note the fallbacks, then continue. If `PROJECT` is `null` or `PROJECT.branching`
-is unset (the plugin-load and no-config fallbacks leave it so), warn that the main branch will be
-derived from git rather than config — merged detection still works (Step 3), so this is non-blocking.
+`PROJECT.branching` is a **hint** for the main branch and may be unset. When it is, warn that the main
+branch will be derived from git rather than from config — merged detection still works (Step 3), so
+this is non-blocking.
 
 ### Read the tracker contract
 

@@ -1,6 +1,6 @@
 ---
-allowed-tools: ['Bash']
-description: 'Report what a new Archon release means for this Plugin: compare the installed version against MIN_ARCHON_VERSION, classify each upstream change as ADOPT / DEFER / VERIFY-ONLY / BREAKS-US against the four bundled Box YAMLs, check for changed upstream defaults, and re-assert ADR-0011 trap conformance. Read-only — it writes nothing.'
+allowed-tools: ['Bash', 'Read', 'Glob']
+description: 'Report what a new Archon release means for this Plugin: compare the installed version against the 0.7.0 floor, classify each upstream change as ADOPT / DEFER / VERIFY-ONLY / BREAKS-US against the four installed Box YAMLs, check for changed upstream defaults, and re-assert ADR-0011 trap conformance. Read-only — it writes nothing.'
 ---
 
 # unic-archon-dlc:archon-upgrade
@@ -9,7 +9,7 @@ description: 'Report what a new Archon release means for this Plugin: compare th
 
 `/archon-upgrade` answers one question: **Archon shipped a new release — what does it mean for this
 Plugin?** It compares the installed `archon` against this Plugin's floor, reads the release notes for
-everything in between, classifies each notable change against the four bundled Box YAMLs, and
+everything in between, classifies each notable change against the four installed Box YAMLs, and
 re-asserts [ADR-0011](docs/adr/0011-archon-schema-target.md)'s silent-failure traps. The output is one
 decision table.
 
@@ -22,48 +22,28 @@ Run it after `brew upgrade archon` or any Archon version bump, and before touchi
 
 Follow these steps in order. Do not skip any step.
 
-> **Shell requirement**: Steps 1 and 5 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible
-> shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All
-> filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
-
 ## Step 1 — Compare installed against the floor
 
-Run:
+This Plugin's floor is **Archon `0.7.0`** — the version the key-discriminated schema needs: gates,
+loops, `context: fresh`, `evidence_policy` and `always_run`
+([ADR-0033](docs/adr/0033-archon-070-schema-target.md)). Run:
 
 ```bash
-node --input-type=module <<'EOJS'
-let output
-try {
-  const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/archon-check.mjs`).href)
-  const result = mod.checkArchon()
-  output = {
-    ...result,
-    floor: mod.MIN_ARCHON_VERSION,
-    installedTriple: result.ok ? mod.parseVersion(result.version) : null,
-    floorTriple: mod.parseVersion(mod.MIN_ARCHON_VERSION),
-  }
-} catch (err) {
-  output = { ok: false, code: 'other', message: `Plugin load error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(output) + '\n')
-EOJS
+archon --version
 ```
 
-Parse the JSON. **Do not stop on `ok: false` the way `/setup` does** — branch on `code`:
+Read the output yourself and branch on what you see. Compare the three numbers, never the raw strings:
+the output may carry a program name or a `v` prefix.
 
-- **`enoent` or `other`** → Archon is unusable at all. Print `message` verbatim and stop. Nothing else
-  in this report would be meaningful.
-- **`incompatible`** → the installed Archon is _below_ the floor. `message` already names both
-  versions — print it verbatim, then add one line: "run `/unic-archon-dlc:setup` first — there is
-  no upgrade to report, only a downgrade to fix." Stop.
-- **`ok: true` and `installedTriple` is `null`** → the version string did not parse (a dev build).
-  Say so, skip Steps 2–4, and go straight to Step 5, which needs no version at all.
-- **`ok: true` and `installedTriple` equals `floorTriple`** → print
-  `installed <v> == floor <v> — nothing to do` and stop. Compare the parsed triples, never the raw
-  strings: the installed string may carry a program-name or `v` prefix.
-- **`ok: true` and installed is strictly above the floor** → continue to Step 2. State the range you
-  are about to assess: `floor <x> → installed <y>`.
+- **The command is not found, or fails for any other reason** → Archon is unusable at all. Print what
+  the shell said and stop. Nothing else in this report would be meaningful.
+- **Installed is below `0.7.0`** → print both versions, then one line: "run `/unic-archon-dlc:setup`
+  first — there is no upgrade to report, only a downgrade to fix." Stop.
+- **The version does not parse into three numbers** (a dev build) → say so, skip Steps 2–4, and go
+  straight to Step 5, which needs no version at all.
+- **Installed equals `0.7.0`** → print `installed 0.7.0 == floor 0.7.0 — nothing to do` and stop.
+- **Installed is strictly above `0.7.0`** → continue to Step 2. State the range you are about to
+  assess: `floor 0.7.0 → installed <y>`.
 
 ## Step 2 — Discover Archon's own upstream repository
 
@@ -143,53 +123,34 @@ and one suggested next step: **file an issue**, **amend an ADR**, or **nothing**
 
 Re-read every kept release's notes a second time, looking specifically for **"changed default"**,
 **"removed"**, **"deprecated"** and **"no longer"** language. Cross-check each hit against the actual
-`bash:`, `script:` and `prompt:` node bodies of the four bundled Box YAMLs under
-`$CLAUDE_PLUGIN_ROOT/.archon/workflows/` — not against the schema surface.
+`bash:`, `script:` and `prompt:` node bodies of the four installed Box YAMLs —
+`.archon/workflows/unic-dlc-*.yaml` in this repository — not against the schema surface.
 
 This pass exists because both real 0.7.0 defects were this shape and neither was a new field: an
-unpinned `gh` version assumption, and a `git add -A` pattern upstream had made unsafe (now
-independently guarded by `test/box-staging-and-repo-pinning.test.mjs`). A scan that only asks "is there
-a new field?" is blind to a removed default a Box still assumes.
+unpinned `gh` version assumption, and a `git add -A` pattern upstream had made unsafe. A scan that
+only asks "is there a new field?" is blind to a removed default a Box still assumes.
 
 Report each hit as its own row, marked `default-change`, in the same table.
 
-## Step 5 — Re-assert ADR-0011's traps against the bundled Boxes
+## Step 5 — Re-assert ADR-0011's traps against the installed Boxes
 
-This step runs **unconditionally**, even when Steps 2–4 failed. It reads the bundled Box YAMLs and
-checks them against [ADR-0011](docs/adr/0011-archon-schema-target.md)'s node-schema conventions 1–4 —
-no `type:` discriminator, every `approval:` node paired with workflow-level `interactive: true`, every
-`loop:` carrying both `until` and `max_iterations`, and no node-level `fresh_context:` key.
+This step runs **unconditionally**, even when Steps 2–4 failed. Read every
+`.archon/workflows/unic-dlc-*.yaml` in this repository — the Boxes actually installed here, which is
+what a run would use — and check each one against
+[ADR-0011](docs/adr/0011-archon-schema-target.md)'s node-schema conventions 1–4:
 
-```bash
-node --input-type=module <<'EOJS'
-let output
-try {
-  const { pathToFileURL } = await import('node:url')
-  const { readdirSync, readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const root = process.env.CLAUDE_PLUGIN_ROOT
-  const { checkSchemaTraps } = await import(pathToFileURL(`${root}/lib/schema-traps.mjs`).href)
-  const dir = join(root, '.archon', 'workflows')
-  const files = readdirSync(dir).filter((name) => name.endsWith('.yaml')).sort()
-  output = {
-    ok: true,
-    dir,
-    files: files.map((file) => ({ file, ...checkSchemaTraps(readFileSync(join(dir, file), 'utf8')) })),
-  }
-} catch (err) {
-  output = { ok: false, message: `Trap check could not run: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(output) + '\n')
-EOJS
-```
+1. No node carries a `type:` discriminator.
+2. Every node with an `approval:` key sits in a workflow whose top level declares `interactive: true`.
+3. Every `loop:` carries both `until` and `max_iterations`.
+4. No node carries a node-level `fresh_context:` key. (A loop body may; a node may not.)
 
-Parse the JSON. If `ok` is `false`, print `message` — a check that could not run is a FAIL to report,
-never a silent PASS. Otherwise print one PASS/FAIL line per file, and every violation's node, trap and
-message underneath its file.
+Print one PASS/FAIL line per file, and under each FAIL every violation as `node · trap · what is
+wrong`. If you cannot read a file, that file is a FAIL naming the read error — a check that could not
+run is never a silent PASS.
 
-A FAIL here is not caused by the new Archon release: it means a bundled Box has drifted from ADR-0011.
-`test/schema-traps.test.mjs` guards the same four files in CI, so a FAIL in this command with CI green
-means the installed Plugin build is older than the repository — say so.
+A FAIL here is not caused by the new Archon release: it means an installed Box has drifted from
+ADR-0011. Nothing else guards these four conventions, so this read is the only place they are
+re-asserted — say which file drifted and stop short of fixing it, because this command writes nothing.
 
 ## Step 6 — Print the report
 
@@ -206,7 +167,7 @@ One block, in this order:
     | ------- | ------ | -------------- | ------------------ | ------------------- |
     ...one row per notable change, default-change rows included...
 
-  ADR-0011 traps (bundled Boxes)
+  ADR-0011 traps (installed Boxes)
     unic-dlc-build.yaml      PASS
     unic-dlc-explore.yaml    PASS
     unic-dlc-pr-review.yaml  PASS

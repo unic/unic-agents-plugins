@@ -36,87 +36,41 @@ present at every transition, writes go **directly**; there is no PR gate.
 
 Follow these steps in order. Do not skip any step.
 
-> **Shell requirement**: Step 1 uses `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible
-> shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All
-> filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
+## Step 1 — Load config and the Methods
 
-## Step 1 — Load config
+`/triage` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own tools. Do not shell
+out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed Plugin
+ships no `node_modules`, and that variable is not set inside the Bash tool
+([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+their config this way already; this is the same shape.
 
-`/triage` reads (never writes) `.archon/unic-dlc.config.yaml`. Run:
+If the file is absent or unreadable, print
+`No readable .archon/unic-dlc.config.yaml. Run /unic-archon-dlc:setup first.` and **stop**. That is the
+only config condition that stops this Box: **no key is mandatory**. Take each key below, and use the
+default beside it whenever the key is absent or null.
 
-```bash
-node --input-type=module <<'EOJS'
-let output
-try {
-  const { pathToFileURL } = await import('node:url')
-  const { existsSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
-  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
-  // which says nothing about what to do next.
-  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
-  const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
-  const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
-  const cwd = process.cwd()
-
-  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
-  if (!existsSync(yamlPath)) {
-    output = { ok: false, message: 'No .archon/unic-dlc.config.yaml found. Run /unic-archon-dlc:setup first.' }
-  } else {
-    const r = mod.loadConfig(yamlPath)
-    if ('error' in r) {
-      output = { ok: false, message: `Config present but unreadable: ${r.message}` }
-    } else {
-      const config = mod.mergeConfig(r.config)
-      const validation = mod.validateConfig(config)
-      if ('error' in validation) {
-        output = { ok: false, message: `Config incomplete (${validation.missing.join(', ')}). Run /unic-archon-dlc:setup.` }
-      } else {
-        const g = (p) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), config)
-        const wanted = ['triage', 'grilling', 'domain-modeling']
-        const methods = wanted.map((name) => {
-          const m = resolver.resolveMethod(name, { repoRoot: cwd, config, box: 'triage' })
-          return 'error' in m ? { name, error: m.message } : { name, path: m.path, tier: m.tier }
-        })
-        output = {
-          ok: true,
-          artifacts_dir: config.artifacts_dir,
-          docs: config.docs,
-          triage: config.triage,
-          methods,
-        }
-      }
-    }
-  }
-} catch (err) {
-  output = { ok: false, message: `Plugin load error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(output) + '\n')
-EOJS
-```
-
-Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `DOCS`, `TRIAGE` (`.out_of_scope_dir`/`.external_prs`), and `METHODS`.
+| Key | Default | Keep as |
+| --- | --- | --- |
+| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
+| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS` |
+| `triage.out_of_scope_dir` | `.out-of-scope` | `TRIAGE.out_of_scope_dir` |
+| `triage.external_prs` | `auto` | `TRIAGE.external_prs` |
 
 ### The Methods this Box reads
 
-`METHODS` carries one entry per Method — `triage`, `grilling`, `domain-modeling` — with the tier it
-resolved from: `config` (a `methods.<name>.source` the team declared), `local`
-(`.archon/methods.local/`), or `bundle` (`.archon/methods/`, written by `/unic-archon-dlc:setup`).
+Read these three files in full, at exactly these paths:
 
-If any entry carries `error`, print it verbatim and **stop**. A Box cannot run a procedure it cannot
-read; the fix is to run `/unic-archon-dlc:setup`.
+- `.archon/methods/triage/SKILL.md`
+- `.archon/methods/grilling/SKILL.md`
+- `.archon/methods/domain-modeling/SKILL.md`
 
-Otherwise print the tier line before continuing, so a surprising result is diagnosable:
+A Method lives at one path and this is it — the same literal path the Archon Boxes read. If any of the
+three is absent, print that exact path followed by `Run /unic-archon-dlc:setup.` and **stop**: a Box
+cannot run a procedure it cannot read. When all three are present, print nothing and continue.
 
-```
-methods: triage(bundle) · grilling(bundle) · domain-modeling(bundle)
-```
-
-Then read each entry's `path` in full. That text **is** the procedure — this wrapper adds only the
-config binding, and never restates, summarises or improves a Method
-([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). The `triage` Method's `AGENT-BRIEF.md` and
-`OUT-OF-SCOPE.md` sit beside its resolved `SKILL.md`, in the same directory, at every tier.
+That text **is** the procedure — this wrapper adds only the config binding, and never restates,
+summarises or improves a Method ([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). The `triage`
+Method's `AGENT-BRIEF.md` and `OUT-OF-SCOPE.md` sit beside its `SKILL.md`, in the same directory.
 
 ## Step 2 — Read the tracker contract and build the injected context
 
@@ -221,6 +175,5 @@ Print a concise summary:
   state:    <ready-for-agent | ready-for-human | needs-info | needs-specs | rejected | closed>
   brief:    <link to the agent-brief comment | out-of-scope file | —>
   verify:   <reproduced | PR checked | insufficient — needs-info | n/a>
-  methods:  <name>(<tier>) · … (as printed in Step 1)
   next:     <run /tickets to slice it | run /specs <slug> | run /build if atomic | closed>
 ```

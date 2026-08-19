@@ -144,7 +144,20 @@ New work enters through the issue tracker as Features. Plan with `/wayfinder` wh
 
 **This repo's product is prose** — commands, skills, `AGENTS.md` files, ADRs. So a criterion names an **observable outcome**: what a document must state, checked by reading it. It does not name a command carrying its pasted output, and no `file:line` citation inside a criterion is binding — the next merge moves the line, so a criterion written around one rots on a schedule nobody controls.
 
-**Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `apps/claude-code/unic-archon-dlc/lib/slopcheck.mjs` is the worked example: it exists only to be tested, while `apps/claude-code/unic-archon-dlc/.archon/workflows/unic-dlc-build.yaml` inlines its own copy and imports nothing.
+**Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `unic-archon-dlc`'s `lib/slopcheck.mjs` was the worked example: it existed only to be tested, while `apps/claude-code/unic-archon-dlc/.archon/workflows/unic-dlc-build.yaml` inlines its own copy and imports nothing. #381 deleted it with the whole of that plugin's `lib/` and `test/`, which is what the next passage is the bar for.
+
+#### The quality bar for a prose Box
+
+A Box is prose, so its bar is **a run and a read**, never a test. Three parts:
+
+1. **It runs where it ships.** Install the plugin into a Consumer through the marketplace — no `node_modules`, no hand-set environment variable — and run the Box far enough to see the step under review succeed. This is the only check that sees what this repository cannot: every command defect of `unic-archon-dlc` 0.22.0 was invisible to `pnpm test` and to `archon workflow list` here, and visible on the first command run in `DXP-DesignSystem`.
+2. **Its rules are stated where they are needed.** A rule that lives only in an `AGENTS.md` is invisible at run time, so every prompt that must honour a rule carries it inline. Read for those rules when you touch a Box, and again in review.
+3. **What it depends on is written once.** One list, in prose, with no mirror and no generator — because a mirror is what drifts, and a generator is the module this bar exists to avoid.
+
+What the bar gives up, plainly:
+
+- **A `git add -A`, or a repository derived from a remote URL, now merges green if nobody reads the diff.** `test/box-staging-and-repo-pinning.test.mjs` grepped every Box YAML for both patterns; #381 deleted it and **nothing replaces it**. Both patterns are visible on the page, and both rules are stated inline in every prompt that stages a path or names a repository. That is the whole guard, and an unread diff defeats it.
+- **An upstream rename is not caught in this repository.** `test/command-methods.test.mjs` was the tripwire for a Method upstream had renamed; it compared two hand-written surfaces here and never watched upstream, so it could not have caught the rename wave it was written for. Nothing replaces it either, but the moment of the check is now named rather than left to chance: **upgrading a vendored Method Bundle means diffing the vendored tree against the new upstream tag by hand, in the same commit that moves the pin.** The plugin version is the pin. Between two upgrades, a rename surfaces on the next Consumer run.
 
 Four reads catch what a criterion-by-criterion pass cannot. Run them while writing the criteria, inside `/to-tickets`, because nothing downstream runs them for you:
 
