@@ -1,8 +1,41 @@
 # 0031. Methods are bundled in the plugin; the plugin version is the pin; resolution is three-tier
 
-**Status:** Accepted (2026-08-03); amended 2026-08-20. The amendment at the end of § Decision
-retires two of the three tiers and the integrity mechanism named in §5. The title keeps the word
-three-tier because an ADR filename is a stable address, not a description.
+**Status:** Accepted (2026-08-03); amended 2026-08-20 — two of the three tiers are retired and §5's
+integrity mechanism is gone, so §2, §3 and §5 record what was rather than what is (#381). The title
+keeps the word three-tier because an ADR filename is a stable address, not a description.
+
+> **Amended (2026-08-20) — one tier, and integrity is checked by reading.**
+>
+> The plugin went to zero code, so the two mechanisms this ADR named as modules went with it.
+>
+> **Resolution is one tier.** Every Box and every command reads a Method at the literal path
+> `.archon/methods/<name>/SKILL.md`. The `config` tier (`methods.<name>.source`) and the `local` tier
+> (`.archon/methods.local/<name>/SKILL.md`) are retired, with them the resolution order, the tier line a
+> command printed, and the `forked_from` frontmatter convention. §2 and §3 record what was, not what is.
+>
+> The reason is the one §2 gave for having tiers at all, read back: an Archon node cannot import plugin
+> `lib/`, so `resolveMethod` never reached inside a Box, and the Archon Boxes had been reading the single
+> literal path since they shipped. The tiers therefore existed only in the command half — a resolution
+> order two of the seven surfaces could not honour. Measured against a live Consumer on 0.22.0, the
+> command half could not run at all: `$CLAUDE_PLUGIN_ROOT` is unset inside the Bash tool and an installed
+> plugin ships no `node_modules`, so every Step 1 halted before resolving anything. Deleting the tiers
+> made the two halves agree, which is what §2's own constraint had been asking for.
+>
+> A team that wants different Method text edits `.archon/methods/<name>/SKILL.md` in its own repository
+> and expects the next `/setup` run to overwrite it. That is a real loss of an override that survived
+> upgrades; it is accepted because nothing ever declared one.
+>
+> **Integrity is checked by reading, not by hashing.** §5's `verifyLicence` and `verifyBundle` are gone
+> with `lib/methods-bundle.mjs`, and so is the manifest they compared against. `/setup` Step 6 now reads
+> the bundle: every Method directory must carry its `SKILL.md` and the companion files that Method reads,
+> and `LICENSE` must be present. Either failure still stops setup.
+>
+> What this trades away is worth naming plainly. The pinned licence hash and the `upstreamPath` closure
+> check were the only automated tripwire for an upstream rename wave — the failure this ADR's §1 exists
+> to prevent. Nothing replaces it inside this repository, because nothing here can see upstream. A rename
+> wave is now found by running a Box against a live Consumer, which is where every command defect of the
+> 0.22.0 line was found. The upstream repository, tag and commit stay recorded in
+> `vendor/mattpocock-skills/README.md`.
 
 ## Context
 
@@ -90,39 +123,6 @@ never auto-created, per the repository's LICENSE policy.
 `installMethods` clean-replaces `.archon/methods/` rather than merging, so a Method dropped from a
 later manifest cannot linger on disk where the bundle tier would keep resolving it. It never reads or
 writes `.archon/methods.local/`.
-
-### Amendment, 2026-08-20 (#381): one tier, and integrity is checked by reading
-
-The plugin went to zero code, so the two mechanisms this ADR named as modules went with it.
-
-**Resolution is one tier.** Every Box and every command reads a Method at the literal path
-`.archon/methods/<name>/SKILL.md`. The `config` tier (`methods.<name>.source`) and the `local` tier
-(`.archon/methods.local/<name>/SKILL.md`) are retired, with them the resolution order, the tier line a
-command printed, and the `forked_from` frontmatter convention. §2 and §3 record what was, not what is.
-
-The reason is the one §2 gave for having tiers at all, read back: an Archon node cannot import plugin
-`lib/`, so `resolveMethod` never reached inside a Box, and the Archon Boxes had been reading the single
-literal path since they shipped. The tiers therefore existed only in the command half — a resolution
-order two of the seven surfaces could not honour. Measured against a live Consumer on 0.22.0, the
-command half could not run at all: `$CLAUDE_PLUGIN_ROOT` is unset inside the Bash tool and an installed
-plugin ships no `node_modules`, so every Step 1 halted before resolving anything. Deleting the tiers
-made the two halves agree, which is what §2's own constraint had been asking for.
-
-A team that wants different Method text edits `.archon/methods/<name>/SKILL.md` in its own repository
-and expects the next `/setup` run to overwrite it. That is a real loss of an override that survived
-upgrades; it is accepted because nothing ever declared one.
-
-**Integrity is checked by reading, not by hashing.** §5's `verifyLicence` and `verifyBundle` are gone
-with `lib/methods-bundle.mjs`, and so is the manifest they compared against. `/setup` Step 6 now reads
-the bundle: every Method directory must carry its `SKILL.md` and the companion files that Method reads,
-and `LICENSE` must be present. Either failure still stops setup.
-
-What this trades away is worth naming plainly. The pinned licence hash and the `upstreamPath` closure
-check were the only automated tripwire for an upstream rename wave — the failure this ADR's §1 exists
-to prevent. Nothing replaces it inside this repository, because nothing here can see upstream. A rename
-wave is now found by running a Box against a live Consumer, which is where every command defect of the
-0.22.0 line was found. The upstream repository, tag and commit stay recorded in
-`vendor/mattpocock-skills/README.md`.
 
 ## Considered options
 
