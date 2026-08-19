@@ -110,8 +110,10 @@ A rename wave is now found by running a Box against a live Consumer, not by a te
 
 <!-- methods-table:end -->
 
-`/unic-archon-dlc:setup` **verifies the bundle's integrity** — the vendored licence hash and the
-manifest closure — and stops if either fails, because that means the shipped plugin is incomplete.
+`/unic-archon-dlc:setup` **verifies the bundle by reading it** — every Method directory carries its
+`SKILL.md` and the companion files that Method reads, and `LICENSE` is present — and stops if either
+check fails, because that means the shipped plugin is incomplete. The licence hash and the manifest
+closure it used to compare against are gone with the plugin's code (#381); nothing replaces them.
 
 > **Do _not_ run Matt's `setup-matt-pocock-skills`.** Both it and `/unic-archon-dlc:setup` write
 > `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` — this repository's **tracker
