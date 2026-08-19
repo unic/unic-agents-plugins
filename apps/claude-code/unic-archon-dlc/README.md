@@ -198,7 +198,7 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | File                           | What it carries                                                                                                                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `docs/agents/issue-tracker.md` | **Access** — which MCP server or skill serves this tracker. **Addressing** — the repository. **Work-item scope** — the one filter every search applies. **Operations** — written only where no server can supply the how. |
-| `docs/agents/triage-labels.md` | **Roles** — the seventeen canonical roles. Each row names the role's value, the **axis** that carries it (a state field, a tag, a work-item type, a named field), and whether that axis **holds** one value or many. |
+| `docs/agents/triage-labels.md` | **Roles** — the seventeen canonical roles. Each row names the role's value, the **axis** that carries it (a state field, a tag, a work-item type, a named field), and whether that axis **holds** one value or many.      |
 
 A Box names a role and a file. It never names an organisation, a field, a provider, a command or a
 flag — a server describes its own current interface, and a flag table frozen in a prompt is stale the

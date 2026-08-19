@@ -144,8 +144,8 @@ do not guess a role value and do not run `setup-matt-pocock-skills`.
     one whose axis holds many values. An axis that holds one value retracts the old value itself, so
     there is nothing extra to do. Read `holds`, never the axis name: an axis name is a host word and
     the next host spells it differently.
-  The axis belongs to the role, not to the tier: one role can sit on a single-value field and its
-  neighbour on a multi-value one.
+    The axis belongs to the role, not to the tier: one role can sit on a single-value field and its
+    neighbour on a multi-value one.
 - **Role → DLC-state map** — the DLC taxonomy is a superset of the Method's roles. Bind them:
   - Category `bug` → type `bug`; category `enhancement` → type `feature`.
   - States `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` → same-named DLC state.
