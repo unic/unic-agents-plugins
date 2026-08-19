@@ -18,8 +18,9 @@
 # fixes one laptop and nobody else. This file travels with the clone.
 #
 # Note the key path. It is `worktree.baseBranch`, nested. A bare top-level
-# `baseBranch:` is a different key with no reader — this file held one until
-# #395, so the fallback ran on every run and the setting looked applied.
+# `baseBranch:` is a different key with no reader. This file held one from the
+# day it was created until PR #397, so the fallback ran on every run and the
+# setting looked applied.
 worktree:
   baseBranch: develop
 
