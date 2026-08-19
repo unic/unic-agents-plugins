@@ -132,10 +132,12 @@ and one suggested next step: **file an issue**, **amend an ADR**, or **nothing**
   notes show upstream has shipped what that section already records as the trigger — nothing else
   moves it.
 - **Archon's own repository / remote-resolution algorithm (`worktree.remote`, an `origin`-then-sole-remote
-  fallback, or similar) → classify VERIFY-ONLY, never BREAKS-US.** This Harness's derivation diverges
-  from Archon's own algorithm on purpose, and the divergence is recorded in _ADR-0033 § "Repository
-  derivation: settled by #289, not reopened here"_. Cite it. Classifying a recorded, deliberate
-  divergence as BREAKS-US makes every run re-raise a settled decision.
+  fallback, or similar) → classify VERIFY-ONLY, never BREAKS-US.** This Harness resolves no repository
+  from a remote at all: `docs/agents/issue-tracker.md` § Addressing names it, so Archon's algorithm and
+  this Harness answer different questions and cannot disagree
+  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18, which retired the derivation
+  ADR-0033 § "Repository derivation" recorded as a deliberate divergence). Cite that. Classifying it as
+  BREAKS-US makes every run re-raise a decision that has already been superseded once.
 
 ### Mandatory sub-pass — changed upstream defaults, not just new fields
 

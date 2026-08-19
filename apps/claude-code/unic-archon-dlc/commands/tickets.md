@@ -73,12 +73,10 @@ try {
         output = {
           ok: true,
           artifacts_dir: config.artifacts_dir,
-          tracker: config.tracker,
           estimations: config.estimations,
           tickets: config.tickets,
           issue_template: g('templates.issue'),
           bug_template: g('templates.bug'),
-          labels: g('classification.labels'),
           methods,
         }
       }
@@ -92,25 +90,36 @@ EOJS
 ```
 
 Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop**. Otherwise keep:
-`ARTIFACTS_DIR`, `TRACKER` (`.type`/`.access`/`.coords`), `ESTIMATIONS`, `GATE` (`tickets.gate`),
-`ISSUE_TEMPLATE`, `BUG_TEMPLATE`, `LABELS`, and `METHODS`.
+`ARTIFACTS_DIR`, `ESTIMATIONS`, `GATE` (`tickets.gate`), `ISSUE_TEMPLATE`, `BUG_TEMPLATE`, and
+`METHODS`.
 
-### Resolve the target repository
+### Read the tracker contract
 
-`TARGET_REPO` is the repository this run publishes issues to and opens its PR against. **Derive it;
-never let a tool infer it.**
+`docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the tracker
+contract. This Box publishes items and writes a role on each, so read both now. If either is absent,
+print `This repository has no tracker contract at docs/agents/. Run /unic-archon-dlc:setup.` and
+**stop**.
 
-1. Run `git remote get-url origin`. That URL is `TARGET_REPO`.
-2. `project.repo_ref` in `.archon/unic-dlc.config.yaml` is an **optional override**, absent from a
-   default config. When it is set, it wins verbatim.
-3. When no override is set, list the remotes (`git remote -v`) and compare their fetch URLs,
-   normalising away a trailing `.git`, the `user@host:path` vs `https://host/path` spelling, and case.
-   If a remote other than `origin` names a **different** repository, this checkout is a fork and a
-   host tool would act on the parent. **Stop** and ask the user to set `project.repo_ref` to the
-   repository this run must act on. A checkout whose only remote is `origin` never reaches this stop,
-   so no existing project is affected.
+- **Access** — `issue-tracker.md` § Access names the MCP server or skill that serves this tracker.
+  Read that server's own current tool list and build every call from it. Name no provider and write no
+  command, subcommand or flag ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)).
+- **Addressing** — its § Addressing names the repository this run publishes to and opens its PR
+  against. Name it explicitly in every call, and derive nothing from a remote URL.
+- **Work-item scope** — its § Work-item scope names the one filter every search applies, and the scope
+  every item you create carries.
+- **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+  that axis **holds** one value or many. Name a role, resolve it there, and write no host field name
+  yourself. Two rules follow from that table, and both are mandatory:
+  - **A row with no axis writes nothing.** Report which role you resolved and that its row asks for
+    no write.
+  - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true of an
+    item at a time. Before you write such a role, read the other rows of that tier and retract every
+    one whose axis holds many values. An axis that holds one value retracts the old value itself, so
+    there is nothing extra to do. Read `holds`, never the axis name: an axis name is a host word and
+    the next host spells it differently.
 
-Print `TARGET_REPO` with the tier line below, so a surprising issue or PR target is diagnosable.
+Print the repository § Addressing names with the tier line below, so a surprising target is
+diagnosable.
 
 ### The Method this Box reads
 
@@ -171,14 +180,16 @@ Three things the Harness adds or overrides on top of it:
   unblocks. The dependency order from Step 8 then ships it first, and `/build` needs no extra rule.
 - **Publish to the tracker, never to a file in the repo root.** The Method offers a local `tickets.md`
   as one of its two publishing shapes; in the DLC the durable baton is `issues.json` (Step 8) plus the
-  tracker issues (Step 9). Its closing "work the frontier one ticket at a time with `/implement`" maps
+  tracker items (Step 9). Its closing "work the frontier one ticket at a time with `/implement`" maps
   to `/unic-archon-dlc:build`. And its "run `/setup-matt-pocock-skills` if not" fallback never
-  applies — Step 1 provided that config, and running that skill would create a second label file that
-  drifts from `.archon/unic-dlc.config.yaml` ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
+  applies — Step 1 read the vocabulary from `docs/agents/triage-labels.md`, which is the file that
+  skill would overwrite, with a five-role `wontfix` vocabulary that drops every mapping
+  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended).
 
 Draft each slice with these fields (the `issues-schema` shape):
 
-- `id` — short kebab-case identifier unique within this file (e.g. `issue-01`)
+- `id` — short kebab-case identifier unique within this file (e.g. `issue-01`). It addresses nothing
+  outside the file — `tracker_id` does that, and Step 9 writes it
 - `title` — one-line description of the deliverable
 - `type` — one of `feature | bug | spike | tech-debt | docs`
 - `priority` — one of `p0 | p1 | p2 | p3`
@@ -289,24 +300,30 @@ Parse the output: if `ok` is `false`, fix the reported issues and re-run; if `ok
 dependency-ordered baton `/build` consumes — it carries each slice's `acceptance_criteria` +
 `test_command`.
 
-## Step 9 — Publish issues to the tracker (dependency order)
+## Step 9 — Publish items to the tracker (dependency order)
 
-Publish each slice to `TARGET_REPO` — that repository, named explicitly in every call, never the one a
-tool infers from the checkout. Compose the system-skill registered under `TRACKER.access` (MCP first,
-its CLI as fallback) and build each call from that skill's own current interface: read `TRACKER.type` /
-`TRACKER.coords` from config, but do not write a host command, subcommand, or flag here and do not
-branch on which provider `TRACKER.type` names — this Box owns the _what_ and none of the _how_
-([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). If the registered skill cannot target a
-repository explicitly, stop and say which capability is missing rather than publishing to an inferred
-repository. Publish in the dependency `order` from Step 8 (**blockers first**) so each issue can
-reference the real tracker IDs of its blockers.
+Publish each slice through the tracker contract read in Step 1, to the repository § Addressing names
+and inside the work-item scope. Publish in the dependency `order` from Step 8 (**blockers first**) so
+each item can reference the real tracker ids of its blockers.
 
-For each slice, build the issue body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`;
-fall back to the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
-the slice's **acceptance criteria** (contract C — intent lives on the tracker issue) and its
-**Blocked by** references (real tracker IDs, or "None — can start immediately"). Apply the
-ready-for-agent triage label from `LABELS` unless the user says otherwise. Do NOT close or modify any
-parent issue.
+For each slice, build the body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`; fall back to
+the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
+the slice's **acceptance criteria** (contract C — intent lives on the tracker item) and its
+**Blocked by** references (real tracker ids, or "None — can start immediately"). Write the
+`ready-for-agent` state role unless the user says otherwise. Do NOT close or modify any parent item.
+
+### Write each tracker id back into `issues.json`
+
+**This is mandatory, and it is what makes the baton usable.** As each item is published, write the id
+the tracker returned into that slice's `tracker_id` in `<ARTIFACTS_DIR>/<SLUG>/issues.json`, then
+re-run the Step 8 validation over the updated file. `id` is the slice's identifier **inside the file**
+and addresses nothing outside it, so without `tracker_id` nothing downstream can reach the tracker
+item at all: `/build`'s code-review pre-check cannot read the item's intent, and `open-pr` cannot link
+it to the PR.
+
+That gap is **host-agnostic**, not one host's quirk. No host closes its tracker item from a PR body
+this command never writes an id into, so the id has to come from here on every host. A slice whose
+publish failed keeps `tracker_id` absent and is reported as unpublished — never given a placeholder.
 
 ## Step 10 — Tickets gate (HITL)
 
@@ -332,10 +349,10 @@ the named paths. Unstage anything else with `git restore --staged <path>` and sa
   git push origin feature/tickets/<SLUG>
   ```
 
-  Then open the PR **against `TARGET_REPO`**, base `develop`, title
-  `tickets(<SLUG>): vertical-slice issues`, body `<why + slice summary + tracker links>`, composing
-  the same registered system-skill Step 9 used and naming `TARGET_REPO` explicitly. On **reject**,
-  return to Step 4 and revise the breakdown, then re-run from Step 8.
+  Then open the PR against the repository `docs/agents/issue-tracker.md` § Addressing names, base
+  `develop`, title `tickets(<SLUG>): vertical-slice issues`, body
+  `<why + slice summary + the published tracker ids>`, through the same server Step 9 used. On
+  **reject**, return to Step 4 and revise the breakdown, then re-run from Step 8.
 
 - **`stage-only`**: write `issues.json` (already done in Step 8), stage the same named path under the
   same staging rule, print a suggested PR title/body, and **stop** — leave the commit, push, and PR
@@ -349,8 +366,8 @@ Print a concise summary:
 /tickets complete — slug: <SLUG>
   issues:   <ARTIFACTS_DIR>/<SLUG>/issues.json (<count> slices)
   order:    <id → id → …>  (dependency order)
-  repo:     <TARGET_REPO>  (origin | project.repo_ref override)
-  tracker:  <published issue refs>
+  repo:     <the repository docs/agents/issue-tracker.md § Addressing names>
+  tracker:  <slice id → tracker_id, one per slice | unpublished: <slice ids>>
   methods:  <name>(<tier>) (as printed in Step 1)
   gate:     <open-pr → PR #… | stage-only → staged>
   next:     run /build <SLUG> once the tickets are approved

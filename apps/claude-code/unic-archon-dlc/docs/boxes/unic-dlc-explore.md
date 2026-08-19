@@ -30,11 +30,10 @@ a prior baton.
 
 ## What this workflow does
 
-1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
-   (`artifacts_dir`, `gates.explore`, `tracker.type`, `project.branching`), and **derive the target
-   repository** from the worktree's `origin` remote (`project.repo_ref` is an optional override,
-   absent by default). A missing slug or config cancels cleanly; so does a fork checkout whose parent
-   differs from `origin` with no override set, because the target would then be ambiguous.
+1. **bootstrap** — parse the slug from `$ARGUMENTS` and read `.archon/unic-dlc.config.yaml`
+   (`artifacts_dir`, `gates.explore`, `project.branching`). It resolves **no** repository:
+   `docs/agents/issue-tracker.md` § Addressing names it, and `spike-ticket` reads that file itself. A
+   missing slug or config cancels cleanly.
 
 2. **4 research nodes** (parallel, fresh, read-only) — stack · features · architecture · pitfalls. Each
    emits a concise findings body.
@@ -51,9 +50,11 @@ a prior baton.
    conversation and so cannot run in an Archon node ([ADR-0017](../adr/0017-container-follows-structural-need.md)).
    This node only references it.
 
-5. **spike-ticket** — files (or idempotently updates) a `spike` ticket on the configured tracker
-   (MCP-first, CLI-fallback), linking findings.md and the verdicts, with the AI disclaimer. Labels come
-   **only** from `classification.labels` ([ADR-0024](../adr/0024-triage-intake-on-ramp.md)).
+5. **spike-ticket** — files (or idempotently updates) a `spike` ticket on the tracker, linking
+   findings.md and the verdicts, with the AI disclaimer. It reads the tracker contract in
+   `docs/agents/` for the server, the repository, the work-item scope its idempotency search filters
+   on, and the value and axis of every role
+   ([ADR-0024](../adr/0024-triage-intake-on-ramp.md), amended).
    Runs **before** the gate so the durable output survives a "discard".
 
 6. **spike-branch-gate** — **HITL by default** (`gates.explore`); skipped in AFK. APPROVE → preserve the
@@ -89,23 +90,24 @@ grilling. Keeping those three subsection headings exact is what makes the handof
 ## Prerequisites
 
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
-- The system-skill registered under `tracker.access` is reachable for the spike ticket. A tracker with
-  no issue-creation capability prints manual steps instead of failing.
-- The checkout has an `origin` remote, or `project.repo_ref` is set.
+- `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` are present — this repository's
+  tracker contract, which names the server, the repository, the work-item scope and every role.
+- The server that contract names is reachable for the spike ticket. A tracker with no item-creation
+  capability prints manual steps instead of failing.
 - Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 
 Read from `.archon/unic-dlc.config.yaml`:
 
-| Field                   | Type         | Default     | Description                                                      |
-| ----------------------- | ------------ | ----------- | ---------------------------------------------------------------- |
-| `gates.explore`         | `hitl`/`afk` | `hitl`      | HITL pauses at the spike-branch gate; AFK skips it (no branch)   |
-| `artifacts_dir`         | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/findings.md`)     |
-| `tracker.*`             | object       | —           | Composed to file the spike ticket (MCP-first, CLI-fallback)      |
-| `classification.labels` | object       | —           | Single source of truth for the spike ticket's labels (ADR-0024)  |
-| `project.branching`     | string       | `gitflow`   | Informs branch conventions                                       |
-| `project.repo_ref`      | string       | _absent_    | Optional override; by default the repository comes from `origin` |
+| Field               | Type         | Default     | Description                                                    |
+| ------------------- | ------------ | ----------- | -------------------------------------------------------------- |
+| `gates.explore`     | `hitl`/`afk` | `hitl`      | HITL pauses at the spike-branch gate; AFK skips it (no branch) |
+| `artifacts_dir`     | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/findings.md`)   |
+| `project.branching` | string       | `gitflow`   | Informs branch conventions                                     |
+
+The tracker itself is **not** configured here. `docs/agents/issue-tracker.md` and
+`docs/agents/triage-labels.md` carry the server, the repository, the work-item scope and the roles.
 
 ## Runs
 

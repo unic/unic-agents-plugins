@@ -1,7 +1,14 @@
 # 0029. `/explore` is an off-line, optional research + AFK-spike on-ramp
 
 **Status:** Accepted (2026-07-03); amended 2026-08-04 — the four research nodes now read the `research`
-Method instead of carrying no Method grounding at all (#281). See §5.
+Method instead of carrying no Method grounding at all (#281). See §5. Amended again 2026-08-18 — see
+the note below.
+
+> **Amended (2026-08-18):** where this ADR says a Box resolves a role through `classification.labels`,
+> or names the tracker through `tracker.access` / `tracker.coords`, read
+> `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` instead. Those two repo-local files
+> are the tracker contract now, and each role carries its own axis. See
+> [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18 amendment (#389).
 
 ## Context
 

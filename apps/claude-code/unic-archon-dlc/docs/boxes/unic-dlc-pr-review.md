@@ -33,9 +33,9 @@ precondition** — intent is composed from whatever sources resolve.
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
    (`artifacts_dir`, `gates.pr-review`, `pr-review.confidence_threshold`, `pr-review.inline_comments`,
-   `tracker.type`, `docs.*`, `project.branching`), and **derive the target repository** from the
-   worktree's `origin` remote (`project.repo_ref` is an optional override, absent by default). Missing
-   slug/config cancels cleanly; so does an ambiguous repository.
+   `docs.*`, `project.branching`). It resolves **no** repository: `docs/agents/issue-tracker.md`
+   § Addressing names it, and `prep` and `post` read that file themselves. Missing slug or config
+   cancels cleanly.
 
 2. **prep** — identify the open PR + its description; compute the diff and **categorise** the changed
    files (reported for context; the categories gate nothing); compose **one Intent Brief** from the linked work items, the referenced
@@ -79,24 +79,26 @@ checkpoint is `/qa`.
 
 - The current branch has an open PR (for the summary + inline comments).
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
-- The system-skill registered under `tracker.access` is reachable.
-- The checkout has an `origin` remote, or `project.repo_ref` is set.
+- `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` are present — this repository's
+  tracker contract, which names the server, the repository, the work-item scope and every role.
+- The server that contract names is reachable.
 - Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
 
 ## Configuration reference
 
 Read from `.archon/unic-dlc.config.yaml`:
 
-| Field                            | Type         | Default     | Description                                                                      |
-| -------------------------------- | ------------ | ----------- | -------------------------------------------------------------------------------- |
-| `gates.pr-review`                | `hitl`/`afk` | `hitl`      | HITL pauses at the review-gate before posting; AFK posts directly                |
-| `pr-review.confidence_threshold` | number       | `60`        | Findings below this confidence are dropped before posting                        |
-| `pr-review.inline_comments`      | boolean      | `true`      | Post inline per-finding comments in addition to the summary (where supported)    |
-| `artifacts_dir`                  | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/pr-review/`)                      |
-| `tracker.*`                      | object       | —           | Composed to read the PR, work items, and post comments (MCP-first, CLI-fallback) |
-| `docs.*`                         | object       | —           | Composed to fetch the docs pages an intent source cites                          |
-| `project.branching`              | string       | `gitflow`   | `gitflow` → base `develop`; else `main` (for the merge-base diff)                |
-| `project.repo_ref`               | string       | _absent_    | Optional override; by default the repository comes from `origin`                 |
+| Field                            | Type         | Default     | Description                                                                   |
+| -------------------------------- | ------------ | ----------- | ----------------------------------------------------------------------------- |
+| `gates.pr-review`                | `hitl`/`afk` | `hitl`      | HITL pauses at the review-gate before posting; AFK posts directly             |
+| `pr-review.confidence_threshold` | number       | `60`        | Findings below this confidence are dropped before posting                     |
+| `pr-review.inline_comments`      | boolean      | `true`      | Post inline per-finding comments in addition to the summary (where supported) |
+| `artifacts_dir`                  | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/pr-review/`)                   |
+| `docs.*`                         | object       | —           | Composed to fetch the docs pages an intent source cites                       |
+| `project.branching`              | string       | `gitflow`   | `gitflow` → base `develop`; else `main` (for the merge-base diff)             |
+
+The tracker itself is **not** configured here. `docs/agents/issue-tracker.md` and
+`docs/agents/triage-labels.md` carry the server, the repository, the work-item scope and the roles.
 
 ## Runs
 

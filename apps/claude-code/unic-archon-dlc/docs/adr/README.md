@@ -29,16 +29,16 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030       |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                            |
 | 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281)             |
-| 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296)             |
-| 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted                            |
+| 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296, #389)       |
+| 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (amended #389)             |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281)             |
 | 0027 | `/improve-architecture` is a skill composing Matt's method + owns ADR superseding          | Accepted                            |
-| 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted                            |
-| 0029 | `/explore` is an off-line research + AFK-spike on-ramp; findings.md is the /specs baton    | Accepted (amended #281)             |
+| 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted (amended #389)             |
+| 0029 | `/explore` is an off-line research + AFK-spike on-ramp; findings.md is the /specs baton    | Accepted (amended #281, #389)       |
 | 0030 | The DLC is a Harness hosting Methods; a Box survives only for what no Method can supply    | Accepted                            |
 | 0031 | Methods are bundled, the plugin version is the pin, resolution is three-tier               | Accepted                            |
-| 0032 | Vocabulary: Box, Method, Local Method, Bundle; config is parameters, a Method is procedure | Accepted                            |
-| 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted                            |
+| 0032 | Vocabulary: Box, Method, Local Method, Bundle; config is parameters, a Method is procedure | Accepted (amended #389)             |
+| 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted (amended #389)             |
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted                            |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted                            |
 | 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295)             |

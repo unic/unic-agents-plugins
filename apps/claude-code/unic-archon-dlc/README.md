@@ -113,12 +113,12 @@ manifest existed, `commands/setup.md` named 7 Methods and this file named 6, whi
 `/unic-archon-dlc:setup` **verifies the bundle's integrity** — the vendored licence hash and the
 manifest closure — and stops if either fails, because that means the shipped plugin is incomplete.
 
-> **Do _not_ run Matt's `setup-matt-pocock-skills`.** That skill writes its own tracker/label config
-> (`docs/agents/triage-labels.md`, `docs/agents/issue-tracker.md`). The DLC deliberately does not use
-> it: `/unic-archon-dlc:setup` is the **single** config source, and each box injects that config into
-> Matt's methods at invocation. Running both setups would create a second label file that can drift
-> from `.archon/unic-dlc.config.yaml` (what `/tickets` and `/build` read). Only Matt's skill
-> _methods_ are a dependency — never his setup. See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md).
+> **Do _not_ run Matt's `setup-matt-pocock-skills`.** Both it and `/unic-archon-dlc:setup` write
+> `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` — this repository's **tracker
+> contract**, which every Box and command reads. `/unic-archon-dlc:setup` owns them. A run of Matt's
+> setup writes another host's template over the first and reverts the second to a five-role `wontfix`
+> vocabulary, dropping every mapping. Only Matt's skill _methods_ are a dependency — never his setup.
+> See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md).
 
 ---
 
@@ -164,41 +164,80 @@ flows into `/tickets` next.
 
 The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate every box reads; setup is its sole writer, is idempotent (a re-run merges, never clobbers — a present-but-malformed config fails fast rather than being overwritten), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). Top-level sections:
 
-| Path                                                     | Default                | Valid values                                  | Description                                                                                                                                                                                                                                         |
-| -------------------------------------------------------- | ---------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `project.name`                                           | asked                  | any string                                    | Project name                                                                                                                                                                                                                                        |
-| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                                                                                                                                                                                                 |
-| `project.branching`                                      | asked                  | `gitflow` · `github-flow`                     | Branching model (mandatory)                                                                                                                                                                                                                         |
-| `project.pr_strategy`                                    | asked                  | `squash` · `merge` · `rebase`                 | PR merge strategy (mandatory)                                                                                                                                                                                                                       |
-| `project.repo_ref`                                       | absent                 | any repository reference                      | **Optional override.** Every box derives the target repository from the worktree's `origin` remote; set this only when `origin` is not the repository to act on (a fork checkout), which is also the one case a box cancels for an ambiguous target |
-| `tracker.type`                                           | auto-detected          | `github` · `ado` · `jira` · `local-markdown`  | Issue tracker backend (mandatory)                                                                                                                                                                                                                   |
-| `tracker.access`                                         | discovered             | `{ mcp, cli }`                                | Capability→tool for the tracker (MCP-first, CLI-fallback)                                                                                                                                                                                           |
-| `tracker.coords`                                         | asked                  | tracker-specific map                          | e.g. `{ owner, repo }` (github) / `{ org, project, repo }` (ado)                                                                                                                                                                                    |
-| `docs.type`                                              | `markdown`             | `confluence` · `markdown` · `none`            | Where the team's product specs live (drives `/specs` publishing)                                                                                                                                                                                    |
-| `docs.publish`                                           | `false`                | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                                                                                                                                                                                                     |
-| `design.type`                                            | `none`                 | `figma` · `none`                              | Design system source                                                                                                                                                                                                                                |
-| `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                                                                                                                                  |
-| `templates.{issue,bug}`                                  | `null`                 | template string                               | Config-driven artifact templates (ADR-0018)                                                                                                                                                                                                         |
-| `classification.labels.*`                                | asked                  | any string                                    | 3-tier label mapping (state · type · priority) (mandatory)                                                                                                                                                                                          |
-| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `grilling` + `domain-modeling`; `assumptions` enumerates upfront (ADR-0020)                                                                                                                             |
-| `specs.gate`                                             | `open-pr`              | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops                                                                                                                                        |
-| `tickets.gate`                                           | `open-pr`              | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022)                                                                                                                 |
-| `triage.out_of_scope_dir`                                | `.out-of-scope`        | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                                                                                                                                      |
-| `triage.external_prs`                                    | `auto`                 | `auto` · `always` · `never`                   | Whether `/triage` treats external PRs as a request surface; `auto` = infer from `tracker.type` (github→yes) (ADR-0024)                                                                                                                              |
-| `gates.{build,qa,pr-review,explore}`                     | `hitl`                 | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL                                                                                                                                                                                     |
-| `build.fresh_context_red_green`                          | `true`                 | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)                                                                                                                                                                                            |
-| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`                 | `true` · `false`                              | Build discipline toggles                                                                                                                                                                                                                            |
-| `build.e2e_command`                                      | `null`                 | shell command string                          | Full e2e suite command                                                                                                                                                                                                                              |
-| `build.coverage_threshold`                               | `null`                 | number (0–100) or `null`                      | Minimum % coverage; `null` skips the check                                                                                                                                                                                                          |
-| `estimations`                                            | `off`                  | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                                                                                                                                                                                                         |
-| `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                                                                                                                                  |
-| `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                                                                                                                                              |
-| `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                                                                                                                                       |
-| `methods.<name>.source`                                  | unset                  | repo-relative path                            | Team fork of a Method; the top tier of Method resolution, above `.archon/methods.local/` and the Bundle                                                                                                                                             |
+| Path                                                     | Default                | Valid values                                  | Description                                                                                                                         |
+| -------------------------------------------------------- | ---------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `project.name`                                           | asked                  | any string                                    | Project name                                                                                                                        |
+| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                                                                                 |
+| `project.branching`                                      | asked                  | `gitflow` · `github-flow`                     | Branching model (mandatory)                                                                                                         |
+| `docs.type`                                              | `markdown`             | `confluence` · `markdown` · `none`            | Where the team's product specs live (drives `/specs` publishing)                                                                    |
+| `docs.publish`                                           | `false`                | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                                                                                     |
+| `design.type`                                            | `none`                 | `figma` · `none`                              | Design system source                                                                                                                |
+| `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                  |
+| `templates.{issue,bug}`                                  | `null`                 | template string                               | Config-driven artifact templates (ADR-0018)                                                                                         |
+| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `grilling` + `domain-modeling`; `assumptions` enumerates upfront (ADR-0020)             |
+| `specs.gate`                                             | `open-pr`              | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops                        |
+| `tickets.gate`                                           | `open-pr`              | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022) |
+| `triage.out_of_scope_dir`                                | `.out-of-scope`        | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                      |
+| `triage.external_prs`                                    | `auto`                 | `auto` · `always` · `never`                   | Whether `/triage` treats external PRs as a request surface; `auto` = ask the tracker whether it carries them at all (ADR-0024)      |
+| `gates.{build,qa,pr-review,explore}`                     | `hitl`                 | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL                                                                     |
+| `build.fresh_context_red_green`                          | `true`                 | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)                                                                            |
+| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`                 | `true` · `false`                              | Build discipline toggles                                                                                                            |
+| `build.e2e_command`                                      | `null`                 | shell command string                          | Full e2e suite command                                                                                                              |
+| `build.coverage_threshold`                               | `null`                 | number (0–100) or `null`                      | Minimum % coverage; `null` skips the check                                                                                          |
+| `estimations`                                            | `off`                  | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                                                                                         |
+| `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                  |
+| `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                              |
+| `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                       |
+| `methods.<name>.source`                                  | unset                  | repo-relative path                            | Team fork of a Method; the top tier of Method resolution, above `.archon/methods.local/` and the Bundle                             |
 
-Label canonical names: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
+### The tracker contract
+
+**No Box reads a tracker fact from that config.** Every one of them lives in two repo-local prose
+files, which `/unic-archon-dlc:setup` writes and every Box and command reads:
+
+| File                           | What it carries                                                                                                                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/agents/issue-tracker.md` | **Access** — which MCP server or skill serves this tracker. **Addressing** — the repository. **Work-item scope** — the one filter every search applies. **Operations** — written only where no server can supply the how. |
+| `docs/agents/triage-labels.md` | **Roles** — the seventeen canonical roles. Each row names the role's value, the **axis** that carries it (a state field, a tag, a work-item type, a named field), and whether that axis **holds** one value or many.      |
+
+A Box names a role and a file. It never names an organisation, a field, a provider, a command or a
+flag — a server describes its own current interface, and a flag table frozen in a prompt is stale the
+day the tool changes. Nothing derives a repository from a remote URL, either: one remote has several
+spellings and a fork clone names two repositories.
+
+**A section earns its place in those files only if it states a fact about this tenant.** A server
+discovers its own API; it cannot discover that a role means one particular tag on this board.
+
+The canonical roles: states `needs-triage` · `needs-info` · `needs-specs` · `ready-for-agent` ·
 `ready-for-human` · `resolved` · `closed` · `rejected`; types `feature` · `bug` · `spike` ·
 `tech-debt` · `docs`; priorities `p0` · `p1` · `p2` · `p3`.
+
+A team owns each role's value, its axis and its cardinality. It never owns the role set: a Box names
+its roles literally, so **an extra row changes no Box**. A team that wants a Box to behave differently
+forks the Method — a transition is procedure, not a parameter.
+
+Two rules the `holds` column drives, both stated inline in every Box that writes a role:
+
+- **A row with no axis writes nothing.** Some tenants have a role no surface should carry; that row
+  writes nothing, and a Box reports that its row said so rather than inventing a value.
+- **A `state`, `type` or `priority` role is single-valued.** Before a Box writes one it retracts every
+  other role of that tier whose axis holds many values; a single-value axis retracts itself. So merging
+  a pull request writes `resolved` **and** clears `ready-for-agent`, whichever surfaces this tenant puts
+  them on.
+
+A shape that satisfies the contract:
+
+```md
+| Role              | Axis           | Holds | Value                    |
+| ----------------- | -------------- | ----- | ------------------------ |
+| `needs-specs`     | tag            | many  | `Specification`          |
+| `ready-for-agent` | tag            | many  | `readyForImplementation` |
+| `resolved`        | state field    | one   | `Resolved`               |
+| `feature`         | work-item type | one   | `User Story`             |
+| `needs-triage`    | —              | —     | Not written.             |
+```
+
+See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
 
 ### The Method bundle
 
@@ -283,7 +322,7 @@ stale `<slug>/` dir only once its PR/branch is merged or closed (report-first, n
 
 ## Dependency map
 
-- **Archon**: version ≥ 0.7.0 required, in a project with at least one git remote configured — the key-discriminated node schema plus `evidence_policy`/`always_run` is the stable contract, not the release number ([ADR-0011](docs/adr/0011-archon-schema-target.md), [ADR-0033](docs/adr/0033-archon-070-schema-target.md)); every Archon Box derives its target repository from the worktree's `origin` remote, so a remote-less checkout cannot run one
+- **Archon**: version ≥ 0.7.0 required — the key-discriminated node schema plus `evidence_policy`/`always_run` is the stable contract, not the release number ([ADR-0011](docs/adr/0011-archon-schema-target.md), [ADR-0033](docs/adr/0033-archon-070-schema-target.md))
 - **Required peer plugins**: none
 - **Optional tool**: Python `slopcheck` CLI (GSD's slopsquatting gate) — if on `PATH`, the
   slopcheck node defers to it; otherwise falls back to npm registry HEAD checks

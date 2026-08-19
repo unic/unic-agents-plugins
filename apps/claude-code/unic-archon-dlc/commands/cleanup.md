@@ -1,6 +1,6 @@
 ---
 argument-hint: '[--apply | (empty = report-only dry-run)]'
-description: 'Repo-global operational janitor: report (and, on explicit opt-in, prune) the merged/stale worktrees, stale branches/PRs, and stale workflows/<slug>/ artifact dirs an Archon-driven lifecycle accumulates. Composes archon isolation/complete + the configured tracker; report-first, never auto-deletes.'
+description: 'Repo-global operational janitor: report (and, on explicit opt-in, prune) the merged/stale worktrees, stale branches/PRs, and stale workflows/<slug>/ artifact dirs an Archon-driven lifecycle accumulates. Composes archon isolation/complete plus the tracker its contract in docs/agents/ names; report-first, never auto-deletes.'
 ---
 
 # unic-archon-dlc:cleanup
@@ -17,8 +17,8 @@ Code command, not an Archon workflow** ([ADR-0017](docs/adr/0017-container-follo
 
 It is a **thin composing wrapper**: it **owns the _what_** — deciding what is prunable and enforcing
 the report-first / per-category-confirm posture — and **composes the _how_**: Archon's own
-`archon isolation` / `archon complete` commands for worktree/branch lifecycle, and the configured
-tracker (`TRACKER.access`, MCP-first / CLI-fallback `gh` / `az` / `jira`) for PR and branch state.
+`archon isolation` / `archon complete` commands for worktree/branch lifecycle, and the tracker that
+`docs/agents/issue-tracker.md` § Access names, for PR and branch state.
 Compose those tools — never reimplement them, and never introduce a `tracker-adapter` lib
 ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md) / [ADR-0018](docs/adr/0018-generic-core-config-compose.md)).
 
@@ -41,8 +41,9 @@ Follow these steps in order. Do not skip any step.
 
 `/cleanup` reads (never writes) `.archon/unic-dlc.config.yaml`. Like `/improve-architecture` it is an
 **off-line** box, so a missing or incomplete config is **non-blocking** — it degrades to defaults and
-continues. It does compose the tracker **read-only** (to check PR/branch state); if no tracker
-resolves, the PR/branch-state and slug-dir categories degrade with a warning rather than halting. Run:
+continues. It does reach the tracker **read-only** (to check PR/branch state), through the contract in
+`docs/agents/` read in Step 2; if that contract is absent, the PR/branch-state and slug-dir categories
+degrade with a warning rather than halting. Run:
 
 ```bash
 node --input-type=module <<'EOJS'
@@ -56,7 +57,6 @@ try {
 
   const pick = (config) => ({
     artifacts_dir: config.artifacts_dir,
-    tracker: config.tracker,
     cleanup: config.cleanup,
     project: config.project,
   })
@@ -80,7 +80,6 @@ try {
     degraded: true,
     reason: `plugin-load: ${err?.message ?? String(err)}`,
     artifacts_dir: 'workflows',
-    tracker: null,
     cleanup: { stale_days: 7, dry_run: true, prune_slug_dirs: false },
     project: null,
   }
@@ -89,15 +88,21 @@ process.stdout.write(JSON.stringify(output) + '\n')
 EOJS
 ```
 
-Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `TRACKER` (`.type`/`.access`/`.coords`,
-may be `null`), `CLEANUP` (`.stale_days` default `7`, `.dry_run` default `true`, `.prune_slug_dirs`
-default `false`), and `PROJECT` (`.branching`/`.pr_strategy`; a **hint** for the main branch — it may
-be `null`). If `degraded` is `true`, print a one-line warning naming `reason` and note the fallbacks,
-then continue. If `TRACKER` is `null` or its `type` is unset, warn that PR/branch-state detection and
-slug-dir pruning will be skipped (they need the tracker), then continue. If `PROJECT` is `null` or
-`PROJECT.branching` is unset (the plugin-load and no-config fallbacks leave it so), warn that the main
-branch will be derived from git rather than config — merged detection still works (Step 3), so this is
-non-blocking.
+Parse the JSON. Keep `ARTIFACTS_DIR` (default `workflows`), `CLEANUP` (`.stale_days` default `7`,
+`.dry_run` default `true`, `.prune_slug_dirs` default `false`), and `PROJECT` (`.branching`; a
+**hint** for the main branch — it may be `null`). If `degraded` is `true`, print a one-line warning
+naming `reason` and note the fallbacks, then continue. If `PROJECT` is `null` or `PROJECT.branching`
+is unset (the plugin-load and no-config fallbacks leave it so), warn that the main branch will be
+derived from git rather than config — merged detection still works (Step 3), so this is non-blocking.
+
+### Read the tracker contract
+
+Read `docs/agents/issue-tracker.md`. Its § Access names the MCP server or skill that serves this
+tracker and its § Addressing names the repository — read that server's own current tool list and build
+each call from it, naming no provider and writing no command, subcommand or flag
+([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). Keep `TRACKER_READY` = whether the file
+resolved. If it did not, warn that PR/branch-state detection and slug-dir pruning will be skipped
+(they need the tracker), then continue — this box never halts on it.
 
 ## Step 2 — Determine mode
 
@@ -131,11 +136,10 @@ Classify each environment:
 - **stale** — last activity older than `CLEANUP.stale_days` days, not yet merged.
 - **active** — recent and unmerged; never prunable. Report it as retained, with its age.
 
-## Step 4 — Detect stale PRs & branches (compose the tracker)
+## Step 4 — Detect stale PRs & branches (through the tracker)
 
-Only if `TRACKER` resolved. Compose `TRACKER.access` (MCP-first, CLI-fallback `gh` / `az` / `jira`,
-or the `azure-devops-cli` skill) against `TRACKER.coords` to list open PRs and their branches —
-**never hardcode `gh`**. Flag as candidates:
+Only if `TRACKER_READY`. Ask the tracker to list open PRs and their branches, addressing the
+repository its § Addressing names. Flag as candidates:
 
 - PRs whose branch has already been merged (a leftover open PR), and
 - PRs with no activity for longer than `CLEANUP.stale_days`.
@@ -145,7 +149,7 @@ the merge itself — surface only genuine leftovers.
 
 ## Step 5 — Detect prunable slug artifact dirs
 
-Only if `TRACKER` resolved (a slug dir's disposition depends on its PR/branch state). Using
+Only if `TRACKER_READY` (a slug dir's disposition depends on its PR/branch state). Using
 `node:fs`, list the immediate child directories of `<ARTIFACTS_DIR>/` (default `workflows/`). Each
 child dir name is a Slug ([ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md)). For each:
 
@@ -168,7 +172,7 @@ is prunable (or retained):
     - <branch>  <path>  <merged | stale 12d>
   Branches:   <N prunable>
     - <branch>  <merged, worktree gone>
-  PRs:        <N leftover/stale>   (tracker: <type>)
+  PRs:        <N leftover/stale>
     - #<id> <title>  <branch merged | stale 30d>
   Slug dirs:  <N prunable> (<workflows/<slug>/>)   [pruning <enabled | disabled by config>]
     - <slug>  <PR #id merged | PR #id closed>
@@ -189,8 +193,10 @@ items, then ask the user to confirm **that category** (yes/no). On confirmation,
 - **Stale worktrees** → `archon isolation cleanup <CLEANUP.stale_days>`.
 - **A specific branch's full lifecycle** (worktree + local/remote branch) → `archon complete <branch>`.
   Use this for a targeted removal the bulk `isolation cleanup` did not cover.
-- **Stale/leftover PRs** → close via the composed `TRACKER.access` (e.g. the tracker MCP close tool,
-  or `gh pr close` / `az repos pr update --status abandoned`), never a hardcoded CLI. Opt-in only.
+- **Stale/leftover PRs** → close each one with the tracker's own close capability, read from the
+  server's current tool list. Ask what it offers and use that; a provider name or a subcommand written
+  down here is wrong on every other host and stale on this one the day the tool changes. If it exposes
+  no way to close a PR, report the leftovers and close nothing. Opt-in only.
 - **Prunable slug dirs** (only if `CLEANUP.prune_slug_dirs` is `true`) → remove the directory with
   Node's `node:fs` (`rm` recursive). **Before deleting, scan the dir for any `LICENSE` file; if one
   is present, skip that dir and warn the maintainer to handle it manually** (repo LICENSE policy).

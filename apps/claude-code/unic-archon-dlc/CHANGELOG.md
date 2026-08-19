@@ -3,13 +3,111 @@
 ## [Unreleased]
 
 ### Breaking
+
 - (none)
 
 ### Added
+
 - (none)
 
 ### Fixed
+
 - (none)
+
+## [0.22.0] — 2026-08-18
+
+### Breaking
+
+- **A `state`, `type` or `priority` role is single-valued, and a Box now retracts before it writes.**
+  Moving the axis into the contract made a defect reachable that the config shape could not express:
+  before this, every state role resolved to a single-value field, so writing one replaced the last. A
+  contract may put a state role on a **multi-value** axis, where writing adds and the previous role
+  stays — so `/tickets` wrote a role nothing cleared and a shipped item still read as ready for an
+  agent. Every Box and command that writes a role now reads the other rows of that tier and retracts
+  each one whose axis holds many values. A single-value axis retracts itself.
+- **`docs/agents/triage-labels.md` carries a `Holds` column**, `one` or `many`, on every row. A Box
+  reasons about cardinality and **never** about an axis name: `Tag` and `Label` are host words, and a
+  rule phrased on one is wrong on the next host — the defect ADR-0016 forbids in a prompt, one level
+  up. A contract written before this needs the column added.
+- **`/qa`'s `merge` node writes the `resolved` role on every item the pull request links**, after the
+  merge lands, reading the links collection `/build`'s `open-pr` created. This is the one point where a
+  state role moves after `/tickets` wrote `ready-for-agent`, so it is where the retraction above fires.
+  A tracker that cannot set the role says so and merges anyway; the PR is already merged when this
+  runs, so a failure here is reported and never retried into a second merge.
+
+- **The tracker contract left `.archon/unic-dlc.config.yaml` and moved into two repo-local prose
+  files.** `docs/agents/issue-tracker.md` carries **Access** (which MCP server or skill serves this
+  tracker), **Addressing** (the repository) and **Work-item scope** (the one filter every search
+  applies); `docs/agents/triage-labels.md` carries the seventeen canonical roles, each row naming its
+  value **and** the axis that carries it. Every Box and command reads those two files. Deleted from the
+  config with it: the whole `tracker` block, `classification.labels`, `project.pr_strategy` and
+  `project.repo_ref`. `MANDATORY_PATHS` is `project.branching` alone. A config that still carries the
+  retired keys keeps them and validates — nothing reads them.
+- **No Box derives a repository from a remote URL, and the `ambiguous-repo` guard is gone.** One remote
+  has several spellings and a fork clone names two repositories, which is why the old `origin`
+  derivation needed an override key and an ambiguity guard to correct itself. `docs/agents/issue-tracker.md`
+  § Addressing states the repository as a fact, so all three are deleted. Each Box now has one guard,
+  `guard-not-ready`, firing on every non-ready status. A node that cannot find the contract file STOPS
+  and says so; it never guesses.
+- **The merge style is the host's, not `/qa`'s.** `/qa`'s `merge` node reads no `project.pr_strategy`:
+  it uses whatever the repository's branch policy allows, and where that policy allows a choice the
+  team's own `CLAUDE.md` states the rule.
+
+### Added
+
+- **The transition table in `AGENTS.md` — every point the Harness writes a Canonical role, and which
+  one.** The two holes above stayed invisible while the writes were scattered, and "before you write a
+  role" cannot be checked without a list of the places that do. One row records that **`/build` writes
+  no role on purpose**: `open-pr` links each work item to the pull request and every host surfaces that
+  link on the item, so "an agent has started this" needs no `in-progress` role — adding one would
+  change the protocol every Box shares to duplicate a signal the host already gives.
+- **The plugin states that an extra row in `triage-labels.md` changes no Box.** A Box names its roles
+  literally, so a team-added role is inert, by design: the Canonical roles are the protocol the Boxes
+  share. A team owns each role's value, axis and cardinality, never the role set, and the door for
+  different behaviour is a Method fork — a transition is procedure, not a parameter.
+
+- **`/tickets` writes each published item's tracker id into `issues.json`.** A slice's `id` addresses
+  nothing outside the file, so without a `tracker_id` nothing downstream can reach the tracker item:
+  `/build`'s code-review pre-check cannot read its intent and `open-pr` cannot link it. The gap is
+  host-agnostic — no host closes an item from a PR body that carries no id — so the id is written here
+  on every host. A slice whose publish failed keeps `tracker_id` absent and is reported as unpublished,
+  never given a placeholder.
+- **`/build`'s `open-pr` links each work item to the PR through the registered skill's own link
+  capability.** A pull request and a tracker item each carry a discoverable links collection, so the
+  Box says "link" and names no text token — a token written into a prompt picks one host's convention
+  and freezes it. Where no link capability exists, the ids go in the PR body under `## Work items` with
+  a note that the links were not created.
+
+### Fixed
+
+- **The rule that a row with no axis writes nothing now appears at every surface that writes a role.**
+  It shipped in `/triage` alone, which left the escape hatch documented in one place and unimplemented
+  in three: `/tickets`, `/explore`'s `spike-ticket` and `/qa`'s finding-capture.
+- **`CONTEXT.md` defines `Holds`.**
+
+- **`/pr-review` promises a pull-request *discussion*, not a PR-level comment.** The review addresses
+  the whole PR, so it posts a discussion on the pull request itself: one host carries that as a thread
+  with no file anchored to it, another as a comment on the PR, and the Box asks which rather than
+  assuming. Its marker scan also walks each thread's replies, because a host may nest a reply under its
+  parent instead of listing every comment flat.
+- **`/cleanup` names no provider and no subcommand where it tells a reader to compose the tracker.**
+  The stale-PR row stated the rule and then broke it with two provider names and a subcommand inside
+  the sentence that forbids them. It now says to read the server's own close capability from its
+  current tool list, and to close nothing where none exists.
+- **ADR-0024 says which of its rules are dead.** Its compose rule — that Matt's setup artefacts are
+  never consulted in a DLC flow — is reversed: those two files are the contract now, and the two-writer
+  problem the rule solved is solved instead by removing one writer. Its 2026-08-11 "the tier carries
+  the axis" amendment is disproved: measured on a live tenant, five of the eight state roles cannot be
+  states at all — writing a state while work is open moves an already-active item backwards on the
+  board — so **the axis belongs to the role**. ADR-0025, 0028,
+  0029, 0032 and 0033 carry a pointer to the amendment; ADR-0033's "Repository derivation" section
+  describes a mechanism that no longer exists.
+- **`CONTEXT.md` defines **Tracker contract** and **Axis** where it defined **Repository derivation**
+  and **Label string**.**
+- **`AGENTS.md` records that a project-scoped MCP server in the Consumer's `.mcp.json` reaches a Box.**
+  Every Box that composes the server its contract names depends on this and nothing had tested it: an
+  Archon run under `~/.archon/workspaces/…/worktrees/` loaded the registered tracker server and read
+  work items, pull requests and threads. A personal-scope server does not travel that way.
 
 ## [0.21.0] — 2026-08-14
 

@@ -1,8 +1,34 @@
 # 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to DLC config as the single source of truth
 
-**Status:** Accepted (2026-07-02); amended 2026-08-13 — the known item under § Consequences is
-settled: `/setup` now owns a `## unic-archon-dlc` block, so the block-ownership overlap with
-`setup-matt-pocock-skills` is gone (#296).
+**Status:** Accepted (2026-07-02); amended 2026-08-11, 2026-08-13, and 2026-08-18. The 2026-08-18
+amendment is the one to read first: it kills two rules the rest of this ADR still states.
+
+> **Amended (2026-08-18) — two rules in this ADR are dead.** The tracker contract moved out of
+> `.archon/unic-dlc.config.yaml` and into two repo-local prose files, `docs/agents/issue-tracker.md`
+> and `docs/agents/triage-labels.md`. A Box now names a role and a file, and never a host word. The
+> whole `tracker` block, `classification.labels` and `project.pr_strategy` left the config with it, and
+> `MANDATORY_PATHS` is `project.branching` alone. Two things stated below no longer hold:
+>
+> - **The compose rule is reversed.** This ADR says _"DLC commands feed Matt's methods DLC config;
+>   Matt's own setup artifacts are never consulted in DLC flows"_, and `/triage` enforced it by
+>   instructing the Method **not** to read `docs/agents/triage-labels.md` or
+>   `docs/agents/issue-tracker.md`. Those two files are now the contract, and every Box and command
+>   reads them. The rule solved a real two-writer problem by forbidding the read; this decision solves
+>   the same problem by removing one writer — `/unic-archon-dlc:setup` owns both files, and
+>   `setup-matt-pocock-skills` must never be run over them.
+> - **"The tier carries the axis" is disproved.** The 2026-08-11 amendment claimed a Box hands the
+>   composed skill the tier alongside the string, so the skill knows whether to write a state, a status
+>   or a label. Measured against a live tenant, five of the eight state roles cannot be states at all:
+>   writing a state while the work is still open moves an already-active item backwards on the board, so
+>   only the three terminal roles are states there and the rest are tags. **The axis belongs to the
+>   role, not to the tier**, which is why `triage-labels.md` names an axis per row.
+>
+> What survives unchanged: `/triage` is a thin binding wrapper, the container decision, the
+> label-taxonomy mapping between Matt's five roles and the DLC's seventeen, best-effort verification,
+> and the on-ramp contract. What the wrapper _binds_ changed; that it binds did not.
+>
+> The amendments below are kept as the record of how the config-shaped answer was reached. Read them
+> as history, not as instructions.
 
 > **Amended (2026-08-11, extended 2026-08-13):** this ADR ended its label section with "Teams override `classification.labels` in YAML" and never said who fills the mapping. So `defaultConfig()` seeded one and `/setup` never raised the subject, shipping a guess that is correct only for a tracker already using the Plugin's own vocabulary (#329). Seven decisions complete the sentence — the first five recorded on 2026-08-11, the last two on 2026-08-13 when #329 was implemented and an audit found them recorded on the issue alone.
 >
