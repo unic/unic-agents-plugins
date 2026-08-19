@@ -23,9 +23,14 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
  *
  * One path, because the tracker contract left this file. `docs/agents/issue-tracker.md` and
  * `docs/agents/triage-labels.md` carry the tracker's access, addressing, work-item scope and role
- * vocabulary, and every Box reads them directly (ADR-0024, amended). `project.pr_strategy` went with
- * them: the host's branch policy decides a merge style, and where it allows a choice the team's own
- * `CLAUDE.md` states the rule.
+ * vocabulary, and every Box reads them directly (ADR-0024, amended). `project.pr_strategy` stopped
+ * being mandatory with them: the host's branch policy decides a merge style, and where it allows a
+ * choice the team's own `CLAUDE.md` states the rule.
+ *
+ * **Retired is not removed.** `defaultConfig` still emits `tracker` and `project.pr_strategy`, and
+ * `migrateLegacy` still carries `classification.labels` across, so a config written before #389
+ * round-trips unchanged. Nothing reads any of them. Do not re-add one here to "make setup ask again":
+ * the question is whether a Box needs the value, and none does.
  * @type {readonly string[]}
  */
 export const MANDATORY_PATHS = ['project.branching']

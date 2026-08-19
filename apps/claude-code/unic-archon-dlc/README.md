@@ -192,8 +192,8 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 
 ### The tracker contract
 
-**No tracker fact lives in that config.** Every one of them lives in two repo-local prose files, which
-`/unic-archon-dlc:setup` writes and every Box and command reads:
+**No Box reads a tracker fact from that config.** Every one of them lives in two repo-local prose
+files, which `/unic-archon-dlc:setup` writes and every Box and command reads:
 
 | File                           | What it carries                                                                                                                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
