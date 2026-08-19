@@ -41,13 +41,14 @@ not set inside the Bash tool ([ADR-0023](docs/adr/0023-build-generic-red-green-r
    read. Keep the path you read as `CONFIG_PATH`, and the parsed object as `CURRENT`.
 
 2. **The remotes.** Run `git remote`. Three refusals, in this order:
+
    - `git` is not on `PATH` → print `git binary not found on PATH. Install git before running /setup.`
      and stop.
    - the command failed for any other reason → print the error, ask the operator to confirm this
      directory is a git repository, and stop.
    - the list is empty → print `This project has no git remote configured. All four Archon Boxes
-     (/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run
-     without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
+(/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run
+without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
 
    Then run `git remote get-url origin` and keep the result as `GIT_REMOTE`; an absent `origin` is not
    a refusal here, only an empty value.

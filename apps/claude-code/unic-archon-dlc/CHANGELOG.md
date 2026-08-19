@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.23.0] — 2026-08-19
+
+### Breaking
 
 - **`lib/` and `test/` are deleted — the plugin ships zero code and zero runtime dependencies.** Twelve modules and nineteen test files, 6413 lines. The `yaml` dependency goes with them, and so do the `test` and `typecheck` scripts, `tsconfig.json`, and `test/test-enumeration.test.mjs`, which existed to guard the `test` script's hand-list of files. `verify:changelog` stays: CI runs it on every PR. The plugin is now seven command prompts, four Archon Box YAMLs, the Method Bundle and its documentation — which is the bar the root `AGENTS.md` sets with `auto-format`.
 - **Every command reads config, the tracker contract and its Methods with its own tools.** No command shells out to Node, imports a plugin module, or reads `$CLAUDE_PLUGIN_ROOT`. This is what makes them run at all: measured on 0.22.0 in a Consumer that installed the plugin through the marketplace, all seven commands loaded and **none ran past Step 1**. `$CLAUDE_PLUGIN_ROOT` is not set inside the Bash tool, so each Step 1 halted while printing advice the operator had already followed; and `lib/config-schema.mjs`, `lib/methods-bundle.mjs` and `lib/schema-traps.mjs` imported bare `yaml`, declared `"yaml": "catalog:"` — the pnpm workspace protocol, unresolvable outside this monorepo whether or not `node_modules` is present. Shipping the directory would have moved the failure, not fixed it. The four Archon Boxes were unaffected and are untouched: they never imported `lib/`, which is what made the prompt-node shape the model for the rewrite ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5, amended — the rule no longer exempts the commands).

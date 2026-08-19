@@ -42,10 +42,10 @@ Unlike the tracker-bound boxes this one is **off-line and touches no tracker**, 
 unreadable config is **non-blocking**. Print a one-line warning naming what happened, take the
 defaults below, and continue. No key is mandatory here either.
 
-| Key | Default | Keep as |
-| --- | --- | --- |
-| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
-| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS` |
+| Key                                          | Default                      | Keep as         |
+| -------------------------------------------- | ---------------------------- | --------------- |
+| `artifacts_dir`                              | `workflows`                  | `ARTIFACTS_DIR` |
+| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS`          |
 
 ### The Methods this Box reads
 

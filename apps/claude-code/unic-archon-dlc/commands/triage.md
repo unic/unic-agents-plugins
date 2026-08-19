@@ -49,12 +49,12 @@ If the file is absent or unreadable, print
 only config condition that stops this Box: **no key is mandatory**. Take each key below, and use the
 default beside it whenever the key is absent or null.
 
-| Key | Default | Keep as |
-| --- | --- | --- |
-| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
-| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS` |
-| `triage.out_of_scope_dir` | `.out-of-scope` | `TRIAGE.out_of_scope_dir` |
-| `triage.external_prs` | `auto` | `TRIAGE.external_prs` |
+| Key                                          | Default                      | Keep as                   |
+| -------------------------------------------- | ---------------------------- | ------------------------- |
+| `artifacts_dir`                              | `workflows`                  | `ARTIFACTS_DIR`           |
+| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS`                    |
+| `triage.out_of_scope_dir`                    | `.out-of-scope`              | `TRIAGE.out_of_scope_dir` |
+| `triage.external_prs`                        | `auto`                       | `TRIAGE.external_prs`     |
 
 ### The Methods this Box reads
 

@@ -34,15 +34,15 @@ If the file is absent or unreadable, print
 only config condition that stops this Box: **no key is mandatory**. Take each key below, and use the
 default beside it whenever the key is absent or null.
 
-| Key | Default | Keep as |
-| --- | --- | --- |
-| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
-| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS` |
-| `design.type` · `design.access` | `none` · unset | `DESIGN` |
-| `estimations` | `off` | `ESTIMATIONS` |
-| `specs.discuss_mode` | `discuss` | `DISCUSS_MODE` |
-| `specs.gate` | `open-pr` | `GATE` |
-| `templates.prd` | the scaffold in Step 7 | `PRD_TEMPLATE` |
+| Key                                          | Default                      | Keep as         |
+| -------------------------------------------- | ---------------------------- | --------------- |
+| `artifacts_dir`                              | `workflows`                  | `ARTIFACTS_DIR` |
+| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS`          |
+| `design.type` · `design.access`              | `none` · unset               | `DESIGN`        |
+| `estimations`                                | `off`                        | `ESTIMATIONS`   |
+| `specs.discuss_mode`                         | `discuss`                    | `DISCUSS_MODE`  |
+| `specs.gate`                                 | `open-pr`                    | `GATE`          |
+| `templates.prd`                              | the scaffold in Step 7       | `PRD_TEMPLATE`  |
 
 ### Read the tracker contract
 

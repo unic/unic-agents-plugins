@@ -47,13 +47,13 @@ No key is mandatory. It does reach the tracker **read-only** (to check PR and br
 contract in `docs/agents/` read below; if that contract is absent, the PR/branch-state and slug-dir
 categories degrade with a warning rather than halting.
 
-| Key | Default | Keep as |
-| --- | --- | --- |
-| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
-| `cleanup.stale_days` | `7` | `CLEANUP.stale_days` |
-| `cleanup.dry_run` | `true` | `CLEANUP.dry_run` |
-| `cleanup.prune_slug_dirs` | `false` | `CLEANUP.prune_slug_dirs` |
-| `project.branching` | unset | `PROJECT.branching` |
+| Key                       | Default     | Keep as                   |
+| ------------------------- | ----------- | ------------------------- |
+| `artifacts_dir`           | `workflows` | `ARTIFACTS_DIR`           |
+| `cleanup.stale_days`      | `7`         | `CLEANUP.stale_days`      |
+| `cleanup.dry_run`         | `true`      | `CLEANUP.dry_run`         |
+| `cleanup.prune_slug_dirs` | `false`     | `CLEANUP.prune_slug_dirs` |
+| `project.branching`       | unset       | `PROJECT.branching`       |
 
 `PROJECT.branching` is a **hint** for the main branch and may be unset. When it is, warn that the main
 branch will be derived from git rather than from config — merged detection still works (Step 3), so

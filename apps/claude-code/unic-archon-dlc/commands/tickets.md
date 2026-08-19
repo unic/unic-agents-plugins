@@ -40,13 +40,13 @@ If the file is absent or unreadable, print
 only config condition that stops this Box: **no key is mandatory**. Take each key below, and use the
 default beside it whenever the key is absent or null.
 
-| Key | Default | Keep as |
-| --- | --- | --- |
-| `artifacts_dir` | `workflows` | `ARTIFACTS_DIR` |
-| `estimations` | `off` | `ESTIMATIONS` |
-| `tickets.gate` | `open-pr` | `GATE` |
+| Key               | Default                                        | Keep as          |
+| ----------------- | ---------------------------------------------- | ---------------- |
+| `artifacts_dir`   | `workflows`                                    | `ARTIFACTS_DIR`  |
+| `estimations`     | `off`                                          | `ESTIMATIONS`    |
+| `tickets.gate`    | `open-pr`                                      | `GATE`           |
 | `templates.issue` | unset — fall back to the Method's own template | `ISSUE_TEMPLATE` |
-| `templates.bug` | unset — fall back to the Method's own template | `BUG_TEMPLATE` |
+| `templates.bug`   | unset — fall back to the Method's own template | `BUG_TEMPLATE`   |
 
 ### Read the tracker contract
 
@@ -197,15 +197,15 @@ attach a **definitive** per-slice estimate, refining any provisional estimate fr
 
 Check every approved slice before you write anything. Each one carries all seven mandatory fields:
 
-| Field | Rule |
-| --- | --- |
-| `id` | present and non-empty; unique inside this file, and addresses nothing outside it |
-| `title` | present and non-empty |
-| `type` | one of `feature` · `bug` · `spike` · `tech-debt` · `docs` |
-| `priority` | one of `p0` · `p1` · `p2` · `p3` |
-| `blocked_by` | an array of `id` values from this same file; may be empty |
-| `acceptance_criteria` | a non-empty array of independently demonstrable criteria |
-| `summary` | present and non-empty; one paragraph |
+| Field                 | Rule                                                                             |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `id`                  | present and non-empty; unique inside this file, and addresses nothing outside it |
+| `title`               | present and non-empty                                                            |
+| `type`                | one of `feature` · `bug` · `spike` · `tech-debt` · `docs`                        |
+| `priority`            | one of `p0` · `p1` · `p2` · `p3`                                                 |
+| `blocked_by`          | an array of `id` values from this same file; may be empty                        |
+| `acceptance_criteria` | a non-empty array of independently demonstrable criteria                         |
+| `summary`             | present and non-empty; one paragraph                                             |
 
 `test_command` is optional — carry the exact shell command when one exists, or `test_command_planned:
 true` when it does not. Report every field a slice is missing, fix them with the user, and check again.
