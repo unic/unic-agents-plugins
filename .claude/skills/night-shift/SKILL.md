@@ -59,8 +59,10 @@ is where they earn their cost.
 
 1. **Fast-forward `develop`** so the fork point carries the previous merge.
 2. **Dispatch** via `/archon-rollout`. Always `--from develop`, always `--branch`.
-3. **Verify the fork point** before anything else — the worktree HEAD must equal `develop`. Archon
-   forks from `main` by default whatever the branch name says.
+3. **Verify the fork point** before anything else — the worktree HEAD must equal `develop`. Two
+   things aim it there, `--from develop` and `worktree.baseBranch` in `.archon/config.yaml`. Lose
+   both and Archon forks from its stored default branch, which is per clone and arbitrary — read it,
+   never assume it.
 4. **Wait.** Arm a Monitor keyed on the run ID, never on a global active count.
 5. **Check the PR base.** Archon has retargeted PRs to `main` after opening them, more than once.
 6. **Apply the three gates.** All three, in full, before any merge.

@@ -236,7 +236,7 @@ Per PR: base still `develop`, commits the review added, CI state after those com
 
 ## Standing rules (always apply)
 
-1. **Always pass `--from develop`.** Archon auto-detects its worktree base and picks `main`, which last moved at the previous release merge. `.archon/config.yaml` sets `baseBranch: develop`, but pass the flag anyway and verify the fork point right after dispatch:
+1. **Always pass `--from develop`.** `.archon/config.yaml` sets `worktree.baseBranch: develop`, which beats Archon's stored default branch — per clone, arbitrary, `main` here when PR #397 measured it — and beats its auto-detection. The flag beats the file in turn, so it stays belt-and-braces. Pass it anyway and verify the fork point right after dispatch:
 
    ```sh
    W=$(archon workflow get <run-id> | awk '/Path:/{print $2}')
