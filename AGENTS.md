@@ -106,6 +106,8 @@ PRs merge with a merge commit, never a squash — the release flow reads `develo
 
 The Archon worktrees under `~/.archon/workspaces/<org>/<repo>/worktrees/` are worktrees of your clone, not a separate checkout. They share its ref store, its config and its `origin`, so an autonomous run can move `develop` or `main` directly and bypass the PR gate above. `.githooks/pre-push` refuses a push of either branch when the push comes from a path under `.archon/workspaces/`. It leaves your own pushes alone, so read a refusal as "an Archon worktree tried this", never as "`develop` is protected".
 
+Archon also keeps a `default_branch` of its own per repository, set from whatever was checked out on its first run there and never re-read from the host. `worktree.baseBranch` in `.archon/config.yaml` overrides it, and `--from <branch>` overrides that. A bare top-level `baseBranch:` has no reader — the nesting is the whole setting. So fix a wrong fork point in that file, never in `~/.archon/archon.db`, which is one machine's row.
+
 `.git/hooks` is not version-controlled, so install it once per clone:
 
 ```sh
