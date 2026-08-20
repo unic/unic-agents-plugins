@@ -1,10 +1,23 @@
 # 0019. Conversational `/setup` + one thin tested schema lib
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended 2026-08-20 — the one surviving lib is deleted, so the
+merge and validation it held are now prose (#381)
 
 **Supersedes** [ADR-0001](0001-setup-as-slash-command.md).
 
 > **Amended (2026-07-02):** `/setup` also **discovers and registers the team's system-skills** into config — a capability→tool mapping (tracker/docs/design → `mcp | cli | skill`, MCP-first), not a presence snapshot. Discovery is **verify-only** (introspect installed skills/MCP + bash CLI probes; never installs). A missing **required** capability (incl. Matt's suite, [ADR-0021](0021-earns-its-place-compose-verbatim.md)) → **warn + degrade, non-blocking**: setup completes, records it unavailable, and lists the blocked boxes; boxes **re-probe at runtime** (MCP-first, CLI-fallback) and fail with a clear "install X".
+
+> **Amended (2026-08-20) — the thin lib is gone too.** The Decision below keeps "exactly one thin
+> tested lib" for idempotent config read-merge-write plus schema validation. `lib/config-schema.mjs`
+> is deleted with the rest of the Plugin's code, so `/setup` now merges and writes the YAML with its
+> own tools ([ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5, amended — a command cannot
+> resolve a module or the `yaml` package where it actually runs). Every invariant that ADR asked the
+> lib to hold is stated in Step 5 instead: merge `defaults < existing < answers` deeply, refuse to
+> overwrite a config that is present but unreadable, and leave a legacy `.json` untouched. What the
+> deletion costs is the automated proof of those invariants — a re-run that clobbers a partial config
+> would now be caught by reading the file or by a Consumer run, not by a test. Validation lost its
+> teeth in the same edit: no key is mandatory any more, so "schema validation" means applying stated
+> defaults, and only an absent or unreadable file stops a Box.
 
 ## Context
 

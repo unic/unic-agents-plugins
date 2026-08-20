@@ -41,37 +41,21 @@ nodes:
            `project.branching` (default "gitflow").
       3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
          - If it is absent → status "no-issues".
-      4. Resolve the TARGET REPOSITORY that the PR this run opens must be opened against. It is
-         DERIVED from this worktree, not configured:
-         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
-         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
-            set, it wins verbatim and `repo_ref_source` is "override".
-         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
-            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
-            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
-            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
-            instead of `origin`, and the PR would open on someone else's project — so the target is
-            genuinely ambiguous → status "ambiguous-repo", with `message` naming the remotes that
-            disagree. A checkout whose only remote is `origin` is never ambiguous, so an existing
-            project never reaches that guard.
-         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
-      5. If slug, config, and issues.json are all present and the repository is unambiguous →
-         status "ready".
+      4. If slug, config, and issues.json are all present → status "ready".
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
       Emit it in EVERY branch (fall back to "develop" when config cannot be read) — the
       implement-review-precheck node pins its code-review fixed point to it.
 
       Emit ONLY the structured object. `test_command` is the repo default test command you can infer
-      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one. In every
-      non-ready branch still emit each required field: `repo_ref` "" and `repo_ref_source` "origin"
-      when they cannot be resolved.
+      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one. Emit every
+      required field in every branch, so the object validates before a guard can cancel.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, no-issues, ambiguous-repo]
+          enum: [ready, no-slug, no-config, no-issues]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -81,43 +65,25 @@ nodes:
         coverage_threshold: { type: [number, 'null'] }
         test_command: { type: [string, 'null'] }
         expected_base: { type: string }
-        repo_ref: { type: string }
-        repo_ref_source:
-          type: string
-          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, expected_base, repo_ref, repo_ref_source, message]
+      required: [status, slug, artifacts_dir, gate, expected_base, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). Two
-  # guards, mutually exclusive on status, so each cancel message names the one thing to fix.
+  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). One
+  # guard, because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
+    when: "$bootstrap.output.status != 'ready'"
     cancel: >
       /build preconditions not met — see the bootstrap output for which of slug, config, or
       issues.json is missing. Run /unic-archon-dlc:tickets <slug> first to produce
       <artifacts_dir>/<slug>/issues.json.
 
   # ---------------------------------------------------------------------------------------------
-  # guard-ambiguous-repo — the ONLY repository precondition. It fires when this checkout is a fork
-  # whose parent differs from `origin` and no `project.repo_ref` override is set, because a host tool
-  # would then open the PR on the parent. A checkout with only `origin` never reaches it, so no
-  # existing project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
-  # ---------------------------------------------------------------------------------------------
-  - id: guard-ambiguous-repo
-    depends_on: [bootstrap]
-    when: "$bootstrap.output.status == 'ambiguous-repo'"
-    cancel: >
-      /build cannot tell which repository to open the PR against — see the bootstrap message for the
-      remotes that disagree. This checkout names more than one repository, so a tool that infers the
-      target from the checkout would act on the wrong one. Set `project.repo_ref` in
-      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
-
-  # ---------------------------------------------------------------------------------------------
   # slopcheck — verify every NEW package against the npm registry before any code runs.
-  # Self-contained (ADR-0023 §5): mirrors lib/slopcheck.mjs, imports nothing from the plugin.
+  # Self-contained (ADR-0023 §5): imports nothing from the plugin. It once mirrored a tested
+  # lib/slopcheck.mjs; #381 deleted that module and this node is now the only copy of the gate.
   # ---------------------------------------------------------------------------------------------
   - id: slopcheck
     depends_on: [bootstrap]
@@ -229,9 +195,9 @@ nodes:
           - `.archon/methods/tdd/SKILL.md`, plus its `.archon/methods/tdd/tests.md` and
             `.archon/methods/tdd/mocking.md`
           - `.archon/methods/implement/SKILL.md`
-        Never call `resolveMethod`: this is an Archon node, it cannot import plugin `lib/`
-        (ADR-0023 §5), so it reads the installed bundle tier directly and the config / `.local`
-        override tiers do not apply here (ADR-0031). If a file is missing, that is FATAL for this
+        Read them at those literal paths and import nothing: an Archon node cannot import anything
+        from the Plugin (ADR-0023 §5), and the config / `.local` override tiers are retired
+        (ADR-0031, amended). If a file is missing, that is FATAL for this
         node — print "tdd/implement Method not found under .archon/methods/ — run
         /unic-archon-dlc:setup" and stop. Do not proceed from memory of what these Methods say.
 
@@ -250,9 +216,10 @@ nodes:
            build-state.json. Do NOT halt the slice and do NOT ask. The choice is auditable after the
            fact by /pr-review and /improve-architecture; an unrecorded choice is the defect.
         3. **`/setup-matt-pocock-skills` never applies.** The Methods offer it as a fallback when
-           `docs/agents/issue-tracker.md` is absent. `.archon/unic-dlc.config.yaml` is this Harness's
-           single source of truth, and `setup-matt-pocock-skills` is not a Plugin dependency — running
-           it would write a competing label file (ADR-0024). Never run it.
+           `docs/agents/issue-tracker.md` is absent. `/unic-archon-dlc:setup` owns that file and
+           `docs/agents/triage-labels.md`, and `setup-matt-pocock-skills` is not a Plugin dependency —
+           a run writes another host's template over the first and reverts the second to a five-role
+           vocabulary (ADR-0024). Never run it. If either file is missing, say so and stop.
 
         Note what `tdd` says about refactoring: it is NOT part of the red → green loop, it belongs to
         the review stage. This loop therefore has no REFACTOR phase — /pr-review's `code-review` axis
@@ -349,9 +316,9 @@ nodes:
     prompt: |
       You are the implement-review-precheck node of /build for slug "$bootstrap.output.slug".
 
-      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. Never
-      call `resolveMethod` — this is an Archon node, it cannot import plugin `lib/` (ADR-0023 §5), so
-      the config and `.local` override tiers do not apply here (ADR-0031). If the file is missing that
+      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
       is FATAL for this node: print "code-review Method not found at
       .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop.
 
@@ -369,18 +336,28 @@ nodes:
         non-empty before spawning anything, as the Method requires.
       - **Step 2, the spec source:** already on disk for this slug — read
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` and
-        `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker issue
-        for each slice. Read those issues from `$bootstrap.output.repo_ref` — THIS repository, named
-        explicitly, never the one a tool infers from the checkout — by composing the system-skill the
-        team registered under `tracker.access` in `.archon/unic-dlc.config.yaml`, MCP first and its
-        CLI as fallback. Read that skill's own current interface and build the call from it; do NOT
-        write a command or flag here, and do NOT branch on which provider `tracker.type` names
-        (ADR-0016). Degrade gracefully: if the tracker cannot be queried, the PRD + issues.json are
-        enough. Never ask where the spec is.
+        `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker item
+        each slice records a `tracker_id` for. Read those items through the tracker contract below.
+        Degrade gracefully: if the tracker cannot be queried, or a slice carries no `tracker_id`, the
+        PRD + issues.json are enough. Never ask where the spec is.
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
-        applies.** `.archon/unic-dlc.config.yaml` is this Harness's single source of truth, and
-        `setup-matt-pocock-skills` is not a Plugin dependency — running it would write a competing
-        label file (ADR-0024). Never run it.
+        applies.** `/unic-archon-dlc:setup` owns that file and `docs/agents/triage-labels.md`, and
+        `setup-matt-pocock-skills` is not a Plugin dependency — a run writes another host's template over
+        the first and reverts the second to a five-role vocabulary (ADR-0024). Never run it.
+
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first. Read it before the first tracker call.
+      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
+        server's own current tool list and build every call from it. Write no command, subcommand or
+        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag table frozen in this file is stale the moment the tool changes.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      - **Work-item scope** — its § Work-item scope names the one filter every search applies,
+        including an idempotency check.
+      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/issue-tracker.md", and act on nothing.
 
       Then follow the Method's steps 3–5 verbatim, including its own parallelism: send ONE message
       with two `Agent` tool calls using the `general-purpose` subagent, one per axis. Paste the Method's
@@ -389,8 +366,8 @@ nodes:
       `## Spec`; never merge or rerank the two axes.
 
       ## This node POSTS NOTHING
-      Run no tracker or PR mutation of any kind: no PR comment, no comment edit, no write call
-      against the tracker's API by any route, no issue creation, no label change, no thread. The
+      Run no tracker or PR mutation of any kind: no discussion on a PR, no edit to one, no write call
+      against the tracker's API by any route, no item creation, no role change, no discussion. The
       read-only issue queries in step 2 are the only tracker traffic allowed here. /pr-review is the
       only Box with posting authority; this axis pair is here to inform the build report and the human
       at build-pr-gate. Emit the aggregated `## Standards` / `## Spec` text as `findings` for the
@@ -542,7 +519,7 @@ nodes:
       // (Never write a placeholder node id anywhere in this body, comments included. The DAG
       // loader reads every dollar-prefixed node-output token here as a real edge, so a placeholder
       // makes the whole Box fail to load with "references unknown node". A comment on this very
-      // spot once did exactly that. `test/box-workflow-node-refs.test.mjs` now guards it.)
+      // spot once did exactly that. Nothing guards it now — read for it (#381).)
       const verificationPassed = $verification.output.passed
       const goalsCheckPassed = $goals-check.output.passed
       const verificationFailures = $verification.output.failures
@@ -617,8 +594,19 @@ nodes:
       You are the open-pr node of /build for slug "$bootstrap.output.slug".
 
       Constants:
-        SESSION     = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
-        TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
+        SESSION = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
+
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first. Read it before the first tracker call.
+      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
+        server's own current tool list and build every call from it. Write no command, subcommand or
+        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag table frozen in this file is stale the moment the tool changes.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/issue-tracker.md", and act on nothing.
 
       1. Build the stage list. It is EXACTLY these named paths — an explicit list, never "everything
          changed by the build":
@@ -654,7 +642,8 @@ nodes:
 
       2. Commit the staged set: `build($bootstrap.output.slug): session artefacts`.
 
-      3. Open a PR against TARGET_REPO, targeting `$bootstrap.output.expected_base`:
+      3. Open a PR against the repository the tracker contract above names, targeting
+         `$bootstrap.output.expected_base`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
                   ## Review Checklist
@@ -664,19 +653,15 @@ nodes:
                   - [ ] Tech-debt section in report.md is accurate
                   - [ ] Drafted ADRs (if any) are ready to record
 
-      ## Act on THIS repository
-      Name TARGET_REPO explicitly when you open the PR. Act on THIS repository, never the one a tool
-      infers from the checkout — in a fork clone those differ, and the PR opens on someone else's
-      project. Compose the system-skill the team registered under `tracker.access` in
-      `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading that skill's own
-      current interface and building the call from it. Do NOT write a command, subcommand or flag
-      here, and do NOT branch on which provider `tracker.type` names: the DLC owns the what and none
-      of the how (ADR-0016), and a flag table frozen in this file is stale the moment the tool
-      changes. If the registered skill cannot target a repository explicitly, STOP: print "BLOCKED:
-      the registered tracker skill cannot target a repository explicitly — <the missing capability>"
-      and open nothing.
+      4. Link the PR to its work. SESSION/issues.json carries a `tracker_id` for each slice
+         `/tickets` published. Link every one of those items to this PR through the registered
+         skill's own link capability — a pull request and a tracker item each carry a links
+         collection, and that collection is discoverable. Name no text token: a token written here
+         picks one host's convention and freezes it. If the skill exposes no link capability, list
+         the ids in the PR body under `## Work items` and say the links were not created. A slice
+         with no `tracker_id` is reported, never invented.
 
-      4. Print the PR URL and TARGET_REPO.
+      5. Print the PR URL and the repository it was opened against.
 
   # ---------------------------------------------------------------------------------------------
   # build-pr-gate — HITL by default; skipped when gates.build == afk (PR already open above).
@@ -707,7 +692,7 @@ nodes:
           resolves OUTSIDE the repo tree under `~/.archon/workspaces/<name>/artifacts/`. Then run
           `git status --porcelain` and confirm the staged set is exactly the files you named,
           unstaging anything else with `git restore --staged <path>`. Push to the PR branch that is
-          already open on $bootstrap.output.repo_ref — this repository, never one a tool infers.
+          already open on the repository `docs/agents/issue-tracker.md` § Addressing names.
 
           Then the gate re-pauses for another review.
         max_attempts: 3

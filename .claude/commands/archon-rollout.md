@@ -47,7 +47,7 @@ Dispatching spawns autonomous agents and consumes significant tokens, so **alway
 
 Run each `archon workflow run` in the **background** (`run_in_background: true`) — the workflow blocks the shell. Always pass `--branch` **and `--from develop`**.
 
-**`--from develop` is not optional.** Archon forks a new worktree from `main` by default, whatever the branch name says. `main` trails `develop` by every unreleased commit, so a run without `--from develop` works against a tree that lacks the ADRs, tests and conventions Step 2 just verified — and Step 2 passes anyway, because it inspects `develop`, not the worktree. After dispatch, before arming the monitor, verify the fork point:
+**`--from develop` is not optional.** `.archon/config.yaml` sets `worktree.baseBranch: develop` and that key now resolves, but the flag is what a reader of the dispatch line can see, and it overrides the file. A run that loses both forks from Archon's stored default branch, whatever the branch name says. That value is per clone and arbitrary — Archon sets it from whatever was checked out the first time it ran there — so treat it as unknown until you read it. It was `main` here when PR #397 measured it, and `main` trails `develop` by every unreleased commit, so a run without `--from develop` works against a tree that lacks the ADRs, tests and conventions Step 2 just verified — and Step 2 passes anyway, because it inspects `develop`, not the worktree. After dispatch, before arming the monitor, verify the fork point:
 
 ```sh
 git -C "$HOME/.archon/workspaces/<org>/<repo>/worktrees/archon/<archon-branch>" rev-parse --short HEAD
@@ -55,6 +55,25 @@ git -C <your-checkout> rev-parse --short develop     # the two must match
 ```
 
 If they differ, the run is on the wrong base: abandon it (`archon workflow abandon <run-id>`), then follow the clean re-run runbook below before re-dispatching.
+
+**The branch you pass is not the branch you get.** Archon derives its own name from yours, prefixes `archon/task-`, and truncates it — often mid-word and often to a trailing `-`:
+
+```
+passed   feature/unic-archon-dlc/329-collect-label-mapping-in-setup
+created  archon/task-feature-unic-archon-dlc-329-collect-label-mapping-
+passed   feature/unic-archon-dlc/294-install-archon-artefacts
+created  archon/task-feature-unic-archon-dlc-294-install-archon-artefac
+```
+
+`--branch` still matters — it is what makes the issue number and slug legible on the remote — but Standing rule #1's `feature/<scope>/<issue#>-<slug>` describes what you **pass**, not what lands. Read the real name from `archon workflow status` or `git ls-remote --heads origin`, and never assume the branch you named exists.
+
+Two consequences when you inspect that branch locally. A trailing `-` breaks `git show <branch>:<path>`, so fetch it into a name you choose — the refspec needs no quoting, which keeps it working in `cmd.exe` as well as a POSIX shell:
+
+```sh
+git fetch origin refs/heads/<real-name>:refs/heads/pr<n>
+```
+
+And never reach for `FETCH_HEAD` — any intervening `git fetch origin` repoints it silently, so `git checkout -B work FETCH_HEAD` can land you on `develop` while you believe you are on the PR branch. Check `git rev-parse --short HEAD` against the PR's head commit before you edit anything.
 
 **Parallelism rule:** dispatch concurrently **only** when issues share zero files (different package/plugin, no overlapping module). Issues editing the same file, or one `blocked-by` another, run **serially** — dispatch the next only after the prior PR **merges to `develop`**.
 

@@ -3,9 +3,26 @@
 # Reference: https://archon.diy/reference/configuration/
 
 # Gitflow: every Archon worktree forks from `develop`, never `main`.
-# Without this key Archon auto-detects the base and picks `main`, which silently
-# produced a 44-commit-stale branch for issue #289 (PR #306, closed unmerged).
-baseBranch: develop
+#
+# WHY THIS KEY EXISTS
+#
+# Archon keeps a `default_branch` of its own per repository, set from the branch
+# that was checked out the first time it ran here, and it never re-reads the
+# host's default. Measured 2026-08-19: GitHub says `develop`, Archon's row said
+# `main`. Without this key every run falls through to that row, which is how
+# issue #289 got a 44-commit-stale branch (PR #306, closed unmerged).
+#
+# FIX THE FILE, NOT THE DATABASE
+#
+# Archon's row lives in `~/.archon/archon.db`, one machine at a time. Editing it
+# fixes one laptop and nobody else. This file travels with the clone.
+#
+# Note the key path. It is `worktree.baseBranch`, nested. A bare top-level
+# `baseBranch:` is a different key with no reader. This file held one from the
+# day it was created until PR #397, so the fallback ran on every run and the
+# setting looked applied.
+worktree:
+  baseBranch: develop
 
 #
 # Examples:

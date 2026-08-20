@@ -1,7 +1,48 @@
 # 0036. `/setup` owns a named install set; a Box workflow retires by name, never by header
 
 **Status:** Accepted (2026-08-12); records the design after amending #294's acceptance criteria,
-which replaced the header-gated implementation PR #333 shipped
+which replaced the header-gated implementation PR #333 shipped; amended 2026-08-14 — D1's "one
+declared install set" is one shared engine rather than one declared list, and the record file the
+Consequences defer to #295 is not built (#295); amended 2026-08-20 — every install function named
+below is deleted while every decision it held is unchanged (#381)
+
+> **Amended (2026-08-14):** two corrections, both recorded while implementing
+> [#295](https://github.com/unic/unic-agents-plugins/issues/295). Neither changes a decision; each
+> narrows a sentence that claims more than the merged code does. `CONTEXT.md`'s **Install set** and
+> **Generated header** entries already state both — read those first; this amendment only says which
+> wording here they correct.
+>
+> **D1's "one declared install set" is one shared engine, not one declared list.** `installArtefacts`
+> is the single tree-install function, and that much holds. What does not is the implication that some
+> one place declares the whole set: two callers build entries and call it independently —
+> `installMethods` (`lib/methods-bundle.mjs`) and `installBoxWorkflows` (`lib/artefact-install.mjs`) —
+> and `/setup` Step 5 writes `.archon/unic-dlc.config.yaml` with a bare `writeFileSync`, outside the
+> engine altogether. Nothing iterates a declared set, and unifying the callers into one is not planned
+> (#295's out-of-scope list). See `CONTEXT.md` § **Install set**.
+>
+> **The record file the Consequences above defer to #295 is not built.** Per-file provenance is the
+> generated header (`renderGeneratedHeader`), whose first line names the Plugin and the version that
+> wrote the file — so the "install provenance" #295 was left to carry already existed on disk when that
+> issue came to be implemented. #295 therefore widens what the install already computes and discards:
+> `installArtefacts` returns the `added` paths, `installBoxWorkflows` returns the `previousVersion` it
+> reads from the header before the write loop, and `/setup` Step 8 prints both. No
+> `.archon/unic-dlc.install.json`, no hash, no timestamp — a hash is what hand-edit detection would
+> need, and that is a separate question whose baseline is `git diff` over the committed Box YAMLs (D4
+> above). See `CONTEXT.md` § **Generated header**.
+
+> **Amended (2026-08-20) — the rules stand, the module does not.**
+>
+> `lib/artefact-install.mjs` and `lib/methods-bundle.mjs` are deleted with the rest of `lib/`, so every
+> `installArtefacts` / `installMethods` / `installBoxWorkflows` reference below names a function that no
+> longer exists. **Every decision this ADR records is unchanged** — the install set is name-scoped, the
+> stale sweep retires a `unic-dlc-*.yaml` whether or not it carries the generated header, a name outside
+> that pattern is never read, and the set is discovered from the directory rather than listed by hand.
+> `/setup` Step 6 now states those rules in prose and the agent applies them with its own tools.
+>
+> One rule this ADR relied on the module for is now the operator's: `/setup` must locate the Plugin's own
+> installed directory before it can copy anything out of it, because `$CLAUDE_PLUGIN_ROOT` is not set
+> inside the Bash tool. Step 6 finds the directory, confirms it, and stops rather than guessing. #383
+> settles the mechanism.
 
 ## Context
 

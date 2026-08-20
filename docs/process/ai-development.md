@@ -37,12 +37,54 @@ GitHub Issue / /triage  ← raw capture, no review required
 /to-spec                ← human approves the seams, then it publishes
        ↓
 /to-tickets             ← human approves the breakdown, then it publishes
-                           `ready-for-agent` — this is the last checkpoint
+                           `ready-for-agent`
        ↓
 /tdd or /implement      ← execution, or /archon-rollout for a chain
 ```
 
-The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution there is no human in the loop until PR review.
+The pipeline is load-bearing. The quality of the execution at the bottom depends entirely on the quality of the decisions captured at each stage above it. A vague acceptance criterion that slips through triage will produce a vague implementation. Under manual `/tdd` you can still catch it interactively; under AFK execution nothing catches it, which is why the approval inside `/to-tickets` is the checkpoint that has to hold.
+
+What makes a criterion good enough for both audiences lives in the root [`AGENTS.md`](../../AGENTS.md), "Acceptance criteria are prose" — always loaded, so no session has to reach for it.
+
+**Keep the ready queue short: grill late, dispatch soon.** A ticket that has sat `ready-for-agent` for more than a few days describes a tree that has moved; re-grill it or close it rather than auditing it back into shape. This is the trade that replaced a pre-dispatch audit — occasionally a stale ticket ships a wrong pull request, and the cost is that one run against the two and a half hours the audit charged before every night shift.
+
+### A gate that cannot fail is not a gate
+
+State every check so that **not having run** fails it. A check whose "found nothing" is indistinguishable from "never executed" reports success for work it did not do, and it does so most convincingly on the night nobody is watching.
+
+Four instances, all found in this repo within a fortnight:
+
+| Check                                                                                   | How it failed open                                                                                                    |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| A PR-review gate written as "the review has returned and carries no unresolved finding" | A review that never happened has no findings. Absence satisfied it                                                    |
+| `pnpm --filter <pkg> --if-present verify:changelog`                                     | A package with no such script reported success, hiding that the gate never ran (#340)                                 |
+| The changelog gate's allow-list of guarded paths                                        | It omitted `lib/**`, so a change confined there was ungated. An allow-list rots every time a plugin grows a directory |
+| A test guarding three sentences of prose in `commands/setup.md` (#329)                  | Its comment claimed it protected the paragraph; each regex anchored one line, and the load-bearing sentence had none  |
+
+The repair is the same in each case: assert the positive. A review must **exist** and be newer than the head commit. A configured step must actually have a script. A guard should deny-list what is exempt rather than allow-list what is covered, so a new directory is covered on arrival.
+
+The fourth is worth its own sentence, because it is the one that looks least like a gate. A **prose guard** — a test asserting that a sentence still exists in a Markdown prompt — is the only protection an instruction gets, since no test executes it. Its comment describes the intent; its regexes describe the coverage; nobody compares the two. Count the assertions against the sentences you meant to hold, and prove each one by deleting its sentence and watching the test go red.
+
+### A sweep confirms its instrument, not its claim
+
+A claim is made by **shape** as often as by phrasing, so a completeness sweep searches for both. #363 published a phrase sweep — `last checkpoint`, `only gate`, `nothing downstream` — and five audit rounds re-ran it and confirmed it. The root `AGENTS.md` carried the same claim in its Feature-driven development paragraph, with none of those words: it made it as a pipeline arrow chain with no audit stage in it. Nobody found it by sweeping. The shape sweep written afterwards has its own blind spot — its regex refuses to cross a `|`, so it cannot see a table row, which is where `docs/process/development-workflow.md` was still saying the old thing.
+
+Two instruments, two blind spots, and their union is still not provably complete. So **reading is the instrument and the sweep is the check on the reading**, never the other way round. Re-running someone else's command tells you their command still behaves the same way. It tells you nothing about whether the claim is true.
+
+### Two readers see different things, and you need both
+
+Both read a diff, after the code exists. Each holds it against a different thing, and each is blind where the other looks:
+
+| Reader                        | Holds the code against    | Blind to                       |
+| ----------------------------- | ------------------------- | ------------------------------ |
+| **Acceptance-criteria audit** | what the ticket asked for | anything no criterion mentions |
+| **Automated code review**     | the code itself           | what the ticket wanted         |
+
+A PR merged in this repo passed nine CI checks and an AC audit that found every criterion met, and still implemented the wrong rule: it gated a deletion on a file header rather than on the file's name, so the very artefacts the issue existed to remove survived. What caught it was a review comment pointing at a **different** file — the README sentence promising behaviour the code did not provide. The audit could not have found it, because no criterion mentioned that sentence.
+
+Both readers work on a diff, and that is the point. Reading a ticket against a tree — guessing which surfaces the work **will** touch — stops at the surfaces the ticket names, which is how #329's `README.md` survived a check that had already read `AGENTS.md` and `CONTEXT.md` and concluded the issue needed no documentation criterion. The AC audit found it once the code existed. Neither reader is a cheaper version of the other, and passing one is not evidence about the other.
+
+Run both. When they disagree, the disagreement is the finding. When one is skipped, say so — on that same PR, the automated review ran with two of its dimensions silently absent, and the completion report flagged them rather than counting them clean. That flag was the only reason anyone knew the review was narrower than green suggested.
 
 ---
 
@@ -58,36 +100,7 @@ Phase 2 is where that chain is forged — `/wayfinder` across sessions, or `/gri
 
 ---
 
-## 4. Writing issues that AFK agents can execute
-
-An issue's `## Acceptance criteria` is doing two jobs: it is the definition of done for the human reviewer, and it is the planning conversation substitute for any AFK agent. It must be specific enough for both audiences.
-
-**Good acceptance criteria** are checkable without ambiguity:
-
-```markdown
-## Acceptance criteria
-
-- [ ] `grep -nF '🤖 *Reviewed by Claude Code*' commands/review-pr.md` → matches at every signature location
-- [ ] `pnpm --filter pr-review test` passes
-- [ ] `pnpm typecheck` passes
-```
-
-**Bad acceptance criteria** leave the agent to interpret intent:
-
-```markdown
-## Acceptance criteria
-
-- [ ] The feature works correctly
-- [ ] Tests pass
-```
-
-The `to-tickets` skill produces acceptance criteria — but an agent authors them. You review them **inside the skill**, while it iterates on the breakdown with you. It publishes only once you approve, and the `ready-for-agent` label it applies is that approval. Nothing downstream re-checks, so this in-session review is the last human checkpoint before AFK execution. Use it.
-
-If an issue's acceptance criteria are too vague to verify without judgment, do not approve the breakdown. Send the ticket back for rework in the same session, or once published, relabel it `needs-specs`.
-
----
-
-## 5. Dependency ordering
+## 4. Dependency ordering
 
 `to-tickets` publishes blockers first, so issue numbers usually ascend in dependency order — and in its local-file mode, filenames carry an explicit `01-`, `02-` prefix for readability. Either way, **that order is not the execution contract**.
 
@@ -99,7 +112,7 @@ The dependency graph also reveals which issues are parallelisable (those with no
 
 ---
 
-## 6. CONTEXT.md and ADRs as living constraints
+## 5. CONTEXT.md and ADRs as living constraints
 
 `CONTEXT.md` and `docs/adr/` are not documentation you write once and forget. They are the vocabulary and constraint layer that every agent reads before writing code. Their quality directly affects the quality of every execution — manual or AFK.
 
@@ -113,7 +126,7 @@ The commits from your grilling sessions carry this context forward. When an AFK 
 
 ---
 
-## 7. Historical: docs/plans/ and the interim `/implement-feature` skill
+## 6. Historical: docs/plans/ and the interim `/implement-feature` skill
 
 Two earlier execution paths have been retired:
 

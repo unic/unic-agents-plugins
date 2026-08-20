@@ -11,6 +11,235 @@
 ### Fixed
 - (none)
 
+## [0.23.0] — 2026-08-19
+
+### Breaking
+
+- **`lib/` and `test/` are deleted — the plugin ships zero code and zero runtime dependencies.** Twelve modules and nineteen test files, 6413 lines. The `yaml` dependency goes with them, and so do the `test` and `typecheck` scripts, `tsconfig.json`, and `test/test-enumeration.test.mjs`, which existed to guard the `test` script's hand-list of files. `verify:changelog` stays: CI runs it on every PR. The plugin is now seven command prompts, four Archon Box YAMLs, the Method Bundle and its documentation — which is the bar the root `AGENTS.md` sets with `auto-format`.
+- **Every command reads config, the tracker contract and its Methods with its own tools.** No command shells out to Node, imports a plugin module, or reads `$CLAUDE_PLUGIN_ROOT`. This is what makes them run at all: measured on 0.22.0 in a Consumer that installed the plugin through the marketplace, all seven commands loaded and **none ran past Step 1**. `$CLAUDE_PLUGIN_ROOT` is not set inside the Bash tool, so each Step 1 halted while printing advice the operator had already followed; and `lib/config-schema.mjs`, `lib/methods-bundle.mjs` and `lib/schema-traps.mjs` imported bare `yaml`, declared `"yaml": "catalog:"` — the pnpm workspace protocol, unresolvable outside this monorepo whether or not `node_modules` is present. Shipping the directory would have moved the failure, not fixed it. The four Archon Boxes were unaffected and are untouched: they never imported `lib/`, which is what made the prompt-node shape the model for the rewrite ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5, amended — the rule no longer exempts the commands).
+- **A Method resolves at one path: `.archon/methods/<name>/SKILL.md`.** The `config` tier (`methods.<name>.source`) and the `local` tier (`.archon/methods.local/<name>/SKILL.md`) are retired, and with them the resolution order, the `methods: to-spec(bundle) · …` tier line every command printed, and the `forked_from` frontmatter convention. The tiers only ever reached the command half — an Archon node could not import `resolveMethod`, so the Boxes had been reading the single literal path since they shipped. Retiring them makes the two halves agree. To change a Method now, edit the installed file and expect the next `/setup` run to overwrite it. A `.archon/methods.local/` directory left by an earlier version is reported once as retired and left on disk. `methods.<name>.source` leaves the config reference, and `.archon/methods.local/` leaves the Consumer `CLAUDE.md` block ([ADR-0031](docs/adr/0031-methods-bundled-three-tier-resolution.md), amended).
+- **The four Box prompts stop naming `resolveMethod`.** Seven node prompts told an agent "never call `resolveMethod`, since an Archon node cannot import plugin `lib/`" — a prohibition on a symbol that no longer exists, in a directory that no longer exists. Each now states the rule the deletion actually leaves: a Method lives at one path, an Archon node cannot import **anything** from the Plugin, and the override tiers are retired. Only prompt prose changed — every node's `depends_on`, `when`, `approval` gate, `always_run`, `context`, `loop` and `allowed_tools` is byte-identical to `0.22.0`. The `lib/*.mjs` mention in `unic-dlc-explore.yaml`'s repo-survey step stays: it is advice about the **Consumer's** own code, in whatever repository the Box runs in, and never referred to this Plugin. Consumers carrying a hand-copied Box need a re-copy — the Boxes are the manual half of the port ([#373](https://github.com/unic/unic-agents-plugins/issues/373)).
+- **No config key is mandatory.** The most a missing config now does is stop a command, and only when `.archon/unic-dlc.config.yaml` is absent or unreadable; a config that parses is one every Box can run on, with each absent key falling back to the default now stated in the command's own Step 1 table. Two commands do not even stop: `/cleanup` and `/improve-architecture` are off-line and touch no tracker, so an absent config leaves them warning once and continuing on defaults — which is what they did before this change, and is deliberately unchanged. `project.branching` was the one entry in `MANDATORY_PATHS`, and `/build`'s bootstrap node already defaulted it — so the old refusal stopped a command over a key a Box was happy to default. `/setup` still treats it as the key that decides a `partial` config from a `full` one.
+- **The dependency list is the table under [README.md § Dependencies](README.md#dependencies) itself.** It was a mirror of `providedTo` in `lib/methods-manifest.mjs`, checked by `test/methods-manifest.test.mjs`; both are deleted, and nothing generates or checks the table now. Edit it by hand, in the same commit as the command or Box whose Methods changed, and restate the list nowhere else. What this gives up is the upstream-rename tripwire, and it is worth naming: that test compared two hand-written surfaces inside this repository and never watched upstream, so it could not have caught the v1.1.0 rename wave it was written for. The pinned licence hash and the `upstreamPath` closure check go the same way. The upstream repository, tag and commit stay recorded in `vendor/mattpocock-skills/README.md`, and the root `AGENTS.md` now names the moment the check happens: diff the vendored tree against the new upstream tag by hand, in the commit that moves the pin.
+
+### Added
+
+- **The prose-Box quality bar, in the root `AGENTS.md`.** A Box is prose, so its bar is a run and a read: it runs where it ships (installed through the marketplace into a Consumer, with no `node_modules` and no hand-set environment variable), its rules are stated inline in every prompt that must honour them, and what it depends on is written once. The passage names what the bar gives up rather than hedging it — an unsafe `git add -A` and a repository derived from a remote URL now merge green if nobody reads the diff, since `test/box-staging-and-repo-pinning.test.mjs` grepped every Box YAML for both and nothing replaces it. Closes the question #380 asked.
+
+### Fixed
+
+- **`setup.md` and `archon-upgrade.md` declared `allowed-tools: ['Bash']`.** A command that reads config in prose needs `Read`, so both would have failed on the first read even with `lib/` gone — the criterion "no command imports a plugin module" can pass while the command still cannot open a file. `setup.md` gains `Read`, `Write`, `Edit` and `Glob`; `archon-upgrade.md` gains `Read` and `Glob` and deliberately no `Write`, which is now the frontmatter's own statement of its read-only claim.
+- **`/archon-upgrade` Step 5 checks the Boxes that are installed, not the ones in the plugin directory.** It read `$CLAUDE_PLUGIN_ROOT/.archon/workflows/` through `lib/schema-traps.mjs`; it now reads `.archon/workflows/unic-dlc-*.yaml` in the repository it runs in — the copies a run would actually use — and checks [ADR-0011](docs/adr/0011-archon-schema-target.md)'s four conventions itself. A file it cannot read is a FAIL, never a silent PASS. Step 1 compares `archon --version` against the `0.7.0` floor stated in the command.
+- **The heredoc shell requirement is gone from all seven commands.** Each one opened with a note that Steps 1 and *n* need a POSIX shell, and that Windows means WSL2 or Git Bash. No command runs a heredoc now, so all seven work on cmd.exe and PowerShell unchanged.
+- **The default PRD scaffold lives in `commands/specs.md` Step 7.** It was `DEFAULT_PRD_TEMPLATE` in `lib/config-schema.mjs`. `templates.prd` is still how a team overrides the PRD shape ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), amended); the default is now prose in the one Box that writes a PRD.
+
+## [0.22.0] — 2026-08-18
+
+### Breaking
+
+- **A `state`, `type` or `priority` role is single-valued, and a Box now retracts before it writes.**
+  Moving the axis into the contract made a defect reachable that the config shape could not express:
+  before this, every state role resolved to a single-value field, so writing one replaced the last. A
+  contract may put a state role on a **multi-value** axis, where writing adds and the previous role
+  stays — so `/tickets` wrote a role nothing cleared and a shipped item still read as ready for an
+  agent. Every Box and command that writes a role now reads the other rows of that tier and retracts
+  each one whose axis holds many values. A single-value axis retracts itself.
+- **`docs/agents/triage-labels.md` carries a `Holds` column**, `one` or `many`, on every row. A Box
+  reasons about cardinality and **never** about an axis name: `Tag` and `Label` are host words, and a
+  rule phrased on one is wrong on the next host — the defect ADR-0016 forbids in a prompt, one level
+  up. A contract written before this needs the column added.
+- **`/qa`'s `merge` node writes the `resolved` role on every item the pull request links**, after the
+  merge lands, reading the links collection `/build`'s `open-pr` created. This is the one point where a
+  state role moves after `/tickets` wrote `ready-for-agent`, so it is where the retraction above fires.
+  A tracker that cannot set the role says so and merges anyway; the PR is already merged when this
+  runs, so a failure here is reported and never retried into a second merge.
+
+- **The tracker contract left `.archon/unic-dlc.config.yaml` and moved into two repo-local prose
+  files.** `docs/agents/issue-tracker.md` carries **Access** (which MCP server or skill serves this
+  tracker), **Addressing** (the repository) and **Work-item scope** (the one filter every search
+  applies); `docs/agents/triage-labels.md` carries the seventeen canonical roles, each row naming its
+  value **and** the axis that carries it. Every Box and command reads those two files. Deleted from the
+  config with it: the whole `tracker` block, `classification.labels`, `project.pr_strategy` and
+  `project.repo_ref`. `MANDATORY_PATHS` is `project.branching` alone. A config that still carries the
+  retired keys keeps them and validates — nothing reads them.
+- **No Box derives a repository from a remote URL, and the `ambiguous-repo` guard is gone.** One remote
+  has several spellings and a fork clone names two repositories, which is why the old `origin`
+  derivation needed an override key and an ambiguity guard to correct itself. `docs/agents/issue-tracker.md`
+  § Addressing states the repository as a fact, so all three are deleted. Each Box now has one guard,
+  `guard-not-ready`, firing on every non-ready status. A node that cannot find the contract file STOPS
+  and says so; it never guesses.
+- **The merge style is the host's, not `/qa`'s.** `/qa`'s `merge` node reads no `project.pr_strategy`:
+  it uses whatever the repository's branch policy allows, and where that policy allows a choice the
+  team's own `CLAUDE.md` states the rule.
+
+### Added
+
+- **The transition table in `AGENTS.md` — every point the Harness writes a Canonical role, and which
+  one.** The two holes above stayed invisible while the writes were scattered, and "before you write a
+  role" cannot be checked without a list of the places that do. One row records that **`/build` writes
+  no role on purpose**: `open-pr` links each work item to the pull request and every host surfaces that
+  link on the item, so "an agent has started this" needs no `in-progress` role — adding one would
+  change the protocol every Box shares to duplicate a signal the host already gives.
+- **The plugin states that an extra row in `triage-labels.md` changes no Box.** A Box names its roles
+  literally, so a team-added role is inert, by design: the Canonical roles are the protocol the Boxes
+  share. A team owns each role's value, axis and cardinality, never the role set, and the door for
+  different behaviour is a Method fork — a transition is procedure, not a parameter.
+
+- **`/tickets` writes each published item's tracker id into `issues.json`.** A slice's `id` addresses
+  nothing outside the file, so without a `tracker_id` nothing downstream can reach the tracker item:
+  `/build`'s code-review pre-check cannot read its intent and `open-pr` cannot link it. The gap is
+  host-agnostic — no host closes an item from a PR body that carries no id — so the id is written here
+  on every host. A slice whose publish failed keeps `tracker_id` absent and is reported as unpublished,
+  never given a placeholder.
+- **`/build`'s `open-pr` links each work item to the PR through the registered skill's own link
+  capability.** A pull request and a tracker item each carry a discoverable links collection, so the
+  Box says "link" and names no text token — a token written into a prompt picks one host's convention
+  and freezes it. Where no link capability exists, the ids go in the PR body under `## Work items` with
+  a note that the links were not created.
+
+### Fixed
+
+- **The rule that a row with no axis writes nothing now appears at every surface that writes a role.**
+  It shipped in `/triage` alone, which left the escape hatch documented in one place and unimplemented
+  in three: `/tickets`, `/explore`'s `spike-ticket` and `/qa`'s finding-capture.
+- **`CONTEXT.md` defines `Holds`.**
+
+- **`/pr-review` promises a pull-request *discussion*, not a PR-level comment.** The review addresses
+  the whole PR, so it posts a discussion on the pull request itself: one host carries that as a thread
+  with no file anchored to it, another as a comment on the PR, and the Box asks which rather than
+  assuming. Its marker scan also walks each thread's replies, because a host may nest a reply under its
+  parent instead of listing every comment flat.
+- **`/cleanup` names no provider and no subcommand where it tells a reader to compose the tracker.**
+  The stale-PR row stated the rule and then broke it with two provider names and a subcommand inside
+  the sentence that forbids them. It now says to read the server's own close capability from its
+  current tool list, and to close nothing where none exists.
+- **ADR-0024 says which of its rules are dead.** Its compose rule — that Matt's setup artefacts are
+  never consulted in a DLC flow — is reversed: those two files are the contract now, and the two-writer
+  problem the rule solved is solved instead by removing one writer. Its 2026-08-11 "the tier carries
+  the axis" amendment is disproved: measured on a live tenant, five of the eight state roles cannot be
+  states at all — writing a state while work is open moves an already-active item backwards on the
+  board — so **the axis belongs to the role**. ADR-0025, 0028,
+  0029, 0032 and 0033 carry a pointer to the amendment; ADR-0033's "Repository derivation" section
+  describes a mechanism that no longer exists.
+- **`CONTEXT.md` defines **Tracker contract** and **Axis** where it defined **Repository derivation**
+  and **Label string**.**
+- **`AGENTS.md` records that a project-scoped MCP server in the Consumer's `.mcp.json` reaches a Box.**
+  Every Box that composes the server its contract names depends on this and nothing had tested it: an
+  Archon run under `~/.archon/workspaces/…/worktrees/` loaded the registered tracker server and read
+  work items, pull requests and threads. A personal-scope server does not travel that way.
+
+## [0.21.0] — 2026-08-14
+
+### Breaking
+- (none)
+
+### Added
+- **The `/setup` Step 8 summary says which version it upgraded from, and which Boxes are new.** The
+  summary listed the paths it wrote and the paths it swept, so an unchanged re-install and an upgrade
+  read identically, and a newly shipped Box was indistinguishable from one that was already installed
+  and overwritten. Both answers were already computed inside the install and discarded. Step 8 now
+  opens with a version line in one of three forms — `first install`, `upgraded from: unknown`, or
+  `upgraded from: {previous} → {current}` — and carries a `workflows added:` line beside the existing
+  `workflows written:` and `workflows removed:` lines. All three name paths, never a count. The line
+  is informational: Step 6 runs unattended on the upgrade path, so nothing here prompts or gates.
+  `installArtefacts` returns `added`, derived from the two name sets its stale sweep already reads and
+  issuing no second `readdir`; `installBoxWorkflows` returns `previousVersion`, parsed from the
+  generated header of the first shipped-and-present Box in sorted order and read **before** the write
+  loop — after it, every header names the version being installed. `previousVersion` is `null` on a
+  fresh Consumer, against a file carrying no generated header, and against a header naming no version;
+  headers are never cross-checked between files. No install record, no hash and no timestamp: install
+  provenance is the per-file generated header, and a timestamp would dirty `git diff` on every
+  idempotent re-run. See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md), amended
+  2026-08-14 — its D1 wording ("one declared install set") describes the shared `installArtefacts`
+  engine, which has two independent callers plus Step 5's own config write, and the record file it
+  deferred to this change is not built.
+
+### Fixed
+- (none)
+
+## [0.20.0] — 2026-08-13
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Changed
+- **The `CLAUDE.md` block `/setup` writes describes the Consumer's own disk, and its heading is now
+  `## unic-archon-dlc`.** Step 7 used to restate this Plugin's box set and pipeline order, both of
+  which a Plugin release renames and reorders with no change on the Consumer's side —
+  `/archon-upgrade` had already fallen out of the list unnoticed. The block now names no pipeline
+  stage, and no Box but `/unic-archon-dlc:setup`, which it cannot leave out without losing the one
+  name that says what regenerates it. It carries the config path and its `classification.labels` sentence,
+  `.archon/workflows/` with the `unic-dlc-*.yaml` naming plus `archon workflow list` and
+  `archon workflow run <name> "<slug>"` to see and run what is installed there, `.archon/methods/`
+  as replaced wholesale on every run with `.archon/methods.local/` as the override tier, and a link
+  to this Plugin's README for what each Box does. The `<!-- unic-archon-dlc:begin -->` /
+  `<!-- unic-archon-dlc:end -->` markers are unchanged, so an existing Consumer's next `/setup` run
+  replaces the old block in place. Step 7 now says in one voice that the **whole** marker-delimited
+  block is what gets replaced, markers included — the canonical snippet it prescribes opens and
+  closes with those markers, and "write this between the markers" would have nested a second pair on
+  every refresh. The "auto-managed" framing is dropped: nothing detects a hand-edit between the
+  markers, and nothing will. See
+  [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md) (amended 2026-08-13), whose known item this
+  settles.
+- **Amending a Plugin ADR now has a recorded form.** `docs/adr/README.md` binds every later amender
+  to a dated `> **Amended (YYYY-MM-DD):**` blockquote below the status line, plus a status-line note
+  and an index update — never the root repository's `## Amendment (YYYY-MM)` section. The rule is
+  named here because the next amender reads this file, not the ADR index.
+- **`AGENTS.md` and `CONTEXT.md` follow the rename**, `AGENTS.md`'s doctrine bullet states the rule
+  the block now follows, and both stop listing `/handoff` as a Box this Plugin owns — it is one of
+  Matt's skills, referenced in prose and never implemented here.
+
+### Removed
+- **`lib/dogfood-banner.mjs` and `test/dogfood-banner.test.mjs` are deleted.** No importer outside
+  that test. Its `AGENT_DOC_BANNER` named `lib/agent-docs-writer.mjs` as its source and
+  `runInstall()` in `lib/install-runner.mjs` as its regenerator — neither module exists — making it
+  the last live claim in `lib/` that `/setup` writes agent docs.
+- **`lib/handoff-generator.mjs` and `test/handoff-generator.test.mjs` are deleted.** No importer
+  outside that test. `updateRoadmap` wrote a `docs/workflow/ROADMAP.md` that
+  [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md) retired, and `/handoff` is Matt's
+  skill, referenced and never implemented here. Both test file names left `package.json`'s `test`
+  script with them.
+
+### Fixed
+- **Step 4's `docs` field no longer claims Step 6 writes `docs/agents/*.md` files.** It installs the
+  Methods bundle and the Box workflows; the parenthetical was residue from a generator deleted in
+  `b27d1e5`. Step 7 also stops calling itself a docs step, in its heading and in the
+  "Follow these steps in order" paragraph.
+
+## [0.19.0] — 2026-08-12
+
+### Breaking
+- **`defaultConfig()` no longer seeds `classification.labels`, and `getDefaultLabels` is deleted.**
+  `lib/labels-config.mjs` now exports the three frozen role arrays and nothing else, and
+  `classification.labels` joins `MANDATORY_PATHS` — so a config without one reads as `partial` and
+  `/setup` collects it. **An existing installed config is unaffected**: the seed was already written
+  to disk as literal data the last time `/setup` ran, `mergeConfig` still resolves
+  `DEFAULTS < existing < answers`, and a hand-edited mapping keeps surviving re-runs exactly as
+  before. That also means an existing project keeps its seeded mapping rather than being asked to
+  confirm it — run `/unic-archon-dlc:setup reconfigure` to review or change it. See
+  [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md) (amended 2026-08-11, extended 2026-08-13).
+
+### Added
+- **`/setup` asks for the tracker's Label strings.** One question, the seventeen Canonical roles
+  shown as three tier-grouped tables (`state`, `type`, `priority`) with a line on what each role
+  means, offering the names this Plugin ships. `/setup` never probes the tracker, never creates a
+  label, and reports nothing about labels in its summary: a tracker with a different vocabulary is
+  answered by mapping a role onto a string it already carries. The `CLAUDE.md` marker block now names
+  `classification.labels` and points at `reconfigure`, so the written mapping has a thread to pull
+  (#329).
+
+### Fixed
+- **`validateConfig` reports a `classification.labels` short of a shipped Canonical role**, naming the
+  exact role, so an older config self-heals through `/setup`'s own collect path instead of being
+  silently completed from a default. An **extra** key — a hand-added `release` type, say — is still
+  accepted, ignored and preserved through `migrateLegacy`.
+- `test/labels-config.test.mjs` freezes the membership of all three role arrays instead of checking
+  each expected name is present, so a new Canonical role fails CI until someone changes the list on
+  purpose. No test name implies the mapping varies by tracker; it never did.
+
 ## [0.18.0] — 2026-08-12
 
 ### Breaking

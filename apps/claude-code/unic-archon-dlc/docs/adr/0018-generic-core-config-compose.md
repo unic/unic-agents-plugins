@@ -1,12 +1,25 @@
 # 0018. Generic core + per-project config; tested lib only for tracker-agnostic deterministic IP
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended 2026-08-20 — the tested-lib surface reached zero, and
+the default PRD scaffold moved out of `lib/` into `commands/specs.md` (#381)
 
 > **Amended (2026-07-02):** `dag-builder` is **removed from the KEEP list** — it was dissolved by
 > [ADR-0023](0023-build-generic-red-green-refactor-loop.md). `/build` consumes `issues.json` via a
 > generic runtime loop instead of generated per-slug DAG code, so the codegen lib no longer exists.
 > The tested-lib ⟺ tracker-agnostic-deterministic-IP line is unchanged; the KEEP set is now
 > slopcheck · stub-detector · issues+PRD schema-validation · thin config validate/merge · archon guard.
+
+> **Amended (2026-08-20) — the deterministic core reached zero.**
+>
+> This ADR drew a line between tested code and config-plus-composition, and expected the `lib/` surface to
+> shrink to a deterministic core. It shrank to nothing: `lib/` and `test/` are deleted, and the Plugin ships
+> prose, four Box YAMLs and the Method Bundle. The line this ADR drew still holds — it just landed at the
+> far end, because an installed Plugin cannot resolve a module or an external package at all
+> ([ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5, amended).
+>
+> The one decision that moves with it: `templates.prd` is still the key a team overrides the PRD shape
+> with, and the **default** scaffold text now lives in `commands/specs.md` Step 7 — the one Box that writes
+> a PRD — rather than in `DEFAULT_PRD_TEMPLATE`. Config still owns the shape; the default is prose.
 
 ## Context
 

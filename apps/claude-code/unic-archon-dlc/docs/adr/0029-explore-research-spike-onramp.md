@@ -1,7 +1,14 @@
 # 0029. `/explore` is an off-line, optional research + AFK-spike on-ramp
 
 **Status:** Accepted (2026-07-03); amended 2026-08-04 — the four research nodes now read the `research`
-Method instead of carrying no Method grounding at all (#281). See §5.
+Method instead of carrying no Method grounding at all (#281). See §5. Amended again 2026-08-18 — see
+the note below.
+
+> **Amended (2026-08-18):** where this ADR says a Box resolves a role through `classification.labels`,
+> or names the tracker through `tracker.access` / `tracker.coords`, read
+> `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` instead. Those two repo-local files
+> are the tracker contract now, and each role carries its own axis. See
+> [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18 amendment (#389).
 
 ## Context
 
@@ -116,8 +123,9 @@ an oversight. A missing Method file is fatal for the node; the fix is `/unic-arc
   [ADR-0011](0011-archon-schema-target.md) §6).
 - **`findings-writer.mjs` + `spike-verdicts.mjs` are dissolved** (and their tests), completing
   [ADR-0018](0018-generic-core-config-compose.md) #3 for the explore-only libs — the nodes write
-  findings.md with their own tools. `labels-config.mjs` **stays** (`config-schema.mjs` still imports
-  `getDefaultLabels`). This is a breaking change for any external caller of the two deleted modules;
+  findings.md with their own tools. `labels-config.mjs` **stays** — at the time because
+  `config-schema.mjs` imported `getDefaultLabels`; that function went in 0.19.0 (#329) and the module
+  now exports the three role arrays alone. This is a breaking change for any external caller of the two deleted modules;
   they were internal to the dead workflow, so there is none.
 - **No new config key.** `gates.explore` + `artifacts_dir` already exist in `defaultConfig()`, so **no
   `/setup` change** is required this step (contrast [ADR-0025](0025-qa-pipeline-onramp.md)/

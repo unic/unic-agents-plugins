@@ -3,8 +3,9 @@ description: >
   QA box + issue-producing on-ramp. Runs after /build's PR is approved: e2e → coverage-gate →
   UAT sign-off → verify-pr-base → merge, config-driven and generic. Two human gates (UAT + merge)
   honour gates.qa — HITL by default, AFK opt-in. When UAT surfaces a defect, it is filed directly as
-  an agent-ready tracker issue (composing the configured tracker + classification.labels, ADR-0016/
-  0024) so the finding feeds /tickets, rather than only halting. Ported to the key-discriminated node
+  an agent-ready tracker item, through the contract at `docs/agents/issue-tracker.md` and
+  `docs/agents/triage-labels.md` (ADR-0016/0024), so the finding feeds /tickets rather than only
+  halting. Ported to the key-discriminated node
   schema (ADR-0011); inherits /build's self-contained-node conventions (ADR-0023 §5). See ADR-0025.
 
 # Required at the workflow level so the UAT + merge approval messages reach the user (ADR-0011).
@@ -33,42 +34,27 @@ nodes:
              `gates.qa`               (default "hitl")
              `qa.e2e_command`         (may be null) — else fall back to `build.e2e_command`
              `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
-             `tracker.type`           (read it; never branch on which provider it names)
              `project.branching`      (default "gitflow")
       3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
          /build implemented — the acceptance criteria the UAT checklist is derived from.
          - If it is absent → status "no-prd".
-      4. Resolve the TARGET REPOSITORY that every PR and tracker call this run makes must name. It is
-         DERIVED from this worktree, not configured:
-         a. `git remote get-url origin` → `repo_ref`, with `repo_ref_source` "origin".
-         b. `project.repo_ref` is an OPTIONAL override, absent from a default config. When it IS
-            set, it wins verbatim and `repo_ref_source` is "override".
-         c. Ambiguity check, run ONLY when no override is set: list the remotes (`git remote -v`)
-            and compare their fetch URLs, normalising away a trailing `.git`, the `user@host:path`
-            vs `https://host/path` spelling, and case. If a remote other than `origin` names a
-            DIFFERENT repository, this checkout is a fork — a host tool would infer the parent
-            instead of `origin`, and this Box MERGES — so the target is genuinely ambiguous → status
-            "ambiguous-repo", with `message` naming the remotes that disagree. A checkout whose only
-            remote is `origin` is never ambiguous, so an existing project never reaches that guard.
-         d. No `origin` remote at all and no override → status "ambiguous-repo", saying so.
-      5. If slug, config, and PRD.md are all present and the repository is unambiguous →
-         status "ready".
+      4. If slug, config, and PRD.md are all present → status "ready".
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
       Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
       (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
 
-      ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd /
-      ambiguous-repo branches, so the object validates before a guard can cancel. When a value cannot
-      be read (e.g. config is missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows",
-      gate "hitl", tracker_type "" , branching "gitflow", expected_base "develop", repo_ref "",
-      repo_ref_source "origin". Set `message` to a human-readable reason for any non-ready status.
+      ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
+      object validates before a guard can cancel. When a value cannot be read (e.g. config is
+      missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl", branching
+      "gitflow", expected_base "develop". Set `message` to a human-readable reason for any non-ready
+      status.
     output_format:
       type: object
       properties:
         status:
           type: string
-          enum: [ready, no-slug, no-config, no-prd, ambiguous-repo]
+          enum: [ready, no-slug, no-config, no-prd]
         slug: { type: string }
         artifacts_dir: { type: string }
         gate:
@@ -76,42 +62,23 @@ nodes:
           enum: [hitl, afk]
         e2e_command: { type: [string, 'null'] }
         coverage_threshold: { type: [number, 'null'] }
-        tracker_type: { type: string }
         branching: { type: string }
         expected_base: { type: string }
-        repo_ref: { type: string }
-        repo_ref_source:
-          type: string
-          enum: [origin, override]
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, tracker_type, expected_base, repo_ref, repo_ref_source, message]
+      required: [status, slug, artifacts_dir, gate, expected_base, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). Two guards,
-  # mutually exclusive on status, so each cancel message names the one thing to fix.
+  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
+  # because there is no repository to resolve: `docs/agents/issue-tracker.md` names it, which matters
+  # most here — this is the Box that MERGES.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
     depends_on: [bootstrap]
-    when: "$bootstrap.output.status != 'ready' && $bootstrap.output.status != 'ambiguous-repo'"
+    when: "$bootstrap.output.status != 'ready'"
     cancel: >
       /qa preconditions not met — see the bootstrap output for which of slug, config, or
       <artifacts_dir>/<slug>/PRD.md is missing. Run /unic-archon-dlc:build <slug> first (which in turn
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
-
-  # ---------------------------------------------------------------------------------------------
-  # guard-ambiguous-repo — the ONLY repository precondition, and it matters most here: this is the
-  # Box that MERGES. It fires when this checkout is a fork whose parent differs from `origin` and no
-  # `project.repo_ref` override is set. A checkout with only `origin` never reaches it, so no existing
-  # project breaks on upgrade (ADR-0011: an expected precondition failure cancels).
-  # ---------------------------------------------------------------------------------------------
-  - id: guard-ambiguous-repo
-    depends_on: [bootstrap]
-    when: "$bootstrap.output.status == 'ambiguous-repo'"
-    cancel: >
-      /qa cannot tell which repository to act on — see the bootstrap message for the remotes that
-      disagree. This checkout names more than one repository, so a tool that infers the target from
-      the checkout could verify one PR and merge another. Set `project.repo_ref` in
-      `.archon/unic-dlc.config.yaml` to the repository this run must act on, then re-run.
 
   # ---------------------------------------------------------------------------------------------
   # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
@@ -237,8 +204,8 @@ nodes:
   # blocked by / additional context) and the thin-issues heuristic above it were originally Matt
   # Pocock's `qa` Method. Upstream v1.1.0 moved `qa` to `skills/deprecated/` with no replacement, so
   # there is nothing left to resolve by name: the shape is inlined verbatim here and this Harness owns
-  # it from now on. It is deliberately NOT in lib/methods-manifest.mjs — a manifest entry would point
-  # at a dead upstream branch (#281).
+  # it from now on. It is deliberately absent from the Method table in README.md § Dependencies — an
+  # entry there would point at a dead upstream branch (#281, #381).
   # ---------------------------------------------------------------------------------------------
   - id: uat-gate
     depends_on: [uat-prep]
@@ -257,32 +224,41 @@ nodes:
           FINDING-CAPTURE (ADR-0025) — turn each distinct defect into an agent-ready tracker issue so
           it feeds /tickets. This is an on-ramp: file directly (a human is present — no PR gate).
 
-          1. File every issue on $bootstrap.output.repo_ref — THIS repository, named explicitly in
-             each call, never the one a tool infers from the checkout (in a fork clone those differ
-             and the defect lands on someone else's project). Read `.archon/unic-dlc.config.yaml` for
-             `tracker` (`type` / `access` / `coords`) and `classification.labels`, and compose the
-             system-skill the team registered under `tracker.access` — MCP first, its CLI as fallback
-             — by reading that skill's own current interface and building the call from it. Do NOT
-             write a command, subcommand or flag here, and do NOT branch on which provider
-             `tracker.type` names (ADR-0016). If the registered skill cannot target a repository
-             explicitly, STOP and print "BLOCKED: the registered tracker skill cannot target a
-             repository explicitly — <the missing capability>". Labels come ONLY from
-             `classification.labels` (single source of truth — ADR-0024); do NOT read
-             docs/agents/triage-labels.md or issue-tracker.md.
+          1. Read the tracker contract first: `docs/agents/issue-tracker.md` and
+             `docs/agents/triage-labels.md` in this repository.
+             - **Access** — `issue-tracker.md` § Access names the MCP server or skill that serves this
+               tracker. Read that server's own current tool list and build every call from it. Write
+               no command, subcommand or flag here and name no provider (ADR-0016): a flag table
+               frozen in this file is stale the moment the tool changes.
+             - **Addressing** — its § Addressing names the repository these findings belong to. Name
+               that repository explicitly in every call, and derive nothing from a remote URL.
+             - **Work-item scope** — its § Work-item scope names the filter every search applies, and
+               the scope every item you create carries.
+             - **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+               that axis **holds** one value or many. Name a role, resolve it there, and write no host field name
+               yourself. Two rules follow from that table, and both are mandatory:
+               - **A row with no axis writes nothing.** Report which role you resolved and that its row asks for
+                 no write.
+               - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true of an
+                 item at a time. Before you write such a role, read the other rows of that tier and retract every
+                 one whose axis holds many values. An axis that holds one value retracts the old value itself, so
+                 there is nothing extra to do. Read `holds`, never the axis name: an axis name is a host word and
+                 the next host spells it differently.
+             If either file is absent, STOP and print "BLOCKED: this repository has no tracker
+             contract at docs/agents/" and file nothing — the findings stay in $REJECTION_REASON.
           2. Decide single-issue vs breakdown this way: prefer many thin, independently fixable issues
              over one thick one; mark blocked-by relationships honestly; write from the user's
              perspective in the project's domain language; NO file paths or line numbers.
           3. For each finding, create a tracker issue:
                - Title: "QA: <slug> — <short defect summary>"
-               - Labels: type `bug` + state `ready-for-agent` (resolved through classification.labels).
-                 The reviewer at this gate already vetted the defect, so it is agent-ready — it needs no
-                 second /triage pass (ADR-0025).
+               - Roles: type `bug`, state `ready-for-agent`. The reviewer at this gate already vetted
+                 the defect, so it is agent-ready — it needs no second /triage pass (ADR-0025).
                - Body (the finding-capture brief shape): ## What happened / ## What I expected / ## Steps to reproduce /
                  ## Blocked by (issue #s or "None — can start immediately") / ## Additional context
                  (reference the failing AC-N and the e2e/coverage evidence).
                - Prepend the mandated disclaimer as the first body line:
                  `> *This was generated by AI during QA.*`
-          4. Print each created issue URL and its blocking relationships, and this line:
+          4. Print each created item's id, its URL and its blocking relationships, and this line:
              "Findings filed. They feed /unic-archon-dlc:tickets <slug> (or /build if already atomic).
               REJECT again to halt the QA run — the findings are now tracked — or APPROVE only if the
               defect is already fixed or non-blocking."
@@ -308,24 +284,23 @@ nodes:
       You are the verify-pr-base node of /qa for slug "$bootstrap.output.slug".
 
       Expected base branch: $bootstrap.output.expected_base
-      TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
 
-      Query the open PR for the current feature branch ON TARGET_REPO and read its target/base branch.
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first. Read it before the query. Its § Access names the MCP server or skill that serves this tracker — read that server's
+      own current tool list and build the call from it, writing no command, subcommand or flag here
+      and naming no provider (ADR-0016). Its § Addressing names the repository to query; name that
+      repository explicitly, and derive nothing from a remote URL. If the file is absent, or the
+      tracker cannot target a repository explicitly, treat the base as unverifiable (below) and say
+      which was the reason.
 
-      ## Act on THIS repository
-      Name TARGET_REPO explicitly in the query. Act on THIS repository, never the one a tool infers
-      from the checkout — verifying the base of a PR on a different repository would report a green
-      base for a PR nobody is about to merge. Compose the system-skill the team registered under
-      `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as fallback — by reading
-      that skill's own current interface and building the call from it. Do NOT write a command,
-      subcommand or flag here, and do NOT branch on which provider `tracker.type` names (ADR-0016). If
-      the registered skill cannot target a repository explicitly, treat the base as unverifiable
-      (below) and say which capability was missing — do not query an inferred repository.
+      Query the open PR for the current feature branch on that repository and read its target base
+      branch.
 
       Set `base_ok` to the STRING "true" when the actual base equals expected_base; the STRING "false"
       on a genuine mismatch. (It is a string, not a boolean, so the downstream `when` gates compare it
-      reliably as `== 'true'`.) When the configured tracker has no queryable PR at all, set `base_ok`
-      "true" and note that the base is unverifiable here — a warning, non-blocking. Print
+      reliably as `== 'true'`.) When the tracker has no queryable PR at all, set `base_ok` "true" and
+      note that the base is unverifiable here — a warning, non-blocking. Print
       "verify-pr-base: base is <actual> ✓" or "verify-pr-base: PR targets <actual> but expected
       <expected> ✗ — retarget first."
     output_format:
@@ -347,11 +322,11 @@ nodes:
     approval:
       message: >
         UAT approved and PR base verified as "$bootstrap.output.expected_base" for
-        "$bootstrap.output.slug". Approve to merge the PR via the configured tracker (and delete the
-        feature branch on Gitflow). Reject to halt without merging.
+        "$bootstrap.output.slug". Approve to merge the PR through the tracker (and delete the feature
+        branch on Gitflow). Reject to halt without merging.
 
   # ---------------------------------------------------------------------------------------------
-  # merge — merge the PR via the composed tracker. trigger_rule: all_done so it runs when merge-gate
+  # merge — merge the PR through the tracker. trigger_rule: all_done so it runs when merge-gate
   # is SKIPPED in AFK; the `when` fail-closes so it NEVER runs on a red e2e/coverage or a wrong base,
   # in either mode. A rejected merge-gate cancels the run before this node (max_attempts default).
   # ---------------------------------------------------------------------------------------------
@@ -363,27 +338,47 @@ nodes:
     allowed_tools: [Read, Bash]
     prompt: |
       You are the merge node of /qa for slug "$bootstrap.output.slug".
-      TARGET_REPO = $bootstrap.output.repo_ref   (derived: $bootstrap.output.repo_ref_source)
 
-      Merge the open PR for the current feature branch ON TARGET_REPO, using the merge style in
-      `project.pr_strategy` (`squash` / `merge` / `rebase`).
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node is the one irreversible act in the lifecycle, and step 2 below writes
+      a role, so read both before the merge call. Its § Access names the MCP server or skill
+      that serves this tracker — read that server's own current tool list and build the call from it,
+      writing no command, subcommand or flag here and naming no provider (ADR-0016). Its § Addressing
+      names the repository to merge in; name that repository explicitly, and derive nothing from a
+      remote URL. If the file is absent, STOP and print "BLOCKED: this repository has no tracker
+      contract at docs/agents/issue-tracker.md" and merge nothing.
 
-      ## Act on THIS repository
-      This node is the one irreversible act in the lifecycle, so name TARGET_REPO explicitly in the
-      merge call. Act on THIS repository, never the one a tool infers from the checkout — in a fork
-      clone those differ, and a merge cannot be taken back. Compose the system-skill the team
-      registered under `tracker.access` in `.archon/unic-dlc.config.yaml` — MCP first, its CLI as
-      fallback — by reading that skill's own current interface and building the call from it. Do NOT
-      write a command, subcommand or flag here, and do NOT branch on which provider `tracker.type`
-      names (ADR-0016). If the registered skill cannot target a repository explicitly, STOP: print
-      "BLOCKED: the registered tracker skill cannot target a repository explicitly — <the missing
-      capability>" and merge nothing.
-      If the configured tracker has no merge capability at all, merge nothing and print the manual
-      steps for a human instead (transition the linked work item to Done, or set the issue's status
-      to resolved wherever the tracker keeps it).
+      1. Merge the open PR for the current feature branch on that repository. **The merge style is the
+         host's to enforce, not this Box's to choose.** Use whatever the repository's own branch policy
+         allows; where it allows more than one, the team's `CLAUDE.md` states the rule — read it. Pick
+         nothing yourself, and do not override a policy that refuses a style.
+         If the tracker has no merge capability at all, merge nothing, skip step 2, and print the manual
+         steps for a human instead — including the role `resolved` and the value its row gives.
 
-      On Gitflow (`project.branching == "gitflow"`), after a successful merge: check out the base
+      2. **After the merge lands, write the `resolved` role on every item the PR links.** Read the PR's
+         links collection for them; nothing else is authoritative, and this is why `open-pr` created
+         those links. This is the one point in the lifecycle where a state role moves after `/tickets`
+         wrote `ready-for-agent` — so the retraction below is not optional here, it is the whole reason
+         a merged item stops reading as ready for an agent.
+
+         - **Roles** — `triage-labels.md` gives each role a value, the axis that carries it, and whether
+           that axis **holds** one value or many. Name the role `resolved`, resolve it there, and write
+           no host field name yourself. Two rules follow from that table, and both are mandatory:
+           - **A row with no axis writes nothing.** If the `resolved` row asks for no write, write
+             nothing and report that its row says so.
+           - **A `state`, `type` or `priority` role is single-valued.** Only one role of a tier is true
+             of an item at a time. Before you write `resolved`, read the other `state` rows and retract
+             every one whose axis holds many values — `ready-for-agent` is the one that matters here.
+             An axis that holds one value retracts the old value itself, so there is nothing extra to
+             do. Read `holds`, never the axis name: an axis name is a host word and the next host
+             spells it differently.
+
+         The PR is already merged when this runs, so a failure here is reported and never retried into
+         a second merge: print which items took the role, which were retracted, and which failed.
+
+      3. On Gitflow ($bootstrap.output.branching == "gitflow"), after a successful merge: check out the base
       branch and delete the merged `feature/*` branch. Under any other branching model, leave branch
       cleanup to whatever auto-delete the host provides.
 
-      Finally print: "merge: QA for \"$bootstrap.output.slug\" complete. ✓"
+      Finally print: "merge: QA for \"$bootstrap.output.slug\" complete — <n> item(s) resolved. ✓"

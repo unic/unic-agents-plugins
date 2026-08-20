@@ -2,7 +2,8 @@
 
 A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
-off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`, `/handoff`) and **composes the
+off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`; + `/handoff` — Matt's,
+referenced) and **composes the
 team's system-skills for the _how_**. Procedure belongs to the **Methods** it hosts, not to the
 Harness. Each box's container follows its structural need: Archon workflows for the AFK-isolated legs,
 Claude Code commands/skills for the interactive ones. Configured via the `/unic-archon-dlc:setup`
@@ -29,11 +30,6 @@ The skill text a Box reads for procedure. See
 `docs/adr/0031-methods-bundled-three-tier-resolution.md`.
 _Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
 
-**Local Method**:
-A team's own version of a Method, which takes precedence over the shipped one. See
-`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
-_Avoid_: custom skill, local skill, patch, fork
-
 **Bundle**:
 The set of Methods the plugin ships, fixed to one upstream version. See
 `docs/adr/0031-methods-bundled-three-tier-resolution.md`.
@@ -53,17 +49,22 @@ _Avoid_: using "workflow" as a synonym for a box
 
 **config.yaml**:
 The rich per-project `.archon/unic-dlc.config.yaml` (converged with `unic-ticket-specification`)
-holding all tracker/tenant/OS/template specifics; boxes read it and compose accordingly (MCP-first,
-CLI-fallback). See `docs/adr/0018-generic-core-config-compose.md`.
-_Avoid_: config.json (the retired thin form)
+holding the gates, the per-Box knobs, the docs and design system-skills, and the templates. It holds
+**no tracker facts**: those are the Tracker contract below. See
+`docs/adr/0018-generic-core-config-compose.md`.
+_Avoid_: config.json (the retired thin form), tracker config
 
-**Repository derivation**:
-How a Box knows which repository to act on: derived from the worktree's `origin` remote in
-`bootstrap`, never inferred by the composed system-skill from ambient checkout state.
-`project.repo_ref` overrides it (absent by default); the guard that cancels on an ambiguous
-checkout is the one case ADR-0011's cancel-vs-fail distinction fires for this concern. See
-`docs/adr/0011-archon-schema-target.md`.
-_Avoid_: repo pinning (imprecise — nothing is "pinned", it's derived with an optional override)
+**Tracker contract**:
+The two repo-local prose files a Box reads instead of asking config for a host word:
+`docs/agents/issue-tracker.md` (which server serves the tracker, the repository to address, and the
+work-item scope every search filters on) and `docs/agents/triage-labels.md` (the seventeen roles, each
+row naming the axis that carries it). A Box names a role and a file; it never names an organisation, a
+field or a provider. `/unic-archon-dlc:setup` owns both, and `setup-matt-pocock-skills` must never run
+over them. A section earns its place there only when it states a fact about this tenant — an MCP server
+discovers its own API, so writing operations down freezes a flag table in Markdown. See
+`docs/adr/0024-triage-intake-on-ramp.md` (amended 2026-08-18).
+_Avoid_: repository derivation (deleted — nothing is derived from a remote), repo pinning, label
+mapping (`classification.labels` is gone), tracker config
 
 **Deterministic output** (emergent — not a workflow):
 The stakeholder-facing property that "the same component, fed the same inputs, produces the same
@@ -98,21 +99,31 @@ _Avoid_: ticket, ready ticket, groomed issue
 
 **Canonical role**:
 The name a Box uses for a state, type or priority. Owned by the Harness and fixed: the team names the
-Label string a role resolves to, never the role itself, because the roles are the protocol the Boxes
-share. `/triage`, `/tickets` and `/qa` write states; no Box reads one, so a state signals to a human
+value and the Axis a role resolves to, never the role itself, because the roles are the protocol the
+Boxes share. `/triage`, `/tickets` and `/qa` write states; no Box reads one, so a state signals to a human
 rather than routing work — the handoff between Boxes is the Slug. A canonical role is never written to
-a tracker: it resolves to a Label string first.
+a tracker: it resolves through the Tracker contract first.
 _Avoid_: label (a label is the string, not the role), status, tag, canonical label
 
-**Label string**:
-The tracker's own text for a Canonical role. Owned by the team, named during
-`/unic-archon-dlc:setup`, held in `classification.labels`, and read by every Box through `LABELS` and
-from nowhere else. Two teams may render the same role as `needs-specs` and `3-Analysis`; both are
-correct, and no Box can tell the difference. The tier a role sits in — `state`, `type` or `priority` —
-tells the composed tracker skill which axis to write, so a Box never learns whether the tracker holds
-the string as a label, a status, a work-item type or a field. The names the Plugin ships are what
-`/setup` offers in that conversation, never a default it writes on the team's behalf.
-_Avoid_: canonical label, default label, tracker label
+**Axis**:
+What carries a Canonical role on this tracker — a state field, a tag, a work-item type, or a named
+field. `docs/agents/triage-labels.md` gives every role a value **and** an axis, because the axis
+belongs to the role and not to its tier: on a real tenant five of the eight state roles cannot be states
+at all, because writing a state while the work is still open moves an already-active item backwards on
+the board — only the three terminal roles are states there. Two teams may render the same role as
+`needs-specs` and `3-Analysis`, on different axes, and no Box can tell the difference.
+_Avoid_: tier (the tier groups roles; it does not decide the axis), label string, canonical label,
+default label
+
+**Holds**:
+Whether an Axis carries one value at a time or many. The third thing every
+`docs/agents/triage-labels.md` row states, and the only property a Box reasons about — a Box reads
+`holds` and never an axis name, because an axis name is a host word and the next host spells it
+differently. It decides what a write means: on `one`, writing a role replaces the previous value; on
+`many`, writing adds and the previous value stays. That asymmetry is why a `state`, `type` or
+`priority` role is single-valued by rule rather than by the field — a Box retracts the tier's other
+roles that sit on a `many` Axis before it writes one.
+_Avoid_: cardinality (correct, but not the word in the file), multi-value field, array field, tag axis
 
 ### Planning artifacts
 
@@ -201,7 +212,7 @@ _Avoid_: child workflow, nested workflow, sub-workflow
 **Setup**:
 The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
 `/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.yaml`, discovers and registers the team's system-skills,
-and refreshes the marker-delimited `## Agent skills` block in `CLAUDE.md`. Idempotent (a thin tested
+and refreshes the marker-delimited `## unic-archon-dlc` block in `CLAUDE.md`. Idempotent (a thin tested
 lib does schema-validate + merge): re-running
 with no arguments prints the current config when fully populated, asks only for missing fields
 when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
@@ -228,6 +239,24 @@ operator — usage, prerequisites, what the workflow does, its `archon workflow 
 invocation. Never installed by `/setup`: it is read in this Plugin's own repo, not shipped into a
 Consumer. Not an Archon workflow command template — no `command:` node resolves it.
 _Avoid_: command stub, command doc (both suggest the runtime template above)
+
+**Install set**:
+What `/setup` writes into a Consumer, and the rule by which each entry is replaced. Two shapes: a
+**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**,
+which owns only the names its pattern matches inside a directory it shares with the Consumer
+(`unic-dlc-*.yaml` inside `.archon/workflows/`). One engine, `installArtefacts` — but not one
+declared list: two callers pass entries to it independently, and Step 5 writes the config outside it
+altogether. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
+install set" as that shared engine, never as a single enumeration something iterates.
+_Avoid_: install manifest, artefact list
+
+**Generated header**:
+The two comment lines `/setup` stamps onto every installed Box YAML, naming this Plugin and the
+version that wrote the file, and stating that the next run replaces it (`/setup` Step 6 stamps it).
+This is where a Consumer's install provenance lives — per file, and in
+no separate record. It never decides ownership: the stale sweep retires a name whether or not the
+file carries the header ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
+_Avoid_: provenance file, install record (neither exists)
 
 ### Architecture-health artifacts
 
@@ -288,14 +317,14 @@ _Avoid_: review aspect, reviewer, agent, check
 ## Relationships
 
 - The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
-- A **Method** resolves from the first tier that answers — a team's declared source, then a **Local Method**, then the **Bundle** that **Setup** installed (ADR-0031)
+- A **Method** is read at `.archon/methods/<name>/SKILL.md`, the one path **Setup** installs the **Bundle** into (ADR-0031, amended)
 - **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
 - `/build` runs a generic **red → green** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
 - Refactoring is **not** in that loop: the `tdd` Method puts it in the review stage, so it reaches the code as `/pr-review`'s Standards **Review axis** and its Fowler smell baseline (ADR-0023 §7 / ADR-0026 §8)
-- A **Method** read inside an Archon Box resolves from the **Bundle** tier only — a node cannot import plugin `lib/`, so the team-source and **Local Method** tiers reach the command Boxes but not the Archon ones (ADR-0023 §5 / ADR-0031)
+- A **Method** is read at one path, `.archon/methods/<name>/SKILL.md`, by every Box and every command alike — the team-source and Local-Method tiers are retired (#381), so there is no resolution order and no tier to report (ADR-0023 §5 / ADR-0031, amended)
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`
-- The **Setup** slash command writes `.archon/unic-dlc.config.yaml`, registers the team's system-skills, and refreshes the `## Agent skills` block in `CLAUDE.md` in the target project
+- The **Setup** slash command writes `.archon/unic-dlc.config.yaml`, registers the team's system-skills, and refreshes the `## unic-archon-dlc` block in `CLAUDE.md` in the target project

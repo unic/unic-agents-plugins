@@ -1,9 +1,28 @@
 # 0023. `/build` is one generic red/green loop over `issues.json`
 
-**Status:** Accepted (2026-07-02); amended 2026-08-04 — refactor left the loop and moved to
+**Status:** Accepted (2026-07-02); amended 2026-08-20 — §5's rule covers the commands too, not only
+the Archon nodes, and the Plugin's `lib/` is deleted (#381). Amended 2026-08-04 — refactor left the loop and moved to
 `/pr-review`'s `code-review` Fowler smells, and the loop's procedure is now the `tdd` and `implement`
 Methods rather than prose written here (#281). See §7. The filename keeps its original slug; five
 sibling documents link to it by name, and renaming it would buy nothing behavioural.
+
+> **Amended (2026-08-20) — §5's rule covers the commands as well.**
+>
+> This section exempted the Archon nodes and left the seven `commands/*.md` files importing plugin `lib/`
+> through `$CLAUDE_PLUGIN_ROOT`. That exemption was the defect, not the fix.
+>
+> The same two facts apply to a command: `$CLAUDE_PLUGIN_ROOT` is not set inside the Bash tool either, and
+> an installed plugin ships no `node_modules`, so `import 'yaml'` cannot resolve outside this monorepo —
+> `"yaml": "catalog:"` is a workspace protocol. Measured on 0.22.0 in a Consumer that installed the
+> plugin through the marketplace: all seven commands load and **none runs past Step 1**.
+>
+> So the rule reads without an exemption. **Nothing this plugin ships imports a plugin module or reads
+> `$CLAUDE_PLUGIN_ROOT`**: an Archon `script:` node inlines its logic, and a command reads config, the
+> tracker contract and its Methods with its own tools, in prose. `lib/` and `test/` are deleted.
+>
+> One command keeps a bounded need for the plugin's own directory: `/setup` Step 6 copies the Method
+> Bundle and the Box YAMLs out of it, so it locates that directory and confirms the path with the operator
+> rather than reading a variable. How `/setup` learns its own location is settled by #383.
 
 ## Context
 

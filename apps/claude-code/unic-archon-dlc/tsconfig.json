@@ -1,4 +1,0 @@
-{
-  "extends": "@unic/tsconfig/tsconfig.base.json",
-  "include": ["lib/**/*.mjs", "hooks/**/*.mjs", "test/**/*.mjs"]
-}

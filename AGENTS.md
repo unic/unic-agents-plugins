@@ -79,6 +79,8 @@ Every plugin must work on **macOS, Windows, and Linux**. Use Node.js APIs (`node
 
 Plugins are versioned independently. `plugin.json` is the source of truth. Use `pnpm --filter <name> bump <patch|minor|major>` — never hand-edit `marketplace.json`.
 
+**On a `0.x` plugin a breaking change is a `minor` bump, and `major` is reserved for the `1.0.0` release itself.** SemVer §4 makes the `0.x` API unstable by definition, and `1.0.0` is reached by meeting that plugin's own release bar — never by making a breaking change. So the `### Breaking` changelog entry is what warns a consumer there, not the version number: write the entry, and never reach for `bump major` to signal it. Read the plugin's current version off its `plugin.json` to know which rule applies. Above `1.0.0` the ordinary contract holds. See [ADR-0022](docs/adr/0022-semver-per-plugin.md).
+
 Tag scheme: `<plugin-name>@<version>` (e.g. `auto-format@0.5.5`).
 
 **CHANGELOG version headers** must use the format `## [X.Y.Z] — YYYY-MM-DD` (em dash, then ISO date). `pnpm bump` writes this format and `verify:changelog` (in `packages/release-tools`) structurally enforces ` — YYYY-MM-DD` on every versioned header. Do not change the separator or the date format: CI and the release flow depend on it.
@@ -103,6 +105,8 @@ PRs merge with a merge commit, never a squash — the release flow reads `develo
 ### The Archon pre-push guard
 
 The Archon worktrees under `~/.archon/workspaces/<org>/<repo>/worktrees/` are worktrees of your clone, not a separate checkout. They share its ref store, its config and its `origin`, so an autonomous run can move `develop` or `main` directly and bypass the PR gate above. `.githooks/pre-push` refuses a push of either branch when the push comes from a path under `.archon/workspaces/`. It leaves your own pushes alone, so read a refusal as "an Archon worktree tried this", never as "`develop` is protected".
+
+Archon also keeps a `default_branch` of its own per repository, set from whatever was checked out on its first run there and never re-read from the host. `worktree.baseBranch` in `.archon/config.yaml` overrides it, and `--from <branch>` overrides that. A bare top-level `baseBranch:` has no reader — the nesting is the whole setting. So fix a wrong fork point in that file, never in `~/.archon/archon.db`, which is one machine's row.
 
 `.git/hooks` is not version-controlled, so install it once per clone:
 
@@ -132,9 +136,22 @@ To ship a new plugin version:
 
 ## Feature-driven development
 
-New work enters through the issue tracker as Features. Plan with `/wayfinder` when the work is too big for one agent session, or `/grill-with-docs` when it fits in one; then `/to-spec` → `/to-tickets` → `/archon-rollout`. Use `/tdd` and `/implement` for individual issues.
+New work enters through the issue tracker as Features. Plan with `/wayfinder` when the work is too big for one agent session, or `/grill-with-docs` when it fits in one; then `/to-spec` → `/to-tickets` → `/archon-rollout`. `/to-tickets` iterates the breakdown with you and applies `ready-for-agent` once you approve it — that in-session approval is the checkpoint, and nothing re-checks it before dispatch. So keep the ready queue short: grill late, dispatch soon, and re-grill a ticket that has sat for more than a few days rather than trusting it. Use `/tdd` and `/implement` for individual issues. See [`docs/process/ai-development.md`](docs/process/ai-development.md) for the mental model.
 
 `unic-archon-dlc` is **not** installed here — this repo builds it, it does not run it. See [ADR-0033](docs/adr/0033-de-dogfood-unic-archon-dlc.md).
+
+### Acceptance criteria are prose
+
+**This repo's product is prose** — commands, skills, `AGENTS.md` files, ADRs. So a criterion names an **observable outcome**: what a document must state, checked by reading it. It does not name a command carrying its pasted output, and no `file:line` citation inside a criterion is binding — the next merge moves the line, so a criterion written around one rots on a schedule nobody controls.
+
+**Adding a module plus a test so that prose becomes testable is a defect**, not rigour. `unic-archon-dlc`'s `lib/slopcheck.mjs` was the worked example: it existed only to be tested, while `apps/claude-code/unic-archon-dlc/.archon/workflows/unic-dlc-build.yaml` inlines its own copy and imports nothing. #381 deleted it with the whole of that plugin's `lib/` and `test/`, which is what the next passage is the bar for.
+
+Four reads catch what a criterion-by-criterion pass cannot. Run them while writing the criteria, inside `/to-tickets`, because nothing downstream runs them for you:
+
+- **Read the criteria as one set.** Individually reasonable criteria can be collectively impossible, and the dangerous shape is a **gap** between two of them that an implementer fills with a defensible-sounding decision — a green PR that faithfully implements the wrong thing. Amend the ticket and re-dispatch; do not merge it, because it becomes the precedent the next agent reads.
+- **Turn the diagnosis on the cure.** When a ticket says a thing rots because it is written by hand, read the fix back and ask what is still written by hand.
+- **Ask which criteria an implementer satisfies by changing nothing.** A vacuous criterion is a finding. It reads as coverage, buys none, and costs an audit round to discover after the code exists.
+- **Close a grilling by listing what it did not decide.** "Either is acceptable" and "whichever fits" are where an unanswered question hides. Write each one down as an open question, or decide it there.
 
 ## Do not add
 
@@ -148,6 +165,19 @@ New work enters through the issue tracker as Features. Plan with `/wayfinder` wh
 **Never create, copy, or delete `LICENSE` files.** The maintainer manages these manually in every package and plugin directory. If an acceptance criterion requires a `LICENSE` file to exist, warn the maintainer to add it themselves before continuing.
 
 ## Skill summary
+
+#### The quality bar for a prose Box
+
+A Box is prose, so its bar is **a run and a read**, never a test. Three parts:
+
+1. **It runs where it ships.** Install the plugin into a Consumer through the marketplace — no `node_modules`, no hand-set environment variable — and run the Box far enough to see the step under review succeed. This is the only check that sees what this repository cannot: every command defect of `unic-archon-dlc` 0.22.0 was invisible to `pnpm test` and to `archon workflow list` here, and visible on the first command run in `DXP-DesignSystem`.
+2. **Its rules are stated where they are needed.** A rule that lives only in an `AGENTS.md` is invisible at run time, so every prompt that must honour a rule carries it inline. Read for those rules when you touch a Box, and again in review.
+3. **What it depends on is written once.** One list, in prose, with no mirror and no generator — because a mirror is what drifts, and a generator is the module this bar exists to avoid.
+
+What the bar gives up, plainly:
+
+- **A `git add -A`, or a repository derived from a remote URL, now merges green if nobody reads the diff.** `test/box-staging-and-repo-pinning.test.mjs` grepped every Box YAML for both patterns; #381 deleted it and **nothing replaces it**. Both patterns are visible on the page, and both rules are stated inline in every prompt that stages a path or names a repository. That is the whole guard, and an unread diff defeats it.
+- **An upstream rename is not caught in this repository.** `test/command-methods.test.mjs` was the tripwire for a Method upstream had renamed; it compared two hand-written surfaces here and never watched upstream, so it could not have caught the rename wave it was written for. Nothing replaces it either, but the moment of the check is now named rather than left to chance: **upgrading a vendored Method Bundle means diffing the vendored tree against the new upstream tag by hand, in the same commit that moves the pin.** The plugin version is the pin. Between two upgrades, a rename surfaces on the next Consumer run.
 
 ### Issue tracker
 

@@ -1,16 +1,48 @@
 # 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to DLC config as the single source of truth
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended 2026-08-11, 2026-08-13, and 2026-08-18. The 2026-08-18
+amendment is the one to read first: it kills two rules the rest of this ADR still states.
 
-> **Amended (2026-08-11):** this ADR ended its label section with "Teams override `classification.labels` in YAML" and never said who fills the mapping. So `defaultConfig()` seeded one and `/setup` never raised the subject, shipping a guess that is correct only for a tracker already using the Plugin's own vocabulary (#329). Five decisions complete the sentence.
+> **Amended (2026-08-18) — two rules in this ADR are dead.** The tracker contract moved out of
+> `.archon/unic-dlc.config.yaml` and into two repo-local prose files, `docs/agents/issue-tracker.md`
+> and `docs/agents/triage-labels.md`. A Box now names a role and a file, and never a host word. The
+> whole `tracker` block, `classification.labels` and `project.pr_strategy` left the config with it, and
+> `MANDATORY_PATHS` is `project.branching` alone. Two things stated below no longer hold:
+>
+> - **The compose rule is reversed.** This ADR says _"DLC commands feed Matt's methods DLC config;
+>   Matt's own setup artifacts are never consulted in DLC flows"_, and `/triage` enforced it by
+>   instructing the Method **not** to read `docs/agents/triage-labels.md` or
+>   `docs/agents/issue-tracker.md`. Those two files are now the contract, and every Box and command
+>   reads them. The rule solved a real two-writer problem by forbidding the read; this decision solves
+>   the same problem by removing one writer — `/unic-archon-dlc:setup` owns both files, and
+>   `setup-matt-pocock-skills` must never be run over them.
+> - **"The tier carries the axis" is disproved.** The 2026-08-11 amendment claimed a Box hands the
+>   composed skill the tier alongside the string, so the skill knows whether to write a state, a status
+>   or a label. Measured against a live tenant, five of the eight state roles cannot be states at all:
+>   writing a state while the work is still open moves an already-active item backwards on the board, so
+>   only the three terminal roles are states there and the rest are tags. **The axis belongs to the
+>   role, not to the tier**, which is why `triage-labels.md` names an axis per row.
+>
+> What survives unchanged: `/triage` is a thin binding wrapper, the container decision, the
+> label-taxonomy mapping between Matt's five roles and the DLC's seventeen, best-effort verification,
+> and the on-ramp contract. What the wrapper _binds_ changed; that it binds did not.
+>
+> The amendments below are kept as the record of how the config-shaped answer was reached. Read them
+> as history, not as instructions.
+
+> **Amended (2026-08-11, extended 2026-08-13):** this ADR ended its label section with "Teams override `classification.labels` in YAML" and never said who fills the mapping. So `defaultConfig()` seeded one and `/setup` never raised the subject, shipping a guess that is correct only for a tracker already using the Plugin's own vocabulary (#329). Seven decisions complete the sentence — the first five recorded on 2026-08-11, the last two on 2026-08-13 when #329 was implemented and an audit found them recorded on the issue alone.
 >
 > - **The team names the Label strings, and `/setup` asks.** One question, the seventeen roles grouped by tier — `state`, `type`, `priority` — with a one-line gloss per tier, offering the names the Plugin ships. The gloss is conversation copy in `commands/setup.md`, never data in `lib/`. This is the shape `setup-matt-pocock-skills` uses for its own five roles: one question, ships no code.
 > - **`/setup` never inspects the tracker and never creates a label.** It does not probe for existing labels, does not report which are absent, and does not offer to add one. A tracker with a different vocabulary is answered by mapping the role onto a string that tracker already carries, not by adding a seventeenth label to someone else's board.
 > - **The tier carries the axis.** A Box hands the composed tracker skill the tier alongside the string, so the skill knows whether to write an Azure DevOps `System.State`, a Jira status or a GitHub label. No Box ever learns how the tracker stores a role. This is what keeps the mapping tracker-agnostic while it stays a plain `Record<role, string>`, and it is why the label-shaped model needs no generalisation.
 > - **No default is seeded.** `defaultConfig()` emits no `classification.labels`, and `classification.labels` joins `MANDATORY_PATHS`. A mapping is therefore present because a human accepted it, or absent and collected on the next run. The names the Plugin ships are what `/setup` offers, never what it writes on the team's behalf.
 > - **The key set is closed downward.** A `classification.labels` missing a shipped Canonical role is a fault: `validateConfig` reports it, so the config reads `partial` and `/setup` collects it, and `toYaml` refuses to write it. An extra key is allowed and ignored — nothing reads it, and `migrateLegacy` preserves a hand-added type such as `release` on purpose. The team owns the right-hand column and never the left.
+> - **No drift mechanism, and no migration for an already-seeded config** _(2026-08-13)_. `classification.labels` gets no `sha256` entry in `.archon/unic-dlc.install.json`: #295 draws the line at generated files, and the config is hand-editable by design, so hashing a file the operator is invited to edit inverts that. A config an older `/setup` wrote therefore keeps the seeded map on disk, present and indistinguishable from an accepted answer. That boundary is accepted rather than migrated — treating an identity map as unanswered would misfire on every team that genuinely accepted identity, and stripping it would discard a mapping a team may have hand-edited. New installs are clean, existing ones keep their map, and the CHANGELOG names `/unic-archon-dlc:setup reconfigure` as the way to review it.
+> - **The written YAML carries no comments** _(2026-08-13)_. `toYaml` stays a single `stringifyYaml(config)` call. Per-tier comments would need a `yaml` `Document`, because `mergeConfig` works on plain objects and drops comments on a re-run — so they would have to be re-stamped on every write, which fights an operator who adds their own and churns the diff. The config is meant to be hand-edited; a generator that rewrites its comments is friction. The explanation lives in the `CLAUDE.md` marker block instead, which is the one surface `/setup` installs into a Consumer.
 >
 > Recorded because it surprised the session that produced this amendment: **no Box reads a state Label string today.** `/triage`, `/tickets` and `/qa` write states; nothing selects work by label, and the handoff between Boxes is the Slug a human passes. Key-closure still earns its place, because a missing key breaks the **writer** — `/triage` resolving `needs-specs` through `LABELS` either fails mid-run or invents a string, which is #329's failure mode. Whether the reads should exist is #332.
+
+> **Amended (2026-08-13):** the known item under § Consequences — "the block-ownership overlap remains for a later `/setup`/finalize step" — is settled. #296 is that step: `/setup` renames the block it writes in a Consumer's `CLAUDE.md` from `## Agent skills` to `## unic-archon-dlc`, so the two installers no longer manage a heading of the same name and nothing in the block is a registered skill (the Methods this Plugin ships are read by path — [ADR-0031](0031-methods-bundled-three-tier-resolution.md)). The `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->` markers are unchanged, so the rename costs an existing Consumer nothing. The same issue drops the "auto-managed" framing (nothing detects a hand-edit between the markers, and nothing will) and rewrites the block to name no Box and no pipeline stage: it carries paths on the Consumer's own disk, `archon workflow list` to enumerate what is installed there, and a link to this Plugin's README. The § Consequences bullet below stands as written on 2026-07-02.
 
 ## Context
 

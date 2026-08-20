@@ -1,6 +1,13 @@
 # 0033. Archon 0.7.0 schema target — floor bump, `always_run`, sub-runs deferred
 
-**Status:** Accepted (2026-08-10). Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
+**Status:** Accepted (2026-08-10); amended 2026-08-18 — see the note below. Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
+
+> **Amended (2026-08-18):** § "Repository derivation: settled by #289, not reopened here" describes a
+> mechanism that no longer exists. This Harness derives no repository from a remote: each Box reads the
+> one `docs/agents/issue-tracker.md` § Addressing names, so there is nothing left to diverge from
+> Archon's own `worktree.remote` resolution. `/archon-upgrade` still classifies that algorithm
+> VERIFY-ONLY, on the new reason. See [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18
+> amendment (#389).
 
 ## Context
 
