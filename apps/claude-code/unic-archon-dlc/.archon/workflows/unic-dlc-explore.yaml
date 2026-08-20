@@ -88,9 +88,9 @@ nodes:
 
       Goal: understand the technology stack of this project.
 
-      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path — never
-      `resolveMethod`, since an Archon node cannot import plugin `lib/` (ADR-0023 §5), so the config and
-      `.local` override tiers do not apply here (ADR-0031). If it is missing that is FATAL for this node:
+      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -125,9 +125,9 @@ nodes:
 
       Goal: identify the key features and capabilities of this project.
 
-      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path — never
-      `resolveMethod`, since an Archon node cannot import plugin `lib/` (ADR-0023 §5), so the config and
-      `.local` override tiers do not apply here (ADR-0031). If it is missing that is FATAL for this node:
+      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -165,9 +165,9 @@ nodes:
 
       Goal: understand the structural and architectural decisions of this project.
 
-      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path — never
-      `resolveMethod`, since an Archon node cannot import plugin `lib/` (ADR-0023 §5), so the config and
-      `.local` override tiers do not apply here (ADR-0031). If it is missing that is FATAL for this node:
+      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -205,9 +205,9 @@ nodes:
 
       Goal: surface known pitfalls, edge cases, and areas of technical debt.
 
-      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path — never
-      `resolveMethod`, since an Archon node cannot import plugin `lib/` (ADR-0023 §5), so the config and
-      `.local` override tiers do not apply here (ADR-0031). If it is missing that is FATAL for this node:
+      Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its

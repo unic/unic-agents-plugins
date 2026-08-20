@@ -195,9 +195,9 @@ nodes:
           - `.archon/methods/tdd/SKILL.md`, plus its `.archon/methods/tdd/tests.md` and
             `.archon/methods/tdd/mocking.md`
           - `.archon/methods/implement/SKILL.md`
-        Never call `resolveMethod`: this is an Archon node, it cannot import plugin `lib/`
-        (ADR-0023 §5), so it reads the installed bundle tier directly and the config / `.local`
-        override tiers do not apply here (ADR-0031). If a file is missing, that is FATAL for this
+        Read them at those literal paths and import nothing: an Archon node cannot import anything
+        from the Plugin (ADR-0023 §5), and the config / `.local` override tiers are retired
+        (ADR-0031, amended). If a file is missing, that is FATAL for this
         node — print "tdd/implement Method not found under .archon/methods/ — run
         /unic-archon-dlc:setup" and stop. Do not proceed from memory of what these Methods say.
 
@@ -316,9 +316,9 @@ nodes:
     prompt: |
       You are the implement-review-precheck node of /build for slug "$bootstrap.output.slug".
 
-      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. Never
-      call `resolveMethod` — this is an Archon node, it cannot import plugin `lib/` (ADR-0023 §5), so
-      the config and `.local` override tiers do not apply here (ADR-0031). If the file is missing that
+      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
       is FATAL for this node: print "code-review Method not found at
       .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop.
 
