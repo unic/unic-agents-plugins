@@ -13,7 +13,7 @@ description: 'Turn an idea (or an existing spec / Figma / UX) into one human-app
 cheapest path given what already exists, then hands off to `/tickets`. It is an **in-session
 command/skill** (grilling needs the live conversation — ADR-0017), and it **owns the _what_** (the
 branch-on-input flow, the seam-approval halt, the PRD shape) while **composing the _how_**: the
-`to-spec`, `grilling` and `domain-modeling` Methods for the conversation — read by resolved path, per
+`to-spec`, `grilling` and `domain-modeling` Methods for the conversation — read by path, per
 Step 1 — and the configured docs / design / tracker system-skill (MCP-first, CLI-fallback) to read an
 existing source.
 
@@ -101,7 +101,7 @@ Classify `SOURCE` and take the cheapest path to an aligned understanding:
   `DISCUSS_MODE`:
   - `discuss` (default) → follow the resolved **`grilling`** Method, and the resolved
     **`domain-modeling`** Method for the terms and ADRs that crystallise as you go. Its
-    `ADR-FORMAT.md` and `CONTEXT-FORMAT.md` — in the same directory as its resolved `SKILL.md` — are
+    `ADR-FORMAT.md` and `CONTEXT-FORMAT.md` — in the same directory as its `SKILL.md` — are
     the shapes any ADR or `CONTEXT.md` edit must follow.
   - `assumptions` → enumerate **all** your assumptions about the feature upfront as a numbered list,
     then walk the user through confirming/correcting each. `domain-modeling` still applies as
@@ -136,7 +136,7 @@ business, not this Box's.
 ## Step 5 — Seam-design approval
 
 Before writing the PRD, propose the **testing seams** at which the feature will be verified, following
-the resolved `to-spec` Method's seam guidance. Present the proposed seam(s) and **get the user's
+the `to-spec` Method's seam guidance. Present the proposed seam(s) and **get the user's
 explicit confirmation** that they match expectations. The approved seams become the PRD's **Testing
 Decisions** section. Do not proceed to Step 7 without this confirmation.
 
@@ -150,7 +150,7 @@ If `ESTIMATIONS` is `provisional` or `both`, **compose** an estimator (never bui
 
 Shape the agreed design into the sections of `PRD_TEMPLATE` (the config-driven template — fall back
 to the built-in default if it is null), using the project's domain vocabulary and respecting the
-ADRs in scope. Follow the resolved `to-spec` Method's guidance for each section, with the approved
+ADRs in scope. Follow the `to-spec` Method's guidance for each section, with the approved
 seams from Step 5 as the Testing Decisions.
 
 Two things in `to-spec` are **overridden** here, because the Harness owns them:

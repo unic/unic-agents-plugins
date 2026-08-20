@@ -14,7 +14,7 @@ description: 'Decompose an approved PRD into independently-grabbable vertical-sl
 per slice), validates the whole set, publishes the issues to the team's tracker, and stops at the
 tickets gate. It is an **in-session command/skill** (slicing is a live conversation — ADR-0017), and
 it **owns the _what_** (the slicing flow, the build-ready checks, the DAG of `blocked_by` edges)
-while **composing the _how_**: the `to-tickets` Method for slicing — read by resolved path, per
+while **composing the _how_**: the `to-tickets` Method for slicing — read by path, per
 Step 1 — and the configured **tracker system-skill** (MCP-first, CLI-fallback) for publishing.
 
 `/tickets` **stops at a build-ready `issues.json`** (dependency-ordered, each slice carrying its
@@ -109,7 +109,7 @@ project's domain vocabulary.
 
 ## Step 4 — Slice into vertical tracer bullets
 
-Decompose the PRD by following the resolved `to-tickets` Method — its slice rules, its blocking edges,
+Decompose the PRD by following the `to-tickets` Method — its slice rules, its blocking edges,
 its prefactoring guidance, and its wide-refactor exception all govern here.
 
 Three things the Harness adds or overrides on top of it:
@@ -132,7 +132,7 @@ Three things the Harness adds or overrides on top of it:
   skill would overwrite, with a five-role `wontfix` vocabulary that drops every mapping
   ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended).
 
-Draft each slice with these fields (the `issues-schema` shape):
+Draft each slice with these fields (Step 8 checks them):
 
 - `id` — short kebab-case identifier unique within this file (e.g. `issue-01`). It addresses nothing
   outside the file — `tracker_id` does that, and Step 9 writes it
@@ -230,7 +230,7 @@ and inside the work-item scope. Publish in the dependency `order` from Step 8 (*
 each item can reference the real tracker ids of its blockers.
 
 For each slice, build the body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`; fall back to
-the resolved `to-tickets` Method's issue template if the config template is null). The body MUST carry
+the `to-tickets` Method's issue template if the config template is null). The body MUST carry
 the slice's **acceptance criteria** (contract C — intent lives on the tracker item) and its
 **Blocked by** references (real tracker ids, or "None — can start immediately"). Write the
 `ready-for-agent` state role unless the user says otherwise. Do NOT close or modify any parent item.

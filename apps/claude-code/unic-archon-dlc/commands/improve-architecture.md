@@ -19,7 +19,7 @@ It is a **thin composing wrapper**: it **owns the _what_** — the DLC config bi
 `arch-review.md` artifact, the intent-drift pass against the PRD, and the ADR-superseding gate — and
 **delegates the procedure** for technical drift + deepening to the `improve-codebase-architecture`
 Method **verbatim**, with `codebase-design` for the architecture vocabulary, `grilling` for the design
-walk, and `domain-modeling` to keep `CONTEXT.md` current. All four are read by resolved path, per
+walk, and `domain-modeling` to keep `CONTEXT.md` current. All four are read by path, per
 Step 1.
 
 **What the DLC adds over the raw Method (why this box earns its place — [ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md)):**
@@ -84,13 +84,13 @@ State the resolved mode to the user before continuing.
 
 ## Step 3 — Technical drift + deepening (delegate to the Method)
 
-Follow the resolved `improve-codebase-architecture` Method **verbatim**, including its `HTML-REPORT.md`
+Follow the `improve-codebase-architecture` Method **verbatim**, including its `HTML-REPORT.md`
 for the report scaffold, diagram patterns and styling. Where it calls for grilling, follow the resolved
-`grilling` Method; where it keeps the domain model current, the resolved `domain-modeling` Method.
+`grilling` Method; where it keeps the domain model current, the `domain-modeling` Method.
 
 Bind that procedure to the DLC:
 
-- Use `CONTEXT.md`/`CONTEXT-MAP.md` for the **domain** vocabulary and the resolved `codebase-design`
+- Use `CONTEXT.md`/`CONTEXT-MAP.md` for the **domain** vocabulary and the `codebase-design`
   Method for the **architecture** vocabulary. Use its terms exactly as it defines them — including in
   the report and in every suggestion.
 - **Per-slug mode:** focus the Explore walk on the slug's changed surface — derive it from

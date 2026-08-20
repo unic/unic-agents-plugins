@@ -519,7 +519,7 @@ nodes:
       // (Never write a placeholder node id anywhere in this body, comments included. The DAG
       // loader reads every dollar-prefixed node-output token here as a real edge, so a placeholder
       // makes the whole Box fail to load with "references unknown node". A comment on this very
-      // spot once did exactly that. `test/box-workflow-node-refs.test.mjs` now guards it.)
+      // spot once did exactly that. Nothing guards it now — read for it (#381).)
       const verificationPassed = $verification.output.passed
       const goalsCheckPassed = $goals-check.output.passed
       const verificationFailures = $verification.output.failures

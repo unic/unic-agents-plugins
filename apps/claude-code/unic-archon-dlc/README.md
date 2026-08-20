@@ -92,8 +92,6 @@ exists to prevent: `commands/setup.md` once named 7 Methods and this file named 
 composed 11, and the upstream v1.1.0 rename wave then broke `/specs` and `/tickets` with CI green.
 A rename wave is now found by running a Box against a live Consumer, not by a test here.
 
-<!-- methods-table:begin -->
-
 | Method                          | Read by                                      |
 | ------------------------------- | -------------------------------------------- |
 | `to-spec`                       | `/specs`                                     |
@@ -107,8 +105,6 @@ A rename wave is now found by running a Box against a live Consumer, not by a te
 | `grilling`                      | `/specs`, `/triage`, `/improve-architecture` |
 | `domain-modeling`               | `/specs`, `/triage`, `/improve-architecture` |
 | `codebase-design`               | `/improve-architecture`                      |
-
-<!-- methods-table:end -->
 
 `/unic-archon-dlc:setup` **verifies the bundle by reading it** — every Method directory carries its
 `SKILL.md` and the companion files that Method reads, and `LICENSE` is present — and stops if either

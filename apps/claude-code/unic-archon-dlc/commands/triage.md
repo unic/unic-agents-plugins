@@ -16,7 +16,7 @@ HITL — [ADR-0017](docs/adr/0017-container-follows-structural-need.md)).
 
 It is a **thin binding wrapper**: it **owns the _what_** — the DLC config binding and the on-ramp
 contract — and **delegates the procedure** to the `triage` Method verbatim, with `grilling` and
-`domain-modeling` for the grill step. All three are read by resolved path, per Step 1.
+`domain-modeling` for the grill step. All three are read by path, per Step 1.
 
 **The tracker contract (the load-bearing rule).** The `triage` Method reads its role vocabulary and
 tracker workflow from `docs/agents/triage-labels.md` and `docs/agents/issue-tracker.md`. **So does
@@ -116,8 +116,8 @@ do not guess a role value and do not run `setup-matt-pocock-skills`.
 
 ## Step 3 — Delegate to the `triage` Method
 
-Follow the resolved `triage` Method, including its `AGENT-BRIEF.md` and `OUT-OF-SCOPE.md`. Where it
-calls for grilling, follow the resolved `grilling` and `domain-modeling` Methods.
+Follow the `triage` Method, including its `AGENT-BRIEF.md` and `OUT-OF-SCOPE.md`. Where it
+calls for grilling, follow the `grilling` and `domain-modeling` Methods.
 
 Bind that procedure to the DLC with the Step 2 context, and enforce these overrides:
 

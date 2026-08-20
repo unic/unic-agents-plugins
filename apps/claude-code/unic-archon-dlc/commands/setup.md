@@ -195,19 +195,22 @@ Read `version` from that directory's `.claude-plugin/plugin.json` and keep it as
 Verify that bundle, then copy it into `.archon/methods/` — the one path every Box and command reads a
 Method from.
 
-- Every Method directory in the bundle carries a `SKILL.md`, plus the companion files that Method reads
-  (`tdd` reads `tests.md`; `triage` reads `AGENT-BRIEF.md` and `OUT-OF-SCOPE.md`). A directory holding
-  a `SKILL.md` and nothing else is a Method whose own cross-references point at nothing — report it and
-  stop.
+- Every Method directory in the bundle carries a `SKILL.md`. Verify the companions **by reading**: open
+  each `SKILL.md` and confirm that every companion file it points at sits beside it in the same
+  directory. A Method that references none needs none — several correctly ship a single file, so a file
+  count is not the test. A companion the text points at and the directory lacks is a Method pointing at
+  nothing: report it and stop.
 - `vendor/mattpocock-skills/LICENSE` must be present. If it is absent, ask the maintainer to restore it
   and stop: **never create a `LICENSE` file yourself.**
 - `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit the bundle was
   copied from. Read it and keep the tag as `BUNDLE_TAG`.
 - Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version
   cannot linger.
-- A `.archon/methods.local/` directory left by an earlier version now resolves nothing: `.archon/methods/`
-  is the only path a Box or a command reads. Report it once as retired and **leave it on disk** — it is
-  the operator's own work, and deleting it is not this step's call.
+- Two override paths an earlier version offered now resolve nothing, because `.archon/methods/` is the
+  only path a Box or a command reads. Report each one you find, once, as retired, and **change
+  neither** — both are the team's own work, and discarding it is not this step's call. They are a
+  `.archon/methods.local/` directory (leave it on disk) and any `methods.<name>.source` key in the
+  config (Step 5 preserves it, like every other key it does not ask about).
 
 **The Box workflows.** Install every `unic-dlc-*.yaml` this Plugin ships into the Consumer's
 `.archon/workflows/`, discovered by reading this Plugin's own `.archon/workflows/` — no Box name is a

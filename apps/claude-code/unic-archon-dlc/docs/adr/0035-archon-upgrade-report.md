@@ -1,6 +1,25 @@
 # 0035. `/archon-upgrade` reports what a new Archon release means for this Plugin
 
-**Status:** Accepted (2026-08-10)
+**Status:** Accepted (2026-08-10); amended 2026-08-20 — the trap pass is a read, not a module, and it
+reads the installed Boxes rather than the bundled ones (#381)
+
+> **Amended (2026-08-20) — the trap check is prose now, and its own reasoning is what changed.** This
+> ADR argues the pass belongs in `lib/schema-traps.mjs` because "an assertion that only exists as a
+> regex inside a Markdown prompt is untested and fails open, which is the exact class of defect
+> ADR-0011's traps describe". That argument was right about a regex and wrong about the alternative.
+> #381 deleted the Plugin's code, so Step 5 now **reads** each installed `.archon/workflows/unic-dlc-*.yaml`
+> and checks the four conventions itself, and a file it cannot read is a FAIL rather than a silent PASS
+> — which is the fail-open hole closed by a different means, not left open. Three further statements
+> below no longer hold: the pass runs over the **installed** Boxes in the repository the command runs
+> in, not the bundled ones under `$CLAUDE_PLUGIN_ROOT` (that variable is unset inside the Bash tool);
+> `allowed-tools` carries `Read` and `Glob` beside `Bash`, because a command that reads files needs
+> them, and still no `Write`; and there is no `lib/methods-manifest.mjs` for this command to be absent
+> from — the dependency list is the table in `README.md`.
+>
+> What the amendment costs is worth stating plainly: `test/schema-traps.test.mjs` re-asserted these
+> four conventions in CI on every pull request. Nothing does that now. Step 5 is the only place they
+> are re-asserted, in a command a human has to remember to run. Nobody chose that replacement — it
+> fell out of the deletion, and it is recorded as an open question on #373.
 
 ## Context
 

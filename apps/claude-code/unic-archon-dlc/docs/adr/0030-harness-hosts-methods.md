@@ -73,7 +73,10 @@ procedure from the Method.
   to do the work is a defect, because the Method already says it and the two will diverge.
 - The dependency list stops being prose. `lib/methods-manifest.mjs` is the one place a Method name
   exists as data ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)), and the documentation
-  is generated from its `providedTo` field rather than restating it.
+  is generated from its `providedTo` field rather than restating it. **Reversed by #381:** that module
+  is deleted, so the list is prose again — the table under `README.md` § Dependencies is itself the one
+  place, hand-edited, with no generator and no drift test. The invariant that survives is "written
+  once, restated nowhere", which is what this bullet was really protecting.
 - Rewiring each Box onto the resolver is deliberately separate work (#280 for the command Boxes, #281
   for the Archon Boxes), so this ADR changes no Box behaviour on its own.
 - A Box that turns out to add no Harness concern is now deleted on sight. #281 is mostly deletion for
