@@ -30,11 +30,6 @@ The skill text a Box reads for procedure. See
 `docs/adr/0031-methods-bundled-three-tier-resolution.md`.
 _Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
 
-**Local Method**:
-A team's own version of a Method, which takes precedence over the shipped one. See
-`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
-_Avoid_: custom skill, local skill, patch, fork
-
 **Bundle**:
 The set of Methods the plugin ships, fixed to one upstream version. See
 `docs/adr/0031-methods-bundled-three-tier-resolution.md`.
@@ -257,8 +252,8 @@ _Avoid_: install manifest, artefact list
 
 **Generated header**:
 The two comment lines `/setup` stamps onto every installed Box YAML, naming this Plugin and the
-version that wrote the file, and stating that the next run replaces it (`renderGeneratedHeader` in
-`lib/artefact-install.mjs`). This is where a Consumer's install provenance lives — per file, and in
+version that wrote the file, and stating that the next run replaces it (`/setup` Step 6 stamps it).
+This is where a Consumer's install provenance lives — per file, and in
 no separate record. It never decides ownership: the stale sweep retires a name whether or not the
 file carries the header ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
 _Avoid_: provenance file, install record (neither exists)
@@ -322,13 +317,13 @@ _Avoid_: review aspect, reviewer, agent, check
 ## Relationships
 
 - The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
-- A **Method** resolves from the first tier that answers — a team's declared source, then a **Local Method**, then the **Bundle** that **Setup** installed (ADR-0031)
+- A **Method** is read at `.archon/methods/<name>/SKILL.md`, the one path **Setup** installs the **Bundle** into (ADR-0031, amended)
 - **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
 - `/build` runs a generic **red → green** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
 - Refactoring is **not** in that loop: the `tdd` Method puts it in the review stage, so it reaches the code as `/pr-review`'s Standards **Review axis** and its Fowler smell baseline (ADR-0023 §7 / ADR-0026 §8)
-- A **Method** read inside an Archon Box resolves from the **Bundle** tier only — a node cannot import plugin `lib/`, so the team-source and **Local Method** tiers reach the command Boxes but not the Archon ones (ADR-0023 §5 / ADR-0031)
+- A **Method** is read at one path, `.archon/methods/<name>/SKILL.md`, by every Box and every command alike — the team-source and Local-Method tiers are retired (#381), so there is no resolution order and no tier to report (ADR-0023 §5 / ADR-0031, amended)
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`

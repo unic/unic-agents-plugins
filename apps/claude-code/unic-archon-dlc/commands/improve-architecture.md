@@ -19,7 +19,7 @@ It is a **thin composing wrapper**: it **owns the _what_** — the DLC config bi
 `arch-review.md` artifact, the intent-drift pass against the PRD, and the ADR-superseding gate — and
 **delegates the procedure** for technical drift + deepening to the `improve-codebase-architecture`
 Method **verbatim**, with `codebase-design` for the architecture vocabulary, `grilling` for the design
-walk, and `domain-modeling` to keep `CONTEXT.md` current. All four are read by resolved path, per
+walk, and `domain-modeling` to keep `CONTEXT.md` current. All four are read by path, per
 Step 1.
 
 **What the DLC adds over the raw Method (why this box earns its place — [ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md)):**
@@ -30,97 +30,42 @@ and (c) an **ADR-consolidation gate with superseding** across both ADR homes.
 
 Follow these steps in order. Do not skip any step.
 
-> **Shell requirement**: Step 1 uses `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible
-> shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All
-> filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
+## Step 1 — Load config (lenient) and the Methods
 
-## Step 1 — Load config (lenient)
+`/improve-architecture` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own
+tools. Do not shell out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`:
+an installed Plugin ships no `node_modules`, and that variable is not set inside the Bash tool
+([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+their config this way already; this is the same shape.
 
-`/improve-architecture` reads (never writes) `.archon/unic-dlc.config.yaml`. Unlike the tracker-bound
-boxes, it is **off-line and touches no tracker**, so a missing or incomplete config is
-**non-blocking** — it degrades to defaults and continues. Run:
+Unlike the tracker-bound boxes this one is **off-line and touches no tracker**, so an absent or
+unreadable config is **non-blocking**. Print a one-line warning naming what happened, take the
+defaults below, and continue. No key is mandatory here either.
 
-```bash
-node --input-type=module <<'EOJS'
-let output
-try {
-  const { pathToFileURL } = await import('node:url')
-  const { existsSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
-  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
-  // which says nothing about what to do next.
-  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
-  const mod = await import(pathToFileURL(join(pluginRoot, 'lib', 'config-schema.mjs')).href)
-  const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
-  const cwd = process.cwd()
-
-  // Method resolution is fatal even when the config load degrades — see the prose below.
-  const wanted = ['improve-codebase-architecture', 'codebase-design', 'grilling', 'domain-modeling']
-  const resolveAll = (config) => wanted.map((name) => {
-    const m = resolver.resolveMethod(name, { repoRoot: cwd, config, box: 'improve-architecture' })
-    return 'error' in m ? { name, error: m.message } : { name, path: m.path, tier: m.tier }
-  })
-
-  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
-  if (!existsSync(yamlPath)) {
-    // Off-line box: no config is fine — fall back to defaults and continue.
-    const config = mod.mergeConfig()
-    output = { ok: true, degraded: true, reason: 'no-config', artifacts_dir: config.artifacts_dir, docs: config.docs, methods: resolveAll(config) }
-  } else {
-    const r = mod.loadConfig(yamlPath)
-    if ('error' in r) {
-      const config = mod.mergeConfig()
-      output = { ok: true, degraded: true, reason: `config-unreadable: ${r.message}`, artifacts_dir: config.artifacts_dir, docs: config.docs, methods: resolveAll(config) }
-    } else {
-      const config = mod.mergeConfig(r.config)
-      output = {
-        ok: true,
-        degraded: false,
-        artifacts_dir: config.artifacts_dir,
-        docs: config.docs,
-        methods: resolveAll(config),
-      }
-    }
-  }
-} catch (err) {
-  // A plugin-load failure is not the degradable case. Leniency covers a *missing or unreadable
-  // config*; if this Plugin's own lib/ cannot be imported there is no resolver, so no Method resolves
-  // and Step 3 has no procedure to follow. Fail with the cause rather than defaulting into a review
-  // that cannot run.
-  output = { ok: false, message: `Plugin load error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(output) + '\n')
-EOJS
-```
-
-Parse the JSON. If `ok` is `false`, print `message` verbatim and **stop** — that is a broken Plugin,
-which no amount of defaulting fixes. Otherwise keep `ARTIFACTS_DIR` (default `workflows`), `DOCS`, and
-`METHODS`; if `degraded` is `true`, print a one-line warning naming `reason` and note that
-`ARTIFACTS_DIR` fell back to `workflows`, then continue.
+| Key                                          | Default                      | Keep as         |
+| -------------------------------------------- | ---------------------------- | --------------- |
+| `artifacts_dir`                              | `workflows`                  | `ARTIFACTS_DIR` |
+| `docs.type` · `docs.publish` · `docs.access` | `markdown` · `false` · unset | `DOCS`          |
 
 ### The Methods this Box reads
 
-`METHODS` carries one entry per Method — `improve-codebase-architecture`, `codebase-design`,
-`grilling`, `domain-modeling` — with the tier it resolved from: `config` (a `methods.<name>.source`
-the team declared), `local` (`.archon/methods.local/`), or `bundle` (`.archon/methods/`, written by
-`/unic-archon-dlc:setup`).
+Read these four files in full, at exactly these paths:
 
-**Method resolution is fatal here, unlike the config load.** If any entry carries `error`, print it
-verbatim and **stop** — do not degrade. Config carries _parameters_ (which, where, whether), and this
-Box can sensibly default those; a Method carries the _procedure_, and there is no default for that. The
-fix is to run `/unic-archon-dlc:setup`.
+- `.archon/methods/improve-codebase-architecture/SKILL.md`
+- `.archon/methods/codebase-design/SKILL.md`
+- `.archon/methods/grilling/SKILL.md`
+- `.archon/methods/domain-modeling/SKILL.md`
 
-Otherwise print the tier line before continuing, so a surprising result is diagnosable:
+A Method lives at one path and this is it — the same literal path the Archon Boxes read.
 
-```
-methods: improve-codebase-architecture(bundle) · codebase-design(bundle) · grilling(bundle) · domain-modeling(bundle)
-```
+**A missing Method is fatal here, unlike a missing config.** If any of the four is absent, print that
+exact path followed by `Run /unic-archon-dlc:setup.` and **stop** — do not degrade. Config carries
+_parameters_ (which, where, whether) and this Box can sensibly default those; a Method carries the
+_procedure_, and there is no default for that. When all four are present, print nothing and continue.
 
-Then read each entry's `path` in full. That text **is** the procedure — the steps below add only the
-DLC layers named above, and never restate, summarise or improve a Method
-([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). A Method's sub-files sit beside its resolved
-`SKILL.md`, in the same directory, at every tier: `HTML-REPORT.md` for
+That text **is** the procedure — the steps below add only the DLC layers named above, and never
+restate, summarise or improve a Method ([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). A Method's
+sub-files sit beside its `SKILL.md`, in the same directory: `HTML-REPORT.md` for
 `improve-codebase-architecture`; `DEEPENING.md` and `DESIGN-IT-TWICE.md` for `codebase-design`.
 
 ## Step 2 — Determine mode
@@ -139,13 +84,13 @@ State the resolved mode to the user before continuing.
 
 ## Step 3 — Technical drift + deepening (delegate to the Method)
 
-Follow the resolved `improve-codebase-architecture` Method **verbatim**, including its `HTML-REPORT.md`
+Follow the `improve-codebase-architecture` Method **verbatim**, including its `HTML-REPORT.md`
 for the report scaffold, diagram patterns and styling. Where it calls for grilling, follow the resolved
-`grilling` Method; where it keeps the domain model current, the resolved `domain-modeling` Method.
+`grilling` Method; where it keeps the domain model current, the `domain-modeling` Method.
 
 Bind that procedure to the DLC:
 
-- Use `CONTEXT.md`/`CONTEXT-MAP.md` for the **domain** vocabulary and the resolved `codebase-design`
+- Use `CONTEXT.md`/`CONTEXT-MAP.md` for the **domain** vocabulary and the `codebase-design`
   Method for the **architecture** vocabulary. Use its terms exactly as it defines them — including in
   the report and in every suggestion.
 - **Per-slug mode:** focus the Explore walk on the slug's changed surface — derive it from
@@ -275,7 +220,6 @@ Print a concise summary:
   report:     <path to arch-review.md>
   summary:    <CLEAN | ISSUES FOUND (count)>
   html:       <the Method's temp HTML path, if produced>
-  methods:    <name>(<tier>) · … (as printed in Step 1)
   ADRs:       accepted N | rejected M | edited-then-accepted K
   written:    <NNNN-*.md paths, or none>
   superseded: <ADR-NNNN → by ADR-MMMM, or none>

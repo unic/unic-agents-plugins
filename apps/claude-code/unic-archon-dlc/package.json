@@ -1,6 +1,6 @@
 {
   "name": "unic-archon-dlc",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "license": "LGPL-3.0-or-later",
   "type": "module",
@@ -10,20 +10,12 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "test": "node --test test/config-schema.test.mjs test/labels-config.test.mjs test/prd-writer.test.mjs test/issues-schema.test.mjs test/slopcheck.test.mjs test/stub-detector.test.mjs test/archon-check.test.mjs test/methods-manifest.test.mjs test/methods-resolver.test.mjs test/methods-bundle.test.mjs test/artefact-install.test.mjs test/command-methods.test.mjs test/archon-upgrade-command.test.mjs test/schema-traps.test.mjs test/archon-box-methods.test.mjs test/box-staging-and-repo-pinning.test.mjs test/build-qa-evidence-and-always-run.test.mjs test/box-workflow-node-refs.test.mjs test/test-enumeration.test.mjs",
-    "typecheck": "tsc --noEmit --project tsconfig.json",
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
     "verify:changelog": "unic-verify-changelog"
   },
-  "dependencies": {
-    "yaml": "catalog:"
-  },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "@unic/release-tools": "workspace:*",
-    "@unic/tsconfig": "workspace:*",
-    "typescript": "catalog:"
+    "@unic/release-tools": "workspace:*"
   }
 }

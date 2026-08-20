@@ -229,9 +229,9 @@ nodes:
       SESSION = <artifacts_dir>/<slug>/pr-review/ (artifacts_dir=$bootstrap.output.artifacts_dir).
       threshold = $bootstrap.output.confidence_threshold.
 
-      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. Never
-      call `resolveMethod` — this is an Archon node, it cannot import plugin `lib/` (ADR-0023 §5), so
-      the config and `.local` override tiers do not apply here (ADR-0031). If the file is missing that
+      Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
+      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
+      and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
       is FATAL for this node: print "code-review Method not found at
       .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop. Do not review from
       memory of what the Method says.

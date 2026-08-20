@@ -1,5 +1,5 @@
 ---
-allowed-tools: ['Bash']
+allowed-tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob']
 argument-hint: '[reconfigure | <free-form intent>]'
 description: 'Configure unic-archon-dlc for this project: detect the stack, register the team system-skills, and write .archon/unic-dlc.config.yaml'
 ---
@@ -10,123 +10,67 @@ description: 'Configure unic-archon-dlc for this project: detect the stack, regi
 
 **Arguments:** "$ARGUMENTS"
 
-`/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` — the config substrate the redesigned boxes read (each box is migrated onto it in its own redesign step; pre-redesign workflows under `.archon/workflows/` still reference the old JSON/keys until then). Only one deterministic concern is delegated to tested code — schema-validate + idempotent merge + YAML emit — in `lib/config-schema.mjs`. Conduct the conversation yourself; do not invent config keys the schema doesn't define.
+`/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` — the config substrate the redesigned boxes read (each box is migrated onto it in its own redesign step; pre-redesign workflows under `.archon/workflows/` still reference the old JSON/keys until then). Merge and emit the YAML yourself, with your own tools. Conduct the conversation yourself; do not invent config keys the § Config reference in [README.md](../README.md) does not define.
 
 Follow these steps in order. Do not skip any step. Do not write any files except through Step 5 (config), Step 6 (Methods bundle), and Step 7 (CLAUDE.md block).
-
-> **Shell requirement**: Steps 1, 2, 5, and 6 use `<<'EOJS'` heredoc syntax, which requires a POSIX-compatible shell. On Windows, run inside WSL2 or Git Bash; cmd.exe and PowerShell do not support heredocs. All filesystem work uses Node's `node:fs`/`node:path`, so paths are cross-platform.
 
 ## Step 1 — Archon preflight (behavioural `≥ 0.7.0`)
 
 Run:
 
 ```bash
-node --input-type=module <<'EOJS'
-let result
-try {
-  const { pathToFileURL } = await import('node:url')
-  const { checkArchon } = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/archon-check.mjs`).href)
-  result = checkArchon()
-} catch (err) {
-  result = { ok: false, code: 'other', message: `Plugin load error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(result) + '\n')
-EOJS
+archon --version
 ```
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and stop — do not proceed. (The check enforces the key-discriminated schema floor: gates, loops, `context: fresh`, `evidence_policy`, and `always_run` only run correctly on Archon `≥ 0.7.0`.)
+Read the output yourself. This Plugin's floor is **Archon `0.7.0`** — the version the key-discriminated
+schema needs: gates, loops, `context: fresh`, `evidence_policy` and `always_run`
+([ADR-0033](docs/adr/0033-archon-070-schema-target.md)). If the command is not found, or the installed
+version is below `0.7.0`, print what you saw with both versions and stop — do not proceed. Compare the
+three numbers, never the raw strings: the output may carry a program name or a `v` prefix.
 
 ## Step 2 — Discover current config state
 
-Run (reads the rich `.yaml` if present, else a legacy `.json` for migration; detects git remote + repo layout):
+Read the current state with your own tools. Do not shell out to Node, do not import a Plugin module,
+and do not read `$CLAUDE_PLUGIN_ROOT`: an installed Plugin ships no `node_modules`, and that variable is
+not set inside the Bash tool ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5).
 
-```bash
-node --input-type=module <<'EOJS'
-let output
-try {
-  const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
-  const { existsSync } = await import('node:fs')
-  const { execFileSync } = await import('node:child_process')
-  const { join } = await import('node:path')
-  const cwd = process.cwd()
+1. **The config.** Read `.archon/unic-dlc.config.yaml`. If it is absent, read
+   `.archon/unic-dlc.config.json` instead — a legacy flat config from ADR-0001, which this run
+   migrates into the rich nested shape and **never deletes or modifies**. If the file that exists is
+   present but unreadable, print the parse error and stop: refuse to overwrite a config you could not
+   read. Keep the path you read as `CONFIG_PATH`, and the parsed object as `CURRENT`.
 
-  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
-  const jsonPath = join(cwd, '.archon', 'unic-dlc.config.json')
-  let config = null
-  let source = null
-  let legacy = false
-  if (existsSync(yamlPath)) {
-    const r = mod.loadConfig(yamlPath)
-    if ('error' in r) { output = { error: r.message }; } else { config = r.config; source = yamlPath }
-  } else if (existsSync(jsonPath)) {
-    const r = mod.loadConfig(jsonPath)
-    if ('error' in r) { output = { error: r.message }; } else { config = r.config; source = jsonPath; legacy = mod.isLegacyConfig(r.config) }
-  }
+2. **The remotes.** Run `git remote`. Three refusals, in this order:
 
-  // A repo with NO remote at all cannot run any of the four Archon Boxes — every one derives its
-  // target repository from a remote. Distinct from "no `origin` specifically", which /build's own
-  // bootstrap handles at run time; this is the earlier, plainer refusal at /setup itself.
-  let remotes = []
-  let remotesErr = null
-  try {
-    const list = execFileSync('git', ['remote'], { stdio: ['pipe','pipe','pipe'], timeout: 5000 }).toString().trim()
-    remotes = list.length === 0 ? [] : list.split(/\r?\n/).filter(Boolean)
-  } catch (err) {
-    remotesErr = err
-  }
-  if (!output && remotesErr && remotesErr.code === 'ENOENT') {
-    output = { error: 'git binary not found on PATH. Install git before running /setup.' }
-  } else if (!output && remotesErr) {
-    output = { error: `Failed to read git remotes: ${remotesErr.message}. Confirm this directory is a git repository, then re-run /setup.` }
-  } else if (!output && remotes.length === 0) {
-    output = { error: 'This project has no git remote configured. All four Archon Boxes (/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run without one. Add one — e.g. `git remote add origin <url>` — and re-run /setup.' }
-  }
+   - `git` is not on `PATH` → print `git binary not found on PATH. Install git before running /setup.`
+     and stop.
+   - the command failed for any other reason → print the error, ask the operator to confirm this
+     directory is a git repository, and stop.
+   - the list is empty → print `This project has no git remote configured. All four Archon Boxes
+(/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run
+without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
 
-  if (!output) {
-    let gitRemote = null
-    try { gitRemote = execFileSync('git', ['remote', 'get-url', 'origin'], { stdio: ['pipe','pipe','pipe'], timeout: 5000 }).toString().trim() } catch {}
-    const repoLayout = mod.detectRepoLayout(cwd)
+   Then run `git remote get-url origin` and keep the result as `GIT_REMOTE`; an absent `origin` is not
+   a refusal here, only an empty value.
 
-    // Verify-only: report whether ARCHON'S OWN .archon/config.yaml (a different file from ours)
-    // resolves a remote via its `worktree.remote` key, falling back to Archon's own auto-detection
-    // (origin, else the sole remote). NEVER write .archon/config.yaml — it is Archon's file.
-    const archonConfigPath = join(cwd, '.archon', 'config.yaml')
-    let archonConfig = null
-    if (existsSync(archonConfigPath)) {
-      const r = mod.loadConfig(archonConfigPath)
-      if ('ok' in r) archonConfig = r.config
-    }
-    const archonRemoteResolved = mod.resolveArchonRemote({ remotes, archonConfig })
+3. **Archon's own remote, verify-only.** Read `.archon/config.yaml` — **Archon's** file, a different
+   file from ours, which this Plugin never writes. Resolve the remote the way Archon does and keep it
+   as `ARCHON_REMOTE_RESOLVED`: its `worktree.remote` key when set, else `origin` when a remote of that
+   name exists, else the sole remote when there is exactly one, else nothing. Step 8 reports this; no
+   step writes it.
 
-    // Normalise to the rich shape so validation reflects what /setup will actually write.
-    const normalised = legacy ? mod.mergeConfig(mod.migrateLegacy(config)) : (config ? mod.mergeConfig(config) : null)
-    const validation = normalised ? mod.validateConfig(normalised) : { error: true, missing: mod.MANDATORY_PATHS }
-    output = {
-      gitRemote,
-      archonRemoteResolved,
-      repoLayout,
-      source,
-      legacy,
-      hasConfig: config != null,
-      current: normalised,
-      missing: 'error' in validation ? validation.missing : [],
-    }
-  }
-} catch (err) {
-  output = { error: `Plugin load error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(output) + '\n')
-EOJS
-```
+4. **The repo layout.** Read the working tree and keep `REPO_LAYOUT`: `multi-context` when the
+   repository holds more than one independently-releasable project (a `packages/` or `apps/` tree with
+   its own manifests), otherwise `single-context`.
 
-Parse the output. If `error` is present, print it verbatim and stop. Otherwise set `GIT_REMOTE`, `ARCHON_REMOTE_RESOLVED` (the remote Archon's own config resolves, or null — reported by Step 8, never written by this plugin), `REPO_LAYOUT`, `LEGACY` (true = a legacy flat `.json` will be migrated), `CURRENT` (the normalised config, or null), `CONFIG_PATH` (`source`, the on-disk path read — used by Step 8 if Step 5 is skipped), and `MISSING` (mandatory paths still unset).
-
-Determine `STATE`:
+Then determine `STATE`:
 
 - `CURRENT` is null → `STATE = 'fresh'`
-- `MISSING` is non-empty → `STATE = 'partial'`
+- `CURRENT` exists but `project.branching` is unset → `STATE = 'partial'`
 - Otherwise → `STATE = 'full'`
+
+`project.branching` is the one key a config needs before the Boxes can read it. Every other key has a
+default, named in the § Config reference in [README.md](../README.md).
 
 ## Step 3 — Verify-only skill discovery (never installs)
 
@@ -135,7 +79,7 @@ Build a **capability → tool** registry the downstream boxes read (`mcp | cli |
 - **MCP servers**: note which relevant MCP servers are available in this session (tracker, docs, design — e.g. a GitHub/ADO/Jira MCP, a Confluence MCP, the Figma MCP).
 - **CLI probes** (portable — no `jq`/`awk`/`sort`): `gh --version`, `az --version`, `jira version` (or `jira --help`), etc. Record which succeed.
 
-Do **not** probe for Matt Pocock's skills here. The Methods the Boxes compose ship with this Plugin and are installed by Step 6; their availability is a Bundle-integrity question, not a discovery one. Which Method each Box reads is recorded once, in [`lib/methods-manifest.mjs`](../lib/methods-manifest.mjs) and the generated table in [README.md § Dependencies](../README.md#dependencies) — never restate that list here.
+Do **not** probe for Matt Pocock's skills here. The Methods the Boxes compose ship with this Plugin and are installed by Step 6; their availability is a Bundle-integrity question, not a discovery one. Which Method each Box reads is recorded once, in the table under [README.md § Dependencies](../README.md#dependencies) — never restate that list here.
 
 For each capability pick the tool MCP-first, else CLI, else skill. A **missing _required_ capability → warn + degrade, non-blocking**: complete setup, record it unavailable in the config, and **list the boxes it blocks** (boxes re-probe at runtime and fail with a clear "install X"). Never abort setup for a missing capability.
 
@@ -216,137 +160,79 @@ Build a single `ANSWERS` object containing **only** the fields you collected, ke
 
 ## Step 5 — Write the config
 
-Substitute `{ANSWERS_JSON}` with the JSON-serialised `ANSWERS` object (placed directly inside the heredoc — never via a shell variable), then run:
+Write `.archon/unic-dlc.config.yaml` with your own tools. Merge in this order — **defaults, then what
+is on disk, then this run's answers** — key by key, deeply, so a re-run with one changed answer
+preserves every other value:
 
-```bash
-node --input-type=module <<'EOJS'
-let result
-try {
-  const { pathToFileURL } = await import('node:url')
-  const mod = await import(pathToFileURL(`${process.env.CLAUDE_PLUGIN_ROOT}/lib/config-schema.mjs`).href)
-  const { existsSync, mkdirSync, writeFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const cwd = process.cwd()
-  const answers = {ANSWERS_JSON}
+1. Start from `CURRENT` as Step 2 read it. When Step 2 read a legacy flat `.json`, migrate it first:
+   move each flat key under the nested key that now holds it, and **preserve every hand-added value**
+   the team put there, including labels this Plugin never asked for.
+2. Apply `ANSWERS` over it. An answer the operator did not give leaves the existing value alone; it
+   never resets it to a default.
+3. Emit YAML and write it to `.archon/unic-dlc.config.yaml`, creating `.archon/` when it does not
+   exist. Keep comments and key order stable across runs where you can — this file is read by humans.
 
-  const yamlPath = join(cwd, '.archon', 'unic-dlc.config.yaml')
-  const jsonPath = join(cwd, '.archon', 'unic-dlc.config.json')
+Two refusals. A config that is present but unreadable stops this step — print the parse error and
+change nothing, because overwriting it would destroy the only copy. And a legacy `.archon/unic-dlc.config.json`
+is **left exactly where it is**: other tools may still read it, so report that you kept it and never
+delete it.
 
-  // Load whatever exists; migrate a legacy flat .json but NEVER delete or modify it.
-  // A present-but-malformed config MUST fail fast — never fall back to {} and clobber it.
-  let existing = {}
-  let loadError = null
-  if (existsSync(yamlPath)) {
-    const r = mod.loadConfig(yamlPath)
-    if ('error' in r) loadError = r.message
-    else existing = r.config
-  } else if (existsSync(jsonPath)) {
-    const r = mod.loadConfig(jsonPath)
-    if ('error' in r) loadError = r.message
-    else existing = mod.isLegacyConfig(r.config) ? mod.migrateLegacy(r.config) : r.config
-  }
-
-  if (loadError) {
-    result = { ok: false, stage: 'config', message: `Existing config is present but unreadable — refusing to overwrite it. Fix or remove the file and re-run. ${loadError}` }
-  } else {
-    const merged = mod.mergeConfig(existing, answers)
-    const emitted = mod.toYaml(merged)
-    if ('error' in emitted) {
-      result = { ok: false, stage: 'validate', message: emitted.message }
-    } else {
-      mkdirSync(join(cwd, '.archon'), { recursive: true })
-      writeFileSync(yamlPath, emitted.yaml)
-      result = { ok: true, configPath: yamlPath, legacyKept: existsSync(jsonPath) ? jsonPath : null }
-    }
-  }
-} catch (err) {
-  result = { ok: false, stage: 'unexpected', message: `Unexpected error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(result) + '\n')
-EOJS
-```
-
-Parse the JSON output. If `ok` is `false`, print `message` and stop. If `ok` is `true`, note `configPath` and (if present) `legacyKept` — the legacy `.json` is **left in place** because other tools may still read it.
+Note the path you wrote as `CONFIG_PATH` for the Step 8 summary.
 
 ## Step 6 — Install the Methods and the Box workflows
 
-The Methods the Boxes compose ship inside this Plugin at `vendor/mattpocock-skills/`. This step verifies that bundle and copies it into `.archon/methods/`, the `bundle` tier `resolveMethod` reads. It **never touches `.archon/methods.local/`** — that tier is the operator's own uncommitted override.
+This step copies files **out of this Plugin's own installed directory**, so it is the one step that
+needs to know where that is. Find it yourself: the directory holds `vendor/mattpocock-skills/`,
+`.archon/workflows/unic-dlc-*.yaml` and `.claude-plugin/plugin.json`. A marketplace install puts it
+under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, one directory per installed version
+— take the version that matches `.claude-plugin/plugin.json` in the copy you are running from. Confirm
+the path with the operator before copying anything, and if you cannot find it, say so and **stop**
+rather than guessing: an install that copies from the wrong version is worse than no install.
 
-The same step then installs every `unic-dlc-*.yaml` this Plugin ships into the Consumer's `.archon/workflows/`, discovered by reading this Plugin's own `.archon/workflows/` at install time — no Box name is a literal anywhere in the install path. This is **name-scoped**, never a whole-directory clean-replace: `.archon/workflows/` is shared with the Consumer's own workflows, so only names matching the `unic-dlc-*.yaml` naming are ever written, overwritten, or swept as stale — including a Box retired from a later Plugin version, which is deleted **regardless of whether it carries the generated header**. A file named outside that pattern is never inspected, whatever it contains — that is what makes the variant escape hatch (README.md) true. `/setup` writes nothing into `.archon/commands/`; the Box command stubs live at `docs/boxes/` as operator documentation, not runtime artefacts.
+Read `version` from that directory's `.claude-plugin/plugin.json` and keep it as `PLUGIN_VERSION`.
 
-Substitute `{MERGED_CONFIG_JSON}` with the JSON-serialised config Step 5 wrote — or with `CURRENT` when Step 5 was skipped — so the tier report reflects the team's own `methods.<name>.source` declarations. Then run:
+**The Methods.** The Methods the Boxes compose ship inside this Plugin at `vendor/mattpocock-skills/`.
+Verify that bundle, then copy it into `.archon/methods/` — the one path every Box and command reads a
+Method from.
 
-```bash
-node --input-type=module <<'EOJS'
-let result
-try {
-  const { pathToFileURL } = await import('node:url')
-  const { join } = await import('node:path')
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
-  // Named explicitly: `join(undefined, …)` throws "path argument must be of type string",
-  // which says nothing about what to do next.
-  if (!pluginRoot) throw new Error('CLAUDE_PLUGIN_ROOT is not set. Run this as a /unic-archon-dlc: slash command — the snippet cannot find the Plugin on its own.')
-  const bundle = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-bundle.mjs')).href)
-  const manifest = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-manifest.mjs')).href)
-  const resolver = await import(pathToFileURL(join(pluginRoot, 'lib', 'methods-resolver.mjs')).href)
-  const artefacts = await import(pathToFileURL(join(pluginRoot, 'lib', 'artefact-install.mjs')).href)
-  const { readFileSync } = await import('node:fs')
-  const cwd = process.cwd()
-  const config = {MERGED_CONFIG_JSON}
-  const bundleRoot = join(pluginRoot, 'vendor', 'mattpocock-skills')
-  const pluginVersion = JSON.parse(readFileSync(join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version
+- Every Method directory in the bundle carries a `SKILL.md`. Verify the companions **by reading**: open
+  each `SKILL.md` and confirm that every companion file it points at sits beside it in the same
+  directory. A Method that references none needs none — several correctly ship a single file, so a file
+  count is not the test. A companion the text points at and the directory lacks is a Method pointing at
+  nothing: report it and stop.
+- `vendor/mattpocock-skills/LICENSE` must be present. If it is absent, ask the maintainer to restore it
+  and stop: **never create a `LICENSE` file yourself.**
+- `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit the bundle was
+  copied from. Read it and keep the tag as `BUNDLE_TAG`.
+- Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version
+  cannot linger.
+- Two override paths an earlier version offered now resolve nothing, because `.archon/methods/` is the
+  only path a Box or a command reads. Report each one you find, once, as retired, and **change
+  neither** — both are the team's own work, and discarding it is not this step's call. They are a
+  `.archon/methods.local/` directory (leave it on disk) and any `methods.<name>.source` key in the
+  config (Step 5 preserves it, like every other key it does not ask about).
 
-  const licence = bundle.verifyLicence({ bundleRoot })
-  if (!licence.ok) {
-    result = { ok: false, stage: 'licence', message: licence.message }
-  } else {
-    const integrity = bundle.verifyBundle({ bundleRoot })
-    if (!integrity.ok) {
-      result = { ok: false, stage: 'bundle', message: `The vendored Method bundle is incomplete — missing: ${integrity.missing.join(', ')}. This is a Plugin packaging fault; reinstall or report it.` }
-    } else {
-      const install = bundle.installMethods({ bundleRoot, repoRoot: cwd })
-      if (!install.ok) {
-        result = { ok: false, stage: 'install', message: install.message }
-      } else {
-        const workflows = artefacts.installBoxWorkflows({ pluginRoot, repoRoot: cwd, pluginVersion })
-        if (!workflows.ok) {
-          result = {
-            ok: false,
-            stage: 'workflows',
-            message: `Failed to install the Box workflow YAMLs into .archon/workflows/ (${workflows.stage}: ${workflows.cause}). ${workflows.written.length} file(s) written and ${workflows.deleted.length} stale file(s) removed before the failure; re-run /unic-archon-dlc:setup to retry.`,
-          }
-        } else {
-          const overrides = bundle.inspectLocalOverrides({ repoRoot: cwd })
-          const tiers = manifest.METHODS_MANIFEST.map((entry) => {
-            const resolved = resolver.resolveMethod(entry.name, { repoRoot: cwd, config, box: 'setup' })
-            return { name: entry.name, tier: 'error' in resolved ? null : resolved.tier }
-          })
-          result = {
-            ok: true,
-            tag: manifest.METHODS_BUNDLE.tag,
-            installed: install.installed,
-            overrides,
-            tiers,
-            workflowsWritten: workflows.written,
-            workflowsDeleted: workflows.deleted,
-            workflowsAdded: workflows.added,
-            previousVersion: workflows.previousVersion,
-            pluginVersion,
-          }
-        }
-      }
-    }
-  }
-} catch (err) {
-  result = { ok: false, stage: 'unexpected', message: `Unexpected error: ${err?.message ?? String(err)}` }
-}
-process.stdout.write(JSON.stringify(result) + '\n')
-EOJS
-```
+**The Box workflows.** Install every `unic-dlc-*.yaml` this Plugin ships into the Consumer's
+`.archon/workflows/`, discovered by reading this Plugin's own `.archon/workflows/` — no Box name is a
+literal anywhere in the install path. This is **name-scoped, never a whole-directory clean-replace**:
+`.archon/workflows/` is shared with the Consumer's own workflows, so only names matching the
+`unic-dlc-*.yaml` naming are ever written, overwritten, or swept as stale — including a Box retired
+from a later Plugin version, which is deleted **regardless of whether it carries the generated
+header**. A file named outside that pattern is never inspected, whatever it contains — that is what
+makes the variant escape hatch (README.md) true. `/setup` writes nothing into `.archon/commands/`; the
+Box command stubs live at `docs/boxes/` as operator documentation, not runtime artefacts.
 
-Parse the JSON output. If `ok` is `false`, print `message` verbatim and **stop the whole setup run** — each failure mode (`licence`, `bundle`, `install`, `workflows`, `unexpected`) means the shipped Plugin itself is incomplete, altered, or couldn't write to disk, none of which a re-run of the earlier steps fixes. On a `licence` failure, the message asks the maintainer to restore the file: **never create a `LICENSE` file yourself.** On an `install` or `workflows` failure, the message already tells the operator how much landed before the failure and that a bare re-run of `/setup` self-heals (it clean-replaces the affected tree). A `workflows` failure whose stage is `stale-sweep` means a `unic-dlc-*.yaml` this Plugin no longer ships could not be read or removed — its path and the read/remove error are already named in `message`, so `/setup` never reports success while that stale Box is still on disk.
+Before overwriting, read the version out of the generated header of each `unic-dlc-*.yaml` already on
+disk and keep the one you find as `PREVIOUS_VERSION` — the version that wrote the Boxes now being
+replaced. It is empty on a fresh Consumer, and on a Box carrying no readable header.
 
-If `ok` is `true`, keep `BUNDLE_TAG` (`tag`), `TIERS`, `OVERRIDES`, `WORKFLOWS_WRITTEN`, `WORKFLOWS_DELETED`, `WORKFLOWS_ADDED` (`workflowsAdded`), `PREVIOUS_VERSION` (`previousVersion`) and `PLUGIN_VERSION` (`pluginVersion`) for the Step 8 summary. `PREVIOUS_VERSION` is the version that wrote the Boxes already on disk, read before this run overwrote them, and is `null` on a fresh Consumer or against a Box carrying no readable generated header; `PLUGIN_VERSION` is this Plugin's own version, taken from the result object and **never re-read** in Step 8. Any entry in `OVERRIDES` whose `matchesBundle` is `false` is a Local override forked from a different Bundle version (or from none at all) — report it; do not modify it.
+Keep `WORKFLOWS_WRITTEN`, `WORKFLOWS_DELETED` and `WORKFLOWS_ADDED` for the Step 8 summary.
+
+**Any failure here stops the whole setup run.** A missing licence, an incomplete bundle, a copy that
+could not be written, a stale `unic-dlc-*.yaml` that could not be removed — each means the shipped
+Plugin is incomplete or the disk refused a write, and none of them is fixed by re-running the earlier
+steps. Say how much landed before the failure and that a bare re-run of `/setup` self-heals, because it
+clean-replaces the affected tree. Never report success while a stale Box is still on disk.
 
 ## Step 7 — Refresh the `CLAUDE.md` marker block (idempotent)
 
@@ -371,8 +257,8 @@ anything between the markers is replaced on the next run.
 - **Archon Boxes** — the `unic-dlc-*.yaml` files in `.archon/workflows/`. List what is installed here
   with `archon workflow list`; run one with `archon workflow run <name> "<slug>"`. They are
   generated: `/unic-archon-dlc:setup` replaces them on every run.
-- **Methods** — `.archon/methods/` is replaced wholesale on every `/unic-archon-dlc:setup` run. Put a
-  local override in `.archon/methods.local/` instead.
+- **Methods** — `.archon/methods/` is replaced wholesale on every `/unic-archon-dlc:setup` run. To
+  change a Method, edit the file there and expect the next run to overwrite it.
 - **What each box does** —
   <https://github.com/unic/unic-agents-plugins/blob/main/apps/claude-code/unic-archon-dlc/README.md>
 
@@ -383,7 +269,7 @@ Keep the edit idempotent: re-running `/setup` replaces the block in place, never
 
 ## Step 8 — Summary
 
-Print a concise summary. List every Method with the tier it resolved from, and one line for Local overrides:
+Print a concise summary. List the Methods installed, and the Bundle tag they came from:
 
 ```
 unic-archon-dlc configured.
@@ -393,8 +279,7 @@ unic-archon-dlc configured.
   tracker:  {tracker.type} (access: {mcp|cli})
   docs:     {docs.type} (publish: {docs.publish})
   gates:    build={…} qa={…} pr-review={…} explore={…}
-  methods:  {name}({tier}) · {name}({tier}) · … (bundle {BUNDLE_TAG})
-  overrides: none
+  methods:  {name} · {name} · … (bundle {BUNDLE_TAG})
   workflows written: {path} · {path} · …
   workflows removed: none
   workflows added: {path} · {path} · …
@@ -404,9 +289,7 @@ Fill `{configPath}` from `configPath` (Step 5's output) or, when Step 5 was skip
 
 Fill the `archon remote:` line from `ARCHON_REMOTE_RESOLVED`. When it is null, print `none resolved — Archon Boxes may need worktree.remote set manually` instead of a remote name.
 
-Build the `methods:` line from `TIERS` — one `{name}({tier})` per manifest entry, `·`-separated. A `null` tier means the Method resolved at no tier at all; print it as `{name}(UNRESOLVED)` and name it as a fault worth reporting.
-
-Build the `overrides:` line from `OVERRIDES`: `none` when it is empty, otherwise one entry per override whose `matchesBundle` is `false`, e.g. `overrides: tdd — forked_from mismatch (expected {BUNDLE_TAG}, got v1.0.0|missing)`. Overrides that match the Bundle tag need no flag.
+Build the `methods:` line from the directories Step 6 copied into `.archon/methods/`, `·`-separated, with `BUNDLE_TAG` in brackets. A Method the table under [README.md § Dependencies](../README.md#dependencies) names and Step 6 did not install is a fault worth reporting by name.
 
 Build the `workflows written:` line from `WORKFLOWS_WRITTEN` — every path this run wrote into `.archon/workflows/`, `·`-separated. Build `workflows removed:` from `WORKFLOWS_DELETED` — `none` when it is empty, otherwise every stale `unic-dlc-*.yaml` path this run swept because the current Plugin version no longer ships it. Build `workflows added:` from `WORKFLOWS_ADDED` — `none` when it is empty, otherwise every path this run wrote that the Consumer did not already have, i.e. the Boxes this Plugin version brings. `WORKFLOWS_ADDED` is a subset of `WORKFLOWS_WRITTEN`; the paths in one and not the other were already installed and were overwritten. All three lists name **paths written, paths deleted and paths added**, never a count alone — the point is a reviewable diff, not a summary number.
 
