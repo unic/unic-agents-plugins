@@ -228,10 +228,11 @@ Read Archon's wording literally and no further. On 0.7.0 the message says `Confi
 
 Name the Archon version the verdicts were measured on. They belong to that release and to no other.
 
-Then clear what the probe left behind: delete the throwaway repository, and delete the
-`~/.archon/workspaces/<owner>/<repo>/` directory Archon created for it — the first run registers the
-probe as a codebase in Archon's own store, and a probe that is not cleared up shows in
-`archon isolation list` next to real work.
+Then clear what the probe left behind: delete the throwaway repository and the
+`~/.archon/workspaces/<owner>/<repo>/` directory Archon created for it, so a probe stops showing in
+`archon isolation list` next to real work. One residue has no cleanup path: the first run registers the
+probe as a codebase row in `~/.archon/archon.db`. That row is one machine's junk — leave it, and say in
+the report that the probe name will appear in Archon's own listings.
 
 ## Step 7 — Print the report
 

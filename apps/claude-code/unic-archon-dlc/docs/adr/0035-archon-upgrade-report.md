@@ -14,8 +14,10 @@ is Step 6, and "writes nothing" now carries one contained exception (#396)
 > throwaway git repository outside every clone, writes a config and a one-node workflow inside it, and
 > runs Archon there. Name what that costs, because the containment is not total: Archon also writes a
 > workspace directory under `~/.archon/workspaces/`, a row in its own store, and one worktree per run.
-> The step ends by deleting them. Nothing in the repository under assessment is touched, and the
-> read-only claim about _this_ repository stands unweakened.
+> The step ends by deleting the repository and that workspace directory. The store row has no cleanup
+> path, so it stays — one machine's junk, named in the report rather than hidden. Nothing in the
+> repository under assessment is touched, and the read-only claim about _this_ repository stands
+> unweakened.
 >
 > Why the step exists at all: [#396](https://github.com/unic/unic-agents-plugins/issues/396) measured a
 > committed `.archon/config.yaml` fix that had been inert for weeks — a top-level `baseBranch:` against
