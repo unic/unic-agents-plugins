@@ -172,7 +172,7 @@ which claims to put under it.
 | Key path              | What depends on it                                                                                                                                                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `worktree.baseBranch` | Which branch an Archon worktree forks from. A wrong value produces work behind the integration branch; a value nothing reads leaves Archon on its own stored default — the branch that happened to be checked out on its first run in that repository. |
-| `worktree.remote`     | Which remote Archon resolves that base branch against. `/setup` reports what Archon resolves and writes that file never; Step 4 classifies changes to the algorithm VERIFY-ONLY on the strength of it.                                                 |
+| `worktree.remote`     | Which remote Archon resolves that base branch against. `/setup` reports what Archon resolves and never writes that file; Step 4 classifies changes to the algorithm VERIFY-ONLY on the strength of it.                                                 |
 
 That table is the whole list. A key discovered later joins it through its own ticket, which is what
 keeps it a list and not a survey of Archon's config surface.
