@@ -1,6 +1,6 @@
 # 0033. Archon 0.7.0 schema target — floor bump, `always_run`, sub-runs deferred
 
-**Status:** Accepted (2026-08-10); amended 2026-08-18 — see the note below. Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
+**Status:** Accepted (2026-08-10); amended 2026-08-18 — see the note below; amended 2026-08-24 — `worktree.remote` measured on 0.7.0: read, and base-branch resolution only (#396). Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
 
 > **Amended (2026-08-18):** § "Repository derivation: settled by #289, not reopened here" describes a
 > mechanism that no longer exists. This Harness derives no repository from a remote: each Box reads the

@@ -10,9 +10,12 @@ is Step 6, and "writes nothing" now carries one contained exception (#396)
 > repository_. Step 6 probes whether the installed Archon still reads the config keys this Plugin
 > depends on, and the only method that answers it honestly is behavioural: give the key a distinctive
 > value and watch what Archon does with it. Grepping the binary proves a string is present, not that
-> anything reads it. So the step builds a throwaway git repository outside every clone, writes a config
-> and a one-node workflow inside it, and runs Archon there. Nothing in the repository under assessment
-> is touched, and the read-only claim about _this_ repository stands unweakened.
+> anything reads it, and `archon doctor` reports nothing about config resolution. So the step builds a
+> throwaway git repository outside every clone, writes a config and a one-node workflow inside it, and
+> runs Archon there. Name what that costs, because the containment is not total: Archon also writes a
+> workspace directory under `~/.archon/workspaces/`, a row in its own store, and one worktree per run.
+> The step ends by deleting them. Nothing in the repository under assessment is touched, and the
+> read-only claim about _this_ repository stands unweakened.
 >
 > Why the step exists at all: [#396](https://github.com/unic/unic-agents-plugins/issues/396) measured a
 > committed `.archon/config.yaml` fix that had been inert for weeks — a top-level `baseBranch:` against

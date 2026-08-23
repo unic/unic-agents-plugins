@@ -43,7 +43,9 @@ the output may carry a program name or a `v` prefix.
   first — there is no upgrade to report, only a downgrade to fix." Stop.
 - **The version does not parse into three numbers** (a dev build) → say so, skip Steps 2–4, and go
   straight to Steps 5 and 6, which need no version at all.
-- **Installed equals `0.7.0`** → print `installed 0.7.0 == floor 0.7.0 — nothing to do` and stop.
+- **Installed equals `0.7.0`** → print `installed 0.7.0 == floor 0.7.0 — no release range to assess`,
+  skip Steps 2–4, and go to Steps 5 and 6. They assess what is already shipped, not the new release,
+  and the floor is the version most Consumers are running.
 - **Installed is strictly above `0.7.0`** → continue to Step 2. State the range you are about to
   assess: `floor 0.7.0 → installed <y>`.
 
@@ -152,7 +154,8 @@ run is never a silent PASS.
 
 A FAIL here is not caused by the new Archon release: it means an installed Box has drifted from
 ADR-0011. Nothing else guards these four conventions, so this read is the only place they are
-re-asserted — say which file drifted and stop short of fixing it, because this command writes nothing.
+re-asserted — say which file drifted and stop short of fixing it, because this command changes nothing in
+this repository.
 
 ## Step 6 — Probe the config keys this Plugin depends on
 
@@ -176,19 +179,23 @@ keeps it a list and not a survey of Archon's config surface.
 
 ### The probe
 
-Reading the binary proves a string is present, not that anything reads it. So give the key a
-distinctive value and watch what Archon does with it. Build the probe outside every real clone — it
-writes a config file and creates worktrees.
+Reading the binary proves a string is present, not that anything reads it, and `archon doctor` reports
+nothing about config resolution. So give the key a distinctive value and watch what Archon does with
+it. Build the probe outside every real clone — it writes a config file, and Archon writes a workspace
+directory, a row in its own store and one worktree per run.
 
-1. Make a throwaway git repository: `git init`, one commit, and two remotes whose URLs carry
+1. Make a throwaway git repository under the operating system's temp directory, so the probe works
+   the same on macOS, Windows and Linux: `git init`, one commit, and two remotes whose URLs carry
    distinctive owner and repository names — for example `origin` →
    `https://github.com/probe-origin-org/probe-origin-repo.git` and `mirror` →
-   `https://github.com/probe-mirror-org/probe-mirror-repo.git`.
+   `https://github.com/probe-mirror-org/probe-mirror-repo.git`. `allowed-tools` grants no `Write`, so
+   make the repository and its two files through `Bash`.
 2. Write one workflow at `.archon/workflows/probe.yaml`: a single node carrying an `id:` and a `bash:`
    body that echoes `pwd`. Commit it. Archon resolves the config before the first node, so the body
    never has to run for the probe to answer.
-3. Run it once per row of the table, plus the two controls below, rewriting `.archon/config.yaml`
-   between runs and passing a fresh branch each time:
+3. Run it once per key in the table with that key set alone, plus the two control runs below — so the
+   two keys above are four runs. Rewrite `.archon/config.yaml` between runs and pass a fresh branch
+   each time:
 
    ```bash
    archon workflow run probe --branch probe-<n>
@@ -211,17 +218,27 @@ Give each key one verdict:
 - **READ — value `<x>`.** The distinctive value appears in Archon's own output.
 - **NOT READ.** The output matches the control that omitted the key. This is the silent failure the
   step exists for.
-- **INCONCLUSIVE — `<reason>`.** A probe run could not complete. Name the run and the reason; an
-  unfinished probe is never a PASS.
+- **INCONCLUSIVE — `<reason>`.** A probe run could not complete, **or** no run produced a line you can
+  read a branch or a remote out of — a reworded message is not evidence that nothing read the key.
+  Name the run and the reason; an unfinished probe never counts as READ.
+
+Read Archon's wording literally and no further. On 0.7.0 the message says `Configured base branch
+'<x>'` even when nothing is configured and `<x>` is Archon's own stored default, so the word
+`Configured` is not evidence of a read — only the **distinctive value** is.
 
 Name the Archon version the verdicts were measured on. They belong to that release and to no other.
+
+Then clear what the probe left behind: delete the throwaway repository, and delete the
+`~/.archon/workspaces/<owner>/<repo>/` directory Archon created for it — the first run registers the
+probe as a codebase in Archon's own store, and a probe that is not cleared up shows in
+`archon isolation list` next to real work.
 
 ## Step 7 — Print the report
 
 One block, in this order:
 
 ```
-/archon-upgrade report — read-only
+/archon-upgrade report — read-only in this repository
   Archon:      installed <x> · floor <y> · <up-to-date | N releases to assess | below floor>
   Repository:  <owner>/<repo>   (discovered via brew | supplied by you | unavailable)
   Releases:    <tags assessed>  (or: classification table not produced — <reason>)
@@ -238,9 +255,9 @@ One block, in this order:
     unic-dlc-qa.yaml         PASS
 
   Config keys (probed on Archon <x>)
-    worktree.baseBranch      READ — value '<distinctive value>'
-    worktree.remote          READ — value '<distinctive value>'
-    inert control (top-level names)   NOT READ — the probe can tell the two apart
+    <key from Step 6's table>        <READ — value '<x>' | NOT READ | INCONCLUSIVE — <reason>>
+    ...one row per key in that table...
+    inert control (the same names at top level)   <verdict>
 
   Summary:     ADOPT <n> · DEFER <n> · VERIFY-ONLY <n> · BREAKS-US <n>
   next:        act on the BREAKS-US rows first, then the ADOPT rows.
@@ -248,4 +265,5 @@ One block, in this order:
 
 Close with this line, verbatim:
 
-> This command wrote nothing. Adoption is a human decision — file an issue or amend an ADR by hand.
+> This command wrote nothing in this repository — only the throwaway repository Step 6 built, now
+> deleted. Adoption is a human decision — file an issue or amend an ADR by hand.
