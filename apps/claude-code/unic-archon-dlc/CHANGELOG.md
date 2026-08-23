@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.24.0] — 2026-08-23
+
+### Breaking
+- (none)
+
+### Added
 
 - **`/archon-upgrade` probes whether the installed Archon still reads the config keys this Plugin depends on.** Step 6, unconditional like the trap pass: it needs no release notes, no network and no AI. It gives each key a distinctive value in a throwaway git repository outside every clone, runs a one-node Archon workflow there, and reads the verdict out of Archon's own output — **READ — value `<x>`**, **NOT READ**, or **INCONCLUSIVE** naming the run that failed. The second verdict is the failure the step exists for, and it was silent everywhere before: this repository's committed top-level `baseBranch:` was inert for weeks while prose cited it as the Gitflow fix ([#396](https://github.com/unic/unic-agents-plugins/issues/396), [ADR-0035](docs/adr/0035-archon-upgrade-report.md) amended). Two keys start the list, in one table in that step, and the prose says the path is Archon's to change — so Step 4's remote-resolution precedent now points at the table instead of naming the key a second time. A key found later joins the table through its own ticket. The step also carries an **inert control** run — the same key names at the top level of the file — because a report showing only READ rows has not shown that a row could come out the other way.
 - **Measured on Archon 0.7.0: `worktree.remote` is read, and it governs base-branch resolution only.** Named as a second remote, the binary's startup error resolves the base branch against that remote where a control run naming no key says `origin`; in the same run the workspace path still came out of `origin`. So the shared `~/.archon/workspaces/_git/` directory every `dxp` repository lands in is a different thing — Archon reading the second-to-last URL segment as the organisation — and this key is not its fix ([ADR-0033](docs/adr/0033-archon-070-schema-target.md) amended). The verdict belongs to 0.7.0, which is why Step 6 re-probes it rather than an ADR asserting it.
