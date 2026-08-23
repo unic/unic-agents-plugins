@@ -439,6 +439,11 @@ nodes:
            - **anchor** — one entry for every finding this run that is anchorable AND owns no thread
              yet: classification `new`, or a match against a prior finding whose `anchored` is "false".
              It carries the real changed-file path in `file` and the real diff line in `line`.
+             Check the path against SESSION/changed-files.txt before you write the entry. The tracker
+             will not check it for you: on 2026-08-24 Azure DevOps accepted thread 65129 anchored to
+             `.archon/unic-dlc.config.yaml` on !5787, a file neither revision touched. This admission
+             rule is the only thing standing between a scoped finding and a thread on an unrelated
+             file.
          A scoped finding never becomes an `anchor` entry, because it names no line to anchor to; when
          it owns no prior thread the summary carries it alone, tagged by step 5. A prior finding whose
          `anchored` is "false" is likewise carried by the summary: its verdict is the tag, and there is
