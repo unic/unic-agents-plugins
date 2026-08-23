@@ -162,12 +162,16 @@ nodes:
       (match on the MARKER, never on comment author). Take the HIGHEST N found. Set `iteration` = N+1
       (or 1 if none). Parse the prior findings from the prior summary + inline markers
       (`<!-- unic-dlc-pr-review:finding=<hash> -->`) into `prior_findings` (each: hash, aspect, file,
-      title, anchored) so reconcile can classify against them. Set `anchored` to "true" when you found
-      that hash in a marker on a discussion anchored to a file and a line, and "false" when you found
-      it only in the prior summary body: reconcile needs to know which prior findings own a live
-      thread. A host may nest a reply under its parent rather
-      than listing every comment flat, so walk each thread's replies too. If the tracker exposes no
-      discussion at all, set iteration 1 and prior_findings []. Write `SESSION/prep.json` mirroring the emitted object for durability.
+      title, anchored) so reconcile can classify against them. EVERY prior finding carries that marker:
+      an anchored discussion carries it, and the prior summary carries one beside each finding it
+      renders. Set `anchored` to "true" when you found the hash on a discussion anchored to a file and
+      a line, and "false" when you found it only in the summary body — reconcile needs to know which
+      prior findings own a live thread. Read `file` from the locator the summary renders, and
+      **a locator that is one of the three literal scope tokens — `pull request`, `work item`,
+      `repository` — is a scope, not a path: record the token verbatim in `file`.** A host may nest a
+      reply under its parent rather than listing every comment flat, so walk each thread's replies too.
+      If the tracker exposes no discussion at all, set iteration 1 and prior_findings [].
+      Write `SESSION/prep.json` mirroring the emitted object for durability.
 
       ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
       they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". `contradictions` and
@@ -280,8 +284,8 @@ nodes:
           - `pull request` — the description, the title, the branch, the commit set, the PR's own metadata
           - `work item`    — the linked tracker item, its acceptance criteria, or the link itself
           - `repository`   — a whole-repository observation the diff does not localise
-        Pick the token that fits. A file that merely sits near the problem is the wrong answer:
-        `file` holds a path only when the finding is genuinely about a line of that file's diff.
+        `file` holds a path only when the finding is genuinely about a line of that file's diff; a
+        file that merely sits near the problem is the wrong answer.
         The token is what the summary displays in place of `file:line`, and it is what the hash uses,
         so a scoped finding hashes the same on every iteration.
       - `hash` — sha1-ish of aspect + file + normalised-title, NOT the line number, where `file` is the
@@ -325,6 +329,9 @@ nodes:
       2. Merge its `findings`, DEDUPE overlaps (same file + near-identical title across the two axes →
          keep the highest-confidence one, note the other axis). Ensure each finding has its stable
          `hash`. Do NOT rerank one axis against the other; deduping identical findings is not reranking.
+         Scoped findings share one of only three `file` values, so their titles carry the whole
+         distinction: give any two scoped findings that normalise to the same title one sharper title
+         each, or they collide on one hash and the second one disappears.
       3. Bucket by severity (critical / important / minor). Collect `positives`.
       4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
@@ -339,6 +346,11 @@ nodes:
              `` `pull request` ``, `` `work item` `` or `` `repository` `` — alone, with no line and no
              file path beside it. The token is the same string that entered the hash, so the summary
              reads the same on every iteration.
+             **Open every finding's block with its hidden marker,
+             `<!-- unic-dlc-pr-review:finding=<hash> -->`, on its own line before the locator.** The
+             summary is the only surface a scoped finding ever reaches, so this marker is how the next
+             iteration reads its hash back; a finding rendered without one is invisible to the run
+             after this and starts again as new. Markdown hides the comment from the reader.
            - `### ✅ What's good` — always present, from `positives`.
       Write the deduped this-run set to SESSION/findings.json (each finding incl. its hash) and the body
       sections to SESSION/summary-sections.md. Emit the counts.
@@ -364,27 +376,32 @@ nodes:
       coordinator. SESSION = <artifacts_dir>/<slug>/pr-review/. ITERATION = $prep.output.iteration.
 
       1. Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration).
-      2. Classify each finding by matching its `hash` against prior_findings (tolerate small line drift —
-         match on aspect + file + semantic title, NOT the exact line number).
-         One-off note: a prior iteration posted before #281 carries the retired seven aspect names
-         (code-quality, tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where
-         this run carries "standards" / "spec". Match those on file + semantic title ALONE, ignoring the
-         aspect, so the first re-review after the rewiring does not report every finding as new.
+      2. Classify each finding against prior_findings. Match on the `hash` first; where no hash matches,
+         match on **aspect + semantic title**, and treat `file` as corroboration that never blocks a
+         match. The line number is never part of the match — small line drift is expected.
+         Two one-off notes cover the prior iterations already live on real pull requests:
+           - A prior iteration posted before #281 carries the retired seven aspect names (code-quality,
+             tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where this run
+             carries "standards" / "spec". Match those on semantic title alone, ignoring the aspect, so
+             the first re-review after the rewiring does not report every finding as new.
+           - A prior iteration posted before 0.23.1 gave a scoped finding an invented `file` — a path
+             that merely sat near the problem. Its prior `file` is a path and this run's is
+             `pull request`, `work item` or `repository`, so the two differ by design. Match those on
+             aspect + semantic title alone. Reading the differing `file` as "no match" reports a live
+             finding as `fixed` and replies "✅ resolved" to it, which is the defect this whole step
+             exists to prevent.
          Classifications:
            - new           — no prior match
            - still-present — matched a prior finding still valid this run
            - fixed         — a prior finding with NO match this run (it no longer reproduces)
            - regressed     — a prior finding that was reported fixed, reappearing this run
-         **The prior hash is the identity. Carry it forward; never recompute it.** A thread's marker
-         `<!-- unic-dlc-pr-review:finding=<hash> -->` is the only thing `post` matches on, and threads
-         opened by earlier iterations carry whatever hash that run computed — including one derived
-         from a file an earlier run invented for a scoped finding. So the moment a finding matches a
-         prior one, overwrite this run's hash with the prior finding's hash and use that everywhere
+         **The prior hash is the identity. Carry it forward.** The moment a finding matches a prior
+         one, overwrite this run's hash with the prior finding's hash and use that hash everywhere
          downstream: in the summary, in the plan, in every count. Only a `new` finding keeps the hash
-         this run computed. A matched finding whose hash you recompute — however much the formula
-         improved — orphans its live thread, which is the whole defect this step exists to prevent.
-         A finding that was anchorable last iteration and is scoped this one is still-present, not new:
-         the scope changed, the finding did not, and it keeps the prior hash like any other match.
+         this run computed. The marker `<!-- unic-dlc-pr-review:finding=<hash> -->` is what `post`
+         matches on and what the next iteration reads back, so a matched finding given a fresh hash
+         loses the thread and the history that go with it. A finding that was anchorable last iteration
+         and is scoped this one is still-present, not new: the scope changed, the finding did not.
       3. **Emit a verdict for EVERY prior finding.** Walk `prior_findings` and confirm each hash appears
          exactly once in the classified set, as still-present, fixed or regressed. A prior finding you
          cannot match to anything this run is `fixed` — say so explicitly rather than dropping it,
@@ -406,8 +423,11 @@ nodes:
            🤖 Generated by unic-archon-dlc · Iteration <ITERATION> · re-run `/unic-dlc-pr-review $bootstrap.output.slug` to update.
 
          Tag each still-present / regressed finding inline in its section (e.g. "(still present since
-         iteration N−1)" / "(⚠ regressed)").
-      6. Build the thread plan → SESSION/inline.json: an array of
+         iteration N−1)" / "(⚠ regressed)"). Under the delta line, name every `fixed` finding by title
+         in one short list: a fixed finding leaves no other trace in this iteration's sections, and a
+         scoped one leaves no thread either, so the list is the only place the reader sees it resolved.
+      6. Build the thread plan → SESSION/inline.json (the filename is historical; the file holds the
+         whole thread plan, not only anchored entries): an array of
          { kind, file, line, severity, hash, classification, body }. Every entry's `body` starts with
          the hidden marker `<!-- unic-dlc-pr-review:finding=<hash> -->` and then the rendered finding.
          `kind` is "reply" or "anchor", and each kind has its own admission rule:
@@ -419,11 +439,10 @@ nodes:
            - **anchor** — one entry for every finding this run that is anchorable AND owns no thread
              yet: classification `new`, or a match against a prior finding whose `anchored` is "false".
              It carries the real changed-file path in `file` and the real diff line in `line`.
-         Those two rules admit everything and nothing else. A scoped finding — `pull request`,
-         `work item`, `repository` — never becomes an `anchor` entry, because there is no line to
-         anchor it to; when it owns no prior thread the summary carries it alone, tagged by step 5.
-         A prior finding whose `anchored` is "false" is likewise carried by the summary: its verdict is
-         the tag, and there is no thread to reply to.
+         A scoped finding never becomes an `anchor` entry, because it names no line to anchor to; when
+         it owns no prior thread the summary carries it alone, tagged by step 5. A prior finding whose
+         `anchored` is "false" is likewise carried by the summary: its verdict is the tag, and there is
+         no thread to reply to.
       Emit iteration, the delta counts, and the two counts from step 3.
     output_format:
       type: object
@@ -517,8 +536,9 @@ nodes:
             - still-present → update that discussion's body in place.
             - fixed         → reply "✅ resolved in iteration <ITERATION>" and mark it resolved where the
                               tracker carries a resolved status (best-effort; otherwise just reply).
-            - regressed     → reopen it noting the regression, or open a new one when the tracker
-                              offers no reopen.
+            - regressed     → reopen it noting the regression. Where the tracker offers no reopen,
+                              reply on that same thread saying the finding is back. A reply entry
+                              carries no file and no line, so it has nothing to anchor a new thread to.
           Answer every reply entry before you finish, and report a marker that matches no thread by its
           hash in your final line: a prior thread left with no reply and no resolution is the defect
           this plan exists to prevent.
@@ -527,4 +547,7 @@ nodes:
           a changed file and a diff line.
 
       Finally print: "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
-      <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved). ✓"
+      <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved) ·
+      $reconcile.output.prior_count prior findings, $reconcile.output.verdicts verdicts. ✓"
+      Print the last two whether or not the gate ran: in AFK the gate is skipped, and this line is then
+      the only place the run states that every prior finding was answered.

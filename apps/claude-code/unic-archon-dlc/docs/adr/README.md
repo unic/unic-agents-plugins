@@ -31,7 +31,7 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 | 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281, #381)       |
 | 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296, #389)       |
 | 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (amended #389)             |
-| 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281)             |
+| 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281, 2026-08-24) |
 | 0027 | `/improve-architecture` is a skill composing Matt's method + owns ADR superseding          | Accepted                            |
 | 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted (amended #389)             |
 | 0029 | `/explore` is an off-line research + AFK-spike on-ramp; findings.md is the /specs baton    | Accepted (amended #281, #389)       |
