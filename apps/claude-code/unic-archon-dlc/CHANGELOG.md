@@ -9,6 +9,17 @@
 - (none)
 
 ### Fixed
+- (none)
+
+## [0.24.2] — 2026-08-24
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
 
 - **`/pr-review` stops relearning an inline thread's anchor shape by failing.** The `post` node was told to open inline threads and left to discover what a host accepts. Measured on `DXP-DesignSystem` [!5783](https://dev.azure.com/FZAG/dxp/_git/DXP-DesignSystem/pullrequest/5783) on 2026-08-21: the first batch of four was rejected for carrying only a start line and a start offset, and the retry succeeded carrying all four right-file coordinates. The constraint was then saved to the agent's own memory on one machine, so nothing in the Plugin changed and every Consumer — and every fresh context — paid the same failed batch again, which is exactly what [ADR-0012](docs/adr/0012-fresh-context-red-green-separation.md) exists to prevent. The `anchor` branch now carries a generic rule — ask the tracker for an anchor's full shape before the first call and build all of it, never probe by sending a batch and reading the rejection — with the dated evidence beside it, and says that the tenant fact belongs in `docs/agents/issue-tracker.md` § Access. The `fixed` reply branch gains one clause: replying and changing a status may be two separate operations on the same thread ([#407](https://github.com/unic/unic-agents-plugins/issues/407)).
 - **`unic-dlc-qa.yaml`'s Method-table pointer names the Plugin whose README it means.** A Box is copied into a Consumer's `.archon/workflows/`, so a bare `README.md` in one resolves against the **Consumer's** root: `DXP-DesignSystem`'s README has a `## Dependency Management` and no Method table, and the pointer led to the wrong document. That is harder to notice than the `lib/methods-manifest.mjs` it replaced, which resolved nowhere. The sweep of all four Boxes required by the ticket found no second instance — every other bare path (`docs/agents/`, `docs/adr/`, `CONTEXT.md`, `README.md` where a node reads the repository under review, `.archon/methods/<name>/SKILL.md`) means the Consumer's own file by design ([#401](https://github.com/unic/unic-agents-plugins/issues/401)).
