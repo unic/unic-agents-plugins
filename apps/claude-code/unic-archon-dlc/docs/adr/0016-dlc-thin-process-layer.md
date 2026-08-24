@@ -18,13 +18,20 @@
 
 > **Amended (2026-08-24, #407):** "owns none of the _how_" gains one narrow carve-out. A Box prompt may
 > name a host inside a **dated evidence citation** — what a tenant did, on what date, on which pull
-> request — where a generic rule sits beside it and carries the instruction. The reason is that the
-> premise below, that a server discovers its own API, failed twice on a real tenant: an inline-thread
-> anchor shape and an accepted anchor on an untouched file were both learnt from a rejected or wrong
-> call rather than from a tool list, so a rule with no citation cannot be re-checked by the next
-> reader. What the Decision still forbids is unchanged and is the larger half: a payload, subcommand
-> or flag written as something to send, whether or not a date sits next to it. The carve-out is stated
-> in full in `AGENTS.md` § Plugin doctrines, under the bullet that forbids the provider name.
+> request — where a generic rule sits beside it and carries the instruction.
+>
+> The reason is a gap this Decision leaves. Delegating every system interaction assumes the delegate
+> can be asked what it accepts, and twice on a real tenant it could not: an inline-thread anchor shape
+> and an accepted anchor on a file no revision touched were both learnt from a rejected or wrong call,
+> never from a tool list. A rule earned that way is unusable without the run that earned it, because
+> the next reader has no way to re-check it. (The stronger form of the assumption — "a server discovers
+> its own API" — is stated not here but in `AGENTS.md` § Plugin doctrines, in the tracker-contract
+> bullet, where it grounds the rule that operations are never written into `docs/agents/`. That rule is
+> unchanged: the citation's home is the Box, not the tracker contract.)
+>
+> The carve-out's limit, the wording that makes it narrow, and the worked instances live in one place —
+> `AGENTS.md` § Plugin doctrines, under the bullet that forbids the provider name — and each Box that
+> uses it restates it inline, because a Box node imports nothing.
 
 ## Context
 

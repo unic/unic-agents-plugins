@@ -570,6 +570,13 @@ nodes:
         table frozen in this file is stale the moment the tool changes, and inventing a subcommand is
         the one defect no test without a live tenant can catch. Ask what the tracker supports; do not
         assume.
+        **One carve-out, so that asking is not the whole answer when the tool does not answer.** A
+        rule this node learnt from a rejected call is written down below as a **dated citation** — a
+        date, a pull request, a host, and what that host did. Read such a citation as evidence you may
+        act on when the tool list is silent on the point, and never as a payload to send unread: ask
+        the tool first, and where the two disagree the tool wins. Adding one is the only reason to
+        name a host in this file. Writing a command, a subcommand or a flag as something to send is
+        still forbidden, whether or not a date sits beside it.
       - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
         explicitly in every call, and derive nothing from a remote URL.
       If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
@@ -625,15 +632,21 @@ nodes:
           end as well as a start, a column on each end, or the path spelled its own way. None of that
           is guessable, and none of it is a reason to probe by sending a batch and reading the
           rejection: that probe costs a round trip on every run in every Consumer, and what it teaches
-          is a tenant fact, which belongs in `docs/agents/issue-tracker.md` § Access rather than in one
-          agent's memory on one machine.
+          survives only if it is written where the next fresh context reads it. Not the tracker
+          contract — a section there earns its place by stating a tenant fact, and an operation
+          written down freezes a flag table in Markdown. Not one agent's memory on one machine either,
+          which is what happened and why this paragraph exists. Here, as a dated citation.
           Dated evidence, so the rule above is not abstract: on 2026-08-21, reviewing pull request
           !5783 on Azure DevOps, a first batch of four inline threads carrying only a start line and a
           start offset was rejected, and the retry succeeded carrying all four of
           `rightFileStart.line`, `rightFileStart.offset`, `rightFileEnd.line` and
           `rightFileEnd.offset`, with an offset of `1` on each end and a `filePath` opening with `/`.
           That host is named because a date and a pull request are what make the line checkable later.
-          It is evidence for the rule, never a payload to copy — read the current tool list and ask.
+          Ask the tool first. Where its list does not state an anchor's shape — and on that tenant it
+          did not, which is why the batch failed — build the span the citation records rather than
+          sending a start and reading the rejection: the citation is the fallback, not decoration.
+          It is still evidence and not a payload to paste, so check it against what the tool says now,
+          and where the two disagree the tool wins.
 
       ## The closing line (always, and outside the section above)
       Print this whether or not you skipped the per-line section and whether or not the gate ran. In
