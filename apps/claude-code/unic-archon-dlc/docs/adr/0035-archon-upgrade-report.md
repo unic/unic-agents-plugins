@@ -1,7 +1,29 @@
 # 0035. `/archon-upgrade` reports what a new Archon release means for this Plugin
 
 **Status:** Accepted (2026-08-10); amended 2026-08-20 — the trap pass is a read, not a module, and it
-reads the installed Boxes rather than the bundled ones (#381)
+reads the installed Boxes rather than the bundled ones (#381); amended 2026-08-24 — a config-key probe
+is Step 6, and "writes nothing" now carries one contained exception (#396)
+
+> **Amended (2026-08-24) — the report gained a config-key probe, and with it the one write this ADR
+> said the command would never make.** This ADR argues the command "writes no file, amends no ADR,
+> files no issue and touches no config", stated as an absolute. That claim now reads _in this
+> repository_. Step 6 probes whether the installed Archon still reads the config keys this Plugin
+> depends on, and the only method that answers it honestly is behavioural: give the key a distinctive
+> value and watch what Archon does with it. Grepping the binary proves a string is present, not that
+> anything reads it, and `archon doctor` reports nothing about config resolution. So the step builds a
+> throwaway git repository outside every clone, writes a config and a one-node workflow inside it, and
+> runs Archon there. Name what that costs, because the containment is not total: Archon also writes a
+> workspace directory under `~/.archon/workspaces/`, a row in its own store, and one worktree per run.
+> The step ends by deleting the repository and that workspace directory. The store row has no cleanup
+> path, so it stays — one machine's junk, named in the report rather than hidden. Nothing in the
+> repository under assessment is touched, and the read-only claim about _this_ repository stands
+> unweakened.
+>
+> Why the step exists at all: [#396](https://github.com/unic/unic-agents-plugins/issues/396) measured a
+> committed `.archon/config.yaml` fix that had been inert for weeks — a top-level `baseBranch:` against
+> an Archon that reads a nested path — believed and cited in prose the whole time. A config key this
+> Plugin depends on is a claim to re-verify on every upgrade, which is what this command is for. The
+> keys live in exactly one table, in Step 6, and the prose says the path is Archon's to change.
 
 > **Amended (2026-08-20) — the trap check is prose now, and its own reasoning is what changed.** This
 > ADR argues the pass belongs in `lib/schema-traps.mjs` because "an assertion that only exists as a
