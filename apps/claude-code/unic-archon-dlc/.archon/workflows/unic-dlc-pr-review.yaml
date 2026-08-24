@@ -407,9 +407,18 @@ nodes:
          Classifications:
            - new           — no prior match
            - still-present — matched a prior finding still valid this run
-           - fixed         — a prior finding with NO match this run (it no longer reproduces)
+           - fixed         — a prior finding whose `prior_verdict` is "open" with NO match this run
            - regressed     — a prior finding whose `prior_verdict` is "fixed" and which matches a
                              finding this run: the previous iteration resolved it and it is back
+           - retired       — a prior finding whose `prior_verdict` is "fixed" and which STILL has no
+                             match. It was reported fixed and stayed fixed, so it leaves the ledger:
+                             step 5 does not re-list it and it carries no marker forward. Without
+                             this, an already-fixed finding is ruled `fixed` again every run, the
+                             fixed list grows without bound, and the "since iteration N−1" delta
+                             counts findings fixed several iterations ago as though they were fixed
+                             this one. The ceiling: a retired finding that reappears two iterations
+                             later reads as `new`, because nothing carries its hash any more. The
+                             ledger has to end somewhere and this is where it ends.
          **The prior hash is the identity. Carry it forward.** The moment a finding matches a prior
          one, overwrite this run's hash with the prior finding's hash and use that hash everywhere
          downstream: in the summary, in the plan, in every count. Only a `new` finding keeps the hash
@@ -418,19 +427,27 @@ nodes:
          loses the thread and the history that go with it. A finding that was anchorable last iteration
          and is scoped this one is still-present, not new: the scope changed, the finding did not.
       3. **Emit a verdict for EVERY prior finding.** Walk `prior_findings` and confirm each hash appears
-         exactly once in the classified set, as still-present, fixed or regressed. A prior finding you
-         cannot match to anything this run is `fixed` — say so explicitly rather than dropping it,
-         because a dropped prior finding leaves its thread live with no reply and no resolution.
+         exactly once in the classified set, as still-present, fixed, regressed or retired. A prior
+         finding you cannot match to anything this run gets `fixed` or `retired` per its
+         `prior_verdict` — say so explicitly rather than dropping it, because a dropped prior finding
+         leaves its thread live with no reply and no resolution.
          Then state both numbers: the count of prior findings and the count of verdicts. They are
          equal. If they are not, you have dropped one — go back and classify it.
          **Because you loop until they match, that equality alone evidences nothing — so publish the
-         two numbers that CAN come out wrong.** `defaulted_fixed` is how many prior findings you ruled
-         `fixed` only because nothing this run matched them, rather than because you saw the problem
-         gone. A high count against a small delta means the match is failing, not that the author fixed
-         everything. `unmatched_priors` is how many prior findings you could not account for at all,
-         and it is the number that must be zero.
+         two numbers that CAN come out wrong.**
+         `unverified_fixed` is how many of your `fixed` verdicts rest on absence alone: the prior
+         finding named a changed file and a line, and THIS run's diff does not touch that file at all.
+         Nothing in the diff could have fixed it, so the match probably failed instead. Count a scoped
+         prior here too — no diff localises a finding about the pull request or the repository, so a
+         scoped `fixed` is never more than "it did not come up again". This is the match-health signal:
+         it is not the same as `fixed`, because a `fixed` verdict on a finding whose file the diff DID
+         change is evidence, and one on a file nothing touched is a guess.
+         `unmatched_priors` is how many prior findings you could not account for at all, and it is the
+         number that must be zero.
       4. Compute the "since iteration N−1" delta: X fixed · Y still present · Z regressed · W new
-         (skip the delta line entirely when ITERATION == 1).
+         (skip the delta line entirely when ITERATION == 1). `retired` findings are NOT in the delta:
+         they were already reported fixed, so counting them again is what made the delta describe the
+         whole history instead of this iteration.
       5. FINALISE the summary body → SESSION/comment.md, in this exact frame:
 
            <!-- unic-dlc-pr-review:iteration=<ITERATION> -->
@@ -489,9 +506,11 @@ nodes:
         new: { type: number }
         prior_count: { type: number }
         verdicts: { type: number }
-        defaulted_fixed: { type: number }
+        retired: { type: number }
+        unverified_fixed: { type: number }
         unmatched_priors: { type: number }
-      required: [iteration, fixed, still_present, regressed, new, prior_count, verdicts, defaulted_fixed, unmatched_priors]
+      required:
+        [iteration, fixed, still_present, regressed, new, retired, prior_count, verdicts, unverified_fixed, unmatched_priors]
 
   # ---------------------------------------------------------------------------------------------
   # review-gate — HITL by default; skipped when gates.pr-review == afk. Shows the finalised summary +
@@ -507,11 +526,12 @@ nodes:
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
         $reconcile.output.still_present still present · $reconcile.output.regressed regressed ·
         $reconcile.output.new new. Prior findings $reconcile.output.prior_count · verdicts
-        $reconcile.output.verdicts, of which $reconcile.output.defaulted_fixed were ruled fixed only
-        because nothing matched them and $reconcile.output.unmatched_priors could not be accounted for
-        at all. The last number should be zero and the one before it should be small — those two are
-        what a broken match shows up in, not the equal pair. Review SESSION/comment.md (the composed
-        summary) and SESSION/threads.json (the thread plan). APPROVE to post/update the summary
+        $reconcile.output.verdicts, of which $reconcile.output.unverified_fixed were ruled fixed on
+        absence alone — this run's diff touches nothing that could have fixed them — and
+        $reconcile.output.unmatched_priors could not be accounted for at all. The last number should be
+        zero; a high one before it means the match is failing rather than that the author fixed
+        everything. Those two are what a broken match shows up in, not the equal pair.
+        Review SESSION/comment.md (the composed summary) and SESSION/threads.json (the thread plan). APPROVE to post/update the summary
         discussion and the per-line ones on the PR. REJECT to halt
         without posting.
 
@@ -596,5 +616,5 @@ nodes:
       "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
       <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved) ·
       $reconcile.output.prior_count prior findings, $reconcile.output.verdicts verdicts,
-      $reconcile.output.defaulted_fixed defaulted-fixed, $reconcile.output.unmatched_priors
-      unaccounted. ✓"
+      $reconcile.output.retired retired, $reconcile.output.unverified_fixed unverified-fixed,
+      $reconcile.output.unmatched_priors unaccounted. ✓"
