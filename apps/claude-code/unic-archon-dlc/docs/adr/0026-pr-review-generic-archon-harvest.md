@@ -21,6 +21,10 @@ in §5 splits in two.
 >   entry, one for every prior finding that owns an anchored thread, found by its marker alone and
 >   carrying no file and no line; and an `anchor` entry, only for a finding that names a changed file
 >   and a diff line and owns no thread yet.
+> - **The plan artefact is `SESSION/threads.json`.** §5 calls it the inline plan; it stopped being
+>   one when reply entries carrying no file and no line joined it. `prior_findings` also gains
+>   `anchored` and `prior_verdict` — without the second, a finding the prior iteration resolved is
+>   indistinguishable from one it reported and `regressed` can never fire.
 > - **The per-finding marker is the identity, and it lives on both surfaces.** `reconcile` carries a
 >   matched finding's prior hash forward instead of recomputing it, and the summary now carries a
 >   `<!-- unic-dlc-pr-review:finding=<hash> -->` marker beside every finding it renders — the only way

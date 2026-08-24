@@ -162,11 +162,14 @@ nodes:
       (match on the MARKER, never on comment author). Take the HIGHEST N found. Set `iteration` = N+1
       (or 1 if none). Parse the prior findings from the prior summary + inline markers
       (`<!-- unic-dlc-pr-review:finding=<hash> -->`) into `prior_findings` (each: hash, aspect, file,
-      title, anchored) so reconcile can classify against them. EVERY prior finding carries that marker:
-      an anchored discussion carries it, and the prior summary carries one beside each finding it
-      renders. Set `anchored` to "true" when you found the hash on a discussion anchored to a file and
-      a line, and "false" when you found it only in the summary body — reconcile needs to know which
-      prior findings own a live thread. Read `file` from the locator the summary renders, and
+      title, anchored, prior_verdict) so reconcile can classify against them. EVERY prior finding
+      carries that marker: an anchored discussion carries it, and the prior summary carries one beside
+      each finding it renders. Set `anchored` to "true" when you found the hash on a discussion
+      anchored to a file and a line, and "false" when you found it only in the summary body — reconcile needs to know which
+      prior findings own a live thread. Set `prior_verdict` to "fixed" when you found the marker in
+      the summary's fixed list, and "open" otherwise: without it a finding the prior iteration RESOLVED
+      reads exactly like one it reported, so it would be re-reported as fixed on every later iteration
+      and `regressed` could never fire. Read `file` from the locator the summary renders, and
       **a locator that is one of the three literal scope tokens — `pull request`, `work item`,
       `repository` — is a scope, not a path: record the token verbatim in `file`.** A host may nest a
       reply under its parent rather than listing every comment flat, so walk each thread's replies too.
@@ -200,7 +203,8 @@ nodes:
               file: { type: string }
               title: { type: string }
               anchored: { type: string, enum: ['true', 'false'] }
-            required: [hash, aspect, file, title, anchored]
+              prior_verdict: { type: string, enum: ['open', 'fixed'] }
+            required: [hash, aspect, file, title, anchored, prior_verdict]
       required: [pr_id, pr_title, base_ref, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_findings]
 
   # =============================================================================================
@@ -383,14 +387,20 @@ nodes:
          values by design, so compare the two only when both are paths. Two findings that share a
          title in two different files stay distinct. The line number is never part of the match —
          small line drift is expected.
+         Because a path-versus-token difference is not a mismatch, one scoped finding can match two
+         prior findings that share a title in different files. Step 3 needs each prior hash used once,
+         so break the tie in this order and record which prior you picked: the closest semantic title,
+         then the one whose `anchored` is "true", then the lexically smallest hash. A prior finding you
+         did not pick stays unmatched, and step 3 rules it `fixed`.
          Two one-off notes cover the prior iterations already live on real pull requests:
            - A prior iteration posted before #281 carries the retired seven aspect names (code-quality,
              tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where this run
              carries "standards" / "spec". Match those on semantic title alone, ignoring the aspect, so
              the first re-review after the rewiring does not report every finding as new.
-           - A prior iteration posted before 0.23.1 gave a scoped finding an invented `file` — a path
-             that merely sat near the problem. Its prior `file` is a path and this run's is
-             `pull request`, `work item` or `repository`, so the two differ by design. Match those on
+           - A prior iteration posted by a Box older than the anchorable/scoped rule gave a scoped
+             finding an invented `file` — a path that merely sat near the problem. Its prior `file` is
+             a path and this run's is `pull request`, `work item` or `repository`, so they differ by
+             design. Match those on
              aspect + semantic title alone. Reading the differing `file` as "no match" reports a live
              finding as `fixed` and replies "✅ resolved" to it, which is the defect this whole step
              exists to prevent.
@@ -398,7 +408,8 @@ nodes:
            - new           — no prior match
            - still-present — matched a prior finding still valid this run
            - fixed         — a prior finding with NO match this run (it no longer reproduces)
-           - regressed     — a prior finding that was reported fixed, reappearing this run
+           - regressed     — a prior finding whose `prior_verdict` is "fixed" and which matches a
+                             finding this run: the previous iteration resolved it and it is back
          **The prior hash is the identity. Carry it forward.** The moment a finding matches a prior
          one, overwrite this run's hash with the prior finding's hash and use that hash everywhere
          downstream: in the summary, in the plan, in every count. Only a `new` finding keeps the hash
@@ -412,6 +423,12 @@ nodes:
          because a dropped prior finding leaves its thread live with no reply and no resolution.
          Then state both numbers: the count of prior findings and the count of verdicts. They are
          equal. If they are not, you have dropped one — go back and classify it.
+         **Because you loop until they match, that equality alone evidences nothing — so publish the
+         two numbers that CAN come out wrong.** `defaulted_fixed` is how many prior findings you ruled
+         `fixed` only because nothing this run matched them, rather than because you saw the problem
+         gone. A high count against a small delta means the match is failing, not that the author fixed
+         everything. `unmatched_priors` is how many prior findings you could not account for at all,
+         and it is the number that must be zero.
       4. Compute the "since iteration N−1" delta: X fixed · Y still present · Z regressed · W new
          (skip the delta line entirely when ITERATION == 1).
       5. FINALISE the summary body → SESSION/comment.md, in this exact frame:
@@ -440,8 +457,7 @@ nodes:
          only place the reader sees it resolved and the only place the next iteration can read its hash
          back. A fixed finding whose marker you omit cannot return as `regressed` — it returns as new,
          which is the classification this whole node exists to keep stable.
-      6. Build the thread plan → SESSION/inline.json (the filename is historical; the file holds the
-         whole thread plan, not only anchored entries): an array of
+      6. Build the thread plan → SESSION/threads.json: an array of
          { kind, file, line, severity, hash, classification, body }. Every entry's `body` starts with
          the hidden marker `<!-- unic-dlc-pr-review:finding=<hash> -->` and then the rendered finding.
          `kind` is "reply" or "anchor", and each kind has its own admission rule:
@@ -473,7 +489,9 @@ nodes:
         new: { type: number }
         prior_count: { type: number }
         verdicts: { type: number }
-      required: [iteration, fixed, still_present, regressed, new, prior_count, verdicts]
+        defaulted_fixed: { type: number }
+        unmatched_priors: { type: number }
+      required: [iteration, fixed, still_present, regressed, new, prior_count, verdicts, defaulted_fixed, unmatched_priors]
 
   # ---------------------------------------------------------------------------------------------
   # review-gate — HITL by default; skipped when gates.pr-review == afk. Shows the finalised summary +
@@ -489,10 +507,12 @@ nodes:
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
         $reconcile.output.still_present still present · $reconcile.output.regressed regressed ·
         $reconcile.output.new new. Prior findings $reconcile.output.prior_count · verdicts
-        $reconcile.output.verdicts — these two are equal when every prior thread got an answer, so read
-        them before approving. Review SESSION/comment.md (the composed summary) and SESSION/inline.json
-        (the thread plan). APPROVE to post/update the summary discussion and the per-line ones on the
-        PR. REJECT to halt
+        $reconcile.output.verdicts, of which $reconcile.output.defaulted_fixed were ruled fixed only
+        because nothing matched them and $reconcile.output.unmatched_priors could not be accounted for
+        at all. The last number should be zero and the one before it should be small — those two are
+        what a broken match shows up in, not the equal pair. Review SESSION/comment.md (the composed
+        summary) and SESSION/threads.json (the thread plan). APPROVE to post/update the summary
+        discussion and the per-line ones on the PR. REJECT to halt
         without posting.
 
   # ---------------------------------------------------------------------------------------------
@@ -542,7 +562,7 @@ nodes:
       The comment.md already carries the bumped `iteration=<ITERATION>` marker + footer.
 
       ## Per-line discussions (when inline_comments == "true" and the tracker anchors one to a line)
-      Read SESSION/inline.json — the thread plan. Ask the tracker whether it can anchor a discussion to
+      Read SESSION/threads.json — the thread plan. Ask the tracker whether it can anchor a discussion to
       a file and line of the PR. If it cannot, print "inline: this tracker anchors no discussion to a
       line — summary only" and skip this section.
 
@@ -569,8 +589,12 @@ nodes:
           `file`:`line`. Both are real: reconcile admits an anchor entry only for a finding that names
           a changed file and a diff line.
 
-      Finally print: "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
+      ## The closing line (always, and outside the section above)
+      Print this whether or not you skipped the per-line section and whether or not the gate ran. In
+      AFK the gate is skipped, so this line is the only place the run states that every prior finding
+      was answered:
+      "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
       <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved) ·
-      $reconcile.output.prior_count prior findings, $reconcile.output.verdicts verdicts. ✓"
-      Print the last two whether or not the gate ran: in AFK the gate is skipped, and this line is then
-      the only place the run states that every prior finding was answered.
+      $reconcile.output.prior_count prior findings, $reconcile.output.verdicts verdicts,
+      $reconcile.output.defaulted_fixed defaulted-fixed, $reconcile.output.unmatched_priors
+      unaccounted. ✓"
