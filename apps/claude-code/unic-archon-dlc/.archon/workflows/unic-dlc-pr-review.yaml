@@ -643,14 +643,15 @@ nodes:
           **Four coordinates is the fact; the spelling belongs to whichever surface you are calling, so
           take it from that tool's own current list — the one § Access sent you to read — and not from
           this line and not from § Access's prose, which states no field names and should not.** The
-          MCP tool that rejected that batch named them flat and said both were required,
-          `rightFileEndLine` and `rightFileEndOffset`. The REST fallback nests the same four inside a
-          `threadContext`, as `rightFileStart.line` / `.offset` and `rightFileEnd.line` / `.offset`.
-          Two spellings, one requirement — which is why the count is what to carry, and why the names
-          below it are a cross-check on the tool's list rather than a substitute for reading it.
+          MCP tool that rejected that batch named them flat — `rightFileStartLine`,
+          `rightFileStartOffset`, `rightFileEndLine`, `rightFileEndOffset` — and its error named the
+          two end fields, because those were the ones missing. The REST fallback nests the same four
+          inside a `threadContext`: `rightFileStart.line` / `.offset` and `rightFileEnd.line` /
+          `.offset`. Four in each spelling, one requirement. Give all four whichever way the tool's
+          list spells them; quoting the error's two is how a start-only request gets sent twice.
           That host is named because a date and a pull request are what make the line checkable later.
-          Read it the way § Access above says to read a citation: act on it where the tool list is
-          silent on the point, check it against the tool where it is not, and let the tool win.
+          Read it the way § Access above says to read a citation. That rule is stated there once and
+          is not restated here.
 
       ## The closing line (always, and outside the section above)
       Print this whether or not you skipped the per-line section and whether or not the gate ran. In
