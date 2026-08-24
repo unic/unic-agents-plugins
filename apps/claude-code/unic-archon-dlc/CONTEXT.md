@@ -291,7 +291,9 @@ _Avoid_: cleanup settings, janitor config
 
 **Review comment**:
 The `/pr-review` output — one structured **summary comment** on the open PR (severity-grouped findings +
-an Intent Check + "What's good"), plus **inline comments** per finding where the tracker supports threads.
+an Intent Check + "What's good"), plus an **inline comment** per finding that names a changed file and a
+diff line, where the tracker supports threads. A finding no line of the diff owns is **scoped** — to the
+pull request, a work item, or the repository — and the summary is the only surface it reaches.
 It is keyed by a hidden `<!-- unic-dlc-pr-review:iteration=N -->` marker so a re-run **updates in place**
 (and increments the iteration) rather than duplicating. Distinct from **Findings** (the `/explore`
 research doc at `workflows/<slug>/findings.md`) and from **arch-review** (the `/improve-architecture`

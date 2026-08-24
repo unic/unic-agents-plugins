@@ -1,7 +1,34 @@
 # 0026. `/pr-review` is a generic fan-out Archon workflow that harvests unic-pr-review's learnings, not its code
 
 **Status:** Accepted (2026-07-03); amended 2026-08-04 — the seven hand-written aspect nodes collapsed
-into one `review` node that runs the `code-review` Method's own two-axis fan-out (#281). See §8.
+into one `review` node that runs the `code-review` Method's own two-axis fan-out (#281). See §8;
+amended 2026-08-24 — a finding no line of the diff owns is scoped, not anchored, and the thread plan
+in §5 splits in two.
+
+> **Amended (2026-08-24) — §5's reconcile rules are superseded.** A finding that no line of the diff
+> owns — about the pull request, a work item, or the repository as a whole — was given an invented
+> `file`, and the hash is derived from the file, so the same finding hashed differently on every run.
+> Measured on `DXP-DesignSystem` !5775 across two runs: one prior thread was left with no verdict, and
+> two still-present findings carried hashes absent from the prior set
+> ([#394](https://github.com/unic/unic-agents-plugins/issues/394)). Three rules stated below change:
+>
+> - **The match is not on `file`.** §5 says findings are "matched on aspect + file + semantic title".
+>   `reconcile` now matches on the hash first, then on aspect + semantic title, with `file` as
+>   corroboration that never blocks a match — because a finding anchored last iteration and scoped
+>   this one has two different `file` values by design.
+> - **`post` no longer reconciles one plan entry per finding.** The "still-present → update in place,
+>   fixed → resolve, regressed → reopen, new → new thread" line becomes a two-kind plan: a `reply`
+>   entry, one for every prior finding that owns an anchored thread, found by its marker alone and
+>   carrying no file and no line; and an `anchor` entry, only for a finding that names a changed file
+>   and a diff line and owns no thread yet.
+> - **The plan artefact is `SESSION/threads.json`.** §5 calls it the inline plan; it stopped being
+>   one when reply entries carrying no file and no line joined it. `prior_findings` also gains
+>   `anchored` and `prior_verdict` — without the second, a finding the prior iteration resolved is
+>   indistinguishable from one it reported and `regressed` can never fire.
+> - **The per-finding marker is the identity, and it lives on both surfaces.** `reconcile` carries a
+>   matched finding's prior hash forward instead of recomputing it, and the summary now carries a
+>   `<!-- unic-dlc-pr-review:finding=<hash> -->` marker beside every finding it renders — the only way
+>   a scoped finding's hash survives to the next iteration.
 
 ## Context
 
