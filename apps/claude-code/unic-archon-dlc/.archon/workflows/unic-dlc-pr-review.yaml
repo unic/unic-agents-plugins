@@ -638,15 +638,16 @@ nodes:
           which is what happened and why this paragraph exists. Here, as a dated citation.
           Dated evidence, so the rule above is not abstract: on 2026-08-21, reviewing pull request
           !5783 on Azure DevOps, a first batch of four inline threads carrying only a start line and a
-          start offset was rejected, and the retry succeeded carrying all four of
-          `rightFileStart.line`, `rightFileStart.offset`, `rightFileEnd.line` and
-          `rightFileEnd.offset`, with an offset of `1` on each end and a `filePath` opening with `/`.
+          start offset was rejected, and the retry succeeded once it carried an end as well as a start
+          on both axes — a line and an offset at each end, the offset `1`, and the path opening `/`.
+          **Four coordinates is the fact; the spelling belongs to the surface, so take it from § Access
+          and not from this line.** The MCP tool that rejected that batch named them flat and said both
+          were required, `rightFileEndLine` and `rightFileEndOffset`. The REST fallback nests the same
+          four inside a `threadContext`, as `rightFileStart.line` / `.offset` and `rightFileEnd.line` /
+          `.offset`. Two spellings, one requirement — which is why the count is what to remember.
           That host is named because a date and a pull request are what make the line checkable later.
-          Ask the tool first. Where its list does not state an anchor's shape — and on that tenant it
-          did not, which is why the batch failed — build the span the citation records rather than
-          sending a start and reading the rejection: the citation is the fallback, not decoration.
-          It is still evidence and not a payload to paste, so check it against what the tool says now,
-          and where the two disagree the tool wins.
+          Read it the way § Access above says to read a citation: act on it where the tool list is
+          silent on the point, check it against the tool where it is not, and let the tool win.
 
       ## The closing line (always, and outside the section above)
       Print this whether or not you skipped the per-line section and whether or not the gate ran. In
