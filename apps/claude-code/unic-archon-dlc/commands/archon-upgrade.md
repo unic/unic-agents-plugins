@@ -1,6 +1,6 @@
 ---
 allowed-tools: ['Bash', 'Read', 'Glob']
-description: 'Report what a new Archon release means for this Plugin: compare the installed version against the 0.7.0 floor, classify each upstream change as ADOPT / DEFER / VERIFY-ONLY / BREAKS-US against the four installed Box YAMLs, check for changed upstream defaults, and re-assert ADR-0011 trap conformance. Read-only — it writes nothing.'
+description: 'Report what a new Archon release means for this Plugin: compare the installed version against the 0.7.0 floor, classify each upstream change as ADOPT / DEFER / VERIFY-ONLY / BREAKS-US against the four installed Box YAMLs, check for changed upstream defaults, re-assert ADR-0011 trap conformance, and probe that the Archon config keys this Plugin depends on are still read. Read-only in this repository — the key probe writes a throwaway repository outside every clone.'
 ---
 
 # unic-archon-dlc:archon-upgrade
@@ -13,10 +13,12 @@ everything in between, classifies each notable change against the four installed
 re-asserts [ADR-0011](docs/adr/0011-archon-schema-target.md)'s silent-failure traps. The output is one
 decision table.
 
-**It is read-only, absolutely.** There is no apply mode — this is a stronger claim than `/cleanup`'s
-dry-run default. It writes no file, amends no ADR, files no issue and touches no config. Adoption is a
-human decision, recorded by hand afterwards. If any step below tempts you to write something, that is
-the defect, not the missing feature.
+**It is read-only here, absolutely.** There is no apply mode — this is a stronger claim than
+`/cleanup`'s dry-run default. In this repository it writes no file, amends no ADR, files no issue and
+touches no config. Step 6's probe is the one exception, and it is contained: it builds a throwaway git
+repository outside every clone and writes only inside it. Adoption is a human decision, recorded by hand
+afterwards. If any step below tempts you to write in this repository, that is the defect, not the
+missing feature.
 
 Run it after `brew upgrade archon` or any Archon version bump, and before touching a Box YAML.
 
@@ -40,8 +42,10 @@ the output may carry a program name or a `v` prefix.
 - **Installed is below `0.7.0`** → print both versions, then one line: "run `/unic-archon-dlc:setup`
   first — there is no upgrade to report, only a downgrade to fix." Stop.
 - **The version does not parse into three numbers** (a dev build) → say so, skip Steps 2–4, and go
-  straight to Step 5, which needs no version at all.
-- **Installed equals `0.7.0`** → print `installed 0.7.0 == floor 0.7.0 — nothing to do` and stop.
+  straight to Steps 5 and 6, which need no version at all.
+- **Installed equals `0.7.0`** → print `installed 0.7.0 == floor 0.7.0 — no release range to assess`,
+  skip Steps 2–4, and go to Steps 5 and 6. They assess what is already shipped, not the new release,
+  and the floor is the version most Consumers are running.
 - **Installed is strictly above `0.7.0`** → continue to Step 2. State the range you are about to
   assess: `floor 0.7.0 → installed <y>`.
 
@@ -60,8 +64,8 @@ If this fails for any reason — no `brew` on `PATH` (expected on Windows), Arch
 a non-zero exit, or a changed JSON shape — **do not guess**. Print one line explaining what failed and
 **ask the user, in this conversation, for the `owner/repo` to read release notes from.** This command
 runs with a human present ([ADR-0017](docs/adr/0017-container-follows-structural-need.md)); asking costs
-one turn, guessing costs a wrong report. If the user declines or does not know, skip to Step 5 and say
-in the final report that the classification table could not be produced.
+one turn, guessing costs a wrong report. If the user declines or does not know, skip to Steps 5 and 6
+and say in the final report that the classification table could not be produced.
 
 ## Step 3 — Fetch the release notes for the range
 
@@ -80,9 +84,9 @@ gh release view <tag> --repo <owner>/<repo> --json body,tagName
 
 If `gh` is missing, unauthenticated, or rate-limited, say so plainly and offer the human the one
 fallback a live conversation affords: paste the release notes, or name a local path to them. If neither
-is available, skip Steps 3–4 entirely, go to Step 5, and record in the final report that the
-classification table could not be produced and why. **Step 5 still runs** — it needs no external data,
-and it is the half of this report that catches regressions in what is already shipped.
+is available, skip Steps 3–4 entirely, go to Steps 5 and 6, and record in the final report that the
+classification table could not be produced and why. **Steps 5 and 6 still run** — they need no release
+notes, and they are the half of this report that catches regressions in what is already shipped.
 
 ## Step 4 — Classify each notable change
 
@@ -111,8 +115,8 @@ and one suggested next step: **file an issue**, **amend an ADR**, or **nothing**
   paraphrase it, and do not invent a second one. Reclassify the row as ADOPT **only** when the release
   notes show upstream has shipped what that section already records as the trigger — nothing else
   moves it.
-- **Archon's own repository / remote-resolution algorithm (`worktree.remote`, an `origin`-then-sole-remote
-  fallback, or similar) → classify VERIFY-ONLY, never BREAKS-US.** This Harness resolves no repository
+- **Archon's own repository / remote-resolution algorithm (the remote key in Step 6's table, an
+  `origin`-then-sole-remote fallback, or similar) → classify VERIFY-ONLY, never BREAKS-US.** This Harness resolves no repository
   from a remote at all: `docs/agents/issue-tracker.md` § Addressing names it, so Archon's algorithm and
   this Harness answer different questions and cannot disagree
   ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18, which retired the derivation
@@ -150,14 +154,92 @@ run is never a silent PASS.
 
 A FAIL here is not caused by the new Archon release: it means an installed Box has drifted from
 ADR-0011. Nothing else guards these four conventions, so this read is the only place they are
-re-asserted — say which file drifted and stop short of fixing it, because this command writes nothing.
+re-asserted — say which file drifted and stop short of fixing it, because this command changes nothing in
+this repository.
 
-## Step 6 — Print the report
+## Step 6 — Probe the config keys this Plugin depends on
+
+This step runs **unconditionally**, like Step 5. It needs no release notes, no network and no AI.
+
+Archon owns these key paths, and one has already moved underneath us: this repository carried a
+top-level `baseBranch:` for weeks while the installed Archon read a nested path, so a committed fix did
+nothing and removed the pressure to find the real one. Read every path in the table below as a **claim
+under test on this release**, never as a fact — the probe is the authority, and the table only says
+which claims to put under it.
+
+### The keys — the one place the list lives
+
+| Key path              | What depends on it                                                                                                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `worktree.baseBranch` | Which branch an Archon worktree forks from. A wrong value produces work behind the integration branch; a value nothing reads leaves Archon on its own stored default — the branch that happened to be checked out on its first run in that repository. |
+| `worktree.remote`     | Which remote Archon resolves that base branch against. `/setup` reports what Archon resolves and never writes that file; Step 4 classifies changes to the algorithm VERIFY-ONLY on the strength of it.                                                 |
+
+That table is the whole list. A key discovered later joins it through its own ticket, which is what
+keeps it a list and not a survey of Archon's config surface.
+
+### The probe
+
+Reading the binary proves a string is present, not that anything reads it, and `archon doctor` reports
+nothing about config resolution. So give the key a distinctive value and watch what Archon does with
+it. Build the probe outside every real clone — it writes a config file, and Archon writes a workspace
+directory, a row in its own store and one worktree per run.
+
+1. Make a throwaway git repository under the operating system's temp directory, so the probe works
+   the same on macOS, Windows and Linux: `git init`, one commit, and two remotes whose URLs carry
+   distinctive owner and repository names — for example `origin` →
+   `https://github.com/probe-origin-org/probe-origin-repo.git` and `mirror` →
+   `https://github.com/probe-mirror-org/probe-mirror-repo.git`. `allowed-tools` grants no `Write`, so
+   make the repository and its two files through `Bash`.
+2. Write one workflow at `.archon/workflows/probe.yaml`: a single node carrying an `id:` and a `bash:`
+   body that echoes `pwd`. Commit it. Archon resolves the config before the first node, so the body
+   never has to run for the probe to answer.
+3. Run it once per key in the table with that key set alone, plus the two control runs below — so the
+   two keys above are four runs. Rewrite `.archon/config.yaml` between runs and pass a fresh branch
+   each time:
+
+   ```bash
+   archon workflow run probe --branch probe-<n>
+   ```
+
+   | Run                                                | Shows                                                    |
+   | -------------------------------------------------- | -------------------------------------------------------- |
+   | One nested key set to a distinctive value          | Whether Archon reads that path on this release           |
+   | Control: the nested keys absent                    | What Archon says with nothing configured                 |
+   | Inert control: the same names at the **top level** | Whether the probe can tell a read key from an unread one |
+
+4. Read each run's own output for the distinctive value: Archon's log lines and its startup error name
+   the branch and the remote it used.
+
+The inert control carries the weight. It is the shape that hid the defect this step exists for, so a
+report showing only READ rows has not yet shown that a row could have come out the other way.
+
+Give each key one verdict:
+
+- **READ — value `<x>`.** The distinctive value appears in Archon's own output.
+- **NOT READ.** The output matches the control that omitted the key. This is the silent failure the
+  step exists for.
+- **INCONCLUSIVE — `<reason>`.** A probe run could not complete, **or** no run produced a line you can
+  read a branch or a remote out of — a reworded message is not evidence that nothing read the key.
+  Name the run and the reason; an unfinished probe never counts as READ.
+
+Read Archon's wording literally and no further. On 0.7.0 the message says `Configured base branch
+'<x>'` even when nothing is configured and `<x>` is Archon's own stored default, so the word
+`Configured` is not evidence of a read — only the **distinctive value** is.
+
+Name the Archon version the verdicts were measured on. They belong to that release and to no other.
+
+Then clear what the probe left behind: delete the throwaway repository and the
+`~/.archon/workspaces/<owner>/<repo>/` directory Archon created for it, so a probe stops showing in
+`archon isolation list` next to real work. One residue has no cleanup path: the first run registers the
+probe as a codebase row in `~/.archon/archon.db`. That row is one machine's junk — leave it, and say in
+the report that the probe name will appear in Archon's own listings.
+
+## Step 7 — Print the report
 
 One block, in this order:
 
 ```
-/archon-upgrade report — read-only
+/archon-upgrade report — read-only in this repository
   Archon:      installed <x> · floor <y> · <up-to-date | N releases to assess | below floor>
   Repository:  <owner>/<repo>   (discovered via brew | supplied by you | unavailable)
   Releases:    <tags assessed>  (or: classification table not produced — <reason>)
@@ -173,10 +255,16 @@ One block, in this order:
     unic-dlc-pr-review.yaml  PASS
     unic-dlc-qa.yaml         PASS
 
+  Config keys (probed on Archon <x>)
+    <key from Step 6's table>        <READ — value '<x>' | NOT READ | INCONCLUSIVE — <reason>>
+    ...one row per key in that table...
+    inert control (the same names at top level)   <verdict>
+
   Summary:     ADOPT <n> · DEFER <n> · VERIFY-ONLY <n> · BREAKS-US <n>
   next:        act on the BREAKS-US rows first, then the ADOPT rows.
 ```
 
 Close with this line, verbatim:
 
-> This command wrote nothing. Adoption is a human decision — file an issue or amend an ADR by hand.
+> This command wrote nothing in this repository — only the throwaway repository Step 6 built, now
+> deleted. Adoption is a human decision — file an issue or amend an ADR by hand.

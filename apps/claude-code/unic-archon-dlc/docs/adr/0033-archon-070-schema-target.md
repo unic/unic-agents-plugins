@@ -1,6 +1,6 @@
 # 0033. Archon 0.7.0 schema target — floor bump, `always_run`, sub-runs deferred
 
-**Status:** Accepted (2026-08-10); amended 2026-08-18 — see the note below. Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
+**Status:** Accepted (2026-08-10); amended 2026-08-18 — see the note below; amended 2026-08-24 — `worktree.remote` measured on 0.7.0: read, and base-branch resolution only (#396). Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
 
 > **Amended (2026-08-18):** § "Repository derivation: settled by #289, not reopened here" describes a
 > mechanism that no longer exists. This Harness derives no repository from a remote: each Box reads the
@@ -8,6 +8,20 @@
 > Archon's own `worktree.remote` resolution. `/archon-upgrade` still classifies that algorithm
 > VERIFY-ONLY, on the new reason. See [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18
 > amendment (#389).
+
+> **Amended (2026-08-24):** § "Where Archon's own remote resolution differs from this Harness's
+> derivation" described `worktree.remote` as present in 0.7.0 without anyone having measured it. It is
+> measured now, by the behavioural probe `/archon-upgrade` Step 6 carries
+> ([#396](https://github.com/unic/unic-agents-plugins/issues/396)): on Archon 0.7.0 the key is **read**
+> — set to a second remote's name, the binary's own startup error names that remote as the one it
+> resolved the base branch against, where the control run naming no key says `origin`. Two limits on
+> that result. It belongs to 0.7.0 and to no other release, which is why the key is a claim Step 6
+> re-probes rather than a fact this ADR asserts. And it governs base-branch resolution only: in the
+> same run the workspace path still came out of `origin`, so `worktree.remote` does not steer the
+> `owner/repo` derivation — the shared `~/.archon/workspaces/_git/` directory every `dxp` repository
+> lands in is Archon reading the second-to-last URL segment as the organisation, an Archon defect
+> recorded on [#373](https://github.com/unic/unic-agents-plugins/issues/373), and this key is not its
+> fix.
 
 ## Context
 
