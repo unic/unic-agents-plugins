@@ -11,6 +11,21 @@
 ### Fixed
 - (none)
 
+## [0.24.0] — 2026-08-24
+
+### Breaking
+
+- **`/archon-upgrade` no longer claims to write nothing at all — it writes nothing in the repository it assesses.** The absolute is retracted deliberately, because Step 6's probe is the one method that answers "does the installed Archon still read this key" honestly, and it is behavioural: grepping a binary proves a string is present, not that anything reads it, and `archon doctor` reports nothing about config resolution. The probe writes a config and a one-node workflow inside a throwaway git repository it creates outside every clone; Archon then writes a workspace directory under `~/.archon/workspaces/`, a row in its own store, and one worktree per run. Step 6 deletes the repository and the workspace directory before the report prints; the store row has no cleanup path and stays, named in the report. The command still has no apply mode, amends no ADR, files no issue, and touches no file in the repository under assessment ([ADR-0035](docs/adr/0035-archon-upgrade-report.md), amended).
+- **`/archon-upgrade` on the floor version now reports instead of stopping.** Installed `0.7.0` against floor `0.7.0` used to print `nothing to do` and stop, which skipped both unconditional steps — so the ADR-0011 trap re-assertion, the only place those four conventions are re-asserted, never ran on the version most Consumers have installed. That branch now skips Steps 2–4 and runs Steps 5 and 6: they assess what is already shipped, not the new release.
+
+### Added
+
+- **`/archon-upgrade` probes whether the installed Archon still reads the config keys this Plugin depends on.** Step 6, unconditional like the trap pass: it needs no release notes, no network and no AI. It gives each key a distinctive value in a throwaway git repository outside every clone, runs a one-node Archon workflow there, and reads the verdict out of Archon's own output — **READ — value `<x>`**, **NOT READ**, or **INCONCLUSIVE** — which also covers a reworded Archon message, because a message you cannot read a branch or a remote out of is not evidence that nothing read the key. The second verdict is the failure the step exists for, and it was silent everywhere before: this repository's committed top-level `baseBranch:` was inert for weeks while prose cited it as the Gitflow fix ([#396](https://github.com/unic/unic-agents-plugins/issues/396), [ADR-0035](docs/adr/0035-archon-upgrade-report.md) amended). Two keys start the list, in one table in that step, and the prose says the path is Archon's to change — so Step 4's remote-resolution precedent now points at the table instead of naming the key a second time. A key found later joins the table through its own ticket. The step also carries two control runs — the nested keys absent, and the same names at the **top level** of the file — because a report showing only READ rows has not shown that a row could come out the other way. One wording trap is named in the prose: on 0.7.0 Archon says `Configured base branch '<x>'` even when nothing is configured and `<x>` is its own stored default, so only the distinctive value counts as a read.
+- **Measured on Archon 0.7.0: `worktree.remote` is read, and it governs base-branch resolution only.** Named as a second remote, the binary's startup error resolves the base branch against that remote where a control run naming no key says `origin`; in the same run the workspace path still came out of `origin`. So the shared `~/.archon/workspaces/_git/` directory every `dxp` repository lands in is a different thing — Archon reading the second-to-last URL segment as the organisation — and this key is not its fix ([ADR-0033](docs/adr/0033-archon-070-schema-target.md) amended). The verdict belongs to 0.7.0, which is why Step 6 re-probes it rather than an ADR asserting it.
+
+### Fixed
+- (none)
+
 ## [0.23.0] — 2026-08-19
 
 ### Breaking
