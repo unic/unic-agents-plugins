@@ -609,6 +609,8 @@ nodes:
             - still-present → update that discussion's body in place.
             - fixed         → reply "✅ resolved in iteration <ITERATION>" and mark it resolved where the
                               tracker carries a resolved status (best-effort; otherwise just reply).
+                              Replying and changing a status may be two separate operations on the
+                              same thread; ask, rather than assuming one call does both.
             - regressed     → reopen it noting the regression. Where the tracker offers no reopen,
                               reply on that same thread saying the finding is back. A reply entry
                               carries no file and no line, so it has nothing to anchor a new thread to.
@@ -618,6 +620,20 @@ nodes:
         - **anchor** — a finding with no thread yet. Open a new discussion anchored at its
           `file`:`line`. Both are real: reconcile admits an anchor entry only for a finding that names
           a changed file and a diff line.
+          **Ask the tracker for an anchor's full shape before the first call, and build all of it.** A
+          finding gives you a start position, and a host rarely accepts one on its own. It may want an
+          end as well as a start, a column on each end, or the path spelled its own way. None of that
+          is guessable, and none of it is a reason to probe by sending a batch and reading the
+          rejection: that probe costs a round trip on every run in every Consumer, and what it teaches
+          is a tenant fact, which belongs in `docs/agents/issue-tracker.md` § Access rather than in one
+          agent's memory on one machine.
+          Dated evidence, so the rule above is not abstract: on 2026-08-21, reviewing pull request
+          !5783 on Azure DevOps, a first batch of four inline threads carrying only a start line and a
+          start offset was rejected, and the retry succeeded carrying all four of
+          `rightFileStart.line`, `rightFileStart.offset`, `rightFileEnd.line` and
+          `rightFileEnd.offset`, with an offset of `1` on each end and a `filePath` opening with `/`.
+          That host is named because a date and a pull request are what make the line checkable later.
+          It is evidence for the rule, never a payload to copy — read the current tool list and ask.
 
       ## The closing line (always, and outside the section above)
       Print this whether or not you skipped the per-line section and whether or not the gate ran. In

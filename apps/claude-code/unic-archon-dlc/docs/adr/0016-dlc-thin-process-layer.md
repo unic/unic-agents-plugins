@@ -16,6 +16,16 @@
 > amended) and never invokes it as a skill;
 > composition by name still describes how the DLC reaches a team's tracker/docs/design system-skills.
 
+> **Amended (2026-08-24, #407):** "owns none of the _how_" gains one narrow carve-out. A Box prompt may
+> name a host inside a **dated evidence citation** — what a tenant did, on what date, on which pull
+> request — where a generic rule sits beside it and carries the instruction. The reason is that the
+> premise below, that a server discovers its own API, failed twice on a real tenant: an inline-thread
+> anchor shape and an accepted anchor on an untouched file were both learnt from a rejected or wrong
+> call rather than from a tool list, so a rule with no citation cannot be re-checked by the next
+> reader. What the Decision still forbids is unchanged and is the larger half: a payload, subcommand
+> or flag written as something to send, whether or not a date sits next to it. The carve-out is stated
+> in full in `AGENTS.md` § Plugin doctrines, under the bullet that forbids the provider name.
+
 ## Context
 
 The redesign toward config-driven genericity (grilled 2026-07-02) surfaced a sharper framing than "config + compose CLIs." Unic's clients run heterogeneous stacks — their own Confluence, Jira, Azure DevOps, GitHub, GitLab, Figma, or docs "elsewhere." Hardcoding any of these is expensive and non-portable: `unic-pr-review` is the cautionary tale (~830 lines of ADO-specific fetch/write code, per-tracker provider bundles, three separate setup commands, retrofitting a provider pattern after the fact). Pesche's `unic-ticket-specification` (PR #257) demonstrated the alternative — generic workflow/command templates that read **all** specifics from per-project config and compose the right tool for each job (MCP-first, CLI fallback).
