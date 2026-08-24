@@ -16,6 +16,23 @@
 > amended) and never invokes it as a skill;
 > composition by name still describes how the DLC reaches a team's tracker/docs/design system-skills.
 
+> **Amended (2026-08-24, #407):** "owns none of the _how_" gains one narrow carve-out. A Box prompt may
+> name a host inside a **dated evidence citation** — what a tenant did, on what date, on which pull
+> request — where a generic rule sits beside it and carries the instruction.
+>
+> The reason is a gap this Decision leaves. Delegating every system interaction assumes the delegate
+> can be asked what it accepts, and twice on a real tenant it could not: an inline-thread anchor shape
+> and an accepted anchor on a file no revision touched were both learnt from a rejected or wrong call,
+> never from a tool list. A rule earned that way is unusable without the run that earned it, because
+> the next reader has no way to re-check it. (The stronger form of the assumption — "a server discovers
+> its own API" — is stated not here but in `AGENTS.md` § Plugin doctrines, in the tracker-contract
+> bullet, where it grounds the rule that operations are never written into `docs/agents/`. That rule is
+> unchanged: the citation's home is the Box, not the tracker contract.)
+>
+> The carve-out's limit, the wording that makes it narrow, and the worked instances live in one place —
+> `AGENTS.md` § Plugin doctrines, under the bullet that forbids the provider name — and each Box that
+> uses it restates it inline, because a Box node imports nothing.
+
 ## Context
 
 The redesign toward config-driven genericity (grilled 2026-07-02) surfaced a sharper framing than "config + compose CLIs." Unic's clients run heterogeneous stacks — their own Confluence, Jira, Azure DevOps, GitHub, GitLab, Figma, or docs "elsewhere." Hardcoding any of these is expensive and non-portable: `unic-pr-review` is the cautionary tale (~830 lines of ADO-specific fetch/write code, per-tracker provider bundles, three separate setup commands, retrofitting a provider pattern after the fact). Pesche's `unic-ticket-specification` (PR #257) demonstrated the alternative — generic workflow/command templates that read **all** specifics from per-project config and compose the right tool for each job (MCP-first, CLI fallback).

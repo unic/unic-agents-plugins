@@ -83,7 +83,8 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # slopcheck — verify every NEW package against the npm registry before any code runs.
   # Self-contained (ADR-0023 §5): imports nothing from the plugin. It once mirrored a tested
-  # lib/slopcheck.mjs; #381 deleted that module and this node is now the only copy of the gate.
+  # lib/slopcheck.mjs in the unic-archon-dlc Plugin's own tree; #381 deleted that module, so the path
+  # is history and resolves nowhere in either repository, and this node is the only copy of the gate.
   # ---------------------------------------------------------------------------------------------
   - id: slopcheck
     depends_on: [bootstrap]

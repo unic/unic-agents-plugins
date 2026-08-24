@@ -204,8 +204,9 @@ nodes:
   # blocked by / additional context) and the thin-issues heuristic above it were originally Matt
   # Pocock's `qa` Method. Upstream v1.1.0 moved `qa` to `skills/deprecated/` with no replacement, so
   # there is nothing left to resolve by name: the shape is inlined verbatim here and this Harness owns
-  # it from now on. It is deliberately absent from the Method table in README.md § Dependencies — an
-  # entry there would point at a dead upstream branch (#281, #381).
+  # it from now on. It is deliberately absent from the Method table in the `unic-archon-dlc` Plugin's
+  # own README.md § Dependencies — not this repository's README, which is a Consumer's — because an
+  # entry there would point at a dead upstream branch (#281, #381, #401).
   # ---------------------------------------------------------------------------------------------
   - id: uat-gate
     depends_on: [uat-prep]
