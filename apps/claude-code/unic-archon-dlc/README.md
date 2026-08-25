@@ -39,7 +39,7 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 | ----------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `/setup`                | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
 | `/explore`              | Archon    | `gates.explore`   | Off-line, optional research + AFK spike → `findings.md` (ADR-0029)                                                             |
-| `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md` (ADR-0020)                                                                                          |
+| `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md`, plus one design contract per component when `design.type` is set (ADR-0020)                        |
 | `/tickets`              | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)                                             |
 | `/triage`               | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)                                            |
 | `/build`                | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                                                             |

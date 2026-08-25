@@ -133,6 +133,19 @@ Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from th
 and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
+**Design contract**:
+The per-component artefact `/specs` writes when the config carries a design system and the feature names
+a component. It holds what the design **file** says, read mechanically, plus the code shape that follows
+from it — so it rots when the design changes, and every run rewrites it whole. Four sections in order:
+Provenance, Design as read, Code shape, Non-designable facts. Its file name carries `.generated.`, its
+path is declared by the Consumer's design-conventions doc at `docs/agents/<design.type>.md`, and it rides
+the PRD's pull request. Its provenance is a **visible list**, where an installed Box carries the same
+facts as a **Generated header** comment: a Box YAML has no reader but an agent, while a contract has a
+human standing at the PRD gate, and hidden provenance is provenance nobody checks. Nothing detects
+staleness — the checkers are that human, who reads the date, and the next `/specs` run for the component.
+_Avoid_: design spec, component spec (the authored half of the docs page is the spec; this is the derived
+half)
+
 **Findings**:
 The `/explore` output at `workflows/<slug>/findings.md`. Its **Integrated Brief** carries three
 explicitly-named lenses — **Domain Model**, **Established Decisions**, **Prior Research** — that
