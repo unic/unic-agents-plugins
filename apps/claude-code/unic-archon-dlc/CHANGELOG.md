@@ -9,7 +9,7 @@
 - (none)
 
 ### Fixed
-- (none)
+- `README.md`'s configuration reference no longer names a design or docs tool in the `design.type` and `docs.type` valid-values columns. The plugin composes the team's system-skills, so an enum of tool names in its own documentation contradicts that. Nothing branches on the value: a box tests set-versus-`none`, and `design.access.mcp` resolves the tool. (#417)
 
 ## [0.24.2] — 2026-08-24
 
