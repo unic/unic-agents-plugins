@@ -24,6 +24,7 @@
 
 ### Fixed
 
+- **Two `CONTEXT.md` lines that outlived `lib/`.** The PRD entry said its section shape is "enforced by a generic validator" and the Nyquist map entry said `/tickets` runs its check "via tested lib". [#381](https://github.com/unic/unic-agents-plugins/issues/381) deleted `lib/`, so each command makes its own check in prose, and both lines sat beside the entry this release adds ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
 - **`commands/specs.md` names no design tool.** The argument hint and the branch-on-input list both carried one, which made the command's own prose the precedent against the rule it is meant to follow. A blocking condition declared by the Consumer's doc now stops a contract rather than writing an empty one, and a subscription mismatch warns and is recorded without stopping the run ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
 
 ## [0.25.0] — 2026-08-25
