@@ -20,7 +20,7 @@ sibling documents link to it by name, and renaming it would buy nothing behaviou
 > `$CLAUDE_PLUGIN_ROOT`**: an Archon `script:` node inlines its logic, and a command reads config, the
 > tracker contract and its Methods with its own tools, in prose. `lib/` and `test/` are deleted.
 >
-> One command keeps a bounded need for the plugin's own directory: `/setup` Step 6 copies the Method
+> One command keeps a bounded need for the plugin's own directory: `/setup`'s install step copies the Method
 > Bundle and the Box YAMLs out of it, so it locates that directory and confirms the path with the operator
 > rather than reading a variable. How `/setup` learns its own location is settled by #383.
 

@@ -210,13 +210,15 @@ _Avoid_: child workflow, nested workflow, sub-workflow
 ### Plugin entry points
 
 **Setup**:
-The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
-`/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.yaml`, discovers and registers the team's system-skills,
-and refreshes the marker-delimited `## unic-archon-dlc` block in `CLAUDE.md`. Idempotent (a thin tested
-lib does schema-validate + merge): re-running
-with no arguments prints the current config when fully populated, asks only for missing fields
-when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
-re-prompt; pass free-form intent (e.g. "change branching to github-flow") for targeted tweaks.
+The installation of unic-archon-dlc into a target project, invoked as `/unic-archon-dlc:setup`. Six
+actions: copy the Boxes into `.archon/workflows/`, copy the Methods into `.archon/methods/`, write
+`.archon/unic-dlc.config.yaml`, write the tracker contract (`docs/agents/issue-tracker.md` and
+`docs/agents/triage-labels.md`), patch the `## unic-archon-dlc` block in `CLAUDE.md`, and patch the
+exclusions that keep this project's formatters off the two installed trees. Prose end to end — it imports
+no module. **Ownership decides the treatment**: a tree this Plugin owns is **replaced** on every run; a
+tenant-owned file is written once and thereafter **reported** on; a marked block inside a tenant file is
+**patched** in place, everything outside the markers verbatim. Pass `reconfigure` to be offered a rewrite
+of a tenant-owned file, or free-form intent (e.g. "change branching to github-flow") for a targeted tweak.
 _Avoid_: install, init, install hook
 
 **Claude Code slash command**:
@@ -241,20 +243,22 @@ Consumer. Not an Archon workflow command template — no `command:` node resolve
 _Avoid_: command stub, command doc (both suggest the runtime template above)
 
 **Install set**:
-What `/setup` writes into a Consumer, and the rule by which each entry is replaced. Two shapes: a
-**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**,
-which owns only the names its pattern matches inside a directory it shares with the Consumer
-(`unic-dlc-*.yaml` inside `.archon/workflows/`). One engine, `installArtefacts` — but not one
-declared list: two callers pass entries to it independently, and Step 5 writes the config outside it
-altogether. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
-install set" as that shared engine, never as a single enumeration something iterates.
+The six things `/setup` writes into a Consumer, and the rule by which each is replaced: the Boxes, the
+Methods, the config, the two tracker-contract files, the `CLAUDE.md` block, and the formatter exclusions.
+Three treatments, decided by ownership — see the **Setup** entry above. Inside **replace**, two shapes: a
+**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**, which
+owns only the names its pattern matches inside a directory it shares with the Consumer
+(`unic-dlc-*.yaml` inside `.archon/workflows/`). The engine that once held this is deleted with the rest of
+`lib/` (#381), and nothing iterates a declared set: each entry is written by the step that owns it. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
+install set" as one shared rule, never as a single enumeration something iterates.
 _Avoid_: install manifest, artefact list
 
 **Generated header**:
-The two comment lines `/setup` stamps onto every installed Box YAML, naming this Plugin and the
-version that wrote the file, and stating that the next run replaces it (`/setup` Step 6 stamps it).
-This is where a Consumer's install provenance lives — per file, and in
-no separate record. It never decides ownership: the stale sweep retires a name whether or not the
+The one comment line `/setup` stamps onto every installed Box YAML, naming this Plugin and the version
+that wrote the file and stating that the next run replaces it. `/setup` writes it in its install step and
+reads it back as the previous version by matching a **prefix of the first line**. No Method file carries
+one — the Bundle is upstream text pinned to a tag, and a line at the top would fork it. This is where a
+Consumer's install provenance lives — per Box, and in no separate record. It never decides ownership: the stale sweep retires a name whether or not the
 file carries the header ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
 _Avoid_: provenance file, install record (neither exists)
 

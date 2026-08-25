@@ -65,7 +65,7 @@ This bump does not touch repository derivation. Each Box derives its target repo
 
 ## Consequences
 
-- `lib/archon-check.mjs`'s `MIN_ARCHON_VERSION` moves to `0.7.0`; a Consumer on Archon 0.5.x/0.6.x is refused at the next `/setup` preflight (Step 1) with an upgrade message. Already-configured Consumers who do not re-run `/setup` are unaffected until they do — the check runs only there, never inside a workflow run itself.
+- `lib/archon-check.mjs`'s `MIN_ARCHON_VERSION` moves to `0.7.0`; a Consumer on Archon 0.5.x/0.6.x is refused at the next `/setup` preflight with an upgrade message. Already-configured Consumers who do not re-run `/setup` are unaffected until they do — the check runs only there, never inside a workflow run itself.
 - `unic-dlc-build.yaml` and `unic-dlc-qa.yaml` gain `always_run: true` on the nodes named above; no other Archon workflow (`unic-dlc-explore.yaml`, `unic-dlc-pr-review.yaml`) is touched by this ADR.
 - `/setup` gains a plain refusal for a project with no git remote at all, and a verify-only report of what Archon's own config resolves. It writes neither.
 - The repository-derivation divergence recorded above is documentation only — no code change follows from it in this ADR.

@@ -4,7 +4,9 @@
 which replaced the header-gated implementation PR #333 shipped; amended 2026-08-14 — D1's "one
 declared install set" is one shared engine rather than one declared list, and the record file the
 Consequences defer to #295 is not built (#295); amended 2026-08-20 — every install function named
-below is deleted while every decision it held is unchanged (#381)
+below is deleted while every decision it held is unchanged (#381); amended 2026-08-25 — the plugin
+directory is found by a registry lookup, the header is one line on each installed Box and none on a
+Method, the install set gains a sixth action, and a step is named by its job rather than its number (#383)
 
 > **Amended (2026-08-14):** two corrections, both recorded while implementing
 > [#295](https://github.com/unic/unic-agents-plugins/issues/295). Neither changes a decision; each
@@ -16,7 +18,7 @@ below is deleted while every decision it held is unchanged (#381)
 > is the single tree-install function, and that much holds. What does not is the implication that some
 > one place declares the whole set: two callers build entries and call it independently —
 > `installMethods` (`lib/methods-bundle.mjs`) and `installBoxWorkflows` (`lib/artefact-install.mjs`) —
-> and `/setup` Step 5 writes `.archon/unic-dlc.config.yaml` with a bare `writeFileSync`, outside the
+> and `/setup`'s config step writes `.archon/unic-dlc.config.yaml` with a bare `writeFileSync`, outside the
 > engine altogether. Nothing iterates a declared set, and unifying the callers into one is not planned
 > (#295's out-of-scope list). See `CONTEXT.md` § **Install set**.
 >
@@ -37,12 +39,52 @@ below is deleted while every decision it held is unchanged (#381)
 > longer exists. **Every decision this ADR records is unchanged** — the install set is name-scoped, the
 > stale sweep retires a `unic-dlc-*.yaml` whether or not it carries the generated header, a name outside
 > that pattern is never read, and the set is discovered from the directory rather than listed by hand.
-> `/setup` Step 6 now states those rules in prose and the agent applies them with its own tools.
+> `/setup`'s install step now states those rules in prose and the agent applies them with its own tools.
 >
 > One rule this ADR relied on the module for is now the operator's: `/setup` must locate the Plugin's own
 > installed directory before it can copy anything out of it, because `$CLAUDE_PLUGIN_ROOT` is not set
-> inside the Bash tool. Step 6 finds the directory, confirms it, and stops rather than guessing. #383
-> settles the mechanism.
+> inside the Bash tool. The preflight finds the directory and stops rather than guessing. #383 settles the
+> mechanism.
+
+> **Amended (2026-08-25) — the mechanism is a registry lookup, and the header is one line (#383).**
+>
+> **Locating this Plugin's own directory.** Claude Code keeps `~/.claude/plugins/installed_plugins.json`,
+> which records `installPath`, `version`, `scope` and — for a project-scope install — the `projectPath`
+> the entry belongs to. `/setup` reads that file, picks the entry matching this repository, takes
+> `installPath`, and verifies the directory before copying: the manifest there names this Plugin at the
+> registry's version, `vendor/mattpocock-skills/` is present, and `.archon/workflows/` holds at least one
+> `unic-dlc-*.yaml`. It stops, printing what it found, on a missing entry, a registry `version` other than
+> `2`, or a failed check. The registry entry agreeing with the manifest is the whole version test: the
+> command file carries no version of its own, so there is nothing else to compare it against, and a rule
+> that asked for one would send an agent looking for a version to invent.
+>
+> The interim prose it replaces searched `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and
+> asked the operator to confirm. That directory holds **one entry per version ever installed** — nine of
+> them for this Plugin on the machine where this was measured, of which one was installed — so the search
+> was a guess among candidates and the confirmation existed to cover the guess. The registry names the
+> answer, so no confirmation is needed on the happy path.
+>
+> **The generated header is one comment line on each installed Box**, naming this Plugin and the version
+> that wrote it and stating that `/setup` replaces the file. `renderGeneratedHeader` is deleted, so
+> `/setup` writes it, and reads it back as `PREVIOUS_VERSION` by matching a **prefix of the first line**
+> — never a search over the whole body, per D3.
+>
+> **No Method file carries a header.** The bundle is upstream text pinned to one tag, and a line added at
+> the top forks it from that tag — the same fork that a Consumer's formatter caused on `DXP-DesignSystem`.
+> D3's "every installed file's header" therefore reads: every installed **Box**. The bundle's provenance is
+> its tag, reported in the summary.
+>
+> **The install set gains a sixth action, and it is why the fork above cannot recur.** `/setup` excludes
+> both installed trees, and every file whose name carries `.generated.`, from whatever this project uses to
+> format or lint — found by reading the project, never from a list of tools held in the Plugin. Where that
+> tool's exclusion mechanism cannot carry a comment marker, `/setup` prints the entry the operator must add
+> and reports it as an open item.
+>
+> **Name a `/setup` step by the job it does, never by its number.** #383 reordered the command — the install
+> moved ahead of the config conversation — and the two numbers swapped rather than shifted, so each stale
+> reference resolved to a real but opposite step and stopped no reader. Every live reference in this ADR was
+> rewritten here on 2026-08-25. The numbers that remain sit in § Context and in the dated amendments, where
+> they record what was true on the day they were written; a live claim carries none.
 
 ## Context
 
@@ -136,11 +178,12 @@ The deletion is therefore what concludes absence; the read stays a strict probe 
 failure. For the same reason `rm` is called with `force: false` — `force: true` would swallow the
 `ENOENT` inside `rm`, and the sweep would then report a `deleted` path it never deleted.
 
-Overwrite silently rather than warn or refuse: refusing would break the upgrade path (`/setup` Step 6
-runs even when `STATE = 'full'`, precisely so a plugin upgrade lands with no reconfigure), and
-warn-then-stop leaves a half-installed tree either way. Every installed file's header names the
-Plugin and its version and states that `/setup` replaces it — that is what makes the overwrite
-legible: an operator's edit is a tracked `git diff` after `/setup`, not a warning dialog.
+Overwrite silently rather than warn or refuse: refusing would break the upgrade path (`/setup`'s install
+step runs even when `STATE = 'full'`, precisely so a plugin upgrade lands with no reconfigure), and
+warn-then-stop leaves a half-installed tree either way. Every installed **Box** carries a header naming the
+Plugin and its version and stating that `/setup` replaces it — that is what makes the overwrite
+legible: an operator's edit is a tracked `git diff` after `/setup`, not a warning dialog. No Method file
+carries one, per the 2026-08-25 amendment above.
 
 **No `.archon/workflows.local/` override tier.** A Method has an override tier because a team
 legitimately owns _procedure_ ([ADR-0030](0030-harness-hosts-methods.md),
@@ -186,5 +229,5 @@ The reasons that do hold:
   this change does not claim a Consumer workflow is untouched "regardless of its name" — a currently
   shipped name is always overwritten; only a name outside the `unic-dlc-*` set is untouched.
 - Provenance, upgrade reporting and drift detection stay [#295](https://github.com/unic/unic-agents-plugins/issues/295)'s
-  scope; Step 7's block content and its ownership claim stay [#296](https://github.com/unic/unic-agents-plugins/issues/296)'s.
+  scope; the managed block's content and its ownership claim stay [#296](https://github.com/unic/unic-agents-plugins/issues/296)'s.
   This ADR covers only what and how `/setup` installs.

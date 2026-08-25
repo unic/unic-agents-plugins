@@ -130,9 +130,11 @@ Open Claude Code in any project and run:
 /unic-archon-dlc:setup
 ```
 
-The setup command auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
-PR strategy, and writes the config, the Methods, and the Box workflow YAMLs into your project (see
-[The Box workflow artefacts](#the-box-workflow-artefacts)).
+The setup command installs the Box workflow YAMLs and the Methods into your project, writes the config and
+the tracker contract, and patches the two managed blocks — the one in your `CLAUDE.md` and the exclusions
+that keep whatever your project uses to format or lint off the two installed trees (see
+[The Box workflow artefacts](#the-box-workflow-artefacts)). Ownership decides what a re-run does: it
+replaces what this plugin owns, and reports on a file you own rather than rewriting it.
 
 **Step 2 — Explore** _(optional)_
 
@@ -160,14 +162,15 @@ flows into `/tickets` next.
 
 ## Configuration reference
 
-The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate every box reads; setup is its sole writer, is idempotent (a re-run merges, never clobbers — a present-but-malformed config fails fast rather than being overwritten), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). Top-level sections:
+The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate every box reads, and `/setup` is its sole writer. The file is **tenant-owned**: `/setup` writes it on the first run, and on a later run reports what differs from what it would write and changes nothing — pass `reconfigure` to be offered the change file by file. A present-but-malformed config stops the run rather than being overwritten, and so does a legacy flat `.archon/unic-dlc.config.json`: no migration ships any more, and reading such a file as "no config" would write a second config beside it. Top-level sections:
 
 | Path                                                     | Default                | Valid values                                  | Description                                                                                                                         |
 | -------------------------------------------------------- | ---------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `project.name`                                           | asked                  | any string                                    | Project name                                                                                                                        |
-| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                                                                                 |
+| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | `multi-context` when the repository holds more than one independently-releasable project                                            |
 | `project.branching`                                      | asked                  | `gitflow` · `github-flow`                     | Branching model (mandatory)                                                                                                         |
 | `docs.type`                                              | `markdown`             | `markdown` · docs system name · `none`        | Where the team's product specs live (drives `/specs` publishing)                                                                    |
+| `docs.access` · `design.access`                          | auto-detected          | `{mcp, cli}`                                  | Which surface serves the docs and design systems, filled from setup's verify-only discovery                                         |
 | `docs.publish`                                           | `false`                | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                                                                                     |
 | `design.type`                                            | `none`                 | design system name · `none`                   | Design system source; boxes test set-versus-`none` and never compare the value to a literal — `design.access.mcp` resolves the tool |
 | `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                  |
@@ -190,7 +193,9 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 ### The tracker contract
 
 **No Box reads a tracker fact from that config.** Every one of them lives in two repo-local prose
-files, which `/unic-archon-dlc:setup` writes and every Box and command reads:
+files, which `/unic-archon-dlc:setup` writes and every Box and command reads. Both are **tenant-owned**:
+`/setup` writes each one when it is absent, and on a later run reports what differs rather than rewriting
+it — pass `reconfigure` to be offered the change:
 
 | File                           | What it carries                                                                                                                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -240,10 +245,10 @@ See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
 
 The Methods the boxes compose ship inside this plugin, at `vendor/mattpocock-skills/` — the upstream
 `mattpocock/skills` files at a pinned tag, recorded in `vendor/mattpocock-skills/README.md`, which names
-the repository, the tag and the commit. `/setup` Step 6 installs them into the consumer's
-`.archon/methods/`, overwriting that directory on every upgrade.
+the repository, the tag and the commit. `/setup` installs them into the consumer's `.archon/methods/`,
+flattening the bundle's category directories away, and overwrites that directory on every upgrade.
 
-**Bundle integrity is not a config key.** `/setup` Step 6 verifies it by reading: every Method
+**Bundle integrity is not a config key.** `/setup` verifies it by reading: every Method
 directory carries its `SKILL.md` and the companion files that Method reads, and `LICENSE` is present.
 Either failure stops setup, because both mean the shipped plugin is incomplete or altered — nothing a
 consumer can configure around. This replaced the old `skills.matt_suite` discovery key.
@@ -269,7 +274,7 @@ an already-configured project.
 
 ### The Box workflow artefacts
 
-See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup` Step 6
+See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup`
 also installs every `unic-dlc-*.yaml` this plugin ships into your project's
 `.archon/workflows/`, discovered by reading the plugin's own copy at install time — the set is
 whatever this plugin currently ships, never a fixed count. Each installed file is **generated and

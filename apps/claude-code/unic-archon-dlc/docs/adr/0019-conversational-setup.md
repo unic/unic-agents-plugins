@@ -1,9 +1,32 @@
 # 0019. Conversational `/setup` + one thin tested schema lib
 
 **Status:** Accepted (2026-07-02); amended 2026-08-20 — the one surviving lib is deleted, so the
-merge and validation it held are now prose (#381)
+merge and validation it held are now prose (#381); amended 2026-08-25 — `/setup` is the installer, its
+idempotency is three treatments rather than one merge, and it asks no label question (#383)
 
 **Supersedes** [ADR-0001](0001-setup-as-slash-command.md).
+
+> **Amended (2026-08-25) — three things this ADR says about `/setup` are now false (#383).**
+>
+> - **It asks no label question.** The Consequence below points at [ADR-0024](0024-triage-intake-on-ramp.md)'s
+>   2026-08-11 amendment for what `/setup` asks about labels. #389 moved that mapping out of the config
+>   and into `docs/agents/triage-labels.md`, and #383 made `/setup` write that file — by reading what the
+>   tracker already uses and proposing a value per role, never by offering a default. So the tier-grouped
+>   question, the seeded-default rule and the closed key set describe a config key that no longer exists.
+>   ADR-0024's own 2026-08-18 amendment already says the key is gone; this one says which Consequence
+>   here goes with it.
+> - **Idempotency is three treatments, not one merge.** "A re-run merges, never clobbers" held while the
+>   config was the only thing `/setup` wrote. It now lands four kinds of artefact: a Plugin-owned tree is
+>   **replaced** every run, a tenant-owned file is written once and thereafter **reported** on, and a
+>   marked block inside a tenant file is **patched** in place. `reconfigure` is the one override that
+>   rewrites a tenant-owned file, per file, after showing what would change.
+> - **The legacy `.json` migration is deleted.** No project was ever on that shape, so the migration was a
+>   path nothing had walked. A legacy file found now stops the run with a report.
+>
+> One Consequence gains a mechanism rather than losing it: `/setup` locates its own installed directory
+> from Claude Code's `~/.claude/plugins/installed_plugins.json` (`installPath`, matched on `projectPath`
+> for a project-scope install), verifies it, and stops rather than guessing. See
+> [ADR-0036](0036-setup-owns-a-named-install-set.md)'s 2026-08-25 amendment.
 
 > **Amended (2026-07-02):** `/setup` also **discovers and registers the team's system-skills** into config — a capability→tool mapping (tracker/docs/design → `mcp | cli | skill`, MCP-first), not a presence snapshot. Discovery is **verify-only** (introspect installed skills/MCP + bash CLI probes; never installs). A missing **required** capability (incl. Matt's suite, [ADR-0021](0021-earns-its-place-compose-verbatim.md)) → **warn + degrade, non-blocking**: setup completes, records it unavailable, and lists the blocked boxes; boxes **re-probe at runtime** (MCP-first, CLI-fallback) and fail with a clear "install X".
 
@@ -12,7 +35,7 @@ merge and validation it held are now prose (#381)
 > is deleted with the rest of the Plugin's code, so `/setup` now merges and writes the YAML with its
 > own tools ([ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5, amended — a command cannot
 > resolve a module or the `yaml` package where it actually runs). Every invariant that ADR asked the
-> lib to hold is stated in Step 5 instead: merge `defaults < existing < answers` deeply, refuse to
+> lib to hold is stated in the config step instead: merge `defaults < existing < answers` deeply, refuse to
 > overwrite a config that is present but unreadable, and leave a legacy `.json` untouched. What the
 > deletion costs is the automated proof of those invariants — a re-run that clobbers a partial config
 > would now be caught by reading the file or by a Consumer run, not by a test. Validation lost its
