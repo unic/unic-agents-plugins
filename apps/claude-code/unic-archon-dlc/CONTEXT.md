@@ -129,8 +129,10 @@ _Avoid_: cardinality (correct, but not the word in the file), multi-value field,
 
 **PRD**:
 Product Requirements Document produced by the `/specs` command (branch-on-input; via the `to-spec`
-Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
-and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
+Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template,
+and `/specs` checks the rendered PRD against that template itself before it writes — every heading in
+the template must appear. No module validates it; `lib/` is deleted (#381). See
+`docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
 **Design contract**:
@@ -158,8 +160,8 @@ Each entry carries a `test_command` required for Nyquist validation.
 _Avoid_: tickets, tasks list
 
 **Nyquist map**:
-The validation the `/tickets` command runs (via tested lib) to ensure every issue in Issues JSON
-has a `test_command` before `/build` consumes it. Named after the Nyquist sampling theorem analogy:
+The validation `/tickets` runs itself, in conversation, to ensure every issue in Issues JSON has a
+`test_command` before `/build` consumes it. No module runs it; `lib/` is deleted (#381). Named after the Nyquist sampling theorem analogy:
 you must observe behaviour at twice the frequency to reconstruct it faithfully.
 _Avoid_: validation node, test-command check
 
