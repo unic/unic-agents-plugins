@@ -35,7 +35,7 @@ idempotency is three treatments rather than one merge, and it asks no label ques
 > is deleted with the rest of the Plugin's code, so `/setup` now merges and writes the YAML with its
 > own tools ([ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5, amended — a command cannot
 > resolve a module or the `yaml` package where it actually runs). Every invariant that ADR asked the
-> lib to hold is stated in Step 5 instead: merge `defaults < existing < answers` deeply, refuse to
+> lib to hold is stated in the config step instead: merge `defaults < existing < answers` deeply, refuse to
 > overwrite a config that is present but unreadable, and leave a legacy `.json` untouched. What the
 > deletion costs is the automated proof of those invariants — a re-run that clobbers a partial config
 > would now be caught by reading the file or by a Consumer run, not by a test. Validation lost its

@@ -28,7 +28,7 @@
 
 ### Fixed
 
-- **`/setup` declares no closed list of tool names.** `docs.type` and `design.type` are asked open and written through — nothing branches on either value, a box tests set-versus-`none`, and `design.access.mcp` resolves the tool. Lines 109–110 of the previous file were the last closed enums in the Plugin's prose, so this is where [#404](https://github.com/unic/unic-agents-plugins/issues/404) AC 5 is met for this command ([#417](https://github.com/unic/unic-agents-plugins/issues/417), [#383](https://github.com/unic/unic-agents-plugins/issues/383)).
+- **`/setup` declares no closed list of tool names.** `docs.type` and `design.type` are asked open and written through — nothing branches on either value, a box tests set-versus-`none`, and `design.access.mcp` resolves the tool. The previous file's `docs` and `design` field descriptions were the last closed enums in the Plugin's prose, so this is where [#404](https://github.com/unic/unic-agents-plugins/issues/404) AC 5 is met for this command ([#417](https://github.com/unic/unic-agents-plugins/issues/417), [#383](https://github.com/unic/unic-agents-plugins/issues/383)).
 - `README.md`'s configuration reference no longer names a design or docs tool in the `design.type` and `docs.type` valid-values columns. The plugin composes the team's system-skills, so an enum of tool names in its own documentation contradicts that. Nothing branches on the value: a box tests set-versus-`none`, and `design.access.mcp` resolves the tool. (#417)
 
 ## [0.24.2] — 2026-08-24

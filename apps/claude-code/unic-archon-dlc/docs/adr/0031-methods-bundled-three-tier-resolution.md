@@ -26,7 +26,7 @@ keeps the word three-tier because an ADR filename is a stable address, not a des
 > upgrades; it is accepted because nothing ever declared one.
 >
 > **Integrity is checked by reading, not by hashing.** §5's `verifyLicence` and `verifyBundle` are gone
-> with `lib/methods-bundle.mjs`, and so is the manifest they compared against. `/setup` Step 6 now reads
+> with `lib/methods-bundle.mjs`, and so is the manifest they compared against. `/setup`'s install step now reads
 > the bundle: every Method directory must carry its `SKILL.md` and the companion files that Method reads,
 > and `LICENSE` must be present. Either failure still stops setup.
 >
@@ -142,7 +142,7 @@ undetectably.
 
 ## Consequences
 
-- Upgrading Methods is a plugin upgrade plus a `/setup` re-run. `/setup` Step 6 is idempotent and runs
+- Upgrading Methods is a plugin upgrade plus a `/setup` re-run. `/setup`'s install step is idempotent and runs
   even for an already-configured project, so an upgrade lands the new bundle without a reconfigure.
 - A team fork costs one config line (`methods.<name>.source`) or one uncommitted directory. Neither
   requires a plugin change.

@@ -130,9 +130,11 @@ Open Claude Code in any project and run:
 /unic-archon-dlc:setup
 ```
 
-The setup command auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
-PR strategy, and writes the config, the Methods, and the Box workflow YAMLs into your project (see
-[The Box workflow artefacts](#the-box-workflow-artefacts)).
+The setup command installs the Box workflow YAMLs and the Methods into your project, writes the config and
+the tracker contract, and patches the two managed blocks — the one in your `CLAUDE.md` and the exclusions
+that keep whatever your project uses to format or lint off the two installed trees (see
+[The Box workflow artefacts](#the-box-workflow-artefacts)). Ownership decides what a re-run does: it
+replaces what this plugin owns, and reports on a file you own rather than rewriting it.
 
 **Step 2 — Explore** _(optional)_
 
@@ -240,10 +242,10 @@ See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
 
 The Methods the boxes compose ship inside this plugin, at `vendor/mattpocock-skills/` — the upstream
 `mattpocock/skills` files at a pinned tag, recorded in `vendor/mattpocock-skills/README.md`, which names
-the repository, the tag and the commit. `/setup` Step 6 installs them into the consumer's
-`.archon/methods/`, overwriting that directory on every upgrade.
+the repository, the tag and the commit. `/setup` installs them into the consumer's `.archon/methods/`,
+flattening the bundle's category directories away, and overwrites that directory on every upgrade.
 
-**Bundle integrity is not a config key.** `/setup` Step 6 verifies it by reading: every Method
+**Bundle integrity is not a config key.** `/setup` verifies it by reading: every Method
 directory carries its `SKILL.md` and the companion files that Method reads, and `LICENSE` is present.
 Either failure stops setup, because both mean the shipped plugin is incomplete or altered — nothing a
 consumer can configure around. This replaced the old `skills.matt_suite` discovery key.
@@ -269,7 +271,7 @@ an already-configured project.
 
 ### The Box workflow artefacts
 
-See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup` Step 6
+See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup`
 also installs every `unic-dlc-*.yaml` this plugin ships into your project's
 `.archon/workflows/`, discovered by reading the plugin's own copy at install time — the set is
 whatever this plugin currently ships, never a fixed count. Each installed file is **generated and

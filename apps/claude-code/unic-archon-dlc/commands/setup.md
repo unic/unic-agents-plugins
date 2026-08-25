@@ -23,13 +23,13 @@ variable is not set inside the Bash tool ([ADR-0023](docs/adr/0023-build-generic
 Six actions land four kinds of artefact, and **ownership decides the treatment**. Three treatments, and
 every action below names which one it takes:
 
-| Treatment   | Applies to                                   | Behaviour on a re-run                                                              |
-| ----------- | -------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **replace** | a whole tree the Plugin owns                 | overwritten silently, every run                                                    |
-| **refuse**  | a file the tenant owns                       | read it, report what differs from what this run would write, change nothing        |
-| **patch**   | a marked block inside a file the tenant owns | the block is rewritten between its markers; everything outside them stays verbatim |
+| Treatment   | Applies to                                   | Behaviour on a re-run                                                                |
+| ----------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **replace** | a whole tree the Plugin owns                 | overwritten silently, every run                                                      |
+| **report**  | a file the tenant owns                       | written when absent; when present, read it and report what differs, changing nothing |
+| **patch**   | a marked block inside a file the tenant owns | the block is rewritten between its markers; everything outside them stays verbatim   |
 
-**refuse** has one override: the `reconfigure` argument (Step 3). Nothing else rewrites a tenant file.
+**report** has one override: the `reconfigure` argument (Step 3). Nothing else rewrites a tenant file.
 
 ## Step 1 — Preflight
 
@@ -55,7 +55,8 @@ Then verify it before trusting it, and keep `PLUGIN_VERSION` from the manifest y
 3. `.archon/workflows/` holds at least one `unic-dlc-*.yaml`.
 
 Print what you found and stop on any of: no entry for this Plugin, a registry whose top-level `version` is
-not `2`, a failed check above, or a version that disagrees with the copy of this file you are running from.
+not `2`, or a failed check above. The registry entry and the manifest agreeing is the whole of the version
+test — this file carries no version of its own, so there is nothing else to compare it against.
 **Take the path from the registry alone.** The version cache holds one directory per version ever
 installed — nine of them on the machine this was written on — so a search of that cache is a guess among
 candidates, and an install that copies from the wrong version is worse than no install.
@@ -64,9 +65,9 @@ candidates, and an install that copies from the wrong version is worse than no i
 
 Four reads, all verify-only. Nothing here writes.
 
-**The config.** Read `.archon/unic-dlc.config.yaml` and keep the parsed object as `CURRENT`. Present but
-unreadable → print the parse error and stop, rather than overwrite the only copy. Absent → `CURRENT` is
-null.
+**The config.** Read `.archon/unic-dlc.config.yaml`, keep the parsed object as `CURRENT` and the path as
+`CONFIG_PATH`. Present but unreadable → print the parse error and stop, rather than overwrite the only copy.
+Absent → `CURRENT` is null, and Step 6 sets `CONFIG_PATH` when it writes.
 
 A `.archon/unic-dlc.config.json` also stops the run: report the path, say that it is the flat shape an
 earlier version of this Plugin wrote and that no migration ships any more, and change nothing. That
@@ -78,7 +79,10 @@ config" would write a second config beside it.
 - `git` is not on `PATH` → print `git binary not found on PATH. Install git before running /setup.` and stop.
 - the command failed otherwise → print the error, ask the operator to confirm this directory is a git
   repository, and stop.
-- the list is empty → print `This project has no git remote configured. Every Archon Box derives its target repository from a remote and cannot run without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
+- the list is empty → print `This project has no git remote configured. Archon derives the workspace path for an isolated run from a remote, so a Box cannot be dispatched without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
+
+A Box takes the repository it works on from the tracker contract, never from a remote: one remote has
+several spellings and a fork clone names two repositories. The remote is Archon's own need, not the Boxes'.
 
 Then run `git remote get-url origin` and keep it as `GIT_REMOTE`. An absent `origin` is an empty value
 here, not a refusal.
@@ -103,14 +107,15 @@ every other key has a default, named in the § Configuration reference in [READM
 - trimmed lowercase `reconfigure` → `MODE = 'reconfigure'`
 - anything else → `MODE = 'intent'`, `INTENT = $ARGUMENTS`
 
-`reconfigure` is the **refuse** override, and the only one. Under it, a tenant-owned file this run would
+`reconfigure` is the **report** override, and the only one. Under it, a tenant-owned file this run would
 write differently is offered to the operator: show what would change, ask about that file, and write only
 what they confirm. It is how a wrong first answer gets corrected — without it the only remedy is deleting
 a file.
 
-Steps 5 and 6 run under every mode, including `full` + `default`. They are how a Plugin upgrade lands, and
-they need no answers: that is why they come before the conversation, and why a re-run needs no argument to
-refresh what this Plugin owns.
+**Step 5 runs under every mode**, including `full` + `default`. It is how a Plugin upgrade lands, and it
+needs no answers: that is why it comes before the conversation, and why a re-run needs no argument to
+refresh what this Plugin owns. Steps 6 and 7 run under every mode too, each bounded by the treatment its
+artefact takes — so a re-run there reports rather than rewrites.
 
 ## Step 4 — Discover what this project has
 
@@ -169,7 +174,8 @@ installed.
 - `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit this bundle was
   copied from. Read it and keep the tag as `BUNDLE_TAG`.
 - Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version cannot
-  linger.
+  linger. One exception, and it is absolute: a `LICENSE` anywhere under that tree is preserved and reported.
+  **Never delete a `LICENSE` file.**
 - Stamp no header on a Method file. The bundle is upstream text pinned to one tag, and a line added at the
   top forks it from that tag — which is the fork Step 7 exists to prevent. `BUNDLE_TAG` in Step 8 and the
   version on the Boxes carry the provenance for this tree.
@@ -195,12 +201,14 @@ names as `PREVIOUS_VERSION`. Then write each Box with this line first, `PLUGIN_V
 
 Match that line as a **prefix of the first line**, never as a search over the whole file: a Consumer file
 that mentions the marker text further down is not a file this command wrote. `PREVIOUS_VERSION` is empty on
-a fresh project and on a Box carrying no such line.
+a fresh project and on a Box carrying no such line. Boxes naming **different** versions is a partial prior
+install: report every version you found rather than picking one, because picking one claims an install state
+that never existed.
 
 `/setup` writes nothing into `.archon/commands/`. The Box command docs live at `docs/boxes/` in this
 Plugin's own repository, as operator documentation.
 
-Keep `WORKFLOWS_WRITTEN`, `WORKFLOWS_ADDED` and `WORKFLOWS_DELETED` for Step 8.
+Keep `WORKFLOWS_WRITTEN`, `WORKFLOWS_ADDED` and `WORKFLOWS_REMOVED` for Step 8.
 
 **Any failure in this step stops the run.** A missing licence, an incomplete bundle, a copy that could not
 be written, a stale Box that could not be removed — each means the shipped Plugin is incomplete or the disk
@@ -208,7 +216,7 @@ refused a write, and none is fixed by re-running an earlier step. Say how much l
 re-run of `/setup` self-heals because it replaces the affected tree. Report success only when no stale Box
 is left on disk.
 
-## Step 6 — Write the config and the tracker contract (**refuse**)
+## Step 6 — Write the config and the tracker contract (**report**)
 
 Three tenant-owned files. Each one is written when it is absent. When it is present, read it, report what
 differs from what this run would write, and change nothing — unless `MODE = 'reconfigure'`, which offers
@@ -246,9 +254,8 @@ Two rules about what this conversation leaves alone:
 - **The config holds no tracker fact.** The contract files below carry all of them — which surface serves
   this tracker, the coordinates a call needs, and which value each canonical role writes. So the config
   conversation asks for none of that, and a Box reads the branching model from the config and every tracker
-  fact from those two files. `project.repo_ref` is asked for only when the operator names it: every Box
-  derives its target repository from the worktree's `origin`, and that key is the override for the one case
-  derivation cannot settle — a fork checkout whose parent differs from `origin`.
+  fact from those two files. Ask for no key the § Configuration reference omits, either: that table is the
+  closed set, and a key absent from it is a key nothing reads.
 
 Merge in one order — defaults, then what is on disk, then this run's answers — key by key, deeply, so a
 run with one changed answer preserves every other value, including keys this Plugin never asked about. Emit
@@ -260,7 +267,8 @@ human reads this file. Keep the path as `CONFIG_PATH`.
 Two files: `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. Every Box reads a tracker
 fact from these and from nothing else. § **The tracker contract** in [README.md](../README.md) states what
 each file carries, the `Axis`/`Holds` columns, the rule that a row with no axis writes nothing, and a table
-shape that satisfies it. Read it and follow it; restate none of it here.
+shape that satisfies it. Read it and follow it: those columns and their rules are stated there, and this
+step does not repeat them.
 
 Write `issue-tracker.md` from what this project answers, in these sections, and hold to one bar: **a
 section earns its place only if it states a fact about this tenant.**
@@ -288,9 +296,12 @@ rules hold whatever they answer:
 
 ## Step 7 — Patch the managed blocks (**patch**)
 
-Two blocks in two tenant-owned files. Each is delimited by markers written in that file's own comment
-syntax, `unic-archon-dlc:begin` and `unic-archon-dlc:end`. Rewrite the whole block between the markers,
-markers included, and leave everything outside them verbatim. Absent file or absent block → create it. A
+One block in the Consumer's `CLAUDE.md`, and one more in each line-based ignore file Step 4 found. Each is
+delimited by markers written in that file's own comment syntax, `unic-archon-dlc:begin` and
+`unic-archon-dlc:end`. Rewrite the whole block between the markers, markers included, and leave everything
+outside them verbatim. Absent block in a file that exists → append it. Absent file → create it, but only
+where this step has a block to put in it: a tool whose exclusions live in a structured config gets no file
+of its own invented for it. A
 re-run replaces the block in place and never appends a second one. The block carries no
 `AUTO-GENERATED` banner and presents itself as no managed document: nothing here detects a hand edit
 between the markers.
@@ -352,7 +363,7 @@ by luck, and the exclusion is written for the glob that grows rather than the gl
 
 ```
 unic-archon-dlc installed.
-  from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}
+  {version line — one of the three forms below}
   config:   {CONFIG_PATH}
   contract: {issue-tracker.md and triage-labels.md — written, or reported unchanged}
   archon remote: {ARCHON_REMOTE_RESOLVED} (Archon's own worktree.remote — verified, never written here)
@@ -371,7 +382,7 @@ Name **paths**, never a count alone: the point is a reviewable diff.
 `ARCHON_REMOTE_RESOLVED` null → print `none resolved — Archon Boxes may need worktree.remote set manually`.
 
 `WORKFLOWS_ADDED` is a subset of `WORKFLOWS_WRITTEN`; a path in one and not the other was already installed
-and got overwritten. A Method that [README.md § Dependencies](../README.md#dependencies) names and Step 5
+and got overwritten. `WORKFLOWS_REMOVED` holds every stale `unic-dlc-*.yaml` the sweep retired. A Method that [README.md § Dependencies](../README.md#dependencies) names and Step 5
 did not install is a fault: report it by name.
 
 Build the version line in one of three forms, and compute it nowhere else:
@@ -386,6 +397,9 @@ Build the version line in one of three forms, and compute it nowhere else:
 The line is informational and gates nothing. Step 5 runs unattended on the upgrade path, so it never
 becomes a prompt.
 
-Close with the one open item that outlives a successful run — every `ACTION REQUIRED` formatter entry —
-and this: **re-run `/unic-archon-dlc:setup` after updating the plugin.** It refreshes the Boxes and the
-Methods and leaves every tenant-owned file alone.
+Close with three things. Every `ACTION REQUIRED` formatter entry, which is the one open item that outlives
+a successful run. Then: **commit what this run wrote.** The installed trees are committed generated files
+([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D4) — that is what gives a Plugin upgrade a
+diff and a reviewer, and what makes an operator's edit to a Box legible as a `git diff` after the next run.
+This command stages nothing itself. And: **re-run `/unic-archon-dlc:setup` after updating the plugin.** It
+refreshes the Boxes and the Methods and leaves every tenant-owned file alone.
