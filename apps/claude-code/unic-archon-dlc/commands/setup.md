@@ -150,9 +150,11 @@ board already carries. Through whichever tracker surface Step 4 found, read what
 ## Step 5 — Install the Boxes and the Methods (**replace**)
 
 Both trees come out of the directory Step 1 verified. This is the **replace** treatment: overwrite
-silently, every run. Every installed file's header names this Plugin and its version and says that
-`/setup` rewrites it, which is what makes an overwrite legible — an operator's edit shows up as a tracked
-`git diff` after a run, not as a warning dialog ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
+silently, every run. Every installed **Box** carries a header naming this Plugin and its version and saying
+that `/setup` rewrites it, which is what makes an overwrite legible — an operator's edit shows up as a
+tracked `git diff` after a run, not as a warning dialog
+([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3). **No Method file carries one**, and the
+Methods bullet below says why.
 
 **The Methods.** Verify the bundle at `vendor/mattpocock-skills/`, then copy it into `.archon/methods/` —
 the one path every Box and command reads a Method from.
@@ -174,8 +176,10 @@ installed.
 - `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit this bundle was
   copied from. Read it and keep the tag as `BUNDLE_TAG`.
 - Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version cannot
-  linger. One exception, and it is absolute: a `LICENSE` anywhere under that tree is preserved and reported.
-  **Never delete a `LICENSE` file.**
+  linger. One exception, and it is absolute, so perform it in this order: **before you remove anything**,
+  list every `LICENSE` under that tree and read each one; remove and copy; then restore each `LICENSE` to
+  the path you found it at, and name each one in the summary. An exception written as an outcome is one a
+  wholesale delete reaches first. **Never delete a `LICENSE` file.**
 - Stamp no header on a Method file. The bundle is upstream text pinned to one tag, and a line added at the
   top forks it from that tag — which is the fork Step 7 exists to prevent. `BUNDLE_TAG` in Step 8 and the
   version on the Boxes carry the provenance for this tree.
