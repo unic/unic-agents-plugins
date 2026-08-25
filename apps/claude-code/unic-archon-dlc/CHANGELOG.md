@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [0.26.0] — 2026-08-25
+
+### Breaking
+- (none)
+
+### Added
+
+- **`/specs` writes a design contract per component the feature names.** `commands/specs.md` had no writer for the design branch at all: [#404](https://github.com/unic/unic-agents-plugins/issues/404) decided the artefact and [#405](https://github.com/unic/unic-agents-plugins/issues/405) decided how a design source is read, and nothing carried either into the Plugin. The command now branches on `design.type` **set-versus-`none`**, reads the Consumer's design-conventions doc at `docs/agents/<design.type>.md`, and writes one contract per component — four sections in a fixed order, a **visible** provenance list rather than a comment because a human reads it at the PRD gate, a `.generated.` file name, lists and no tables so a formatter cannot churn it, and an absent optional field written as absent with its reason rather than omitted. Every run rewrites the contract whole; nothing detects staleness, and the two checkers are named. `docs.publish` governs the contracts as well as the PRD, through injection markers that never touch the authored half of a component's page ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+- **The rules for reading a design source, stated generically.** A value is recorded as the name that carries it and never as its resolved value; an override made through a declared component property is intent while one typed onto a layer inside an instance is a defect, with a token-bound value the one carve-out; what a tool cannot answer is written into the contract as unreadable rather than left silent; a component is keyed on a stable identity and never on its name, because one name carried four distinct components in the Consumer's file (measured 2026-08-25). No single read carries every fact, so each fact comes from the read the Consumer's doc routes it to. Every tool-specific name stays in that doc ([#405](https://github.com/unic/unic-agents-plugins/issues/405), [#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+- **The PRD gate stages the contracts and their screenshots as named paths**, so a contract reaches review with the PRD it belongs to — the only place a human sees it before it is used. An asset a contract needs is committed as **bytes, never as a link**: an exported asset URL expires seven days after it is issued (measured 2026-08-25), so a committed link is dead within the week and dead in a way that reads as an asset nobody drew ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+
+### Fixed
+
+- **Two `CONTEXT.md` lines that outlived `lib/`.** The PRD entry said its section shape is "enforced by a generic validator" and the Nyquist map entry said `/tickets` runs its check "via tested lib". [#381](https://github.com/unic/unic-agents-plugins/issues/381) deleted `lib/`, so each command makes its own check in prose, and both lines sat beside the entry this release adds ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+- **`commands/specs.md` names no design tool.** The argument hint and the branch-on-input list both carried one, which made the command's own prose the precedent against the rule it is meant to follow. A blocking condition declared by the Consumer's doc now stops a contract rather than writing an empty one, and a subscription mismatch warns and is recorded without stopping the run ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+
 ## [0.25.0] — 2026-08-25
 
 ### Breaking
