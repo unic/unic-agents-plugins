@@ -167,9 +167,10 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | Path                                                     | Default                | Valid values                                  | Description                                                                                                                         |
 | -------------------------------------------------------- | ---------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `project.name`                                           | asked                  | any string                                    | Project name                                                                                                                        |
-| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                                                                                 |
+| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | `multi-context` when the repository holds more than one independently-releasable project                                            |
 | `project.branching`                                      | asked                  | `gitflow` · `github-flow`                     | Branching model (mandatory)                                                                                                         |
 | `docs.type`                                              | `markdown`             | `markdown` · docs system name · `none`        | Where the team's product specs live (drives `/specs` publishing)                                                                    |
+| `docs.access` · `design.access`                          | auto-detected          | `{mcp, cli}`                                  | Which surface serves the docs and design systems, filled from setup's verify-only discovery                                         |
 | `docs.publish`                                           | `false`                | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                                                                                     |
 | `design.type`                                            | `none`                 | design system name · `none`                   | Design system source; boxes test set-versus-`none` and never compare the value to a literal — `design.access.mcp` resolves the tool |
 | `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                  |
@@ -192,7 +193,9 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 ### The tracker contract
 
 **No Box reads a tracker fact from that config.** Every one of them lives in two repo-local prose
-files, which `/unic-archon-dlc:setup` writes and every Box and command reads:
+files, which `/unic-archon-dlc:setup` writes and every Box and command reads. Both are **tenant-owned**:
+`/setup` writes each one when it is absent, and on a later run reports what differs rather than rewriting
+it — pass `reconfigure` to be offered the change:
 
 | File                           | What it carries                                                                                                                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

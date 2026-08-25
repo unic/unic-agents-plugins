@@ -243,18 +243,19 @@ Consumer. Not an Archon workflow command template — no `command:` node resolve
 _Avoid_: command stub, command doc (both suggest the runtime template above)
 
 **Install set**:
-What `/setup` writes into a Consumer, and the rule by which each entry is replaced. Two shapes: a
-**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**,
-which owns only the names its pattern matches inside a directory it shares with the Consumer
-(`unic-dlc-*.yaml` inside `.archon/workflows/`). The engine that once held this is deleted with the rest of `lib/`
-(#381), and nothing iterates a declared set: the Methods, the Boxes and the config are each written by
-their own step. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
+The six things `/setup` writes into a Consumer, and the rule by which each is replaced: the Boxes, the
+Methods, the config, the two tracker-contract files, the `CLAUDE.md` block, and the formatter exclusions.
+Three treatments, decided by ownership — see the **Setup** entry above. Inside **replace**, two shapes: a
+**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**, which
+owns only the names its pattern matches inside a directory it shares with the Consumer
+(`unic-dlc-*.yaml` inside `.archon/workflows/`). The engine that once held this is deleted with the rest of
+`lib/` (#381), and nothing iterates a declared set: each entry is written by the step that owns it. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
 install set" as one shared rule, never as a single enumeration something iterates.
 _Avoid_: install manifest, artefact list
 
 **Generated header**:
 The one comment line `/setup` stamps onto every installed Box YAML, naming this Plugin and the version
-that wrote the file and stating that the next run rewrites it. `/setup` writes it in its install step and
+that wrote the file and stating that the next run replaces it. `/setup` writes it in its install step and
 reads it back as the previous version by matching a **prefix of the first line**. No Method file carries
 one — the Bundle is upstream text pinned to a tag, and a line at the top would fork it. This is where a
 Consumer's install provenance lives — per Box, and in no separate record. It never decides ownership: the stale sweep retires a name whether or not the

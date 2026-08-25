@@ -6,9 +6,9 @@ description: 'Install unic-archon-dlc into this project: copy the Boxes and the 
 
 # unic-archon-dlc:setup
 
-> Design rationale: [ADR-0019 — Conversational `/setup`](docs/adr/0019-conversational-setup.md);
-> [ADR-0036 — `/setup` owns a named install set](docs/adr/0036-setup-owns-a-named-install-set.md) for what
-> it owns and how it replaces it; [ADR-0016 — a thin process layer](docs/adr/0016-dlc-thin-process-layer.md)
+> Design rationale: [ADR-0019 — Conversational `/setup`](../docs/adr/0019-conversational-setup.md);
+> [ADR-0036 — `/setup` owns a named install set](../docs/adr/0036-setup-owns-a-named-install-set.md) for what
+> it owns and how it replaces it; [ADR-0016 — a thin process layer](../docs/adr/0016-dlc-thin-process-layer.md)
 > for why this command reads the project instead of holding a list of tools.
 
 **Arguments:** "$ARGUMENTS"
@@ -16,7 +16,7 @@ description: 'Install unic-archon-dlc into this project: copy the Boxes and the 
 `/setup` is this Plugin's installer and its sole configuration entry point. It is prose: do every action
 below with your own tools — Read, Write, Edit, Glob, Grep and Bash. Import nothing, shell out to no Node
 script, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed Plugin ships no `node_modules`, and that
-variable is not set inside the Bash tool ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5).
+variable is not set inside the Bash tool ([ADR-0023](../docs/adr/0023-build-generic-red-green-refactor-loop.md) §5).
 
 ## What `/setup` owns, and what it only visits
 
@@ -29,7 +29,8 @@ every action below names which one it takes:
 | **report**  | a file the tenant owns                       | written when absent; when present, read it and report what differs, changing nothing |
 | **patch**   | a marked block inside a file the tenant owns | the block is rewritten between its markers; everything outside them stays verbatim   |
 
-**report** has one override: the `reconfigure` argument (Step 3). Nothing else rewrites a tenant file.
+**report** has one override: the `reconfigure` argument (Step 3). Outside a marked block, nothing else
+rewrites a tenant file.
 
 ## Step 1 — Preflight
 
@@ -38,15 +39,25 @@ anything is written.
 
 **Archon.** Run `archon --version`. This Plugin's floor is **`0.7.0`** — the version whose schema carries
 gates, loops, `context: fresh`, `evidence_policy` and `always_run`
-([ADR-0033](docs/adr/0033-archon-070-schema-target.md)). Compare the three numbers, never the raw strings:
-the output may carry a program name or a `v` prefix. Command not found, or a version below the floor →
-print what you saw with both versions and stop.
+([ADR-0033](../docs/adr/0033-archon-070-schema-target.md)). Compare the three numbers, never the raw strings:
+the output may carry a program name or a `v` prefix. Three ways this stops: the command is not found; the
+version parses and sits below the floor, so print both versions; or the output yields no three numbers at
+all, so print it raw and say the floor could not be checked against it.
 
-**This Plugin's own installed directory.** Steps 5 and 6 copy files out of it, so find it now. Claude Code
-keeps a registry at `~/.claude/plugins/installed_plugins.json`; read it and take the entry keyed
+**This Plugin's own installed directory.** The install step copies both trees out of it, so find it now.
+Claude Code keeps a registry at `~/.claude/plugins/installed_plugins.json`; read it and take the entry keyed
 `unic-archon-dlc@<marketplace>`. Each entry carries `scope`, `installPath`, `version` and — for a
-project-scope install — the `projectPath` it belongs to. Pick the entry whose `projectPath` is this
-repository's root, else the `user`-scope entry. `installPath` is the directory.
+project-scope install — the `projectPath` it belongs to. Select in this order, and take the first that
+resolves:
+
+1. exactly one entry → that one, whatever its scope.
+2. the entry whose `projectPath` is this repository's root. In a `git worktree` that is the main checkout's
+   root, not the worktree's, so resolve it before comparing.
+3. the sole `user`-scope entry.
+
+`installPath` is the directory. **Entries that exist and select none is its own stop**: print every entry
+with its scope and path, say which rule failed, and stop. Guessing between two projects' installs is the
+error this lookup replaced.
 
 Then verify it before trusting it, and keep `PLUGIN_VERSION` from the manifest you read:
 
@@ -91,7 +102,10 @@ here, not a refusal.
 never writes. Resolve the remote the way Archon does and keep it as `ARCHON_REMOTE_RESOLVED`: its
 `worktree.remote` key when set, else `origin` when a remote of that name exists, else the sole remote when
 there is exactly one, else nothing. On Archon `0.7.0` that key governs base-branch resolution only — the
-workspace path still derives from `origin` — so report it in Step 8 and write it nowhere.
+workspace path still derives from `origin` — so report it in Step 8 and write it nowhere. Present but
+unreadable → say so, keep `ARCHON_REMOTE_RESOLVED` empty and carry on. One summary line depends on this
+file, so it never stops the run; the rule two reads above stops the run because overwriting the config would
+destroy it.
 
 **The repo layout.** Keep `REPO_LAYOUT`: `multi-context` when this repository holds more than one
 independently-releasable project (a `packages/` or `apps/` tree with its own manifests), otherwise
@@ -151,9 +165,9 @@ board already carries. Through whichever tracker surface Step 4 found, read what
 
 Both trees come out of the directory Step 1 verified. This is the **replace** treatment: overwrite
 silently, every run. Every installed **Box** carries a header naming this Plugin and its version and saying
-that `/setup` rewrites it, which is what makes an overwrite legible — an operator's edit shows up as a
+that `/setup` replaces it, which is what makes an overwrite legible — an operator's edit shows up as a
 tracked `git diff` after a run, not as a warning dialog
-([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3). **No Method file carries one**, and the
+([ADR-0036](../docs/adr/0036-setup-owns-a-named-install-set.md) D3). **No Method file carries one**, and the
 Methods bullet below says why.
 
 **The Methods.** Verify the bundle at `vendor/mattpocock-skills/`, then copy it into `.archon/methods/` —
@@ -162,7 +176,9 @@ the one path every Box and command reads a Method from.
 **The copy flattens.** The bundle groups Methods by category, so a Method sits at
 `vendor/mattpocock-skills/skills/<category>/<name>/`; a Box reads `.archon/methods/<name>/SKILL.md`, one
 level deep. Copy each Method directory to `.archon/methods/<name>/`, dropping the category, and copy the
-directory whole so every companion file travels with its `SKILL.md`. Two Methods sharing a `<name>` across
+directory whole so every companion file travels with its `SKILL.md`. Copy with your own file tools, walking
+the tree and writing each file: a recursive shell copy is written differently on each host, and this command
+runs on all of them. Two Methods sharing a `<name>` across
 categories collide at the destination: report both source paths and stop. Copy nothing else out of the
 bundle — the bundle's own `README.md` and its `LICENSE` are this Plugin's records, verified below and never
 installed.
@@ -175,6 +191,10 @@ installed.
   **Never create a `LICENSE` file.**
 - `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit this bundle was
   copied from. Read it and keep the tag as `BUNDLE_TAG`.
+- Check what the bundle **lacks**, not only what it holds: compare the Method names in it against the table
+  under [README.md § Dependencies](../README.md#dependencies). A Method that table names and the bundle does
+  not hold is a fault — report it by name and stop here, before anything is written. Keep the names you do
+  install as `METHODS_INSTALLED` for the summary.
 - Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version cannot
   linger. One exception, and it is absolute, so perform it in this order: **before you remove anything**,
   list every `LICENSE` under that tree and read each one; remove and copy; then restore each `LICENSE` to
@@ -200,11 +220,13 @@ Before overwriting, read the first line of each `unic-dlc-*.yaml` already on dis
 names as `PREVIOUS_VERSION`. Then write each Box with this line first, `PLUGIN_VERSION` filled in:
 
 ```yaml
-# Generated by unic-archon-dlc <PLUGIN_VERSION> — /unic-archon-dlc:setup rewrites this file on every run.
+# Generated by unic-archon-dlc <PLUGIN_VERSION> — /unic-archon-dlc:setup replaces this file on every run.
 ```
 
-Match that line as a **prefix of the first line**, never as a search over the whole file: a Consumer file
-that mentions the marker text further down is not a file this command wrote. `PREVIOUS_VERSION` is empty on
+Match the **fixed part** of that line — everything up to the version — as a prefix of the first line, then
+read the version that follows it. Matching the rendered line whole would only ever recognise a re-run at this
+same version, which is the one case `PREVIOUS_VERSION` is not for. Never search the whole file: a Consumer
+file that mentions the marker text further down is not a file this command wrote. `PREVIOUS_VERSION` is empty on
 a fresh project and on a Box carrying no such line. Boxes naming **different** versions is a partial prior
 install: report every version you found rather than picking one, because picking one claims an install state
 that never existed.
@@ -222,7 +244,9 @@ is left on disk.
 
 ## Step 6 — Write the config and the tracker contract (**report**)
 
-Three tenant-owned files. Each one is written when it is absent. When it is present, read it, report what
+Three tenant-owned files. A write that fails here stops the run and names the file: unlike the install step,
+nothing downstream self-heals a tenant-owned file, because the next run finds it present and reports on it.
+Each one is written when it is absent. When it is present, read it, report what
 differs from what this run would write, and change nothing — unless `MODE = 'reconfigure'`, which offers
 the change per file (Step 3).
 
@@ -258,8 +282,10 @@ Two rules about what this conversation leaves alone:
 - **The config holds no tracker fact.** The contract files below carry all of them — which surface serves
   this tracker, the coordinates a call needs, and which value each canonical role writes. So the config
   conversation asks for none of that, and a Box reads the branching model from the config and every tracker
-  fact from those two files. Ask for no key the § Configuration reference omits, either: that table is the
-  closed set, and a key absent from it is a key nothing reads.
+  fact from those two files. Ask the operator for no key the § Configuration reference omits, either: that
+  table is the closed set of questions, and a key absent from it is a key nothing reads. It bounds what this
+  conversation **asks**, not what the run writes: `project.repo_layout` and the Step-4 capability results are
+  written without being asked, and each has its row.
 
 Merge in one order — defaults, then what is on disk, then this run's answers — key by key, deeply, so a
 run with one changed answer preserves every other value, including keys this Plugin never asked about. Emit
@@ -307,7 +333,9 @@ outside them verbatim. Absent block in a file that exists → append it. Absent 
 where this step has a block to put in it: a tool whose exclusions live in a structured config gets no file
 of its own invented for it. A
 re-run replaces the block in place and never appends a second one. The block carries no
-`AUTO-GENERATED` banner and presents itself as no managed document: nothing here detects a hand edit
+`AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run rewrites it — two different
+things, and the second is what makes an overwrite legible. What it never claims is to be maintained: nothing
+here detects a hand edit
 between the markers.
 
 ### `CLAUDE.md`
@@ -356,7 +384,9 @@ JSON or TOML, which cannot carry a comment marker — write nothing there: print
 must add, and carry it into Step 8 as an open item. Editing a value this command cannot delimit would leave
 a line the next run could not tell from a hand-written one.
 
-State the reason in the block, because the failure it prevents is silent. A formatter that reflows an
+Open the block by saying `/setup` rewrites it, exactly as the `CLAUDE.md` block does: an ignore file belongs
+to the tenant, and a tenant who edits between the markers otherwise loses the edit on the next run with
+nothing on either side to warn them. Then state the reason, because the failure it prevents is silent. A formatter that reflows an
 installed file raises no error and no test failure — it makes the file stop matching the release it was
 copied from, and the header line is then the only provenance left. Both trees needed this and the third
 entry anticipates it: a Markdown glob rewrote thirteen Method files in one run on `DXP-DesignSystem`
@@ -385,9 +415,11 @@ Name **paths**, never a count alone: the point is a reviewable diff.
 
 `ARCHON_REMOTE_RESOLVED` null → print `none resolved — Archon Boxes may need worktree.remote set manually`.
 
+Build the `methods:` line from `METHODS_INSTALLED`, the names Step 5 kept. Step 5 already stopped the run if
+the bundle lacked a Method the dependency table names, so this line reports what landed and judges nothing.
+
 `WORKFLOWS_ADDED` is a subset of `WORKFLOWS_WRITTEN`; a path in one and not the other was already installed
-and got overwritten. `WORKFLOWS_REMOVED` holds every stale `unic-dlc-*.yaml` the sweep retired. A Method that [README.md § Dependencies](../README.md#dependencies) names and Step 5
-did not install is a fault: report it by name.
+and got overwritten. `WORKFLOWS_REMOVED` holds every stale `unic-dlc-*.yaml` the sweep retired.
 
 Build the version line in one of three forms, and compute it nowhere else:
 
@@ -395,6 +427,9 @@ Build the version line in one of three forms, and compute it nowhere else:
   read a version from and every Box is new → `first install`.
 - `PREVIOUS_VERSION` null and those counts differ — Boxes were installed but none names a version →
   `from: unknown`.
+- `PREVIOUS_VERSION` holds more than one version — the Boxes on disk disagreed, so the prior install was
+  partial → `from: a partial install of {v} and {v} → {PLUGIN_VERSION}`. Name the partial state in words: a
+  bare list reads as a range and hides the one thing the operator needs to know.
 - Otherwise `from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}`, both printed even when equal: a re-run at the
   same version is a fact worth showing.
 
@@ -403,7 +438,7 @@ becomes a prompt.
 
 Close with three things. Every `ACTION REQUIRED` formatter entry, which is the one open item that outlives
 a successful run. Then: **commit what this run wrote.** The installed trees are committed generated files
-([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D4) — that is what gives a Plugin upgrade a
+([ADR-0036](../docs/adr/0036-setup-owns-a-named-install-set.md) D4) — that is what gives a Plugin upgrade a
 diff and a reviewer, and what makes an operator's edit to a Box legible as a `git diff` after the next run.
 This command stages nothing itself. And: **re-run `/unic-archon-dlc:setup` after updating the plugin.** It
 refreshes the Boxes and the Methods and leaves every tenant-owned file alone.

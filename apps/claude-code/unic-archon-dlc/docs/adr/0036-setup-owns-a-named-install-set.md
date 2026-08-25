@@ -65,7 +65,7 @@ Method, the install set gains a sixth action, and a step is named by its job rat
 > answer, so no confirmation is needed on the happy path.
 >
 > **The generated header is one comment line on each installed Box**, naming this Plugin and the version
-> that wrote it and stating that `/setup` rewrites the file. `renderGeneratedHeader` is deleted, so
+> that wrote it and stating that `/setup` replaces the file. `renderGeneratedHeader` is deleted, so
 > `/setup` writes it, and reads it back as `PREVIOUS_VERSION` by matching a **prefix of the first line**
 > — never a search over the whole body, per D3.
 >
