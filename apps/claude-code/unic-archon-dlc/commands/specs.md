@@ -69,14 +69,19 @@ and a rule keyed on the value would be keyed on decoration.
 
 When `DESIGN.type` is set, the Consumer declares its design conventions in one doc beside the tracker
 contract, at `docs/agents/<DESIGN.type>.md` — the value lower-cased, with any space or slash written as
-`-`. Keep that path as `DESIGN_DOC`. It owns every design fact this command does not know:
+`-`. Keep that path as `DESIGN_DOC`. **The Consumer writes this doc by hand; nothing installs it**, so a
+project with a design system and no doc is the ordinary first state rather than a broken one. It owns
+every design fact this command does not know, and this list is the whole of what Step 7 asks of it:
 
 - **Which read carries which fact.** No single read carries them all, so the doc routes them.
+- **The stable identity** a component is keyed on, which is never its name.
+- **Which facts this tool cannot answer**, so a contract can name them rather than stay silent.
 - **Where a contract is written**, and the docs parent under which a component's page is created.
 - **The blocking conditions** that stop a contract being written.
 - **The mapping** from a design property to the code surface it becomes.
+- **The gate that covers appearance**, since this contract does not.
 - **The expected-subscription list**, when the team keeps one.
-- **How an image reaches the docs system**, when it can reach it at all.
+- **How a screenshot reaches the docs system**, when it can reach it at all.
 
 Read it in Step 7, when the feature names a component, and not before: a feature that names none needs
 neither a contract nor this doc.
@@ -273,8 +278,8 @@ tool:
   them reads as though someone looked and found nothing.
 - **A component is keyed on the stable identity `DESIGN_DOC` names, never on its name.** One name
   repeats inside a single design file — measured 2026-08-25 on the Consumer's file: one name carried by
-  four distinct components — so a name key is ambiguous today, not in theory. Record the name as a
-  label.
+  four distinct components ([#404](https://github.com/unic/unic-agents-plugins/issues/404)) — so a name
+  key is ambiguous today, not in theory. Record the name as a label.
 
 #### What a contract holds
 
@@ -284,7 +289,10 @@ nobody could have read from the design:
 1. **Provenance** — this Plugin and the version that wrote the file, the date, the design source's
    identity and a link to the frame, the screenshot path, the docs page URL or `not published`, and a
    **Scope** line stating that the contract governs structure and not appearance and naming the gate
-   that does cover appearance.
+   `DESIGN_DOC` says does cover it. Take the version from this Plugin's own manifest, in the installed
+   directory Claude Code's `~/.claude/plugins/installed_plugins.json` names for this repository. Never
+   infer it, and where it cannot be read write it as absent with that reason — a wrong version in a
+   provenance list is worse than a missing one, because a human reads the whole list as measured.
 2. **Design as read** — one line per property: name, type, options, default. Which combinations are
    drawn, of how many possible. Child dependencies, each marked internal or external with its identity.
    Token names, each with its value or the reason the value is unreadable.
@@ -315,15 +323,18 @@ tool, and that diff reads as "the design changed" when nothing did.
   replacement, and the cure for a stale contract is to run `/specs` again. Nothing detects staleness:
   the checkers are the human at the Step 8 gate, who has the date in front of them, and the next run
   for that component.
-- **The contract carries a rendered image of the component.** Render it, save it beside the contract,
-  and re-render it on every run. `DESIGN_DOC` says how an image reaches the docs system, and whether it
+- **The contract carries a screenshot of the component.** Render it, save it beside the contract, and
+  re-render it on every run. `DESIGN_DOC` says how a screenshot reaches the docs system, and whether it
   can reach it at all — where it cannot, the published block carries the frame link instead.
-- **The blocking conditions `DESIGN_DOC` declares stop the run.** Print which condition fired and for
-  which component, then stop: write no contract for it, write none for the components after it, and do
-  not open the gate. Never write a partial or empty contract — an empty one is the worst shape
-  available, because it reads as a component that has no properties rather than as a component nobody
-  could read. The PRD stays on disk, so the fix is to clear the condition and run `/specs` again; Step 2
-  picks the PRD up as a re-entry.
+- **The blocking conditions `DESIGN_DOC` declares stop the run.** Never write a partial or empty
+  contract for the component that blocked: an empty contract is the worst shape available, because it
+  reads as a component with no properties rather than as a component nobody could read. What a block
+  costs the rest of the run is **this command's rule, not the doc's**: write no contract for the
+  components after it either, print the Step 9 summary with the `blocked:` line filled and `gate: not
+opened`, and stop before Step 8. Contracts already written stay on disk unstaged, and the summary
+  lists them as written-not-staged, so the next run replaces them rather than a human wondering what
+  they are. The PRD stays on disk too: clear the condition and run `/specs` again, and Step 2 picks it
+  up as a re-entry.
 - **When `DESIGN_DOC` declares an expected-subscription list**, read the actual list through
   `DESIGN.access` and compare it per file. A mismatch **warns and is recorded in the contract. It never
   stops the run.**
@@ -335,14 +346,24 @@ and `DOCS.type` is not `none`, publish each contract by composing the docs skill
 `DOCS.access`, writing through its injection markers. One page per component, two halves and two owners:
 the generated block is this command's and is replaced whole; everything a person wrote outside the
 markers is **never touched**. On a first run no page exists — create it under the parent `DESIGN_DOC`
-names, with the authored half empty, then **write the page URL back into that contract's Provenance
-list**, which is what resolves the page on the next run. If the docs surface can neither create a page
+names, with the authored half empty, then **write the page URL back into that contract — into the
+Provenance list, and into the § Non-designable facts source line, which cease to read `not published`
+and `unresolved` the moment the page exists**. The file in the repository is what resolves the page on
+the next run. What that page _says_ about applicable states stays unresolved until a human writes the
+authored half; only its address is now known. If the docs surface can neither create a page
 nor write through markers, publish nothing and say which of the two it was.
 
-**After writing a contract, read this repository's formatter ignore file** and look for a rule covering
-the path just written. Finding none, print the exact line an operator must add — and **write nothing
-there**. That write belongs to `/setup`, which owns the marked block in that file; a second writer would
-leave a line neither command could tell from a hand-written one.
+**After writing a contract, check that this repository excludes it from whatever formats or lints here.**
+`/setup` writes those exclusions and a `.generated.` name is what they key on, so this check is for the
+Consumer set up before that existed, or one whose toolchain has grown a tool since. Read what this
+project runs, and for each tool that reaches the contract's path look for a rule covering it. Where one
+is missing, print the exact entry an operator must add and which tool it belongs to — including where
+that tool excludes through a structured config value rather than an ignore file, which it cannot be
+patched into.
+
+**Write nothing in either place.** That write belongs to `/setup`, which owns the marked block in an
+ignore file; a second writer would leave a line neither command could tell from a hand-written one. A
+contract a formatter reflows churns on every run, and that diff reads as a design change.
 
 ## Step 8 — PRD gate (HITL)
 
@@ -361,9 +382,10 @@ Both gates stage the **same named paths**, and nothing else:
   file. Never `git add docs/adr/`: that directory holds every ADR the project has, and a sweep of it
   commits whatever else is uncommitted there.
 - each design contract Step 7 wrote, by its own path, and the screenshot beside it — one `git add` per
-  file. The contract is reviewed in the same pull request as the PRD it belongs to, which is the only
+  file. A contract is staged with the PRD it belongs to and reaches the same review, which is the only
   place a human sees it before it is used. **An asset a contract needs is committed as bytes, never as
-  a link**: an exported asset URL expires seven days after it is issued (measured 2026-08-25), so a
+  a link**: an exported asset URL expires seven days after it is issued (measured 2026-08-25,
+  [#405](https://github.com/unic/unic-agents-plugins/issues/405)), so a
   committed link is dead within the week and dead in a way that looks like an asset nobody drew.
 
 **Staging rule — named paths only.** Run one `git add <path>` per path above. Never `git add -A`,
@@ -412,8 +434,8 @@ Print a concise summary:
   input:     <converse | ingest | hybrid>
   seams:     <the approved testing seam(s)>
   ADRs:      <NNNN-slug.md … | none>
-  contracts: <N written, one path each | none — design.type is none | none — the feature names no component>
+  contracts: <N written, one path each, marking any a block left unstaged | none — design.type is none | none — the feature names no component>
   blocked:   <component — the condition that stopped it, one per line | none>
-  gate:      <open-pr → PR #… | stage-only → staged>
+  gate:      <open-pr → PR #… | stage-only → staged | not opened — a design blocking condition stopped the run>
   next:      run /tickets <SLUG> once the PRD is approved
 ```

@@ -134,17 +134,15 @@ and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input
 _Avoid_: spec, requirements doc
 
 **Design contract**:
-The per-component artefact `/specs` writes when the config carries a design system and the feature names
-a component. It holds what the design **file** says, read mechanically, plus the code shape that follows
-from it — so it rots when the design changes, and every run rewrites it whole. Four sections in order:
-Provenance, Design as read, Code shape, Non-designable facts. Its file name carries `.generated.`, its
-path is declared by the Consumer's design-conventions doc at `docs/agents/<design.type>.md`, and it rides
-the PRD's pull request. Its provenance is a **visible list**, where an installed Box carries the same
-facts as a **Generated header** comment: a Box YAML has no reader but an agent, while a contract has a
-human standing at the PRD gate, and hidden provenance is provenance nobody checks. Nothing detects
-staleness — the checkers are that human, who reads the date, and the next `/specs` run for the component.
-_Avoid_: design spec, component spec (the authored half of the docs page is the spec; this is the derived
-half)
+The **derived** half of what a project knows about one component: what the design file says, read
+mechanically, plus the code shape that follows from it. `/specs` writes one per component a feature
+names, and every run rewrites it whole, so it rots when the design changes and the cure is another run.
+The **authored** half — which states apply, what the thing is for — lives on the component's docs page,
+is written by a person, and is never touched by this Plugin. A contract's provenance is a **visible
+list**, where an installed Box carries its provenance as a **Generated header** comment: a Box YAML has
+no reader but an agent, while a contract has a human standing at the PRD gate, and hidden provenance is
+provenance nobody checks. `commands/specs.md` holds its section shape and every rule about writing one.
+_Avoid_: design spec, component spec (the authored half is the spec; this is the derived half)
 
 **Findings**:
 The `/explore` output at `workflows/<slug>/findings.md`. Its **Integrated Brief** carries three
