@@ -152,6 +152,14 @@ silently, every run. Every installed file's header names this Plugin and its ver
 **The Methods.** Verify the bundle at `vendor/mattpocock-skills/`, then copy it into `.archon/methods/` —
 the one path every Box and command reads a Method from.
 
+**The copy flattens.** The bundle groups Methods by category, so a Method sits at
+`vendor/mattpocock-skills/skills/<category>/<name>/`; a Box reads `.archon/methods/<name>/SKILL.md`, one
+level deep. Copy each Method directory to `.archon/methods/<name>/`, dropping the category, and copy the
+directory whole so every companion file travels with its `SKILL.md`. Two Methods sharing a `<name>` across
+categories collide at the destination: report both source paths and stop. Copy nothing else out of the
+bundle — the bundle's own `README.md` and its `LICENSE` are this Plugin's records, verified below and never
+installed.
+
 - Every Method directory carries a `SKILL.md`. Verify companions **by reading**: open each `SKILL.md` and
   confirm every companion file it points at sits beside it. A Method referencing none needs none — several
   correctly ship one file, so a file count is not the test. A companion the text points at and the
