@@ -44,6 +44,38 @@ below is deleted while every decision it held is unchanged (#381)
 > inside the Bash tool. Step 6 finds the directory, confirms it, and stops rather than guessing. #383
 > settles the mechanism.
 
+> **Amended (2026-08-25) — the mechanism is a registry lookup, and the header is one line (#383).**
+>
+> **Locating this Plugin's own directory.** Claude Code keeps `~/.claude/plugins/installed_plugins.json`,
+> which records `installPath`, `version`, `scope` and — for a project-scope install — the `projectPath`
+> the entry belongs to. `/setup` reads that file, picks the entry matching this repository, takes
+> `installPath`, and verifies the directory before copying: the manifest there names this Plugin at the
+> registry's version, `vendor/mattpocock-skills/` is present, and `.archon/workflows/` holds at least one
+> `unic-dlc-*.yaml`. It stops, printing what it found, on a missing entry, a registry `version` other than
+> `2`, a failed check, or a version that disagrees with the running copy.
+>
+> The interim prose it replaces searched `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and
+> asked the operator to confirm. That directory holds **one entry per version ever installed** — nine of
+> them for this Plugin on the machine where this was measured, of which one was installed — so the search
+> was a guess among candidates and the confirmation existed to cover the guess. The registry names the
+> answer, so no confirmation is needed on the happy path.
+>
+> **The generated header is one comment line on each installed Box**, naming this Plugin and the version
+> that wrote it and stating that `/setup` rewrites the file. `renderGeneratedHeader` is deleted, so
+> `/setup` writes it, and reads it back as `PREVIOUS_VERSION` by matching a **prefix of the first line**
+> — never a search over the whole body, per D3.
+>
+> **No Method file carries a header.** The bundle is upstream text pinned to one tag, and a line added at
+> the top forks it from that tag — the same fork that a Consumer's formatter caused on `DXP-DesignSystem`.
+> D3's "every installed file's header" therefore reads: every installed **Box**. The bundle's provenance is
+> its tag, reported in the summary.
+>
+> **The install set gains a sixth action, and it is why the fork above cannot recur.** `/setup` excludes
+> both installed trees, and every file whose name carries `.generated.`, from whatever this project uses to
+> format or lint — found by reading the project, never from a list of tools held in the Plugin. Where that
+> tool's exclusion mechanism cannot carry a comment marker, `/setup` prints the entry the operator must add
+> and reports it as an open item.
+
 ## Context
 
 Nothing installed the Box workflow YAMLs into a Consumer project. `commands/setup.md` wrote the

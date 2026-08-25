@@ -210,13 +210,15 @@ _Avoid_: child workflow, nested workflow, sub-workflow
 ### Plugin entry points
 
 **Setup**:
-The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
-`/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.yaml`, discovers and registers the team's system-skills,
-and refreshes the marker-delimited `## unic-archon-dlc` block in `CLAUDE.md`. Idempotent (a thin tested
-lib does schema-validate + merge): re-running
-with no arguments prints the current config when fully populated, asks only for missing fields
-when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
-re-prompt; pass free-form intent (e.g. "change branching to github-flow") for targeted tweaks.
+The installation of unic-archon-dlc into a target project, invoked as `/unic-archon-dlc:setup`. Six
+actions: copy the Boxes into `.archon/workflows/`, copy the Methods into `.archon/methods/`, write
+`.archon/unic-dlc.config.yaml`, write the tracker contract (`docs/agents/issue-tracker.md` and
+`docs/agents/triage-labels.md`), patch the `## unic-archon-dlc` block in `CLAUDE.md`, and patch the
+exclusions that keep this project's formatters off the two installed trees. Prose end to end — it imports
+no module. **Ownership decides the treatment**: a tree this Plugin owns is **replaced** on every run; a
+tenant-owned file is written once and thereafter **reported** on; a marked block inside a tenant file is
+**patched** in place, everything outside the markers verbatim. Pass `reconfigure` to be offered a rewrite
+of a tenant-owned file, or free-form intent (e.g. "change branching to github-flow") for a targeted tweak.
 _Avoid_: install, init, install hook
 
 **Claude Code slash command**:
