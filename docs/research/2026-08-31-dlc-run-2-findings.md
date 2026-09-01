@@ -277,12 +277,12 @@ comparison still needs, which is why it is deliberately **not** a work item.
 ```
 COMPONENTS/badge-main
 COMPONENTS/card-profile-main
-DEMO/card-with-badge
-ICON/interface/User2
+DEMOS/card-with-badge
+ICONS/interface/User2
 ```
 
 Chosen 2026-09-01 by comparing both Storybooks side by side, 6006 against 6007. **Fully decided — no open
-sub-question remains.** `card-with-badge` takes a `DEMO` section of its own because it is the composition
+sub-question remains.** `card-with-badge` takes a `DEMOS` section of its own because it is the composition
 demo, not a component: its only job was to show the two drawn convenience cells need no card code, and it
 caught a defect two slices upstream while doing it. Under `COMPONENTS` it would read as a fourth
 component, which is exactly what it is not.
