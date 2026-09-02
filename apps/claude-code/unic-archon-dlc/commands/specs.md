@@ -1,5 +1,5 @@
 ---
-argument-hint: '<slug> [spec/design/issue URL … | free-form idea]'
+argument-hint: '<slug> [spec/design/issue URL | tracker ref | design file … | free-form idea]'
 description: 'Turn an idea (or an existing spec / design / UX) into one human-approved PRD: read whatever source exists, grill the human either way, approve the testing seams, write <artifacts_dir>/<slug>/PRD.md plus a design contract per component the feature names, and open the PRD gate.'
 ---
 
