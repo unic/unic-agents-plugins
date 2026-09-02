@@ -298,6 +298,14 @@ governs `PRD_TEMPLATE`'s headings only. `## Confirmations` is appended by this c
 whether `PRD_TEMPLATE` is unset, set to the default, or set to something a team wrote — a team that
 overrides the PRD shape is choosing its sections, not choosing whether the halts are on record.
 
+**Write exactly one `## Confirmations` section, whatever the template says.** If `PRD_TEMPLATE`
+carries that heading too, the section you write takes its place and satisfies the heading check;
+do not also render the template's copy, and do not stop the run over it. Print
+`templates.prd names ## Confirmations — this command owns that section; the template's copy is
+inert.` so the operator can drop the heading from their override. Two sections with one name would
+leave Step 8 reading whichever it met first, and a gate that reads the wrong record is worse than no
+gate, because it reports a check it did not make.
+
 It carries **one entry per halt**, in order, and the halts are the two named above: Halt 1, the shared
 understanding at the end of Step 4, and Halt 2, the seam approval in Step 5. The Step 8 gate is not
 one of them — it is the reader of this section, not an entry in it.
