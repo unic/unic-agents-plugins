@@ -361,8 +361,13 @@ sentence.** Where no method established it, write that it was not checked.
 nothing" and "no check ran". A reader cannot tell them apart, and the second one reads as the first.
 This reaches a design contract's **findings line**, which is the place it was got wrong: a contract
 saying `Findings: none` after no override test ran is a false statement about work, not a terse one
-about design. Write `Findings: none — the override test <DESIGN_DOC> declares was run against every
-instance` or `Findings: not checked — <why>`, and never the bare word.
+about design. Write `Findings: none — this run performed the override test <DESIGN_DOC> declares,
+against every instance` or `Findings: not checked — <why>`, and never the bare word.
+
+**Keep this run as the subject of the performing verb.** A claim whose grammar lets the doc, the
+tool, or the convention do the checking says an act happened without saying who acted, and that is
+the same ambiguity in a new place. Write `this run performed`, `this run read`, `this run compared`.
+Never a phrasing in which what the doc **declares** could be read as what somebody **did**.
 
 Then write the content to `<ARTIFACTS_DIR>/<SLUG>/PRD.md` with your own tools, creating the directory
 when it does not exist, and print that path.
