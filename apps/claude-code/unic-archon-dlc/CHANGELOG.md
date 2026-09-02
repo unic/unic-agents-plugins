@@ -73,8 +73,9 @@
 - **[ADR-0020](docs/adr/0020-specs-branch-on-input.md) stated superseded claims below three amendment
   blocks.** It is revised inline in the form [#452](https://github.com/unic/unic-agents-plugins/issues/452)
   settled — number unchanged, no successor. What was still true in the blocks is carried into Context
-  and Decision, the blocks are deleted (git keeps the text), and the `Status` line and the index row
-  in `docs/adr/README.md` carry `revised 2026-09-02`. It is the first ADR here in that form; the
+  and Decision, the blocks are deleted (git keeps the text), and both the `Status` line and the index
+  row in `docs/adr/README.md` carry `Accepted (2026-07-02, revised 2026-09-02)` — that column form is
+  now stated in the README, since #452 left it unsaid. It is the first ADR here in that form; the
   remaining files keep their blocks until each is next revised
   ([#453](https://github.com/unic/unic-agents-plugins/issues/453)).
 

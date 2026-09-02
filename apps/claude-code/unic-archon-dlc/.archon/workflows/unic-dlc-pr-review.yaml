@@ -153,13 +153,9 @@ nodes:
            `.archon/unic-dlc.config.yaml`; when it is set and not "none", the doc is at
            `docs/agents/<design.type>.md` — the value lower-cased, with any space or slash written as
            `-`. Read it in full and carry it into the brief.
-      **Why (e) is in this list.** A pull request on the design branch carries design contracts, and a
-      contract states what was checked as well as what was found. That doc declares the checks — which
-      read carries which fact, the override test, the blocking conditions — so a reviewer holding it
-      can tell a check that was performed from one that was only claimed, and a reviewer without it
-      reads `Findings: none` as a result. Where the doc is absent or `design.type` is unset, say so in
-      the brief rather than omitting the line: a review that never had the checks on hand should not
-      look like one that had them and agreed.
+           That doc declares the checks a design contract claims to have run, so a reviewer holding
+           it can tell a performed check from a claimed one. Where it is absent or `design.type` is
+           unset, SAY SO in the brief rather than omitting the line.
       Write `SESSION/intent-brief.md`: a short narrative of the intended behaviour + a numbered
       Acceptance Criteria list (AC-1, AC-2, …) distilled across the sources.
       Set `intent_available` = "true" only if at least one source resolved; else "false" (and write a

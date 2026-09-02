@@ -83,10 +83,14 @@ every design fact this command does not know, and this list is the whole of what
 - **The expected-subscription list**, when the team keeps one.
 - **How a screenshot reaches the docs system**, when it can reach it at all.
 
-**Read it whenever the design is first read**, which is Step 4 when the source is a design and Step 7
-otherwise — still only when the feature names a component, because a feature that names none needs
-neither a contract nor this doc. The doc says which read carries which fact, so reading the design
-before it means reading the design the wrong way and finding out at contract time.
+**Read it whenever the design is first read**, because it says which read carries which fact — read
+the design before it and you read the design the wrong way, and find out at contract time. Two
+moments, each with its own test:
+
+- **Step 4**, when the source is a design or names a component. What the whole feature names is not
+  settled yet, so the test is the source in front of you.
+- **Step 7**, when the feature names a component and no earlier read happened. A feature that names
+  none needs neither a contract nor this doc.
 
 ### The Methods this Box reads
 
@@ -139,8 +143,11 @@ the call this command got wrong, so the classification no longer offers it.
 Read the source by **composing the configured system-skill** (MCP-first, CLI-fallback):
 
 - docs (`DOCS.type` is set) → the team's docs skill / MCP via `DOCS.access`;
-- design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`, and read
-  `DESIGN_DOC` at the same time (Step 1 derived its path) whenever the feature names a component;
+- design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`. **Read
+  `DESIGN_DOC` first** (Step 1 derived its path), because it says which read carries which fact. The
+  test here is the source in front of you, not the component list: read it whenever the source is a
+  design, or names a component. Which components the feature names is settled later in this
+  conversation and is Step 7's test, not this one;
 - tracker item → the server `docs/agents/issue-tracker.md` § Access names, addressing the repository
   its § Addressing names.
 
@@ -180,7 +187,8 @@ happens. Never count, cap or restate the interview: how many questions a Method 
 business, not this Box's.
 
 **Record the answer.** Whatever the human says here is written verbatim into the PRD's
-**Confirmations** section (Step 7), and if the halt goes unanswered that is written there too.
+**Confirmations** section (Step 7). This halt stops the run until it is answered. If the run reaches
+Step 7 anyway, its entry says `unanswered` — never an answer you did not receive.
 
 ## Step 5 — Seam-design approval
 
@@ -190,8 +198,10 @@ Before you ask anything, read what this Consumer has already written about how i
 in surfaces the Consumer maintains by hand, and this command reads them where they exist rather than
 asking for a new one:
 
-- its root `AGENTS.md` / `CLAUDE.md`, and any per-context `CONTEXT.md` — Step 3 already read these;
-- the ADRs in `docs/adr/` that decide a testing approach — also already read in Step 3;
+- its root `AGENTS.md` and `CLAUDE.md` — **read them now**; Step 3 does not, and they are the surface
+  most likely to state a bar in words;
+- the per-context `CONTEXT.md` files and the ADRs in `docs/adr/` that decide a testing approach —
+  Step 3 read these already, so re-read nothing and use what you have;
 - the tests that exist in the repository, which state the bar by example where no document does.
 
 **Propose from that bar.** The seams you present are the ones the bar implies for this feature,
@@ -208,7 +218,8 @@ expectations. The approved seams become the PRD's **Testing Decisions** section.
 Step 7 without this confirmation.
 
 **Record the answer.** Whatever the human says here is written verbatim into the PRD's
-**Confirmations** section (Step 7), and if the halt goes unanswered that is written there too.
+**Confirmations** section (Step 7). This halt stops the run until it is answered. If the run reaches
+Step 7 anyway, its entry says `unanswered` — never an answer you did not receive.
 
 ## Step 6 — Estimation (config-gated)
 
@@ -292,17 +303,18 @@ Each entry carries the halt's name, the question you asked, and one of exactly t
 
 - **the human's answer, quoted verbatim.** Their words, not your reading of them. Never paraphrase,
   never tidy, never summarise agreement you inferred from the conversation continuing.
-- **`unanswered`**, with what you asked and what happened instead — the run was interrupted, the
-  question was announced and passed over, the conversation moved on. Write this whenever no human turn
-  answered the question. **An unanswered halt is an ordinary outcome to record, never a failure to
-  hide**: Step 8 is built to stop on it, and a fabricated answer defeats the only check there is.
+- **`unanswered`**, with what you asked and what happened instead — the question was announced and
+  passed over, the conversation moved on, the run resumed from somewhere later. Write this whenever no
+  human turn answered the question. **An unanswered halt is an ordinary outcome to record, never a
+  failure to hide**: Step 8 is built to stop on it, and a fabricated answer defeats the only check
+  there is.
 
 ```markdown
 ## Confirmations
 
 ### Halt 1 — shared understanding (Step 4)
 
-Asked: <the question you put to the human>
+Asked: <the question you put to the human, or the assumptions you walked them through>
 Answer: "<their words, verbatim>" | unanswered — <what happened instead>
 
 ### Halt 2 — seam approval (Step 5)
@@ -310,6 +322,18 @@ Answer: "<their words, verbatim>" | unanswered — <what happened instead>
 Asked: <the seams you proposed>
 Answer: "<their words, verbatim>" | unanswered — <what happened instead>
 ```
+
+Under `DISCUSS_MODE = assumptions`, Halt 1's `Asked:` line is the assumption walk rather than one
+question, and its `Answer:` is the human's own closing words on that walk. Quote what they said;
+never write agreement you inferred from the walk finishing.
+
+**Why a run can be here with a halt unanswered at all.** Both halts stop the run, so on the path this
+command describes, Step 7 is never reached with one open. That rule can be walked past — it was, on
+the run this section exists because of, where three one-sentence halts went by in thirty minutes with
+no human turn. So the entry has a value for it. **Reaching Step 7 with a halt open is not permission
+to proceed**; it means the rule already broke, and what is left is whether the break is on the record
+or papered over. Write `unanswered`, let Step 8 refuse, and the run costs a re-entry instead of a
+pull request nobody can trust.
 
 **The ceiling on this, stated rather than discovered.** The record is written by the same agent that
 would skip the halt, so Step 8 reading it detects an honest omission and cannot detect a fabricated
@@ -561,13 +585,15 @@ Print a concise summary:
   ADRs:      <NNNN-slug.md … | none>
   contracts: <N written, one path each, marking any a block left unstaged | none — design.type is none | none — the feature names no component>
   blocked:   <component — the condition that stopped it, one per line | none>
-  gate:      <open-pr → PR #… | stage-only → staged | not opened — a design blocking condition stopped the run | not opened — <halt> has no answer on record>
+  gate:      <open-pr → PR #… | stage-only → staged | not opened — a design blocking condition stopped the run | not opened — <halt> has no answer on record | nothing staged — <halt> has no answer on record>
   next:      review what this run produced — the PRD, and each contract — then run /tickets <SLUG> once the PRD is approved
 ```
 
-The `input:` line carries one of those two values and no other. `converse`, `ingest` and `hybrid` are
-the retired three-way classification; a summary printing one of them is describing a run that took a
-branch this command no longer has.
+The `gate:` line says what did not happen in the mode's own words: `open-pr` reports `not opened`,
+`stage-only` reports `nothing staged`. A `stage-only` run had no pull request to open, so reporting
+one as unopened describes a mode it was never in.
+
+The `input:` line carries one of those two values and no other.
 
 **The `next:` line names the review first, and it names it as a step rather than an option.** What
 this run produced is a PRD and, on the design branch, one contract per component — the artefacts a

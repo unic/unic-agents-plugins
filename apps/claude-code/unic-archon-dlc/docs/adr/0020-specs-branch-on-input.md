@@ -50,28 +50,36 @@ the `grilling` Method, `assumptions` enumerates every assumption upfront and wal
 them. It is orthogonal to the input branch. The third value `interview` is dropped as redundant:
 `grilling` _is_ the one-at-a-time interview.
 
-**Three halts, and `specs.gate` is the only approval gate.** Halt 1 is the shared understanding at
-the end of the interview, fired on both branches so the command has one shape whatever the input.
-Halt 2 is the seam approval, which reads the Consumer's stated testing bar before it asks anything
-and asks only what that bar does not answer. Halt 3 is `specs.gate` — the one halt that produces a
-durable artefact and puts it in front of a human, and where the `grilling` Method's "do not enact the
-plan until I confirm" lands, because in `/specs` enacting the plan means writing and PR-ing the PRD.
+**Three halts, and `specs.gate` is the only approval gate.** Two are in-method confirmations, and the
+command numbers those two because their answers are keyed by number on the record: **Halt 1**, the
+shared understanding at the end of the interview, fired on both branches so the command has one shape
+whatever the input; **Halt 2**, the seam approval, which reads the Consumer's stated testing bar
+before it asks anything and asks only what that bar does not answer. The third is `specs.gate`
+itself — unnumbered, because it is the reader of that record rather than an entry in it. It is the
+one halt that produces a durable artefact and puts it in front of a human, and where the `grilling`
+Method's "do not enact the plan until I confirm" lands, because in `/specs` enacting the plan means
+writing and PR-ing the PRD.
 
 **A halt is not an interview turn.** How many questions a Method asks is the Method's business; the
 Box never counts, caps or restates the interview. If upstream adds questions, `/specs` asks more
 questions and still has three halts.
 
-**Halts 1 and 2 are on the record, and the gate is fail-closed on that record.** Each writes an entry
-into a `## Confirmations` section of the PRD carrying the human's answer verbatim, or the word
-`unanswered`. The section is written on every run and is outside `templates.prd`, so no template
-override removes it. Both gate modes refuse when an entry is absent or unanswered — `open-pr` opens
-no pull request, `stage-only` stages nothing — and each names the halt that stopped it. This detects
-the honest omission and cannot detect a fabricated quote; the human at the gate is the only reader
-who can, which is what the record gives them something to check against.
+**The two numbered halts are on the record, and the gate is fail-closed on that record.** Each writes
+an entry into a `## Confirmations` section of the PRD carrying the human's answer verbatim or the
+word `unanswered`, and the section sits outside `templates.prd` so that a team choosing its own PRD
+sections is not also choosing whether the halts are recorded. The gate refuses on an entry that is
+absent or unanswered. This detects the honest omission and cannot detect a fabricated quote; the
+human at the gate is the only reader who can, and the record is what gives them something to check
+against.
 
 **Every absence claim carries how it was established**, or states that it was not checked. `none` on
 its own means both "the check found nothing" and "no check ran", and a reader cannot tell which. This
 reaches a design contract's findings line, the place it was got wrong.
+
+**This ADR carries the decisions and the reasons; `commands/specs.md` carries the rules.** What a
+Confirmations entry looks like, what each gate mode prints when it refuses, which surfaces state a
+testing bar — all of that is executable text, read at run time, and it lives in the command alone. An
+ADR is not read at run time, so a rule restated here is a copy that drifts silently.
 
 Invariants regardless of path:
 
