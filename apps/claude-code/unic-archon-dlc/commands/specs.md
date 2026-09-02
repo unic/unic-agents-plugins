@@ -58,8 +58,11 @@ tracker item. Read it then:
   derive nothing from a remote URL.
 - **Work-item scope** — its § Work-item scope names the filter every search applies.
 
-If the file is absent when Step 4 needs it, say so and read the other sources instead. Print
-the repository § Addressing names, so a surprising target is diagnosable.
+When the file is present, print the repository its § Addressing names, so a surprising target is
+diagnosable. When it is absent, say so, read the other sources instead, and print
+`repository: unknown — no docs/agents/issue-tracker.md`. **Derive no repository from a remote URL**
+to fill that gap: a repository nobody named is exactly the invented identifier this command must not
+produce, and it is worse than an absent one because it looks decided.
 
 ### Read the design-conventions doc
 
@@ -578,7 +581,7 @@ Print a concise summary:
 ```
 /specs complete — slug: <SLUG>
   path:      <ARTIFACTS_DIR>/<SLUG>/PRD.md
-  repo:      <the repository docs/agents/issue-tracker.md § Addressing names>
+  repo:      <the repository docs/agents/issue-tracker.md § Addressing names | unknown — no docs/agents/issue-tracker.md>
   input:     <source-present | source-absent>
   seams:     <the approved testing seam(s)>
   halts:     <Halt 1 answered · Halt 2 answered | the halt(s) with no answer on record>
