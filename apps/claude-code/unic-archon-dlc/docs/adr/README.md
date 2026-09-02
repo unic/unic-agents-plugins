@@ -1,6 +1,36 @@
 # ADRs — unic-archon-dlc plugin
 
-Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` at the monorepo root. See the root `docs/adr/README.md` for format and numbering conventions. One exception applies from here on: an amendment to a Plugin ADR is recorded as a dated `> **Amended (YYYY-MM-DD):**` blockquote below the status line, plus that amendment named in an extended status line (`; amended YYYY-MM-DD — <what>`) and in this index's Status column — never the root's `## Amendment (YYYY-MM)` section, whose anchor link no Plugin ADR resolves. ADR-0024 is the worked example.
+Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` at the monorepo root.
+
+## Form and numbering
+
+A new Plugin ADR takes its **form** from the `domain-modeling` Method's ADR format document (`.agents/skills/domain-modeling/ADR-FORMAT.md` — a hint for finding it, not the reference; the owner is the Method, and its installed path is replaced on every `npx skills add`). One to three sentences is a whole ADR: the context, the decision, the reason. Every section beyond that is optional and earns its place.
+
+Numbering comes from the root `docs/adr/README.md` instead: `NNNN-slug.md`, zero-padded to four digits, numbered per directory in the order decisions were recorded. The Method states no padding rule, which is why this half is the root's.
+
+This Plugin diverges from the other plugin ADR homes here, which point at the root and take its MADR-lite form, because this Plugin composes the Method that defines the form — so it follows it.
+
+### Two additions, and they are local
+
+Neither is the Method's. Do not write either as "following the Method".
+
+- **Every Plugin ADR carries a `Status` line.** The Method makes `Status` optional; here it is required, so that the index's Status column below has a source in the file it describes.
+- **A decision that still stands while a detail of it changes is revised inline.** Edit the body so it reads as current, and extend the `Status` line with the revision date: `Accepted (YYYY-MM-DD, revised YYYY-MM-DD)`. Add no amendment block. The Method does not sanction inline revision at all; it offers superseding alone.
+
+A **superseding** ADR is reserved for a decision that is reversed or replaced. Pick by subject, as the root does: a change to the same subject revises, a change of subject gets its own record.
+
+### The amendment blocks that already exist
+
+ADRs here still carry dated `> **Amended (YYYY-MM-DD):**` blockquotes from the previous convention. That convention is gone, and nothing sweeps the files.
+
+When you first revise one of those ADRs inline, read its blocks, carry forward into Context or Decision whatever is still true, then delete the blocks. Git keeps the text. An ADR nobody edits keeps its blocks unchanged.
+
+### Status values
+
+- `Accepted`
+- `Accepted (YYYY-MM-DD, revised YYYY-MM-DD)` — inline revision
+- `Superseded by ADR-NNNN`
+- Legacy forms that existing rows still carry and new rows do not use: `Accepted (amended)`, with or without issue numbers and a date in the parentheses; and `Accepted; <what> amended by ADR-NNNN` in its `amended`, `revised` and `floor amended` spellings
 
 ## Index
 
