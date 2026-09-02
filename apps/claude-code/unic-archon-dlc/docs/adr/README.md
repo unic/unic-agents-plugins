@@ -61,7 +61,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0017 | Container follows structural need (Archon for AFK, commands/skills for interactive)        | Accepted                            |
 | 0018 | Generic core + per-project config; the tested-lib surface reached zero                     | Accepted (amended #381)             |
 | 0019 | Conversational `/setup`; the one thin tested schema lib is gone                            | Accepted (amended #381)             |
-| 0020 | `/specs` reaches an aligned PRD by branch-on-input                                         | Accepted (revised 2026-09-03)       |
+| 0020 | `/specs` reaches an aligned PRD by branch-on-input                                         | Accepted (revised 2026-09-02)       |
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030       |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                            |
 | 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281, #381)       |

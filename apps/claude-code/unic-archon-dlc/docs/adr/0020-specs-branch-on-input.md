@@ -1,6 +1,6 @@
 # 0020. `/specs` reaches an aligned PRD by branch-on-input
 
-**Status:** Accepted (2026-07-02, revised 2026-09-03)
+**Status:** Accepted (2026-07-02, revised 2026-09-02)
 
 ## Context
 
@@ -40,9 +40,10 @@ source-present  (a URL, ref or design file)      → read it, synthesise it, gri
 ```
 
 A source narrows what is asked. It never decides that nothing is asked, and a source with gaps is
-still `source-present` — the gaps change the questions, not the classification. The retired third
-value, `hybrid`, existed to name a source good enough to skip most of the interview, and that is the
-judgement the command got wrong.
+still `source-present` — the gaps change the questions, not the classification. The retired values
+made the opposite call: `ingest` said in as many words that a source meant there was nothing to
+interview, and `hybrid` graded how much of the interview a source bought. Grading it is the judgement
+the command got wrong, so the classification no longer offers the grade.
 
 **`specs.discuss_mode` picks how the interview runs, on either branch** — `discuss` (default) follows
 the `grilling` Method, `assumptions` enumerates every assumption upfront and walks the human through

@@ -3,12 +3,23 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.27.0] — 2026-09-02
+
+### Breaking
 
 - **`/specs` classifies input two ways, and both branches grill.** `source-present` and
-  `source-absent` replace `converse | ingest | hybrid`. The retired third value named a source good
-  enough to skip most of the interview, and that judgement is what run 2 got wrong; a source with
-  gaps is now still `source-present`, and the gaps change the questions rather than the
-  classification. A `source-present` run costs a synthesis **and** an interview. Step 9's `input:`
+  `source-absent` replace `converse | ingest | hybrid`. The retired values graded how much of the
+  interview a source bought — `ingest` said a source meant there was nothing to interview at all —
+  and grading it is what run 2 got wrong; a source with gaps is now still `source-present`, and the
+  gaps change the questions rather than the classification. A `source-present` run costs a synthesis **and** an interview. Step 9's `input:`
   line carries only the two new values, so anything parsing the old three sees none of them.
 - **The PRD gate is fail-closed on the halt record, in both modes.** `open-pr` opens no pull request
   and `stage-only` stages nothing when a halt's entry in `## Confirmations` is absent or says
@@ -63,7 +74,7 @@
   blocks.** It is revised inline in the form [#452](https://github.com/unic/unic-agents-plugins/issues/452)
   settled — number unchanged, no successor. What was still true in the blocks is carried into Context
   and Decision, the blocks are deleted (git keeps the text), and the `Status` line and the index row
-  in `docs/adr/README.md` carry `revised 2026-09-03`. It is the first ADR here in that form; the
+  in `docs/adr/README.md` carry `revised 2026-09-02`. It is the first ADR here in that form; the
   remaining files keep their blocks until each is next revised
   ([#453](https://github.com/unic/unic-agents-plugins/issues/453)).
 
