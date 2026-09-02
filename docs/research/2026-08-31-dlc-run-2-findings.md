@@ -262,6 +262,15 @@ different question: _what would have caught this without anyone reading anything
 
 > **Run 2 showed documents do not reach the implementer. Run 3 asks whether mechanisms do.**
 
+**Widened 2026-09-02 15:58 (maintainer).** Run 3 also carries [#441](https://github.com/unic/unic-agents-plugins/issues/441)
+(after [#452](https://github.com/unic/unic-agents-plugins/issues/452)), so one run assesses two legs: on the specs leg, whether
+the grilling fires and the halts halt; on the build leg, whether the five checks (ADO 43020–43024) reach the implementer.
+This is not a confound, because the five checks test properties a PRD cannot mask (`dxp:font-body` on the root, an
+`argTypes` entry per prop, a snapshot per test story, every `@theme` scale in `cn()`, a name on every interactive
+element), so each leg's result is observable on its own. What the run can no longer say is whether the build got
+better _overall_ because of one change or the other, and that was never the hypothesis. The sealed predictions
+must cover both legs.
+
 Each F1 row replaces a document that already existed and was ignored. If run 3 stops failing on them,
 mechanisms win. **If it fails anyway, the problem is further upstream than either**, and that is worth
 knowing before more prose gets written.
