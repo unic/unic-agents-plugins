@@ -299,6 +299,13 @@ the only one is `apps/storybook-react`'s chromium project. So the testing-seam q
 answered at run 2's tickets gate **gets a different answer next time**, and part of any
 run-2-versus-run-3 diff is new infrastructure rather than a changed chain. **Accepted, not hidden.**
 
+Sharpened 2026-09-02, while amending 43020–43024: `apps/storybook-react`'s `test` script pins
+`--project=storybook` and `packages/ui-react` has no `test` script, so the new node-environment project is
+invisible to root `pnpm test` until one of those changes. That script change is part of the same new
+infrastructure and belongs in the confound, not in run 3's report as a surprise. And the five checks' "Done
+when" lines were all satisfiable on the empty `develop` tree — the all-negative shape #381 already measured —
+so each now proves its negative path on a fixture (WI revisions of 2026-09-02).
+
 ---
 
 # E. Proposed tickets
