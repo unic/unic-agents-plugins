@@ -273,6 +273,14 @@ element), so each leg's result is observable on its own. What the run can no lon
 better _overall_ because of one change or the other, and that was never the hypothesis. The sealed predictions
 must cover both legs.
 
+**Documents added before run 3, stated so the diff does not surprise (2026-09-02, PR 5843):** the Consumer's
+`CLAUDE.md` § Where the files go gained a component rule (a component's props are a local named type; a variant axis
+is declared once with `satisfies Record<Axis, string>`), paired with 43021's check that enforces it mechanically;
+`CLAUDE.md` also gained § MCP servers routing and a documentation standard, and `docs/agents/unic-archon-dlc.md`
+gained the Archon 0.7.0 floor, `/setup`'s re-run behaviour and a killed-run recovery procedure. None changes what
+`/specs`, `/tickets` or `/build` do; all are documents an agent reads. If run 3's implementer honours the props rule
+while 43021 also fires on it, the two are not separable for that one rule, and the report says so.
+
 Each F1 row replaces a document that already existed and was ignored. If run 3 stops failing on them,
 mechanisms win. **If it fails anyway, the problem is further upstream than either**, and that is worth
 knowing before more prose gets written.
