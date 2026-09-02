@@ -1,0 +1,136 @@
+# =============================================================================
+# unic-ticket-specification — per-project configuration (TEMPLATE)
+#
+# Copy this file to `.archon/ticket-spec.config.yaml` in each project and fill
+# it in. The workflow and its commands read THIS file at runtime — there is no
+# tracker/OS/repo detail hardcoded in the workflow itself.
+#
+# OS note: all paths are either relative to the workflow working directory
+# (the project root) or absolute. Use forward slashes "/" even on Windows.
+# =============================================================================
+
+project:
+  name: "<human-readable project name>"
+  # Issue-key prefixes that mark an EXISTING ticket.
+  #   Jira          -> the project keys, e.g. ["ACME", "ACMEWEB"]
+  #   Azure DevOps  -> usually leave empty (work items are bare numbers)
+  #   GitHub        -> usually leave empty (issues are #123)
+  key_prefixes: []
+
+# -----------------------------------------------------------------------------
+# Issue tracker. Exactly one `type`. Access is MCP-first with a CLI fallback.
+# -----------------------------------------------------------------------------
+tracker:
+  type: "jira"                 # jira | azure-devops | github
+
+  access:
+    # An MCP server is preferred. If `mcp: true`, the workflow loads the MCP
+    # config at the FIXED path `.archon/mcp/ticket-spec-tracker.json`.
+    # Put the correct server for THIS project's tracker there.
+    mcp: true
+    # CLI used when no MCP is available (must be installed + authenticated on
+    # each machine). "jira" | "az" | "gh" | "" (none).
+    cli: ""
+
+  # --- Jira -------------------------------------------------------------------
+  jira:
+    # Leave cloud_id EMPTY to auto-resolve it from site_url at runtime (via
+    # getAccessibleAtlassianResources) — handy for client tenants whose GUID you
+    # don't have. Set it explicitly only to skip the lookup.
+    cloud_id: ""
+    site_url: "https://<your-or-client-tenant>.atlassian.net"
+    default_project: "<KEY>"        # used when creating and no project named
+    # Optional explicit issue-type id map for the DEFAULT project (speeds apply).
+    # Other projects resolve their ids by name at apply time.
+    issue_type_ids: {}              # e.g. { "Bug": "10004", "Story": "10001" }
+
+  # --- Azure DevOps -----------------------------------------------------------
+  azure_devops:
+    org_url: "https://dev.azure.com/<org>"
+    project: "<project>"
+    work_item_types:
+      bug: "Bug"
+      cr_story: "User Story"
+
+  # --- GitHub -----------------------------------------------------------------
+  github:
+    issues_repo: "<owner>/<repo>"   # repo that hosts the ISSUES
+    labels:
+      bug: ["bug"]
+      cr_story: ["enhancement"]
+
+# -----------------------------------------------------------------------------
+# Classification: map tracker issue-type names to a template kind.
+# Anything not listed defaults to CR_STORY.
+# -----------------------------------------------------------------------------
+classification:
+  bug_types: ["Bug", "Defect"]
+  cr_story_types: ["Story", "User Story", "Change request", "Feature", "Task"]
+
+# -----------------------------------------------------------------------------
+# Linked documentation source pulled for extra context during analysis.
+# -----------------------------------------------------------------------------
+docs:
+  type: "none"                 # confluence | azure-wiki | github-wiki | none
+  confluence:
+    cloud_id: "<atlassian cloudId>"
+
+# -----------------------------------------------------------------------------
+# Code repositories to analyze. One OR many. Paths relative to the working
+# directory or absolute (forward slashes). The analysis greps across ALL repos.
+# -----------------------------------------------------------------------------
+repos:
+  - name: "main"
+    path: "."
+
+estimation:
+  method: "pert"               # pert (the implemented method)
+
+output:
+  dir: "ticket-spec-output"    # where the local proposal copy is written
+
+# -----------------------------------------------------------------------------
+# Description templates. Defaults below match Unic's standard shapes; override
+# per client. Keep heading levels intact so the tracker renders them correctly.
+# -----------------------------------------------------------------------------
+templates:
+  bug: |
+    ## 1. System / Environment information
+    **Environment:**
+    **Operating System:**
+    **Browser version:**
+    **Device & Version:**
+
+    ## 2. Steps to reproduce
+
+    ## 3. Actual Result
+
+    ## 4. Expected Result
+
+    ## 5. Additional information & attachments
+  cr_story: |
+    ### Business requirements / description
+
+    As a <role> I can <capability>, so that <receive benefit>
+
+    ### ToDo
+
+    - [ ]
+
+    ### Suggested Technical Tasks
+
+    - [ ]
+
+    ### Acceptance Criteria
+
+    ### Documentation
+
+    * Needs documentation: no
+
+    ### QA
+
+    * Can be tested by QA: yes
+
+    ### Deployment
+
+    * Needs manual deployment steps: no

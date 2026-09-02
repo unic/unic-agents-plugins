@@ -1,0 +1,12 @@
+{
+  "name": "unic-ticket-specification",
+  "version": "0.1.0",
+  "description": "A portable Archon workflow that takes a tracker ticket from intake to ready-for-implementation — tracker-agnostic (Jira, Azure DevOps, GitHub), multi-repo, and OS-independent.",
+  "author": {
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
+  },
+  "homepage": "https://github.com/unic/unic-agents-plugins",
+  "license": "LGPL-3.0-or-later",
+  "keywords": ["archon", "workflow", "ticket", "grooming", "jira", "azure-devops", "github", "unic"]
+}

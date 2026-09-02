@@ -1,0 +1,270 @@
+name: unic-ticket-specification
+description: |
+  Take a tracker ticket from intake to "ready for implementation" — usable by
+  any Unic project regardless of issue tracker (Jira, Azure DevOps or GitHub),
+  source-control host, repo count, or operating system (Windows / macOS).
+
+  Use when the user wants to prepare/groom a ticket: either an existing
+  reference (a Jira key like ACME-1234, an Azure DevOps work-item id, or a
+  GitHub issue number / #123) or a free-text description of a ticket that must
+  be created. The workflow reads the per-project config at
+  `.archon/ticket-spec.config.yaml`, detects the input type, fetches + analyses
+  the ticket against the configured code repos and linked docs, classifies Bug
+  vs Change-Request/Story, rewrites the description to the matching template,
+  produces a 3-point PERT effort estimate, then REQUIRES human approval before
+  writing anything to the tracker (create or update + record the estimate).
+
+  Completeness is assessed but never blocks — incomplete tickets are still
+  estimated with explicit caveats.
+  NOT for: implementing the ticket, code review, or general Q&A.
+
+provider: claude
+model: sonnet
+interactive: true          # required — this workflow has a human approval gate
+
+worktree:
+  enabled: false           # read-only against the repos; writes only to the tracker (post-approval)
+
+nodes:
+  # ── 1. Detect input type: existing ticket reference vs. free-text new ticket ──
+  - id: detect-input
+    prompt: |
+      Read `.archon/ticket-spec.config.yaml` to learn this project's tracker
+      type and `key_prefixes`. Then decide whether $ARGUMENTS refers to an
+      EXISTING ticket or describes a NEW ticket to be created.
+
+      An EXISTING reference is one of:
+        - Jira: a key like `ACME-1234` (any `PREFIX-<digits>` where PREFIX is a
+          known/plausible project key), or a bare number when the project uses
+          Jira and a default project is configured.
+        - Azure DevOps: a bare work-item id (all digits), optionally `#123` or
+          `AB#123`.
+        - GitHub: `#123`, a bare number, or `owner/repo#123`.
+      Anything that reads as a description / request is a NEW ticket.
+
+      Return:
+        mode    = "existing" or "create"
+        key     = the normalized reference for existing (e.g. "ACME-1234",
+                  "1234", "#123"); "" for create.
+        project = for Jira existing: the key prefix; for Jira create when the
+                  input names a project, that key; otherwise "".
+                  For Azure DevOps / GitHub leave "" (resolved from config).
+
+      Input: $ARGUMENTS
+    model: haiku
+    allowed_tools: [Read]
+    output_format:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [existing, create]
+        key:
+          type: string
+        project:
+          type: string
+      required: [mode, key, project]
+
+  # ── 2. Fetch (if existing) + analyse: code repos + linked docs, surface gaps ──
+  #    A tracker MCP server (mcp-remote) can cold-start slowly on the first call;
+  #    retry + a generous idle_timeout let it self-heal. If no MCP is configured,
+  #    the command falls back to the tracker CLI.
+  - id: analyze
+    command: uts-analyze
+    depends_on: [detect-input]
+    mcp: .archon/mcp/ticket-spec-tracker.json
+    allowed_tools: [Read, Grep, Glob, Write, Bash]
+    idle_timeout: 900000
+    retry:
+      max_attempts: 3
+      delay_ms: 8000
+      on_error: all
+
+  # ── 3. Classify Bug vs. Change-Request/Story (after analysis → always has real data) ──
+  - id: classify
+    prompt: |
+      Determine the ticket KIND (for template selection) and the tracker issue
+      type name.
+
+      Read these:
+        - Config: `.archon/ticket-spec.config.yaml` (the `classification` map).
+        - Mode: $detect-input.output.mode
+        - Existing ticket (existing path): `$ARTIFACTS_DIR/ticket.md` — use its
+          stated issue type.
+        - Analysis: `$ARTIFACTS_DIR/analysis.md`
+        - New-ticket description (create path): $ARGUMENTS
+
+      Rules:
+        - If the ticket's issue-type name is listed in `classification.bug_types`
+          → kind=BUG. If listed in `classification.cr_story_types` → kind=CR_STORY.
+        - For a NEW ticket, infer the most fitting kind from the description:
+          a defect/regression → BUG; a new capability or change to existing
+          behaviour → CR_STORY.
+        - `issue_type_name` is the canonical tracker type name to create/keep
+          (e.g. "Bug", "Story", "User Story", "Change request"). For an existing
+          ticket keep its actual type name. For a new ticket pick a sensible name
+          from the matching list in config.
+        - If the kind genuinely cannot be determined, DEFAULT to kind=CR_STORY.
+          Always return a valid decision, never ask a question.
+
+      The concrete tracker issue-type ID (if any) is resolved later at apply time
+      from config / tracker metadata — do not resolve ids here.
+    depends_on: [analyze]
+    model: haiku
+    allowed_tools: [Read]
+    output_format:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [BUG, CR_STORY]
+        issue_type_name:
+          type: string
+      required: [kind, issue_type_name]
+
+  # ── 4. Rewrite description — template-selection branch (BUG vs. everything else) ──
+  - id: rewrite-bug
+    command: uts-rewrite-bug
+    depends_on: [classify]
+    when: "$classify.output.kind == 'BUG'"
+    allowed_tools: [Read, Write]
+
+  - id: rewrite-crstory
+    command: uts-rewrite-crstory
+    depends_on: [classify]
+    when: "$classify.output.kind != 'BUG'"
+    allowed_tools: [Read, Write]
+
+  # ── 5. Completeness assessment — NON-BLOCKING annotation (never cancels) ──
+  - id: assess-completeness
+    prompt: |
+      Assess whether the rewritten ticket has complete and clear requirements.
+      This is an annotation only — it MUST NOT stop the workflow.
+
+      Read `$ARTIFACTS_DIR/draft-description.md` and the Open questions /
+      Assumptions in `$ARTIFACTS_DIR/analysis.md`.
+
+      Rate completeness as low / medium / high and write
+      `$ARTIFACTS_DIR/completeness.md` containing the rating, the unresolved open
+      questions, and the assumptions the team is relying on. The workflow always
+      proceeds to estimation regardless of the rating.
+    depends_on: [rewrite-bug, rewrite-crstory]
+    trigger_rule: none_failed_min_one_success
+    allowed_tools: [Read, Write]
+    output_format:
+      type: object
+      properties:
+        completeness:
+          type: string
+          enum: [low, medium, high]
+      required: [completeness]
+
+  # ── 6. PERT effort estimate (with caveats when completeness < high) ──
+  - id: estimate
+    command: uts-estimate
+    depends_on: [assess-completeness]
+    allowed_tools: [Read, Write]
+
+  # ── 7. Persist the proposed content to a stable local .md (survives rejection/failure) ──
+  - id: persist-local
+    command: uts-persist-local
+    depends_on: [estimate]
+    allowed_tools: [Read, Write]
+
+  # ── 8. Present the consolidated draft + estimate for human review ──
+  - id: present-draft
+    prompt: |
+      Assemble the final proposal for human review and OUTPUT IT IN FULL as your
+      response — the reviewer reads your output before the approval gate.
+
+      Read and consolidate:
+        - target: `$ARTIFACTS_DIR/target.json` (resolved tracker + project +
+          action: create a new ticket, or update an existing reference). Falls
+          back to $detect-input.output if the file is absent.
+        - proposed description: `$ARTIFACTS_DIR/draft-description.md`
+        - PERT estimate: `$ARTIFACTS_DIR/estimate.md`
+        - completeness + open questions: `$ARTIFACTS_DIR/completeness.md`
+
+      Also write the consolidated proposal to `$ARTIFACTS_DIR/proposal.md`.
+
+      Present clearly with headings: (1) what will be written and where (tracker,
+      project/repo, create-vs-update), (2) the proposed description, (3) the PERT
+      estimate, (4) completeness rating and any open questions / caveats. Mention
+      that the full content has been saved locally to the path in
+      `$ARTIFACTS_DIR/local-output-path.txt`.
+    depends_on: [persist-local]
+    allowed_tools: [Read, Write]
+
+  # ── 9. Human approval gate — REQUIRED before any tracker write ──
+  - id: approval-gate
+    approval:
+      message: |
+        Review the proposed ticket description and PERT estimate shown above (the
+        full proposal is also saved to the run artifacts as proposal.md). Nothing
+        is written to the tracker until you approve.
+
+        HOW TO RESPOND:
+        • Approve → click the **Approve** button on the workflow card, or reply
+          "approve". The ticket is created (or the existing one updated) and the
+          estimate recorded.
+        • Need changes → click **Reject** (or reply "reject") and give your
+          feedback as the reason. The draft/estimate/target are revised and
+          re-presented for approval.
+
+        Plain comments typed here do NOT approve — use Approve/Reject explicitly.
+      on_reject:
+        prompt: |
+          The reviewer rejected the proposal with this feedback:
+
+          $REJECTION_REASON
+
+          Revise to address it: update `$ARTIFACTS_DIR/draft-description.md` (keep
+          the correct template structure), `$ARTIFACTS_DIR/estimate.md` if the
+          effort changed, and `$ARTIFACTS_DIR/target.json` if the reviewer named a
+          different target project/repo. Refresh `$ARTIFACTS_DIR/proposal.md`, AND
+          rewrite the persisted local file (its path is in
+          `$ARTIFACTS_DIR/local-output-path.txt`) so it reflects the revised
+          content. Then output the revised proposal in full.
+        max_attempts: 3
+    depends_on: [present-draft]
+
+  # ── 10. Apply to the tracker — branch on input type (post-approval only) ──
+  - id: apply-create
+    command: uts-apply-create
+    depends_on: [approval-gate, detect-input]
+    when: "$detect-input.output.mode == 'create'"
+    mcp: .archon/mcp/ticket-spec-tracker.json
+    allowed_tools: [Read, Write, Bash]
+    idle_timeout: 600000
+    retry:
+      max_attempts: 3
+      delay_ms: 8000
+      on_error: all
+
+  - id: apply-update
+    command: uts-apply-update
+    depends_on: [approval-gate, detect-input]
+    when: "$detect-input.output.mode == 'existing'"
+    mcp: .archon/mcp/ticket-spec-tracker.json
+    allowed_tools: [Read, Write, Bash]
+    idle_timeout: 600000
+    retry:
+      max_attempts: 3
+      delay_ms: 8000
+      on_error: all
+
+  # ── 11. Report outcome ──
+  - id: report
+    prompt: |
+      Summarize the outcome for the user. The write step produced:
+
+      Create result: $apply-create.output
+      Update result: $apply-update.output
+
+      Report the final ticket reference and URL, the issue type, the recorded
+      PERT E estimate, and list any remaining open questions from
+      `$ARTIFACTS_DIR/analysis.md` so the team can follow up. Keep it concise.
+    depends_on: [apply-create, apply-update]
+    trigger_rule: none_failed_min_one_success
+    model: haiku
+    allowed_tools: [Read]
