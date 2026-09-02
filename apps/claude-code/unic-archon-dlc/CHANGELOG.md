@@ -3,13 +3,69 @@
 ## [Unreleased]
 
 ### Breaking
-- (none)
+
+- **`/specs` classifies input two ways, and both branches grill.** `source-present` and
+  `source-absent` replace `converse | ingest | hybrid`. The retired third value named a source good
+  enough to skip most of the interview, and that judgement is what run 2 got wrong; a source with
+  gaps is now still `source-present`, and the gaps change the questions rather than the
+  classification. A `source-present` run costs a synthesis **and** an interview. Step 9's `input:`
+  line carries only the two new values, so anything parsing the old three sees none of them.
+- **The PRD gate is fail-closed on the halt record, in both modes.** `open-pr` opens no pull request
+  and `stage-only` stages nothing when a halt's entry in `## Confirmations` is absent or says
+  `unanswered`, and each names the halt that stopped it. A run that would previously have reached a
+  pull request with an unanswered seam question now stops and asks for a re-run. The PRD and any
+  contracts stay on disk unstaged, and Step 2 picks them up as a re-entry.
 
 ### Added
-- (none)
+
+- **A `## Confirmations` section in every PRD, outside `templates.prd`.** One entry per in-method
+  halt — the shared understanding at the end of Step 4, the seam approval in Step 5 — carrying the
+  human's answer **quoted verbatim** or the word `unanswered` with what happened instead. The heading
+  check governs the template's headings; this section is appended after them, so a team overriding
+  the PRD shape is choosing its sections and not choosing whether the halts are on record. The
+  ceiling is stated where it is written: the record is authored by the same agent that would skip the
+  halt, so the gate detects an honest omission and cannot detect a fabricated quote. The witness
+  question that would belongs to [#437](https://github.com/unic/unic-agents-plugins/issues/437).
+- **The seam step reads the Consumer's stated testing bar before it asks anything** — the root
+  `AGENTS.md` / `CLAUDE.md`, per-context `CONTEXT.md` files, the ADRs that decide a testing approach,
+  and the tests that exist where no document states it. It proposes from that bar and asks only what
+  the bar leaves open, so the halt's few turns are not spent re-deciding a decision already written
+  down. Where no surface states a bar, it says so and proposes from the `to-spec` Method alone.
+- **The `/pr-review` Box's intent brief carries the design-conventions doc.** That doc declares the
+  checks — which read carries which fact, the override test, the blocking conditions — so a reviewer
+  holding it can tell a check that was performed from one that was only claimed. Where the repository
+  has no such doc, the brief says so rather than omitting the line: a review that never had the
+  checks on hand should not read like one that had them and agreed.
+- **Step 9's `next:` line names the review of what the run produced**, before the handoff to
+  `/tickets`. The gate's human reviewer is the only reader between writing a PRD and a contract and
+  a later Box treating them as settled fact.
 
 ### Fixed
-- (none)
+
+- **`/specs` skipped the grilling its config required.** On a `source-present` input the command
+  read the source, synthesised it, and treated the human's review of that synthesis as the whole
+  interview — the old text said in as many words that "there is nothing to interview". Measured on
+  the Consumer 2026-08-31: thirty minutes, zero maintainer turns, on a project configured
+  `specs.discuss_mode: discuss`. The command now composes the `grilling` Method **over the synthesis
+  it just produced**, because a source records what someone decided and is silent on what they left
+  out. See [#441](https://github.com/unic/unic-agents-plugins/issues/441).
+- **Absence claims stated a result where no check had run.** Anywhere this command writes that
+  something is absent, empty, none or clean, the claim now carries the method that established it, or
+  states that it was not checked. This reaches a design contract's **findings line**, which is where
+  it was got wrong: three contracts from run 2 read `Findings: none` while the override test their
+  design-conventions doc declares never ran. `none` alone means both "the check found nothing" and
+  "no check ran", and a reader cannot tell which.
+- **The design-conventions doc was read too late to shape the read it governs.** It is now read
+  whenever the design is first read — Step 4 when the source is a design, Step 7 otherwise — still
+  only when the feature names a component. The doc says which read carries which fact, so reading the
+  design before it meant reading the design the wrong way and finding out at contract time.
+- **[ADR-0020](docs/adr/0020-specs-branch-on-input.md) stated superseded claims below three amendment
+  blocks.** It is revised inline in the form [#452](https://github.com/unic/unic-agents-plugins/issues/452)
+  settled — number unchanged, no successor. What was still true in the blocks is carried into Context
+  and Decision, the blocks are deleted (git keeps the text), and the `Status` line and the index row
+  in `docs/adr/README.md` carry `revised 2026-09-03`. It is the first ADR here in that form; the
+  remaining files keep their blocks until each is next revised
+  ([#453](https://github.com/unic/unic-agents-plugins/issues/453)).
 
 ## [0.26.0] — 2026-08-25
 
