@@ -27,7 +27,7 @@ When you first revise one of those ADRs inline, read its blocks, carry forward i
 
 ### Status values
 
-Two surfaces carry a status: each ADR's own `**Status:**` line, and the Status column of the index below. Keep the two saying the same thing.
+Two surfaces carry a status: each ADR's own `**Status:**` line, and the Status column of the index below. Keep the two consistent in meaning; the column may be shorter.
 
 - `Accepted (YYYY-MM-DD)` — the date the decision was recorded. The index column shortens it to `Accepted`.
 - `Accepted (YYYY-MM-DD, revised YYYY-MM-DD)` — inline revision.
