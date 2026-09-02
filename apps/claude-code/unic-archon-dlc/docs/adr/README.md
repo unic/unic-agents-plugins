@@ -6,7 +6,7 @@ Plugin-scoped architectural decisions. Repo-wide decisions live in `docs/adr/` a
 
 A new Plugin ADR takes its **form** from the `domain-modeling` Method's ADR format document (`.agents/skills/domain-modeling/ADR-FORMAT.md` — a hint for finding it, not the reference; the owner is the Method, and its installed path is replaced on every `npx skills add`). One to three sentences is a whole ADR: the context, the decision, the reason. Every section beyond that is optional and earns its place.
 
-Numbering comes from the root `docs/adr/README.md` instead: `NNNN-slug.md`, zero-padded to four digits, numbered per directory in the order decisions were recorded. The Method's examples are padded to four but it states no rule, so this half is the root's.
+Numbering comes from the root `docs/adr/README.md` instead: `NNNN-slug.md`, zero-padded to four digits, numbered per directory in the order decisions were recorded. The Method covers the mechanism — scan for the highest number, increment — and its filename examples are padded to four, but it states neither the padding nor the per-directory scope as a rule, so those are the root's.
 
 This Plugin diverges from the other plugin ADR homes here, which point at the root rather than stating a form of their own, because this Plugin composes the Method that defines the form — so it follows it.
 
