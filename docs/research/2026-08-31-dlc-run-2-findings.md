@@ -306,6 +306,13 @@ infrastructure and belongs in the confound, not in run 3's report as a surprise.
 when" lines were all satisfiable on the empty `develop` tree — the all-negative shape #381 already measured —
 so each now proves its negative path on a fixture (WI revisions of 2026-09-02).
 
+Widened 2026-09-02 11:31 by `DS-43020`, measured in the installed `@storybook/addon-vitest` 10.4.0: the
+storybook vitest project's `test.include` is overwritten by the plugin with the story globs from `.storybook/main.ts`
+(`include: [...includeStories, ...getComponentTestPaths()]`, and any passed `include` is emptied with a
+"will be ignored" warning), so a fixture test that is not a story cannot run in that project. The set therefore
+adds **two** vitest projects, not one: a node project for the three file-reading checks and a browser project for
+the fixture proofs of 43023 and 43024. Run 3's diff against run 2 carries both.
+
 ---
 
 # E. Proposed tickets
