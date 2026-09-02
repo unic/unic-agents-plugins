@@ -1,60 +1,126 @@
 # 0020. `/specs` reaches an aligned PRD by branch-on-input
 
-**Status:** Accepted (2026-07-02)
-
-> **Amended (2026-07-02):**
->
-> - **PRD destination:** repo floor always (`<artifacts_dir>/<slug>/PRD.md`); **docs-publish is opt-in** (`docs.publish`, default off) and **composes the configured docs system-skill** (e.g. `unic-confluence` for Confluence), whose injection markers guarantee the human-authored source is never overwritten.
-> - **Estimations:** the DLC **composes** an estimator (e.g. #257, or a team estimation skill) — it never builds one ([ADR-0021](0021-earns-its-place-compose-verbatim.md)). Two optional config-gated waves: **provisional @ `/specs`** (coarse, client sign-off) and **definitive @ `/tickets`** (per-slice). `estimations = off | provisional | definitive | both`.
-> - **`/prototype`** (interactive design-question tool) is **Matt's referenced skill**, not a `/specs` sub-step; the AFK spike lives in `/explore`.
-> - **Step 04 build (2026-07-02):** `discuss_mode` is **retained** — not fully subsumed — as a **2-way grilling-style selector** (`specs.discuss_mode = discuss | assumptions`, default `discuss`) **orthogonal** to branch-on-input; it picks _how_ the converse/gap conversation runs (`discuss` = compose `/grill-with-docs`; `assumptions` = enumerate all assumptions upfront, then confirm/challenge). The old third value `interview` is **dropped** as redundant — `/grilling` _is_ the one-at-a-time interview, so it collapsed into `discuss` ([ADR-0016](0016-dlc-thin-process-layer.md)/[0021](0021-earns-its-place-compose-verbatim.md), compose-don't-reimplement). This supersedes the "`plan.discuss_mode` flag is subsumed by input detection" line in Consequences.
-> - **PRD gate is configurable:** `specs.gate = open-pr | stage-only` (default `open-pr`: commit `PRD.md` + any new ADRs on `feature/specs/<slug>` and open a PR to `develop` — never merged; `stage-only`: write + stage, the human commits/PRs).
-> - **PRD template dissolved to config:** the 7-section scaffold lives in `templates.prd` ([ADR-0018](0018-generic-core-config-compose.md), default in `config-schema.mjs`); `prd-writer.mjs` keeps only the generic structure validator (`validatePrdSections`) + file IO (`writePrd`/`readPrd`, path from `artifacts_dir`).
-
-> **Amended (2026-08-04, Matt v1.1.0 migration tranche 2 — #280):**
->
-> - **The Method names above are pre-v1.1.0.** `to-prd` is now `to-spec`, and `grill-with-docs` no longer exists as a method: it is a six-line pointer whose content moved into `domain-modeling`. `/specs` therefore reads three Methods — `to-spec`, `grilling`, `domain-modeling` — **by resolved path** via `resolveMethod` ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)), not by invoking a skill. Invocation had to go regardless of the renames: most of these skills carry `disable-model-invocation: true`, so they are absent from the model's skill list even on a healthy install. Read `discuss_mode = discuss` above as "follow `grilling` + `domain-modeling`".
-> - **Three approval halts, and `specs.gate` is the only gate.** v1.1.0 added "do not enact the plan until I confirm we have reached a shared understanding" to `grilling`. `/specs` now carries that as an explicit confirmation at the end of Step 4, fired on **every** branch — the interview's own confirmation in `discuss` mode, the last assumption in `assumptions` mode, the synthesis review in `ingest`/`hybrid` — so the command has one shape whatever the input. It joins the Step 5 seam check and the Step 8 `specs.gate`. Only `specs.gate` is an **approval gate**: it is the halt that produces a durable artefact and puts it in front of a human, and it is where `grilling`'s "do not enact" lands, because in `/specs` enacting the plan means writing and PR-ing the PRD.
-> - **A halt is not an interview turn.** How many questions a Method asks is the Method's business; the Box never counts, caps or restates the interview. If upstream adds questions, `/specs` asks more questions and still has three halts.
-
-> **Amended (2026-08-25, the design branch — [#416](https://github.com/unic/unic-agents-plugins/issues/416)):**
->
-> - **`/specs` writes a second durable artefact.** Where this ADR ends at one PRD, the command now also writes one **design contract** per component the feature names, whenever `design.type` is set. The contract holds what the design file says, read mechanically, plus the code shape that follows; it is idempotent by replacement, its name carries `.generated.`, and it rides the PRD's pull request as a named staged path. Its shape and its four sections were decided on [#404](https://github.com/unic/unic-agents-plugins/issues/404).
-> - **The branch is set-versus-`none`, never a comparison to a value.** `design.access` resolves the tool, so the value is decoration. Everything tool-specific is declared by the Consumer, in a hand-written doc at `docs/agents/<design.type>.md`; `commands/specs.md` enumerates what that doc owns, and names no design tool itself. This settles the "Figma ingestion" mechanics the Consequences below deferred to a redesign step: the mechanics are the Consumer's, and the branch is this command's.
-> - **A design source is read fact by fact.** No single read carries every fact ([#405](https://github.com/unic/unic-agents-plugins/issues/405), measured). A value is recorded as the name that carries it and never as its resolved value; an override made through a declared property is intent while one typed onto a layer is a defect, with a token-bound value the carve-out; what cannot be read is written into the contract as unreadable.
-> - **A declared blocking condition stops the contract, and `docs.publish` governs the contracts as well as the PRD.** One docs page per component, two halves: the generated block is replaced whole through injection markers, the authored half is never touched, and on a first run `/specs` creates the page and writes its URL back into the contract's Provenance list.
+**Status:** Accepted (2026-07-02, revised 2026-09-03)
 
 ## Context
 
 Two spec-building philosophies were in tension for `/specs`:
 
-- **Matt Pocock** (`grill-with-docs` + `to-prd`) — a _shared conversation_ co-builds understanding; alignment happens _during_ creation; needs the human present; doesn't run AFK.
-- **Pesche `unic-ticket-specification`** (PR #257) — _autonomous_ draft (+ estimations); the human then _reads every ticket and decides_ if it is what they want; alignment happens _at review_; scales/AFK; risk of rubber-stamping a plausible-but-wrong spec.
+- **Matt Pocock** (the grilling and PRD-shaping Methods) — a _shared conversation_ co-builds
+  understanding; alignment happens _during_ creation; needs the human present; doesn't run AFK.
+- **Pesche `unic-ticket-specification`** (PR #257) — _autonomous_ draft (+ estimations); the human
+  then _reads every ticket and decides_ if it is what they want; alignment happens _at review_;
+  scales/AFK; risk of rubber-stamping a plausible-but-wrong spec.
 
-They looked opposed, but they are the **same job on different inputs**. Unic features arrive with heterogeneous starting material: sometimes just a raw idea; sometimes an existing spec in the team's docs system; sometimes UX specs and Figma links (design isn't always involved).
+They looked opposed, but they are the **same job on different inputs**. Unic features arrive with
+heterogeneous starting material: sometimes just a raw idea; sometimes an existing spec in the team's
+docs system; sometimes UX specs and Figma links (design isn't always involved).
+
+**What a source is worth was measured, and it is less than this ADR first assumed.** The original
+decision let a sufficient source stand in for the interview. Run 2 on the Consumer
+([#441](https://github.com/unic/unic-agents-plugins/issues/441), 2026-08-31) ran thirty minutes with
+zero maintainer turns and wrote four artefacts asserting acts that never occurred — three design
+contracts reading `Findings: none` where no override test ran, a PRD naming approved seams for a
+question nobody answered, a report counting halts in a leg with no human turn. The maintainer has
+never been grilled by `/specs`, in either run. A source records what someone decided; it is silent on
+what they left out and what they assumed, and nothing between writing an artefact and approving it
+noticed the difference.
 
 ## Decision
 
-`/specs` is an in-session **command/skill** ([ADR-0017](0017-container-follows-structural-need.md)) whose job is to **reach one human-approved PRD by the cheapest path given what already exists**:
+`/specs` is an in-session **command/skill** ([ADR-0017](0017-container-follows-structural-need.md))
+whose job is to **reach one human-approved PRD by the cheapest path given what already exists** —
+cheapest in reading, never in interviewing.
+
+**Input is classified two ways, and both grill.**
 
 ```
-raw idea, no source          → converse (Matt: grill-with-docs → to-prd)  — build understanding
-existing spec / Figma / UX    → ingest + synthesise (+ estimate) → human REVIEWS   (#257 model)
-partial (some docs, gaps)     → ingest what exists, then grill only the GAPS
+source-absent   (no source, or free-form prose)  → grill from the idea
+source-present  (a URL, ref or design file)      → read it, synthesise it, grill the synthesis
 ```
+
+A source narrows what is asked. It never decides that nothing is asked, and a source with gaps is
+still `source-present` — the gaps change the questions, not the classification. The retired third
+value, `hybrid`, existed to name a source good enough to skip most of the interview, and that is the
+judgement the command got wrong.
+
+**`specs.discuss_mode` picks how the interview runs, on either branch** — `discuss` (default) follows
+the `grilling` Method, `assumptions` enumerates every assumption upfront and walks the human through
+them. It is orthogonal to the input branch. The third value `interview` is dropped as redundant:
+`grilling` _is_ the one-at-a-time interview.
+
+**Three halts, and `specs.gate` is the only approval gate.** Halt 1 is the shared understanding at
+the end of the interview, fired on both branches so the command has one shape whatever the input.
+Halt 2 is the seam approval, which reads the Consumer's stated testing bar before it asks anything
+and asks only what that bar does not answer. Halt 3 is `specs.gate` — the one halt that produces a
+durable artefact and puts it in front of a human, and where the `grilling` Method's "do not enact the
+plan until I confirm" lands, because in `/specs` enacting the plan means writing and PR-ing the PRD.
+
+**A halt is not an interview turn.** How many questions a Method asks is the Method's business; the
+Box never counts, caps or restates the interview. If upstream adds questions, `/specs` asks more
+questions and still has three halts.
+
+**Halts 1 and 2 are on the record, and the gate is fail-closed on that record.** Each writes an entry
+into a `## Confirmations` section of the PRD carrying the human's answer verbatim, or the word
+`unanswered`. The section is written on every run and is outside `templates.prd`, so no template
+override removes it. Both gate modes refuse when an entry is absent or unanswered — `open-pr` opens
+no pull request, `stage-only` stages nothing — and each names the halt that stopped it. This detects
+the honest omission and cannot detect a fabricated quote; the human at the gate is the only reader
+who can, which is what the record gives them something to check against.
+
+**Every absence claim carries how it was established**, or states that it was not checked. `none` on
+its own means both "the check found nothing" and "no check ran", and a reader cannot tell which. This
+reaches a design contract's findings line, the place it was got wrong.
 
 Invariants regardless of path:
 
-- Ends at **one PRD approval gate** before `/tickets` (HITL by default).
-- **Composes team system-skills** to read whatever source exists (Confluence/Jira/ADO/GitHub/Figma via MCP-first/CLI-fallback) — `/specs` owns the _what_, not the _how_ ([ADR-0016](0016-dlc-thin-process-layer.md)).
-- The conversational path composes Matt's `grill-with-docs` + `to-prd`; the ingest path composes a source-reading system-skill + synthesis, reusing `to-prd`'s PRD _shaping_ but not `grill-with-docs`.
-- Keeps Matt's **seam-design approval** ("fewest seams, ideally one") before the PRD is written.
-- **Estimations** are config-optional (from the #257 ingest path).
-- The PRD is written to `workflows/<slug>/PRD.md` ([ADR-0015](0015-workflows-slug-artifact-home.md)) and, when `docs.type` is set, published to the team's docs system via the composed skill.
+- Ends at **one PRD approval gate** before `/tickets` (HITL by default), configurable as
+  `specs.gate = open-pr | stage-only`.
+- **Composes team system-skills** to read whatever source exists (docs, tracker and design systems via
+  MCP-first / CLI-fallback) — `/specs` owns the _what_, not the _how_
+  ([ADR-0016](0016-dlc-thin-process-layer.md)). It composes an estimator too, config-gated in two
+  waves: provisional here, definitive at `/tickets` ([ADR-0021](0021-earns-its-place-compose-verbatim.md)).
+- **Composes three Methods, read at the one bundled path** `.archon/methods/<name>/SKILL.md`
+  ([ADR-0031](0031-methods-bundled-three-tier-resolution.md), as amended): `to-spec` for PRD shaping,
+  `grilling` for the interview, `domain-modeling` for the terms and ADRs that crystallise. Reading
+  replaced invoking because most of these skills carry `disable-model-invocation: true` and are
+  absent from the model's skill list even on a healthy install.
+- The PRD is written to `<artifacts_dir>/<slug>/PRD.md`
+  ([ADR-0015](0015-workflows-slug-artifact-home.md)) — the repo floor, always. Publishing it to the
+  team's docs system is **opt-in** (`docs.publish`, default off) and composes the configured docs
+  skill, whose injection markers keep the human-authored source from being overwritten.
+- The PRD's shape comes from `templates.prd` ([ADR-0018](0018-generic-core-config-compose.md)), with
+  the default scaffold stated in the one Box that writes a PRD.
+
+**`/specs` writes a second durable artefact on the design branch.** When `design.type` is set, it also
+writes one **design contract** per component the feature names — what the design file says, read
+mechanically, plus the code shape that follows. It is idempotent by replacement, its name carries
+`.generated.`, and it rides the PRD's pull request as a named staged path. Four rules govern the read
+([#404](https://github.com/unic/unic-agents-plugins/issues/404),
+[#405](https://github.com/unic/unic-agents-plugins/issues/405), measured): a value is recorded as the
+name that carries it and never as its resolved value; an override made through a declared property is
+intent while one typed onto a layer is a defect, with a token-bound value the carve-out; what cannot
+be read is written in as unreadable; a component is keyed on a stable identity, never its name. A
+declared blocking condition stops the contract, and `docs.publish` governs the contracts as well as
+the PRD — one page per component, the generated block replaced whole through injection markers and
+the authored half never touched.
+
+**The design branch is set-versus-`none`, never a comparison to a value.** `design.access` resolves
+the tool, so the value is decoration. Everything tool-specific is declared by the Consumer in a
+hand-written doc at `docs/agents/<design.type>.md`, read whenever the design is first read, and
+`commands/specs.md` enumerates what that doc owns while naming no design tool itself. That doc also
+reaches the `/pr-review` Box's intent brief, so a review can tell a claimed check from a performed one.
 
 ## Consequences
 
-- `/specs` has two code paths (converse / ingest) plus a hybrid; the old `plan.discuss_mode` flag is subsumed by input detection.
-- Input detection depends on the team's system-skills being registered at `/setup` time ([ADR-0019](0019-conversational-setup.md)).
-- PRD template content comes from config ([ADR-0018](0018-generic-core-config-compose.md)); a generic validator enforces structure.
-- Detailed mechanics (Figma ingestion, estimation model, gap-detection, docs-system publishing) are owned by the `/specs` redesign step.
+- `/specs` has two branches, and the interview is on both. The seam approval and the shared
+  understanding are recorded rather than assumed.
+- Reading a source is cheap and skipping the human is not the saving it looked like: `source-present`
+  costs a synthesis _and_ an interview.
+- The Confirmations record is authored by the same agent that would skip a halt, so the gate reading
+  it is a detector, not a preventer. Asking the human at the gate whether the quoted words are theirs
+  is the missing half, and it belongs to
+  [#437](https://github.com/unic/unic-agents-plugins/issues/437).
+- Input classification depends on the team's system-skills being registered at `/setup` time
+  ([ADR-0019](0019-conversational-setup.md)).
+- `/prototype` is a referenced Method, not a `/specs` sub-step; the AFK spike lives in `/explore`.
