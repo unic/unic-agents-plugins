@@ -129,10 +129,12 @@ _Avoid_: cardinality (correct, but not the word in the file), multi-value field,
 
 **PRD**:
 Product Requirements Document produced by the `/specs` command (branch-on-input; via the `to-spec`
-Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template,
+Method) and stored at `<artifacts_dir>/<slug>/PRD.md`. Its section shape comes from the config template,
 and `/specs` checks the rendered PRD against that template itself before it writes — every heading in
-the template must appear. No module validates it; `lib/` is deleted (#381). See
-`docs/adr/0020-specs-branch-on-input.md`.
+the template must appear. No module validates it; `lib/` is deleted (#381). One section sits outside
+the template and no override removes it: **Confirmations**, one entry per in-method halt, carrying the
+human's answer verbatim or the word `unanswered`. The PRD gate reads it and refuses on an absent or
+unanswered entry. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
 
 **Design contract**:

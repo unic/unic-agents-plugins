@@ -1,6 +1,6 @@
 ---
-argument-hint: '<slug> [spec/design/issue URL … | free-form idea]'
-description: 'Turn an idea (or an existing spec / design / UX) into one human-approved PRD: grill or ingest, approve the testing seams, write <artifacts_dir>/<slug>/PRD.md plus a design contract per component the feature names, and open the PRD gate.'
+argument-hint: '<slug> [spec/design/issue URL | tracker ref | design file … | free-form idea]'
+description: 'Turn an idea (or an existing spec / design / UX) into one human-approved PRD: read whatever source exists, grill the human either way, approve the testing seams, write <artifacts_dir>/<slug>/PRD.md plus a design contract per component the feature names, and open the PRD gate.'
 ---
 
 # unic-archon-dlc:specs
@@ -48,7 +48,7 @@ default beside it whenever the key is absent or null.
 ### Read the tracker contract
 
 `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the tracker
-contract. `/specs` files nothing, so it needs only the first, and only when Step 3 ingests an existing
+contract. `/specs` files nothing, so it needs only the first, and only when Step 4 reads an existing
 tracker item. Read it then:
 
 - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that server's
@@ -58,8 +58,11 @@ tracker item. Read it then:
   derive nothing from a remote URL.
 - **Work-item scope** — its § Work-item scope names the filter every search applies.
 
-If the file is absent when Step 3 needs it, say so and ingest from the other sources instead. Print
-the repository § Addressing names, so a surprising target is diagnosable.
+When the file is present, print the repository its § Addressing names, so a surprising target is
+diagnosable. When it is absent, say so, read the other sources instead, and print
+`repository: unknown — no docs/agents/issue-tracker.md`. **Derive no repository from a remote URL**
+to fill that gap: a repository nobody named is exactly the invented identifier this command must not
+produce, and it is worse than an absent one because it looks decided.
 
 ### Read the design-conventions doc
 
@@ -83,8 +86,14 @@ every design fact this command does not know, and this list is the whole of what
 - **The expected-subscription list**, when the team keeps one.
 - **How a screenshot reaches the docs system**, when it can reach it at all.
 
-Read it in Step 7, when the feature names a component, and not before: a feature that names none needs
-neither a contract nor this doc.
+**Read it whenever the design is first read**, because it says which read carries which fact — read
+the design before it and you read the design the wrong way, and find out at contract time. Two
+moments, each with its own test:
+
+- **Step 4**, when the source is a design or names a component. What the whole feature names is not
+  settled yet, so the test is the source in front of you.
+- **Step 7**, when the feature names a component and no earlier read happened. A feature that names
+  none needs neither a contract nor this doc.
 
 ### The Methods this Box reads
 
@@ -121,50 +130,99 @@ Research** you found — this is the backdrop every question and the PRD must re
 
 ## Step 4 — Branch on input (ADR-0020)
 
-Classify `SOURCE` and take the cheapest path to an aligned understanding:
+Classify `SOURCE` into one of **two** values, and keep the one you chose as `INPUT`:
 
-- **Raw idea** (no source, or free-form prose only) → **converse**. Run the interview per
-  `DISCUSS_MODE`:
-  - `discuss` (default) → follow the resolved **`grilling`** Method, and the resolved
-    **`domain-modeling`** Method for the terms and ADRs that crystallise as you go. Its
-    `ADR-FORMAT.md` and `CONTEXT-FORMAT.md` — in the same directory as its `SKILL.md` — are
-    the shapes any ADR or `CONTEXT.md` edit must follow.
-  - `assumptions` → enumerate **all** your assumptions about the feature upfront as a numbered list,
-    then walk the user through confirming/correcting each. `domain-modeling` still applies as
-    decisions settle.
-- **Existing spec / design / UX / tracker issue** (a URL or ref) → **ingest**. Read the source by
-  **composing the configured system-skill** (MCP-first, CLI-fallback):
-  - docs (`DOCS.type` is set) → the team's docs skill / MCP via `DOCS.access`;
-  - design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`;
-  - tracker item → the server `docs/agents/issue-tracker.md` § Access names, addressing the
-    repository its § Addressing names.
-    Synthesise what the source says, then have the **human review** your synthesis (the #257 model).
-    Reuse `to-spec`'s PRD _shaping_; there is nothing to interview, so `grilling` does not apply here.
-- **Partial** (a source exists but has gaps) → **hybrid**. Ingest what exists (as above), then grill
-  **only the gaps** per `DISCUSS_MODE`.
+- **`source-absent`** — `SOURCE` is empty, or it is free-form prose with no URL or ref in it.
+- **`source-present`** — `SOURCE` names something readable: a URL, a tracker ref, a design file.
 
-### Confirm shared understanding before anything is written
+There is no third value. A source that turns out to have gaps is still `source-present`; the gaps
+change what you ask, not what you classify. Judging a source complete enough to skip the interview is
+the call this command got wrong, so the classification no longer offers it.
 
-Do not write the PRD until the user confirms the design is settled. What satisfies this depends on the
-branch you took:
+**Both branches grill.** What differs is where the interview starts, never whether one happens.
 
-| Branch                             | What satisfies the confirmation                            |
-| ---------------------------------- | ---------------------------------------------------------- |
-| converse, `DISCUSS_MODE = discuss` | ask "have we reached a shared understanding?" and wait     |
-| converse, `assumptions`            | the walk through the assumptions reaches agreement         |
-| ingest / hybrid                    | the human review of your synthesis (the #257 model, above) |
+### `source-present` — read it, synthesise it, then grill the synthesis
+
+Read the source by **composing the configured system-skill** (MCP-first, CLI-fallback):
+
+- docs (`DOCS.type` is set) → the team's docs skill / MCP via `DOCS.access`;
+- design (`DESIGN.type` is set) → the team's design skill / MCP via `DESIGN.access`. **Read
+  `DESIGN_DOC` first** (Step 1 derived its path), because it says which read carries which fact. The
+  test here is the source in front of you, not the component list: read it whenever the source is a
+  design, or names a component. Which components the feature names is settled later in this
+  conversation and is Step 7's test, not this one;
+- tracker item → the server `docs/agents/issue-tracker.md` § Access names, addressing the repository
+  its § Addressing names.
+
+Synthesise what the source says and put that synthesis in front of the human. Then **compose the
+`grilling` Method over the synthesis you just produced**, per `DISCUSS_MODE` below. A source tells you
+what someone already decided; it does not tell you what they left out, what they assumed, or what they
+would say if asked. Reuse `to-spec`'s PRD _shaping_ as before.
+
+### `source-absent` — grill from the idea
+
+Nothing to synthesise, so the interview starts at the idea itself. Run it per `DISCUSS_MODE` below.
+
+### `DISCUSS_MODE` — how the interview runs, on either branch
+
+- `discuss` (default) → follow the resolved **`grilling`** Method, and the resolved
+  **`domain-modeling`** Method for the terms and ADRs that crystallise as you go. Its
+  `ADR-FORMAT.md` and `CONTEXT-FORMAT.md` — in the same directory as its `SKILL.md` — are
+  the shapes any ADR or `CONTEXT.md` edit must follow.
+- `assumptions` → enumerate **all** your assumptions about the feature upfront as a numbered list,
+  then walk the user through confirming/correcting each. `domain-modeling` still applies as
+  decisions settle.
+
+On `source-present`, the synthesis is what the interview is about: in `discuss` the questions come
+from what the synthesis does not settle, and in `assumptions` the numbered list is what you inferred
+beyond what the source states.
+
+### Halt 1 — confirm shared understanding before anything is written
+
+Do not write the PRD until the user confirms the design is settled. In `discuss`, ask "have we reached
+a shared understanding?" and wait. In `assumptions`, the walk through the assumptions reaching
+agreement is the confirmation. On `source-present` the human's review of your synthesis is part of the
+interview that leads here; it is not this halt, and it does not stand in for it.
 
 This fires when the interview **reaches** shared understanding, however many turns that took — it is
 not "the last question". On **no**, return into the interview; there is no cap on how often that
 happens. Never count, cap or restate the interview: how many questions a Method asks is the Method's
 business, not this Box's.
 
+**Record the answer.** Whatever the human says here is written verbatim into the PRD's
+**Confirmations** section (Step 7). This halt stops the run until it is answered. If the run reaches
+Step 7 anyway, its entry says `unanswered` — never an answer you did not receive.
+
 ## Step 5 — Seam-design approval
 
-Before writing the PRD, propose the **testing seams** at which the feature will be verified, following
-the `to-spec` Method's seam guidance. Present the proposed seam(s) and **get the user's
-explicit confirmation** that they match expectations. The approved seams become the PRD's **Testing
-Decisions** section. Do not proceed to Step 7 without this confirmation.
+### Read the Consumer's testing bar first
+
+Before you ask anything, read what this Consumer has already written about how it tests. It is stated
+in surfaces the Consumer maintains by hand, and this command reads them where they exist rather than
+asking for a new one:
+
+- its root `AGENTS.md` and `CLAUDE.md` — **read them now**; Step 3 does not, and they are the surface
+  most likely to state a bar in words;
+- the per-context `CONTEXT.md` files and the ADRs in `docs/adr/` that decide a testing approach —
+  Step 3 read these already, so re-read nothing and use what you have;
+- the tests that exist in the repository, which state the bar by example where no document does.
+
+**Propose from that bar.** The seams you present are the ones the bar implies for this feature,
+following the `to-spec` Method's seam guidance. **Ask only what the bar does not answer** — a question
+whose answer is already written down spends the human's turn re-deciding a decision they made once,
+and this halt has few turns to spend.
+
+If no surface states a bar, say so, and propose from `to-spec` alone.
+
+### Halt 2 — the seams are approved
+
+Present the proposed seam(s) and **get the user's explicit confirmation** that they match
+expectations. The approved seams become the PRD's **Testing Decisions** section. Do not proceed to
+Step 7 without this confirmation.
+
+**Record the answer.** Whatever the human says here is written verbatim into the PRD's
+**Confirmations** section (Step 7). This halt stops the run until it is answered. If the run reaches
+Step 7 anyway, its entry says `unanswered` — never an answer you did not receive.
 
 ## Step 6 — Estimation (config-gated)
 
@@ -233,6 +291,84 @@ the default text lives here, in the one Box that writes a PRD.
 
 If a heading is missing, fill that section and check again. Never write a partial PRD.
 
+### The Confirmations section — written on every run
+
+**This section is not part of the template, and no override can remove it.** The heading check above
+governs `PRD_TEMPLATE`'s headings only. `## Confirmations` is appended by this command after them,
+whether `PRD_TEMPLATE` is unset, set to the default, or set to something a team wrote — a team that
+overrides the PRD shape is choosing its sections, not choosing whether the halts are on record.
+
+**Write exactly one `## Confirmations` section, whatever the template says.** If `PRD_TEMPLATE`
+carries that heading too, the section you write takes its place and satisfies the heading check;
+do not also render the template's copy, and do not stop the run over it. Print
+`templates.prd names ## Confirmations — this command owns that section; the template's copy is
+inert.` so the operator can drop the heading from their override. Two sections with one name would
+leave Step 8 reading whichever it met first, and a gate that reads the wrong record is worse than no
+gate, because it reports a check it did not make.
+
+It carries **one entry per halt**, in order, and the halts are the two named above: Halt 1, the shared
+understanding at the end of Step 4, and Halt 2, the seam approval in Step 5. The Step 8 gate is not
+one of them — it is the reader of this section, not an entry in it.
+
+Each entry carries the halt's name, the question you asked, and one of exactly two things:
+
+- **the human's answer, quoted verbatim.** Their words, not your reading of them. Never paraphrase,
+  never tidy, never summarise agreement you inferred from the conversation continuing.
+- **`unanswered`**, with what you asked and what happened instead — the question was announced and
+  passed over, the conversation moved on, the run resumed from somewhere later. Write this whenever no
+  human turn answered the question. **An unanswered halt is an ordinary outcome to record, never a
+  failure to hide**: Step 8 is built to stop on it, and a fabricated answer defeats the only check
+  there is.
+
+```markdown
+## Confirmations
+
+### Halt 1 — shared understanding (Step 4)
+
+Asked: <the question you put to the human, or the assumptions you walked them through>
+Answer: "<their words, verbatim>" | unanswered — <what happened instead>
+
+### Halt 2 — seam approval (Step 5)
+
+Asked: <the seams you proposed>
+Answer: "<their words, verbatim>" | unanswered — <what happened instead>
+```
+
+Under `DISCUSS_MODE = assumptions`, Halt 1's `Asked:` line is the assumption walk rather than one
+question, and its `Answer:` is the human's own closing words on that walk. Quote what they said;
+never write agreement you inferred from the walk finishing.
+
+**Why a run can be here with a halt unanswered at all.** Both halts stop the run, so on the path this
+command describes, Step 7 is never reached with one open. That rule can be walked past — it was, on
+the run this section exists because of, where three one-sentence halts went by in thirty minutes with
+no human turn. So the entry has a value for it. **Reaching Step 7 with a halt open is not permission
+to proceed**; it means the rule already broke, and what is left is whether the break is on the record
+or papered over. Write `unanswered`, let Step 8 refuse, and the run costs a re-entry instead of a
+pull request nobody can trust.
+
+**The ceiling on this, stated rather than discovered.** The record is written by the same agent that
+would skip the halt, so Step 8 reading it detects an honest omission and cannot detect a fabricated
+quote. The one person who can tell is the human at the gate, who wrote the words. This section exists
+so they have something to check against, not so nobody has to.
+
+### Every absence claim carries how it was established
+
+Anywhere this run writes that something is absent, empty, none, or clean — in the PRD, in a design
+contract, in the Step 9 summary — **that claim carries the method that established it, in the same
+sentence.** Where no method established it, write that it was not checked.
+
+`none` on its own is two different statements wearing one word: "I ran the check and it found
+nothing" and "no check ran". A reader cannot tell them apart, and the second one reads as the first.
+This reaches a design contract's **findings line**, which is the place it was got wrong: a contract
+saying `Findings: none` after no override test ran is a false statement about work, not a terse one
+about design. Write `Findings: none — this run performed the override test <DESIGN_DOC> declares,
+against every instance` or `Findings: not checked — <why>`, and never the bare word.
+
+**Keep this run as the subject of the performing verb.** A claim whose grammar lets the doc, the
+tool, or the convention do the checking says an act happened without saying who acted, and that is
+the same ambiguity in a new place. Write `this run performed`, `this run read`, `this run compared`.
+Never a phrasing in which what the doc **declares** could be read as what somebody **did**.
+
 Then write the content to `<ARTIFACTS_DIR>/<SLUG>/PRD.md` with your own tools, creating the directory
 when it does not exist, and print that path.
 
@@ -248,8 +384,8 @@ Skip this section when `DESIGN.type` is `none` or absent, and skip it when the f
 component. The components a feature names are the ones the Step 4 conversation settled and the PRD above
 describes; the contracts are written after the PRD, and each one rides its pull request.
 
-Otherwise read `DESIGN_DOC` now (Step 1 derived its path). **If that file is absent, stop**, print its
-path, and say `Write it, or set design.type to none.` A contract written without it is a guess about
+Otherwise read `DESIGN_DOC` now, unless Step 4 already read it (Step 1 derived its path). **If that
+file is absent, stop**, print its path, and say `Write it, or set design.type to none.` A contract written without it is a guess about
 someone else's design system, and a guessed contract is approved at the Step 8 gate as though it were
 read.
 
@@ -368,10 +504,38 @@ contract a formatter reflows churns on every run, and that diff reads as a desig
 ## Step 8 — PRD gate (HITL)
 
 `GATE` is the **single approval gate** in `/specs`: the one halt that produces a durable artefact and
-puts it in front of a human. The Step 4 confirmation and the Step 5 seam check are in-method
-confirmations, not gates — they settle the design, they approve nothing. This is also where
+puts it in front of a human. Halt 1 and Halt 2 are in-method confirmations, not gates — they settle
+the design, they approve nothing, and this gate is where their records are read. This is also where
 `grilling`'s "do not enact the plan until I confirm we have reached a shared understanding" lands: in
 `/specs`, enacting the plan means writing and PR-ing the PRD, and that is exactly what this gate holds.
+
+### Read the Confirmations section before either mode runs
+
+Open `<ARTIFACTS_DIR>/<SLUG>/PRD.md` and read its `## Confirmations` section. **Both gate modes refuse
+to proceed when any halt's record is absent, or states that the halt went unanswered.** Absent covers
+the whole range: no section, a section with no entry for that halt, or an entry with no answer in it.
+
+Refusing means this, per mode:
+
+- **`open-pr`** — create no branch, stage nothing, commit nothing, push nothing, and **open no pull
+  request**.
+- **`stage-only`** — **stage nothing**, and print no suggested PR title or body.
+
+Then print which halt stopped it, by name, and what its record said:
+
+```
+/specs stopped at the gate — <SLUG>
+  halt:   Halt 2 — seam approval (Step 5)
+  record: unanswered — the seams were proposed and the run ended with no reply
+  fix:    answer it, then run /specs <SLUG> again — Step 2 picks the PRD up as a re-entry
+```
+
+The PRD and any contracts stay on disk, unstaged. Clear the halt and run `/specs` again: Step 2 reads
+the existing PRD as a re-entry, and Step 7 rewrites the Confirmations section from the halts as they
+actually went this time.
+
+**This is fail-closed on purpose, and it costs a re-run.** A gate that proceeds on a missing record is
+a gate that approves the run that skipped the halt, which is the one thing it exists to catch.
 
 The PRD is human-approved via a PR — never merge it yourself. Behaviour follows `GATE`:
 
@@ -430,12 +594,27 @@ Print a concise summary:
 ```
 /specs complete — slug: <SLUG>
   path:      <ARTIFACTS_DIR>/<SLUG>/PRD.md
-  repo:      <the repository docs/agents/issue-tracker.md § Addressing names>
-  input:     <converse | ingest | hybrid>
+  repo:      <the repository docs/agents/issue-tracker.md § Addressing names | unknown — no docs/agents/issue-tracker.md>
+  input:     <source-present | source-absent>
   seams:     <the approved testing seam(s)>
+  halts:     <Halt 1 answered · Halt 2 answered | the halt(s) with no answer on record>
   ADRs:      <NNNN-slug.md … | none>
   contracts: <N written, one path each, marking any a block left unstaged | none — design.type is none | none — the feature names no component>
   blocked:   <component — the condition that stopped it, one per line | none>
-  gate:      <open-pr → PR #… | stage-only → staged | not opened — a design blocking condition stopped the run>
-  next:      run /tickets <SLUG> once the PRD is approved
+  gate:      <open-pr → PR #… | stage-only → staged | not opened — a design blocking condition stopped the run | not opened — <halt> has no answer on record | nothing staged — <halt> has no answer on record>
+  next:      review what this run produced — the PRD, and each contract — then run /tickets <SLUG> once the PRD is approved
 ```
+
+The `gate:` line says what did not happen in the mode's own words: `open-pr` reports `not opened`,
+`stage-only` reports `nothing staged`. A `stage-only` run had no pull request to open, so reporting
+one as unopened describes a mode it was never in.
+
+The `input:` line carries one of those two values and no other.
+
+**The `next:` line names the review first, and it names it as a step rather than an option.** What
+this run produced is a PRD and, on the design branch, one contract per component — the artefacts a
+later Box treats as settled fact. The gate's human reviewer is the only reader between writing them
+and using them, so the summary sends them there before it sends anyone to `/tickets`.
+
+Print this summary on a refused gate too, with `gate:` carrying the halt that refused it. A run that
+stops has more to report than one that finishes, not less.
