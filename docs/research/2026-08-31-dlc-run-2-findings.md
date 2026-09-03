@@ -143,7 +143,7 @@ rather than re-measuring. **The document existing is why the observation was not
 
 | #   | Finding                                                                                                                                                                                                                                         | Evidence                        |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| 41  | **No `node_modules` in the Archon worktree**, so neither the build's review nor `pr-review` can run build, lint, typecheck or test. Every green claim they make is unbacked. The only exit codes this run has came from the worker's own clone. | Extends **#430** to `pr-review` |
+| 41  | **CORRECTED 2026-09-03 — the row as first written overstated, and its replacement is the sharper finding.** Whether an Archon worktree has `node_modules` is **non-deterministic**: 12 of the 16 DXP worktrees on this machine have one, 4 do not, and every one that has it was created 5–13 minutes after its worktree, mid-run, by a node's own initiative — **no Box instructs any node to install**. So the defect is not "the review cannot run checks"; it is **"whether a check can run is a coin flip, and no node reports which way it landed"**. That kills any criterion satisfied by observing a green run, because a green run already happens by luck. | Reframes **#430**, and extends it to `pr-review` and `qa` |
 | 42  | **Four acceptance criteria failed while `verification` returned PASSED**, minutes apart in the same run.                                                                                                                                        | the false pass, in one artefact |
 
 ## C4. Re-entry and branching
@@ -361,8 +361,16 @@ a second opinion costs a session. The edges below are this seat's, unreviewed.
 **Amended rather than filed:**
 
 - **#430** — the worktree install. Run 2 extends it **past `pr-review` to every review node in the
-  lifecycle**, and supplies the failure it predicted: `verification` PASSED while `goals-check` returned
-  four AC failures, minutes apart. The only exit codes the run has came from a human.
+  lifecycle**. **The attribution written here on 2026-09-01 was wrong, corrected 2026-09-03 by
+  `DLC-430-grilling` and verified independently:** `verification` PASSED and `goals-check` returned four AC
+  failures minutes apart, which is a true observation, but a missing install did not cause it. That worktree
+  HAD `node_modules` — born 17:05:24 UTC, one second after `run-build` called `pnpm --filter
+  @repo/storybook-react exec playwright install chromium` — and `verification`'s own `tool_called` payload at
+  17:56:22 is `pnpm test 2>&1 | tail -60`, verdict 7 test files, 17 tests, 17 passed, turbo 0 cached. **The
+  suite really ran and really passed.** `goals-check`'s four failures are about acceptance criteria, not exit
+  codes, and remain unexplained by this finding. What made the original reading look sound: the Archon DB
+  stores UTC while `stat` prints local time, and the two-hour offset made a mid-run install look like a
+  post-run human one. See the corrected row 41 for the finding that survives.
 - **#431** — **it did not reproduce.** Six FIXED claimed, six real, zero false, scored against a sealed
   table. All four misclassifications were `kept by design` → `still_present`, the harmless direction.
   The real gap is a **missing `kept_by_design` verdict**.
