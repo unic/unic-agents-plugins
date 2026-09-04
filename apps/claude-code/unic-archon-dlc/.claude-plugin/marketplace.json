@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "description": "A config-driven AI development lifecycle as an installable Claude Code plugin",
+    "description": "A config-driven Harness for the SDLC — the AI development lifecycle — as an installable Claude Code plugin",
     "homepage": "https://github.com/unic/unic-agents-plugins"
   },
   "name": "unic-archon-dlc",
@@ -13,7 +13,7 @@
         "name": "Unic AG"
       },
       "category": "productivity",
-      "description": "A config-driven AI development lifecycle as an installable Claude Code plugin — main line /specs → /tickets → /build → /pr-review → /qa, plus /triage, /explore, /improve-architecture, and /cleanup. Four Archon workflows (build, qa, pr-review, explore) with human approval gates; the rest are commands/skills composing Matt Pocock's methods.",
+      "description": "A config-driven Harness for the SDLC — the AI development lifecycle — as an installable Claude Code plugin — main line /specs → /tickets → /build → /pr-review → /qa, plus /triage, /explore, /improve-architecture, and /cleanup. Four Archon workflows (build, qa, pr-review, explore) with human approval gates; the rest are commands/skills composing Matt Pocock's methods.",
       "displayName": "Unic Archon DLC",
       "homepage": "https://github.com/unic/unic-agents-plugins",
       "keywords": ["archon", "workflow", "lifecycle", "tdd", "unic"],

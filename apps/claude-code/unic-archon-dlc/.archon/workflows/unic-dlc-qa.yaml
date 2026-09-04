@@ -15,8 +15,9 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm the QA baton exists.
   # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
-  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. The e2e command
-  # and coverage threshold fall back qa.* → build.* so a team can run a heavier QA suite than build.
+  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. Every command
+  # comes from the one `sdlc_needs` block (#430); only the coverage threshold still falls back
+  # qa.* → build.*, so a team can hold a heavier QA bar than the build's.
   # ---------------------------------------------------------------------------------------------
   - id: bootstrap
     depends_on: []
@@ -123,10 +124,10 @@ nodes:
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
 
   # ---------------------------------------------------------------------------------------------
-  # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
-  # command from bootstrap and runs it with its own tools. It REPORTS a verdict (does not hard-fail);
-  # a failing e2e surfaces in the UAT checklist and fail-closes the merge `when` below, so a red build
-  # can never auto-merge even in AFK mode.
+  # test — the floor. This Box ran no test suite at all before #430 and merged on an e2e result that
+  # was almost always a skip. A prompt node (ADR-0023 §5): it reads the declared command from
+  # bootstrap and runs it with its own tools. It REPORTS a verdict rather than hard-failing, and the
+  # merge `when` below requires that verdict to be `pass` — the one clause there that is not `!= fail`.
   # ---------------------------------------------------------------------------------------------
   - id: test
     depends_on: [bootstrap]

@@ -89,8 +89,8 @@ whatever their stack uses, and a node decides at run time which of those needs i
    declares and states that this Box executed none of them. Without that sentence the admission lives
    only in the Plugin's own issue tracker, where the developer reading a review never sees it.
 
-9. **The two `e2e_command` keys are retired, and the retirement is deliberate.** `qa.e2e_command ??
-build.e2e_command` becomes the single `sdlc_needs.e2e`. The per-Box override goes on purpose: all
+9. **The two `e2e_command` keys are retired, and the retirement is deliberate.** The
+   `qa.e2e_command ?? build.e2e_command` pair becomes the single `sdlc_needs.e2e`. The per-Box override goes on purpose: all
    four values were `null` in the only Consumer that exists, so nothing had ever used that tier, and a
    tier nobody uses is a second place for a value to disagree with itself. `build.coverage_threshold`
    stays where it is — it is a number, not a need.

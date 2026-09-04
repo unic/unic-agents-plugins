@@ -457,10 +457,11 @@ nodes:
            · non-zero → "fail"
          A "pass" that reports ZERO tests goes in the verdict as **suspicious**, never as a green
          result — that is the shape a command declared against the wrong target takes.
-      1b. Run the end-to-end suite as well when the `e2e` key is declared, and set `e2e_outcome` by the
-         same three states. This is IN ADDITION to step 1, never instead of it. When `e2e` is null this
-         node wants no e2e run at all, so omit `e2e_outcome` rather than reporting a state for a check
-         nobody asked for.
+      1b. Run the end-to-end suite as well when the `e2e` key is declared. This is IN ADDITION to step
+         1, never instead of it. A red e2e is a blocker, so it goes in `failures`; one that will not run
+         goes in `unresolved_needs`; either way it belongs in the verdict prose with its counts. When
+         `e2e` is null this node wants no e2e run at all and reports nothing about it — silence here
+         means "not wanted", which is not the same fact as "could not run".
       2. Stub scan — inspect the diff against the base branch
          (`git diff --name-only $BASE_BRANCH...HEAD`, source files only:
          .mjs/.js/.ts/.py/.rb/.go/.rs). Flag any of these left in changed source:
@@ -469,9 +470,10 @@ nodes:
            - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
       3. Coverage. When `$bootstrap.output.coverage_threshold` is non-null, run the `coverage` key of
          `$bootstrap.output.sdlc_needs` and compare the total against the threshold, then set
-         `coverage_outcome`: "unresolved" when the key is null or its command will not run, "pass" when
-         the figure meets the threshold, "fail" when it does not. When no threshold is configured this
-         node wants no coverage figure, so omit `coverage_outcome`.
+         and compare the total against the threshold. A figure under it is a blocker for `failures`; a
+         null `coverage` key, or one whose command will not run, goes in `unresolved_needs`; the figure
+         itself belongs in the verdict prose. When no threshold is configured this node wants no
+         coverage figure and reports nothing about it.
       4. Print a verdict block. PASSED means exactly what step 5's rule means — do not restate the
          conditions here in different words, name them once and by the same names:
            verification: PASSED ✓    (test green, no stubs, every optional check reported is green)
@@ -489,8 +491,8 @@ nodes:
            a. `test_outcome` is not "pass". The floor covers both a red suite and one that could not
               run: an unresolved suite is not an absence of failures.
            b. You found a stub in step 2.
-           c. An optional outcome you actually reported — `e2e_outcome` or `coverage_outcome` — is
-              "fail".
+           c. An optional check you actually ran — the e2e suite, or coverage against a threshold —
+              came back red.
          An optional outcome that is **"unresolved" leaves `passed` alone**. Outside the `test` floor
          no need is mandatory, so a check this project does not declare must never hold the evidence
          gate. This node runs up to three separate commands, which is why (c) exists at all: "the suite
@@ -519,12 +521,6 @@ nodes:
           type: array
           items: { type: string }
         test_outcome:
-          type: string
-          enum: [pass, fail, unresolved]
-        e2e_outcome:
-          type: string
-          enum: [pass, fail, unresolved]
-        coverage_outcome:
           type: string
           enum: [pass, fail, unresolved]
         unresolved_needs:
@@ -714,13 +710,9 @@ nodes:
            If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
            criteria — see matrix below."
         3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
-        4. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
-           skipped/flaky. Open the section with one line per need verification reported on:
-           `test: $verification.output.test_outcome`, and the same for
-           `$verification.output.e2e_outcome` and `$verification.output.coverage_outcome` when those
-           fields are present — an absent field means that node wanted no such check, which is not the
-           same as a check that could not run. A need reported "unresolved" is named in section 1 as
-           well; this section is where its state sits beside the ones that ran.
+        4. Test Outcomes — open with `test: $verification.output.test_outcome`, then the counts, the
+           coverage figure and any e2e result from $verification.output.verdict; note skipped/flaky. A
+           need reported "unresolved" is named in section 1; this section carries what ran.
         5. Decisions Made — technical decisions worth recording; for each significant one, draft an
            ADR inline (docs/adr/NNNN-<slug>.md) for review. Also fold in, verbatim:
              - `$implement-review-precheck.output.findings` — the local code-review pre-check's
