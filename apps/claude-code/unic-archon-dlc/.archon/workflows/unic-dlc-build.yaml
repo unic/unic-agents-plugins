@@ -23,7 +23,8 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm issues.json exists.
   # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
-  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools.
+  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. It also passes the
+  # whole `sdlc_needs` block downstream and runs the declared install once for the run (#430).
   # ---------------------------------------------------------------------------------------------
   - id: bootstrap
     depends_on: []

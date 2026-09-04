@@ -1,7 +1,8 @@
 name: unic-dlc-qa
 description: >
-  QA box + issue-producing on-ramp. Runs after /build's PR is approved: e2e → coverage-gate →
-  UAT sign-off → verify-pr-base → merge, config-driven and generic. Two human gates (UAT + merge)
+  QA box + issue-producing on-ramp. Runs after /build's PR is approved: test → e2e → coverage-gate →
+  UAT sign-off → verify-pr-base → merge, config-driven and generic. `test` is the floor the merge gate
+  cannot advance without. Two human gates (UAT + merge)
   honour gates.qa — HITL by default, AFK opt-in. When UAT surfaces a defect, it is filed directly as
   an agent-ready tracker item, through the contract at `docs/agents/issue-tracker.md` and
   `docs/agents/triage-labels.md` (ADR-0016/0024), so the finding feeds /tickets rather than only
