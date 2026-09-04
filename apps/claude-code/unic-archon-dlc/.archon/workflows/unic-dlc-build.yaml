@@ -458,7 +458,8 @@ nodes:
          A "pass" that reports ZERO tests goes in the verdict as **suspicious**, never as a green
          result — that is the shape a command declared against the wrong target takes.
       1b. Run the end-to-end suite as well when the `e2e` key is declared. This is IN ADDITION to step
-         1, never instead of it. A red e2e is a blocker, so it goes in `failures`; one that will not run
+         1, never instead of it. As in step 1, a green run reporting ZERO tests goes in the prose as
+         **suspicious** rather than as a pass. A red e2e is a blocker, so it goes in `failures`; one that will not run
          goes in `unresolved_needs`; either way it belongs in the verdict prose with its counts. When
          `e2e` is null this node wants no e2e run at all and reports nothing about it — silence here
          means "not wanted", which is not the same fact as "could not run".
@@ -469,14 +470,15 @@ nodes:
            - Python `pass` as a whole statement
            - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
       3. Coverage. When `$bootstrap.output.coverage_threshold` is non-null, run the `coverage` key of
-         `$bootstrap.output.sdlc_needs` and compare the total against the threshold, then set
-         and compare the total against the threshold. A figure under it is a blocker for `failures`; a
-         null `coverage` key, or one whose command will not run, goes in `unresolved_needs`; the figure
-         itself belongs in the verdict prose. When no threshold is configured this node wants no
-         coverage figure and reports nothing about it.
-      4. Print a verdict block. PASSED means exactly what step 5's rule means — do not restate the
-         conditions here in different words, name them once and by the same names:
-           verification: PASSED ✓    (test green, no stubs, every optional check reported is green)
+         `$bootstrap.output.sdlc_needs` and compare the total against that threshold. A figure under it
+         is a blocker for `failures`; a null `coverage` key, or one whose command will not run, goes in
+         `unresolved_needs`; the figure itself belongs in the verdict prose. A run that reports 0%, or
+         no covered files at all, goes in the prose as **suspicious** rather than as a figure — that is
+         the shape a coverage command pointed at the wrong target takes. When no threshold is
+         configured this node wants no coverage figure and reports nothing about it.
+      4. Print a verdict block. PASSED means exactly what step 5's rule means, so cite that rule rather
+         than paraphrasing it — a gloss in other words drifts from the rule it glosses:
+           verification: PASSED ✓    (none of step 5's (a), (b) or (c) is true)
          or
            verification: FAILED ✗ — <the specific failures>
          Name each need that came back "unresolved" in the block too, so the prose a human reads at

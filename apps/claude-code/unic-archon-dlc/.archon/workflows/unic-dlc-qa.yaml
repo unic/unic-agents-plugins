@@ -189,6 +189,8 @@ nodes:
         · the key is null, or its command will not run → "unresolved"
         · exit 0 → "pass"
         · non-zero → "fail"; include the failing tests in `summary`
+      A "pass" reporting ZERO tests goes in `summary` as **suspicious** rather than as a green result —
+      that is the shape a command declared against the wrong target takes.
       This node exists to run the end-to-end suite, so it always WANTS one: a null key is "unresolved",
       never a skip. Unresolved is non-blocking here — only the test floor holds the merge — but it is
       reported, because an absent result and a green result are not the same fact.
@@ -204,7 +206,8 @@ nodes:
       required: [result, summary]
 
   # ---------------------------------------------------------------------------------------------
-  # coverage-gate — enforce the coverage threshold if one is configured; skip cleanly otherwise.
+  # coverage-gate — enforce the coverage threshold against a declared coverage command. It wants a
+  # figure always, so a null on either is `unresolved`, never a skip — `skip` left this enum with #430.
   # Reports a verdict like e2e (fail-closes the merge `when`, never hard-fails the run).
   # ---------------------------------------------------------------------------------------------
   - id: coverage-gate
@@ -229,6 +232,8 @@ nodes:
           "unresolved"
         · figure ≥ threshold → result "pass"
         · figure < threshold, or the command exits non-zero → result "fail"
+      A run reporting 0%, or no covered files at all, goes in `summary` as **suspicious** rather than as
+      a figure — that is the shape a coverage command pointed at the wrong target takes.
       This node exists to gate on coverage, so it always WANTS a figure: a null key or a null threshold
       is "unresolved", never a skip. Unresolved is non-blocking here — only the test floor holds the
       merge — but it is reported, because a threshold nobody could measure against is not a pass.
