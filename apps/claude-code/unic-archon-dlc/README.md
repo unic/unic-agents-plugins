@@ -1,6 +1,7 @@
 # unic-archon-dlc
 
-A config-driven AI development lifecycle, installable as a Claude Code plugin. It is a **Harness** —
+A config-driven Harness for the **SDLC** — the AI development lifecycle — installable as a Claude Code
+plugin. It is a **Harness** —
 it owns the box set below, plus isolation, gates, config and integrity — and **composes the team's
 system-skills** (tracker, docs, design) for the _how_, so nothing about ADO / Jira / GitHub /
 Confluence / Figma is baked in. Procedure belongs to the **Methods** it hosts
@@ -183,12 +184,28 @@ The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.ya
 | `gates.{build,qa,pr-review,explore}`                     | `hitl`                 | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL                                                                                                                       |
 | `build.fresh_context_red_green`                          | `true`                 | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)                                                                                                                              |
 | `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`                 | `true` · `false`                              | Build discipline toggles                                                                                                                                                              |
-| `build.e2e_command`                                      | `null`                 | shell command string                          | Full e2e suite command                                                                                                                                                                |
 | `build.coverage_threshold`                               | `null`                 | number (0–100) or `null`                      | Minimum % coverage; `null` skips the check                                                                                                                                            |
+| `sdlc_needs.install`                                     | `null`                 | shell command string                          | Installs this project's dependencies. Every Box runs it once, at `bootstrap`                                                                                                          |
+| `sdlc_needs.build`                                       | `null`                 | shell command string                          | Builds the project. No node reads it yet — see the note below the table                                                                                                               |
+| `sdlc_needs.test`                                        | `null`                 | shell command string                          | Runs the test suite. The one need that is mandatory: `/qa`'s merge gate and `/build`'s evidence verdict require an outcome for it                                                     |
+| `sdlc_needs.e2e`                                         | `null`                 | shell command string                          | Runs the end-to-end suite. Read by `/qa`'s `e2e` node and by `/build`'s `verification`                                                                                                |
+| `sdlc_needs.lint`                                        | `null`                 | shell command string                          | Lints the project. No node reads it yet — see the note below the table                                                                                                                |
+| `sdlc_needs.format`                                      | `null`                 | shell command string                          | Formats the project. No node reads it yet — see the note below the table                                                                                                              |
+| `sdlc_needs.typecheck`                                   | `null`                 | shell command string                          | Type-checks the project. Read by `/build`'s per-slice GREEN phase                                                                                                                     |
+| `sdlc_needs.dev`                                         | `null`                 | shell command string                          | Starts the development server. No node reads it yet — see the note below the table                                                                                                    |
+| `sdlc_needs.coverage`                                    | `null`                 | shell command string                          | Produces a coverage figure, compared against `build.coverage_threshold`                                                                                                               |
 | `estimations`                                            | `off`                  | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                                                                                                                                           |
 | `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                                                                    |
 | `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                                                                                |
 | `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                                                                         |
+
+**Every `sdlc_needs` key names a need of the development process, never a tool.** `test` is the need;
+whichever runner a project uses is the tool that serves it, and no Box names one. A `null` value means the
+project declares no command for that need: a node that wants it reports an **unresolved** check, which is
+never read as a pass. Four keys — `build`, `lint`, `format` and `dev` — have no node reading them today and
+are declared anyway, because `/setup` writes this file once and thereafter only reports on it, so a key
+added later costs a `reconfigure` in every project that already has one. A key with no reader is intended,
+not a gap.
 
 ### The tracker contract
 

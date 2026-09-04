@@ -17,7 +17,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 ## What this workflow does
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
-   (`artifacts_dir`, `gates.build`, `build.*`, `project.branching`) and confirm `issues.json` exists.
+   (`artifacts_dir`, `gates.build`, `build.*`, `project.branching`, and the whole `sdlc_needs` block)
+   and confirm `issues.json` exists. It also runs `sdlc_needs.install` once for the whole run and
+   reports whether it did.
    It resolves **no** repository: `docs/agents/issue-tracker.md` § Addressing names it, and the nodes
    that reach the tracker read that file themselves. Missing preconditions cancel cleanly with a
    "run /tickets first" message.
@@ -40,14 +42,18 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    There is no REFACTOR phase: the `tdd` Method puts refactoring in the review stage, so it reaches
    the code through `/unic-archon-dlc:pr-review`'s Standards axis instead (ADR-0023 §7, #281).
 
-4. **verification** — full test suite + a stub scan (TODO/FIXME/empty-return/`pass`) on the diff, plus
-   the coverage threshold if configured.
+4. **verification** — the `sdlc_needs.test` suite, the `sdlc_needs.e2e` suite when that key is
+   declared, a stub scan (TODO/FIXME/empty-return/`pass`) on the diff, and `sdlc_needs.coverage`
+   against the threshold when one is configured. Each need reports `pass`, `fail` or `unresolved`, and
+   a need the project does not declare is `unresolved` — never a pass.
 
 5. **goals-check** — a coverage matrix mapping every PRD/issue acceptance criterion to test +
    implementation evidence.
 
-6. **evidence** — writes `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check`
-   both report `passed: true` with an empty `failures` list, and mirrors it to
+6. **evidence** — prints a three-state verdict (`pass` / `fail` / `unresolved`) as JSON, and writes
+   `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check` both report
+   `passed: true` with an empty `failures` list **and** the test outcome is `pass`. An unresolved test
+   is not an absence of failures. It mirrors the file to
    `<artifacts_dir>/<slug>/evidence.json`. The workflow-level `evidence_policy: { required: true }`
    refuses terminal `completed` when that file is absent, so a red suite or an uncovered acceptance
    criterion fails the run closed. A script node, never a prompt
@@ -55,8 +61,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    to `report` and `open-pr` on a withheld verdict, so you get the report and the PR — it is the run
    _status_ the engine refuses.
 
-7. **report** — writes `<artifacts_dir>/<slug>/report.md` (what was built, matrix, test outcomes,
-   decisions/ADRs, tech debt).
+7. **report** — writes `<artifacts_dir>/<slug>/report.md`, led by a block naming every check that came
+   back `unresolved` and whether an install ran, then what was built, the matrix, test outcomes,
+   decisions/ADRs and tech debt.
 
 8. **open-pr → build-pr-gate** — stages an explicit list of **named paths** (source, tests, `PRD.md`,
    `issues.json`, `report.md`, `build-state.json`, `evidence.json` when the gate wrote it, and any

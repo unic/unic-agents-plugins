@@ -1,6 +1,7 @@
 # unic-archon-dlc
 
-A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
+A **Harness** for the **SDLC** — the AI development lifecycle it runs; one term, one gloss, see the
+entry below. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
 off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`; + `/handoff` — Matt's,
 referenced) and **composes the
@@ -15,6 +16,16 @@ Requires the Archon workflow engine (version ≥ 0.7.0) in the target project.
 ## Language
 
 ### Architecture
+
+**SDLC**:
+The software development lifecycle — idea to production across Plan, Design, Build, Test, Deploy and
+Maintain. It is the concept the box set runs, and **it is the term**: "AI development lifecycle" is
+its gloss here, used where a first-time reader needs one, never as a second name for a second thing.
+Taken from Anthropic's _The AI-Native SDLC playbook_
+(<https://claude.com/blog/the-ai-native-sdlc-playbook>), which also names the build, test and lint
+commands and the linting, formatting and type-checking that **sdlc_needs** below declares. Of the six
+phases, Build and Test are the ones this Plugin's boxes carry; the other four earn no entry here.
+_Avoid_: treating "SDLC" and "AI development lifecycle" as two concepts; ADLC; dev lifecycle
 
 **Harness**:
 What the DLC is to a Method: the owner of everything outside the procedure. See
@@ -53,6 +64,18 @@ holding the gates, the per-Box knobs, the docs and design system-skills, and the
 **no tracker facts**: those are the Tracker contract below. See
 `docs/adr/0018-generic-core-config-compose.md`.
 _Avoid_: config.json (the retired thin form), tracker config
+
+**sdlc_needs**:
+The flat block in **config.yaml** declaring what this project's development process needs, as nine
+nullable keys: `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage`.
+**A key names a need, never a tool** — `test` is the need, and whichever runner the project uses is
+the tool that serves it, which no Box names. `null` means the project declares no command for that
+need, and a node that wants it reports an **unresolved** check rather than a pass. A key no node reads
+is intended, not a gap: the block declares what a project can do, and a node reaches for whichever
+need it has at run time. See `docs/adr/0037-config-declares-sdlc-needs.md`.
+_Avoid_: commands (taken twice — by **Claude Code slash command** and by **Archon workflow command
+template**), toolchain (it would name what a need resolves _to_, the opposite of the block's own
+rule), capabilities (taken by **System-skill**), lifecycle_needs
 
 **Tracker contract**:
 The two repo-local prose files a Box reads instead of asking config for a host word:

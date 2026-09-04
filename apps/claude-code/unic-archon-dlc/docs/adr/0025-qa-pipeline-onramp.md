@@ -1,12 +1,6 @@
 # 0025. `/qa` is an Archon pipeline with two config-gated approvals and an issue-producing on-ramp
 
-**Status:** Accepted (2026-07-02); amended 2026-08-18 — see the note below.
-
-> **Amended (2026-08-18):** where this ADR says a Box resolves a role through `classification.labels`,
-> or names the tracker through `tracker.access` / `tracker.coords`, read
-> `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` instead. Those two repo-local files
-> are the tracker contract now, and each role carries its own axis. See
-> [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18 amendment (#389).
+**Status:** Accepted (2026-07-02, revised 2026-09-04)
 
 ## Context
 
@@ -44,18 +38,22 @@ user ([ADR-0011](0011-archon-schema-target.md) §2). Following [ADR-0023](0023-b
 Artefact paths are `<artifacts_dir>/<slug>/` ([ADR-0015](0015-workflows-slug-artifact-home.md)). The QA
 baton is `<artifacts_dir>/<slug>/PRD.md` (the acceptance criteria) plus `report.md` if present.
 
-`e2e` and `coverage-gate` **report a verdict** (`pass|fail|skip`) rather than hard-failing: a missing
-`e2e_command` or `coverage_threshold` **skips with a warning** (generic-installable friendly), and a
-real failure is surfaced at UAT and fail-closes the merge (below) — it does not abort the run before the
-human sees it.
+`test`, `e2e` and `coverage-gate` **report a verdict** (`pass|fail|unresolved`) rather than hard-failing:
+a need this project does not declare is `unresolved`, and a real failure is surfaced at UAT and
+fail-closes the merge (below) rather than aborting the run before the human sees it. `skip` left that
+enum with [ADR-0037](0037-config-declares-sdlc-needs.md): each of these nodes exists to run one need, so
+it always wants it, and an absent result is not a skipped one. `test` is new with that decision — before
+it, this Box ran no test suite at all.
 
-### 2. Test config: a `qa` block that falls back to `build.*`
+### 2. Test config: one `sdlc_needs` block, and a `qa` coverage threshold that falls back to `build.*`
 
-A new `qa: { e2e_command, coverage_threshold }` block joins `defaultConfig()`, resolved as
-`qa.e2e_command ?? build.e2e_command` (and likewise for coverage) in `bootstrap`. This lets a team run a
-heavier QA suite than the unit tests `/build` runs, while defaulting to the same command. Both leaves
-default `null` (→ skip). `mergeConfig` auto-fills the block for configs that predate it, so **no
-`/setup` change is required** this step (same pattern as [ADR-0024](0024-triage-intake-on-ramp.md)).
+Every command this Box runs comes from the top-level `sdlc_needs` block
+([ADR-0037](0037-config-declares-sdlc-needs.md)): `test`, `e2e` and `coverage`, plus `install` at
+`bootstrap`. The per-Box `qa.e2e_command ?? build.e2e_command` tier this ADR introduced is **retired**.
+It let a team run a heavier QA suite than `/build`'s, but all four values were `null` in the only
+Consumer that existed, so nothing ever used the tier, and a tier nobody uses is a second place for a
+value to disagree with itself. What survives is `qa.coverage_threshold ?? build.coverage_threshold`,
+resolved in `bootstrap` — a threshold is a number, not a need, so it stays out of the block.
 
 ### 3. Two separate gates, both governed by `gates.qa`; AFK survives via `trigger_rule: all_done`
 
@@ -67,7 +65,10 @@ counts as terminal) so that in AFK mode (`gates.qa: afk`) the pipeline flows pas
 rejected build.
 
 The **merge node fail-closes** with
-`when: "$e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.base_ok == 'true'"`.
+`when: "$test.output.result == 'pass' && $e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.base_ok == 'true'"`.
+The asymmetry is the floor of [ADR-0037](0037-config-declares-sdlc-needs.md): `test` is the one need
+this gate cannot advance without, so an `unresolved` test holds the merge, while an unresolved e2e or
+coverage reports and lets it through.
 This guarantees a red e2e/coverage or a wrong PR base **never auto-merges**, in either HITL or AFK —
 the safety that `all_done` alone would not provide. `verify-pr-base` reports `base_ok` (a boolean in
 `output_format`) rather than exiting non-zero, keeping the merge guard in one declarative place.
@@ -79,9 +80,12 @@ turns each failing criterion into a tracker issue **directly** (a human is prese
 re-pauses (`max_attempts: 1`) so a second reject halts the run with the findings durably tracked. The
 issues are filed **`ready-for-agent`**, not `needs-triage`: the reviewer at the UAT gate has already
 vetted the defect, so a second `/triage` pass is redundant. Filing composes the configured tracker
-(MCP-first, CLI-fallback — [ADR-0016](0016-dlc-thin-process-layer.md)) and takes labels **only** from
-`classification.labels` (the single source of truth — [ADR-0024](0024-triage-intake-on-ramp.md); Matt's
-`docs/agents/*` are never read). The issue body follows the finding-capture brief shape (what happened /
+(MCP-first, CLI-fallback — [ADR-0016](0016-dlc-thin-process-layer.md)) and resolves every role through
+the **tracker contract**, `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`, where each
+role carries its own axis. Those two repo-local files replaced the config's `classification.labels` and
+its `tracker.access` / `tracker.coords` keys in #389; wherever an older reading of this ADR resolved a
+role or named a tracker through config, it reads those files now
+([ADR-0024](0024-triage-intake-on-ramp.md)). The issue body follows the finding-capture brief shape (what happened /
 expected / steps / blocked-by / context — no file paths, blocked-by honesty, prefer many thin issues) and carries
 the mandated `> *This was generated by AI during QA.*` disclaimer. Findings feed `/tickets` (or `/build`
 if already atomic), per PLAN #8.

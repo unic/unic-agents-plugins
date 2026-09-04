@@ -66,7 +66,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                                  |
 | 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281, #381)             |
 | 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296, #389)             |
-| 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (amended #389)                   |
+| 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (2026-07-02, revised 2026-09-04) |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281, 2026-08-24)       |
 | 0027 | `/improve-architecture` is a skill composing Matt's method + owns ADR superseding          | Accepted                                  |
 | 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted (amended #389)                   |
@@ -75,6 +75,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0031 | Methods are bundled, the plugin version is the pin, resolution is one path                 | Accepted (amended #381)                   |
 | 0032 | Vocabulary: Box, Method, Bundle; config is parameters, a Method is procedure               | Accepted (amended #389, #381)             |
 | 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted (amended #389, #396)             |
-| 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted                                  |
+| 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted (2026-08-10, revised 2026-09-04) |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted (amended #381, #396)             |
 | 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295, #381)             |
+| 0037 | The config declares the SDLC's needs; the Plugin names no tool                             | Accepted                                  |

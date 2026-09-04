@@ -37,8 +37,8 @@ nodes:
       2. Read `.archon/unic-dlc.config.yaml` at the repo root.
          - If it is absent or unreadable → status "no-config".
          - Otherwise read: `artifacts_dir` (default "workflows"), `gates.build` (default "hitl"),
-           `build.e2e_command` (may be null), `build.coverage_threshold` (may be null),
-           `project.branching` (default "gitflow").
+           `build.coverage_threshold` (may be null), `project.branching` (default "gitflow"), and the
+           whole `sdlc_needs` block.
       3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
          - If it is absent → status "no-issues".
       4. If slug, config, and issues.json are all present → status "ready".
@@ -47,9 +47,31 @@ nodes:
       Emit it in EVERY branch (fall back to "develop" when config cannot be read) — the
       implement-review-precheck node pins its code-review fixed point to it.
 
-      Emit ONLY the structured object. `test_command` is the repo default test command you can infer
-      (e.g. "pnpm test") for the verification node; leave it null if you cannot infer one. Emit every
-      required field in every branch, so the object validates before a guard can cancel.
+      ## The `sdlc_needs` block — a key names a need, never a tool
+      Every key in it names a NEED of this project's development process. `test` names the need;
+      whichever runner this project uses is the tool that serves it, and this Box names none. Pass the
+      block downstream as ONE object, exactly as you read it, adding and removing no key and rewriting
+      no value. Infer nothing: a need the block leaves null stays null, and becomes an unresolved check
+      further down, which is honest — a fabricated command produces a result that means nothing. Where
+      the config carries no `sdlc_needs` block at all, emit the object with all nine keys null.
+
+      ## Install once, and say what you did
+      One Archon worktree serves this whole run, including the RED and GREEN fresh contexts inside it,
+      and it may or may not already carry this project's dependencies. So install here, once, and
+      nowhere else. When status is "ready", run `sdlc_needs.install` from the repo root if it is
+      declared, and set `install_report` to:
+        - declared, exit 0     → "ran the declared install command: ok"
+        - declared, non-zero   → "ran the declared install command: FAILED — <what it printed>"
+        - not declared         → "sdlc_needs.install is not declared, so nothing was installed.
+                                  Dependencies may still be present in this worktree by chance, and a
+                                  later green check here is not proof of a deliberately built
+                                  environment."
+      A failed install does not fail this node — report it and carry on, so the failure reaches a human
+      through the report rather than killing the run. On any status other than "ready", set
+      `install_report` to "not attempted (<status>)".
+
+      Emit ONLY the structured object. Emit every required field in every branch, so the object
+      validates before a guard can cancel.
     output_format:
       type: object
       properties:
@@ -61,12 +83,24 @@ nodes:
         gate:
           type: string
           enum: [hitl, afk]
-        e2e_command: { type: [string, 'null'] }
         coverage_threshold: { type: [number, 'null'] }
-        test_command: { type: [string, 'null'] }
+        sdlc_needs:
+          type: object
+          properties:
+            install: { type: [string, 'null'] }
+            build: { type: [string, 'null'] }
+            test: { type: [string, 'null'] }
+            e2e: { type: [string, 'null'] }
+            lint: { type: [string, 'null'] }
+            format: { type: [string, 'null'] }
+            typecheck: { type: [string, 'null'] }
+            dev: { type: [string, 'null'] }
+            coverage: { type: [string, 'null'] }
+          required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
+        install_report: { type: string }
         expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, expected_base, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). One
@@ -291,8 +325,14 @@ nodes:
           the committed test + the slice INTENT.
           1. Write the MINIMUM implementation to make the committed test pass, per `implement` and
              `tdd`'s "red before green / one slice at a time" rules: no speculative features, no
-             extra abstractions, no unrelated files. Run typechecking and the single test file as you
-             go, as `implement` prescribes.
+             extra abstractions, no unrelated files. Type-check and run the single test file as you
+             go, as `implement` prescribes. Type-check with the `typecheck` key of
+             `$bootstrap.output.sdlc_needs`. **A key in that block names a NEED of this project's
+             development process, never a tool** — so run exactly the command it holds, and where it
+             is null, or its command will not run, record the type-check as **unresolved** in this
+             iteration's `notes` and carry on. Never fabricate a command to fill a null key: this loop
+             is not a gate, an unresolved check here stops nothing, and a guessed command reports a
+             result that means nothing.
           2. Run `test_command`. It MUST now pass (exit 0). If it does not, iterate on the impl only
              (never weaken the test) until green, within this iteration.
           3. Stage the implementation file(s) BY NAME per Step 2.5 and commit:
@@ -399,15 +439,34 @@ nodes:
     prompt: |
       You are the verification node of /build for slug "$bootstrap.output.slug".
 
-      1. Run the full test suite: use `$bootstrap.output.e2e_command` if non-null, else
-         `$bootstrap.output.test_command`, else `pnpm test`. Report pass/fail counts.
+      ## A key names a need, never a tool
+      `$bootstrap.output.sdlc_needs` carries the commands this project declared. Read the key you want
+      and run exactly that command. Fabricate nothing for a key that is null, append no flag of your own
+      to a key that is set, and name no tool anywhere in this node: a need this project does not declare
+      is an **unresolved** check, and unresolved is never a pass.
+
+      1. Run the test suite: the `test` key of `$bootstrap.output.sdlc_needs`, from the repo root.
+         Report pass/fail counts and set `test_outcome`:
+           · the key is null, or the command will not run → "unresolved"
+           · exit 0 → "pass"
+           · non-zero → "fail"
+         A "pass" that reports ZERO tests goes in the verdict as **suspicious**, never as a green
+         result — that is the shape a command declared against the wrong target takes.
+      1b. Run the end-to-end suite as well when the `e2e` key is declared, and set `e2e_outcome` by the
+         same three states. This is IN ADDITION to step 1, never instead of it. When `e2e` is null this
+         node wants no e2e run at all, so omit `e2e_outcome` rather than reporting a state for a check
+         nobody asked for.
       2. Stub scan — inspect the diff against the base branch
          (`git diff --name-only $BASE_BRANCH...HEAD`, source files only:
          .mjs/.js/.ts/.py/.rb/.go/.rs). Flag any of these left in changed source:
            - `TODO` / `FIXME` comments
            - Python `pass` as a whole statement
            - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
-      3. If `$bootstrap.output.coverage_threshold` is non-null, run coverage and compare.
+      3. Coverage. When `$bootstrap.output.coverage_threshold` is non-null, run the `coverage` key of
+         `$bootstrap.output.sdlc_needs` and compare the total against the threshold, then set
+         `coverage_outcome`: "unresolved" when the key is null or its command will not run, "pass" when
+         the figure meets the threshold, "fail" when it does not. When no threshold is configured this
+         node wants no coverage figure, so omit `coverage_outcome`.
       4. Print a verdict block:
            verification: PASSED ✓    (tests green, no stubs, coverage ≥ threshold)
          or
@@ -417,8 +476,12 @@ nodes:
          report node reads, so it must stand alone. Then set a `passed` boolean (true only if the
          suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
          and a `failures` array of short strings, one per distinct failure. List blockers ONLY in
-         `failures` — never a non-blocking note. The prose is for the human at build-pr-gate; the
-         `evidence` node reads `passed` and `failures` and withholds on either signal, and
+         `failures` — never a non-blocking note. Set `passed` false whenever `test_outcome` is not
+         "pass": an unresolved suite is not an absence of failures. Name every need that came back
+         "unresolved" in `unresolved_needs`, so a reader learns WHICH check could not run. The prose is
+         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
+         us plus `verification`'s three-state `test_outcome`, treats a test that is not "pass" as red
+         whatever the booleans say, and withholds on any of those signals, and
          `evidence_policy` then gates on the file that node writes.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
     output_format:
@@ -429,7 +492,19 @@ nodes:
         failures:
           type: array
           items: { type: string }
-      required: [verdict, passed, failures]
+        test_outcome:
+          type: string
+          enum: [pass, fail, unresolved]
+        e2e_outcome:
+          type: string
+          enum: [pass, fail, unresolved]
+        coverage_outcome:
+          type: string
+          enum: [pass, fail, unresolved]
+        unresolved_needs:
+          type: array
+          items: { type: string }
+      required: [verdict, passed, failures, test_outcome, unresolved_needs]
 
   # ---------------------------------------------------------------------------------------------
   - id: goals-check
@@ -456,8 +531,10 @@ nodes:
          field is what the report node pastes verbatim, so the matrix must be inside it. Then set a
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
          short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
-         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` and
-         withholds on either signal, and `evidence_policy` then gates on the file that node writes.
+         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
+         us plus `verification`'s three-state `test_outcome`, treats a test that is not "pass" as red
+         whatever the booleans say, and withholds on any of those signals, and
+         `evidence_policy` then gates on the file that node writes.
     output_format:
       type: object
       properties:
@@ -535,8 +612,35 @@ nodes:
       const verificationGreen = verificationPassed === true && verificationFailures.length === 0
       const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
 
-      if (!verificationGreen || !goalsCheckGreen) {
-        console.log(`evidence: withholding — verification(passed=${verificationPassed}, failures=${verificationFailures.length}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+      // A check that could not run is `unresolved`, and unresolved is never a pass: an absent result
+      // and a green result are not the same fact (#430). `test` is the only need whose outcome is
+      // mandatory here — every other need reports and none of them holds this gate.
+      const testOutcome = '$verification.output.test_outcome'
+      const unresolvedNeeds = $verification.output.unresolved_needs
+
+      // Three states in precedence order: a real failure is `fail`; a floor check that could not run
+      // is `unresolved`; only two green verdicts with a passing test are `pass`. The unresolved branch
+      // is tested FIRST because `verificationGreen` is already false whenever the test is unresolved —
+      // verification sets `passed` false for it — so testing green first would report an absent result
+      // as a failure.
+      let verdictState
+      if (testOutcome === 'unresolved' && verificationFailures.length === 0 && goalsCheckGreen) {
+        verdictState = 'unresolved'
+      } else if (verificationGreen && goalsCheckGreen && testOutcome === 'pass') {
+        verdictState = 'pass'
+      } else {
+        verdictState = 'fail'
+      }
+
+      // PRINT the verdict as JSON: a `script:` node has no `output_format`, so only what this node
+      // writes to stdout resolves downstream. Nothing reads it yet — the `when:` that will consume it
+      // belongs to the ticket that makes this file unconditional, and a field with no reader here is
+      // that hand-off, not an oversight (#430 criterion 8).
+      console.log(JSON.stringify({ verdict: verdictState, test_outcome: testOutcome, unresolved_needs: unresolvedNeeds }))
+
+      if (verdictState !== 'pass') {
+        console.log(`evidence: withholding — verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+        if (unresolvedNeeds.length > 0) console.log(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
         process.exit(0)
       }
 
@@ -545,6 +649,9 @@ nodes:
       // fields the gate checked rather than having to know which fields it consulted.
       const evidence = {
         slug: '$bootstrap.output.slug',
+        verdict: verdictState,
+        test_outcome: testOutcome,
+        unresolved_needs: unresolvedNeeds,
         verification_failures: verificationFailures,
         goals_check_failures: goalsCheckFailures,
       }
@@ -565,15 +672,23 @@ nodes:
     prompt: |
       You are the report node of /build for slug "$bootstrap.output.slug".
 
-      Write `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md` with exactly five
+      Write `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md` with exactly six
       sections:
-        1. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
+        1. Checks That Could Not Run — its own section, first, and present even when it is empty. As a
+           list, never as prose in another section:
+             - one line per need in `$verification.output.unresolved_needs`, naming the need;
+             - `$bootstrap.output.install_report`, verbatim.
+           Write "every declared check ran" when `unresolved_needs` is empty. A check that could not
+           run is the fact a reader skims past when it is a sentence inside a paragraph, which is why
+           it is a block of its own and why it goes above what was built.
+        2. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
            If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
            criteria — see matrix below."
-        2. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
-        3. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
-           skipped/flaky.
-        4. Decisions Made — technical decisions worth recording; for each significant one, draft an
+        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
+        4. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
+           skipped/flaky. A need reported "unresolved" belongs in section 1, not here — this section
+           carries what ran.
+        5. Decisions Made — technical decisions worth recording; for each significant one, draft an
            ADR inline (docs/adr/NNNN-<slug>.md) for review. Also fold in, verbatim:
              - `$implement-review-precheck.output.findings` — the local code-review pre-check's
                `## Standards` / `## Spec` axes. Label the subsection "Local code-review pre-check (not
@@ -581,7 +696,7 @@ nodes:
              - every `seam chosen: <issue-id> — <seam>` line in build-state.json's per-slice `notes`.
                These are the seams an agent picked for `test_command_planned` slices, with no human
                approval on record — list them so /pr-review and /improve-architecture can audit them.
-        5. Tech Debt Flagged — accepted stubs, known limits, shortcuts (feed into /cleanup).
+        6. Tech Debt Flagged — accepted stubs, known limits, shortcuts (feed into /cleanup).
       Print: "report written to $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md".
 
   # ---------------------------------------------------------------------------------------------
