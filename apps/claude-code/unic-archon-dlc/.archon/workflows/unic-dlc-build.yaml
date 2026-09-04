@@ -50,10 +50,15 @@ nodes:
       ## The `sdlc_needs` block — a key names a need, never a tool
       Every key in it names a NEED of this project's development process. `test` names the need;
       whichever runner this project uses is the tool that serves it, and this Box names none. Pass the
-      block downstream as ONE object, exactly as you read it, adding and removing no key and rewriting
-      no value. Infer nothing: a need the block leaves null stays null, and becomes an unresolved check
-      further down, which is honest — a fabricated command produces a result that means nothing. Where
-      the config carries no `sdlc_needs` block at all, emit the object with all nine keys null.
+      block downstream as ONE object carrying ALL NINE keys — `install`, `build`, `test`, `e2e`, `lint`,
+      `format`, `typecheck`, `dev`, `coverage` — every time. Copy each value the config sets verbatim:
+      rename nothing, rewrite nothing, infer nothing. Emit `null` for every key the config omits. A
+      config may carry a partial block, or none at all, and both are normal — a tenant hand-edits this
+      file and a key added by a later release reaches them only at their next `reconfigure`. What is
+      never allowed is emitting fewer than nine keys: this node's schema requires all of them, so a
+      short object fails validation and aborts the run before a guard can cancel it cleanly. A key that
+      arrives null stays null and becomes an unresolved check further down, which is honest — a
+      fabricated command produces a result that means nothing.
 
       ## Install once, and say what you did
       One Archon worktree serves this whole run, including the RED and GREEN fresh contexts inside it,
@@ -481,8 +486,10 @@ nodes:
          "unresolved" goes in `unresolved_needs` and NEVER in `failures`**, however blocking it feels.
          `failures` means something ran and was red; an empty `failures` beside a non-"pass"
          `test_outcome` is exactly how `evidence` tells a check that could not run apart from one that
-         failed, and putting the need in both collapses its three states back into two. The prose is
-         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
+         failed, and putting the need in both collapses its three states back into two. **Emit
+         `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
+         requires the field, so omitting it aborts the run instead of reporting a clean result. The
+         prose is for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
          us plus `verification`'s three-state `test_outcome`, treats a test that is not "pass" as red
          whatever the booleans say, and withholds on any of those signals, and
          `evidence_policy` then gates on the file that node writes.

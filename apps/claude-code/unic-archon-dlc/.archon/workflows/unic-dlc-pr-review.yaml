@@ -50,9 +50,15 @@ nodes:
       ## The `sdlc_needs` block — a key names a need, never a tool
       Every key in it names a NEED of this project's development process. `test` names the need;
       whichever runner this project uses is the tool that serves it, and this Box names none. Pass the
-      block downstream as ONE object, exactly as you read it, adding and removing no key and rewriting
-      no value. Where the config carries no `sdlc_needs` block, emit the object with all nine keys
-      null. **This Box executes none of these commands by instruction** (ADR-0026): it carries the
+      block downstream as ONE object carrying ALL NINE keys — `install`, `build`, `test`, `e2e`, `lint`,
+      `format`, `typecheck`, `dev`, `coverage` — every time. Copy each value the config sets verbatim:
+      rename nothing, rewrite nothing, infer nothing. Emit `null` for every key the config omits. A
+      config may carry a partial block, or none at all, and both are normal — a tenant hand-edits this
+      file, and a key added by a later release reaches them only at their next `reconfigure`. What is
+      never allowed is emitting fewer than nine keys: this node's schema requires all of them, so a
+      short object fails validation and aborts the run before a guard can cancel it cleanly. A key that
+      arrives null stays null and becomes an unresolved check further down, which is honest — a
+      fabricated command reports a result that means nothing. **This Box executes none of these commands by instruction** (ADR-0026): it carries the
       block so that `reconcile` can tell the reader which checks the project has and this review did
       not run.
 
