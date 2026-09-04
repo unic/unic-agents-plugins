@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.28.0] — 2026-09-04
+
+### Breaking
 - The config's `build.e2e_command` and `qa.e2e_command` keys are removed, replaced by the single `sdlc_needs.e2e`. A project that already has a config must run `/unic-archon-dlc:setup reconfigure` to gain the new block; until it does, every need reads as null, every check reports `unresolved`, and the two gates that advance work hold.
 - `/qa`'s `e2e` and `coverage-gate` nodes no longer report `skip`. Their `result` enum is `pass | fail | unresolved`, and `/qa`'s merge `when:` now also requires a passing `test` result.
 
