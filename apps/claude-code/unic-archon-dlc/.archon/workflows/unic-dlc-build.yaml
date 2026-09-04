@@ -485,8 +485,13 @@ nodes:
            verification: PASSED ✓    (none of step 5's (a), (b) or (c) is true)
          or
            verification: FAILED ✗ — <the specific failures>
-         Name each need that came back "unresolved" in the block too, so the prose a human reads at
-         build-pr-gate says which checks did not run rather than leaving that to the report node.
+         or
+           verification: UNRESOLVED — <the needs that could not run>
+         Three labels, because there are three states and the human at build-pr-gate is the reader who
+         most needs them apart: print UNRESOLVED when nothing failed and the test simply could not run.
+         Printing FAILED there puts a red word beside an empty list of failures. Name each need that
+         came back "unresolved" in the block whichever label it carries, so this prose says which
+         checks did not run rather than leaving that to the report node.
       5. Return the verdict block from step 4, plus everything you found worth reporting (counts,
          coverage figure, the stub list), as the `verdict` string — that field is the prose the
          report node reads, so it must stand alone. Then set a `passed` boolean and a
@@ -513,9 +518,10 @@ nodes:
          need in both collapses its three states back into two. **Emit
          `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
          requires the field, so omitting it aborts the run instead of reporting a clean result. The
-         prose is for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
-         us plus `verification`'s three-state `test_outcome`, refuses to certify on a test that is not
-         "pass" whatever the booleans say — keeping `unresolved` and `fail` apart in its own verdict, and withholds on any of those signals, and
+         prose is for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
+         of us, plus `verification`'s three-state `test_outcome`, and withholds unless both verdicts
+         are green AND that test outcome is "pass"; its own verdict keeps `unresolved` and `fail`
+         apart rather than calling both red, and
          `evidence_policy` then gates on the file that node writes.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
     output_format:
@@ -559,9 +565,10 @@ nodes:
          field is what the report node pastes verbatim, so the matrix must be inside it. Then set a
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
          short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
-         for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
-         us plus `verification`'s three-state `test_outcome`, refuses to certify on a test that is not
-         "pass" whatever the booleans say — keeping `unresolved` and `fail` apart in its own verdict, and withholds on any of those signals, and
+         for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
+         of us, plus `verification`'s three-state `test_outcome`, and withholds unless both verdicts
+         are green AND that test outcome is "pass"; its own verdict keeps `unresolved` and `fail`
+         apart rather than calling both red, and
          `evidence_policy` then gates on the file that node writes.
     output_format:
       type: object
