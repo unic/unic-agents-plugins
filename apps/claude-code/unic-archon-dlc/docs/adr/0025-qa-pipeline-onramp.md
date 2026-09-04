@@ -33,7 +33,7 @@ Two step-doc references were stale and are corrected here:
 merge-gate → merge`, with `interactive: true` at the workflow level so both approval messages reach the
 user ([ADR-0011](0011-archon-schema-target.md) §2). Following [ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5,
 `bootstrap` is a `prompt:` node with `output_format` (it parses the slug from `$ARGUMENTS`, reads
-`.archon/unic-dlc.config.yaml`, emits scalars); every node that touches config/tracker/repo context is a
+`.archon/unic-dlc.config.yaml`, emits the `sdlc_needs` object alongside its scalars); every node that touches config/tracker/repo context is a
 `prompt:` node reading files with its own tools — **no plugin-`lib/` import, no `$CLAUDE_PLUGIN_ROOT`**.
 Artefact paths are `<artifacts_dir>/<slug>/` ([ADR-0015](0015-workflows-slug-artifact-home.md)). The QA
 baton is `<artifacts_dir>/<slug>/PRD.md` (the acceptance criteria) plus `report.md` if present.

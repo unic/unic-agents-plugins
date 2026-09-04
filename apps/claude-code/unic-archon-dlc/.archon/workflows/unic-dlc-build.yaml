@@ -58,8 +58,9 @@ nodes:
       file and a key added by a later release reaches them only at their next `reconfigure`. What is
       never allowed is emitting fewer than nine keys: this node's schema requires all of them, so a
       short object fails validation and aborts the run before a guard can cancel it cleanly. A key that
-      arrives null stays null and becomes an unresolved check further down, which is honest — a
-      fabricated command produces a result that means nothing.
+      arrives null stays null. What happens next depends on the node: one that wants that need reports
+      an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
+      a command — a guessed command reports a result that means nothing.
 
       ## Install once, and say what you did
       One Archon worktree serves this whole run, including the RED and GREEN fresh contexts inside it,
@@ -459,8 +460,10 @@ nodes:
          A "pass" that reports ZERO tests goes in the verdict as **suspicious**, never as a green
          result — that is the shape a command declared against the wrong target takes.
       1b. Run the end-to-end suite as well when the `e2e` key is declared. This is IN ADDITION to step
-         1, never instead of it. As in step 1, a green run reporting ZERO tests goes in the prose as
-         **suspicious** rather than as a pass. A red e2e is a blocker, so it goes in `failures`; one that will not run
+         1, never instead of it. Report its pass/fail counts in the verdict prose
+         whatever the result, as step 1 does — a green run carries the counts it reported, and one
+         reporting ZERO tests goes in the prose as **suspicious** rather than as a pass. A red e2e is a
+         blocker, so it goes in `failures`; one that will not run
          goes in `unresolved_needs`; either way it belongs in the verdict prose with its counts. When
          `e2e` is null this node wants no e2e run at all and reports nothing about it — silence here
          means "not wanted", which is not the same fact as "could not run".
@@ -511,8 +514,8 @@ nodes:
          `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
          requires the field, so omitting it aborts the run instead of reporting a clean result. The
          prose is for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
-         us plus `verification`'s three-state `test_outcome`, treats a test that is not "pass" as red
-         whatever the booleans say, and withholds on any of those signals, and
+         us plus `verification`'s three-state `test_outcome`, refuses to certify on a test that is not
+         "pass" whatever the booleans say — keeping `unresolved` and `fail` apart in its own verdict, and withholds on any of those signals, and
          `evidence_policy` then gates on the file that node writes.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
     output_format:
@@ -557,8 +560,8 @@ nodes:
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
          short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
          for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
-         us plus `verification`'s three-state `test_outcome`, treats a test that is not "pass" as red
-         whatever the booleans say, and withholds on any of those signals, and
+         us plus `verification`'s three-state `test_outcome`, refuses to certify on a test that is not
+         "pass" whatever the booleans say — keeping `unresolved` and `fail` apart in its own verdict, and withholds on any of those signals, and
          `evidence_policy` then gates on the file that node writes.
     output_format:
       type: object

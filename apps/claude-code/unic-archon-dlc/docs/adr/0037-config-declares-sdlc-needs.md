@@ -146,9 +146,10 @@ for a second purpose is exactly the drift this Plugin keeps filing defects about
   the list to count itself, because a number written beside a list drifts the first time a surface is
   added — which happened inside this very decision, when the prompts gained the enumeration. **An
   instruction is the exception**: a `bootstrap` prompt says "ALL NINE keys" on purpose, because a node
-  checking its own output needs a number to check against, and "emit them all" is not checkable. So a
-  tenth key changes six enumerations and three instructions, and the instructions are the ones that
-  must not be softened to avoid the count. This is the cost of the decision, and it is structural rather than careless: a
+  checking its own output needs a number to check against, and "emit them all" is not checkable. So a tenth key changes every
+  enumeration — each Box's schema, the README table, the `CONTEXT.md` entry, and `commands/setup.md`,
+  which enumerates them twice, once where Step 4 harvests them and once where Step 6 asks — plus the
+  three instructions, and the instructions are the ones that must not be softened to avoid the count. This is the cost of the decision, and it is structural rather than careless: a
   schema must enumerate, a table must document, a prompt must instruct. A tenth key must land in all
   six; one that lands in five surfaces as a Box rejecting an object that validates everywhere else. A
   generator would fix it and would be the module this Plugin's no-code rule exists to refuse.

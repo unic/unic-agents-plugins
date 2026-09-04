@@ -44,8 +44,10 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 
 4. **verification** — the `sdlc_needs.test` suite, the `sdlc_needs.e2e` suite when that key is
    declared, a stub scan (TODO/FIXME/empty-return/`pass`) on the diff, and `sdlc_needs.coverage`
-   against the threshold when one is configured. Each need reports `pass`, `fail` or `unresolved`, and
-   a need the project does not declare is `unresolved` — never a pass.
+   against the threshold when one is configured. `test` reports `pass`, `fail` or `unresolved`, and a
+   `test` the project does not declare is `unresolved` — never a pass. This node runs e2e and coverage
+   only when it has a reason to, so where it has none it reports nothing about them rather than calling
+   them unresolved: not wanted and could not run are different facts (ADR-0037 §5).
 
 5. **goals-check** — a coverage matrix mapping every PRD/issue acceptance criterion to test +
    implementation evidence.

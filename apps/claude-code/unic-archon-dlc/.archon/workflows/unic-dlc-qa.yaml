@@ -55,8 +55,9 @@ nodes:
       file, and a key added by a later release reaches them only at their next `reconfigure`. What is
       never allowed is emitting fewer than nine keys: this node's schema requires all of them, so a
       short object fails validation and aborts the run before a guard can cancel it cleanly. A key that
-      arrives null stays null and becomes an unresolved check further down, which is honest — a
-      fabricated command reports a result that means nothing.
+      arrives null stays null. What happens next depends on the node: one that wants that need reports
+      an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
+      a command — a guessed command reports a result that means nothing.
       There is no per-Box override any more: the retired `qa.e2e_command` / `build.e2e_command` pair is
       replaced by the single `sdlc_needs.e2e`, and a config still carrying those keys is ignored.
 

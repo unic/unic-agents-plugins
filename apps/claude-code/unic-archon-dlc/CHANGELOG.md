@@ -19,7 +19,7 @@
 
 ### Added
 - `sdlc_needs`, a flat config block of nine nullable keys — `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage` — declaring what a project's development process needs. A key names a need, never a tool. `/setup` proposes each value from the stack it detected and a human confirms it (ADR-0037).
-- Every Box installs once at `bootstrap` and reports whether it ran a declared install command or found none.
+- `/build`, `/qa` and `/pr-review` each install once at `bootstrap` and report whether they ran a declared install command or found none. `/explore` does not: it runs no check, so it has no dependencies to prepare.
 - A three-state outcome, `pass | fail | unresolved`, on every node that runs a command, with the needs that went unresolved named in a durable block a reader cannot skim past: `report.md` in `/build`, the posted summary in `/pr-review`, and a new `qa-checks.md` in `/qa`.
 - `/qa` gains a `test` node. It ran no test suite at all before.
 

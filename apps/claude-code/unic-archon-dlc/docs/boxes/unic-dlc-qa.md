@@ -1,10 +1,11 @@
 ---
-description: Run the unic-archon-dlc QA workflow — e2e, coverage gate, UAT sign-off, PR-base check, and merge. UAT findings become agent-ready tracker issues.
+description: Run the unic-archon-dlc QA workflow — test suite, e2e, coverage gate, UAT sign-off, PR-base check, and merge. UAT findings become agent-ready tracker issues.
 ---
 
 # /unic-dlc-qa
 
-Runs the `qa` box: end-to-end tests → coverage gate → UAT sign-off → PR-base verification → merge.
+Runs the `qa` box: test suite → end-to-end tests → coverage gate → UAT sign-off → PR-base
+verification → merge. The test suite is the floor: the merge gate cannot advance without a pass.
 It is also an **issue-producing on-ramp** — when UAT surfaces a defect, the workflow files it directly
 as an **agent-ready tracker issue** (feeding `/tickets`) instead of only halting. Ported to the
 key-discriminated Archon node schema ([ADR-0011](../adr/0011-archon-schema-target.md)); design in
