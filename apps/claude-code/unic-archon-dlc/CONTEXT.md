@@ -72,7 +72,10 @@ nullable keys: `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`,
 the tool that serves it, which no Box names. `null` means the project declares no command for that
 need, and a node that wants it reports an **unresolved** check rather than a pass. A key no node reads
 is intended, not a gap: the block declares what a project can do, and a node reaches for whichever
-need it has at run time. See `docs/adr/0037-config-declares-sdlc-needs.md`.
+need it has at run time. **Not to be confused with a slice's `test_command`** in **Issues JSON**, which
+is per-slice, written by `/tickets` and read by RED and GREEN: `sdlc_needs.test` is the project-wide
+suite, and the two were one word apart until this block was named. See
+`docs/adr/0037-config-declares-sdlc-needs.md`.
 _Avoid_: commands (taken twice — by **Claude Code slash command** and by **Archon workflow command
 template**), toolchain (it would name what a need resolves _to_, the opposite of the block's own
 rule), capabilities (taken by **System-skill**), lifecycle_needs

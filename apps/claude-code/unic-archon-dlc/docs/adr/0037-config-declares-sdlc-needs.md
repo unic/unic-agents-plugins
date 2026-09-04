@@ -131,3 +131,16 @@ for a second purpose is exactly the drift this Plugin keeps filing defects about
 - Nothing checks that the **next** node to read the block carries the inline rule of decision 1. This
   Plugin does not grep agent prose, so between two hands a missing sentence surfaces on a read or not at
   all.
+- **The nine keys are written by hand in six places** — the three Box output schemas, the `/setup` step
+  that asks for them, the README configuration table, and the `CONTEXT.md` entry — and nothing checks
+  that the six agree. This is the cost of the decision, and it is structural rather than careless: a
+  schema must enumerate, a table must document, a prompt must instruct. A tenth key must land in all
+  six; one that lands in five surfaces as a Box rejecting an object that validates everywhere else. A
+  generator would fix it and would be the module this Plugin's no-code rule exists to refuse.
+- **In `/build`, the install now runs before `slopcheck`.** `bootstrap` precedes it in the graph, so a
+  dependency already committed on the branch is installed — running whatever its install scripts run —
+  before the registry check that exists to catch a hallucinated or squatted name. The exposure is
+  narrow: at `bootstrap` the tree is the branch as a human left it, and every package a slice adds
+  arrives in `run-build`, which is downstream of `slopcheck`. Narrowing it further would mean installing
+  somewhere other than `bootstrap` in one Box only, which is the per-Box exception decision 6 refuses.
+  Named here so that the next reader weighing the two knows the trade was made rather than missed.
