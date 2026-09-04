@@ -69,7 +69,8 @@ The **merge node fail-closes** with
 The asymmetry is the floor of [ADR-0037](0037-config-declares-sdlc-needs.md): `test` is the one need
 this gate cannot advance without, so an `unresolved` test holds the merge, while an unresolved e2e or
 coverage reports and lets it through.
-This guarantees a red e2e/coverage or a wrong PR base **never auto-merges**, in either HITL or AFK —
+This guarantees that a red test, e2e or coverage, a test that could not run, or a wrong PR base
+**never auto-merges**, in either HITL or AFK —
 the safety that `all_done` alone would not provide. `verify-pr-base` reports `base_ok` (a boolean in
 `output_format`) rather than exiting non-zero, keeping the merge guard in one declarative place.
 

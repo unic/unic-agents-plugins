@@ -18,7 +18,7 @@ that says nothing about the code.
 ## Decision
 
 **The config carries one abstract block, `sdlc_needs`, that maps what a software development process
-needs; every Box reaches the whole of it; and the Plugin names no tool, ever.** A tenant fills in
+needs; any Box may reach the whole of it; and the Plugin names no tool, ever.** A tenant fills in
 whatever their stack uses, and a node decides at run time which of those needs it has.
 
 1. **A key names a need, never a tool.** `test` is a need; a runner invocation is a tool. `check-types`
@@ -64,12 +64,13 @@ whatever their stack uses, and a node decides at run time which of those needs i
    `unresolved` in `/qa` and silence in `/build`. That is the rule working, not an inconsistency — but it
    is the asymmetry most likely to be read as one, which is why it is written down here.
 
-6. **Each Box installs once, at `bootstrap`, and says what it did.** One Archon worktree serves a whole
-   run, including `/build`'s fresh red and green contexts, so one install covers everything. All three
-   Boxes install with no exception, `/pr-review` included even though it is instructed to run no check:
+6. **A Box that runs checks installs once, at `bootstrap`, and says what it did.** One Archon worktree
+   serves a whole run, including `/build`'s fresh red and green contexts, so one install covers
+   everything. `/build`, `/qa` and `/pr-review` install with no exception between them, `/pr-review` included even though it is instructed to run no check:
    a review sub-agent that decides on its own that it needs to run something should fail on the merits of
    that decision rather than on which worktree the run drew, and one uniform rule is less to remember
-   than a rule with an exception. `bootstrap` reports either that it ran the declared install command or
+   than a rule with an exception. `/explore` is the fourth Box and does not install: it runs no check,
+   so it has nothing to prepare for, and this ticket left it alone by name. `bootstrap` reports either that it ran the declared install command or
    that none is declared. That second report is what stops a later green check reading as proof of a
    deliberately built environment, because dependencies may still be present by the luck this decision
    exists to remove.
