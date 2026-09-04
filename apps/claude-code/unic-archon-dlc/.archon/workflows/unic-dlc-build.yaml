@@ -472,28 +472,37 @@ nodes:
          `coverage_outcome`: "unresolved" when the key is null or its command will not run, "pass" when
          the figure meets the threshold, "fail" when it does not. When no threshold is configured this
          node wants no coverage figure, so omit `coverage_outcome`.
-      4. Print a verdict block:
-           verification: PASSED ✓    (tests green, no stubs, coverage ≥ threshold)
+      4. Print a verdict block. PASSED means exactly what step 5's rule means — do not restate the
+         conditions here in different words, name them once and by the same names:
+           verification: PASSED ✓    (test green, no stubs, every optional check reported is green)
          or
            verification: FAILED ✗ — <the specific failures>
+         Name each need that came back "unresolved" in the block too, so the prose a human reads at
+         build-pr-gate says which checks did not run rather than leaving that to the report node.
       5. Return the verdict block from step 4, plus everything you found worth reporting (counts,
          coverage figure, the stub list), as the `verdict` string — that field is the prose the
          report node reads, so it must stand alone. Then set a `passed` boolean and a
-         `failures` array of short strings, one per distinct failure. **`passed` is true only when ALL
-         of these hold**: `test_outcome` is "pass"; no stubs were found; and every optional outcome you
-         actually reported — `e2e_outcome`, `coverage_outcome` — is also "pass". This node runs up to
-         three separate commands, so "the suite is green" is not one fact: a failing e2e beside a
-         passing test suite is a red build, and leaving `passed` true there would let `evidence`
-         certify it. Any outcome that is "fail" gets its own blocking entry in `failures` and sets
-         `passed` false. An outcome that is "unresolved" does NOT: it goes to `unresolved_needs` alone,
-         because outside the `test` floor no need is mandatory and an unresolved e2e must not hold this
-         gate. List blockers ONLY in
-         `failures` — never a non-blocking note. Set `passed` false whenever `test_outcome` is not
-         "pass": an unresolved suite is not an absence of failures. **A need that came back
-         "unresolved" goes in `unresolved_needs` and NEVER in `failures`**, however blocking it feels.
-         `failures` means something ran and was red; an empty `failures` beside a non-"pass"
-         `test_outcome` is exactly how `evidence` tells a check that could not run apart from one that
-         failed, and putting the need in both collapses its three states back into two. **Emit
+         `failures` array of short strings, one per distinct failure.
+
+         **`passed` is false when any ONE of these is true, and true otherwise. This is the whole
+         rule — nothing else lowers it.**
+           a. `test_outcome` is not "pass". The floor covers both a red suite and one that could not
+              run: an unresolved suite is not an absence of failures.
+           b. You found a stub in step 2.
+           c. An optional outcome you actually reported — `e2e_outcome` or `coverage_outcome` — is
+              "fail".
+         An optional outcome that is **"unresolved" leaves `passed` alone**. Outside the `test` floor
+         no need is mandatory, so a check this project does not declare must never hold the evidence
+         gate. This node runs up to three separate commands, which is why (c) exists at all: "the suite
+         is green" is not one fact here, and a failing e2e beside a passing test suite is a red build
+         that `evidence` would otherwise certify.
+
+         `failures` carries blockers ONLY — never a non-blocking note — so it holds one entry per
+         condition (a) with a red suite, (b), or (c). **A need that came back "unresolved" goes in
+         `unresolved_needs` and NEVER in `failures`**, however blocking it feels. `failures` means
+         something ran and was red; an empty `failures` beside a non-"pass" `test_outcome` is exactly
+         how `evidence` tells a check that could not run apart from one that failed, and putting the
+         need in both collapses its three states back into two. **Emit
          `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
          requires the field, so omitting it aborts the run instead of reporting a clean result. The
          prose is for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
