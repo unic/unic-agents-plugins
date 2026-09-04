@@ -29,7 +29,7 @@ Two step-doc references were stale and are corrected here:
 
 ### 1. Node graph — ported to the key-discriminated schema
 
-`bootstrap → guard-not-ready → e2e → coverage-gate → uat-prep → uat-gate → verify-pr-base →
+`bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate → verify-pr-base →
 merge-gate → merge`, with `interactive: true` at the workflow level so both approval messages reach the
 user ([ADR-0011](0011-archon-schema-target.md) §2). Following [ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5,
 `bootstrap` is a `prompt:` node with `output_format` (it parses the slug from `$ARGUMENTS`, reads

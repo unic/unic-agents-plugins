@@ -56,6 +56,14 @@ whatever their stack uses, and a node decides at run time which of those needs i
    instead. Without this distinction one implementer holds a merge on an unrunnable e2e and another does
    not, and both satisfy the criteria.
 
+   The same test settles coverage, where the two Boxes land differently on purpose. `/qa`'s
+   `coverage-gate` exists to gate on coverage, so it wants a figure always: a null `coverage` key **or**
+   a null threshold is `unresolved` there, because a figure nobody can judge is not a pass. `/build`'s
+   `verification` runs coverage only when a threshold is configured, so with no threshold it wants none
+   and omits the field. A tenant who declares `coverage` and no threshold therefore sees a standing
+   `unresolved` in `/qa` and silence in `/build`. That is the rule working, not an inconsistency — but it
+   is the asymmetry most likely to be read as one, which is why it is written down here.
+
 6. **Each Box installs once, at `bootstrap`, and says what it did.** One Archon worktree serves a whole
    run, including `/build`'s fresh red and green contexts, so one install covers everything. All three
    Boxes install with no exception, `/pr-review` included even though it is instructed to run no check:

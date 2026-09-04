@@ -477,8 +477,11 @@ nodes:
          suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
          and a `failures` array of short strings, one per distinct failure. List blockers ONLY in
          `failures` — never a non-blocking note. Set `passed` false whenever `test_outcome` is not
-         "pass": an unresolved suite is not an absence of failures. Name every need that came back
-         "unresolved" in `unresolved_needs`, so a reader learns WHICH check could not run. The prose is
+         "pass": an unresolved suite is not an absence of failures. **A need that came back
+         "unresolved" goes in `unresolved_needs` and NEVER in `failures`**, however blocking it feels.
+         `failures` means something ran and was red; an empty `failures` beside a non-"pass"
+         `test_outcome` is exactly how `evidence` tells a check that could not run apart from one that
+         failed, and putting the need in both collapses its three states back into two. The prose is
          for the human at build-pr-gate; the `evidence` node reads `passed` and `failures` from both of
          us plus `verification`'s three-state `test_outcome`, treats a test that is not "pass" as red
          whatever the booleans say, and withholds on any of those signals, and
@@ -632,15 +635,18 @@ nodes:
         verdictState = 'fail'
       }
 
-      // PRINT the verdict as JSON: a `script:` node has no `output_format`, so only what this node
-      // writes to stdout resolves downstream. Nothing reads it yet — the `when:` that will consume it
-      // belongs to the ticket that makes this file unconditional, and a field with no reader here is
-      // that hand-off, not an oversight (#430 criterion 8).
+      // PRINT the verdict as JSON: a `script:` node has no `output_format`, so what this node writes
+      // to STDOUT is its whole output. That makes stdout the machine channel and nothing else may go
+      // there — every human line below uses console.error, which the run log still shows. Mixing one
+      // progress line into stdout leaves a reader a string that is not JSON, and the reader is a
+      // `when:` expression with nowhere to put a parse failure. Nothing reads it yet: the `when:` that
+      // will consume it belongs to the ticket that makes this file unconditional, and a field with no
+      // reader here is that hand-off, not an oversight (#430 criterion 8).
       console.log(JSON.stringify({ verdict: verdictState, test_outcome: testOutcome, unresolved_needs: unresolvedNeeds }))
 
       if (verdictState !== 'pass') {
-        console.log(`evidence: withholding — verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
-        if (unresolvedNeeds.length > 0) console.log(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
+        console.error(`evidence: withholding — verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+        if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
         process.exit(0)
       }
 
@@ -656,13 +662,13 @@ nodes:
         goals_check_failures: goalsCheckFailures,
       }
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
-      console.log(`evidence: wrote ${evidencePath} ✓`)
+      console.error(`evidence: wrote ${evidencePath} ✓`)
 
       // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
       // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
       mkdirSync(sessionDir, { recursive: true })
       copyFileSync(evidencePath, mirrorPath)
-      console.log(`evidence: mirrored to ${mirrorPath} ✓`)
+      console.error(`evidence: mirrored to ${mirrorPath} ✓`)
 
   # ---------------------------------------------------------------------------------------------
   - id: report
@@ -686,8 +692,12 @@ nodes:
            criteria — see matrix below."
         3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
         4. Test Outcomes — pass/fail counts + coverage from $verification.output.verdict; note
-           skipped/flaky. A need reported "unresolved" belongs in section 1, not here — this section
-           carries what ran.
+           skipped/flaky. Open the section with one line per need verification reported on:
+           `test: $verification.output.test_outcome`, and the same for
+           `$verification.output.e2e_outcome` and `$verification.output.coverage_outcome` when those
+           fields are present — an absent field means that node wanted no such check, which is not the
+           same as a check that could not run. A need reported "unresolved" is named in section 1 as
+           well; this section is where its state sits beside the ones that ran.
         5. Decisions Made — technical decisions worth recording; for each significant one, draft an
            ADR inline (docs/adr/NNNN-<slug>.md) for review. Also fold in, verbatim:
              - `$implement-review-precheck.output.findings` — the local code-review pre-check's

@@ -58,12 +58,14 @@ from), which `/build` implemented against.
 
 8. **merge-gate → merge** — **HITL by default** (`gates.qa`); skipped in AFK. On approval (or in AFK)
    the PR is merged via the configured tracker and the feature branch is cleaned up on Gitflow. The
-   merge **fail-closes**: it never runs on a failed e2e/coverage or a wrong base, in either mode.
+   merge **fail-closes**: it never runs on a failed test, e2e or coverage, on a wrong base, or on a
+   `test` need that could not run — `test` is the floor and its clause requires a `pass`, while e2e and
+   coverage only have to avoid a `fail`.
 
 ## Gates & AFK
 
 `gates.qa` (default `hitl`) governs **both** the UAT gate and the merge gate. Set it to `afk` to run the
-whole pipeline unattended — the gates are skipped and a clean build auto-merges. A red e2e/coverage or a
+whole pipeline unattended — the gates are skipped and a clean build auto-merges. An unresolved or red test, a red e2e or coverage, or a
 mismatched PR base blocks the merge even in AFK (fail-closed `when`).
 
 ## Prerequisites

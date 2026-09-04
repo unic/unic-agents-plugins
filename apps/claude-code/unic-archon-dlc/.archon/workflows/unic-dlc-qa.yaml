@@ -268,7 +268,9 @@ nodes:
          reviews this run later.
 
            === Checks That Could Not Run ===
-           <one line per need whose result is "unresolved", naming the need and why>
+           <one line per need whose result is "unresolved", naming the need — and, where
+            $bootstrap.output.sdlc_needs has no command for it, saying that the config declares none,
+            which is the common cause and the one you can see from here>
            <$bootstrap.output.install_report, verbatim>
 
            === UAT Checklist for <SLUG> ===
