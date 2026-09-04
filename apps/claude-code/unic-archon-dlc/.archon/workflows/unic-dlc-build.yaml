@@ -478,9 +478,16 @@ nodes:
            verification: FAILED ✗ — <the specific failures>
       5. Return the verdict block from step 4, plus everything you found worth reporting (counts,
          coverage figure, the stub list), as the `verdict` string — that field is the prose the
-         report node reads, so it must stand alone. Then set a `passed` boolean (true only if the
-         suite is green AND no stubs were found AND coverage, if configured, meets the threshold)
-         and a `failures` array of short strings, one per distinct failure. List blockers ONLY in
+         report node reads, so it must stand alone. Then set a `passed` boolean and a
+         `failures` array of short strings, one per distinct failure. **`passed` is true only when ALL
+         of these hold**: `test_outcome` is "pass"; no stubs were found; and every optional outcome you
+         actually reported — `e2e_outcome`, `coverage_outcome` — is also "pass". This node runs up to
+         three separate commands, so "the suite is green" is not one fact: a failing e2e beside a
+         passing test suite is a red build, and leaving `passed` true there would let `evidence`
+         certify it. Any outcome that is "fail" gets its own blocking entry in `failures` and sets
+         `passed` false. An outcome that is "unresolved" does NOT: it goes to `unresolved_needs` alone,
+         because outside the `test` floor no need is mandatory and an unresolved e2e must not hold this
+         gate. List blockers ONLY in
          `failures` — never a non-blocking note. Set `passed` false whenever `test_outcome` is not
          "pass": an unresolved suite is not an absence of failures. **A need that came back
          "unresolved" goes in `unresolved_needs` and NEVER in `failures`**, however blocking it feels.
