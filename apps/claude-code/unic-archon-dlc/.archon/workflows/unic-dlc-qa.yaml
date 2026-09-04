@@ -449,10 +449,11 @@ nodes:
     approval:
       message: >
         UAT approved and PR base verified as "$bootstrap.output.expected_base" for
-        "$bootstrap.output.slug". The test result is "$test.output.result" — a merge needs "pass", and
-        an unresolved test holds this gate however clean the rest reads. Which checks could not run is
-        written in <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker
-        (and delete the feature branch on Gitflow). Reject to halt without merging.
+        "$bootstrap.output.slug". The test result is "$test.output.result". A merge needs "pass": this
+        gate is not what enforces that — the merge node downstream is — so if the result above is not
+        "pass", approving here will not produce a merge. Which checks could not run is written in
+        <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker (and delete
+        the feature branch on Gitflow). Reject to halt without merging.
 
   # ---------------------------------------------------------------------------------------------
   # merge — merge the PR through the tracker. trigger_rule: all_done so it runs when merge-gate
