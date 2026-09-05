@@ -1,246 +1,370 @@
 ---
-allowed-tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob']
+allowed-tools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep']
 argument-hint: '[reconfigure | <free-form intent>]'
-description: 'Configure unic-archon-dlc for this project: detect the stack, register the team system-skills, and write .archon/unic-dlc.config.yaml'
+description: 'Install unic-archon-dlc into this project: copy the Boxes and the Methods, write the config and the tracker contract, and patch the managed blocks'
 ---
 
 # unic-archon-dlc:setup
 
-> Design rationale: [ADR-0019 — Conversational `/setup` + one thin tested schema lib](docs/adr/0019-conversational-setup.md) (supersedes ADR-0001); [ADR-0036 — `/setup` owns a named install set](docs/adr/0036-setup-owns-a-named-install-set.md) for Step 6's install engine.
+> Design rationale: [ADR-0019 — Conversational `/setup`](../docs/adr/0019-conversational-setup.md);
+> [ADR-0036 — `/setup` owns a named install set](../docs/adr/0036-setup-owns-a-named-install-set.md) for what
+> it owns and how it replaces it; [ADR-0016 — a thin process layer](../docs/adr/0016-dlc-thin-process-layer.md)
+> for why this command reads the project instead of holding a list of tools.
 
 **Arguments:** "$ARGUMENTS"
 
-`/setup` is the **sole configuration entry point** and is **conversational**: it detects the stack, **composes the team's system-skills** to discover what the team has, and writes the rich `.archon/unic-dlc.config.yaml` — the config substrate the redesigned boxes read (each box is migrated onto it in its own redesign step; pre-redesign workflows under `.archon/workflows/` still reference the old JSON/keys until then). Merge and emit the YAML yourself, with your own tools. Conduct the conversation yourself; do not invent config keys the § Config reference in [README.md](../README.md) does not define.
+`/setup` is this Plugin's installer and its sole configuration entry point. It is prose: do every action
+below with your own tools — Read, Write, Edit, Glob, Grep and Bash. Import nothing, shell out to no Node
+script, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed Plugin ships no `node_modules`, and that
+variable is not set inside the Bash tool ([ADR-0023](../docs/adr/0023-build-generic-red-green-refactor-loop.md) §5).
 
-Follow these steps in order. Do not skip any step. Do not write any files except through Step 5 (config), Step 6 (Methods bundle), and Step 7 (CLAUDE.md block).
+## What `/setup` owns, and what it only visits
 
-## Step 1 — Archon preflight (behavioural `≥ 0.7.0`)
+Six actions land four kinds of artefact, and **ownership decides the treatment**. Three treatments, and
+every action below names which one it takes:
 
-Run:
+| Treatment   | Applies to                                   | Behaviour on a re-run                                                                |
+| ----------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **replace** | a whole tree the Plugin owns                 | overwritten silently, every run                                                      |
+| **report**  | a file the tenant owns                       | written when absent; when present, read it and report what differs, changing nothing |
+| **patch**   | a marked block inside a file the tenant owns | the block is rewritten between its markers; everything outside them stays verbatim   |
 
-```bash
-archon --version
+**report** has one override: the `reconfigure` argument (Step 3). Outside a marked block, nothing else
+rewrites a tenant file.
+
+## Step 1 — Preflight
+
+Two checks, in this order. Each one stops the run when it fails, before any question is asked and before
+anything is written.
+
+**Archon.** Run `archon --version`. This Plugin's floor is **`0.7.0`** — the version whose schema carries
+gates, loops, `context: fresh`, `evidence_policy` and `always_run`
+([ADR-0033](../docs/adr/0033-archon-070-schema-target.md)). Compare the three numbers, never the raw strings:
+the output may carry a program name or a `v` prefix. Three ways this stops: the command is not found; the
+version parses and sits below the floor, so print both versions; or the output yields no three numbers at
+all, so print it raw and say the floor could not be checked against it.
+
+**This Plugin's own installed directory.** The install step copies both trees out of it, so find it now.
+Claude Code keeps a registry at `~/.claude/plugins/installed_plugins.json`; read it and take the entry keyed
+`unic-archon-dlc@<marketplace>`. Each entry carries `scope`, `installPath`, `version` and — for a
+project-scope install — the `projectPath` it belongs to. Select in this order, and take the first that
+resolves:
+
+1. exactly one entry → that one, whatever its scope.
+2. the entry whose `projectPath` is this repository's root. In a `git worktree` that is the main checkout's
+   root, not the worktree's, so resolve it before comparing.
+3. the sole `user`-scope entry.
+
+`installPath` is the directory. **Entries that exist and select none is its own stop**: print every entry
+with its scope and path, say which rule failed, and stop. Guessing between two projects' installs is the
+error this lookup replaced.
+
+Then verify it before trusting it, and keep `PLUGIN_VERSION` from the manifest you read:
+
+1. `.claude-plugin/plugin.json` there names `unic-archon-dlc`, at the same version as the registry entry.
+2. `vendor/mattpocock-skills/` is present.
+3. `.archon/workflows/` holds at least one `unic-dlc-*.yaml`.
+
+Print what you found and stop on any of: no entry for this Plugin, a registry whose top-level `version` is
+not `2`, or a failed check above. The registry entry and the manifest agreeing is the whole of the version
+test — this file carries no version of its own, so there is nothing else to compare it against.
+**Take the path from the registry alone.** The version cache holds one directory per version ever
+installed — nine of them on the machine this was written on — so a search of that cache is a guess among
+candidates, and an install that copies from the wrong version is worse than no install.
+
+## Step 2 — Read the project
+
+Four reads, all verify-only. Nothing here writes.
+
+**The config.** Read `.archon/unic-dlc.config.yaml`, keep the parsed object as `CURRENT` and the path as
+`CONFIG_PATH`. Present but unreadable → print the parse error and stop, rather than overwrite the only copy.
+Absent → `CURRENT` is null, and Step 6 sets `CONFIG_PATH` when it writes.
+
+A `.archon/unic-dlc.config.json` also stops the run: report the path, say that it is the flat shape an
+earlier version of this Plugin wrote and that no migration ships any more, and change nothing. That
+migration had never been walked by a real project when it was removed, and reading such a file as "no
+config" would write a second config beside it.
+
+**The git remotes.** Run `git remote`. Three refusals, in this order:
+
+- `git` is not on `PATH` → print `git binary not found on PATH. Install git before running /setup.` and stop.
+- the command failed otherwise → print the error, ask the operator to confirm this directory is a git
+  repository, and stop.
+- the list is empty → print `This project has no git remote configured. Archon derives the workspace path for an isolated run from a remote, so a Box cannot be dispatched without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
+
+A Box takes the repository it works on from the tracker contract, never from a remote: one remote has
+several spellings and a fork clone names two repositories. The remote is Archon's own need, not the Boxes'.
+
+Then run `git remote get-url origin` and keep it as `GIT_REMOTE`. An absent `origin` is an empty value
+here, not a refusal.
+
+**Archon's own config, verify-only.** Read `.archon/config.yaml` — **Archon's** file, which this Plugin
+never writes. Resolve the remote the way Archon does and keep it as `ARCHON_REMOTE_RESOLVED`: its
+`worktree.remote` key when set, else `origin` when a remote of that name exists, else the sole remote when
+there is exactly one, else nothing. On Archon `0.7.0` that key governs base-branch resolution only — the
+workspace path still derives from `origin` — so report it in Step 8 and write it nowhere. Present but
+unreadable → say so, keep `ARCHON_REMOTE_RESOLVED` empty and carry on. One summary line depends on this
+file, so it never stops the run; the rule two reads above stops the run because overwriting the config would
+destroy it.
+
+**The repo layout.** Keep `REPO_LAYOUT`: `multi-context` when this repository holds more than one
+independently-releasable project (a `packages/` or `apps/` tree with its own manifests), otherwise
+`single-context`. Never ask for it.
+
+Then set `STATE`: `fresh` when `CURRENT` is null, `partial` when `CURRENT` exists with `project.branching`
+unset, `full` otherwise. `project.branching` is the one key a config needs before the Boxes can read it;
+every other key has a default, named in the § Configuration reference in [README.md](../README.md).
+
+## Step 3 — Read the arguments
+
+- empty or whitespace → `MODE = 'default'`
+- trimmed lowercase `reconfigure` → `MODE = 'reconfigure'`
+- anything else → `MODE = 'intent'`, `INTENT = $ARGUMENTS`
+
+`reconfigure` is the **report** override, and the only one. Under it, a tenant-owned file this run would
+write differently is offered to the operator: show what would change, ask about that file, and write only
+what they confirm. It is how a wrong first answer gets corrected — without it the only remedy is deleting
+a file.
+
+**Step 5 runs under every mode**, including `full` + `default`. It is how a Plugin upgrade lands, and it
+needs no answers: that is why it comes before the conversation, and why a re-run needs no argument to
+refresh what this Plugin owns. Steps 6 and 7 run under every mode too, each bounded by the treatment its
+artefact takes — so a re-run there reports rather than rewrites.
+
+## Step 4 — Discover what this project has
+
+Three sweeps. All verify-only — introspect, install nothing.
+
+**Capabilities.** Build a capability → tool registry the Boxes read (`mcp | cli | skill`, MCP-first). Note
+which relevant MCP servers this session has for the tracker, the docs system and the design system. Probe
+CLIs portably, without `jq`, `awk` or `sort`, and record which succeed. A missing capability **warns and
+degrades**: finish the run, record it unavailable, and list the Boxes it blocks — they re-probe at runtime
+and fail with their own message. Never abort the run for a missing capability.
+
+Do not probe for the Methods here. They ship inside this Plugin and Step 5 installs them; their presence
+is bundle integrity, not discovery. Which Method each Box reads is recorded once, in
+[README.md § Dependencies](../README.md#dependencies).
+
+**What this project runs.** One read, two harvests — read the manifests, task files and scripts this
+project actually runs, whatever the language, and keep both of these from that one read:
+
+- `FORMATTERS`, for Step 7, which excludes this Plugin's own artefacts from them: every tool that formats
+  or lints, together with the paths each one reaches. For each tool, find how it excludes a path, from that
+  tool's own current documentation. Where the mechanism is unclear, ask the operator which file to patch
+  rather than write to a guess. Record per tool the exclusion mechanism, and whether that mechanism is a
+  **line-based ignore file** or a structured config value.
+- `SDLC_NEEDS`, for Step 6: the command this project already runs for each of the nine needs the config
+  declares — `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage`. Keep what
+  you found, and nothing at all for what you did not; Step 6 offers each one as a proposal the operator
+  confirms or corrects. A key names a **need** and never a tool, so you are looking for the command this
+  project runs for that job — not for a tool you expect a project of this kind to have.
+
+Read what the project runs, never a list held here: this Plugin knows that an installed file must not be
+reformatted, and that a development process has these needs. It knows nothing about which tool serves
+either, and a project that serves a need some other way is the normal case, not an error.
+
+**The tracker's own vocabulary.** Step 6 writes the tracker contract, and its values have to be names the
+board already carries. Through whichever tracker surface Step 4 found, read what this tracker actually uses
+— its states, its tags or labels, its work-item types, and how often each appears. Keep it as
+`TRACKER_VOCABULARY`. No access yet → keep it empty; Step 6 handles that case.
+
+## Step 5 — Install the Boxes and the Methods (**replace**)
+
+Both trees come out of the directory Step 1 verified. This is the **replace** treatment: overwrite
+silently, every run. Every installed **Box** carries a header naming this Plugin and its version and saying
+that `/setup` replaces it, which is what makes an overwrite legible — an operator's edit shows up as a
+tracked `git diff` after a run, not as a warning dialog
+([ADR-0036](../docs/adr/0036-setup-owns-a-named-install-set.md) D3). **No Method file carries one**, and the
+Methods bullet below says why.
+
+**The Methods.** Verify the bundle at `vendor/mattpocock-skills/`, then copy it into `.archon/methods/` —
+the one path every Box and command reads a Method from.
+
+**The copy flattens.** The bundle groups Methods by category, so a Method sits at
+`vendor/mattpocock-skills/skills/<category>/<name>/`; a Box reads `.archon/methods/<name>/SKILL.md`, one
+level deep. Copy each Method directory to `.archon/methods/<name>/`, dropping the category, and copy the
+directory whole so every companion file travels with its `SKILL.md`. Copy with your own file tools, walking
+the tree and writing each file: a recursive shell copy is written differently on each host, and this command
+runs on all of them. Two Methods sharing a `<name>` across
+categories collide at the destination: report both source paths and stop. Copy nothing else out of the
+bundle — the bundle's own `README.md` and its `LICENSE` are this Plugin's records, verified below and never
+installed.
+
+- Every Method directory carries a `SKILL.md`. Verify companions **by reading**: open each `SKILL.md` and
+  confirm every companion file it points at sits beside it. A Method referencing none needs none — several
+  correctly ship one file, so a file count is not the test. A companion the text points at and the
+  directory lacks is a Method pointing at nothing: report it and stop.
+- `vendor/mattpocock-skills/LICENSE` must be present. Absent → ask the maintainer to restore it and stop.
+  **Never create a `LICENSE` file.**
+- `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit this bundle was
+  copied from. Read it and keep the tag as `BUNDLE_TAG`.
+- Check what the bundle **lacks**, not only what it holds: compare the Method names in it against the table
+  under [README.md § Dependencies](../README.md#dependencies). A Method that table names and the bundle does
+  not hold is a fault — report it by name and stop here, before anything is written. Keep the names you do
+  install as `METHODS_INSTALLED` for the summary.
+- Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version cannot
+  linger. One exception, and it is absolute, so perform it in this order: **before you remove anything**,
+  list every `LICENSE` under that tree and read each one; remove and copy; then restore each `LICENSE` to
+  the path you found it at, and name each one in the summary. An exception written as an outcome is one a
+  wholesale delete reaches first. **Never delete a `LICENSE` file.**
+- Stamp no header on a Method file. The bundle is upstream text pinned to one tag, and a line added at the
+  top forks it from that tag — which is the fork Step 7 exists to prevent. `BUNDLE_TAG` in Step 8 and the
+  version on the Boxes carry the provenance for this tree.
+- Two override paths an earlier version offered now resolve nothing, because `.archon/methods/` is the only
+  path anything reads. Report each one you find, once, as retired, and change neither — both are the team's
+  own work: a `.archon/methods.local/` directory, and any `methods.<name>.source` key in the config.
+
+**The Boxes.** Install every `unic-dlc-*.yaml` this Plugin ships into `.archon/workflows/`, discovered by
+reading the Plugin's own `.archon/workflows/` — no Box name is a literal in this file.
+
+Install is **name-scoped, never a whole-directory replace**: `.archon/workflows/` is shared with the
+Consumer's own workflows, so only names matching `unic-dlc-*.yaml` are read, written, overwritten or swept.
+A file named outside that pattern stays untouched whatever it contains — that is what makes the variant
+escape hatch in [README.md](../README.md) true. The sweep retires a `unic-dlc-*.yaml` this Plugin version
+no longer ships, whether or not it carries the header: ownership is decided by name alone.
+
+Before overwriting, read the first line of each `unic-dlc-*.yaml` already on disk and keep the version it
+names as `PREVIOUS_VERSION`. Then write each Box with this line first, `PLUGIN_VERSION` filled in:
+
+```yaml
+# Generated by unic-archon-dlc <PLUGIN_VERSION> — /unic-archon-dlc:setup replaces this file on every run.
 ```
 
-Read the output yourself. This Plugin's floor is **Archon `0.7.0`** — the version the key-discriminated
-schema needs: gates, loops, `context: fresh`, `evidence_policy` and `always_run`
-([ADR-0033](docs/adr/0033-archon-070-schema-target.md)). If the command is not found, or the installed
-version is below `0.7.0`, print what you saw with both versions and stop — do not proceed. Compare the
-three numbers, never the raw strings: the output may carry a program name or a `v` prefix.
+Match the **fixed part** of that line — everything up to the version — as a prefix of the first line, then
+read the version that follows it. Matching the rendered line whole would only ever recognise a re-run at this
+same version, which is the one case `PREVIOUS_VERSION` is not for. Never search the whole file: a Consumer
+file that mentions the marker text further down is not a file this command wrote. `PREVIOUS_VERSION` is empty on
+a fresh project and on a Box carrying no such line. Boxes naming **different** versions is a partial prior
+install: report every version you found rather than picking one, because picking one claims an install state
+that never existed.
 
-## Step 2 — Discover current config state
+`/setup` writes nothing into `.archon/commands/`. The Box command docs live at `docs/boxes/` in this
+Plugin's own repository, as operator documentation.
 
-Read the current state with your own tools. Do not shell out to Node, do not import a Plugin module,
-and do not read `$CLAUDE_PLUGIN_ROOT`: an installed Plugin ships no `node_modules`, and that variable is
-not set inside the Bash tool ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5).
+Keep `WORKFLOWS_WRITTEN`, `WORKFLOWS_ADDED` and `WORKFLOWS_REMOVED` for Step 8.
 
-1. **The config.** Read `.archon/unic-dlc.config.yaml`. If it is absent, read
-   `.archon/unic-dlc.config.json` instead — a legacy flat config from ADR-0001, which this run
-   migrates into the rich nested shape and **never deletes or modifies**. If the file that exists is
-   present but unreadable, print the parse error and stop: refuse to overwrite a config you could not
-   read. Keep the path you read as `CONFIG_PATH`, and the parsed object as `CURRENT`.
+**Any failure in this step stops the run.** A missing licence, an incomplete bundle, a copy that could not
+be written, a stale Box that could not be removed — each means the shipped Plugin is incomplete or the disk
+refused a write, and none is fixed by re-running an earlier step. Say how much landed, and that a bare
+re-run of `/setup` self-heals because it replaces the affected tree. Report success only when no stale Box
+is left on disk.
 
-2. **The remotes.** Run `git remote`. Three refusals, in this order:
+## Step 6 — Write the config and the tracker contract (**report**)
 
-   - `git` is not on `PATH` → print `git binary not found on PATH. Install git before running /setup.`
-     and stop.
-   - the command failed for any other reason → print the error, ask the operator to confirm this
-     directory is a git repository, and stop.
-   - the list is empty → print `This project has no git remote configured. All four Archon Boxes
-(/build, /qa, /pr-review, /explore) derive their target repository from a remote and cannot run
-without one. Add one — e.g. git remote add origin <url> — and re-run /setup.` and stop.
+Three tenant-owned files. A write that fails here stops the run and names the file: unlike the install step,
+nothing downstream self-heals a tenant-owned file, because the next run finds it present and reports on it.
+Each one is written when it is absent. When it is present, read it, report what
+differs from what this run would write, and change nothing — unless `MODE = 'reconfigure'`, which offers
+the change per file (Step 3).
 
-   Then run `git remote get-url origin` and keep the result as `GIT_REMOTE`; an absent `origin` is not
-   a refusal here, only an empty value.
+### The config
 
-3. **Archon's own remote, verify-only.** Read `.archon/config.yaml` — **Archon's** file, a different
-   file from ours, which this Plugin never writes. Resolve the remote the way Archon does and keep it
-   as `ARCHON_REMOTE_RESOLVED`: its `worktree.remote` key when set, else `origin` when a remote of that
-   name exists, else the sole remote when there is exactly one, else nothing. Step 8 reports this; no
-   step writes it.
+Collect only the gaps, conversationally, then write `.archon/unic-dlc.config.yaml`.
 
-4. **The repo layout.** Read the working tree and keep `REPO_LAYOUT`: `multi-context` when the
-   repository holds more than one independently-releasable project (a `packages/` or `apps/` tree with
-   its own manifests), otherwise `single-context`.
+Which gaps: `STATE = 'fresh'` → every field; `STATE = 'partial'` → the missing ones;
+`MODE = 'reconfigure'` → every field; `MODE = 'intent'` → the missing ones first, then read `INTENT` to
+decide which already-set fields to revisit. Surface `GIT_REMOTE` as a hint while asking. Pass `REPO_LAYOUT`
+through without asking.
 
-Then determine `STATE`:
+The fields, mapped onto the schema paths in the § Configuration reference in [README.md](../README.md),
+which is the single source of truth for every default:
 
-- `CURRENT` is null → `STATE = 'fresh'`
-- `CURRENT` exists but `project.branching` is unset → `STATE = 'partial'`
-- Otherwise → `STATE = 'full'`
+- **project** — `project.name`; `project.branching` (`gitflow | github-flow`, mandatory);
+  `project.repo_layout` = `REPO_LAYOUT`.
+- **docs** — `docs.type`: ask where the team's product specs live and write the answer through. It is a
+  format or the name of a docs system, or `none`. `docs.publish` (default `false`, opt-in).
+- **design** — `design.type`: ask which design system the team designs in and write the answer through, or
+  `none`.
+- **gates** — per Archon Box: `hitl` (default) or `afk`. Interactive commands are always HITL and are not
+  listed.
+- **sdlc_needs** — the nine nullable keys naming what this project's development process needs:
+  `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage`. Walk them one need
+  at a time. For each one, offer the value Step 4 harvested as a **proposal** the operator confirms or
+  corrects; where Step 4 found nothing, ask, and take `null` for an answer. Never present a list of tools
+  to choose from, and never write a value the operator did not confirm. Write the block under this
+  comment, which is where the rule reaches the human who edits the file later:
 
-`project.branching` is the one key a config needs before the Boxes can read it. Every other key has a
-default, named in the § Config reference in [README.md](../README.md).
+  ```yaml
+  # Each key names a NEED of this project's development process, never a tool. `test` names the need;
+  # whichever runner this project uses is the tool that serves it. A null value means this project
+  # declares no command for that need, and a node that wants it reports an unresolved check — never a
+  # pass. `build`, `lint`, `format` and `dev` have no node reading them today; they are declared anyway,
+  # because /setup writes this file once and thereafter only reports on it, so a key added later costs a
+  # `reconfigure` in every project that already has one.
+  ```
 
-## Step 3 — Verify-only skill discovery (never installs)
+- **build** — `build.coverage_threshold`, optional. The number stays here; the command that produces a
+  coverage figure is `sdlc_needs.coverage`.
+- **estimations**, **model_profile** — defaults unless the operator asks.
+- The Step-4 capability results under `docs.access` and `design.access`.
 
-Build a **capability → tool** registry the downstream boxes read (`mcp | cli | skill`, **MCP-first**). Discovery is **verify-only**: introspect what is installed; never install anything.
+Two rules about what this conversation leaves alone:
 
-- **MCP servers**: note which relevant MCP servers are available in this session (tracker, docs, design — e.g. a GitHub/ADO/Jira MCP, a Confluence MCP, the Figma MCP).
-- **CLI probes** (portable — no `jq`/`awk`/`sort`): `gh --version`, `az --version`, `jira version` (or `jira --help`), etc. Record which succeed.
+- **Ask for no tool name as a closed choice.** `docs.type` and `design.type` take whatever the team says.
+  No Box compares either value to a literal — each tests set-versus-`none`, and `design.access.mcp`
+  resolves the actual tool — so a list of accepted names here would only be a list to fall behind.
+- **The config holds no tracker fact.** The contract files below carry all of them — which surface serves
+  this tracker, the coordinates a call needs, and which value each canonical role writes. So the config
+  conversation asks for none of that, and a Box reads the branching model from the config and every tracker
+  fact from those two files. Ask the operator for no key the § Configuration reference omits, either: that
+  table is the closed set of questions, and a key absent from it is a key nothing reads. It bounds what this
+  conversation **asks**, not what the run writes: `project.repo_layout` and the Step-4 capability results are
+  written without being asked, and each has its row.
 
-Do **not** probe for Matt Pocock's skills here. The Methods the Boxes compose ship with this Plugin and are installed by Step 6; their availability is a Bundle-integrity question, not a discovery one. Which Method each Box reads is recorded once, in the table under [README.md § Dependencies](../README.md#dependencies) — never restate that list here.
+Merge in one order — defaults, then what is on disk, then this run's answers — key by key, deeply, so a
+run with one changed answer preserves every other value, including keys this Plugin never asked about. Emit
+YAML, creating `.archon/` when it does not exist, and keep comments and key order stable across runs: a
+human reads this file. Keep the path as `CONFIG_PATH`.
 
-For each capability pick the tool MCP-first, else CLI, else skill. A **missing _required_ capability → warn + degrade, non-blocking**: complete setup, record it unavailable in the config, and **list the boxes it blocks** (boxes re-probe at runtime and fail with a clear "install X"). Never abort setup for a missing capability.
+### The tracker contract
 
-## Step 4 — Parse arguments, then collect only the gaps conversationally
+Two files: `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. Every Box reads a tracker
+fact from these and from nothing else. § **The tracker contract** in [README.md](../README.md) states what
+each file carries, the `Axis`/`Holds` columns, the rule that a row with no axis writes nothing, and a table
+shape that satisfies it. Read it and follow it: those columns and their rules are stated there, and this
+step does not repeat them.
 
-Arguments: `$ARGUMENTS`
+Write `issue-tracker.md` from what this project answers, in these sections, and hold to one bar: **a
+section earns its place only if it states a fact about this tenant.**
 
-- Empty/whitespace → `MODE = 'default'`
-- Trimmed lowercase equals `reconfigure` → `MODE = 'reconfigure'`
-- Otherwise → `MODE = 'intent'`, `INTENT = $ARGUMENTS`
+- **Access** — which MCP server or skill serves this tracker, and where it is registered. Name no command
+  line and no flag: a server describes its own current interface, and a flag frozen here is stale the day
+  the tool changes.
+- **Addressing** — the coordinates a call needs. Derive them from the operator's answers, never from the
+  remote URL: one remote has several spellings, and a fork clone names two repositories.
+- **Work-item scope** — the one filter every search applies, where this tracker has such a thing. Say what
+  goes wrong without it: a search that does not filter matches a sibling project's items, and an
+  idempotency check then finds a ticket that is not this project's.
+- **Operations** — written only where the server cannot supply the how. Say so when the answer is none.
 
-If `STATE = 'full'` and `MODE = 'default'`, skip Step 5 (do not rewrite the config) but **still run Step 6**, then print the Step 8 summary and stop — tell the user to run `/unic-archon-dlc:setup reconfigure` to change settings. Step 6 is how a plugin upgrade lands a new Methods bundle, and it is idempotent: it writes only the generated `.archon/methods/` tree. Skipping it here would leave every already-configured project stuck on the bundle it first installed. Exception: if `LEGACY` is true, proceed through Step 5 to migrate even in this case (a rich `.yaml` does not yet exist).
+Write `triage-labels.md` from `TRACKER_VOCABULARY`: propose a value for each canonical role from what the
+board already uses, show the operator how often each candidate appears, and write what they confirm. Three
+rules hold whatever they answer:
 
-Otherwise collect the fields to fill:
+- The role names in the left column are this Plugin's, and the team owns every other column.
+- Create nothing on the tracker. A role the board has no name for is mapped onto a name it already carries,
+  or left unmapped — never answered by adding a name to someone else's board.
+- `TRACKER_VOCABULARY` empty, because no tracker surface was reachable → write the file with the roles and
+  an empty value column, and say plainly in it that a Box refuses to write a role until a human fills the
+  column.
 
-- `STATE = 'fresh'` → collect all mandatory fields + the optional ones below.
-- `STATE = 'partial'` (default) → collect only `MISSING` fields.
-- `MODE = 'reconfigure'` → collect all fields.
-- `MODE = 'intent'` → collect `MISSING` first, then interpret `INTENT` to decide which already-set field(s) to also update.
+## Step 7 — Patch the managed blocks (**patch**)
 
-Surface auto-detected hints while asking: `GIT_REMOTE` contains `github.com` → suggest `tracker.type = github`; `dev.azure.com`/`visualstudio.com` → `ado`. Always pass `REPO_LAYOUT` through (never ask).
+One block in the Consumer's `CLAUDE.md`, and one more in each line-based ignore file Step 4 found. Each is
+delimited by markers written in that file's own comment syntax, `unic-archon-dlc:begin` and
+`unic-archon-dlc:end`. Rewrite the whole block between the markers, markers included, and leave everything
+outside them verbatim. Absent block in a file that exists → append it. Absent file → create it, but only
+where this step has a block to put in it: a tool whose exclusions live in a structured config gets no file
+of its own invented for it. A
+re-run replaces the block in place and never appends a second one. The block carries no
+`AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run rewrites it — two different
+things, and the second is what makes an overwrite legible. What it never claims is to be maintained: nothing
+here detects a hand edit
+between the markers.
 
-Fields (map answers onto the schema paths — see `docs/adr/0018-generic-core-config-compose.md`):
+### `CLAUDE.md`
 
-- **project** — `project.name`, `project.branching` (`gitflow | github-flow`), `project.pr_strategy` (`merge | squash | rebase`). _(mandatory: branching, pr_strategy)_ Do **not** ask for `project.repo_ref` and do not write it: every box derives the target repository from the worktree's `origin` remote. It is an optional override for the one case that derivation cannot settle — a fork checkout whose parent differs from `origin`, where a box cancels rather than guess. Write it only if the user asks for it by name.
-- **tracker** — `tracker.type` (`github | ado | jira | local-markdown`) _(mandatory)_; `tracker.coords` (e.g. `{owner, repo}` for github, `{org, project, repo}` for ado); `tracker.access` filled from Step 3 (`{mcp, cli}`).
-- **docs** — `docs.type` (`confluence | markdown | none`) — where the team's **product specs** live; `docs.publish` (default `false`, opt-in). `docs.access` from Step 3.
-- **design** — `design.type` (`figma | none`), `design.access` from Step 3.
-- **classification** — `classification.labels` _(mandatory)_, the Canonical role → Label string
-  mapping every Box resolves a role through. Ask **one** question. Show the three tables below as they
-  stand — the right-hand column is what this Plugin offers, not what it writes on the team's behalf —
-  and ask "Keep these? (recommended: yes)". On **yes**, write all seventeen entries explicitly. On
-  **no**, take an override only for the rows the team renames; every other row keeps the string shown.
-  Any entry in `MISSING` that starts with `classification.labels` selects this field, so a config
-  written before a role existed asks for that role too; pre-fill every row that `CURRENT` already maps
-  with the team's own string, and write the full seventeen back, so an override is never dropped by a
-  partial re-run. Do **not** probe the tracker for its labels, do **not** create one, and do **not**
-  report which are absent: a tracker with a different vocabulary is answered by mapping the role onto
-  a string it already carries, not by adding a seventeenth label to someone else's board. The tier a
-  row sits in is what tells a composed tracker skill which axis to write, so the team owns the
-  right-hand column and never the left ([ADR-0024](../docs/adr/0024-triage-intake-on-ramp.md)).
-
-  | `state` role      | Label string      | what it means                                          |
-  | ----------------- | ----------------- | ------------------------------------------------------ |
-  | `needs-triage`    | `needs-triage`    | Filed, not yet evaluated                               |
-  | `needs-info`      | `needs-info`      | Waiting on the reporter for detail                     |
-  | `needs-specs`     | `needs-specs`     | A valid idea, not yet decomposed — routes to `/specs`  |
-  | `ready-for-agent` | `ready-for-agent` | Fully specified — an AFK agent can take it             |
-  | `ready-for-human` | `ready-for-human` | Needs a human — a design call, or it reproduces poorly |
-  | `resolved`        | `resolved`        | Implemented, awaiting the merge                        |
-  | `closed`          | `closed`          | Merged, or already covered                             |
-  | `rejected`        | `rejected`        | Will not be actioned                                   |
-
-  | `type` role | Label string | what it means                             |
-  | ----------- | ------------ | ----------------------------------------- |
-  | `feature`   | `feature`    | New capability                            |
-  | `bug`       | `bug`        | Something that should work does not       |
-  | `spike`     | `spike`      | Time-boxed research                       |
-  | `tech-debt` | `tech-debt`  | Cleanup, no user-visible behaviour change |
-  | `docs`      | `docs`       | Documentation only                        |
-
-  | `priority` role | Label string | what it means   |
-  | --------------- | ------------ | --------------- |
-  | `p0`            | `p0`         | Drop everything |
-  | `p1`            | `p1`         | High — next up  |
-  | `p2`            | `p2`         | Normal          |
-  | `p3`            | `p3`         | Low — whenever  |
-
-- **gates** — per Archon box (`build`, `qa`, `pr-review`, `explore`): `hitl` (default) or `afk`. Interactive skill boxes are always HITL and are not listed here.
-- **build** — `build.e2e_command` (optional), `build.coverage_threshold` (optional). Leave `build.fresh_context_red_green`, `tdd_mode`, `nyquist_validation`, `slopsquatting_gate` at their defaults unless the user asks.
-- **estimations** — `off | provisional | definitive | both` (default `off`).
-- **model_profile** — `fast | balanced | max` (default `balanced`).
-
-Build a single `ANSWERS` object containing **only** the fields you collected, keyed by the nested schema paths above, plus:
-
-- `project.repo_layout` = `REPO_LAYOUT`,
-- the Step-3 discovery results under `tracker.access` / `docs.access` / `design.access`.
-
-## Step 5 — Write the config
-
-Write `.archon/unic-dlc.config.yaml` with your own tools. Merge in this order — **defaults, then what
-is on disk, then this run's answers** — key by key, deeply, so a re-run with one changed answer
-preserves every other value:
-
-1. Start from `CURRENT` as Step 2 read it. When Step 2 read a legacy flat `.json`, migrate it first:
-   move each flat key under the nested key that now holds it, and **preserve every hand-added value**
-   the team put there, including labels this Plugin never asked for.
-2. Apply `ANSWERS` over it. An answer the operator did not give leaves the existing value alone; it
-   never resets it to a default.
-3. Emit YAML and write it to `.archon/unic-dlc.config.yaml`, creating `.archon/` when it does not
-   exist. Keep comments and key order stable across runs where you can — this file is read by humans.
-
-Two refusals. A config that is present but unreadable stops this step — print the parse error and
-change nothing, because overwriting it would destroy the only copy. And a legacy `.archon/unic-dlc.config.json`
-is **left exactly where it is**: other tools may still read it, so report that you kept it and never
-delete it.
-
-Note the path you wrote as `CONFIG_PATH` for the Step 8 summary.
-
-## Step 6 — Install the Methods and the Box workflows
-
-This step copies files **out of this Plugin's own installed directory**, so it is the one step that
-needs to know where that is. Find it yourself: the directory holds `vendor/mattpocock-skills/`,
-`.archon/workflows/unic-dlc-*.yaml` and `.claude-plugin/plugin.json`. A marketplace install puts it
-under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, one directory per installed version
-— take the version that matches `.claude-plugin/plugin.json` in the copy you are running from. Confirm
-the path with the operator before copying anything, and if you cannot find it, say so and **stop**
-rather than guessing: an install that copies from the wrong version is worse than no install.
-
-Read `version` from that directory's `.claude-plugin/plugin.json` and keep it as `PLUGIN_VERSION`.
-
-**The Methods.** The Methods the Boxes compose ship inside this Plugin at `vendor/mattpocock-skills/`.
-Verify that bundle, then copy it into `.archon/methods/` — the one path every Box and command reads a
-Method from.
-
-- Every Method directory in the bundle carries a `SKILL.md`. Verify the companions **by reading**: open
-  each `SKILL.md` and confirm that every companion file it points at sits beside it in the same
-  directory. A Method that references none needs none — several correctly ship a single file, so a file
-  count is not the test. A companion the text points at and the directory lacks is a Method pointing at
-  nothing: report it and stop.
-- `vendor/mattpocock-skills/LICENSE` must be present. If it is absent, ask the maintainer to restore it
-  and stop: **never create a `LICENSE` file yourself.**
-- `vendor/mattpocock-skills/README.md` records the upstream repository, tag and commit the bundle was
-  copied from. Read it and keep the tag as `BUNDLE_TAG`.
-- Copy clean: replace `.archon/methods/` wholesale, so a Method dropped from a later Plugin version
-  cannot linger.
-- Two override paths an earlier version offered now resolve nothing, because `.archon/methods/` is the
-  only path a Box or a command reads. Report each one you find, once, as retired, and **change
-  neither** — both are the team's own work, and discarding it is not this step's call. They are a
-  `.archon/methods.local/` directory (leave it on disk) and any `methods.<name>.source` key in the
-  config (Step 5 preserves it, like every other key it does not ask about).
-
-**The Box workflows.** Install every `unic-dlc-*.yaml` this Plugin ships into the Consumer's
-`.archon/workflows/`, discovered by reading this Plugin's own `.archon/workflows/` — no Box name is a
-literal anywhere in the install path. This is **name-scoped, never a whole-directory clean-replace**:
-`.archon/workflows/` is shared with the Consumer's own workflows, so only names matching the
-`unic-dlc-*.yaml` naming are ever written, overwritten, or swept as stale — including a Box retired
-from a later Plugin version, which is deleted **regardless of whether it carries the generated
-header**. A file named outside that pattern is never inspected, whatever it contains — that is what
-makes the variant escape hatch (README.md) true. `/setup` writes nothing into `.archon/commands/`; the
-Box command stubs live at `docs/boxes/` as operator documentation, not runtime artefacts.
-
-Before overwriting, read the version out of the generated header of each `unic-dlc-*.yaml` already on
-disk and keep the one you find as `PREVIOUS_VERSION` — the version that wrote the Boxes now being
-replaced. It is empty on a fresh Consumer, and on a Box carrying no readable header.
-
-Keep `WORKFLOWS_WRITTEN`, `WORKFLOWS_DELETED` and `WORKFLOWS_ADDED` for the Step 8 summary.
-
-**Any failure here stops the whole setup run.** A missing licence, an incomplete bundle, a copy that
-could not be written, a stale `unic-dlc-*.yaml` that could not be removed — each means the shipped
-Plugin is incomplete or the disk refused a write, and none of them is fixed by re-running the earlier
-steps. Say how much landed before the failure and that a bare re-run of `/setup` self-heals, because it
-clean-replaces the affected tree. Never report success while a stale Box is still on disk.
-
-## Step 7 — Refresh the `CLAUDE.md` marker block (idempotent)
-
-Write/refresh the block in the consumer's `CLAUDE.md`, delimited by `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->`. Replace the whole marker-delimited block, **markers included**, and preserve everything outside it verbatim; if the file or block is absent, create it. This runs regardless of `docs.type`.
-
-The block describes what this run installed on the consumer's own disk, and nothing about this Plugin's own shape: it names no pipeline stage, and no Box but `/unic-archon-dlc:setup` itself — it cannot say what regenerates the block without naming it — because a Plugin release renames, reorders and drops both without touching the consumer's repo. Everything it carries is instead a path the reader can open, a command they can run, or a link. It also carries one sentence naming `classification.labels` as the Canonical role → tracker Label string mapping this project answered during setup, and pointing at `/unic-archon-dlc:setup reconfigure` as the way to review or change it — this block is the only surface that ships into a Consumer's repo, so without that sentence the seventeen lines in the config have no thread to pull.
-
-Write exactly this, markers included, as the whole block. Every line is static; fill nothing in:
+Write exactly this, markers included, as the whole block. Every line is static:
 
 ```markdown
 <!-- unic-archon-dlc:begin -->
@@ -250,55 +374,95 @@ Write exactly this, markers included, as the whole block. Every line is static; 
 This project is configured for `unic-archon-dlc`. `/unic-archon-dlc:setup` writes this block —
 anything between the markers is replaced on the next run.
 
-- **Configuration** — `.archon/unic-dlc.config.yaml`. Its `classification.labels` map is the
-  Canonical role → tracker Label string mapping every Box resolves a role through. Run
-  `/unic-archon-dlc:setup reconfigure` to review or change it.
-- **Interactive boxes** — this plugin's slash commands. Claude Code lists them in the session.
-- **Archon Boxes** — the `unic-dlc-*.yaml` files in `.archon/workflows/`. List what is installed here
-  with `archon workflow list`; run one with `archon workflow run <name> "<slug>"`. They are
-  generated: `/unic-archon-dlc:setup` replaces them on every run.
-- **Methods** — `.archon/methods/` is replaced wholesale on every `/unic-archon-dlc:setup` run. To
-  change a Method, edit the file there and expect the next run to overwrite it.
+- **Configuration** — `.archon/unic-dlc.config.yaml`.
+- **Tracker contract** — `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` carry every
+  fact about this tracker, including which value each canonical role writes. Edit them here; nothing
+  regenerates them once they exist.
+- **Interactive commands** — this plugin's slash commands. Claude Code lists them in the session.
+- **Archon Boxes** — the `unic-dlc-*.yaml` files in `.archon/workflows/`. List what is installed with
+  `archon workflow list`; run one with `archon workflow run <name> "<slug>"`. They are generated:
+  `/unic-archon-dlc:setup` replaces them on every run.
+- **Methods** — `.archon/methods/` is replaced wholesale on every `/unic-archon-dlc:setup` run. To change
+  a Method, edit the file there and expect the next run to overwrite it.
 - **What each box does** —
   <https://github.com/unic/unic-agents-plugins/blob/main/apps/claude-code/unic-archon-dlc/README.md>
 
 <!-- unic-archon-dlc:end -->
 ```
 
-Keep the edit idempotent: re-running `/setup` replaces the block in place, never appends a second one.
+The block names one command, `/unic-archon-dlc:setup`, and no pipeline stage: a Plugin release renames and
+reorders both without touching this repository. Everything it carries is a path the reader can open, a
+command they can run, or a link.
+
+### The formatter exclusions
+
+For every tool in `FORMATTERS`, exclude three things from it:
+
+1. `.archon/methods/`
+2. `.archon/workflows/`
+3. any file whose name carries `.generated.`, written in that tool's own pattern syntax.
+
+Write the exclusions as a marked block in the tool's **line-based ignore file**, creating that file when
+the project has none. Where the exclusion mechanism is a **structured config value** instead — an array in
+JSON or TOML, which cannot carry a comment marker — write nothing there: print the exact entry the operator
+must add, and carry it into Step 8 as an open item. Editing a value this command cannot delimit would leave
+a line the next run could not tell from a hand-written one.
+
+Open the block by saying `/setup` rewrites it, exactly as the `CLAUDE.md` block does: an ignore file belongs
+to the tenant, and a tenant who edits between the markers otherwise loses the edit on the next run with
+nothing on either side to warn them. Then state the reason, because the failure it prevents is silent. A formatter that reflows an
+installed file raises no error and no test failure — it makes the file stop matching the release it was
+copied from, and the header line is then the only provenance left. Both trees needed this and the third
+entry anticipates it: a Markdown glob rewrote thirteen Method files in one run on `DXP-DesignSystem`
+(2026-08-18) before anything excluded that directory; the Boxes are `.yaml`, so the same glob missed them
+by luck, and the exclusion is written for the glob that grows rather than the glob measured that day.
 
 ## Step 8 — Summary
 
-Print a concise summary. List the Methods installed, and the Bundle tag they came from:
-
 ```
-unic-archon-dlc configured.
-  upgraded from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}
-  config:   {configPath}
-  archon remote: {ARCHON_REMOTE_RESOLVED} (Archon's own worktree.remote — verified, never written by this plugin)
-  tracker:  {tracker.type} (access: {mcp|cli})
+unic-archon-dlc installed.
+  {version line — one of the three forms below}
+  config:   {CONFIG_PATH}
+  contract: {issue-tracker.md and triage-labels.md — written, or reported unchanged}
+  archon remote: {ARCHON_REMOTE_RESOLVED} (Archon's own worktree.remote — verified, never written here)
   docs:     {docs.type} (publish: {docs.publish})
-  gates:    build={…} qa={…} pr-review={…} explore={…}
+  design:   {design.type}
+  gates:    {box}={mode} …
   methods:  {name} · {name} · … (bundle {BUNDLE_TAG})
   workflows written: {path} · {path} · …
-  workflows removed: none
-  workflows added: {path} · {path} · …
+  workflows removed: {path} · … | none
+  workflows added:   {path} · … | none
+  formatters: {tool} → {ignore file patched} | {tool} → ACTION REQUIRED: {entry to add}
 ```
 
-Fill `{configPath}` from `configPath` (Step 5's output) or, when Step 5 was skipped, from `CONFIG_PATH` (Step 2's output).
+Name **paths**, never a count alone: the point is a reviewable diff.
 
-Fill the `archon remote:` line from `ARCHON_REMOTE_RESOLVED`. When it is null, print `none resolved — Archon Boxes may need worktree.remote set manually` instead of a remote name.
+`ARCHON_REMOTE_RESOLVED` null → print `none resolved — Archon Boxes may need worktree.remote set manually`.
 
-Build the `methods:` line from the directories Step 6 copied into `.archon/methods/`, `·`-separated, with `BUNDLE_TAG` in brackets. A Method the table under [README.md § Dependencies](../README.md#dependencies) names and Step 6 did not install is a fault worth reporting by name.
+Build the `methods:` line from `METHODS_INSTALLED`, the names Step 5 kept. Step 5 already stopped the run if
+the bundle lacked a Method the dependency table names, so this line reports what landed and judges nothing.
 
-Build the `workflows written:` line from `WORKFLOWS_WRITTEN` — every path this run wrote into `.archon/workflows/`, `·`-separated. Build `workflows removed:` from `WORKFLOWS_DELETED` — `none` when it is empty, otherwise every stale `unic-dlc-*.yaml` path this run swept because the current Plugin version no longer ships it. Build `workflows added:` from `WORKFLOWS_ADDED` — `none` when it is empty, otherwise every path this run wrote that the Consumer did not already have, i.e. the Boxes this Plugin version brings. `WORKFLOWS_ADDED` is a subset of `WORKFLOWS_WRITTEN`; the paths in one and not the other were already installed and were overwritten. All three lists name **paths written, paths deleted and paths added**, never a count alone — the point is a reviewable diff, not a summary number.
+`WORKFLOWS_ADDED` is a subset of `WORKFLOWS_WRITTEN`; a path in one and not the other was already installed
+and got overwritten. `WORKFLOWS_REMOVED` holds every stale `unic-dlc-*.yaml` the sweep retired.
 
-Build the version line from `PREVIOUS_VERSION` and `PLUGIN_VERSION`, in one of three forms, and compute it nowhere else:
+Build the version line in one of three forms, and compute it nowhere else:
 
-- `PREVIOUS_VERSION` is null **and** `WORKFLOWS_ADDED` holds as many paths as `WORKFLOWS_WRITTEN` — nothing was on disk to read a version from and every Box is new, so print `first install`.
-- `PREVIOUS_VERSION` is null and that count does not match — Boxes were already installed but none names a version, so print `upgraded from: unknown`.
-- Otherwise print `upgraded from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}`, printing both versions even when they are equal: a re-run at the same version is a fact worth showing, not a case to special-case away.
+- `PREVIOUS_VERSION` null **and** `WORKFLOWS_ADDED` as long as `WORKFLOWS_WRITTEN` — nothing was on disk to
+  read a version from and every Box is new → `first install`.
+- `PREVIOUS_VERSION` null and those counts differ — Boxes were installed but none names a version →
+  `from: unknown`.
+- `PREVIOUS_VERSION` holds more than one version — the Boxes on disk disagreed, so the prior install was
+  partial → `from: a partial install of {v} and {v} → {PLUGIN_VERSION}`. Name the partial state in words: a
+  bare list reads as a range and hides the one thing the operator needs to know.
+- Otherwise `from: {PREVIOUS_VERSION} → {PLUGIN_VERSION}`, both printed even when equal: a re-run at the
+  same version is a fact worth showing.
 
-The line is informational and gates nothing. Step 6 runs unattended on the upgrade path, so never turn it into a prompt.
+The line is informational and gates nothing. Step 5 runs unattended on the upgrade path, so it never
+becomes a prompt.
 
-Then note: **re-run `/unic-archon-dlc:setup` after updating the plugin** to pick up new config keys (the merge is idempotent — your existing values are preserved).
+Close with three things. Every `ACTION REQUIRED` formatter entry, which is the one open item that outlives
+a successful run. Then: **commit what this run wrote.** The installed trees are committed generated files
+([ADR-0036](../docs/adr/0036-setup-owns-a-named-install-set.md) D4) — that is what gives a Plugin upgrade a
+diff and a reviewer, and what makes an operator's edit to a Box legible as a `git diff` after the next run.
+This command stages nothing itself. And: **re-run `/unic-archon-dlc:setup` after updating the plugin.** It
+refreshes the Boxes and the Methods and leaves every tenant-owned file alone.

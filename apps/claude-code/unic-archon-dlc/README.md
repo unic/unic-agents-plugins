@@ -1,6 +1,7 @@
 # unic-archon-dlc
 
-A config-driven AI development lifecycle, installable as a Claude Code plugin. It is a **Harness** —
+A config-driven Harness for the **SDLC** — the AI development lifecycle — installable as a Claude Code
+plugin. It is a **Harness** —
 it owns the box set below, plus isolation, gates, config and integrity — and **composes the team's
 system-skills** (tracker, docs, design) for the _how_, so nothing about ADO / Jira / GitHub /
 Confluence / Figma is baked in. Procedure belongs to the **Methods** it hosts
@@ -39,12 +40,12 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 | ----------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `/setup`                | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
 | `/explore`              | Archon    | `gates.explore`   | Off-line, optional research + AFK spike → `findings.md` (ADR-0029)                                                             |
-| `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md` (ADR-0020)                                                                                          |
+| `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md`, plus one design contract per component when `design.type` is set (ADR-0020)                        |
 | `/tickets`              | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)                                             |
 | `/triage`               | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)                                            |
 | `/build`                | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                                                             |
 | `/pr-review`            | Archon    | `gates.pr-review` | Fan-out review of the open PR, intent-grounded; posts summary + inline (ADR-0026)                                              |
-| `/qa`                   | Archon    | `gates.qa`        | e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                                                 |
+| `/qa`                   | Archon    | `gates.qa`        | test → e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                                          |
 | `/improve-architecture` | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                                                     |
 | `/cleanup`              | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
 | `/archon-upgrade`       | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
@@ -62,7 +63,7 @@ The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
 | `unic-dlc-pr-review` | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
-| `unic-dlc-qa`        | `bootstrap → guard-not-ready → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                         |
+| `unic-dlc-qa`        | `bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                  |
 | `unic-dlc-explore`   | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
 
 > **✓** = config-gated `approval:` node — it pauses for a human when the box's gate is `hitl` and
@@ -130,9 +131,11 @@ Open Claude Code in any project and run:
 /unic-archon-dlc:setup
 ```
 
-The setup command auto-detects your tracker (GitHub, ADO, Jira, or local-markdown), deduces a
-PR strategy, and writes the config, the Methods, and the Box workflow YAMLs into your project (see
-[The Box workflow artefacts](#the-box-workflow-artefacts)).
+The setup command installs the Box workflow YAMLs and the Methods into your project, writes the config and
+the tracker contract, and patches the two managed blocks — the one in your `CLAUDE.md` and the exclusions
+that keep whatever your project uses to format or lint off the two installed trees (see
+[The Box workflow artefacts](#the-box-workflow-artefacts)). Ownership decides what a re-run does: it
+replaces what this plugin owns, and reports on a file you own rather than rewriting it.
 
 **Step 2 — Explore** _(optional)_
 
@@ -160,37 +163,57 @@ flows into `/tickets` next.
 
 ## Configuration reference
 
-The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate every box reads; setup is its sole writer, is idempotent (a re-run merges, never clobbers — a present-but-malformed config fails fast rather than being overwritten), and reads any legacy `.archon/unic-dlc.config.json` to migrate it (the old file is left in place). Top-level sections:
+The `/unic-archon-dlc:setup` command writes the rich `.archon/unic-dlc.config.yaml` ([ADR-0018](docs/adr/0018-generic-core-config-compose.md), [ADR-0019](docs/adr/0019-conversational-setup.md)). It is the config substrate every box reads, and `/setup` is its sole writer. The file is **tenant-owned**: `/setup` writes it on the first run, and on a later run reports what differs from what it would write and changes nothing — pass `reconfigure` to be offered the change file by file. A present-but-malformed config stops the run rather than being overwritten, and so does a legacy flat `.archon/unic-dlc.config.json`: no migration ships any more, and reading such a file as "no config" would write a second config beside it. Top-level sections:
 
-| Path                                                     | Default                | Valid values                                  | Description                                                                                                                         |
-| -------------------------------------------------------- | ---------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `project.name`                                           | asked                  | any string                                    | Project name                                                                                                                        |
-| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | Whether `CONTEXT-MAP.md` is present                                                                                                 |
-| `project.branching`                                      | asked                  | `gitflow` · `github-flow`                     | Branching model (mandatory)                                                                                                         |
-| `docs.type`                                              | `markdown`             | `confluence` · `markdown` · `none`            | Where the team's product specs live (drives `/specs` publishing)                                                                    |
-| `docs.publish`                                           | `false`                | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                                                                                     |
-| `design.type`                                            | `none`                 | `figma` · `none`                              | Design system source                                                                                                                |
-| `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape                                                  |
-| `templates.{issue,bug}`                                  | `null`                 | template string                               | Config-driven artifact templates (ADR-0018)                                                                                         |
-| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `grilling` + `domain-modeling`; `assumptions` enumerates upfront (ADR-0020)             |
-| `specs.gate`                                             | `open-pr`              | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops                        |
-| `tickets.gate`                                           | `open-pr`              | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022) |
-| `triage.out_of_scope_dir`                                | `.out-of-scope`        | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                      |
-| `triage.external_prs`                                    | `auto`                 | `auto` · `always` · `never`                   | Whether `/triage` treats external PRs as a request surface; `auto` = ask the tracker whether it carries them at all (ADR-0024)      |
-| `gates.{build,qa,pr-review,explore}`                     | `hitl`                 | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL                                                                     |
-| `build.fresh_context_red_green`                          | `true`                 | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)                                                                            |
-| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`                 | `true` · `false`                              | Build discipline toggles                                                                                                            |
-| `build.e2e_command`                                      | `null`                 | shell command string                          | Full e2e suite command                                                                                                              |
-| `build.coverage_threshold`                               | `null`                 | number (0–100) or `null`                      | Minimum % coverage; `null` skips the check                                                                                          |
-| `estimations`                                            | `off`                  | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                                                                                         |
-| `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                  |
-| `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                              |
-| `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                       |
+| Path                                                     | Default                | Valid values                                  | Description                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | ---------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `project.name`                                           | asked                  | any string                                    | Project name                                                                                                                                                                                                                                                                  |
+| `project.repo_layout`                                    | auto-detected          | `single-context` · `multi-context`            | `multi-context` when the repository holds more than one independently-releasable project                                                                                                                                                                                      |
+| `project.branching`                                      | asked                  | `gitflow` · `github-flow`                     | Branching model (mandatory)                                                                                                                                                                                                                                                   |
+| `docs.type`                                              | `markdown`             | `markdown` · docs system name · `none`        | Where the team's product specs live (drives `/specs` publishing)                                                                                                                                                                                                              |
+| `docs.access` · `design.access`                          | auto-detected          | `{mcp, cli}`                                  | Which surface serves the docs and design systems, filled from setup's verify-only discovery                                                                                                                                                                                   |
+| `docs.publish`                                           | `false`                | `true` · `false`                              | Opt-in publishing of the PRD to the docs system                                                                                                                                                                                                                               |
+| `design.type`                                            | `none`                 | design system name · `none`                   | Design system source; boxes test set-versus-`none` and never compare the value to a literal — `design.access.mcp` resolves the tool                                                                                                                                           |
+| `templates.prd`                                          | 7-section scaffold     | template string                               | Config-driven PRD template `/specs` fills (ADR-0018); override to change PRD shape. The `Confirmations` section sits outside it and no override removes it                                                                                                                    |
+| `templates.{issue,bug}`                                  | `null`                 | template string                               | Config-driven artifact templates (ADR-0018)                                                                                                                                                                                                                                   |
+| `specs.discuss_mode`                                     | `discuss`              | `discuss` · `assumptions`                     | `/specs` grilling style: `discuss` composes `grilling` + `domain-modeling`; `assumptions` enumerates upfront (ADR-0020)                                                                                                                                                       |
+| `specs.gate`                                             | `open-pr`              | `open-pr` · `stage-only`                      | `/specs` PRD gate: `open-pr` commits + opens a PR to `develop` (never merged); `stage-only` stages and stops. Both refuse when a halt's `Confirmations` entry is absent or unanswered                                                                                         |
+| `tickets.gate`                                           | `open-pr`              | `open-pr` · `stage-only`                      | `/tickets` gate: `open-pr` commits `issues.json` + opens a PR to `develop` (never merged); `stage-only` stages and stops (ADR-0022)                                                                                                                                           |
+| `triage.out_of_scope_dir`                                | `.out-of-scope`        | dir name                                      | Where `/triage` records rejected enhancements (the out-of-scope KB) (ADR-0024)                                                                                                                                                                                                |
+| `triage.external_prs`                                    | `auto`                 | `auto` · `always` · `never`                   | Whether `/triage` treats external PRs as a request surface; `auto` = ask the tracker whether it carries them at all (ADR-0024)                                                                                                                                                |
+| `gates.{build,qa,pr-review,explore}`                     | `hitl`                 | `hitl` · `afk`                                | Per-Archon-box gate mode (ADR-0017); interactive boxes are HITL                                                                                                                                                                                                               |
+| `build.fresh_context_red_green`                          | `true`                 | `true` · `false`                              | Anti-cheat fresh-context red/green separation (ADR-0012)                                                                                                                                                                                                                      |
+| `build.{tdd_mode,nyquist_validation,slopsquatting_gate}` | `true`                 | `true` · `false`                              | Build discipline toggles                                                                                                                                                                                                                                                      |
+| `build.coverage_threshold`                               | `null`                 | number (0–100) or `null`                      | Minimum % coverage for `/build`, and the fallback `/qa` uses when `qa.coverage_threshold` is unset. `null` means `/build`'s `verification` wants no coverage figure and reports nothing about it — which is silence, not a passing check (ADR-0037 §5)                        |
+| `qa.coverage_threshold`                                  | `null`                 | number (0–100) or `null`                      | `/qa`'s own minimum % coverage, falling back to `build.coverage_threshold` when unset, so the QA gate can hold a different bar from the build's. `/qa`'s `coverage-gate` wants a figure always, so a null on both keys is `unresolved` there rather than a skip (ADR-0037 §5) |
+| `sdlc_needs.install`                                     | `null`                 | shell command string                          | Installs this project's dependencies. `/build`, `/qa` and `/pr-review` each run it once, at `bootstrap`; `/explore` does not, since it runs no checks and so has no dependencies to prepare                                                                                   |
+| `sdlc_needs.build`                                       | `null`                 | shell command string                          | Builds the project. No node reads it yet — see the note below the table                                                                                                                                                                                                       |
+| `sdlc_needs.test`                                        | `null`                 | shell command string                          | Runs the test suite. The one need that is mandatory: `/qa`'s merge gate and `/build`'s evidence verdict require an outcome for it                                                                                                                                             |
+| `sdlc_needs.e2e`                                         | `null`                 | shell command string                          | Runs the end-to-end suite. Read by `/qa`'s `e2e` node and by `/build`'s `verification`                                                                                                                                                                                        |
+| `sdlc_needs.lint`                                        | `null`                 | shell command string                          | Lints the project. No node reads it yet — see the note below the table                                                                                                                                                                                                        |
+| `sdlc_needs.format`                                      | `null`                 | shell command string                          | Formats the project. No node reads it yet — see the note below the table                                                                                                                                                                                                      |
+| `sdlc_needs.typecheck`                                   | `null`                 | shell command string                          | Type-checks the project. Read by `/build`'s per-slice GREEN phase                                                                                                                                                                                                             |
+| `sdlc_needs.dev`                                         | `null`                 | shell command string                          | Starts the development server. No node reads it yet — see the note below the table                                                                                                                                                                                            |
+| `sdlc_needs.coverage`                                    | `null`                 | shell command string                          | Produces a coverage figure, compared against the resolved threshold — `qa.coverage_threshold ?? build.coverage_threshold` in `/qa`, `build.coverage_threshold` in `/build`                                                                                                    |
+| `estimations`                                            | `off`                  | `off` · `provisional` · `definitive` · `both` | Estimation waves (ADR-0020)                                                                                                                                                                                                                                                   |
+| `cleanup.{stale_days,dry_run,prune_slug_dirs}`           | `7` · `true` · `false` | number · bool · bool                          | `/cleanup` thresholds; report-first, never auto-deletes (ADR-0028)                                                                                                                                                                                                            |
+| `artifacts_dir`                                          | `workflows`            | dir name                                      | Session artifact home base (`<artifacts_dir>/<slug>/`)                                                                                                                                                                                                                        |
+| `model_profile`                                          | `balanced`             | `fast` · `balanced` · `max`                   | Model tier for workflow nodes                                                                                                                                                                                                                                                 |
+
+**Every `sdlc_needs` key names a need of the development process, never a tool.** `test` is the need;
+whichever runner a project uses is the tool that serves it, and no Box names one. A `null` value means the
+project declares no command for that need: a node that wants it reports an **unresolved** check, which is
+never read as a pass. Four keys — `build`, `lint`, `format` and `dev` — have no node reading them today and
+are declared anyway, because `/setup` writes this file once and thereafter only reports on it, so a key
+added later costs a `reconfigure` in every project that already has one. A key with no reader is intended,
+not a gap.
 
 ### The tracker contract
 
 **No Box reads a tracker fact from that config.** Every one of them lives in two repo-local prose
-files, which `/unic-archon-dlc:setup` writes and every Box and command reads:
+files, which `/unic-archon-dlc:setup` writes and every Box and command reads. Both are **tenant-owned**:
+`/setup` writes each one when it is absent, and on a later run reports what differs rather than rewriting
+it — pass `reconfigure` to be offered the change:
 
 | File                           | What it carries                                                                                                                                                                                                           |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -240,10 +263,10 @@ See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
 
 The Methods the boxes compose ship inside this plugin, at `vendor/mattpocock-skills/` — the upstream
 `mattpocock/skills` files at a pinned tag, recorded in `vendor/mattpocock-skills/README.md`, which names
-the repository, the tag and the commit. `/setup` Step 6 installs them into the consumer's
-`.archon/methods/`, overwriting that directory on every upgrade.
+the repository, the tag and the commit. `/setup` installs them into the consumer's `.archon/methods/`,
+flattening the bundle's category directories away, and overwrites that directory on every upgrade.
 
-**Bundle integrity is not a config key.** `/setup` Step 6 verifies it by reading: every Method
+**Bundle integrity is not a config key.** `/setup` verifies it by reading: every Method
 directory carries its `SKILL.md` and the companion files that Method reads, and `LICENSE` is present.
 Either failure stops setup, because both mean the shipped plugin is incomplete or altered — nothing a
 consumer can configure around. This replaced the old `skills.matt_suite` discovery key.
@@ -269,7 +292,7 @@ an already-configured project.
 
 ### The Box workflow artefacts
 
-See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup` Step 6
+See [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) for the full design. `/setup`
 also installs every `unic-dlc-*.yaml` this plugin ships into your project's
 `.archon/workflows/`, discovered by reading the plugin's own copy at install time — the set is
 whatever this plugin currently ships, never a fixed count. Each installed file is **generated and

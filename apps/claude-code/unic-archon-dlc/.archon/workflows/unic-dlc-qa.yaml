@@ -1,7 +1,8 @@
 name: unic-dlc-qa
 description: >
-  QA box + issue-producing on-ramp. Runs after /build's PR is approved: e2e → coverage-gate →
-  UAT sign-off → verify-pr-base → merge, config-driven and generic. Two human gates (UAT + merge)
+  QA box + issue-producing on-ramp. Runs after /build's PR is approved: test → e2e → coverage-gate →
+  UAT sign-off → verify-pr-base → merge, config-driven and generic. `test` is the floor the merge gate
+  cannot advance without. Two human gates (UAT + merge)
   honour gates.qa — HITL by default, AFK opt-in. When UAT surfaces a defect, it is filed directly as
   an agent-ready tracker item, through the contract at `docs/agents/issue-tracker.md` and
   `docs/agents/triage-labels.md` (ADR-0016/0024), so the finding feeds /tickets rather than only
@@ -15,8 +16,9 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm the QA baton exists.
   # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
-  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. The e2e command
-  # and coverage threshold fall back qa.* → build.* so a team can run a heavier QA suite than build.
+  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. Every command
+  # comes from the one `sdlc_needs` block (#430); only the coverage threshold still falls back
+  # qa.* → build.*, so a team can hold a heavier QA bar than the build's.
   # ---------------------------------------------------------------------------------------------
   - id: bootstrap
     depends_on: []
@@ -32,17 +34,47 @@ nodes:
          - Otherwise read:
              `artifacts_dir`          (default "workflows")
              `gates.qa`               (default "hitl")
-             `qa.e2e_command`         (may be null) — else fall back to `build.e2e_command`
              `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
              `project.branching`      (default "gitflow")
+             the whole `sdlc_needs` block
       3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
          /build implemented — the acceptance criteria the UAT checklist is derived from.
          - If it is absent → status "no-prd".
       4. If slug, config, and PRD.md are all present → status "ready".
 
       Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
-      Emit ONLY the structured object. `e2e_command` / `coverage_threshold` are the resolved
-      (qa.* ?? build.*) values — null when neither is set (→ the node skips with a warning).
+      `coverage_threshold` is the resolved (qa.* ?? build.*) value — null when neither is set.
+
+      ## The `sdlc_needs` block — a key names a need, never a tool
+      Every key in it names a NEED of this project's development process. `test` names the need;
+      whichever runner this project uses is the tool that serves it, and this Box names none. Pass the
+      block downstream as ONE object carrying ALL NINE keys — `install`, `build`, `test`, `e2e`, `lint`,
+      `format`, `typecheck`, `dev`, `coverage` — every time. Copy each value the config sets verbatim:
+      rename nothing, rewrite nothing, infer nothing. Emit `null` for every key the config omits. A
+      config may carry a partial block, or none at all, and both are normal — a tenant hand-edits this
+      file, and a key added by a later release reaches them only at their next `reconfigure`. What is
+      never allowed is emitting fewer than nine keys: this node's schema requires all of them, so a
+      short object fails validation and aborts the run before a guard can cancel it cleanly. A key that
+      arrives null stays null. What happens next depends on the node: one that wants that need reports
+      an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
+      a command — a guessed command reports a result that means nothing.
+      There is no per-Box override any more: the retired `qa.e2e_command` / `build.e2e_command` pair is
+      replaced by the single `sdlc_needs.e2e`, and a config still carrying those keys is ignored.
+
+      ## Install once, and say what you did
+      One Archon worktree serves this whole run and may or may not already carry this project's
+      dependencies. So install here, once, and nowhere else. When status is "ready", run
+      `sdlc_needs.install` from the repo root if it is declared, and set `install_report` to:
+        - declared, exit 0     → "ran the declared install command: ok"
+        - declared, non-zero   → "ran the declared install command: FAILED — <what it printed>"
+        - not declared         → "sdlc_needs.install is not declared, so nothing was installed.
+                                  Dependencies may still be present in this worktree by chance, and a
+                                  later green check here is not proof of a deliberately built
+                                  environment."
+      A failed install does not fail this node — report it and carry on. On any status other than
+      "ready", set `install_report` to "not attempted (<status>)".
+
+      Emit ONLY the structured object.
 
       ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
       object validates before a guard can cancel. When a value cannot be read (e.g. config is
@@ -60,12 +92,25 @@ nodes:
         gate:
           type: string
           enum: [hitl, afk]
-        e2e_command: { type: [string, 'null'] }
         coverage_threshold: { type: [number, 'null'] }
+        sdlc_needs:
+          type: object
+          properties:
+            install: { type: [string, 'null'] }
+            build: { type: [string, 'null'] }
+            test: { type: [string, 'null'] }
+            e2e: { type: [string, 'null'] }
+            lint: { type: [string, 'null'] }
+            format: { type: [string, 'null'] }
+            typecheck: { type: [string, 'null'] }
+            dev: { type: [string, 'null'] }
+            coverage: { type: [string, 'null'] }
+          required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
+        install_report: { type: string }
         branching: { type: string }
         expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, expected_base, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
@@ -81,13 +126,53 @@ nodes:
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
 
   # ---------------------------------------------------------------------------------------------
-  # e2e — run the configured end-to-end suite. A prompt node (ADR-0023 §5): it reads the resolved
-  # command from bootstrap and runs it with its own tools. It REPORTS a verdict (does not hard-fail);
-  # a failing e2e surfaces in the UAT checklist and fail-closes the merge `when` below, so a red build
-  # can never auto-merge even in AFK mode.
+  # test — the floor. This Box ran no test suite at all before #430 and merged on an e2e result that
+  # was almost always a skip. A prompt node (ADR-0023 §5): it reads the declared command from
+  # bootstrap and runs it with its own tools. It REPORTS a verdict rather than hard-failing, and the
+  # merge `when` below requires that verdict to be `pass` — the one clause there that is not `!= fail`.
+  # ---------------------------------------------------------------------------------------------
+  - id: test
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    # always_run: true — the result is a fact about the CURRENT branch; a resume must re-run it
+    # rather than replay a cached pass from before the code changed underneath it (ADR-0033).
+    always_run: true
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the test node of /qa for slug "$bootstrap.output.slug".
+
+      **A key in `$bootstrap.output.sdlc_needs` names a NEED of this project's development process,
+      never a tool.** `test` is the need; whichever runner this project uses is the tool that serves
+      it. Run exactly the command the key holds, append no flag of your own, and fabricate nothing for
+      a key that is null.
+
+      Run the `test` key of `$bootstrap.output.sdlc_needs` from the repo root, capture pass/fail
+      counts, and set `result`:
+        · the key is null, or its command will not run → "unresolved"
+        · exit 0 → "pass"
+        · non-zero → "fail"; include the failing tests in `summary`
+      This node exists to produce a test outcome, so it always WANTS one: a null key is "unresolved"
+      and never a silent skip. That distinction is what the merge gate reads. A "pass" reporting ZERO
+      tests goes in `summary` as **suspicious** rather than as a green result — that is the shape a
+      command declared against the wrong target takes.
+      Print a one-line verdict:  "test: PASSED ✓" / "test: FAILED ✗ — <detail>" /
+      "test: UNRESOLVED — <why>".
+    output_format:
+      type: object
+      properties:
+        result:
+          type: string
+          enum: [pass, fail, unresolved]
+        summary: { type: string }
+      required: [result, summary]
+
+  # ---------------------------------------------------------------------------------------------
+  # e2e — the end-to-end suite. Reports a verdict rather than hard-failing; a real failure fail-closes
+  # the merge below and reaches the human at UAT first.
   # ---------------------------------------------------------------------------------------------
   - id: e2e
-    depends_on: [bootstrap]
+    depends_on: [test]
     when: "$bootstrap.output.status == 'ready'"
     # always_run: true — the result is a fact about the CURRENT branch; a resume must re-run it
     # rather than replay a cached pass from before the code changed underneath it (ADR-0033).
@@ -97,24 +182,34 @@ nodes:
     prompt: |
       You are the e2e node of /qa for slug "$bootstrap.output.slug".
 
-      The configured e2e command is: $bootstrap.output.e2e_command
-      - If it is null/empty → print "e2e: no e2e_command configured (qa.e2e_command / build.e2e_command)
-        — SKIPPED." and set result "skip". This is non-blocking.
-      - Otherwise run that exact command from the repo root and capture pass/fail counts.
-          · exit 0 → result "pass".
-          · non-zero → result "fail"; include the failing tests in `summary`.
-      Print a one-line verdict:  "e2e: PASSED ✓" / "e2e: FAILED ✗ — <detail>" / "e2e: SKIPPED".
+      **A key in `$bootstrap.output.sdlc_needs` names a NEED of this project's development process,
+      never a tool.** Run exactly the command the key holds, append no flag of your own, and fabricate
+      nothing for a key that is null.
+
+      Run the `e2e` key of `$bootstrap.output.sdlc_needs` from the repo root and capture pass/fail
+      counts, then set `result`:
+        · the key is null, or its command will not run → "unresolved"
+        · exit 0 → "pass"
+        · non-zero → "fail"; include the failing tests in `summary`
+      A "pass" reporting ZERO tests goes in `summary` as **suspicious** rather than as a green result —
+      that is the shape a command declared against the wrong target takes.
+      This node exists to run the end-to-end suite, so it always WANTS one: a null key is "unresolved",
+      never a skip. Unresolved is non-blocking here — only the test floor holds the merge — but it is
+      reported, because an absent result and a green result are not the same fact.
+      Print a one-line verdict:  "e2e: PASSED ✓" / "e2e: FAILED ✗ — <detail>" /
+      "e2e: UNRESOLVED — <why>".
     output_format:
       type: object
       properties:
         result:
           type: string
-          enum: [pass, fail, skip]
+          enum: [pass, fail, unresolved]
         summary: { type: string }
       required: [result, summary]
 
   # ---------------------------------------------------------------------------------------------
-  # coverage-gate — enforce the coverage threshold if one is configured; skip cleanly otherwise.
+  # coverage-gate — enforce the coverage threshold against a declared coverage command. It wants a
+  # figure always, so a null on either is `unresolved`, never a skip — `skip` left this enum with #430.
   # Reports a verdict like e2e (fail-closes the merge `when`, never hard-fails the run).
   # ---------------------------------------------------------------------------------------------
   - id: coverage-gate
@@ -127,22 +222,31 @@ nodes:
     prompt: |
       You are the coverage-gate node of /qa for slug "$bootstrap.output.slug".
 
-      The configured coverage threshold is: $bootstrap.output.coverage_threshold
-      - If it is null → print "coverage-gate: no coverage_threshold configured — SKIPPED." and set
-        result "skip".
-      - Otherwise run the repo's test suite with coverage (prefer the project's coverage script; e.g.
-        `pnpm test --coverage`). Parse the total statement/line coverage %.
-          · coverage ≥ threshold → result "pass".
-          · coverage < threshold, or the suite exits non-zero → result "fail".
-          · coverage % unparseable but suite passed → result "pass" (note it could not be parsed).
+      **A key in `$bootstrap.output.sdlc_needs` names a NEED of this project's development process,
+      never a tool.** Run exactly the command the `coverage` key holds. Append no coverage flag of your
+      own to `test` or to any other declared command — `coverage` is a need of its own precisely so
+      that nobody has to guess how this project asks its runner for a figure.
+
+      Two values decide this node: the `coverage` key of `$bootstrap.output.sdlc_needs`, which produces
+      the figure, and `$bootstrap.output.coverage_threshold`, which the figure is compared against.
+      Set `result`:
+        · either value is null, or the command will not run, or the figure cannot be parsed →
+          "unresolved"
+        · figure ≥ threshold → result "pass"
+        · figure < threshold, or the command exits non-zero → result "fail"
+      A run reporting 0%, or no covered files at all, goes in `summary` as **suspicious** rather than as
+      a figure — that is the shape a coverage command pointed at the wrong target takes.
+      This node exists to gate on coverage, so it always WANTS a figure: a null key or a null threshold
+      is "unresolved", never a skip. Unresolved is non-blocking here — only the test floor holds the
+      merge — but it is reported, because a threshold nobody could measure against is not a pass.
       Print a one-line verdict:  "coverage-gate: PASSED (<n>%)" / "coverage-gate: FAILED (<n>% <
-      <threshold>%)" / "coverage-gate: SKIPPED".
+      <threshold>%)" / "coverage-gate: UNRESOLVED — <why>".
     output_format:
       type: object
       properties:
         result:
           type: string
-          enum: [pass, fail, skip]
+          enum: [pass, fail, unresolved]
         summary: { type: string }
       required: [result, summary]
 
@@ -154,7 +258,10 @@ nodes:
   - id: uat-prep
     depends_on: [coverage-gate]
     context: fresh
-    allowed_tools: [Read, Bash, Glob]
+    # Write is here for one reason: this node files the check block into the Session dir. /qa has no
+    # report node, and its console output dies with the worktree, so a block that exists only in
+    # scrollback satisfies nothing — this is the one surface in this Box a human reads afterwards.
+    allowed_tools: [Read, Bash, Glob, Write]
     prompt: |
       You are the uat-prep node of /qa for slug "$bootstrap.output.slug".
 
@@ -168,15 +275,29 @@ nodes:
          them AC-1, AC-2, …
       2. Read `<ARTIFACTS_DIR>/<SLUG>/report.md` if it exists — it holds /build's goals-check coverage
          matrix and test outcomes.
-      3. Print the checklist verbatim (the uat-gate approval message points the reviewer at it):
+      3. WRITE `<ARTIFACTS_DIR>/<SLUG>/qa-checks.md`, then print the same content (the uat-gate
+         approval message points the reviewer at it). Write it as well as print it: this Box has no
+         report node, so anything only printed here dies with the worktree and reaches nobody who
+         reviews this run later.
+
+           === Checks That Could Not Run ===
+           <one line per need whose result is "unresolved", naming the need — and, where
+            $bootstrap.output.sdlc_needs has no command for it, saying that the config declares none,
+            which is the common cause and the one you can see from here>
+           <$bootstrap.output.install_report, verbatim>
 
            === UAT Checklist for <SLUG> ===
            AC-N: <criterion text>
              Evidence: <matching row from the coverage matrix, or "not recorded">
              [ ] Verified by human
            …
-           e2e result:      <PASSED | FAILED | SKIPPED>   (from the e2e node output above)
-           coverage result: <PASSED | FAILED | SKIPPED>   (from the coverage-gate node output above)
+           test result:     <PASSED | FAILED | UNRESOLVED>   ($test.output.result)
+           e2e result:      <PASSED | FAILED | UNRESOLVED>   ($e2e.output.result)
+           coverage result: <PASSED | FAILED | UNRESOLVED>   ($coverage-gate.output.result)
+
+         The first block comes first and stays even when nothing is unresolved — write "every declared
+         check ran" then. A check nobody could run is the fact a reader skips past when it sits in a
+         paragraph, which is why it is a block of its own and why it goes above the checklist.
 
       Emit the numbered criteria as structured output so the finding-capture step can reference them
       by number when a defect is rejected.
@@ -204,16 +325,21 @@ nodes:
   # blocked by / additional context) and the thin-issues heuristic above it were originally Matt
   # Pocock's `qa` Method. Upstream v1.1.0 moved `qa` to `skills/deprecated/` with no replacement, so
   # there is nothing left to resolve by name: the shape is inlined verbatim here and this Harness owns
-  # it from now on. It is deliberately absent from the Method table in README.md § Dependencies — an
-  # entry there would point at a dead upstream branch (#281, #381).
+  # it from now on. It is deliberately absent from the Method table in the `unic-archon-dlc` Plugin's
+  # own README.md § Dependencies — not this repository's README, which is a Consumer's — because an
+  # entry there would point at a dead upstream branch (#281, #381, #401).
   # ---------------------------------------------------------------------------------------------
   - id: uat-gate
     depends_on: [uat-prep]
     when: "$bootstrap.output.gate == 'hitl'"
     approval:
       message: >
-        UAT for "$bootstrap.output.slug": review the UAT checklist printed by uat-prep above against
-        the e2e and coverage-gate results. APPROVE to proceed to PR-base verification and merge.
+        UAT for "$bootstrap.output.slug": review the UAT checklist in
+        <artifacts_dir>/<slug>/qa-checks.md, which uat-prep wrote and also printed above, against the
+        test, e2e and coverage-gate results. That file opens with the checks that could not run —
+        read it before approving, because a need this project does not declare reports "unresolved"
+        rather than failing, and the test result is the one the merge gate later refuses to advance
+        without. APPROVE to proceed to PR-base verification and merge.
         REJECT with the failing item(s) (e.g. "AC-3: totals wrong for empty cart") — I will file each
         as an agent-ready issue on the tracker, then the gate re-pauses so you can REJECT again to halt.
       on_reject:
@@ -255,7 +381,8 @@ nodes:
                  the defect, so it is agent-ready — it needs no second /triage pass (ADR-0025).
                - Body (the finding-capture brief shape): ## What happened / ## What I expected / ## Steps to reproduce /
                  ## Blocked by (issue #s or "None — can start immediately") / ## Additional context
-                 (reference the failing AC-N and the e2e/coverage evidence).
+                 (reference the failing AC-N and the test/e2e/coverage evidence, naming any that came
+                 back "unresolved" as unresolved rather than as passing).
                - Prepend the mandated disclaimer as the first body line:
                  `> *This was generated by AI during QA.*`
           4. Print each created item's id, its URL and its blocking relationships, and this line:
@@ -322,18 +449,27 @@ nodes:
     approval:
       message: >
         UAT approved and PR base verified as "$bootstrap.output.expected_base" for
-        "$bootstrap.output.slug". Approve to merge the PR through the tracker (and delete the feature
-        branch on Gitflow). Reject to halt without merging.
+        "$bootstrap.output.slug". The test result is "$test.output.result". A merge needs "pass": this
+        gate is not what enforces that — the merge node downstream is — so if the result above is not
+        "pass", approving here will not produce a merge. Which checks could not run is written in
+        <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker (and delete
+        the feature branch on Gitflow). Reject to halt without merging.
 
   # ---------------------------------------------------------------------------------------------
   # merge — merge the PR through the tracker. trigger_rule: all_done so it runs when merge-gate
-  # is SKIPPED in AFK; the `when` fail-closes so it NEVER runs on a red e2e/coverage or a wrong base,
-  # in either mode. A rejected merge-gate cancels the run before this node (max_attempts default).
+  # is SKIPPED in AFK; the `when` fail-closes so it NEVER runs on a red test/e2e/coverage or a wrong
+  # base, in either mode. A rejected merge-gate cancels the run before this node (max_attempts).
+  #
+  # The `test` clause reads `== 'pass'` while e2e and coverage read `!= 'fail'`, and that asymmetry is
+  # the floor (#430): `test` is the one need this gate cannot advance without, so an `unresolved` test
+  # holds the merge, while an unresolved e2e or coverage reports and lets it through. Every node here
+  # reports three states and `skip` is gone, so `!= 'fail'` no longer means "ran or was skipped" — it
+  # means "did not fail", unresolved included, deliberately.
   # ---------------------------------------------------------------------------------------------
   - id: merge
     depends_on: [merge-gate]
     trigger_rule: all_done
-    when: "$e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.base_ok == 'true'"
+    when: "$test.output.result == 'pass' && $e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.base_ok == 'true'"
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |

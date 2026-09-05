@@ -1,6 +1,7 @@
 # unic-archon-dlc
 
-A **Harness** for an AI development lifecycle. It owns the _what_ (the box set — main line
+A **Harness** for the **SDLC** — the AI development lifecycle it runs; one term, one gloss, see the
+entry below. It owns the _what_ (the box set — main line
 `/specs` → `/tickets` → `/build` → `/pr-review` → `/qa`; on-ramps `/triage` and `/qa` findings;
 off-line `/setup`, `/explore`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`; + `/handoff` — Matt's,
 referenced) and **composes the
@@ -15,6 +16,16 @@ Requires the Archon workflow engine (version ≥ 0.7.0) in the target project.
 ## Language
 
 ### Architecture
+
+**SDLC**:
+The software development lifecycle — idea to production across Plan, Design, Build, Test, Deploy and
+Maintain. It is the concept the box set runs, and **it is the term**: "AI development lifecycle" is
+its gloss here, used where a first-time reader needs one, never as a second name for a second thing.
+Taken from Anthropic's _The AI-Native SDLC playbook_
+(<https://claude.com/blog/the-ai-native-sdlc-playbook>), which also names the build, test and lint
+commands and the linting, formatting and type-checking that **sdlc_needs** below declares. Of the six
+phases, Build and Test are the ones this Plugin's boxes carry; the other four earn no entry here.
+_Avoid_: treating "SDLC" and "AI development lifecycle" as two concepts; ADLC; dev lifecycle
 
 **Harness**:
 What the DLC is to a Method: the owner of everything outside the procedure. See
@@ -53,6 +64,21 @@ holding the gates, the per-Box knobs, the docs and design system-skills, and the
 **no tracker facts**: those are the Tracker contract below. See
 `docs/adr/0018-generic-core-config-compose.md`.
 _Avoid_: config.json (the retired thin form), tracker config
+
+**sdlc_needs**:
+The flat block in **config.yaml** declaring what this project's development process needs, as nine
+nullable keys: `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage`.
+**A key names a need, never a tool** — `test` is the need, and whichever runner the project uses is
+the tool that serves it, which no Box names. `null` means the project declares no command for that
+need, and a node that wants it reports an **unresolved** check rather than a pass. A key no node reads
+is intended, not a gap: the block declares what a project can do, and a node reaches for whichever
+need it has at run time. **Not to be confused with a slice's `test_command`** in **Issues JSON**, which
+is per-slice, written by `/tickets` and read by RED and GREEN: `sdlc_needs.test` is the project-wide
+suite, and the two were one word apart until this block was named. See
+`docs/adr/0037-config-declares-sdlc-needs.md`.
+_Avoid_: commands (taken twice — by **Claude Code slash command** and by **Archon workflow command
+template**), toolchain (it would name what a need resolves _to_, the opposite of the block's own
+rule), capabilities (taken by **System-skill**), lifecycle_needs
 
 **Tracker contract**:
 The two repo-local prose files a Box reads instead of asking config for a host word:
@@ -129,9 +155,24 @@ _Avoid_: cardinality (correct, but not the word in the file), multi-value field,
 
 **PRD**:
 Product Requirements Document produced by the `/specs` command (branch-on-input; via the `to-spec`
-Method) and stored at `workflows/<slug>/PRD.md`. Its section shape comes from the config template
-and is enforced by a generic validator. See `docs/adr/0020-specs-branch-on-input.md`.
+Method) and stored at `<artifacts_dir>/<slug>/PRD.md`. Its section shape comes from the config template,
+and `/specs` checks the rendered PRD against that template itself before it writes — every heading in
+the template must appear. No module validates it; `lib/` is deleted (#381). One section sits outside
+the template and no override removes it: **Confirmations**, one entry per in-method halt, carrying the
+human's answer verbatim or the word `unanswered`. The PRD gate reads it and refuses on an absent or
+unanswered entry. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
+
+**Design contract**:
+The **derived** half of what a project knows about one component: what the design file says, read
+mechanically, plus the code shape that follows from it. `/specs` writes one per component a feature
+names, and every run rewrites it whole, so it rots when the design changes and the cure is another run.
+The **authored** half — which states apply, what the thing is for — lives on the component's docs page,
+is written by a person, and is never touched by this Plugin. A contract's provenance is a **visible
+list**, where an installed Box carries its provenance as a **Generated header** comment: a Box YAML has
+no reader but an agent, while a contract has a human standing at the PRD gate, and hidden provenance is
+provenance nobody checks. `commands/specs.md` holds its section shape and every rule about writing one.
+_Avoid_: design spec, component spec (the authored half is the spec; this is the derived half)
 
 **Findings**:
 The `/explore` output at `workflows/<slug>/findings.md`. Its **Integrated Brief** carries three
@@ -147,8 +188,8 @@ Each entry carries a `test_command` required for Nyquist validation.
 _Avoid_: tickets, tasks list
 
 **Nyquist map**:
-The validation the `/tickets` command runs (via tested lib) to ensure every issue in Issues JSON
-has a `test_command` before `/build` consumes it. Named after the Nyquist sampling theorem analogy:
+The validation `/tickets` runs itself, in conversation, to ensure every issue in Issues JSON has a
+`test_command` before `/build` consumes it. No module runs it; `lib/` is deleted (#381). Named after the Nyquist sampling theorem analogy:
 you must observe behaviour at twice the frequency to reconstruct it faithfully.
 _Avoid_: validation node, test-command check
 
@@ -210,13 +251,15 @@ _Avoid_: child workflow, nested workflow, sub-workflow
 ### Plugin entry points
 
 **Setup**:
-The one-time conversational configuration of unic-archon-dlc in a target project, invoked as
-`/unic-archon-dlc:setup`. Writes `.archon/unic-dlc.config.yaml`, discovers and registers the team's system-skills,
-and refreshes the marker-delimited `## unic-archon-dlc` block in `CLAUDE.md`. Idempotent (a thin tested
-lib does schema-validate + merge): re-running
-with no arguments prints the current config when fully populated, asks only for missing fields
-when partial, and prompts for everything on a fresh project. Pass `reconfigure` to force a full
-re-prompt; pass free-form intent (e.g. "change branching to github-flow") for targeted tweaks.
+The installation of unic-archon-dlc into a target project, invoked as `/unic-archon-dlc:setup`. Six
+actions: copy the Boxes into `.archon/workflows/`, copy the Methods into `.archon/methods/`, write
+`.archon/unic-dlc.config.yaml`, write the tracker contract (`docs/agents/issue-tracker.md` and
+`docs/agents/triage-labels.md`), patch the `## unic-archon-dlc` block in `CLAUDE.md`, and patch the
+exclusions that keep this project's formatters off the two installed trees. Prose end to end — it imports
+no module. **Ownership decides the treatment**: a tree this Plugin owns is **replaced** on every run; a
+tenant-owned file is written once and thereafter **reported** on; a marked block inside a tenant file is
+**patched** in place, everything outside the markers verbatim. Pass `reconfigure` to be offered a rewrite
+of a tenant-owned file, or free-form intent (e.g. "change branching to github-flow") for a targeted tweak.
 _Avoid_: install, init, install hook
 
 **Claude Code slash command**:
@@ -241,20 +284,22 @@ Consumer. Not an Archon workflow command template — no `command:` node resolve
 _Avoid_: command stub, command doc (both suggest the runtime template above)
 
 **Install set**:
-What `/setup` writes into a Consumer, and the rule by which each entry is replaced. Two shapes: a
-**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**,
-which owns only the names its pattern matches inside a directory it shares with the Consumer
-(`unic-dlc-*.yaml` inside `.archon/workflows/`). One engine, `installArtefacts` — but not one
-declared list: two callers pass entries to it independently, and Step 5 writes the config outside it
-altogether. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
-install set" as that shared engine, never as a single enumeration something iterates.
+The six things `/setup` writes into a Consumer, and the rule by which each is replaced: the Boxes, the
+Methods, the config, the two tracker-contract files, the `CLAUDE.md` block, and the formatter exclusions.
+Three treatments, decided by ownership — see the **Setup** entry above. Inside **replace**, two shapes: a
+**directory entry**, which owns its whole destination (`.archon/methods/`), and a **named entry**, which
+owns only the names its pattern matches inside a directory it shares with the Consumer
+(`unic-dlc-*.yaml` inside `.archon/workflows/`). The engine that once held this is deleted with the rest of
+`lib/` (#381), and nothing iterates a declared set: each entry is written by the step that owns it. Read [ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D1's "one declared
+install set" as one shared rule, never as a single enumeration something iterates.
 _Avoid_: install manifest, artefact list
 
 **Generated header**:
-The two comment lines `/setup` stamps onto every installed Box YAML, naming this Plugin and the
-version that wrote the file, and stating that the next run replaces it (`/setup` Step 6 stamps it).
-This is where a Consumer's install provenance lives — per file, and in
-no separate record. It never decides ownership: the stale sweep retires a name whether or not the
+The one comment line `/setup` stamps onto every installed Box YAML, naming this Plugin and the version
+that wrote the file and stating that the next run replaces it. `/setup` writes it in its install step and
+reads it back as the previous version by matching a **prefix of the first line**. No Method file carries
+one — the Bundle is upstream text pinned to a tag, and a line at the top would fork it. This is where a
+Consumer's install provenance lives — per Box, and in no separate record. It never decides ownership: the stale sweep retires a name whether or not the
 file carries the header ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
 _Avoid_: provenance file, install record (neither exists)
 

@@ -11,6 +11,144 @@
 ### Fixed
 - (none)
 
+## [0.28.0] — 2026-09-04
+
+### Breaking
+- The config's `build.e2e_command` and `qa.e2e_command` keys are removed, replaced by the single `sdlc_needs.e2e`. A project that already has a config must run `/unic-archon-dlc:setup reconfigure` to gain the new block; until it does, every need reads as null, every check reports `unresolved`, and the two gates that advance work hold.
+- `/qa`'s `e2e` and `coverage-gate` nodes no longer report `skip`. Their `result` enum is `pass | fail | unresolved`, and `/qa`'s merge `when:` now also requires a passing `test` result.
+
+### Added
+- `sdlc_needs`, a flat config block of nine nullable keys — `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage` — declaring what a project's development process needs. A key names a need, never a tool. `/setup` proposes each value from the stack it detected and a human confirms it (ADR-0037).
+- `/build`, `/qa` and `/pr-review` each install once at `bootstrap` and report whether they ran a declared install command or found none. `/explore` does not: it runs no check, so it has no dependencies to prepare.
+- A three-state outcome, `pass | fail | unresolved`, on every node that runs a command, with the needs that went unresolved named in a durable block a reader cannot skim past: `report.md` in `/build`, the posted summary in `/pr-review`, and a new `qa-checks.md` in `/qa`.
+- `/qa` gains a `test` node. It ran no test suite at all before.
+
+### Fixed
+- No Box names a tool any more. The literal test commands at `unic-dlc-build.yaml`'s inference instruction and verification fallback, and at `unic-dlc-qa.yaml`'s coverage instruction, are gone; a grep for that literal across the three Box files now returns nothing.
+- `/pr-review`'s summary states which needs the project declares and that the Box executed none of them, so an admission that used to live only in the issue tracker reaches the developer reading the review.
+
+## [0.27.0] — 2026-09-02
+
+### Breaking
+
+- **`/specs` classifies input two ways, and both branches grill.** `source-present` and
+  `source-absent` replace `converse | ingest | hybrid`. The retired values graded how much of the
+  interview a source bought — `ingest` said a source meant there was nothing to interview at all —
+  and grading it is what run 2 got wrong; a source with gaps is now still `source-present`, and the
+  gaps change the questions rather than the classification. A `source-present` run costs a synthesis **and** an interview. Step 9's `input:`
+  line carries only the two new values, so anything parsing the old three sees none of them.
+- **The PRD gate is fail-closed on the halt record, in both modes.** `open-pr` opens no pull request
+  and `stage-only` stages nothing when a halt's entry in `## Confirmations` is absent or says
+  `unanswered`, and each names the halt that stopped it. A run that would previously have reached a
+  pull request with an unanswered seam question now stops and asks for a re-run. The PRD and any
+  contracts stay on disk unstaged, and Step 2 picks them up as a re-entry.
+
+### Added
+
+- **A `## Confirmations` section in every PRD, outside `templates.prd`.** One entry per in-method
+  halt — the shared understanding at the end of Step 4, the seam approval in Step 5 — carrying the
+  human's answer **quoted verbatim** or the word `unanswered` with what happened instead. The heading
+  check governs the template's headings; this section is appended after them, so a team overriding
+  the PRD shape is choosing its sections and not choosing whether the halts are on record. The
+  ceiling is stated where it is written: the record is authored by the same agent that would skip the
+  halt, so the gate detects an honest omission and cannot detect a fabricated quote. The witness
+  question that would belongs to [#437](https://github.com/unic/unic-agents-plugins/issues/437).
+- **The seam step reads the Consumer's stated testing bar before it asks anything** — the root
+  `AGENTS.md` / `CLAUDE.md`, per-context `CONTEXT.md` files, the ADRs that decide a testing approach,
+  and the tests that exist where no document states it. It proposes from that bar and asks only what
+  the bar leaves open, so the halt's few turns are not spent re-deciding a decision already written
+  down. Where no surface states a bar, it says so and proposes from the `to-spec` Method alone.
+- **The `/pr-review` Box's intent brief carries the design-conventions doc.** That doc declares the
+  checks — which read carries which fact, the override test, the blocking conditions — so a reviewer
+  holding it can tell a check that was performed from one that was only claimed. Where the repository
+  has no such doc, the brief says so rather than omitting the line: a review that never had the
+  checks on hand should not read like one that had them and agreed.
+- **Step 9's `next:` line names the review of what the run produced**, before the handoff to
+  `/tickets`. The gate's human reviewer is the only reader between writing a PRD and a contract and
+  a later Box treating them as settled fact.
+
+### Fixed
+
+- **`/specs` skipped the grilling its config required.** On a `source-present` input the command
+  read the source, synthesised it, and treated the human's review of that synthesis as the whole
+  interview — the old text said in as many words that "there is nothing to interview". Measured on
+  the Consumer 2026-08-31: thirty minutes, zero maintainer turns, on a project configured
+  `specs.discuss_mode: discuss`. The command now composes the `grilling` Method **over the synthesis
+  it just produced**, because a source records what someone decided and is silent on what they left
+  out. See [#441](https://github.com/unic/unic-agents-plugins/issues/441).
+- **Absence claims stated a result where no check had run.** Anywhere this command writes that
+  something is absent, empty, none or clean, the claim now carries the method that established it, or
+  states that it was not checked. This reaches a design contract's **findings line**, which is where
+  it was got wrong: three contracts from run 2 read `Findings: none` while the override test their
+  design-conventions doc declares never ran. `none` alone means both "the check found nothing" and
+  "no check ran", and a reader cannot tell which.
+- **The design-conventions doc was read too late to shape the read it governs.** It is now read
+  whenever the design is first read — Step 4 when the source is a design, Step 7 otherwise — still
+  only when the feature names a component. The doc says which read carries which fact, so reading the
+  design before it meant reading the design the wrong way and finding out at contract time.
+- **[ADR-0020](docs/adr/0020-specs-branch-on-input.md) stated superseded claims below three amendment
+  blocks.** It is revised inline in the form [#452](https://github.com/unic/unic-agents-plugins/issues/452)
+  settled — number unchanged, no successor. What was still true in the blocks is carried into Context
+  and Decision, the blocks are deleted (git keeps the text), and both the `Status` line and the index
+  row in `docs/adr/README.md` carry `Accepted (2026-07-02, revised 2026-09-02)` — that column form is
+  now stated in the README, since #452 left it unsaid. It is the first ADR here in that form; the
+  remaining files keep their blocks until each is next revised
+  ([#453](https://github.com/unic/unic-agents-plugins/issues/453)).
+
+## [0.26.0] — 2026-08-25
+
+### Breaking
+- (none)
+
+### Added
+
+- **`/specs` writes a design contract per component the feature names.** `commands/specs.md` had no writer for the design branch at all: [#404](https://github.com/unic/unic-agents-plugins/issues/404) decided the artefact and [#405](https://github.com/unic/unic-agents-plugins/issues/405) decided how a design source is read, and nothing carried either into the Plugin. The command now branches on `design.type` **set-versus-`none`**, reads the Consumer's design-conventions doc at `docs/agents/<design.type>.md`, and writes one contract per component — four sections in a fixed order, a **visible** provenance list rather than a comment because a human reads it at the PRD gate, a `.generated.` file name, lists and no tables so a formatter cannot churn it, and an absent optional field written as absent with its reason rather than omitted. Every run rewrites the contract whole; nothing detects staleness, and the two checkers are named. `docs.publish` governs the contracts as well as the PRD, through injection markers that never touch the authored half of a component's page ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+- **The rules for reading a design source, stated generically.** A value is recorded as the name that carries it and never as its resolved value; an override made through a declared component property is intent while one typed onto a layer inside an instance is a defect, with a token-bound value the one carve-out; what a tool cannot answer is written into the contract as unreadable rather than left silent; a component is keyed on a stable identity and never on its name, because one name carried four distinct components in the Consumer's file (measured 2026-08-25). No single read carries every fact, so each fact comes from the read the Consumer's doc routes it to. Every tool-specific name stays in that doc ([#405](https://github.com/unic/unic-agents-plugins/issues/405), [#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+- **The PRD gate stages the contracts and their screenshots as named paths**, so a contract reaches review with the PRD it belongs to — the only place a human sees it before it is used. An asset a contract needs is committed as **bytes, never as a link**: an exported asset URL expires seven days after it is issued (measured 2026-08-25), so a committed link is dead within the week and dead in a way that reads as an asset nobody drew ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+
+### Fixed
+
+- **Two `CONTEXT.md` lines that outlived `lib/`.** The PRD entry said its section shape is "enforced by a generic validator" and the Nyquist map entry said `/tickets` runs its check "via tested lib". [#381](https://github.com/unic/unic-agents-plugins/issues/381) deleted `lib/`, so each command makes its own check in prose, and both lines sat beside the entry this release adds ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+- **`commands/specs.md` names no design tool.** The argument hint and the branch-on-input list both carried one, which made the command's own prose the precedent against the rule it is meant to follow. A blocking condition declared by the Consumer's doc now stops a contract rather than writing an empty one, and a subscription mismatch warns and is recorded without stopping the run ([#416](https://github.com/unic/unic-agents-plugins/issues/416)).
+
+## [0.25.0] — 2026-08-25
+
+### Breaking
+
+- **`/setup` is the installer, and a re-run no longer merges a tenant-owned file.** `commands/setup.md` is rewritten from scratch as prose, imports nothing, and lands six artefacts under three treatments decided by who owns each one: a tree this Plugin owns is **replaced** every run; a tenant-owned file — the config and the two tracker-contract files — is written on the first run and thereafter **reported** on, changing nothing; a marked block inside a tenant-owned file is **patched** in place, with everything outside the markers preserved verbatim. `reconfigure` is the one override that rewrites a tenant-owned file, offered per file after showing what would change. A project whose config was previously kept current by re-running `/setup` with no arguments now gets a report instead of a merge. The install order changed with it: the two Plugin-owned trees land before the conversation, because they need no answers — which is how an upgrade lands and what retires the old "skip the config step but still run the install step" special case. Decision 14 was reversed on [#402](https://github.com/unic/unic-agents-plugins/issues/402), so this command is a Consumer's installer rather than a retired surface ([#383](https://github.com/unic/unic-agents-plugins/issues/383)).
+- **The legacy flat `.archon/unic-dlc.config.json` migration is deleted.** No project was ever on that shape — `DXP-DesignSystem` was configured by hand onto the YAML — so the migration was a path nothing had walked, and a from-scratch rewrite is where such a path gets deleted rather than copied. A legacy file found now stops the run with a report, because reading it as "no config" would write a second config beside it ([#383](https://github.com/unic/unic-agents-plugins/issues/383)).
+- **`/setup` asks for no tracker fact and offers no label default.** The seventeen roles are collected once and written to `docs/agents/triage-labels.md`, never into the config — and their values are **measured** on the board rather than defaulted: `/setup` reads what the tracker already uses, proposes a value per role from that, and writes what the operator confirms. A default right-hand column is a claim about someone else's board, and the mapping that worked was built by counting — `Specification` 186 uses, `TriageNeeded` 34, `readyForImplementation` 13, measured on a real tenant. Where no tracker surface is reachable the file is written with the roles and an empty value column, and says so ([#383](https://github.com/unic/unic-agents-plugins/issues/383), [#389](https://github.com/unic/unic-agents-plugins/issues/389)).
+
+### Added
+
+- **`/setup` writes the tracker contract.** `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` are the only place a Box reads a tracker fact from, and nothing created them: [#389](https://github.com/unic/unic-agents-plugins/issues/389) moved the contract into those files and left no writer, so every Box in a fresh Consumer printed `BLOCKED: this repository has no tracker contract`. The guidance is prose in the command, not a template file — the pair written by hand for `DXP-DesignSystem` is roughly nine parts tenant fact to one part shape, so a template would be mostly placeholder and would add an artefact class the ownership rule does not cover ([#383](https://github.com/unic/unic-agents-plugins/issues/383)).
+- **`/setup` excludes what it installs from whatever this project uses to format or lint.** One `pnpm format` on `DXP-DesignSystem` rewrote **thirteen** Method files on 2026-08-18, because a Markdown glob reached `.archon/methods/` and nothing excluded it. The failure is silent — a reflowed file raises no error, it just stops matching the release it was copied from, and the generated header is then the only provenance a Consumer has. So the command reads the manifests, task files and scripts the project actually runs, whatever the language, works out each tool's exclusion mechanism from that tool's own documentation, and excludes both installed trees plus every file whose name carries `.generated.`. It names **no tool and no config filename**: knowing that an installed file must not be reformatted belongs to this Plugin, and knowing which tool would do it belongs to the project. Both trees are excluded, not only the Methods: the Boxes are `.yaml` and that day's glob missed them by luck, so the exclusion is written for the glob that grows. Where a tool's exclusion mechanism cannot carry a comment marker — a JSON or TOML array — `/setup` prints the entry the operator must add and reports it as an open item, rather than editing a value the next run could not tell from a hand-written one ([#383](https://github.com/unic/unic-agents-plugins/issues/383), [#404](https://github.com/unic/unic-agents-plugins/issues/404)).
+- **A mechanism for locating this Plugin's own installed directory.** `/setup` copies out of its own installed tree, and `$CLAUDE_PLUGIN_ROOT` is unset inside the Bash tool ([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). It now reads Claude Code's `~/.claude/plugins/installed_plugins.json`, takes `installPath` from the entry matching this repository — `projectPath` is what matches a project-scope install — verifies the directory holds this Plugin's manifest at the registry's version, the Method Bundle and at least one Box, and stops printing what it found rather than guessing. The interim prose searched `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, which holds one directory per version ever installed: nine of them for this Plugin on the machine where this was measured, of which one was installed. So the search was a guess among candidates, and an install that copies from the wrong version is worse than no install ([#383](https://github.com/unic/unic-agents-plugins/issues/383), ADR-0036 amended).
+- **A generated header on each installed Box**, one comment line naming this Plugin and the version that wrote the file and stating that `/setup` rewrites it. `renderGeneratedHeader` was deleted with `lib/`, so the command writes it and reads it back as the previous version by matching a **prefix of the first line**. No Method file carries one: the Bundle is upstream text pinned to a tag, and a line added at the top forks it from that tag — which is the fork the exclusions above exist to prevent ([ADR-0036](docs/adr/0036-setup-owns-a-named-install-set.md) D3).
+
+### Fixed
+
+- **The configuration reference lists `docs.access` and `design.access`.** `/setup` writes both from its verify-only capability discovery and four surfaces read them — `unic-dlc-pr-review.yaml`, `/specs`, `/triage` and `/improve-architecture` — while the reference table named neither. That mattered once the rewrite called that table the closed set of questions: an agent had grounds to drop two keys rather than write them, leaving four surfaces with an unset capability where a resolved one had been detected. The rewrite now says the table bounds what the conversation **asks**, not what the run writes ([#383](https://github.com/unic/unic-agents-plugins/issues/383)).
+- **`/setup` declares no closed list of tool names.** `docs.type` and `design.type` are asked open and written through — nothing branches on either value, a box tests set-versus-`none`, and `design.access.mcp` resolves the tool. The previous file's `docs` and `design` field descriptions were the last closed enums in the Plugin's prose, so this is where [#404](https://github.com/unic/unic-agents-plugins/issues/404) AC 5 is met for this command ([#417](https://github.com/unic/unic-agents-plugins/issues/417), [#383](https://github.com/unic/unic-agents-plugins/issues/383)).
+- `README.md`'s configuration reference no longer names a design or docs tool in the `design.type` and `docs.type` valid-values columns. The plugin composes the team's system-skills, so an enum of tool names in its own documentation contradicts that. Nothing branches on the value: a box tests set-versus-`none`, and `design.access.mcp` resolves the tool. (#417)
+
+## [0.24.2] — 2026-08-24
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+
+- **`/pr-review` stops relearning an inline thread's anchor shape by failing.** The `post` node was told to open inline threads and left to discover what a host accepts. Measured on `DXP-DesignSystem` [!5783](https://dev.azure.com/FZAG/dxp/_git/DXP-DesignSystem/pullrequest/5783) on 2026-08-21: the first batch of four was rejected for carrying only a start line and a start offset, and the retry succeeded carrying all four right-file coordinates. The constraint was then saved to the agent's own memory on one machine, so nothing in the Plugin changed and every Consumer — and every fresh context — paid the same failed batch again, which is exactly what [ADR-0012](docs/adr/0012-fresh-context-red-green-separation.md) exists to prevent. The `anchor` branch now carries a generic rule — ask the tracker for an anchor's full shape before the first call and build all of it, never probe by sending a batch and reading the rejection — with the dated evidence beside it, and says that the tenant fact belongs in `docs/agents/issue-tracker.md` § Access. The `fixed` reply branch gains one clause: replying and changing a status may be two separate operations on the same thread. The rule for reading a citation — act on it where the tool list is silent, check it against the tool where it is not, let the tool win — is stated once, beside the prohibition it qualifies, because a Box node imports nothing. The citation records **four coordinates in both spellings** — the MCP tool names them flat, the REST fallback nests them under a `threadContext` — and says to take the spelling from that tool's own current list, not from the citation and not from the tracker contract, whose § Access states no field names and should not. Two earlier drafts of this line were caught by the Box reviewing them: one named only the REST spelling, which the surface this Consumer posts through does not take, and one quoted only the two end fields the error message happened to name, which is half the set and sends a start-only request twice ([#407](https://github.com/unic/unic-agents-plugins/issues/407)).
+- **`unic-dlc-qa.yaml`'s Method-table pointer names the Plugin whose README it means.** A Box is copied into a Consumer's `.archon/workflows/`, so a bare `README.md` in one resolves against the **Consumer's** root: `DXP-DesignSystem`'s README has a `## Dependency Management` and no Method table, and the pointer led to the wrong document. That is harder to notice than the `lib/methods-manifest.mjs` it replaced, which resolved nowhere. This pointer is a YAML comment, so it misleads a reader rather than a node — which is why the rule below, not this line, is the part of #401 that acts at run time. The sweep of all four Boxes found one more of the same class and no third: `unic-dlc-build.yaml`'s `lib/slopcheck.mjs` now says whose tree that deleted module was in. Every other bare path means the Consumer's own file by design ([#401](https://github.com/unic/unic-agents-plugins/issues/401)).
+
+### Documentation
+
+- **Two doctrines, one for each fix above.** `AGENTS.md` § Plugin doctrines gains a narrow carve-out to the rule that forbids a provider name in a prompt: a **dated evidence citation** may name a host, because a rule earned by a rejected call cannot be re-checked without the run that earned it. A payload, subcommand or flag written as something to send stays forbidden, whether or not a date sits next to it. [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md) is amended, not superseded, and the amendment states the premise that failed: a server does not always discover its own API. A second bullet states that a Box is read where it runs, so every reference in one resolves in the Consumer: the test is whether a path names something the Consumer has, when a reference must name this Plugin instead, and that a bare `ADR-NNNN` in a Box always means a Plugin ADR. It deliberately enumerates no paths — a list of what the Boxes reference is a mirror of the Boxes, and this bullet's own first draft had already dropped one ([#407](https://github.com/unic/unic-agents-plugins/issues/407), [#401](https://github.com/unic/unic-agents-plugins/issues/401)).
+
 ## [0.24.1] — 2026-08-24
 
 ### Breaking
