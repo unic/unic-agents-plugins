@@ -114,8 +114,10 @@ context that would otherwise use lib is done in a **`prompt:` node** (the agent 
 own tools). Concretely for `/build`:
 
 - **`bootstrap`** is a `prompt:` node with `output_format`: it parses the slug from `$ARGUMENTS`, reads
-  `.archon/unic-dlc.config.yaml`, and emits `{ slug, artifacts_dir, gate, test/e2e/coverage }` as
-  structured JSON.
+  `.archon/unic-dlc.config.yaml`, and emits structured JSON carrying, among other fields, `sdlc_needs` and `install_report`. The node's
+  own `output_format` is the exact list; this ADR names only the fields its decision turns on. The per-node command scalars this ADR first described became the one `sdlc_needs`
+  object ([ADR-0037](0037-config-declares-sdlc-needs.md)), and `bootstrap` also runs the declared
+  install once for the whole run.
 - **`slopcheck`** is a self-contained `script:` node (`runtime: bun`) that inlines the new-package
   registry gate. `lib/slopcheck.mjs` remains the **tested reference** the inline mirrors, but the
   shipped node does not import it.

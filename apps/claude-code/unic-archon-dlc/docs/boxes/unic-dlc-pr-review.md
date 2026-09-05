@@ -33,7 +33,10 @@ precondition** — intent is composed from whatever sources resolve.
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
    (`artifacts_dir`, `gates.pr-review`, `pr-review.confidence_threshold`, `pr-review.inline_comments`,
-   `docs.*`, `project.branching`). It resolves **no** repository: `docs/agents/issue-tracker.md`
+   `docs.*`, `project.branching`, and the whole `sdlc_needs` block). It runs `sdlc_needs.install` once
+   for the whole run and reports whether it did — this Box runs no check by instruction, and it
+   installs anyway, so that a sub-agent deciding it needs to run something fails on that decision
+   rather than on which worktree the run drew. It resolves **no** repository: `docs/agents/issue-tracker.md`
    § Addressing names it, and `prep` and `post` read that file themselves. Missing slug or config
    cancels cleanly.
 

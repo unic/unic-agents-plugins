@@ -11,6 +11,22 @@
 ### Fixed
 - (none)
 
+## [0.28.0] — 2026-09-04
+
+### Breaking
+- The config's `build.e2e_command` and `qa.e2e_command` keys are removed, replaced by the single `sdlc_needs.e2e`. A project that already has a config must run `/unic-archon-dlc:setup reconfigure` to gain the new block; until it does, every need reads as null, every check reports `unresolved`, and the two gates that advance work hold.
+- `/qa`'s `e2e` and `coverage-gate` nodes no longer report `skip`. Their `result` enum is `pass | fail | unresolved`, and `/qa`'s merge `when:` now also requires a passing `test` result.
+
+### Added
+- `sdlc_needs`, a flat config block of nine nullable keys — `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage` — declaring what a project's development process needs. A key names a need, never a tool. `/setup` proposes each value from the stack it detected and a human confirms it (ADR-0037).
+- `/build`, `/qa` and `/pr-review` each install once at `bootstrap` and report whether they ran a declared install command or found none. `/explore` does not: it runs no check, so it has no dependencies to prepare.
+- A three-state outcome, `pass | fail | unresolved`, on every node that runs a command, with the needs that went unresolved named in a durable block a reader cannot skim past: `report.md` in `/build`, the posted summary in `/pr-review`, and a new `qa-checks.md` in `/qa`.
+- `/qa` gains a `test` node. It ran no test suite at all before.
+
+### Fixed
+- No Box names a tool any more. The literal test commands at `unic-dlc-build.yaml`'s inference instruction and verification fallback, and at `unic-dlc-qa.yaml`'s coverage instruction, are gone; a grep for that literal across the three Box files now returns nothing.
+- `/pr-review`'s summary states which needs the project declares and that the Box executed none of them, so an admission that used to live only in the issue tracker reaches the developer reading the review.
+
 ## [0.27.0] — 2026-09-02
 
 ### Breaking

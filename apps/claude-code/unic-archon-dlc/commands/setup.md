@@ -145,16 +145,23 @@ Do not probe for the Methods here. They ship inside this Plugin and Step 5 insta
 is bundle integrity, not discovery. Which Method each Box reads is recorded once, in
 [README.md § Dependencies](../README.md#dependencies).
 
-**The toolchain that formats or lints.** Step 7 excludes this Plugin's own artefacts from it, so find it
-now: read the manifests, task files and scripts this project actually runs — whatever the language — and
-list every tool that formats or lints, together with the paths each one reaches. For each tool, find how it
-excludes a path, from that tool's own current documentation. Where the mechanism is unclear, ask the
-operator which file to patch rather than write to a guess. Keep the result as `FORMATTERS`: per tool, the
-exclusion mechanism, and whether that mechanism is a **line-based ignore file** or a structured config
-value.
+**What this project runs.** One read, two harvests — read the manifests, task files and scripts this
+project actually runs, whatever the language, and keep both of these from that one read:
+
+- `FORMATTERS`, for Step 7, which excludes this Plugin's own artefacts from them: every tool that formats
+  or lints, together with the paths each one reaches. For each tool, find how it excludes a path, from that
+  tool's own current documentation. Where the mechanism is unclear, ask the operator which file to patch
+  rather than write to a guess. Record per tool the exclusion mechanism, and whether that mechanism is a
+  **line-based ignore file** or a structured config value.
+- `SDLC_NEEDS`, for Step 6: the command this project already runs for each of the nine needs the config
+  declares — `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage`. Keep what
+  you found, and nothing at all for what you did not; Step 6 offers each one as a proposal the operator
+  confirms or corrects. A key names a **need** and never a tool, so you are looking for the command this
+  project runs for that job — not for a tool you expect a project of this kind to have.
 
 Read what the project runs, never a list held here: this Plugin knows that an installed file must not be
-reformatted, and nothing about which tool does the reformatting.
+reformatted, and that a development process has these needs. It knows nothing about which tool serves
+either, and a project that serves a need some other way is the normal case, not an error.
 
 **The tracker's own vocabulary.** Step 6 writes the tracker contract, and its values have to be names the
 board already carries. Through whichever tracker surface Step 4 found, read what this tracker actually uses
@@ -270,7 +277,24 @@ which is the single source of truth for every default:
   `none`.
 - **gates** — per Archon Box: `hitl` (default) or `afk`. Interactive commands are always HITL and are not
   listed.
-- **build** — `build.e2e_command`, `build.coverage_threshold`, both optional.
+- **sdlc_needs** — the nine nullable keys naming what this project's development process needs:
+  `install`, `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`, `coverage`. Walk them one need
+  at a time. For each one, offer the value Step 4 harvested as a **proposal** the operator confirms or
+  corrects; where Step 4 found nothing, ask, and take `null` for an answer. Never present a list of tools
+  to choose from, and never write a value the operator did not confirm. Write the block under this
+  comment, which is where the rule reaches the human who edits the file later:
+
+  ```yaml
+  # Each key names a NEED of this project's development process, never a tool. `test` names the need;
+  # whichever runner this project uses is the tool that serves it. A null value means this project
+  # declares no command for that need, and a node that wants it reports an unresolved check — never a
+  # pass. `build`, `lint`, `format` and `dev` have no node reading them today; they are declared anyway,
+  # because /setup writes this file once and thereafter only reports on it, so a key added later costs a
+  # `reconfigure` in every project that already has one.
+  ```
+
+- **build** — `build.coverage_threshold`, optional. The number stays here; the command that produces a
+  coverage figure is `sdlc_needs.coverage`.
 - **estimations**, **model_profile** — defaults unless the operator asks.
 - The Step-4 capability results under `docs.access` and `design.access`.
 
