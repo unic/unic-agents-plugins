@@ -11,7 +11,7 @@
       "!**/.ralph",
       "!**/.remember",
       "!**/*.min.js",
-      "!ci"
+      "!ci/map-to-envelope.mjs"
     ]
   }
 }
