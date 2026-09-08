@@ -1,0 +1,44 @@
+# AI Artefact Marketplace — push your catalog from GitHub Actions (spec 077)
+# Drop this into a repo as .github/workflows/marketplace-ingest.yml.
+#
+# Prereqs (only ONE thing is mandatory):
+#   1. Copy docs/marketplace/templates/map-to-envelope.mjs into your repo at ci/map-to-envelope.mjs
+#      (zero-dependency Node mapper; set the `kind` arg below for your repo type).
+#   2. Generate an ingest token in the Marketplace UI (your marketplace detail → Ingest token) and store it
+#      as the repo secret MARKETPLACE_INGEST_TOKEN.   ← the only required setup.
+#   (optional) Override the target by setting a repo variable MARKETPLACE_INGEST_URL; otherwise it defaults
+#      to the public ingest sidecar below.
+#
+# NETWORK: the default URL is the PUBLIC ingest sidecar (infaz-prod-0-0-func-mktingest) — reachable from
+# GitHub-hosted runners. (The hub vp.unic.com is IP-allowlisted and would block hosted runners; only point
+# MARKETPLACE_INGEST_URL there if you run on a self-hosted Unic-network runner.)
+
+name: Marketplace ingest
+on:
+  push:
+    branches: [main]
+    # Tighten to release tags if you only want to publish on release:  tags: ['*@*']
+  workflow_dispatch: {}
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Map repo → artefact envelope
+        run: node ci/map-to-envelope.mjs unic-agents . > body.json
+
+      - name: Push full set to the marketplace
+        env:
+          # Defaults to the public ingest sidecar; override via repo variable if needed.
+          INGEST_URL: ${{ vars.MARKETPLACE_INGEST_URL || 'https://infaz-prod-0-0-func-mktingest.azurewebsites.net' }}
+          VP_TOKEN: ${{ secrets.MARKETPLACE_INGEST_TOKEN }}
+        run: |
+          echo "Pushing $(node -e 'console.log(require("./body.json").artefacts.length)') artefacts to $INGEST_URL …"
+          curl -sS -f -X POST "$INGEST_URL/api/marketplace/ingest" \
+            -H "X-VP-Token: $VP_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @body.json

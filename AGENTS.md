@@ -30,6 +30,7 @@ docs/
 ├── issues/                   # Grilled and scoped feature issues
 ├── process/                  # Process and workflow guides
 └── research/                 # Research notes and explorations
+ci/                           # Vendored marketplace mapper — copied verbatim, never edited
 ```
 
 ## Navigation
@@ -38,6 +39,7 @@ docs/
 - Shared release scripts: `packages/release-tools/scripts/`
 - Architectural decisions: `docs/adr/`
 - Process templates: `docs/process/`
+- Marketplace mapper: `ci/map-to-envelope.mjs` (vendored — see [Marketplace ingest](#marketplace-ingest))
 
 ## Commands
 
@@ -133,6 +135,26 @@ To ship a new plugin version:
 | PR (any branch)   | ✓           | ✓ (changed packages) | ✓                  |
 | Push to `develop` | ✓           | ✓ (changed packages) | —                  |
 | Push to `main`    | ✓           | ✓ (changed packages) | —                  |
+
+## Marketplace ingest
+
+Every push to `main` publishes this repository's six plugin cards to the Unic AI Artefact Marketplace, source `unic-agents-plugins`. `.github/workflows/marketplace-ingest.yml` maps the catalogue with `ci/map-to-envelope.mjs` and posts it to the public ingest sidecar. The mapper kind is `unic-agents`, because this is a Claude-plugin monorepo. The full documentation is [Push your catalog](https://vp.unic.com/docs/#/marketplace/), which needs a VP login. Run it by hand to see the envelope:
+
+```sh
+node ci/map-to-envelope.mjs unic-agents . > body.json
+```
+
+**Read that output, never POST it.** Off CI the mapper resolves `commit`, `ref` and `author` to empty strings, because it reads them from the CI environment. Posting such an envelope is how this repository's six cards got a version history with a blank author in the first place, and VP cannot repair one afterwards. The local Python tool now refuses a push it cannot attribute ([UNICGRAPH-572](https://uniccom.atlassian.net/browse/UNICGRAPH-572)), but that guard lives in that tool: neither this mapper nor the ingest endpoint will stop you. Only the workflow may push.
+
+A push sends the **full set**. VP diffs it and soft-removes any artefact the push omits, so never narrow the set to the plugins that changed.
+
+**Both files are upstream templates, copied verbatim.** Never hand-edit them and never reformat them. To update either one, re-copy it from its VP URL — [`map-to-envelope.mjs`](https://vp.unic.com/docs/marketplace/templates/map-to-envelope.mjs) and [`pipeline-github-action.yml`](https://vp.unic.com/docs/marketplace/templates/pipeline-github-action.yml). Both answer `401` without a signed-in VP session, so a person must fetch them; an agent cannot. The documentation warns twice that a hand-built envelope is how `provenance.author` goes missing, and this repository's six cards already carry an empty author from one such push on 10 June 2026. The same warning covers the artefact `content` block, which does not apply here: `mapUnicAgents` emits no `content` for any plugin, because plugins are `pointer` artefacts obtainable via `/plugin install`.
+
+`biome.json` excludes `ci/map-to-envelope.mjs` so that rule can hold: Biome reports two errors on the vendored mapper and reformats it. Keep the exclusion, and keep it scoped to that one path. A mapper reformatted to repo style makes the next re-copy read as a diff, and a directory-wide `!ci` would silently un-check any file added to `ci/` later.
+
+The mapper resolves `provenance.author` to `GITHUB_ACTOR`, the person who triggered the run, not the commit author. That is wrong on a merge-commit repository like this one, and it is filed upstream as [UNICGRAPH-575](https://uniccom.atlassian.net/browse/UNICGRAPH-575). **Do not patch it here.** A local fix would hide the defect instead of surfacing it.
+
+The ingest token lives only as the repository secret `MARKETPLACE_INGEST_TOKEN` (Settings → Secrets and variables → Actions). It never goes into a file, a commit or an agent conversation. The token also decides which marketplace the push lands in — the request body cannot name another source.
 
 ## Feature-driven development
 
