@@ -144,6 +144,8 @@ Every push to `main` publishes this repository's six plugin cards to the Unic AI
 node ci/map-to-envelope.mjs unic-agents . > body.json
 ```
 
+**Read that output, never POST it.** Off CI the mapper resolves `commit`, `ref` and `author` to empty strings, because it reads them from the CI environment. Posting such an envelope is how this repository's six cards got a version history with a blank author in the first place, and VP cannot repair one afterwards. The local Python tool now refuses a push it cannot attribute ([UNICGRAPH-572](https://uniccom.atlassian.net/browse/UNICGRAPH-572)), but that guard lives in that tool: neither this mapper nor the ingest endpoint will stop you. Only the workflow may push.
+
 A push sends the **full set**. VP diffs it and soft-removes any artefact the push omits, so never narrow the set to the plugins that changed.
 
 **Both files are upstream templates, copied verbatim.** Never hand-edit them and never reformat them. To update either one, re-copy it from its VP URL — [`map-to-envelope.mjs`](https://vp.unic.com/docs/marketplace/templates/map-to-envelope.mjs) and [`pipeline-github-action.yml`](https://vp.unic.com/docs/marketplace/templates/pipeline-github-action.yml). Both answer `401` without a signed-in VP session, so a person must fetch them; an agent cannot. The documentation warns twice that a hand-built envelope is how `provenance.author` goes missing, and this repository's six cards already carry an empty author from one such push on 10 June 2026. The same warning covers the artefact `content` block, which does not apply here: `mapUnicAgents` emits no `content` for any plugin, because plugins are `pointer` artefacts obtainable via `/plugin install`.
