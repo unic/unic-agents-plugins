@@ -10,7 +10,8 @@
       "!**/.claude",
       "!**/.ralph",
       "!**/.remember",
-      "!**/*.min.js"
+      "!**/*.min.js",
+      "!ci/map-to-envelope.mjs"
     ]
   }
 }
