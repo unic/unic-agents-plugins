@@ -410,6 +410,37 @@ of `~/.archon/archon.db`; six were real and were fixed, including one falsehood 
 Filed as [#465](https://github.com/unic/unic-agents-plugins/issues/465), p1. **Not a blocker for run 3 — a caution
 about reading it**, because `/pr-review` is one of the mechanisms run 3 is read through.
 
+### 4b. The same shape, a third time, and this one destroys rather than loses
+
+Added 2026-09-15, from `DS-43028` while clearing its own worktree.
+
+Rows 1 and 4 are an operation that **loses** evidence and exits green. There is a third, and it **destroys**:
+`archon complete --force` removes an Archon worktree **and its branch**, and `docs/agents/unic-archon-dlc.md`
+records `/cleanup --apply` as unguarded against an Azure DevOps remote.
+
+`DXP-DesignSystem` carried 29 worktree registrations on 2026-09-15. Four of the branches under them are this
+stream's only addressable copy of what run 1 and run 2 produced:
+
+| branch                                     | ahead of `develop` | what it is                                   |
+| ------------------------------------------ | ------------------ | -------------------------------------------- |
+| `archon/task-unic-dlc-build-1787780831333` | 23                 | run 1's build, PR 5807, abandoned on purpose |
+| `feature/43004_build-profile-card`         | 15                 | run 2's build, PR 5835, same                 |
+| `archon/task-unic-dlc-build-1788195731247` | 15                 | same tip as run 2's                          |
+| `feature/42999_run2-profile-card`          | 1                  | run 2's setup                                |
+
+Run 2's branch also carries five real fixes that are unmerged **by design**. A tidy-up pass over that directory
+deletes the comparison run 3 exists to make, and reports success.
+
+**So the pattern is not a defect of one Box.** Three independent operations in this stream end green having lost or
+destroyed the thing they were run to produce or protect. Write it as the property, not as three bugs: **an operation
+whose failure mode is the absence of an artefact cannot report that failure by exiting on the artefact.**
+
+**The trap that makes the safe rule unsafe here.** `artifacts_dir` in `.archon/unic-dlc.config.yaml` is `workflows`,
+and `workflows/profile-card/PRD.md` and `workflows/profile-card/issues.json` are **tracked on `develop`**. So
+"harvest `<artifacts_dir>/<slug>/` before you remove the worktree" reads, in this repository, as an instruction to
+rescue committed files. Only the copies inside an `archon/task-*` worktree are artefacts. The same collision sits
+under run 3's own preparation, which deletes those two tracked files on the run's branch.
+
 ### 5. Four of the Consumer's eight declared commands cannot fail
 
 Measured 2026-09-05 against `sdlc_needs` in `.archon/unic-dlc.config.yaml`, each documented in a comment beside its
