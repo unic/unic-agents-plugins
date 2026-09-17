@@ -238,23 +238,40 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 | ------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.agents/skills/**`                              | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently                                                                |
 | `.claude/skills/<name>` symlinks                 | `npx skills`                 | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r`                                   |
+| `.claude/skills/unslop`                          | `npx skills`                 | Managed, but a **real directory**, not a symlink — see [Two vendoring shapes](#two-vendoring-shapes). Never hand-edit                        |
 | `.claude/skills/{archon,new-plugin,verify-spec}` | This repo                    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
 | `skills-lock.json`                               | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
 | `docs/agents/*.md`                               | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
 ### Upgrading
 
-Selection policy: all of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/`.
+This repo vendors from two sources. Both go through `npx skills` and both are tracked in `skills-lock.json`.
 
-Two entries the policy needs to name explicitly:
+| Source              | What comes from it                                 | Selection policy                                                                                                               |
+| ------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `mattpocock/skills` | The agent-skill driver — most of `.claude/skills/` | All of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/` |
+| `cursor/plugins`    | `unslop` only                                      | By name, one skill at a time. Nothing is taken from this source wholesale                                                      |
+
+`unslop` cuts AI tells from prose. It is vendored here because this repo's product is prose, and because the maintainer's output style and user `CLAUDE.md` both tell a session to read it. Its frontmatter sets `disable-model-invocation: true`, so an agent reads the file rather than invoking the skill. Take nothing else from `cursor/plugins` without deciding it the same way.
+
+**The same skill name can exist at user scope and at project scope.** Claude Code resolves skills in the order project, user, plugin, bundled, and project wins. So a session in this repo reads the vendored `unslop`, and a session anywhere else reads the maintainer's `~/.claude/skills/unslop/`. The two can drift. When you upgrade one, check the other.
+
+Two `mattpocock/skills` entries the policy needs to name explicitly:
 
 - **`misc/git-guardrails-claude-code`** is the one `misc/` entry installed. Justification: it is the only vendored skill that installs a repo-local safety hook, so it belongs where the repo is. Read the caveat below before wiring it up.
 - **`setup-matt-pocock-skills` stays installed but must never run.** It is the reference `docs/agents/*.md` was hand-authored from, which is why it is kept. A run reverts `docs/agents/triage-labels.md` to the five-role `wontfix` vocabulary. Four installed skills tell an agent to invoke it when a tracker or label mapping looks missing — `triage`, `wayfinder`, `to-spec`, `to-tickets`. Those files exist and are correct here, so that condition is never met: if a skill asks for them, read `docs/agents/`, do not run the setup skill.
 
 ```sh
 npx skills@latest add mattpocock/skills -a claude-code -y -s <name> -s <name> …
+npx skills@latest add cursor/plugins -a claude-code -y -s unslop
 npx skills@latest remove -s <name> -s <name> … -a claude-code -y
 ```
+
+Add `-l` to any `add` command to list the source's catalogue and install nothing. Use it to check a source before you take from it.
+
+#### Two vendoring shapes
+
+`npx skills` installs in one of two shapes, and it picks the shape, not you. The `mattpocock/skills` entries are a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink. `unslop` is a plain `.claude/skills/unslop/` directory holding `SKILL.md`, with no `.agents/skills/` entry, and the CLI reported it as `copied`. Both shapes are managed: `skills-lock.json` carries the hash either way. Read the installed tree before assuming which one you are looking at, and never convert one shape into the other by hand.
 
 Three traps the CLI sets:
 
@@ -262,7 +279,7 @@ Three traps the CLI sets:
 - **`-s` takes repeated flags, not a comma list.** `-s a,b,c` reports "no matching skills found" and exits 0.
 - **`remove` is 2-for-3.** It cleans the `.claude/skills/<name>` symlink and the lockfile entry but leaves `.agents/skills/<name>/` behind. Pair every removal with `git rm -r .agents/skills/<name>`.
 
-Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree and remove what no longer exists there.
+Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree and remove what no longer exists there. Do this per source: a `cursor/plugins` listing says nothing about what `mattpocock/skills` still ships.
 
 ### Vendored hook caveat: `git-guardrails-claude-code` needs `jq`
 

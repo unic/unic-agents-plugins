@@ -23,6 +23,9 @@ artifacts/
 **/docs/plans/
 **/docs/conversations/
 **/.agents/skills/
+# Same rule, other vendoring shape: `npx skills` copied `unslop` here instead of symlinking it.
+# Reformatting it would drift the file from the hash in skills-lock.json.
+.claude/skills/unslop/
 **/.agents/scratchpad/
 
 # Plugin changelogs — em-dash dates must not be reflowed
