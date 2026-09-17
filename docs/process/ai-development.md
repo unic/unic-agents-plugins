@@ -202,7 +202,10 @@ habit.
   because that memory is keyed to a project path on one machine. A learning worth keeping goes to
   `docs/agents/`, in git. See
   [`dispatching-and-learning.md`](../agents/dispatching-and-learning.md) § Route each learning by
-  its lifetime.
+  its lifetime. **The kit offers "project memory or repository guidance" as equals for a durable
+  rule.** They are not equals here, and the kit is kept verbatim rather than edited, so read that
+  line as: repository guidance is the destination, and project memory an optional mirror that
+  loads automatically and does not survive the machine.
 - **Believing the handoff.** It is a restart point, not proof. Its own first action is to
   re-measure every moving fact in it and mark each inherited claim verified, changed or unverified.
 

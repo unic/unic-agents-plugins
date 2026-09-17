@@ -46,8 +46,10 @@ Measured against one ruleset, on pull requests targeting the default integration
   immediately with no extra push.
 - **A review whose body names the quota limit is a failure that reads as "no comments".** Judge by
   the body, never by the comment count.
-- **Read the review body whole**, or `grep -c 'Suppressed comments'`. A `head -c` slice missed a
-  `Suppressed comments (1)` section on 2026-09-05 and produced a false "there is none".
+- **Read the review body whole.** A `head -c` slice missed a `Suppressed comments (1)` section on
+  2026-09-05 and produced a false "there is none". `grep -c 'Suppressed comments'` is a presence
+  check and nothing more — it cannot show you the finding, its path, its line or the quota
+  explanation, so using it _instead of_ reading permits the same false pass in a shorter command.
 - `POST …/requested_reviewers` for Copilot returns 200 with an empty array and adds nobody.
   Un-drafting triggers it within about two minutes; wait rather than re-posting.
 
@@ -86,8 +88,15 @@ Measured against one ruleset, on pull requests targeting the default integration
 
 Measured on v0.7.0 and v0.8.0.
 
-- **`--branch` does not reuse a branch.** Archon always creates `archon/task-*`; `--from` sets the
-  fork point. Getting this wrong produces a run that reviews an empty diff and looks fine.
+- **Check which branch a run actually built before trusting its diff.** With no flags Archon
+  auto-creates a worktree on `{workflow-name}-{timestamp}`, which is why runs here are named
+  `archon/task-*`. A stream measured that passing `--branch` did not continue the existing branch
+  and produced a run reviewing an empty diff that looked fine; the CLI reference documents
+  `--branch <name>` as "branch name for worktree, reuses existing worktree if healthy", which is a
+  statement about the worktree rather than about continuing a branch. **Unresolved:** the two have
+  not been reconciled by a measurement. Settle it before relying on either — dispatch with
+  `--branch <an existing branch with commits>` and read `git log` in the created worktree. Until
+  then, verify the branch the run built rather than assuming the flag did what you meant.
 - **A review workflow's `prep` finds the pull request by commit or `--from`, not by the worktree's
   branch name** (measured 2026-09-16). The abandon signal is a wrong pull-request number, not the
   branch name. Do not write "prep finds the PR by the checked-out branch" into an opener; check
@@ -118,8 +127,10 @@ Measured on v0.7.0 and v0.8.0.
 - **Invoke Archon from the registered clone, never from a sibling worktree.** It pins one source
   symlink per repository and refuses a second path **with exit 0** in some hosts, and with a
   visible symlink error carrying a delete-the-workspace hint in others. Do not follow that hint — a
-  peer's run may live there. `--from <branch>` does the isolation; the "edit in your own worktree"
-  rule is about editing, not invoking.
+  peer's run may live there. **The isolation comes from the worktree Archon builds, not from a
+  flag** — it is on by default and `--no-worktree` is what removes it; `--from` only chooses the
+  start point. So the "edit in your own worktree" rule is about editing, not about where you
+  invoke from.
 - **A run executes the workflow definition from the _invocation_ directory's working tree**
   (2026-08-24). `--from <branch>` checks the branch out, then silently overwrites the worktree's
   tracked `.archon/` from the invocation directory: `git log` reads right and the wrong definition
