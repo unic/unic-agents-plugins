@@ -31,3 +31,7 @@ artifacts/
 # Pinned upstream snapshots — must stay byte-identical to their source tag.
 # Scoped to the skills/ subtree so the vendor directory's own README.md stays Prettier-checked.
 **/vendor/mattpocock-skills/skills/**
+
+# The orchestrator kit is a copied snapshot, not repo-authored prose. Reformatting it makes the
+# next re-copy read as a diff — same reason as the vendored trees above.
+docs/process/generic-orchestrator-kit.md
