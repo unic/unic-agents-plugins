@@ -137,9 +137,90 @@ If you encounter `docs/issues/<slug>/` directories whose issues were never close
 
 ---
 
+## 7. When the work outgrows one runner — the orchestrator
+
+A Feature Runner takes one Feature end to end. Some efforts do not fit that shape: several Features
+in flight at once, work split across two repositories with two trackers, or a stream where the
+context that decides the next move took a week of reading to build and no single session can hold
+it. That is when a **session orchestrator** earns its cost.
+
+Read [`docs/agents/orchestrator-and-wayfinder.md`](../agents/orchestrator-and-wayfinder.md) first —
+it says who plans and who dispatches, and why this is a session role rather than a
+`.claude/agents/` subagent. The short version: `/wayfinder` charts a map and closes; the
+orchestrator holds context between maps, writes openers at dispatch, verifies what workers claim,
+and keeps one restart state. Planning and remembering are different jobs, and only the second one
+needs to last.
+
+### Do not hand-write it. Ask the agent to generate it
+
+[`generic-orchestrator-kit.md`](generic-orchestrator-kit.md) in this directory is the whole
+apparatus: a setup interview, an orchestrator prompt, and a handoff template. Give it to an agent
+rooted in your project and ask for its setup interview:
+
+> Run `Asset 0: setup interview` from `docs/process/generic-orchestrator-kit.md` for this project.
+
+What happens then, and what your part is:
+
+1. **The agent inspects before it asks.** Repository guidance, remotes, branches, package scripts,
+   CI, tracker references, review policy. It classifies every configuration value as discovered,
+   proposed, unknown or not applicable.
+2. **It asks one blocking question per turn**, and only for what a repository read cannot settle.
+   Four things it must never infer from convention: the mission, the merge owner, the authority
+   boundary and the destructive-operation policy. Expect to answer those yourself.
+3. **It proposes before it writes.** Nothing lands until you approve the configuration and the
+   paths.
+4. **It generates three artefacts**: the filled configuration, an orchestrator prompt with no
+   placeholders left, and the first handoff with one measured state block.
+
+Then open a session with the generated prompt, rename it, and the orchestrator is running.
+
+### What it generates, and where it belongs
+
+| Artefact                 | Holds                                                        | In git?             |
+| ------------------------ | ------------------------------------------------------------ | ------------------- |
+| `config.yaml`            | repositories, work registry, review flow, verification sets  | depends — see below |
+| `orchestrator-prompt.md` | the instantiated Asset 1; **one prompt, never one per seat** | depends             |
+| `HANDOFF.md`             | one replaceable `STATE` block, then doctrine                 | depends             |
+| `archive/`               | the dated log, once it stops affecting decisions             | depends             |
+
+**Whether that directory is tracked is a per-project call, and the deciding question is what the
+state block names.** In this repository it is not: the state names a customer repository and this
+repository is public, so `.gitignore` excludes `.orchestration/` and the shareable half was
+published under `docs/agents/` instead. A project on a private remote whose registry is a file in
+the repo can reasonably track the whole thing. Decide it once, with that question, rather than by
+habit.
+
+### Four things that go wrong, all measured here
+
+- **One prompt per seat.** Eleven seats produced eleven hand-edited files before this was fixed.
+  When a fact changes, edit the generated prompt; never write a variant.
+- **Letting the handoff grow by prepending.** One state block is replaced, never stacked. The file
+  here reached 1482 lines, of which 126 were the state and 1314 were sediment it had been ordering
+  folded for two seats.
+- **Trusting project memory to keep a learning.** Measured 2026-09-17: of twenty memory keys cited
+  across one stream's notes, three existed on disk. The rest were lost when the machine changed,
+  because that memory is keyed to a project path on one machine. A learning worth keeping goes to
+  `docs/agents/`, in git. See
+  [`dispatching-and-learning.md`](../agents/dispatching-and-learning.md) § Route each learning by
+  its lifetime.
+- **Believing the handoff.** It is a restart point, not proof. Its own first action is to
+  re-measure every moving fact in it and mark each inherited claim verified, changed or unverified.
+
+### What the orchestrator may not do
+
+It does not edit implementation files — not a `.mjs`, not a Box YAML, not a command prompt. Its
+value is a clean long-lived context and implementation detail destroys it. It does not merge: when
+a ticket or a pull request is ready it reports the evidence **on the ticket**, where the evidence
+outlives the session that produced it, and a developer merges.
+
+---
+
 ## Related
 
 - `docs/process/development-workflow.md` — the 8-phase quick reference
+- `docs/process/generic-orchestrator-kit.md` — the setup interview, prompt and handoff template for a session orchestrator
+- `docs/agents/orchestrator-and-wayfinder.md` — who plans and who dispatches
+- `docs/agents/dispatching-and-learning.md` — writing a session opener, and where a worker's learnings go
 - `docs/agents/issue-tracker.md` — issue file conventions
 - `docs/agents/triage-labels.md` — 8-state triage vocabulary
 - `apps/claude-code/unic-archon-dlc/docs/adr/0005-tdd-dispatch-by-version-impact.md` — when to use /tdd vs direct implementation (dispatch by version impact)
