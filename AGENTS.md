@@ -230,6 +230,7 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 - [feature-runner.md](docs/agents/feature-runner.md) — AFK invocation of the feature runner
 - [orchestrator-and-wayfinder.md](docs/agents/orchestrator-and-wayfinder.md) — who plans and who dispatches; why the orchestrator is a session, not an agent
 - [agent-tool-traps.md](docs/agents/agent-tool-traps.md) — measured traps in Archon, Azure DevOps, `gh`, git and the Copilot reviewer, and the shapes in which a session's claims go wrong
+- [dispatching-and-learning.md](docs/agents/dispatching-and-learning.md) — writing a session opener, when to rewrite it, and where a worker's learnings go
 
 ### Who owns which files
 
