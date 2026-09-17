@@ -86,15 +86,15 @@ Each is dated to the day it was adopted, and each came from a session that went 
   cleanup then deleted. Opener wording: _copy the artefacts directory out of the worktree first, or
   do not complete a run whose output was never consumed; a failed status says nothing about what is
   on disk._
-- **An opener cites a durable document; it does not restate it.** Once a rule and its recovery
-  procedure live in a repository's own guidance, the opener links to that section.
+- **An opener cites a durable document; it does not restate it** (2026-09-02). Once a rule and its
+  recovery procedure live in a repository's own guidance, the opener links to that section.
 - **Absolute paths in every shell call** where `cd` does not persist between calls, and **never a
-  foreground `sleep`** where the harness blocks it — it kills the compound command silently, so a
-  polling read comes back as "nothing yet".
+  foreground `sleep`** where the harness blocks it (2026-09-02) — it kills the compound command
+  silently, so a polling read comes back as "nothing yet".
 
 ### Before you post one: the four reads
 
-Applied to the criteria you are about to send someone at.
+Applied to the criteria you are about to point a worker at.
 
 - **Read them as one set.** The dangerous shape is a gap between two that an implementer fills with
   a defensible-sounding decision. #389's nine criteria stopped at four files while five other
@@ -137,8 +137,9 @@ and belong in the orchestrator's configuration.
    - **When a document records upstream provenance, record a commit and state what would make it
      stale** (2026-08-24, #394 hit the moving-fact defect three times in one ticket: a branch tip, a
      "still unmerged", a pre-tag version).
-4. **Flip the draft only after checks are green by exit code** — never on the worker's own
-   judgement.
+4. **If the pull request was opened as a draft only to hold the reviewer off, flip it once checks
+   are green by exit code** — never on the worker's own judgement, and never at all when someone
+   drafted it deliberately. Read the timeline first; see the rule above.
 5. **Read every review body to the end, not the thread list.** A review can carry a finding with
    **zero inline comments**: the body's `<details>` ends with
    `Suppressed comments (n) — Previously missed (n)`, naming a `path:line`, so it opens no thread,
@@ -173,7 +174,11 @@ switched the branch under a working session:
   files, and recovery worked only because the edits were uncommitted. Put worktrees **outside** the
   clone — a linter that ignores a dotted directory will skip a worktree hidden inside it.
 - **`git rev-list --count origin/<target>..HEAD` before every push** in a repository the session
-  does not hold exclusively. A zero or absurd count means the ref moved: stop and look.
+  does not hold exclusively. A zero or absurd count means **`HEAD` is not where the session thinks
+  it is** — the branch was switched underneath it — which is the failure this guard was adopted
+  for. It says nothing about the remote: the local `origin/<target>` is a cached ref, so a target
+  that advanced on the server leaves the count unchanged. To catch that, `git fetch` first and
+  compare the `origin/<target>` OID against the one the session started from.
 
 ## When an opener goes stale
 
@@ -256,19 +261,20 @@ how a change first reaches that session's context, unannounced.
 
 ### Route each learning by its lifetime
 
-| The learning changes…           | Write it to                                           | Why                                                               |
-| ------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
-| any future session, anywhere    | repository guidance, in git                           | reviewable, and it survives a machine                             |
-| any future session in this repo | project memory, plus a pointer in its index           | loaded automatically — but it is keyed to one path on one machine |
-| this stream's plan or order     | a comment on the ticket, or the map's body            | survives your session; the next coordinator reads it first        |
-| one ticket's criteria           | that ticket's body, and say on it that you amended it | amend the ticket, never merge against bad criteria                |
-| nothing outside the run         | leave it in the transcript                            | not everything earns a file                                       |
+| The learning changes…                               | Write it to                                           | Why                                                                                        |
+| --------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| any future session, on any machine                  | repository guidance, in git                           | reviewable, and the only destination that survives a machine or reaches a second person    |
+| only sessions on this machine, at this project path | project memory, plus a pointer in its index           | loaded automatically, and lost with the machine — so a convenience, never the durable copy |
+| this stream's plan or order                         | a comment on the ticket, or the map's body            | survives your session; the next coordinator reads it first                                 |
+| one ticket's criteria                               | that ticket's body, and say on it that you amended it | amend the ticket, never merge against bad criteria                                         |
+| nothing outside the run                             | leave it in the transcript                            | not everything earns a file                                                                |
 
 **Project memory is not durable across machines.** Measured 2026-09-17: of twenty memory keys cited
 across one stream's own notes, three existed on disk — the rest had been promoted to project memory
 and lost when the machine changed, because that memory is keyed to a project path on one machine.
-A learning that matters to more than one machine goes into repository guidance, which is what this
-file is.
+So the first row is the durable route and the second is a convenience: anything you would mind
+losing goes into repository guidance, which is what this file is. If you write it to project memory
+because it loads automatically, write it to git as well.
 
 ### Close the loop out loud
 

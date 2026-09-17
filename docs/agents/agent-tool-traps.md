@@ -125,7 +125,11 @@ Measured on v0.7.0 and v0.8.0.
   tracked `.archon/` from the invocation directory: `git log` reads right and the wrong definition
   runs. To verify a change to a workflow definition, copy it into the registered clone's tree
   uncommitted, dispatch from there, `shasum`-compare the worktree's copy against the branch before
-  the gate, and restore the clone afterwards.
+  the gate, and restore the clone afterwards. **That recipe edits the shared clone, so it is an
+  exclusive exception to "all feature work in a worktree": take it only when no other session is
+  working in that clone, and restore it before releasing the clone. One session moved a shared
+  clone under another session's five uncommitted files, and recovery worked only because the edits
+  were uncommitted.**
 - **Re-copy the definition to the consumer, then run the verification — never run, then patch.**
   What gets verified must hash-match what ships.
 - **Harvest before completing any terminal run.** Every workflow writes outward last, so a killed
@@ -137,9 +141,11 @@ Measured on v0.7.0 and v0.8.0.
   being the completed branch; the output said `env_removed` / `Completed:` and nothing about the
   remote). "Keep the branch" and `archon complete` are incompatible on a pushed branch. Pin a
   `refs/rescue/*` ref first, or use `git worktree remove` plus `git branch -D` by hand.
-- **Check `archon workflow status` before `git worktree remove --force` on any `archon/task-*`
-  worktree.** A live run's worktree is dirty by construction and looks abandoned; one cleanup
-  destroyed a different session's running review.
+- **Identify the run that owns an `archon/task-*` worktree and check it with
+  `archon workflow get <run-id>` before `git worktree remove --force`.** A live run's worktree is
+  dirty by construction and looks abandoned; one cleanup destroyed a different session's running
+  review. Do not reach for aggregate `workflow status` here — as above, it answers about whichever
+  run it feels like, which is how the wrong live run gets authorised for removal.
 - **A folder-scoped project registration silently removes the isolation every run relies on**, and
   the dispatch header says "running in place". `archon doctor` passes it. Abandon and check the
   registration.
@@ -213,8 +219,6 @@ been wrong — and each was caught by a check that was one command away.
 
 ## Environment
 
-- **`python3` urllib fails with `CERTIFICATE_VERIFY_FAILED` on this machine.** Use `curl` to
-  fetch; python is fine for parsing stdin.
 - **Absolute paths in every `Bash` call** where `cd` does not persist between calls, and **never a
   foreground `sleep`** where the harness blocks it: it kills the compound command silently, so a
   polling read comes back as "nothing yet".
