@@ -228,6 +228,7 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 - [labels.md](docs/agents/labels.md) — four-tier label taxonomy: state, type, priority, area
 - [domain.md](docs/agents/domain.md) — multi-context layout, `CONTEXT.md` and ADR locations
 - [feature-runner.md](docs/agents/feature-runner.md) — AFK invocation of the feature runner
+- [orchestrator-and-wayfinder.md](docs/agents/orchestrator-and-wayfinder.md) — who plans and who dispatches; why the orchestrator is a session, not an agent
 
 ### Who owns which files
 
