@@ -6,64 +6,14 @@ Guidance for any AI agent working in this repository. `CLAUDE.md` is a symlink t
 
 A pnpm workspace monorepo hosting AI agent plugins developed at Unic. Today it contains Claude Code plugins; the structure supports plugins for other agents (GitHub Copilot, etc.) in the future.
 
-## Workspace layout
-
-```tree
-apps/
-├── claude-code/              # Claude Code plugins — one dir per plugin
-│   ├── pr-review/
-│   ├── auto-format/
-│   ├── unic-confluence/
-│   ├── unic-archon-dlc/
-│   ├── unic-pr-review/
-│   └── unic-spec-review/
-└── copilot/                  # GitHub Copilot plugins (future)
-packages/
-├── biome-config/             # @unic/biome-config
-├── tsconfig/                 # @unic/tsconfig
-├── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
-└── tracker-streams/          # @unic/tracker-streams (generates the published streams page)
-docs/
-├── adr/                      # Architectural Decision Records
-├── agents/                   # Agent skill documentation
-├── inbox/                    # Retired idea-capture notes (historical)
-├── issues/                   # Grilled and scoped feature issues
-├── process/                  # Process and workflow guides
-└── research/                 # Research notes and explorations
-ci/                           # Vendored marketplace mapper — copied verbatim, never edited
-```
-
-## Navigation
-
-- Plugin manifests: `apps/<agent>/<plugin>/.claude-plugin/plugin.json` and `marketplace.json`
-- Shared release scripts: `packages/release-tools/scripts/`
-- Architectural decisions: `docs/adr/`
-- Process templates: `docs/process/`
-- Marketplace mapper: `ci/map-to-envelope.mjs` (vendored — see [Marketplace ingest](#marketplace-ingest))
-
 ## Commands
 
-```sh
-pnpm install                            # install all workspace deps
-pnpm check                              # Biome + Prettier check (whole tree)
-pnpm format                             # Biome + Prettier fix (whole tree)
-pnpm ci:check                           # same as check, non-interactive (for CI)
-pnpm test                               # run tests across all packages
-pnpm typecheck                          # type-check across all packages
+Root scripts are in `package.json`. Per-plugin operations:
 
-# Per-plugin operations
+```sh
 pnpm --filter <name> bump patch         # bump plugin version
 pnpm --filter <name> verify:changelog   # check changelog
 ```
-
-## Tech stack
-
-- **Runtime**: Node.js ≥ 22. `.nvmrc` is the source of truth for local dev (currently `24.15.0`) and is consumed by `actions/setup-node` in CI.
-- **Package manager**: pnpm 10 (workspace mode, catalog pinning)
-- **Module system**: ESM (`"type": "module"`) throughout
-- **Linter/formatter**: Biome 2 for code/JSON; Prettier for Markdown only
-- **Type checking**: `tsc --checkJs --noEmit` on `.mjs` files; no compilation step
-- **Test runner**: `node:test` built-in
 
 ## Cross-platform requirement
 
@@ -71,10 +21,8 @@ Every plugin must work on **macOS, Windows, and Linux**. Use Node.js APIs (`node
 
 ## Code conventions
 
-- Tabs for indentation in `.mjs`/`.js`/`.ts` files; spaces (2) for `.json`/`.yml`/`.yaml`
-- Single quotes, no semicolons, trailing commas ES5-style (enforced by Biome)
-- Line width 120 (Biome)
-- Prettier for Markdown only
+Formatting is enforced by Biome and Prettier; read `biome.json` for the values.
+
 - No TypeScript compilation — `// @ts-check` + JSDoc for type safety
 
 ## Versioning

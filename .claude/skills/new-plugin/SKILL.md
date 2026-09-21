@@ -1,6 +1,6 @@
 ---
 name: new-plugin
-argument-hint: `<plugin-name>` (e.g. `my-plugin`)
+argument-hint: '`<plugin-name>` (e.g. `my-plugin`)'
 description: This skill should be used when the user asks to "create a new plugin", "scaffold a plugin", "add a plugin to the monorepo", "start a new plugin called X", or "set up a new plugin". Use to scaffold all required files and directory structure for a new Claude Code plugin under apps/claude-code/ following Unic monorepo conventions.
 ---
 
