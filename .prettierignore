@@ -22,10 +22,19 @@ artifacts/
 # AI agent spec files — not for human review
 **/docs/plans/
 **/docs/conversations/
+# Left over from the pre-2026-09-21 vendoring shape, and still created by `npx skills` as a
+# staging tree, plus every copy inside a `.claude/worktrees/` checkout.
 **/.agents/skills/
-# Same rule, other vendoring shape: `npx skills` copied `unslop` here instead of symlinking it.
-# Reformatting it would drift the file from the hash in skills-lock.json.
-.claude/skills/unslop/
+
+# Vendored skills: every `.claude/skills/<name>/` whose name is a key in skills-lock.json.
+# Reformatting one drifts the file from its recorded hash. The four repo-authored skills
+# below are re-included so their prose stays Prettier-checked. Add a directory here when
+# you vendor a skill, and remove it when you prune one.
+.claude/skills/*/
+!.claude/skills/archon/
+!.claude/skills/new-plugin/
+!.claude/skills/night-shift/
+!.claude/skills/verify-spec/
 **/.agents/scratchpad/
 
 # Plugin changelogs — em-dash dates must not be reflowed

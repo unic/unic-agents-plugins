@@ -182,14 +182,12 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 
 ### Who owns which files
 
-| Path                                             | Owner                        | Rule                                                                                                                                         |
-| ------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.agents/skills/**`                              | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently                                                                |
-| `.claude/skills/<name>` symlinks                 | `npx skills`                 | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r`                                   |
-| `.claude/skills/unslop`                          | `npx skills`                 | Managed, but a **real directory**, not a symlink — see [Two vendoring shapes](#two-vendoring-shapes). Never hand-edit                        |
-| `.claude/skills/{archon,new-plugin,verify-spec}` | This repo                    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
-| `skills-lock.json`                               | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
-| `docs/agents/*.md`                               | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
+| Path                                             | Owner        | Rule                                                                                                                                         |
+| ------------------------------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/skills/<vendored name>`                 | `npx skills` | **Never hand-edit.** Every `npx skills add` overwrites the directory; edits die silently. `skills-lock.json` says which names are vendored   |
+| `.claude/skills/{archon,new-plugin,verify-spec}` | This repo    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
+| `skills-lock.json`                               | `npx skills` | Never hand-edit — the hashes are computed                                                                                                    |
+| `docs/agents/*.md`                               | This repo    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
 ### Upgrading
 
@@ -202,7 +200,7 @@ This repo vendors from two sources. Both go through `npx skills` and both are tr
 
 `unslop` cuts AI tells from prose. It is vendored here because this repo's product is prose, and because the maintainer's output style and user `CLAUDE.md` both tell a session to read it. Its frontmatter sets `disable-model-invocation: true`, so an agent reads the file rather than invoking the skill. Take nothing else from `cursor/plugins` without deciding it the same way.
 
-**The same skill name can exist at user scope and at project scope.** Claude Code resolves skills in the order project, user, plugin, bundled, and project wins. So a session in this repo reads the vendored `unslop`, and a session anywhere else reads the maintainer's `~/.claude/skills/unslop/`. The two can drift. When you upgrade one, check the other.
+**The same skill name can exist at user scope and at project scope, and the user copy wins.** Claude Code resolves a name clash enterprise over personal, and personal over project, so a session in this repo runs the maintainer's `~/.claude/skills/unslop/`, not the copy vendored here. The vendored copy is what a teammate without it reads. The two can drift, and nothing reports it. When you upgrade one, diff the other. A plugin skill never enters this clash: it is namespaced as `/plugin-name:skill-name` and loads alongside.
 
 Two `mattpocock/skills` entries the policy needs to name explicitly:
 
@@ -217,17 +215,21 @@ npx skills@latest remove -s <name> -s <name> … -a claude-code -y
 
 Add `-l` to any `add` command to list the source's catalogue and install nothing. Use it to check a source before you take from it.
 
-#### Two vendoring shapes
+#### One vendoring shape, and how it changed
 
-`npx skills` installs in one of two shapes, and it picks the shape, not you. The `mattpocock/skills` entries are a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink. `unslop` is a plain `.claude/skills/unslop/` directory holding `SKILL.md`, with no `.agents/skills/` entry, and the CLI reported it as `copied`. Both shapes are managed: `skills-lock.json` carries the hash either way. Read the installed tree before assuming which one you are looking at, and never convert one shape into the other by hand.
+Every vendored skill is a plain `.claude/skills/<name>/` directory, and `skills-lock.json` carries its hash. There is no `.agents/skills/` tree and no symlink.
+
+It was not always so. Until 2026-09-21 the `mattpocock/skills` entries were a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink, while `unslop` was already a plain directory. An ordinary `npx skills add` of the 26 tracked names rewrote all of them as plain directories in one run, reported each as `copied`, and left the whole `.agents/skills/` tree orphaned. **The CLI picks the shape, not you**, and it can change the shape of skills already installed. So read the installed tree after an upgrade rather than before, and never convert a shape by hand.
 
 Three traps the CLI sets:
 
-- **Target `-a claude-code`, never `-a '*'`.** The wildcard installs a second, frontmatter-rewritten copy of every skill into a top-level `agent/skills/` tree for foreign agents, which then drifts from `.agents/skills/`. `remove` rejects `-a '*'` outright.
-- **`-s` takes repeated flags, not a comma list.** `-s a,b,c` reports "no matching skills found" and exits 0.
-- **`remove` is 2-for-3.** It cleans the `.claude/skills/<name>` symlink and the lockfile entry but leaves `.agents/skills/<name>/` behind. Pair every removal with `git rm -r .agents/skills/<name>`.
+- **Target `-a claude-code`, never `-a '*'`.** The wildcard installs a second, frontmatter-rewritten copy of every skill into a top-level `agent/skills/` tree for foreign agents, which then drifts from the one under `.claude/skills/`. `remove` rejects `-a '*'` outright.
+- **`-s` takes repeated flags, not a comma list.** `-s a,b,c` reports "no matching skills found" and exits 0. In zsh, `for n in $names` does not split on newlines either, so a list built that way collapses into one bogus name and the CLI prints its catalogue instead of installing.
+- **`remove` left the source directory behind under the old shape.** Whether it now cleans the plain `.claude/skills/<name>/` directory is unverified here. Run `git status` after a removal and delete what it leaves.
 
-Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree and remove what no longer exists there. Do this per source: a `cursor/plugins` listing says nothing about what `mattpocock/skills` still ships.
+Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree (`add -l`) and remove what no longer exists there. Do this per source: a `cursor/plugins` listing says nothing about what `mattpocock/skills` still ships.
+
+`docs/adr/0032-label-taxonomy.md` and `docs/adr/0033-de-dogfood-unic-archon-dlc.md` still name `.agents/skills/**` as the upstream-owned tree. They record the decision as it was taken and are left as written; the path they cite is now `.claude/skills/<name>/`, and the rule that upstream owns it is unchanged.
 
 ### Vendored hook caveat: `git-guardrails-claude-code` needs `jq`
 
