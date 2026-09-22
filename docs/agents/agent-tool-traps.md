@@ -35,6 +35,16 @@ and may not survive an upgrade.
   after reading what it says.
 - **Never put a destructive form on the left of `||`.** If it succeeds, the safe branch is dead
   code.
+- **`gh api -f` sends a string where the sub-issue and dependency endpoints demand an integer.**
+  Both answer `HTTP 422 Invalid property /sub_issue_id: "5244565600" is not of type integer`. Use
+  `-F`, which types the value. Measured 2026-09-22.
+- **`issue_dependencies_summary.blocked_by` lags a dependency write by seconds.** After a tenth
+  blocker was added to one issue the summary read 9 while
+  `GET .../issues/<n>/dependencies/blocked_by` listed 10; three reads later both said 10. The
+  frontier query in `docs/agents/issue-tracker.md` compares that summary to 0, so a session that
+  wires an edge and queries the frontier in one breath can be offered a ticket that is already
+  blocked. **Verify a new edge by listing it, never by the counter.** Reported 2026-09-17 by the
+  session that hit it; not re-measured since.
 
 ## The Copilot reviewer
 
@@ -86,7 +96,8 @@ Measured against one ruleset, on pull requests targeting the default integration
 
 ## Archon
 
-Measured on v0.7.0 and v0.8.0.
+Measured on v0.7.0 and v0.8.0, and the last three bullets on v0.10.1. A version pins a fact
+here: the 0.x line ships every few weeks, and two machines in this project run two versions.
 
 - **Check which branch a run actually built before trusting its diff.** With no flags Archon
   auto-creates a worktree on `{workflow-name}-{timestamp}`, which is why runs here are named
@@ -167,6 +178,25 @@ Measured on v0.7.0 and v0.8.0.
 - **A review gate with no `on_reject` destroys every finding on a reject, with no record.**
 - **An account with no overage cushion above its rate-limit window stops an unattended queue dead**
   rather than degrading. Check before queueing overnight work.
+- **From v0.9.0 a workflow node inherits no ambient MCP server, and a node that lost them finishes
+  green.** Measured on v0.10.1, 2026-09-22, against a must-fail control: a node with no `mcp:` field
+  saw zero `mcp__` tools, while the same Claude binary in the same directory outside a workflow saw
+  them. A second seat measured a declared node seeing 53 tools against a sibling's 28 with no
+  browser tools — **and that sibling's run reported success.** So the failure is silent, and every
+  prompt that tells a node to use a tracker, a docs server or a design server keeps saying so while
+  the node cannot. Read a green Box that needed a server as unproven until you see the server's own
+  output.
+- **The node field is `mcp:` and it takes a literal relative path** to a file holding `mcpServers`,
+  not a server name. Archon reads that file, passes it to the SDK and appends `mcp__<server>__*` to
+  the node's allowed tools. The value takes **no interpolation of any kind**, there is **no
+  workflow-level form**, and `settingSources: [project]` is **not** an alternative. A wrong value
+  fails loudly and fast: `MCP config file not found: <value> (resolved to <cwd>/<value>)`, in about
+  14 ms, before the prompt runs, and it fails the whole run. Measured on v0.10.1, 2026-09-22.
+- **`archon workflow run` refuses a repository with no git remote**: "Cannot determine git remote
+  … Add one with `git remote add origin URL`, or use `--no-worktree`". A throwaway repository built
+  to probe a config key has none, so the first run of every probe fails on the environment rather
+  than on the thing being measured. Add a dummy remote, or pass `--no-worktree`, which a probe wants
+  anyway. Measured on v0.10.1, 2026-09-22, by two seats independently.
 
 ## git
 
