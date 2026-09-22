@@ -235,6 +235,17 @@ here: the 0.x line ships every few weeks, and two machines in this project run t
 These are not tool facts. They are the shapes in which agent sessions, including this one, have
 been wrong — and each was caught by a check that was one command away.
 
+- **Ask what produced the signal that something was checked.** The expensive failures in this file
+  share one property: the observable that reads as "checked" is produced by something other than
+  the check. A workflow node that lost its MCP servers finishes green, because green is produced by
+  the node ending, not by the servers answering. A section of this file described a review rule
+  correctly for seventeen days while the ruleset holding it was disabled, because the rule block
+  renders identically either way. An entry kept through a review of a memory index looks reviewed
+  afterwards, and reviewing whether it is still _needed_ produces exactly the same signal as
+  reviewing whether it is still _true_. In each case the artefact was honest and the reader's
+  inference was not. **So name the thing that would have to be false for the signal to appear
+  anyway, and go look at that.**
+
 - **Assert from a command, not from inference.** Five public errors in one day shared this shape:
   a claim about a flag's behaviour, about a permission's effect, about a file's staleness read from
   the wrong branch, about threads that could not exist, and an instruction that deleted a file the
