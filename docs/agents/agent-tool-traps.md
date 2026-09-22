@@ -239,9 +239,10 @@ been wrong — and each was caught by a check that was one command away.
 - **Ask what produced the signal that something was checked.** The expensive failures in this file
   share one property: the observable that reads as "checked" is produced by something other than
   the check. A workflow node that lost its MCP servers finishes green, because green is produced by
-  the node ending, not by the servers answering. A section of this file described a review rule
-  correctly for seventeen days while the ruleset holding it was disabled, because the rule block
-  renders identically either way. An entry kept through a review of a memory index looks reviewed
+  the node ending, not by the servers answering. A section of this file was published already
+  false — the ruleset it described had been disabled twelve days before the file existed — and read
+  as checked because it arrived through a reviewed, merged pull request, while a rule block renders
+  identically whether or not anyone contrasted it with the ruleset. An entry kept through a review of a memory index looks reviewed
   afterwards, and reviewing whether it is still _needed_ produces exactly the same signal as
   reviewing whether it is still _true_. In each case the artefact was honest and the reader's
   inference was not. **So name the thing that would have to be false for the signal to appear
