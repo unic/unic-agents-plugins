@@ -71,6 +71,18 @@ Measured against one ruleset, on pull requests targeting the default integration
 - `POST …/requested_reviewers` for Copilot returns 200 with an empty array and adds nobody. While
   the ruleset was enforced, un-drafting triggered a review within about two minutes; with it
   disabled, nothing triggers one and the GraphQL mutation is the only route.
+- **Reading and flipping it, since no Settings page shows a ruleset.** List with
+  `gh api repos/<org>/<repo>/rulesets`, read one with `.../rulesets/<id>`, and the field to judge by
+  is `enforcement`. Turning it back on is `gh api -X PUT .../rulesets/<id> -f enforcement=active`,
+  which needs repository admin and applies to every pull request in the repository, not to yours.
+  Measured 2026-09-22.
+- **Requesting the review by hand** is the GraphQL `requestReviews` mutation with
+  `botIds: ["BOT_kgDOCnlnWA"]` for `copilot-pull-request-reviewer[bot]`. Re-derive that id rather
+  than trusting this line, from any pull request the bot has reviewed:
+  `gh api repos/<org>/<repo>/pulls/<n>/reviews --jq '.[].user.node_id'`. A hardcoded id with no way
+  to re-derive it is the next stale constant. Measured 2026-09-22 against pull request #510, where a
+  request by hand was answered in two minutes on a **draft** — so the draft state changes nothing
+  while the ruleset is off.
 - **Enforcement is not visible from the rule.** A reader cannot tell a configured-and-enforced rule
   from a configured-and-disabled one by reading the rule block, here or on GitHub — the
   `enforcement` field sits elsewhere. So a document describing the rule reads as authoritative
@@ -281,7 +293,11 @@ been wrong — and each was caught by a check that was one command away.
   is true. So open the file the ticket points at before building on it, and **if the ticket names no
   file, treat the claim as unsourced rather than as measured** — that sentence is the one that would
   have saved a round trip between two seats, because the register was in this repository at a path
-  no ticket named.
+  no ticket named. **An index line that drops a fact costs a re-read; one that drops a wrong
+  instruction costs whoever follows it.** A memory entry's one-line summary read "it is a repo
+  ruleset; review_on_push causes the cost, draft suppresses it, disable never delete" while its body
+  still advised `gh pr ready --undo` → push → `gh pr ready` to dodge a review round — a dance that
+  buys nothing once enforcement is off, and nothing in the summary hinted it was there.
 - **A paraphrase of a decision is a claim like any other.** Grep the row before handing a worker
   its framing.
 - **When an amendment describes an artefact that exists, quote the artefact, not the decision that
