@@ -64,6 +64,27 @@ Archon also keeps a `default_branch` of its own per repository, set from whateve
 ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
 ```
 
+### The NDA publish guard
+
+**This repository is public, and one client of the DLC work is under an NDA**: its name, its repository name, and anything that would identify it must never reach GitHub. Two guards enforce that, and neither of them names a protected term, which is why both can live here.
+
+The terms are read from a file **outside every repository** — `$UNIC_NDA_DENYLIST`, else `~/.config/unic/nda-denylist.txt`, one term per line, `#` for comments. A denylist that names the client is itself the leak, so it is never committed anywhere.
+
+| Guard                               | Covers                                                                                                                                                                                   | Wired by                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `.claude/hooks/block-nda-terms.mjs` | What an agent session runs here: `gh`, `glab`, `git push`, `git commit`, `git tag`. It reads the command string, **every file the command names** and, for a commit, **the staged diff** | `.claude/settings.json`, `PreToolUse` on `Bash` — already committed, nothing to install |
+| `.githooks/pre-commit`              | Any commit in this clone, whoever makes it                                                                                                                                               | one symlink per clone, below                                                            |
+
+Two leak paths make the file and diff reads compulsory rather than thorough: `gh issue create --body-file <path>` carries no term in the command at all, and `git commit -m "<clean message>"` puts it in the diff rather than the message. A guard that scans only the command line waves both through.
+
+```sh
+ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+```
+
+**Both fail closed.** With no readable term list, a publishing command is refused and the message names the file to create. `touch` that file to opt out deliberately — an empty list allows everything. This is the opposite of the `git-guardrails` defect described below, where a missing `jq` makes the hook exit 0 and read as a successful block.
+
+What neither guard covers: `--no-verify` skips the git hook; the Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded; and an Archon workflow node inherits no ambient settings, so a Box almost certainly runs without it. Measure that before dispatching a Box that could publish.
+
 Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `feature/` (the prefix encodes PR topology, not change kind). Archon-dispatched branches add a scope sub-namespace: `feature/<scope>/<issue#>-<slug>`, where `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `repo` → `repo`). The `/archon-rollout` command owns the full derivation rule.
 
 ## Release flow

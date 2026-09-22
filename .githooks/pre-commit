@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# pre-commit — refuse a commit whose staged content carries an NDA-protected term.
+#
+# WHY THIS EXISTS
+#
+# This repository is public. One client of the DLC work is under an NDA that forbids its name, its
+# repository name, or anything that would identify it from reaching GitHub. The dangerous commit is
+# not the one that types the name into its message: it is `git commit -m "<clean message>"` over a
+# staged file that carries it. The message is what a reviewer reads; the diff is what is published.
+#
+# WHERE THE TERMS LIVE
+#
+# In a file OUTSIDE every repository, because a denylist that names the client is itself the leak:
+#
+#   $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt   (one term per line, # for comments)
+#
+# This script names no term, which is why it can be committed here.
+#
+# WHAT IT DOES NOT PROTECT
+#
+# It reads staged content only, so it cannot judge a commit made with `--no-verify`, nor content
+# that reached the remote through another clone. It is one of two layers: `.claude/hooks/
+# block-nda-terms.mjs` covers what an agent session runs in this repository, including `gh` commands
+# that publish an issue body no commit ever sees.
+#
+# It fails CLOSED. No readable list means no commit, because a guard that waves work through when
+# its own configuration is missing protects nothing. `touch` the file to opt out deliberately.
+#
+# INSTALL (per clone; `.git/hooks` is not version-controlled)
+#
+#   ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+
+set -eu
+
+list=${UNIC_NDA_DENYLIST:-"$HOME/.config/unic/nda-denylist.txt"}
+
+if [ ! -r "$list" ]; then
+	printf '%s\n' "pre-commit: cannot read the NDA term list at $list, so this commit is refused." >&2
+	printf '%s\n' "  Create it with one term per line, or 'touch' it to opt out deliberately." >&2
+	printf '%s\n' "  See AGENTS.md, \"The NDA publish guard\"." >&2
+	exit 1
+fi
+
+diff=$(git diff --cached -U0)
+[ -n "$diff" ] || exit 0
+
+status=0
+
+while IFS= read -r term || [ -n "$term" ]; do
+	# Skip blank lines and comments.
+	case "$term" in
+		'' | \#*) continue ;;
+	esac
+
+	# -F: the terms are literal. Without it, a term carrying a regex metacharacter either fails to
+	# match or makes grep error, and the commit is allowed through.
+	printf '%s' "$diff" | grep -qiF -- "$term" || continue
+
+	# Redact the term in the message: the transcript of a refusal must not republish it.
+	head=$(printf '%s' "$term" | cut -c1-2)
+	printf '%s\n' "pre-commit: refusing this commit." >&2
+	printf '%s\n' "  The staged diff carries the NDA term ${head}***, and this repository is public." >&2
+	printf '%s\n' "  Unstage it, or move the detail to a file the repository does not track." >&2
+	status=1
+done < "$list"
+
+exit $status
