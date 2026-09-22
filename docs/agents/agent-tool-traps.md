@@ -56,8 +56,8 @@ Measured against one ruleset, on pull requests targeting the default integration
   a night. **So no review fires on a push, and none fires on un-drafting.** A review is requested
   by hand, once, through the GraphQL `requestReviews` mutation with the reviewer's bot id. Nothing
   was deleted: one field puts it back, `enforcement: active` on that ruleset.
-- The two lines below are the rule's **configuration**, which is still what it holds and what would
-  resume the moment it is re-enabled. They are not what happens today.
+- The two `review_*` bullets are the rule's **configuration**, which is still what it holds and what
+  would resume the moment it is re-enabled. They are not what happens today.
 - `review_on_push: true` — it re-reviews on every push; two or three passes per pull request is
   normal.
 - `review_draft_pull_requests: false` — drafts are skipped, and un-drafting triggers a review
@@ -110,8 +110,9 @@ Measured against one ruleset, on pull requests targeting the default integration
 
 ## Archon
 
-Measured on v0.7.0 and v0.8.0, and the last three bullets on v0.10.1. A version pins a fact
-here: the 0.x line ships every few weeks, and two machines in this project run two versions.
+Measured on v0.7.0 and v0.8.0 except where a bullet names its own version. A version pins a fact
+here: the 0.x line ships every few weeks, and two machines in this project run two versions, so
+every bullet added since carries the version and date it was measured on.
 
 - **Check which branch a run actually built before trusting its diff.** With no flags Archon
   auto-creates a worktree on `{workflow-name}-{timestamp}`, which is why runs here are named
