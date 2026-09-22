@@ -245,6 +245,16 @@ been wrong — and each was caught by a check that was one command away.
   file that turns out to belong to the consumer. Both were asserted from how the thing ought to
   work. A wrong cost is expensive in its own way — it argues against a good option for a reason
   that does not exist, and nobody re-checks a reason that sounded like caution.
+- **A closed ticket's summary of a measurement is a lossy copy; the register is the original.**
+  Same family again. A two-line answer on a ticket said mechanisms reach the implementer where
+  documents did not. The register behind it stated a confound in the same sentence as its verdict,
+  scored three of six predictions wrong — the three the seal itself called its strong test — recorded
+  a human producing one of the outcomes, and called one arm a weakened seal. A summary drops
+  conditions because that is what a summary is for, and the loss is invisible because what remains
+  is true. So open the file the ticket points at before building on it, and **if the ticket names no
+  file, treat the claim as unsourced rather than as measured** — that sentence is the one that would
+  have saved a round trip between two seats, because the register was in this repository at a path
+  no ticket named.
 - **A paraphrase of a decision is a claim like any other.** Grep the row before handing a worker
   its framing.
 - **When an amendment describes an artefact that exists, quote the artefact, not the decision that
