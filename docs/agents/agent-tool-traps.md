@@ -237,6 +237,14 @@ been wrong — and each was caught by a check that was one command away.
   run's own report on its own branch the whole time. Trace the writer first — grep the field, find
   its one reader, check whether that node ran. A false absence propagates faster than a false
   presence, because nobody re-opens a file to confirm something is still not there.
+- **A cost claim is a claim about the present, so check the thing is not already broken before
+  costing the change that would break it.** Same family as the bullet above, and refuted the same
+  way — one command. Two on one day: that install-time substitution would stop an installed
+  workflow being identical to its shipped copy, when all four installed copies already differed
+  from theirs by a generated header line; and that a plugin hardcodes an organisation in a config
+  file that turns out to belong to the consumer. Both were asserted from how the thing ought to
+  work. A wrong cost is expensive in its own way — it argues against a good option for a reason
+  that does not exist, and nobody re-checks a reason that sounded like caution.
 - **A paraphrase of a decision is a claim like any other.** Grep the row before handing a worker
   its framing.
 - **When an amendment describes an artefact that exists, quote the artefact, not the decision that
