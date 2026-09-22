@@ -293,7 +293,11 @@ been wrong — and each was caught by a check that was one command away.
   is true. So open the file the ticket points at before building on it, and **if the ticket names no
   file, treat the claim as unsourced rather than as measured** — that sentence is the one that would
   have saved a round trip between two seats, because the register was in this repository at a path
-  no ticket named.
+  no ticket named. **An index line that drops a fact costs a re-read; one that drops a wrong
+  instruction costs whoever follows it.** A memory entry's one-line summary read "it is a repo
+  ruleset; review_on_push causes the cost, draft suppresses it, disable never delete" while its body
+  still advised `gh pr ready --undo` → push → `gh pr ready` to dodge a review round — a dance that
+  buys nothing once enforcement is off, and nothing in the summary hinted it was there.
 - **A paraphrase of a decision is a claim like any other.** Grep the row before handing a worker
   its framing.
 - **When an amendment describes an artefact that exists, quote the artefact, not the decision that
