@@ -50,6 +50,14 @@ and may not survive an upgrade.
 
 Measured against one ruleset, on pull requests targeting the default integration branch.
 
+- **The ruleset is DISABLED, and has been since 2026-09-05.** `20764169`, "Copilot code review",
+  target `refs/heads/develop`, `enforcement: disabled` — verified 2026-09-22. It was switched off
+  after one pull request drew eight automatic rounds and spent 35% of a month's Copilot budget in
+  a night. **So no review fires on a push, and none fires on un-drafting.** A review is requested
+  by hand, once, through the GraphQL `requestReviews` mutation with the reviewer's bot id. Nothing
+  was deleted: one field puts it back, `enforcement: active` on that ruleset.
+- The two lines below are the rule's **configuration**, which is still what it holds and what would
+  resume the moment it is re-enabled. They are not what happens today.
 - `review_on_push: true` — it re-reviews on every push; two or three passes per pull request is
   normal.
 - `review_draft_pull_requests: false` — drafts are skipped, and un-drafting triggers a review
@@ -60,8 +68,14 @@ Measured against one ruleset, on pull requests targeting the default integration
   2026-09-05 and produced a false "there is none". `grep -c 'Suppressed comments'` is a presence
   check and nothing more — it cannot show you the finding, its path, its line or the quota
   explanation, so using it _instead of_ reading permits the same false pass in a shorter command.
-- `POST …/requested_reviewers` for Copilot returns 200 with an empty array and adds nobody.
-  Un-drafting triggers it within about two minutes; wait rather than re-posting.
+- `POST …/requested_reviewers` for Copilot returns 200 with an empty array and adds nobody. While
+  the ruleset was enforced, un-drafting triggered a review within about two minutes; with it
+  disabled, nothing triggers one and the GraphQL mutation is the only route.
+- **Enforcement is not visible from the rule.** A reader cannot tell a configured-and-enforced rule
+  from a configured-and-disabled one by reading the rule block, here or on GitHub — the
+  `enforcement` field sits elsewhere. So a document describing the rule reads as authoritative
+  whether or not anything is switched on. Check the ruleset's `enforcement`, not its rules, before
+  believing either.
 
 ## Azure DevOps
 
