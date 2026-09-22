@@ -53,7 +53,9 @@ while IFS= read -r term || [ -n "$term" ]; do
 		'' | \#*) continue ;;
 	esac
 
-	printf '%s' "$diff" | grep -qi -- "$term" || continue
+	# -F: the terms are literal. Without it, a term carrying a regex metacharacter either fails to
+	# match or makes grep error, and the commit is allowed through.
+	printf '%s' "$diff" | grep -qiF -- "$term" || continue
 
 	# Redact the term in the message: the transcript of a refusal must not republish it.
 	head=$(printf '%s' "$term" | cut -c1-2)

@@ -22,8 +22,15 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const MAX_BYTES = 2_000_000
-const PUBLISHES = /(?:^|[|;&(]\s*|\s)(?:gh|glab)\s|(?:^|[|;&(]\s*|\s)git\s+(?:push|commit|tag)\b/
-const COMMITS = /(?:^|[|;&(]\s*|\s)git\s+commit\b/
+const START = String.raw`(?:^|[|;&(]\s*|\s)`
+// `git -C <worktree> push` is how this repository's own Archon flow publishes
+// (.claude/commands/archon-pr-review.md), so the verb is never the first token. Skip git's global
+// options — the ones that take a value and the ones that do not — before reading it.
+const GIT_OPTIONS = String.raw`(?:\s+(?:-[cC]\s+\S+|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)\S+|--[\w-]+|-\w))*`
+/** @param {string} verbs */
+const gitVerb = (verbs) => new RegExp(`${START}git${GIT_OPTIONS}\\s+(?:${verbs})\\b`)
+const PUBLISHES = new RegExp(`${START}(?:gh|glab)\\s|${gitVerb('push|commit|tag').source}`)
+const COMMITS = gitVerb('commit')
 
 const listPath = process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
 
