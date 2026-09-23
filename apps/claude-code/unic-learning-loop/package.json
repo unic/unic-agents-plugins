@@ -1,6 +1,9 @@
 {
   "devDependencies": {
-    "@unic/release-tools": "workspace:*"
+    "@types/node": "catalog:",
+    "@unic/release-tools": "workspace:*",
+    "@unic/tsconfig": "workspace:*",
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=22",
@@ -14,9 +17,10 @@
     "bump": "unic-bump",
     "sync-version": "unic-sync-version",
     "tag": "unic-tag",
-    "test": "node --test",
+    "test": "node --test tests/cadence-gate.test.mjs",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
     "verify:changelog": "unic-verify-changelog"
   },
   "type": "module",
-  "version": "0.0.1"
+  "version": "0.0.2"
 }
