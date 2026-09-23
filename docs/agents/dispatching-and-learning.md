@@ -246,7 +246,14 @@ report to <the live session name> with four things and nothing else:
   4. whether it changes only this ticket, or every session in this repo
 Send it when you learn it, not only at the end — a session that dies unreported
 takes its learnings with it.
+Talk only to <the live session name>. Do not message another orchestrator or its
+sessions; tell <the live session name>, who relays it.
 ```
+
+**A child session talks only to its own orchestrator** (2026-09-23, maintainer's rule). When a
+child messages another seat's orchestrator directly, a fact can land with that seat and never reach
+its own, and the next child of its own seat starts without it. The orchestrators relay between
+seats.
 
 Point 3 is load-bearing. A report without the command that proved it is an opinion. Point 4 tells
 you where the learning goes.

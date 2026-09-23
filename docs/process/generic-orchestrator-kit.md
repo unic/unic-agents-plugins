@@ -226,6 +226,8 @@ BEFORE YOU FINISH, AND WHENEVER YOU LEARN SOMETHING THAT WOULD HAVE CHANGED THIS
 
 Send the report when you learn it. Do not wait for the end of the session.
 
+Talk only to <LIVE_ORCHESTRATOR_ID>. Do not message another orchestrator or its sessions. If something concerns them, tell <LIVE_ORCHESTRATOR_ID>, who relays it.
+
 Worker completion report
 
 Require these fields:
