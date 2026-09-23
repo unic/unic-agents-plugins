@@ -290,7 +290,7 @@ Stop dispatch and report when:
 
 At context handoff
 
-Replace the handoff's `STATE` block with a self-contained measured state. Include your live identity only as historical context. The next session must discover its own identity. Archive the day log. Leave the doctrine unchanged unless a measured failure proves a general rule needs correction.
+Replace the handoff's `STATE` block with a self-contained measured state. Include your live identity only as historical context. The next session must discover its own identity. Archive the day log. Promote project memory: write each entry with a `destination:` other than `memory` to that destination, then delete the entry and its index line. Project memory stays on one machine; the destination is what the next session reads. Leave the doctrine unchanged unless a measured failure proves a general rule needs correction.
 ```
 
 ## Asset 2: project handoff template
@@ -481,7 +481,7 @@ List every decision the criteria leave open. Return material decisions to their 
 | Current run | Session transcript |
 | One ticket | Ticket comment or body |
 | Project sequence | Root work item or map |
-| Durable project rule | Project memory or repository guidance |
+| Durable project rule | Repository guidance. Project memory holds it only until the next handoff promotes it |
 | Restart state | This file's `STATE` block |
 | Historical detail | Archive |
 

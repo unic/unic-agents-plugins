@@ -276,6 +276,27 @@ So the first row is the durable route and the second is a convenience: anything 
 losing goes into repository guidance, which is what this file is. If you write it to project memory
 because it loads automatically, write it to git as well.
 
+**Project memory is an inbox, not a store.** A session writes to it because it is instant and a
+commit is not, so treat each entry as waiting for its place in git:
+
+1. Every new memory names its destination in its frontmatter, as `destination:` under `metadata:`.
+2. The destination is the first of these that fits:
+   - a trap in a tool (git, `gh`, pnpm, Biome, Archon, Azure DevOps, Copilot):
+     `docs/agents/agent-tool-traps.md`;
+   - a rule about dispatching, openers, review or verification: this file;
+   - a fact about one plugin: that plugin's `AGENTS.md` or `CONTEXT.md`;
+   - a fact only one orchestrator seat acts on: `.orchestration/<seat>/LESSONS.md`, which is
+     gitignored, so a fact naming a client goes here and never into a tracked file;
+   - `memory`, only when the fact applies to every session and fits none of the above.
+3. An orchestrator promotes the entries at each handoff: it writes each fact to its destination,
+   deletes the memory file and removes its index line. A session with no orchestrator promotes its
+   own entries before it ends.
+
+Claude Code loads only the first 200 lines or 25KB of `MEMORY.md`, whichever comes first. On
+2026-09-23 the index of this repository reached 24,142 bytes, and 33 of its 138 entries repeated
+a rule already in git. Promotion at every handoff keeps the index small enough that it never needs
+a sweep.
+
 ### Close the loop out loud
 
 When a worker's report changes a prompt you already wrote, **tell the session running it.** A
