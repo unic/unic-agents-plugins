@@ -60,7 +60,9 @@ function run(stdin, env = {}) {
  */
 function stop(overrides = {}, env = {}, path = transcriptPath) {
 	const payload = { session_id: 'session', transcript_path: path, stop_hook_active: false, ...overrides }
-	return JSON.parse(run(JSON.stringify(payload), env).stdout)
+	const { exitCode, stdout } = run(JSON.stringify(payload), env)
+	if (exitCode !== 0) throw new Error(`hook exited ${exitCode}`)
+	return JSON.parse(stdout)
 }
 
 /** @returns {string} */
@@ -219,6 +221,11 @@ test('a non-numeric turn threshold variable falls back to the default', () => {
 test('a non-numeric turn threshold variable keeps the gate shut below the default', () => {
 	seedOneTurnShort({ turnsSinceNotice: 2 })
 	assert.deepEqual(stop({}, { UNIC_LEARNING_LOOP_MIN_TURNS: 'ten' }), {})
+})
+
+test('a relative transcript_path creates no state directory', () => {
+	stop({}, {}, 'session.jsonl')
+	assert.equal(existsSync(join(dir, 'unic-learning-loop')), false)
 })
 
 test('a transcript_path that does not exist creates no state directory', () => {

@@ -15,7 +15,7 @@
  */
 
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 
 const STATE_VERSION = 1
 const STATE_DIR_NAME = 'unic-learning-loop'
@@ -51,7 +51,9 @@ const MS_PER_MINUTE = 60_000
 function decide(text) {
 	const payload = parsePayload(text)
 	const transcriptPath = payload.transcript_path
-	if (typeof transcriptPath !== 'string' || transcriptPath === '') return {}
+	// A relative path would resolve against the working directory, which the
+	// hook must never use to place state.
+	if (typeof transcriptPath !== 'string' || !isAbsolute(transcriptPath)) return {}
 
 	// A transcript that cannot be read cannot advance, so the gate stays shut.
 	// Writing nothing here keeps a bad path from creating directories.
