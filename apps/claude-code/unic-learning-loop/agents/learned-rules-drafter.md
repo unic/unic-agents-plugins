@@ -13,7 +13,7 @@ You read the developer's past sessions in one repository and propose an updated 
 
 The skill passes you five values:
 
-- **Transcript directory**: an absolute path that holds the session transcripts, one `*.jsonl` file per session.
+- **File list**: the absolute paths of the transcript files to read, one `*.jsonl` file per session, newest first. The skill lists only files changed after the cutoff.
 - **Cutoff**: an ISO time. It is the Bookmark, the start time of the last finished Read-back. With no Bookmark, it is the time 14 days before the start time, which the skill computes for you.
 - **Start time**: the ISO time at which this run started.
 - **Repository**: the absolute path of the repository root. Its last path segment is the repository's name.
@@ -30,15 +30,14 @@ Do not read tool results, attachments, `assistant` lines or `system` lines. They
 
 ## How you read them
 
-1. Run `Glob` with the pattern `<transcript directory>/*.jsonl`. It returns the files ordered by modification time, oldest first. Work through them from the last one returned, the newest, backwards.
-2. For each file, find its last line that carries a `timestamp`. Many files end with a record that has none. Run `Grep` in count mode with the pattern `"timestamp":"` to get the number of such lines, N. Then run `Grep` in content mode with the pattern `"timestamp":"[^"]*"`, only-matching on, and offset N − 1, and take the last entry it returns. Only-matching keeps the output to the timestamps and out of the line itself. If that timestamp is not after the cutoff, stop: this file and every file before it are older than the cutoff. A file with no `timestamp` at all is skipped.
-3. Otherwise select the lines with `Grep` in content mode, with this pattern:
+1. Read only the files in the file list, newest first. Do not list the transcript directory yourself with `Glob` or `Grep`: the skill has already chosen the files, from modification times you cannot see.
+2. In each file, select the lines with `Grep` in content mode, with this pattern:
 
    `"type":"user","message":\{"role":"user","content":("|\[\{"type":"text")`
 
    It matches typed lines and `isMeta` lines, whose content is a string or a text block. It does not match tool results, whose content starts with a `tool_use_id`. Use a head limit of 20 and page through the matches with offset, because one line can be several kilobytes. After each page, keep only the candidate facts it gave you, not the lines.
 
-4. Keep only the lines whose `timestamp` is after the cutoff. Both are ISO times in UTC, so compare them as text.
+3. Keep only the lines whose `timestamp` is after the cutoff. Both are ISO times in UTC, so compare them as text.
 
 Never `Read` a whole transcript. A transcript can be tens of megabytes, and almost all of it is lines you must not read.
 
