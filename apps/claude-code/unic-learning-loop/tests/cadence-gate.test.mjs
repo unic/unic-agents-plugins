@@ -55,10 +55,11 @@ function run(stdin, env = {}) {
 /**
  * @param {{ stop_hook_active?: boolean }} [overrides]
  * @param {Record<string, string>} [env]
+ * @param {string} [path]
  * @returns {Record<string, unknown>}
  */
-function stop(overrides = {}, env = {}) {
-	const payload = { session_id: 'session', transcript_path: transcriptPath, stop_hook_active: false, ...overrides }
+function stop(overrides = {}, env = {}, path = transcriptPath) {
+	const payload = { session_id: 'session', transcript_path: path, stop_hook_active: false, ...overrides }
 	return JSON.parse(run(JSON.stringify(payload), env).stdout)
 }
 
@@ -213,6 +214,16 @@ test('a numeric minute threshold variable replaces the default', () => {
 test('a non-numeric turn threshold variable falls back to the default', () => {
 	seedOneTurnShort()
 	assert.equal(stop({}, { UNIC_LEARNING_LOOP_MIN_TURNS: 'ten' }).systemMessage, NOTICE)
+})
+
+test('a non-numeric turn threshold variable keeps the gate shut below the default', () => {
+	seedOneTurnShort({ turnsSinceNotice: 2 })
+	assert.deepEqual(stop({}, { UNIC_LEARNING_LOOP_MIN_TURNS: 'ten' }), {})
+})
+
+test('a transcript_path that does not exist creates no state directory', () => {
+	stop({}, {}, join(dir, 'missing.jsonl'))
+	assert.equal(existsSync(join(dir, 'unic-learning-loop')), false)
 })
 
 test('a non-positive turn threshold variable falls back to the default', () => {

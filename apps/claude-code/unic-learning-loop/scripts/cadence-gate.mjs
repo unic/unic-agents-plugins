@@ -53,6 +53,8 @@ function decide(text) {
 	const transcriptPath = payload.transcript_path
 	if (typeof transcriptPath !== 'string' || transcriptPath === '') return {}
 
+	// A transcript that cannot be read cannot advance, so the gate stays shut.
+	// Writing nothing here keeps a bad path from creating directories.
 	const transcriptMtimeMs = getMtimeMs(transcriptPath)
 	if (transcriptMtimeMs === null) return {}
 
@@ -202,6 +204,7 @@ async function main() {
 	let output = {}
 	try {
 		let text = ''
+		process.stdin.setEncoding('utf8')
 		for await (const chunk of process.stdin) text += chunk
 		output = decide(text)
 	} catch (error) {

@@ -29,4 +29,4 @@ Set these environment variables to change the thresholds. A missing, non-numeric
 
 Trial mode lets you see the notice on the first day. It ends by itself when its duration has passed, and the normal thresholds apply again.
 
-The hook keeps its state in a `unic-learning-loop/` directory beside the session's transcript, under `~/.claude/projects/`. Nothing is written to your repository.
+The hook keeps its state in a `unic-learning-loop/` directory beside the session's transcript, under `~/.claude/projects/`. Every session started in the same directory shares that state, so their turns add up. Nothing is written to your repository.
