@@ -172,7 +172,9 @@ switched the branch under a working session:
   working tree is the whole failure mode, and the reason is peer traffic, not build isolation: one
   session moved a shared clone to the integration branch under another session's five uncommitted
   files, and recovery worked only because the edits were uncommitted. Put worktrees **outside** the
-  clone — a linter that ignores a dotted directory will skip a worktree hidden inside it.
+  clone — a linter that ignores a dotted directory will skip a worktree hidden inside it. This rule
+  does not reach a subagent the Agent tool spawns with `isolation: "worktree"`, because the tool
+  picks that path; see [Judging a command](agent-tool-traps.md#judging-a-command).
 - **`git rev-list --count origin/<target>..HEAD` before every push** in a repository the session
   does not hold exclusively. A zero or absurd count means **`HEAD` is not where the session thinks
   it is** — the branch was switched underneath it — which is the failure this guard was adopted

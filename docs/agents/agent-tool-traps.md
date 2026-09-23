@@ -17,6 +17,15 @@ and may not survive an upgrade.
   directory they silently do nothing, or exit 254.
 - **Judge by exit code, never by grepping output for "error".** Prettier reports style problems as
   `[warn]`, so `ci:check | grep -ic error` returns 0 on a failing run.
+- **A subagent spawned with `isolation: "worktree"` cannot run the root gates in place**
+  (2026-09-23). The Agent tool puts that worktree under `.claude/worktrees/<agent>/`, and
+  `biome.json` ignores `**/.claude`, so `pnpm format` exits 1 with "No files were processed in the
+  specified paths" and lists `.` as ignored. The same commit passes `pnpm format`, `pnpm ci:check`
+  and `pnpm typecheck` from a worktree outside the clone. The Agent tool chooses the path, not the
+  agent, so the rule to put worktrees outside the clone in
+  [The pipeline a ticket ends in](dispatching-and-learning.md#the-pipeline-a-ticket-ends-in) does
+  not prevent it. Create the worktree yourself with `git worktree add` outside the clone, and spawn
+  the subagent without `isolation`.
 - **A passing test suite can prove very little.** `pnpm test` passed all day while every command of
   a plugin was broken at step 1 in a real consuming repository. For a plugin, the bar is a
   marketplace install into a consumer, then running the thing.
@@ -324,3 +333,11 @@ been wrong — and each was caught by a check that was one command away.
 - **Absolute paths in every `Bash` call** where `cd` does not persist between calls, and **never a
   foreground `sleep`** where the harness blocks it: it kills the compound command silently, so a
   polling read comes back as "nothing yet".
+- **A pipe hides the exit code of every command before the last** (2026-09-23).
+  `timeout 90 git fetch … | tail -5; echo $?` printed "command not found: timeout", because macOS
+  ships no GNU `timeout`, and then printed exit 0, because `$?` reads `tail`. The fetch never ran,
+  and the output looked like a fetch with nothing new. The "judge by exit code" bullet in
+  [Judging a command](#judging-a-command) does not cover this, because the exit code it reads
+  belongs to `tail`. Run the command without the pipe, or set `pipefail` first (`set -o pipefail` in
+  bash and zsh). Judge a fetch by the timestamp of `.git/FETCH_HEAD`. In a linked worktree that file
+  is per worktree, and `git rev-parse --git-path FETCH_HEAD` prints its path.
