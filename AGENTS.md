@@ -107,7 +107,7 @@ To ship a new plugin version:
 
 ## Marketplace ingest
 
-Every push to `main` publishes this repository's six plugin cards to the Unic AI Artefact Marketplace, source `unic-agents-plugins`. `.github/workflows/marketplace-ingest.yml` maps the catalogue with `ci/map-to-envelope.mjs` and posts it to the public ingest sidecar. The mapper kind is `unic-agents`, because this is a Claude-plugin monorepo. The full documentation is [Push your catalog](https://vp.unic.com/docs/#/marketplace/), which needs a VP login. Run it by hand to see the envelope:
+Every push to `main` publishes a card for every plugin in the root `.claude-plugin/marketplace.json` to the Unic AI Artefact Marketplace, source `unic-agents-plugins`. `.github/workflows/marketplace-ingest.yml` maps the catalogue with `ci/map-to-envelope.mjs` and posts it to the public ingest sidecar. The mapper kind is `unic-agents`, because this is a Claude-plugin monorepo. The full documentation is [Push your catalog](https://vp.unic.com/docs/#/marketplace/), which needs a VP login. Run it by hand to see the envelope:
 
 ```sh
 node ci/map-to-envelope.mjs unic-agents . > body.json

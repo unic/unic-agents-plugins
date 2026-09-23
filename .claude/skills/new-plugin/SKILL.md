@@ -45,6 +45,8 @@ The plugin-dev skill above scaffolds the plugin's core logic files (hooks, comma
 }
 ```
 
+Use `0.0.1` instead when the scaffold ships no working hook, command or skill yet, so the version says the plugin is not usable.
+
 **`.claude-plugin/marketplace.json`** — mirror structure of `apps/claude-code/auto-format/.claude-plugin/marketplace.json`, adjusting name/description/version. This is the plugin's own per-plugin manifest (`unic-sync-version` mirrors `plugin.json`'s version into it).
 
 **Root `.claude-plugin/marketplace.json` (MANDATORY — easy to forget)** — append an entry to the `plugins[]` array of the repo-root registry. This is the install registry Claude Code actually reads; a plugin omitted here is invisible to anyone who installs the marketplace, even though every other file is correct. Entries are minimal:
@@ -87,7 +89,7 @@ See `references/package-json-template.md` for the full template (hook-based and 
 
 Only include if the plugin registers hooks.
 
-**`tsconfig.json`** — only if the plugin has scripts or tests:
+**`tsconfig.json`** — only if the plugin has scripts or tests. Add it, and the `typecheck` script, with the first `.mjs` file: `tsc` exits 2 with `TS18003` when no input file exists, and CI runs `typecheck` whenever the script is present.
 
 ```json
 {
@@ -96,7 +98,7 @@ Only include if the plugin registers hooks.
 }
 ```
 
-**`CHANGELOG.md`** — use the exact format from `apps/claude-code/auto-format/CHANGELOG.md` as template. Include only `## [Unreleased]` with empty Breaking/Added/Fixed subsections — no historical version entry yet.
+**`CHANGELOG.md`** — use the exact format from `apps/claude-code/auto-format/CHANGELOG.md` as template. It needs two sections: `## [Unreleased]` with empty Breaking/Added/Fixed subsections, and below it the first version, `## [<version>] — YYYY-MM-DD`, with at least one real bullet under `### Added`. `<version>` is the version in `plugin.json`. Without the dated entry, `verify:changelog` fails the scaffold's pull request, because the scaffold creates `plugin.json`. Write this first entry by hand: `pnpm bump` cannot promote a changelog that has no version section below `[Unreleased]`. From the second version on, use `pnpm bump`.
 
 **`README.md`** — one-paragraph description of what the plugin does.
 
