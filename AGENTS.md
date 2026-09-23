@@ -91,8 +91,8 @@ Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `featu
 
 To ship a new plugin version:
 
-1. On a feature branch, bump the version: `pnpm --filter <name> bump <patch|minor|major>`
-2. Add a dated entry to the plugin's `CHANGELOG.md` under the new version.
+1. On a feature branch, add the change to the plugin's `CHANGELOG.md` under `## [Unreleased]`, and commit it with the change. `pnpm bump` refuses an `[Unreleased]` section that holds only `- (none)`, and it refuses a working tree with uncommitted changes.
+2. Bump the version: `pnpm --filter <name> bump <patch|minor|major>`. The bump turns the `[Unreleased]` entries into a dated `## [X.Y.Z] — YYYY-MM-DD` section and does not commit. Commit its result on its own, as `chore(<name>): release X.Y.Z`.
 3. Open a PR targeting `develop`. CI runs `verify:changelog` on all PRs — it will fail if the changelog entry is missing or malformed.
 4. After the PR merges to `develop`, open a release PR from `develop` → `main`.
 5. After the release PR merges, the release workflow on `main` detects that `<name>@<version>` has no tag yet and creates it automatically.
