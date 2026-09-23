@@ -20,7 +20,7 @@ Run the steps below in order. Use only `git` and `node` in shell commands, so th
 
 4. **Spawn the subagent.** Call the `Agent` tool with `subagent_type` `unic-learning-loop:learned-rules-drafter` and pass it five values: the transcript directory, the Bookmark, the start time, the repository root, and the current file content. Do not read the transcripts yourself.
 
-5. **Take its answer.** The subagent returns either the full proposed content of the Learned Rules File or exactly `No high-signal memory updates.` If it returns that sentence, or a proposal identical to the current file, tell the developer there is nothing to add and go to step 7. If it returns anything else, such as an error, treat it as a failed step.
+5. **Take its answer.** The subagent returns either the full proposed content of the Learned Rules File or exactly `No high-signal memory updates.` If it returns that sentence, or a proposal identical to the current file, tell the developer there is nothing to add and go to step 7. A proposal starts with the line `## Learned Repository Facts`. If it returns anything else, such as an error or a proposal wrapped in other text, treat it as a failed step.
 
 6. **Show the diff and ask.** Render the diff yourself from the current file and the proposal, as a unified diff in a `diff` code block:
 
