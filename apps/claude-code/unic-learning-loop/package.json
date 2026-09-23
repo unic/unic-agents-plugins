@@ -1,0 +1,22 @@
+{
+  "devDependencies": {
+    "@unic/release-tools": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "license": "LGPL-3.0-or-later",
+  "name": "unic-learning-loop",
+  "packageManager": "pnpm@10.33.2",
+  "private": true,
+  "scripts": {
+    "bump": "unic-bump",
+    "sync-version": "unic-sync-version",
+    "tag": "unic-tag",
+    "test": "node --test",
+    "verify:changelog": "unic-verify-changelog"
+  },
+  "type": "module",
+  "version": "0.0.1"
+}
