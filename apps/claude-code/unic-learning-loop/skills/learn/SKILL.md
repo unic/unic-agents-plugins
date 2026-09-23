@@ -14,13 +14,13 @@ Run the steps below in order. Use only `git` and `node` in shell commands, so th
 
 1. **Find the repository root.** Run `git rev-parse --show-toplevel`. If it fails, the working directory is not inside a git repository: stop, tell the developer that the Read-back needs a git repository because it writes its file at the repository root, and write nothing. Otherwise the Learned Rules File is `<root>/.claude/rules/learned.md`, an absolute path. Call it the target path.
 
-2. **Find the transcript directory.** Run `node -p "require('os').homedir()"` for the home directory, and replace every `\` in it with `/`. Then run `Glob` with the pattern `<home>/.claude/projects/*/${CLAUDE_SESSION_ID}.jsonl`. Do not compute the directory name from the working directory. The transcript directory is the directory that holds the one file it returns. If it returns nothing, stop and say that this session's transcript was not found. The Bookmark is the file `<transcript directory>/unic-learning-loop/bookmark.txt`.
+2. **Find the transcript directory.** Run `node -p "require('os').homedir()"` for the home directory, and replace every `\` in it with `/`. Then run `Glob` with the pattern `<home>/.claude/projects/*/${CLAUDE_SESSION_ID}.jsonl`. Do not compute the directory name from the working directory. The transcript directory is the directory that holds the one file it returns. Write it with `/` separators only, since `Glob` reads `\` as an escape. If it returns nothing, stop and say that this session's transcript was not found. The Bookmark is the file `<transcript directory>/unic-learning-loop/bookmark.txt`.
 
-3. **Record the start time and read the current state.** Run `node -p "new Date().toISOString()"` and keep its output as the start time. You have no clock of your own. Then `Read` the Bookmark. If it does not exist, this is the first run and the Bookmark is `none`. Then `Read` the target path. If it does not exist, the current file is `none`.
+3. **Record the start time and read the current state.** Run `node -p "new Date().toISOString()"` and keep its output as the start time. You have no clock of your own. Then `Read` the Bookmark. If it exists, the cutoff is its content. If it does not exist, this is the first run: run `node -p "new Date(Date.parse('<start time>') - 14 * 864e5).toISOString()"` and use its output, the time 14 days before the start time, as the cutoff. Then `Read` the target path. If it does not exist, the current file is `none`.
 
-4. **Spawn the subagent.** Call the `Agent` tool with `subagent_type` `unic-learning-loop:learned-rules-drafter` and pass it five values: the transcript directory, the Bookmark, the start time, the repository root, and the current file content. Do not read the transcripts yourself.
+4. **Spawn the subagent.** Call the `Agent` tool with `subagent_type` `unic-learning-loop:learned-rules-drafter` and pass it five values: the transcript directory, the cutoff, the start time, the repository root, and the current file content. Do not read the transcripts yourself.
 
-5. **Take its answer.** The subagent returns either the full proposed content of the Learned Rules File or exactly `No high-signal memory updates.` If it returns that sentence, or a proposal identical to the current file, tell the developer there is nothing to add and go to step 7. A proposal starts with the line `## Learned Repository Facts`. If it returns anything else, such as an error or a proposal wrapped in other text, treat it as a failed step.
+5. **Take its answer.** The subagent returns either the full proposed content of the Learned Rules File or exactly `No high-signal memory updates.` If it returns that sentence, or a proposal identical to the current file, nothing is to be added: tell the developer so and go to step 7. A proposal starts with the line `## Learned Repository Facts`. If it returns anything else, such as an error or a proposal wrapped in other text, treat it as a failed step.
 
 6. **Show the diff and ask.** Render the diff yourself from the current file and the proposal, as a unified diff in a `diff` code block:
 
@@ -40,7 +40,7 @@ Run the steps below in order. Use only `git` and `node` in shell commands, so th
 7. **Write.** Write in this order, so that a failed write leaves the Bookmark unchanged:
 
    - On yes, `Write` the proposal to the target path, exactly as the subagent returned it, ending with one newline.
-   - On yes, on no, and on `No high-signal memory updates.`, `Write` the start time from step 3 to the Bookmark, as its only content.
+   - On yes, on no, and on `No high-signal memory updates.` or a proposal identical to the current file, `Write` the start time from step 3 to the Bookmark, as its only content.
 
    On no, the Learned Rules File is not written. If any step above fails, stop, tell the developer which step failed and why, and leave the Bookmark unchanged, so that the next Read-back reads the same lines again.
 
