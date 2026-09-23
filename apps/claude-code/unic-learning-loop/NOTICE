@@ -6,6 +6,11 @@ at commit ac93d26be3c3 (ac93d26be3c3f0db4c4c88c7dac4bdf7deab2b2a).
 scripts/cadence-gate.mjs is a Node rewrite of
 continual-learning/hooks/continual-learning-stop.ts at that commit.
 
+skills/learn/SKILL.md is adapted from
+continual-learning/skills/continual-learning/SKILL.md, and
+agents/learned-rules-drafter.md from
+continual-learning/agents/agents-memory-updater.md, at that commit.
+
 The upstream code is distributed under the following license:
 
 MIT License
