@@ -26,6 +26,7 @@ jobs:
       pr-review: ${{ steps.filter.outputs.pr-review }}
       unic-pr-review: ${{ steps.filter.outputs.unic-pr-review }}
       unic-spec-review: ${{ steps.filter.outputs.unic-spec-review }}
+      unic-learning-loop: ${{ steps.filter.outputs.unic-learning-loop }}
       auto-format: ${{ steps.filter.outputs.auto-format }}
       unic-confluence: ${{ steps.filter.outputs.unic-confluence }}
       release-tools: ${{ steps.filter.outputs.release-tools }}
@@ -43,6 +44,8 @@ jobs:
               - 'apps/claude-code/unic-pr-review/**'
             unic-spec-review:
               - 'apps/claude-code/unic-spec-review/**'
+            unic-learning-loop:
+              - 'apps/claude-code/unic-learning-loop/**'
             auto-format:
               - 'apps/claude-code/auto-format/**'
             unic-confluence:
@@ -65,6 +68,7 @@ jobs:
       needs.changes.outputs.pr-review == 'true' ||
       needs.changes.outputs.unic-pr-review == 'true' ||
       needs.changes.outputs.unic-spec-review == 'true' ||
+      needs.changes.outputs.unic-learning-loop == 'true' ||
       needs.changes.outputs.tracker-streams == 'true'
     strategy:
       fail-fast: false
@@ -98,6 +102,9 @@ jobs:
           - name: unic-spec-review
             plugin: true
             changed: ${{ needs.changes.outputs.unic-spec-review }}
+          - name: unic-learning-loop
+            plugin: true
+            changed: ${{ needs.changes.outputs.unic-learning-loop }}
           - name: tracker-streams
             plugin: false
             changed: ${{ needs.changes.outputs.tracker-streams }}
