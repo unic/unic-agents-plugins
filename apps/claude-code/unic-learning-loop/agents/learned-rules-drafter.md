@@ -35,9 +35,9 @@ Do not read tool results, attachments, `assistant` lines or `system` lines. They
 
    `"type":"user","message":\{"role":"user","content":("|\[\{"type":"text")`
 
-   It matches typed lines and `isMeta` lines, whose content is a string or a text block. It does not match tool results, whose content starts with a `tool_use_id`. Use a head limit of 20 and page through the matches with offset, because one line can be several kilobytes. After each page, keep only the candidate facts it gave you, not the lines.
+   It matches typed lines and `isMeta` lines, whose content is a string or a text block. It does not match tool results, whose content starts with a `tool_use_id`. Use a head limit of 20 and page through the matches with offset, because one line can be several kilobytes.
 
-3. Keep only the lines whose `timestamp` is after the cutoff. Both are ISO times in UTC, so compare them as text.
+3. On each page, first drop every line whose `timestamp` is not after the cutoff. Both are ISO times in UTC, so compare them as text. A listed file can still hold older lines, for example a resumed session. Only then draw candidate facts from the lines that remain, and keep the facts, not the lines.
 
 Never `Read` a whole transcript. A transcript can be tens of megabytes, and almost all of it is lines you must not read.
 

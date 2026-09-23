@@ -18,13 +18,13 @@ Run the steps below in order. Use only `git` and `node` in shell commands, so th
 
 3. **Record the start time and read the current state.** Run `node -p "new Date().toISOString()"` and keep its output as the start time. You have no clock of your own. Then `Read` the Bookmark. If it does not exist, this is the first run. Then `Read` the target path. If it does not exist, the current file is `none`.
 
-4. **Set the cutoff and list the files.** The cutoff is the Bookmark's content. With no Bookmark, run `node -p "new Date(Date.parse('<start time>') - 14 * 864e5).toISOString()"` and use its output, the time 14 days before the start time. Then list the transcript files whose modification time is after the cutoff, newest first, with this command:
+4. **Set the cutoff and list the files.** The cutoff is the Bookmark's content, with surrounding whitespace removed. With no Bookmark, run `node -p "new Date(Date.parse('<start time>') - 14 * 864e5).toISOString()"` and use its output, the time 14 days before the start time. Then list the transcript files whose modification time is after the cutoff, newest first, with this command:
 
    ```sh
-   node -e "const fs=require('fs');const [d,c]=process.argv.slice(1);const t=Date.parse(c);fs.readdirSync(d).filter(f=>f.endsWith('.jsonl')).map(f=>[d+'/'+f,fs.statSync(d+'/'+f).mtimeMs]).filter(x=>x[1]>t).sort((a,b)=>b[1]-a[1]).forEach(x=>console.log(x[0]))" "<transcript directory>" "<cutoff>"
+   node -e "const fs=require('fs');const [d,c]=process.argv.slice(1);const t=Date.parse(c);if(isNaN(t)){console.error('invalid cutoff: '+c);process.exit(1)}fs.readdirSync(d).filter(f=>f.endsWith('.jsonl')).map(f=>[d+'/'+f,fs.statSync(d+'/'+f).mtimeMs]).filter(x=>x[1]>t).sort((a,b)=>b[1]-a[1]).forEach(x=>console.log(x[0]))" "<transcript directory>" "<cutoff>"
    ```
 
-   It prints one absolute path per line. A line written after the cutoff makes its file's modification time later than the cutoff, so the list misses no line. Do not list the directory with `Glob`: it returns at most 100 files, the oldest first. If the list is empty, nothing is to be added: tell the developer so and go to step 8.
+   It prints one absolute path per line. If it exits non-zero, for example on a cutoff that is not an ISO time, treat it as a failed step. A line written after the cutoff makes its file's modification time later than the cutoff, so the list misses no line. Do not list the directory with `Glob`: it returns at most 100 files, the oldest first. If the list is empty, nothing is to be added: tell the developer so and go to step 8.
 
 5. **Spawn the subagent.** Call the `Agent` tool with `subagent_type` `unic-learning-loop:learned-rules-drafter` and pass it five values: the file list, the cutoff, the start time, the repository root, and the current file content. Do not read the transcripts yourself.
 
@@ -41,7 +41,7 @@ Run the steps below in order. Use only `git` and `node` in shell commands, so th
    +<added line>
    ```
 
-   Both header lines carry the absolute target path. On the first run, when the file does not exist yet, the first header line is `--- /dev/null` and every line of the proposal is an added line. Show the whole file in one hunk: the file holds at most 12 bullets, so there is no need for line ranges. Do not run a diff command and do not write the proposal to a temporary file. `diff -u` does not exist on Windows, and `git diff --no-index` needs the proposal on disk, where a rejected draft must never go.
+   The `+++` line always carries the absolute target path, and so does the `---` line unless the file does not exist yet. On the first run, when it does not, the `---` line is `--- /dev/null` and every line of the proposal is an added line. Show the whole file in one hunk: the file holds at most 12 bullets, so there is no need for line ranges. Do not run a diff command and do not write the proposal to a temporary file. `diff -u` does not exist on Windows, and `git diff --no-index` needs the proposal on disk, where a rejected draft must never go.
 
    Then ask the developer, once: write this to the target path, yes or no? Wait for the answer. Only a clear yes is a yes. Treat any other answer as a no.
 
