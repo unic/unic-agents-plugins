@@ -55,6 +55,12 @@ The plugin-dev skill above scaffolds the plugin's core logic files (hooks, comma
 
 See ADR-0013 for the two-file split (root registry vs. per-plugin manifest).
 
+**Other root files that list every plugin by hand (MANDATORY).** Each one fails silently when the new plugin is missing, so add a line to all of them:
+
+- `.github/workflows/ci.yml`, in three places: an output of the `changes` job with its path glob in the paths filter, a clause in the `test` job's `if:`, and an entry in the test matrix. A plugin missing from any of the three runs no tests, and its pull request passes green.
+- `.github/workflows/release.yml`: a `tag_if_changed "apps/claude-code/<plugin-name>"` line. Without it, the release workflow on `main` never creates the `<plugin-name>@<version>` tag, and nothing reports it. `unic-spec-review`, `unic-pr-review` and `unic-archon-dlc` each needed a later fix commit for this.
+- `CONTEXT-MAP.md`: a row under "Plugin contexts" for the plugin's bounded context.
+
 For **hook-based plugins**, `plugin.json` needs no extra fields beyond the base shape above.
 
 For **command-based plugins** (slash commands), add a `commands` array to `plugin.json` pointing to each command file, and create a `commands/` directory with the command `.md` files. Reference `apps/claude-code/unic-confluence/.claude-plugin/plugin.json` as the example:
