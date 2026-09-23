@@ -6,7 +6,13 @@ Guidance for any AI agent working inside this Plugin directory. `CLAUDE.md` in t
 
 `unic-learning-loop` is a Claude Code Plugin in the [`unic-agents-plugins`](../../../AGENTS.md) monorepo. It collects what a team learns about its repository from Claude Code sessions into one reviewed rules file.
 
-> Status: the empty plugin. It ships no hook, skill or subagent yet. The v1 design is the spec [#526](https://github.com/unic/unic-agents-plugins/issues/526), built by [#528](https://github.com/unic/unic-agents-plugins/issues/528) (the `Stop` hook) and [#529](https://github.com/unic/unic-agents-plugins/issues/529) (the `learn` skill and its subagent).
+> Status: the plugin ships the `Stop` hook, the Cadence Gate, from [#528](https://github.com/unic/unic-agents-plugins/issues/528). The `learn` skill and its subagent arrive with [#529](https://github.com/unic/unic-agents-plugins/issues/529), so the command the notice names does not exist yet. The v1 design is the spec [#526](https://github.com/unic/unic-agents-plugins/issues/526).
+
+## The hook
+
+`scripts/cadence-gate.mjs` is the only code in the plugin, and `hooks/hooks.json` registers it on `Stop`. Its tests in `tests/cadence-gate.test.mjs` start it as a process with a payload on stdin and read stdout and the state file. They never import it, so keep the hook one script and test it only as a process. See spec #526, "Testing Decisions".
+
+The hook keeps its state in `unic-learning-loop/` beside the session's transcript, found from the payload's `transcript_path`. It never reads `CLAUDE_PROJECT_DIR` or the working directory. It never sets `decision`, and it exits 0 on every path.
 
 ## Where to start
 
@@ -22,8 +28,7 @@ pnpm sync-version               # mirror plugin.json version into marketplace.js
 pnpm tag                        # create the unic-learning-loop@<version> git tag locally
 pnpm verify:changelog           # check CHANGELOG entry for the current version
 pnpm test                       # run node:test suite
+pnpm typecheck                  # tsc --noEmit over scripts/ and tests/
 ```
-
-There is no `typecheck` script yet. `tsc` fails with no input files, so the script and `tsconfig.json` arrive with the first script in #528.
 
 Monorepo-wide commands (`pnpm install`, `pnpm check`, `pnpm format`, `pnpm ci:check`) are documented in the [root AGENTS.md](../../../AGENTS.md).
