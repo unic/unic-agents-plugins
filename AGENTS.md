@@ -81,6 +81,8 @@ Two leak paths make the file and diff reads compulsory rather than thorough: `gh
 ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
 ```
 
+**Describe no client in public, whether or not it is under an NDA.** Write no word that tells a reader which client a piece of work is for: no sector, city, site or product name, and no example drawn from one. That also applies when the example appears in a warning about identifying a client, where it is easiest to write. The term list carries such descriptors as well as names, so the guards refuse them. A paraphrase the list does not hold still passes, so read every public text for it before you send.
+
 **Both fail closed.** With no readable term list, a publishing command is refused and the message names the file to create. `touch` that file to opt out deliberately — an empty list allows everything. This is the opposite of the `git-guardrails` defect described below, where a missing `jq` makes the hook exit 0 and read as a successful block.
 
 What neither guard covers: `--no-verify` skips the git hook; the Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded; and an Archon workflow node inherits no ambient settings, so a Box almost certainly runs without it. Measure that before dispatching a Box that could publish.
