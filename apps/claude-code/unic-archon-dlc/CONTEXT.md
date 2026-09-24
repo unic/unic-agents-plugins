@@ -46,6 +46,15 @@ The set of Methods the plugin ships, fixed to one upstream version. See
 `docs/adr/0031-methods-bundled-three-tier-resolution.md`.
 _Avoid_: vendor directory, snapshot, cache
 
+**Practice Pack**:
+A unit meant to be installed in a Consumer that carries one family's way of working, such as its
+reference architecture and procedure, as context artefacts only. It holds no Box and no Method. A
+Consumer can run the DLC without one. Acceptance criteria and the PRD's shape come from the Consumer.
+Named in
+[Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), which holds what is
+still open about it, including how one is installed and how several coexist in one Consumer.
+_Avoid_: Pack, Method Bundle, plugin
+
 **System-skill**:
 A team-provided capability that talks to one of their systems (a Confluence skill, the
 `azure-devops-cli` skill, the Figma MCP, `gh`/`az`/`jira`). Boxes compose these; the plugin never
@@ -162,6 +171,20 @@ the template and no override removes it: **Confirmations**, one entry per in-met
 human's answer verbatim or the word `unanswered`. The PRD gate reads it and refuses on an absent or
 unanswered entry. See `docs/adr/0020-specs-branch-on-input.md`.
 _Avoid_: spec, requirements doc
+
+**E2e-testable criterion**:
+An acceptance criterion that a browser test can check in the Consumer's e2e environment.
+_Avoid_: testable, automatable
+
+**Not e2e-testable criterion**:
+An acceptance criterion that someone can check, but not with a browser test in the Consumer's e2e
+environment. It is a valid criterion.
+_Avoid_: untestable, manual criterion
+
+**Unverifiable criterion**:
+An acceptance criterion that nobody can check, because it is vague or subjective. It is a defect in the
+criterion, and its fix belongs to the author of the page it came from.
+_Avoid_: untestable, invalid criterion
 
 **Design contract**:
 The **derived** half of what a project knows about one component: what the design file says, read
