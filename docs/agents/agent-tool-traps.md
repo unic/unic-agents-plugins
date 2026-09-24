@@ -195,11 +195,16 @@ every bullet added since carries the version and date it was measured on.
   is one machine, the file travels.
 - **`archon workflow approve <id>` from the terminal approves and resumes.** Approving in the UI
   records `approved` and leaves the run paused forever.
-- **`archon --help` hides four verbs: `approve`, `reject`, `resume`, `abandon`.** A session that
-  checks help concludes there is no way to stop a run. Read them from the binary instead:
-  `strings "$(readlink -f "$(command -v archon)")" | grep -oE '.{55}"abandon".{55}'`. `cancel` and
-  `abandon` are aliases. **Absence from `--help` is not absence from the tool.**
-- **`abandon` works on a paused run and on a live one.** So the proof recipe for a gated workflow
+- **Read a verb's meaning from `archon workflow --help`, and read the binary when help is silent.**
+  On v0.7.0 help listed none of `approve`, `reject`, `resume` or `abandon`, so a session concluded
+  there was no way to stop a run. On v0.10.1 (measured 2026-09-24) help lists `resume`, `cancel`,
+  `abandon` and `respond`, and names `approve` and `reject` only as sugar inside `respond`'s line.
+  `cancel` and `abandon` are **not** aliases on v0.10.1: `cancel` stops a run started with
+  `--detach`, and `abandon` marks a run cancelled without stopping host work. To read the binary:
+  `strings "$(readlink -f "$(command -v archon)")" | grep -oE '.{55}"abandon".{55}'`. **Absence
+  from `--help` is not absence from the tool.**
+- **`abandon` works on a paused run and on a live one**, but on a live one it only marks the row
+  cancelled and does not stop host work (v0.10.1 help, 2026-09-24). So the proof recipe for a gated workflow
   is: dispatch with the gate on `hitl`, harvest the artefacts and the run events at the pause, then
   abandon, then complete.
 - **`resume` walks through an unresolved approval gate.** A run that died `SIGTERM` while paused at
@@ -281,15 +286,15 @@ every bullet added since carries the version and date it was measured on.
   skill reaches it only with `skills: [<name>]` on the node, and an MCP server only with `mcp:`.
   `settingSources: [project]` changes none of this, and `skills: all` cannot be expressed. A
   misspelt skill name loads nothing and the node continues. Measured on v0.10.1, 2026-09-22.
-- **To end a live run, cancel it on the platform that started it.** Use `/workflow cancel <run-id>`
-  there, or Cancel on the Web UI dashboard. The CLI has no cancel subcommand, and
-  `archon workflow abandon <run-id>` only marks the database row cancelled without killing the
-  subprocess, so it is orphan cleanup, not a stop. Stopping the launching task is not a stop either:
-  on 2026-08-26 a `TaskStop` on the launching Claude Code task left the run working in later nodes,
-  and on 2026-08-27 an outside kill of the launching task took two runs down with `SIGTERM`. A run
-  also keeps working after it opens its pull request, and later nodes can push more commits, so
-  judge a run by `archon workflow get <run-id>` and by what reaches GitHub. Source: the `archon`
-  skill's `references/cli-commands.md`. Unverified since v0.8.0.
+- **To stop a run started with `--detach`, use `archon workflow cancel <run-id>`.** `abandon`
+  marks the run cancelled without stopping host work, so it is orphan cleanup, not a stop. Source:
+  `archon workflow --help` on v0.10.1, measured 2026-09-24. Whether `cancel` stops a run started
+  without `--detach` is unmeasured. Stopping the launching task is not a stop either: on 2026-08-26
+  a `TaskStop` on the launching Claude Code task left the run working in later nodes, and on
+  2026-08-27 an outside kill of the launching task took two runs down with `SIGTERM`; that
+  task-level behaviour is unverified since v0.8.0. A run also keeps working after it opens its pull
+  request, and later nodes can push more commits, so judge a run by `archon workflow get <run-id>`
+  and by what reaches GitHub.
 - **The binary answers "why" and "does this verb exist".** It is a Bun single-file bundle, so
   `strings -n 6 "$(readlink -f "$(command -v archon)")"` extracts the JavaScript. The bundle is
   minified onto few lines, so grep with a window (`grep -oE '.{200}<event name>.{200}'`) and search
