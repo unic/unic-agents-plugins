@@ -47,12 +47,15 @@ The set of Methods the plugin ships, fixed to one upstream version. See
 _Avoid_: vendor directory, snapshot, cache
 
 **Practice Pack**:
-A unit meant to be installed in a Consumer that carries one family's way of working, such as its
-reference architecture and procedure, as context artefacts only. It holds no Box and no Method. A
-Consumer can run the DLC without one. Acceptance criteria and the PRD's shape come from the Consumer.
-Named in
-[Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), which holds what is
-still open about it, including how one is installed and how several coexist in one Consumer.
+A unit meant to be installed in a Consumer. It carries one family's way of working, such as its
+reference architecture and procedure. A Consumer can run the DLC without one. Acceptance criteria and
+the PRD's shape come from the Consumer, as
+[Is an untestable acceptance criterion refused by context, or by a change to /specs and /tickets?](https://github.com/unic/unic-agents-plugins/issues/551)
+decides. The maintainer's working model is that a Practice Pack carries context artefacts only, never
+a Box or a Method. That model is open on
+[Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), together with
+whether a skill under `.claude/skills/` counts as a context artefact, how a Practice Pack is installed,
+and how several coexist in one Consumer.
 _Avoid_: Pack, Method Bundle, plugin
 
 **System-skill**:
