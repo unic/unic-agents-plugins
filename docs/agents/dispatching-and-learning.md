@@ -375,8 +375,8 @@ Treat a silent session that has been busy a long time as a question to ask, not 
   small pull request produced four real defects in the tool itself.
 - **A bar written from the defects you found detects those defects and nothing else** (2026-08-28).
   Name the property that makes each a defect, then ask which instances your wording misses. For a
-  carry off a branch: every present-tense claim about repository state is checked against the
-  target branch, whatever the sentence cites as its authority.
+  claim carried over from another branch, the bar is that every present-tense claim about repository
+  state is checked against the target branch, whatever the sentence cites as its authority.
 - **A step described as always running is a claim about every branch above it** (2026-08-24, #396:
   a version check stopped on equal versions, so the "unconditional" step never ran on the common
   path). Walk the most boring input through.

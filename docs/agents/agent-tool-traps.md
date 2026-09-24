@@ -281,12 +281,15 @@ every bullet added since carries the version and date it was measured on.
   skill reaches it only with `skills: [<name>]` on the node, and an MCP server only with `mcp:`.
   `settingSources: [project]` changes none of this, and `skills: all` cannot be expressed. A
   misspelt skill name loads nothing and the node continues. Measured on v0.10.1, 2026-09-22.
-- **Stop a run with `archon workflow abandon <run-id>`, never by stopping the task that launched
-  it.** On 2026-08-26 a `TaskStop` on the launching Claude Code task left the run working in later
-  nodes, and on 2026-08-27 an outside kill of the launching task took two runs down with `SIGTERM`.
-  Neither outcome is a stop. A run also keeps working after it opens its pull request, and later
-  nodes can push more commits, so judge a run by `archon workflow get <run-id>` and by what reaches
-  GitHub. Unverified since v0.8.0.
+- **To end a live run, cancel it on the platform that started it.** Use `/workflow cancel <run-id>`
+  there, or Cancel on the Web UI dashboard. The CLI has no cancel subcommand, and
+  `archon workflow abandon <run-id>` only marks the database row cancelled without killing the
+  subprocess, so it is orphan cleanup, not a stop. Stopping the launching task is not a stop either:
+  on 2026-08-26 a `TaskStop` on the launching Claude Code task left the run working in later nodes,
+  and on 2026-08-27 an outside kill of the launching task took two runs down with `SIGTERM`. A run
+  also keeps working after it opens its pull request, and later nodes can push more commits, so
+  judge a run by `archon workflow get <run-id>` and by what reaches GitHub. Source: the `archon`
+  skill's `references/cli-commands.md`. Unverified since v0.8.0.
 - **The binary answers "why" and "does this verb exist".** It is a Bun single-file bundle, so
   `strings -n 6 "$(readlink -f "$(command -v archon)")"` extracts the JavaScript. The bundle is
   minified onto few lines, so grep with a window (`grep -oE '.{200}<event name>.{200}'`) and search
@@ -297,8 +300,9 @@ every bullet added since carries the version and date it was measured on.
   not `unic-archon-dlc`'s repo-relative `artifacts_dir` key. Measured on v0.7.0, 2026-08-03.
 - **Never put `$node.output…` syntax in a dispatch prompt.** Archon interpolates the prompt into
   nodes and resolves every `$node.output.*` token; an unknown one fails the run at node 1 in about
-  15 ms with no node error. Describe node outputs in prose. The same holds for `$ARTIFACTS_DIR` and
-  any `$`-token. A sub-second failure at node 1 means template resolution, not the model
+  15 ms with no node error. Describe node outputs in prose. Only `$node.output` was measured;
+  write `$ARTIFACTS_DIR` and other `$`-tokens in prose too, as a precaution. A sub-second failure at
+  node 1 means template resolution, not the model
   (2026-08-05).
 - **A `cancel:` node ends the run `cancelled`, not `failed`**, and the CLI still exits non-zero. A
   node after a conditional `cancel:` is skipped on the green path unless it carries
@@ -311,7 +315,8 @@ every bullet added since carries the version and date it was measured on.
   2026-08-25.
 - **`archon.db` stores UTC; `stat` and `ls` print local time.** The offset once turned a mid-run
   install into a post-run human one. Convert in the query, `datetime(created_at, 'localtime')`, or
-  on the file side, `TZ=UTC stat -f '%SB' <path>` (2026-09-03, #430).
+  on the file side with `TZ=UTC stat -f '%SB' <path>` on macOS or `TZ=UTC stat -c '%w' <path>` on
+  Linux (2026-09-03, #430; the Linux form is unmeasured here).
 - **A killed run is recoverable from `archon.db`.** Every `tool_called` row in
   `remote_agent_workflow_events` carries the tool's full input, so each `Write` and heredoc a node
   made is there verbatim after the worktree is gone; `node_completed` rows show how far it got
