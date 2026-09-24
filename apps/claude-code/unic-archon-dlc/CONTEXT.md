@@ -49,7 +49,7 @@ _Avoid_: vendor directory, snapshot, cache
 **Practice Pack**:
 A unit meant to be installed in a Consumer. It carries one family's way of working, such as its
 reference architecture and procedure. A Consumer can run the DLC without one. Acceptance criteria and
-the PRD's shape come from the Consumer, as
+the shape of criteria in the PRD come from the Consumer, as
 [Is an untestable acceptance criterion refused by context, or by a change to /specs and /tickets?](https://github.com/unic/unic-agents-plugins/issues/551)
 decides. The maintainer's working model is that a Practice Pack carries context artefacts only, never
 a Box or a Method. That model is open on
