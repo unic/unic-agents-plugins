@@ -335,8 +335,8 @@ every bullet added since carries the version and date it was measured on.
 
 Measured on the vendored Archify `version: "2.17"` (`.agents/skills/archify/SKILL.md`
 frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564). Each
-fact is a property of that renderer. Re-check all three in the commit that upgrades Archify, and
-update or delete each bullet there.
+fact is a property of that renderer. Re-check every bullet in the commit that upgrades Archify,
+and update or delete it there.
 
 - **Put what a workflow node writes in its `sublabel`.** A node's `tag` renders with
   `data-detail="fine"` (`.agents/skills/archify/renderers/workflow/workflow-compiler.mjs:4202`),
@@ -352,6 +352,21 @@ update or delete each bullet there.
   always horizontal rows, and `workflow.schema.json` has no orientation field. The `architecture`
   type places each component by `pos`, so a vertical main line is a matter of coordinates. The
   box-set diagram under `apps/claude-code/unic-archon-dlc/docs/architecture/` is built that way.
+- **Export a PNG preview through the viewer's own Export > PNG, driven over CDP.** The Playwright
+  MCP refuses `file:` URLs, and the viewer's PNG button fires no download while
+  `window.showSaveFilePicker` exists. The route that worked, as one Node script run from the
+  worktree root:
+  1. Import `ChromeVisualBrowser` and `findChrome` from `.claude/skills/archify/bin/visual-check.mjs`,
+     start the browser, and await its `sessionPromise`.
+  2. Send `Emulation.setDeviceMetricsOverride` (1600 by 1000), and, per export,
+     `Browser.setDownloadBehavior` with `behavior: 'allow'` and a fresh empty `downloadPath`.
+  3. Navigate to the HTML's `file:` URL with `?theme=light` or `?theme=dark`, and wait for
+     `Page.loadEventFired`.
+  4. With `Runtime.evaluate`, set `window.showSaveFilePicker = undefined`, click the button whose
+     text includes `Export`, wait 300 ms, and click the button whose text includes `Lossless image`.
+  5. Poll the download directory for the `.png`, and rename it to `<diagram>.<theme>.png`.
+  6. Scale each file to 2620 px wide. `sips --resampleWidth 2620 <in> --out <out>` does it, but
+     `sips` exists only on macOS.
 
 ## git
 
@@ -494,6 +509,8 @@ been wrong — and each was caught by a check that was one command away.
 
 ## Environment
 
+- **Run `pnpm install` in a fresh worktree before `pnpm ci:check`.** A new worktree has no
+  `node_modules`, so `ci:check` fails with "biome: command not found" (2026-09-25).
 - **Absolute paths in every `Bash` call** where `cd` does not persist between calls, and **never a
   foreground `sleep`** where the harness blocks it: it kills the compound command silently, so a
   polling read comes back as "nothing yet".
