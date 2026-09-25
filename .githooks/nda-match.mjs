@@ -5,17 +5,17 @@
 // guards cannot disagree on what counts as a match.
 //
 // The rule, in two steps:
-//   1. Remove base64 data first: the payload of every `data:…;base64,` URI that has 80 or more
-//      characters, and every run of 80 or more base64 characters that holds a digit and either
-//      `=` padding or a `+` after a letter, digit or `/`. A sha512 hash (88, ending `==`) is such a
+//   1. Remove base64 data first: the payload of every `data:…;base64,` URI whose payload has 80
+//      or more characters, and every run of 80 or more base64 characters that holds a digit and
+//      either `=` padding or a `+` after a letter, digit or `/`. A sha512 hash (88, ending `==`) is such a
 //      run. A short term inside embedded font or image data identifies nobody, and random base64
 //      is full of case changes that step 2 would read as boundaries. A path or URL rarely holds a
 //      `+`, so a long one is still matched.
 //   2. Match a term, case-insensitively, only where it starts and ends on a word boundary. A
 //      boundary is the start or end of the text, a character that is not a letter or digit, a
 //      change between letter and digit, or a camelCase change: `acmeSite`, `myAcme` and
-//      `ACMESite` all match `acme`. A term buried inside a longer lowercase word, such as
-//      `acmesite`, does not.
+//      `ACMESite` all match `acme`. A term joined to a letter where the join is not a change from
+//      lower to upper case, such as `acmesite`, `Acmesite` or `ACMEsite`, does not.
 //
 // CLI: `node nda-match.mjs <label> [file]` reads the text from the file, or from stdin, and exits 1
 // on a match or when the term list cannot be read. The list lives outside every repository:
