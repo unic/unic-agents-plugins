@@ -8,6 +8,7 @@
       "!**/.history",
       "!**/pnpm-lock.yaml",
       "!**/.claude",
+      "!**/.agents/skills",
       "!**/.ralph",
       "!**/.remember",
       "!**/*.min.js",

@@ -205,23 +205,26 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 
 ### Who owns which files
 
-| Path                                             | Owner        | Rule                                                                                                                                         |
-| ------------------------------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.claude/skills/<vendored name>`                 | `npx skills` | **Never hand-edit.** Every `npx skills add` overwrites the directory; edits die silently. `skills-lock.json` says which names are vendored   |
-| `.claude/skills/{archon,new-plugin,verify-spec}` | This repo    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
-| `skills-lock.json`                               | `npx skills` | Never hand-edit — the hashes are computed                                                                                                    |
-| `docs/agents/*.md`                               | This repo    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
+| Path                                                                                        | Owner        | Rule                                                                                                                                         |
+| ------------------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/skills/<vendored name>`, and the `.agents/skills/<name>` a symlink there points to | `npx skills` | **Never hand-edit.** Every `npx skills add` overwrites the directory; edits die silently. `skills-lock.json` says which names are vendored   |
+| `.claude/skills/{archon,new-plugin,verify-spec}`                                            | This repo    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
+| `skills-lock.json`                                                                          | `npx skills` | Never hand-edit — the hashes are computed                                                                                                    |
+| `docs/agents/*.md`                                                                          | This repo    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
 ### Upgrading
 
-This repo vendors from two sources. Both go through `npx skills` and both are tracked in `skills-lock.json`.
+This repo vendors from three sources. All go through `npx skills` and all are tracked in `skills-lock.json`.
 
 | Source              | What comes from it                                 | Selection policy                                                                                                               |
 | ------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `mattpocock/skills` | The agent-skill driver — most of `.claude/skills/` | All of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/` |
 | `cursor/plugins`    | `unslop` only                                      | By name, one skill at a time. Nothing is taken from this source wholesale                                                      |
+| `tt-a1i/archify`    | `archify` and `archify-review`                     | By name. Nothing else is taken from this source                                                                                |
 
 `unslop` cuts AI tells from prose. It is vendored here because this repo's product is prose, and because the maintainer's output style and user `CLAUDE.md` both tell a session to read it. Its frontmatter sets `disable-model-invocation: true`, so an agent reads the file rather than invoking the skill. Take nothing else from `cursor/plugins` without deciding it the same way.
+
+`archify` renders the diagrams under `apps/claude-code/unic-archon-dlc/docs/architecture/` from their source JSON, and `archify-review` is its maintenance companion. They are vendored so every session and worktree can regenerate a diagram without a per-machine install ([#569](https://github.com/unic/unic-agents-plugins/issues/569)).
 
 **The same skill name can exist at user scope and at project scope, and the user copy wins.** Claude Code resolves a name clash enterprise over personal, and personal over project, so a session in this repo runs the maintainer's `~/.claude/skills/unslop/`, not the copy vendored here. The vendored copy is what a teammate without it reads. The two can drift, and nothing reports it. When you upgrade one, diff the other. A plugin skill never enters this clash: it is namespaced as `/plugin-name:skill-name` and loads alongside.
 
@@ -233,14 +236,17 @@ Two `mattpocock/skills` entries the policy needs to name explicitly:
 ```sh
 npx skills@latest add mattpocock/skills -a claude-code -y -s <name> -s <name> …
 npx skills@latest add cursor/plugins -a claude-code -y -s unslop
+npx skills@latest add tt-a1i/archify -a claude-code -y -s archify -s archify-review
 npx skills@latest remove -s <name> -s <name> … -a claude-code -y
 ```
 
 Add `-l` to any `add` command to list the source's catalogue and install nothing. Use it to check a source before you take from it.
 
-#### One vendoring shape, and how it changed
+#### Two vendoring shapes, and how they arose
 
-Every vendored skill is a plain `.claude/skills/<name>/` directory, and `skills-lock.json` carries its hash. There is no `.agents/skills/` tree and no symlink.
+Most vendored skills are a plain `.claude/skills/<name>/` directory. `archify` and `archify-review` are a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink to it, because that is what `npx skills` wrote when they were added on 2026-09-25. `skills-lock.json` carries a hash for every vendored skill in either shape.
+
+**Claude Code discovers project skills only under `.claude/skills/`** ([skills documentation](https://code.claude.com/docs/en/skills)), so in the second shape the symlink is what loads the skill. Commit the directory and the symlink together. A checkout that writes symlinks as plain files gets a short text file in place of the skill, and the skill does not load there. On Windows that is the default: git checks a symlink out as a real one only when `core.symlinks` is true, and Git for Windows can create one only for a user allowed to, through Developer Mode or an elevated shell. Clone there with `git clone -c core.symlinks=true <url>`. CI does not catch a broken link, because its Windows job runs plugin logic, not the vendored skills.
 
 It was not always so. Until 2026-09-21 the `mattpocock/skills` entries were a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink, while `unslop` was already a plain directory. An ordinary `npx skills add` of the 26 tracked names rewrote all of them as plain directories in one run, reported each as `copied`, and left the whole `.agents/skills/` tree orphaned. **The CLI picks the shape, not you**, and it can change the shape of skills already installed. So read the installed tree after an upgrade rather than before, and never convert a shape by hand.
 
