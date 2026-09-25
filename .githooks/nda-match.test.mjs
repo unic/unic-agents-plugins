@@ -69,6 +69,24 @@ describe('findTerm', () => {
 			TERM
 		)
 	})
+	test('refuses the term in a data URI payload of 79 characters', () => {
+		assert.equal(findTerm(`data:font/woff2;base64,${'A'.repeat(35)}/${TERM}/${'A'.repeat(35)}`, [TERM]), TERM)
+	})
+	test('passes the term in a data URI payload of 80 characters with no digit, plus or padding', () => {
+		assert.equal(findTerm(`data:font/woff2;base64,${'A'.repeat(36)}/${TERM}/${'A'.repeat(35)}`, [TERM]), null)
+	})
+	test('passes the term inside a base64 run that holds a plus after a digit', () => {
+		assert.equal(findTerm(`${'Ab1+'.repeat(10)}${TERM}Q${'Ab1+'.repeat(10)}`, [TERM]), null)
+	})
+	test('refuses the term in a SvelteKit route on a staged line', () => {
+		const route = `+apps/web/src/routes/customers/${TERM}/dashboard/settings/v2/billing/invoices/details/+page.svelte`
+		assert.equal(findTerm(route, [TERM]), TERM)
+	})
+	test('reads 40,000 hex characters in under 100 ms', () => {
+		const start = performance.now()
+		findTerm('0123456789abcdef'.repeat(2500), [TERM])
+		assert.ok(performance.now() - start < 100)
+	})
 	test('refuses the term in the media type of a data URI', () => {
 		assert.equal(findTerm(`data:text/${TERM};base64,${'A'.repeat(90)}`, [TERM]), TERM)
 	})
@@ -146,24 +164,30 @@ const commit = (/** @type {string} */ dir, message = 'add file', env = {}) =>
 	run('git', ['commit', '-q', '-m', message], dir, env)
 
 /**
- * A refusal must name its reason: an unreadable diff or a missing module also exits non-zero.
+ * A refusal must name its reason, and exit with the status its caller acts on: git stops a commit on
+ * any non-zero hook exit, which it reports as 1, and Claude Code blocks a tool call only on 2. An
+ * unreadable diff or a missing module also exits non-zero.
  * @param {{ status: number | null, stderr: string }} result
+ * @param {number} status
  * @param {RegExp} [reason]
  */
-function assertRefused(result, reason = REFUSED) {
-	assert.notEqual(result.status, 0)
-	assert.match(result.stderr, reason)
+function assertRefused(result, status, reason = REFUSED) {
+	assert.deepEqual(
+		{ status: result.status, reason: reason.test(result.stderr) },
+		{ status, reason: true },
+		result.stderr
+	)
 }
 
 describe('git hooks', () => {
 	test('pre-commit refuses a staged term in prose', () => {
-		assertRefused(commit(repoWith(`Built for ${TERM}.\n`)))
+		assertRefused(commit(repoWith(`Built for ${TERM}.\n`)), 1)
 	})
 	test('pre-commit refuses a staged term in a long absolute path', () => {
-		assertRefused(commit(repoWith(`${LONG_PATH}\n`)))
+		assertRefused(commit(repoWith(`${LONG_PATH}\n`)), 1)
 	})
 	test('pre-commit refuses a staged term in a short data URI', () => {
-		assertRefused(commit(repoWith(`${SHORT_DATA_URI}\n`)))
+		assertRefused(commit(repoWith(`${SHORT_DATA_URI}\n`)), 1)
 	})
 	test('pre-commit passes a staged term inside a real font', () => {
 		assert.equal(commit(repoWith(`${FONT_WITH_TERM}\n`)).status, 0)
@@ -171,14 +195,15 @@ describe('git hooks', () => {
 	test('pre-commit refuses when the term list is missing', () => {
 		assertRefused(
 			commit(repoWith('clean\n'), 'add file', { UNIC_NDA_DENYLIST: missingList }),
+			1,
 			/cannot read the NDA term list/
 		)
 	})
 	test('pre-commit installed as a symlink refuses a staged term', { skip: process.platform === 'win32' }, () => {
-		assertRefused(commit(repoWith(`Built for ${TERM}.\n`, 'repo-', true)))
+		assertRefused(commit(repoWith(`Built for ${TERM}.\n`, 'repo-', true)), 1)
 	})
 	test('commit-msg refuses the term in the message', () => {
-		assertRefused(commit(repoWith('clean\n'), `fix: ${TERM} typo`))
+		assertRefused(commit(repoWith('clean\n'), `fix: ${TERM} typo`), 1)
 	})
 })
 
@@ -196,34 +221,34 @@ describe('Claude hook', () => {
 
 	test('refuses a staged term committed through git -C from another directory', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`git -C ${dir} commit -m "add file"`, clone))
+		assertRefused(claudeHook(`git -C ${dir} commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed through cd from another directory', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`cd ${dir} && git commit -m "add file"`, clone))
+		assertRefused(claudeHook(`cd ${dir} && git commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed through a quoted git -C path with a space', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`, 'my wt-')
-		assertRefused(claudeHook(`git -C "${dir}" commit -m "add file"`, clone))
+		assertRefused(claudeHook(`git -C "${dir}" commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed after cd on an earlier line', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`cd ${dir}\ngit commit -m "add file"`, clone))
+		assertRefused(claudeHook(`cd ${dir}\ngit commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed through pushd', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`pushd ${dir} && git commit -m "add file"`, clone))
+		assertRefused(claudeHook(`pushd ${dir} && git commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed through --work-tree', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`git --git-dir=${join(dir, '.git')} --work-tree=${dir} commit -m "add file"`, clone))
+		assertRefused(claudeHook(`git --git-dir=${join(dir, '.git')} --work-tree=${dir} commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed through GIT_DIR', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`GIT_DIR=${join(dir, '.git')} git commit -m "add file"`, clone))
+		assertRefused(claudeHook(`GIT_DIR=${join(dir, '.git')} git commit -m "add file"`, clone), 2)
 	})
 	test('refuses a staged term committed with a partly quoted -c value', () => {
-		assertRefused(claudeHook(`git -c core.editor='code -w' commit -m "add file"`, repoWith(`Built for ${TERM}.\n`)))
+		assertRefused(claudeHook(`git -c core.editor='code -w' commit -m "add file"`, repoWith(`Built for ${TERM}.\n`)), 2)
 	})
 	test('passes a clean commit that reuses a message through commit -C', () => {
 		assert.equal(claudeHook('git commit -C HEAD', repoWith('clean\n')).status, 0)
@@ -245,32 +270,38 @@ describe('Claude hook', () => {
 	})
 	test('refuses a staged term committed after cd even when the message mentions cd', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
-		assertRefused(claudeHook(`cd ${dir} && git commit -m "docs: (cd docs first)"`, clone))
+		assertRefused(claudeHook(`cd ${dir} && git commit -m "docs: (cd docs first)"`, clone), 2)
 	})
 	test('refuses a commit whose git -C path is a shell variable', () => {
-		assertRefused(claudeHook('git -C $WORKTREE commit -m "add file"', clone), /cannot read the staged diff/)
+		assertRefused(claudeHook('git -C $WORKTREE commit -m "add file"', clone), 2, /cannot read the staged diff/)
 	})
 	test('refuses a staged term committed after cd that follows a tab-indented <<- heredoc', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
 		const command = `git commit -F - <<-EOF\n\tdocs: steps\n\tEOF\ncd ${dir}\ngit commit -F - <<EOF\nadd file\nEOF`
-		assertRefused(claudeHook(command, clone))
+		assertRefused(claudeHook(command, clone), 2)
+	})
+	test('refuses a staged term committed after cd when a << heredoc holds a tab-indented closing word', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		const command = `git commit -F - <<EOF\n\tEOF\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
+		assertRefused(claudeHook(command, clone), 2)
 	})
 	test('refuses a staged term in a long absolute path', () => {
-		assertRefused(claudeHook('git commit -m "add file"', repoWith(`${LONG_PATH}\n`)))
+		assertRefused(claudeHook('git commit -m "add file"', repoWith(`${LONG_PATH}\n`)), 2)
 	})
 	test('refuses a staged term in a short data URI', () => {
-		assertRefused(claudeHook('git commit -m "add file"', repoWith(`${SHORT_DATA_URI}\n`)))
+		assertRefused(claudeHook('git commit -m "add file"', repoWith(`${SHORT_DATA_URI}\n`)), 2)
 	})
 	test('passes a staged term inside a real font', () => {
 		const dir = repoWith(`${FONT_WITH_TERM}\n`)
 		assert.equal(claudeHook('git commit -m "add file"', dir).status, 0)
 	})
 	test('refuses the term in the commit message', () => {
-		assertRefused(claudeHook(`git commit -m "fix: ${TERM} typo"`, repoWith('clean\n')))
+		assertRefused(claudeHook(`git commit -m "fix: ${TERM} typo"`, repoWith('clean\n')), 2)
 	})
 	test('refuses when the term list is missing', () => {
 		assertRefused(
 			claudeHook('git commit -m "add file"', repoWith('clean\n'), { UNIC_NDA_DENYLIST: missingList }),
+			2,
 			/cannot read the NDA term list/
 		)
 	})

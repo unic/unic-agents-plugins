@@ -93,14 +93,31 @@ function commitDirs(command, cwd) {
 }
 
 // A commit message is text, not shell: `-m "wrap it (cd docs first)"` names no directory. The term
-// scan still reads the whole command, so this only narrows where commitDirs looks. A `<<-` heredoc
-// closes on a tab-indented word; accepting the tabs after `<<` too can only end a strip early, which
-// scans more directories, never fewer.
+// scan still reads the whole command, so this only narrows where commitDirs looks.
 const MESSAGE_ARG = /(?:\s-m|\s--message)(?:=|\s*)(?:"(?:[^"\\]|\\.)*"|'[^']*')/g
-const MESSAGE_HEREDOC = /(\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<-?\s*(['"]?)(\w+)\2[^\n]*\n)[\s\S]*?\n\t*\3(?=\n|$)/g
+const HEREDOC_OPEN = /\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<(-?)\s*(['"]?)(\w+)\2[^\n]*/g
 
-/** @param {string} command */
-const withoutMessages = (command) => command.replace(MESSAGE_ARG, ' ').replace(MESSAGE_HEREDOC, '$1')
+/**
+ * Drops each heredoc message body, closing it where the shell would: a `<<-` heredoc on a
+ * tab-indented word, a `<<` heredoc only on the word at column 0. An unclosed heredoc is kept.
+ * @param {string} command
+ */
+function withoutMessages(command) {
+	const text = command.replace(MESSAGE_ARG, ' ')
+	let kept = ''
+	let at = 0
+	HEREDOC_OPEN.lastIndex = 0
+	for (let open = HEREDOC_OPEN.exec(text); open; open = HEREDOC_OPEN.exec(text)) {
+		const close = new RegExp(`\\n${open[1] ? '\\t*' : ''}${open[3]}(?=\\n|$)`, 'g')
+		close.lastIndex = HEREDOC_OPEN.lastIndex
+		const end = close.exec(text)
+		if (!end) break
+		kept += text.slice(at, HEREDOC_OPEN.lastIndex)
+		at = end.index + end[0].length
+		HEREDOC_OPEN.lastIndex = at
+	}
+	return kept + text.slice(at)
+}
 
 /** @param {string} cwd */
 function stagedDiff(cwd) {
