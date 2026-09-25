@@ -11,19 +11,50 @@
         "frontend": {
           "label": "Claude Code slash command"
         },
-        "backend": {
+        "database": {
           "label": "Archon workflow"
         },
-        "database": {
+        "external": {
           "label": "Session artefact"
         }
       }
-    }
+    },
+    "views": [
+      {
+        "id": "main-line",
+        "label": "Main line",
+        "focus": [
+          "specs",
+          "tickets",
+          "build",
+          "pr-review",
+          "qa",
+          "prd",
+          "issues",
+          "report",
+          "review-files",
+          "qa-checks"
+        ],
+        "note": "The five Boxes of one Session, and the artefact each one writes."
+      },
+      {
+        "id": "on-ramps",
+        "label": "On-ramps",
+        "focus": ["triage", "tickets", "qa"],
+        "note": "Raw work and UAT rejects enter the main line as agent-ready issues."
+      },
+      {
+        "id": "off-line",
+        "label": "Off-line",
+        "focus": ["explore", "findings", "setup", "cleanup", "archon-upgrade", "improve", "arch-review"],
+        "note": "Boxes that run outside a Session, and what they write."
+      }
+    ]
   },
   "components": [
     {
       "id": "explore",
-      "type": "backend",
+      "type": "database",
       "label": "/explore",
       "sublabel": "reads the repo",
       "pos": [40, 40],
@@ -34,7 +65,7 @@
       "type": "frontend",
       "label": "/setup",
       "sublabel": "installs the Boxes",
-      "pos": [40, 140],
+      "pos": [40, 240],
       "size": [200, 56]
     },
     {
@@ -42,7 +73,7 @@
       "type": "frontend",
       "label": "/cleanup",
       "sublabel": "prunes on opt-in",
-      "pos": [40, 240],
+      "pos": [40, 340],
       "size": [200, 56]
     },
     {
@@ -50,7 +81,7 @@
       "type": "frontend",
       "label": "/archon-upgrade",
       "sublabel": "writes nothing here",
-      "pos": [40, 340],
+      "pos": [40, 440],
       "size": [200, 56]
     },
     {
@@ -58,15 +89,15 @@
       "type": "frontend",
       "label": "/improve-architecture",
       "sublabel": "reads report.md",
-      "pos": [40, 440],
+      "pos": [40, 640],
       "size": [200, 56]
     },
     {
       "id": "arch-review",
-      "type": "database",
+      "type": "external",
       "label": "arch-review.md",
       "sublabel": "ADR proposals",
-      "pos": [40, 540],
+      "pos": [1120, 640],
       "size": [200, 56]
     },
     {
@@ -95,7 +126,7 @@
     },
     {
       "id": "build",
-      "type": "backend",
+      "type": "database",
       "label": "/build",
       "sublabel": "reads issues.json",
       "pos": [760, 340],
@@ -103,7 +134,7 @@
     },
     {
       "id": "pr-review",
-      "type": "backend",
+      "type": "database",
       "label": "/pr-review",
       "sublabel": "reads the PR, PRD.md",
       "pos": [760, 440],
@@ -111,7 +142,7 @@
     },
     {
       "id": "qa",
-      "type": "backend",
+      "type": "database",
       "label": "/qa",
       "sublabel": "reads PRD.md, report.md",
       "pos": [760, 540],
@@ -119,7 +150,7 @@
     },
     {
       "id": "findings",
-      "type": "database",
+      "type": "external",
       "label": "findings.md",
       "sublabel": "spike verdicts",
       "pos": [1120, 40],
@@ -127,7 +158,7 @@
     },
     {
       "id": "prd",
-      "type": "database",
+      "type": "external",
       "label": "PRD.md",
       "sublabel": "plus design contracts",
       "pos": [1120, 140],
@@ -135,7 +166,7 @@
     },
     {
       "id": "issues",
-      "type": "database",
+      "type": "external",
       "label": "issues.json",
       "sublabel": "one slice per issue",
       "pos": [1120, 240],
@@ -143,7 +174,7 @@
     },
     {
       "id": "report",
-      "type": "database",
+      "type": "external",
       "label": "report.md",
       "sublabel": "evidence.json, build-state.json",
       "pos": [1120, 340],
@@ -151,7 +182,7 @@
     },
     {
       "id": "review-files",
-      "type": "database",
+      "type": "external",
       "label": "pr-review/",
       "sublabel": "comment.md, findings.json",
       "pos": [1120, 440],
@@ -159,7 +190,7 @@
     },
     {
       "id": "qa-checks",
-      "type": "database",
+      "type": "external",
       "label": "qa-checks.md",
       "sublabel": "UAT checklist",
       "pos": [1120, 540],
@@ -170,7 +201,7 @@
     {
       "kind": "region",
       "label": "Off-line",
-      "wraps": ["explore", "setup", "cleanup", "archon-upgrade", "improve", "arch-review"],
+      "wraps": ["explore", "setup", "cleanup", "archon-upgrade", "improve"],
       "pad": 16
     },
     {
@@ -183,12 +214,18 @@
       "kind": "region",
       "label": "Main line",
       "wraps": ["specs", "tickets", "build", "pr-review", "qa"],
-      "pad": 16
+      "pad": 42
+    },
+    {
+      "kind": "region",
+      "label": "One Claude Code conversation",
+      "wraps": ["specs", "tickets"],
+      "pad": 8
     },
     {
       "kind": "region",
       "label": "Session artefacts, <artifacts_dir>/<slug>/",
-      "wraps": ["findings", "prd", "issues", "report", "review-files", "qa-checks"],
+      "wraps": ["findings", "prd", "issues", "report", "review-files", "qa-checks", "arch-review"],
       "pad": 16
     }
   ],
@@ -286,10 +323,7 @@
       "from": "improve",
       "to": "arch-review",
       "label": "writes",
-      "variant": "dashed",
-      "fromSide": "bottom",
-      "toSide": "top",
-      "labelAt": [140, 518]
+      "variant": "dashed"
     }
   ],
   "cards": [

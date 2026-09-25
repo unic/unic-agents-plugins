@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "diagram_type": "workflow",
+  "schema_version": 1,
+  "diagram_type": "architecture",
   "meta": {
     "title": "unic-dlc-pr-review pipeline",
     "locale": "en",
@@ -21,98 +21,121 @@
           "label": "Cancel node"
         }
       }
-    }
+    },
+    "views": [
+      {
+        "id": "not-ready",
+        "label": "Not ready",
+        "focus": ["bootstrap", "guard-not-ready"],
+        "note": "A run whose preconditions fail is cancelled before any review work."
+      },
+      {
+        "id": "happy-path",
+        "label": "Happy path",
+        "focus": ["bootstrap", "prep", "review", "synthesize", "reconcile", "review-gate", "post"],
+        "note": "From bootstrap to the posted review. review runs the Standards and Spec sub-agents in parallel inside one node."
+      },
+      {
+        "id": "approval",
+        "label": "Approval",
+        "focus": ["reconcile", "review-gate", "post"],
+        "note": "hitl pauses at review-gate. afk skips it, and post runs because its trigger_rule is all_done."
+      }
+    ]
   },
-  "lanes": [
-    {
-      "id": "cancel",
-      "label": "Not ready",
-      "variant": "exception"
-    },
-    {
-      "id": "review",
-      "label": "Prepare and review"
-    },
-    {
-      "id": "post",
-      "label": "Approve and post"
-    }
-  ],
-  "nodes": [
-    {
-      "id": "bootstrap",
-      "lane": "review",
-      "col": 0,
-      "type": "backend",
-      "label": "bootstrap",
-      "sublabel": "reads config",
-      "width": 132
-    },
+  "components": [
     {
       "id": "guard-not-ready",
-      "lane": "cancel",
-      "col": 0,
       "type": "external",
       "label": "guard-not-ready",
       "sublabel": "cancels the run",
-      "width": 132
+      "pos": [40, 40],
+      "size": [160, 48]
+    },
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "pos": [290, 40],
+      "size": [220, 48]
     },
     {
       "id": "prep",
-      "lane": "review",
-      "col": 1,
       "type": "backend",
       "label": "prep",
       "sublabel": "writes intent-brief.md",
-      "width": 132
+      "pos": [600, 40],
+      "size": [220, 48]
     },
     {
       "id": "review",
-      "lane": "review",
-      "col": 2,
       "type": "backend",
       "label": "review",
       "sublabel": "writes review.json",
-      "width": 132
+      "pos": [290, 190],
+      "size": [220, 48]
     },
     {
       "id": "synthesize",
-      "lane": "review",
-      "col": 3,
       "type": "backend",
       "label": "synthesize",
       "sublabel": "writes findings.json",
-      "width": 132
+      "pos": [600, 190],
+      "size": [220, 48]
     },
     {
       "id": "reconcile",
-      "lane": "review",
-      "col": 4,
       "type": "backend",
       "label": "reconcile",
       "sublabel": "writes comment.md",
-      "width": 132
+      "pos": [290, 340],
+      "size": [220, 48]
     },
     {
       "id": "review-gate",
-      "lane": "post",
-      "col": 4,
       "type": "security",
       "label": "review-gate",
       "sublabel": "gates.pr-review: hitl",
-      "width": 132
+      "pos": [910, 340],
+      "size": [220, 48]
     },
     {
       "id": "post",
-      "lane": "post",
-      "col": 5,
       "type": "backend",
       "label": "post",
       "sublabel": "posts to the PR",
-      "width": 132
+      "pos": [290, 490],
+      "size": [220, 48]
     }
   ],
-  "edges": [
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Prepare",
+      "wraps": ["bootstrap", "prep"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Review",
+      "wraps": ["review", "synthesize"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Approve",
+      "wraps": ["reconcile", "review-gate"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Post",
+      "wraps": ["post"],
+      "pad": 16
+    }
+  ],
+  "connections": [
     {
       "id": "bootstrap-prep",
       "from": "bootstrap",
@@ -124,13 +147,15 @@
       "from": "bootstrap",
       "to": "guard-not-ready",
       "label": "not ready",
-      "variant": "security",
-      "role": "error"
+      "variant": "security"
     },
     {
       "id": "prep-review",
       "from": "prep",
-      "to": "review"
+      "to": "review",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[710, 138], [400, 138]]
     },
     {
       "id": "review-synthesize",
@@ -140,7 +165,10 @@
     {
       "id": "synthesize-reconcile",
       "from": "synthesize",
-      "to": "reconcile"
+      "to": "reconcile",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[710, 288], [400, 288]]
     },
     {
       "id": "reconcile-review-gate",
@@ -153,24 +181,13 @@
       "id": "review-gate-post",
       "from": "review-gate",
       "to": "post",
-      "label": "all_done"
+      "label": "all_done",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[1020, 438], [400, 438]]
     }
   ],
   "cards": [
-    {
-      "dot": "emerald",
-      "title": "Parallel",
-      "items": ["review runs the Standards and Spec sub-agents in parallel inside one node"]
-    },
-    {
-      "dot": "cyan",
-      "title": "Files",
-      "items": [
-        "Every file sits under <artifacts_dir>/<slug>/pr-review/",
-        "reconcile also writes threads.json",
-        "post updates the summary and inline threads by marker"
-      ]
-    },
     {
       "dot": "rose",
       "title": "Gate",
