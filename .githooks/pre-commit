@@ -20,7 +20,7 @@
 # WHAT IT DOES NOT PROTECT
 #
 # It reads staged content only, so it cannot judge a commit made with `--no-verify`, nor content
-# that reached the remote through another clone. It is one of two layers: `.claude/hooks/
+# that reached the remote through another clone. `.githooks/commit-msg` reads the message. It is one of two layers: `.claude/hooks/
 # block-nda-terms.mjs` covers what an agent session runs in this repository, including `gh` commands
 # that publish an issue body no commit ever sees.
 #
@@ -30,39 +30,29 @@
 # INSTALL (per clone; `.git/hooks` is not version-controlled)
 #
 #   ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+#   ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
 
 set -eu
 
-list=${UNIC_NDA_DENYLIST:-"$HOME/.config/unic/nda-denylist.txt"}
+# The matching rule lives in nda-match.mjs, which `.claude/hooks/block-nda-terms.mjs` shares, so the
+# two guards cannot disagree. It also reads the term list and fails closed when it cannot.
+# Next to the script that runs: this file under `core.hooksPath`, or the target of the symlink in
+# `.git/hooks`. Fall back to the work tree where the symlink became a plain copy (Windows).
+self=$0
+if link=$(readlink "$self" 2>/dev/null); then
+	case $link in
+		/*) self=$link ;;
+		*) self="$(dirname "$self")/$link" ;;
+	esac
+fi
+matcher="$(dirname "$self")/nda-match.mjs"
+[ -f "$matcher" ] || matcher="$(git rev-parse --show-toplevel)/.githooks/nda-match.mjs"
 
-if [ ! -r "$list" ]; then
-	printf '%s\n' "pre-commit: cannot read the NDA term list at $list, so this commit is refused." >&2
-	printf '%s\n' "  Create it with one term per line, or 'touch' it to opt out deliberately." >&2
-	printf '%s\n' "  See AGENTS.md, \"The NDA publish guard\"." >&2
+if ! command -v node >/dev/null 2>&1; then
+	printf '%s\n' "pre-commit: node is not on PATH, so the NDA guard cannot run and this commit is refused." >&2
 	exit 1
 fi
 
+# Read the diff first: in a pipe, a failing `git diff` would hand node an empty diff that passes.
 diff=$(git diff --cached -U0)
-[ -n "$diff" ] || exit 0
-
-status=0
-
-while IFS= read -r term || [ -n "$term" ]; do
-	# Skip blank lines and comments.
-	case "$term" in
-		'' | \#*) continue ;;
-	esac
-
-	# -F: the terms are literal. Without it, a term carrying a regex metacharacter either fails to
-	# match or makes grep error, and the commit is allowed through.
-	printf '%s' "$diff" | grep -qiF -- "$term" || continue
-
-	# Redact the term in the message: the transcript of a refusal must not republish it.
-	head=$(printf '%s' "$term" | cut -c1-2)
-	printf '%s\n' "pre-commit: refusing this commit." >&2
-	printf '%s\n' "  The staged diff carries the NDA term ${head}***, and this repository is public." >&2
-	printf '%s\n' "  Unstage it, or move the detail to a file the repository does not track." >&2
-	status=1
-done < "$list"
-
-exit $status
+printf '%s' "$diff" | node "$matcher" pre-commit

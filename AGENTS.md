@@ -66,26 +66,36 @@ ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-pus
 
 ### The NDA publish guard
 
-**This repository is public, and one client of the DLC work is under an NDA**: its name, its repository name, and anything that would identify it must never reach GitHub. Two guards enforce that, and neither of them names a protected term, which is why both can live here.
+**This repository is public, and one client of the DLC work is under an NDA**: its name, its repository name, and anything that would identify it must never reach GitHub. Two guards enforce that, the Claude hook and the git hooks, and neither of them names a protected term, which is why both can live here.
 
 The terms are read from a file **outside every repository** — `$UNIC_NDA_DENYLIST`, else `~/.config/unic/nda-denylist.txt`, one term per line, `#` for comments. A denylist that names the client is itself the leak, so it is never committed anywhere.
 
-| Guard                               | Covers                                                                                                                                                                                   | Wired by                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `.claude/hooks/block-nda-terms.mjs` | What an agent session runs here: `gh`, `glab`, `git push`, `git commit`, `git tag`. It reads the command string, **every file the command names** and, for a commit, **the staged diff** | `.claude/settings.json`, `PreToolUse` on `Bash` — already committed, nothing to install |
-| `.githooks/pre-commit`              | Any commit in this clone, whoever makes it                                                                                                                                               | one symlink per clone, below                                                            |
+| Guard                                          | Covers                                                                                                                                                                                   | Wired by                                                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `.claude/hooks/block-nda-terms.mjs`            | What an agent session runs here: `gh`, `glab`, `git push`, `git commit`, `git tag`. It reads the command string, **every file the command names** and, for a commit, **the staged diff** | `.claude/settings.json`, `PreToolUse` on `Bash` — already committed, nothing to install |
+| `.githooks/pre-commit`, `.githooks/commit-msg` | Any commit in this clone, whoever makes it: the staged diff, then the message                                                                                                            | one symlink per hook per clone, below                                                   |
 
 Two leak paths make the file and diff reads compulsory rather than thorough: `gh issue create --body-file <path>` carries no term in the command at all, and `git commit -m "<clean message>"` puts it in the diff rather than the message. A guard that scans only the command line waves both through.
 
 ```sh
 ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
 ```
+
+**When you commit through `git -C`, `cd` or another directory, write the path literally.** The Claude hook reads the staged diff of the session's directory and of every directory the command names: `cd <path>` or `pushd <path>`, `git -C <path>`, `--work-tree` or `--git-dir`, and `GIT_DIR=` or `GIT_WORK_TREE=`. A path may be quoted. The hook refuses a commit when one of those diffs cannot be read, so a path in a shell variable such as `-C $WT` is refused. A form missing from that list is not read at all, so add it to `commitDirs` in the hook before you rely on it.
+
+**Both guards apply one matching rule, from `.githooks/nda-match.mjs`.** The git hooks run it with `node`, and the Claude hook imports it. Change the rule there and nowhere else. It works in two steps:
+
+1. It removes base64 data: every `data:…;base64,` URI, and every run of 80 or more base64 characters that holds a digit, which a sha512 hash fills. A short term inside embedded font data identifies nobody, and every Archify diagram embeds a font.
+2. It matches a term, ignoring case, only on a word boundary at both ends. A boundary is the edge of the text, any character that is not a letter or digit, a change between letter and digit, or a camelCase change. So `acme`, `acme-site`, `acme_site`, `acme2026`, `acmeSite`, `myAcme` and `ACMESite` all match `acme`.
+
+The rule lets two shapes through, so check a text for them yourself before it goes public. The first is a term inside a longer word with no case change, such as `acmesite` or `Acmesite`. The second is a term inside a run of 80 or more base64 characters that holds a digit, with no `.`, `-`, `_`, `?` or space in it.
 
 **Describe no client in public, whether or not it is under an NDA.** Write no word that tells a reader which client a piece of work is for: no sector, city, site or product name, and no example drawn from one. That also applies when the example appears in a warning about identifying a client, where it is easiest to write. The term list carries such descriptors as well as names, so the guards refuse them. A paraphrase the list does not hold still passes, so read every public text for it before you send.
 
-**Both fail closed.** With no readable term list, a publishing command is refused and the message names the file to create. `touch` that file to opt out deliberately — an empty list allows everything. This is the opposite of the `git-guardrails` defect described below, where a missing `jq` makes the hook exit 0 and read as a successful block.
+**Both fail closed.** With no readable term list, a publishing command is refused and the message names the file to create. `touch` that file to opt out deliberately — an empty list allows everything. The git hooks also refuse a commit when `node` is not on `PATH`. This is the opposite of the `git-guardrails` defect described below, where a missing `jq` makes the hook exit 0 and read as a successful block.
 
-What neither guard covers: `--no-verify` skips the git hook; the Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded; and an Archon workflow node inherits no ambient settings, so a Box almost certainly runs without it. Measure that before dispatching a Box that could publish.
+What neither guard covers: `--no-verify` skips the git hooks; the Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded; and an Archon workflow node inherits no ambient settings, so a Box almost certainly runs without it. Measure that before dispatching a Box that could publish.
 
 Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `feature/` (the prefix encodes PR topology, not change kind). Archon-dispatched branches add a scope sub-namespace: `feature/<scope>/<issue#>-<slug>`, where `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `repo` → `repo`). The `/archon-rollout` command owns the full derivation rule.
 

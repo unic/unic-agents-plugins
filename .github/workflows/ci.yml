@@ -19,6 +19,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm ci:check
 
+  nda-guards:
+    name: NDA guards / ${{ matrix.os }} / Node ${{ matrix.node }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test .githooks/nda-match.test.mjs
+
   changes:
     name: Detect changed packages
     runs-on: ubuntu-latest

@@ -14,28 +14,35 @@
 //   2. every existing file the command names  (`gh issue create --body-file <path>`)
 //   3. the staged diff, for a commit          (`git commit -m "<clean message>"`)
 //
+// It reads the staged diff of every repository the command can commit in: the session's cwd, each
+// `git -C <path>` and each `cd <path>`. Reading the cwd alone let `git -C <worktree> commit` from
+// the clone through with an empty diff (#566).
+//
+// The matching rule lives in `.githooks/nda-match.mjs`, which the git hooks share.
+//
 // Fails closed: no readable list means no publishing. `touch` the file to opt out.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { resolve } from 'node:path'
+
+import { findTerm, listPath, readTerms, redact } from '../../.githooks/nda-match.mjs'
 
 const MAX_BYTES = 2_000_000
 const START = String.raw`(?:^|[|;&(]\s*|\s)`
 // `git -C <worktree> push` is how this repository's own Archon flow publishes
 // (.claude/commands/archon-pr-review.md), so the verb is never the first token. Skip git's global
 // options — the ones that take a value and the ones that do not — before reading it.
-const GIT_OPTIONS = String.raw`(?:\s+(?:-[cC]\s+\S+|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)\S+|--[\w-]+|-\w))*`
+// A value may be quoted, in whole or in part, and hold spaces: `git -C "/x/my wt" commit`,
+// `git -c core.editor='code -w' commit`.
+const OPTION_VALUE = String.raw`(?:[^\s'"]|"[^"]*"|'[^']*')+`
+const GIT_OPTION = String.raw`\s+(?:-[cC]\s+${OPTION_VALUE}|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)${OPTION_VALUE}|--[\w-]+|-\w)`
+const GIT_OPTIONS = `(?:${GIT_OPTION})*`
 /** @param {string} verbs */
 const gitVerb = (verbs) => new RegExp(`${START}git${GIT_OPTIONS}\\s+(?:${verbs})\\b`)
 const PUBLISHES = new RegExp(`${START}(?:gh|glab)\\s|${gitVerb('push|commit|tag').source}`)
 const COMMITS = gitVerb('commit')
-
-const listPath = process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
-
-/** @param {string} term */
-const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
 /** @param {string} reason */
 function block(reason) {
@@ -59,11 +66,45 @@ function readNamedFiles(command) {
 	return found
 }
 
+// A path argument: double-quoted, single-quoted, or bare.
+const PATH_ARG = String.raw`(?:"([^"]*)"|'([^']*)'|([^\s'";&|()]+))`
+const CHANGES_DIR = new RegExp(String.raw`(?:^|[\n|;&(])\s*(?:cd|pushd)\s+${PATH_ARG}`, 'g')
+const NAMES_DIR = new RegExp(
+	// `-C` only among git's own options, before the verb: `git commit -C HEAD` names a commit.
+	String.raw`(?:\bgit(?:${GIT_OPTION})*?\s+-C\s*|\s--(?:work-tree|git-dir)(?:=|\s+)|\bGIT_(?:DIR|WORK_TREE)=)${PATH_ARG}`,
+	'g',
+)
+
+/**
+ * The session's cwd, then every directory the command moves to or points git at, resolved against
+ * it. A git dir counts as its work tree. A path this misses, or cannot read, is the gap: keep the
+ * list of forms in step with AGENTS.md.
+ * @param {string} command
+ * @param {string} cwd
+ */
+function commitDirs(command, cwd) {
+	const dirs = new Set([cwd])
+	const shell = withoutMessages(command)
+	for (const match of [...shell.matchAll(CHANGES_DIR), ...shell.matchAll(NAMES_DIR)]) {
+		const path = (match[1] ?? match[2] ?? match[3]).replace(/^~(?=\/|$)/, homedir())
+		dirs.add(resolve(cwd, path).replace(/[\\/]\.git$/, ''))
+	}
+	return [...dirs]
+}
+
+// A commit message is text, not shell: `-m "wrap it (cd docs first)"` names no directory. The term
+// scan still reads the whole command, so this only narrows where commitDirs looks.
+const MESSAGE_ARG = /(?:\s-m|\s--message)(?:=|\s*)(?:"(?:[^"\\]|\\.)*"|'[^']*')/g
+const MESSAGE_HEREDOC = /(\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<-?\s*(['"]?)(\w+)\2[^\n]*\n)[\s\S]*?\n\3(?=\n|$)/g
+
+/** @param {string} command */
+const withoutMessages = (command) => command.replace(MESSAGE_ARG, ' ').replace(MESSAGE_HEREDOC, '$1')
+
 /** @param {string} cwd */
 function stagedDiff(cwd) {
 	try {
 		return execFileSync('git', ['diff', '--cached', '-U0'], {
-			cwd: cwd || process.cwd(),
+			cwd,
 			encoding: 'utf8',
 			maxBuffer: MAX_BYTES,
 		})
@@ -90,13 +131,10 @@ async function main() {
 
 	let terms
 	try {
-		terms = readFileSync(listPath, 'utf8')
-			.split('\n')
-			.map((line) => line.trim())
-			.filter((line) => line && !line.startsWith('#'))
+		terms = readTerms(listPath())
 	} catch {
 		block(
-			`cannot read the NDA term list at ${listPath}, so publishing is refused. ` +
+			`cannot read the NDA term list at ${listPath()}, so publishing is refused. ` +
 				'Create it with one term per line, or touch it to opt out deliberately. ' +
 				'See AGENTS.md § The NDA publish guard.',
 		)
@@ -107,21 +145,21 @@ async function main() {
 	/** @type {Array<[string, string]>} */
 	const surfaces = [['the command itself', command]]
 	if (COMMITS.test(command)) {
-		const diff = stagedDiff(event?.cwd ?? '')
-		if (diff === null) block('cannot read the staged diff, so this commit is refused.')
-		else surfaces.push(['the staged diff', diff])
+		for (const dir of commitDirs(command, event?.cwd || process.cwd())) {
+			const diff = stagedDiff(dir)
+			if (diff === null) block(`cannot read the staged diff in ${dir}, so this commit is refused.`)
+			else surfaces.push([`the staged diff in ${dir}`, diff])
+		}
 	}
 	surfaces.push(...readNamedFiles(command))
 
 	for (const [where, text] of surfaces) {
-		const haystack = text.toLowerCase()
-		for (const term of terms) {
-			if (haystack.includes(term.toLowerCase())) {
-				block(
-					`${where} carries the NDA term ${redact(term)}, and this command publishes ` +
-						'outside this machine. Remove it. This repository is public.',
-				)
-			}
+		const term = findTerm(text, terms)
+		if (term !== null) {
+			block(
+				`${where} carries the NDA term ${redact(term)}, and this command publishes ` +
+					'outside this machine. Remove it. This repository is public.',
+			)
 		}
 	}
 }
