@@ -233,7 +233,8 @@
       "dot": "rose",
       "title": "UAT reject",
       "items": [
-        "A uat-gate reject files each defect as an agent-ready issue, which feeds /tickets, and cancels the run"
+        "A first uat-gate reject files each defect as an agent-ready issue, which feeds /tickets",
+        "The gate then pauses again, and a second reject cancels the run"
       ]
     }
   ]
