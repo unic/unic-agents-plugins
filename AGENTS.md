@@ -58,7 +58,7 @@ The Archon worktrees under `~/.archon/workspaces/<org>/<repo>/worktrees/` are wo
 
 Archon also keeps a `default_branch` of its own per repository, set from whatever was checked out on its first run there and never re-read from the host. `worktree.baseBranch` in `.archon/config.yaml` overrides it, and `--from <branch>` overrides that. A bare top-level `baseBranch:` has no reader — the nesting is the whole setting. So fix a wrong fork point in that file, never in `~/.archon/archon.db`, which is one machine's row.
 
-`pnpm install` sets `core.hooksPath` to `.githooks`, and that covers every hook and every worktree. In a clone that still has symlinks in `.git/hooks`, run `pnpm install` once. Git then ignores the old symlinks in `.git/hooks`, so they may stay or go.
+Run `pnpm install` once in every clone, including one that still has symlinks in `.git/hooks`. It points `core.hooksPath` at the main work tree's `.githooks`, as an absolute path, so every hook runs in every worktree of the clone, also on a branch that carries no hooks of its own. Git then ignores the old symlinks, so they may stay or go. After you move the clone, run `pnpm install` again: git finds no hooks at a stale path and says nothing.
 
 ### The NDA publish guard
 
