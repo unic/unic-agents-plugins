@@ -34,7 +34,9 @@ const START = String.raw`(?:^|[|;&(]\s*|\s)`
 // `git -C <worktree> push` is how this repository's own Archon flow publishes
 // (.claude/commands/archon-pr-review.md), so the verb is never the first token. Skip git's global
 // options — the ones that take a value and the ones that do not — before reading it.
-const GIT_OPTIONS = String.raw`(?:\s+(?:-[cC]\s+\S+|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)\S+|--[\w-]+|-\w))*`
+// A value may be quoted and hold spaces: `git -C "/x/my wt" commit`.
+const OPTION_VALUE = String.raw`(?:"[^"]*"|'[^']*'|\S+)`
+const GIT_OPTIONS = String.raw`(?:\s+(?:-[cC]\s+${OPTION_VALUE}|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)${OPTION_VALUE}|--[\w-]+|-\w))*`
 /** @param {string} verbs */
 const gitVerb = (verbs) => new RegExp(`${START}git${GIT_OPTIONS}\\s+(?:${verbs})\\b`)
 const PUBLISHES = new RegExp(`${START}(?:gh|glab)\\s|${gitVerb('push|commit|tag').source}`)
@@ -62,15 +64,26 @@ function readNamedFiles(command) {
 	return found
 }
 
+// A path argument: double-quoted, single-quoted, or bare.
+const PATH_ARG = String.raw`(?:"([^"]*)"|'([^']*)'|([^\s'";&|()]+))`
+const CHANGES_DIR = new RegExp(String.raw`(?:^|[\n|;&(])\s*(?:cd|pushd)\s+${PATH_ARG}`, 'g')
+const NAMES_DIR = new RegExp(
+	String.raw`(?:\s-C\s*|\s--(?:work-tree|git-dir)(?:=|\s+)|\bGIT_(?:DIR|WORK_TREE)=)${PATH_ARG}`,
+	'g',
+)
+
 /**
- * The session's cwd, then every `git -C <path>` and `cd <path>` in the command, resolved against it.
+ * The session's cwd, then every directory the command moves to or points git at, resolved against
+ * it. A git dir counts as its work tree. A path this misses, or cannot read, is the gap: keep the
+ * list of forms in step with AGENTS.md.
  * @param {string} command
  * @param {string} cwd
  */
 function commitDirs(command, cwd) {
 	const dirs = new Set([cwd])
-	for (const [, , path] of command.matchAll(/(?:\bgit\s+(?:\S+\s+)*?-C|(?:^|[|;&(]\s*)cd)\s+(['"]?)([^'"\s;&|]+)\1/g)) {
-		dirs.add(resolve(cwd, path.replace(/^~(?=\/|$)/, homedir())))
+	for (const match of [...command.matchAll(CHANGES_DIR), ...command.matchAll(NAMES_DIR)]) {
+		const path = (match[1] ?? match[2] ?? match[3]).replace(/^~(?=\/|$)/, homedir())
+		dirs.add(resolve(cwd, path).replace(/[\\/]\.git$/, ''))
 	}
 	return [...dirs]
 }

@@ -6,8 +6,10 @@
 //
 // The rule, in two steps:
 //   1. Remove base64 data first: every `data:…;base64,` URI, and every run of 40 or more base64
-//      characters that holds a digit. A short term inside embedded font or image data identifies
-//      nobody, and random base64 is full of case changes that step 2 would read as boundaries.
+//      characters that holds a digit and either a `+` or `=` padding. A short term inside embedded
+//      font or image data identifies nobody, and random base64 is full of case changes that step 2
+//      would read as boundaries. Paths, URLs and identifiers carry no `+` and end in no `=`, so a
+//      long one that holds a digit is still matched.
 //   2. Match a term, case-insensitively, only where it starts and ends on a word boundary. A
 //      boundary is the start or end of the text, a character that is not a letter or digit, a
 //      change between letter and digit, or a camelCase change: `acmeSite`, `myAcme` and
@@ -40,7 +42,7 @@ export function readTerms(path) {
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
 const DATA_URI = /data:[^,\s]*;base64,[A-Za-z0-9+/=]+/g
-const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)[A-Za-z0-9+/]{40,}={0,2}/g
+const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)(?=[A-Za-z0-9/]*\+|[A-Za-z0-9+/]*=)[A-Za-z0-9+/]{40,}={0,2}/g
 
 const isLetter = (/** @type {string | undefined} */ c) => c !== undefined && /\p{L}/u.test(c)
 const isDigit = (/** @type {string | undefined} */ c) => c !== undefined && /\p{N}/u.test(c)
@@ -70,11 +72,13 @@ function isBoundary(text, i) {
  */
 export function findTerm(text, terms) {
 	const cleaned = text.replace(DATA_URI, ' ').replace(BASE64_RUN, ' ')
-	const lower = cleaned.toLowerCase()
 	for (const term of terms) {
-		const needle = term.toLowerCase()
-		for (let i = lower.indexOf(needle); i !== -1; i = lower.indexOf(needle, i + 1)) {
-			if (isBoundary(cleaned, i) && isBoundary(cleaned, i + needle.length)) return term
+		// Search the original text case-insensitively, so every index points into `cleaned` even
+		// where lower-casing would change the length (`İ`).
+		const needle = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu')
+		// Step one character at a time, so overlapping matches are all checked.
+		for (let match = needle.exec(cleaned); match; needle.lastIndex = match.index + 1, match = needle.exec(cleaned)) {
+			if (isBoundary(cleaned, match.index) && isBoundary(cleaned, match.index + match[0].length)) return term
 		}
 	}
 	return null

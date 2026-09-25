@@ -11,8 +11,16 @@
 
 set -eu
 
-# Next to this script under `core.hooksPath`, else in the work tree when `.git/hooks` holds a symlink.
-matcher="$(dirname "$0")/nda-match.mjs"
+# Next to the script that runs: this file under `core.hooksPath`, or the target of the symlink in
+# `.git/hooks`. Fall back to the work tree where the symlink became a plain copy (Windows).
+self=$0
+if link=$(readlink "$self" 2>/dev/null); then
+	case $link in
+		/*) self=$link ;;
+		*) self="$(dirname "$self")/$link" ;;
+	esac
+fi
+matcher="$(dirname "$self")/nda-match.mjs"
 [ -f "$matcher" ] || matcher="$(git rev-parse --show-toplevel)/.githooks/nda-match.mjs"
 
 if ! command -v node >/dev/null 2>&1; then

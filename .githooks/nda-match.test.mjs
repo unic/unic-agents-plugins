@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -52,6 +52,18 @@ describe('findTerm', () => {
 	test('passes the term inside a base64 run', () => {
 		assert.equal(findTerm(BASE64, [TERM]), null)
 	})
+	test('refuses the term in a long URL that holds a digit', () => {
+		assert.equal(findTerm(`https://github.com/unic/${TERM}2026/tree/main/src/components`, [TERM]), TERM)
+	})
+	test('refuses the term in a long path that holds a digit', () => {
+		assert.equal(findTerm(`apps/claude-code/${TERM}/src/components/v2/HeaderNavigation`, [TERM]), TERM)
+	})
+	test('refuses the term after a character that lower-casing lengthens', () => {
+		assert.equal(findTerm(`\u0130 ${TERM}.`, [TERM]), TERM)
+	})
+	test('refuses an overlapping match that ends on a boundary', () => {
+		assert.equal(findTerm('aAa', ['aa']), 'aa')
+	})
 })
 
 describe('readTerms', () => {
@@ -70,11 +82,17 @@ describe('readTerms', () => {
 const run = (cmd, args, cwd, env = {}, input) =>
 	spawnSync(cmd, args, { cwd, input, encoding: 'utf8', env: { ...process.env, UNIC_NDA_DENYLIST: list, ...env } })
 
-/** A fresh repository with the git hooks of this checkout and one staged file. */
-function repoWith(/** @type {string} */ content) {
-	const dir = mkdtempSync(join(scratch, 'repo-'))
+/**
+ * A fresh repository with the git hooks of this checkout and one staged file.
+ * @param {string} content
+ * @param {string} [prefix]
+ * @param {boolean} [viaSymlink] install pre-commit as a symlink in `.git/hooks`, not `core.hooksPath`
+ */
+function repoWith(content, prefix = 'repo-', viaSymlink = false) {
+	const dir = mkdtempSync(join(scratch, prefix))
 	run('git', ['init', '-q'], dir)
-	run('git', ['config', 'core.hooksPath', HOOKS], dir)
+	if (viaSymlink) symlinkSync(join(HOOKS, 'pre-commit'), join(dir, '.git', 'hooks', 'pre-commit'))
+	else run('git', ['config', 'core.hooksPath', HOOKS], dir)
 	run('git', ['config', 'user.email', 'guard@example.com'], dir)
 	run('git', ['config', 'user.name', 'Guard Test'], dir)
 	writeFileSync(join(dir, 'file.txt'), content)
@@ -94,6 +112,9 @@ describe('git hooks', () => {
 	})
 	test('pre-commit refuses when the term list is missing', () => {
 		assert.notEqual(commit(repoWith('clean\n'), 'add file', { UNIC_NDA_DENYLIST: missingList }), 0)
+	})
+	test('pre-commit installed as a symlink refuses a staged term', { skip: process.platform === 'win32' }, () => {
+		assert.notEqual(commit(repoWith(`Built for ${TERM}.\n`, 'repo-', true)), 0)
 	})
 	test('commit-msg refuses the term in the message', () => {
 		assert.notEqual(commit(repoWith('clean\n'), `fix: ${TERM} typo`), 0)
@@ -119,6 +140,29 @@ describe('Claude hook', () => {
 	test('refuses a staged term committed through cd from another directory', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
 		assert.equal(claudeHook(`cd ${dir} && git commit -m "add file"`, clone), 2)
+	})
+	test('refuses a staged term committed through a quoted git -C path with a space', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`, 'my wt-')
+		assert.equal(claudeHook(`git -C "${dir}" commit -m "add file"`, clone), 2)
+	})
+	test('refuses a staged term committed after cd on an earlier line', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		assert.equal(claudeHook(`cd ${dir}\ngit commit -m "add file"`, clone), 2)
+	})
+	test('refuses a staged term committed through pushd', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		assert.equal(claudeHook(`pushd ${dir} && git commit -m "add file"`, clone), 2)
+	})
+	test('refuses a staged term committed through --work-tree', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		assert.equal(claudeHook(`git --git-dir=${join(dir, '.git')} --work-tree=${dir} commit -m "add file"`, clone), 2)
+	})
+	test('refuses a staged term committed through GIT_DIR', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		assert.equal(claudeHook(`GIT_DIR=${join(dir, '.git')} git commit -m "add file"`, clone), 2)
+	})
+	test('refuses a commit whose git -C path is a shell variable', () => {
+		assert.equal(claudeHook('git -C $WORKTREE commit -m "add file"', clone), 2)
 	})
 	test('passes a staged term inside a data URI', () => {
 		const dir = repoWith(`${DATA_URI}\n`)
