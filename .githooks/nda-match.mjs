@@ -5,16 +5,31 @@
 // guards cannot disagree on what counts as a match.
 //
 // The rule, in two steps:
-//   1. Remove base64 data first: every `data:…;base64,` URI, and every run of 80 or more base64
-//      characters that holds a digit, which a sha512 hash (88) fills. A short term inside embedded
-//      font or image data identifies nobody, and random base64 is full of case changes that step 2
-//      would read as boundaries. A path, URL or identifier rarely runs 80 characters without a
-//      `.`, `-`, `_`, `?` or space, so a long one is still matched.
-//   2. Match a term, case-insensitively, only where it starts and ends on a word boundary. A
-//      boundary is the start or end of the text, a character that is not a letter or digit, a
-//      change between letter and digit, or a camelCase change: `acmeSite`, `myAcme` and
-//      `ACMESite` all match `acme`. A term buried inside a longer lowercase word, such as
-//      `acmesite`, does not.
+//   1. Remove base64 data first. Remove the payload of every `data:…;base64,` URI whose payload has
+//      80 or more characters, and keep the media type. Remove every run of 80 or more characters
+//      made only of letters, digits, `+` and `/` that holds a digit and either is followed by `=`
+//      or holds a `+` right after a letter or digit. A sha512 hash, 88 characters ending in `==`,
+//      is such a run. A `+` must follow a letter or digit, so neither the `+` that starts every
+//      staged diff line, the second `+` of a diff line inside Markdown, nor the `+` of a SvelteKit
+//      `/+page` route counts. A short term inside embedded font or image data identifies nobody,
+//      and random base64 is full of case changes that step 2 would read as boundaries. A long path
+//      or URL rarely has a `+` right after a letter or digit, or an `=` right after it, so the rule
+//      still matches one.
+//   2. Match a term, case-insensitively, only on a word boundary at both ends. A boundary is the
+//      edge of the text, any character that is not a letter or digit, a change between letter and
+//      digit, a change from lower to upper case, or the capital that starts a capitalised word
+//      after another capital. So `acme`, `acme-site`, `acme_site`, `acme2026`, `acmeSite`,
+//      `myAcme`, `XAcme` and `ACMESite` all match `acme`.
+//
+// The rule lets four shapes through. The first is a term joined to a letter where the join is
+// neither a change from lower to upper case nor the capital that starts a capitalised word after
+// another capital, such as `acmesite`, `Acmesite` or `ACMEsite`. The second is a term inside a
+// `data:…;base64,` payload of 80 or more characters. The third is a term inside a run of 80 or more
+// characters made only of letters, digits, `+` and `/`, where the run holds a digit and either is
+// followed by `=` or holds a `+` right after a letter or digit, such as form-encoded text or a path
+// under a `c++` directory. The fourth is a term that starts or ends with a digit and is joined
+// there to another digit, such as `acme2` inside `acme26`. Only a term that starts or ends with a
+// digit can take this shape.
 //
 // CLI: `node nda-match.mjs <label> [file]` reads the text from the file, or from stdin, and exits 1
 // on a match or when the term list cannot be read. The list lives outside every repository:
@@ -41,8 +56,16 @@ export function readTerms(path) {
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
-const DATA_URI = /data:[^,\s]*;base64,[A-Za-z0-9+/=]+/g
-const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)[A-Za-z0-9+/]{80,}={0,2}/g
+// Only the payload goes, so a short media type is still matched. A media type that is itself a
+// base64 run falls to BASE64_RUN, as the third let-through shape says.
+const DATA_URI = /(data:[^,\s]*;base64,)[A-Za-z0-9+/=]{80,}/g
+// Match each run once and test it after. A lookahead that fails rescans the run at every start
+// position, which takes seconds on a long hex string.
+const BASE64_RUN = /[A-Za-z0-9+/]{80,}={0,2}/g
+// A path is also a run of letters, digits and `/`, so the run must also be followed by `=` or hold
+// a `+` right after a letter or digit. The `+` that starts a staged diff line, the second `+` of a
+// Markdown diff line and the `+` of a SvelteKit `/+page` route do not count.
+const isBase64 = (/** @type {string} */ run) => /\d/.test(run) && /[A-Za-z0-9]\+|=$/.test(run)
 
 const isLetter = (/** @type {string | undefined} */ c) => c !== undefined && /\p{L}/u.test(c)
 const isDigit = (/** @type {string | undefined} */ c) => c !== undefined && /\p{N}/u.test(c)
@@ -71,7 +94,7 @@ function isBoundary(text, i) {
  * @param {string[]} terms
  */
 export function findTerm(text, terms) {
-	const cleaned = text.replace(DATA_URI, ' ').replace(BASE64_RUN, ' ')
+	const cleaned = text.replace(DATA_URI, '$1 ').replace(BASE64_RUN, (run) => (isBase64(run) ? ' ' : run))
 	for (const term of terms) {
 		// Search the original text case-insensitively, so every index points into `cleaned` even
 		// where lower-casing would change the length (`İ`).
