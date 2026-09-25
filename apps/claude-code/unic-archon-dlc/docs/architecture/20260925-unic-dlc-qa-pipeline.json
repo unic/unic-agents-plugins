@@ -1,0 +1,209 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "unic-dlc-qa pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "messagebus": {
+          "label": "Script node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "cancel",
+      "label": "Not ready",
+      "variant": "exception"
+    },
+    {
+      "id": "check",
+      "label": "Check"
+    },
+    {
+      "id": "merge",
+      "label": "Approve and merge"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bootstrap",
+      "lane": "check",
+      "col": 0,
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config, PRD.md",
+      "width": 132
+    },
+    {
+      "id": "guard-not-ready",
+      "lane": "cancel",
+      "col": 0,
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "width": 132
+    },
+    {
+      "id": "test",
+      "lane": "check",
+      "col": 1,
+      "type": "backend",
+      "label": "test",
+      "sublabel": "runs the tests",
+      "width": 132
+    },
+    {
+      "id": "e2e",
+      "lane": "check",
+      "col": 2,
+      "type": "backend",
+      "label": "e2e",
+      "sublabel": "runs e2e if declared",
+      "width": 132
+    },
+    {
+      "id": "coverage-gate",
+      "lane": "check",
+      "col": 3,
+      "type": "backend",
+      "label": "coverage-gate",
+      "sublabel": "checks coverage",
+      "width": 132
+    },
+    {
+      "id": "uat-prep",
+      "lane": "check",
+      "col": 4,
+      "type": "backend",
+      "label": "uat-prep",
+      "sublabel": "writes qa-checks.md",
+      "width": 132
+    },
+    {
+      "id": "uat-gate",
+      "lane": "check",
+      "col": 5,
+      "type": "security",
+      "label": "uat-gate",
+      "sublabel": "gates.qa: hitl",
+      "width": 132
+    },
+    {
+      "id": "verify-pr-base",
+      "lane": "merge",
+      "col": 5,
+      "type": "backend",
+      "label": "verify-pr-base",
+      "sublabel": "checks the PR base",
+      "width": 132
+    },
+    {
+      "id": "merge-gate",
+      "lane": "merge",
+      "col": 4,
+      "type": "security",
+      "label": "merge-gate",
+      "sublabel": "gates.qa: hitl",
+      "width": 132
+    },
+    {
+      "id": "merge",
+      "lane": "merge",
+      "col": 3,
+      "type": "backend",
+      "label": "merge",
+      "sublabel": "merges the PR",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "bootstrap-test",
+      "from": "bootstrap",
+      "to": "test",
+      "label": "ready"
+    },
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "test-e2e",
+      "from": "test",
+      "to": "e2e"
+    },
+    {
+      "id": "e2e-coverage-gate",
+      "from": "e2e",
+      "to": "coverage-gate"
+    },
+    {
+      "id": "coverage-gate-uat-prep",
+      "from": "coverage-gate",
+      "to": "uat-prep"
+    },
+    {
+      "id": "uat-prep-uat-gate",
+      "from": "uat-prep",
+      "to": "uat-gate",
+      "label": "hitl",
+      "variant": "security"
+    },
+    {
+      "id": "uat-gate-verify-pr-base",
+      "from": "uat-gate",
+      "to": "verify-pr-base",
+      "label": "all_done"
+    },
+    {
+      "id": "verify-pr-base-merge-gate",
+      "from": "verify-pr-base",
+      "to": "merge-gate",
+      "label": "hitl, base_ok",
+      "variant": "security"
+    },
+    {
+      "id": "merge-gate-merge",
+      "from": "merge-gate",
+      "to": "merge",
+      "label": "all_done"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Merge condition",
+      "items": [
+        "merge runs only when test is pass, e2e and coverage-gate are not fail, and base_ok is true",
+        "merge marks the linked items resolved"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gates",
+      "items": [
+        "gates.qa: hitl pauses at uat-gate and merge-gate",
+        "A uat-gate reject files each defect as an agent-ready issue and cancels the run",
+        "gates.qa: afk skips both gates; the next node runs because its trigger_rule is all_done"
+      ]
+    }
+  ]
+}

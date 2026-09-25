@@ -1,0 +1,236 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "unic-dlc-build pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "messagebus": {
+          "label": "Script node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "cancel",
+      "label": "Not ready",
+      "variant": "exception"
+    },
+    {
+      "id": "build",
+      "label": "Prepare and build"
+    },
+    {
+      "id": "deliver",
+      "label": "Verify and deliver"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bootstrap",
+      "lane": "build",
+      "col": 0,
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "width": 132
+    },
+    {
+      "id": "slopcheck",
+      "lane": "build",
+      "col": 1,
+      "type": "messagebus",
+      "label": "slopcheck",
+      "sublabel": "new packages exist",
+      "width": 132
+    },
+    {
+      "id": "guard-not-ready",
+      "lane": "cancel",
+      "col": 0,
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "width": 132
+    },
+    {
+      "id": "run-build",
+      "lane": "build",
+      "col": 2,
+      "type": "backend",
+      "label": "run-build",
+      "sublabel": "writes build-state.json",
+      "width": 132
+    },
+    {
+      "id": "implement-review-precheck",
+      "lane": "build",
+      "col": 3,
+      "type": "backend",
+      "label": "implement-review-precheck",
+      "sublabel": "Standards + Spec",
+      "width": 176
+    },
+    {
+      "id": "verification",
+      "lane": "build",
+      "col": 4,
+      "type": "backend",
+      "label": "verification",
+      "sublabel": "tests, stubs, coverage",
+      "width": 132
+    },
+    {
+      "id": "goals-check",
+      "lane": "build",
+      "col": 5,
+      "type": "backend",
+      "label": "goals-check",
+      "sublabel": "criteria to evidence",
+      "width": 132
+    },
+    {
+      "id": "evidence",
+      "lane": "deliver",
+      "col": 5,
+      "type": "messagebus",
+      "label": "evidence",
+      "sublabel": "writes evidence.json",
+      "width": 132
+    },
+    {
+      "id": "report",
+      "lane": "deliver",
+      "col": 4,
+      "type": "backend",
+      "label": "report",
+      "sublabel": "writes report.md",
+      "width": 132
+    },
+    {
+      "id": "open-pr",
+      "lane": "deliver",
+      "col": 3,
+      "type": "backend",
+      "label": "open-pr",
+      "sublabel": "opens the PR",
+      "width": 132
+    },
+    {
+      "id": "build-pr-gate",
+      "lane": "deliver",
+      "col": 2,
+      "type": "security",
+      "label": "build-pr-gate",
+      "sublabel": "gates.build: hitl",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "ready",
+      "from": "bootstrap",
+      "to": "slopcheck",
+      "label": "ready"
+    },
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "packages-ok",
+      "from": "slopcheck",
+      "to": "run-build"
+    },
+    {
+      "id": "loop-done",
+      "from": "run-build",
+      "to": "implement-review-precheck",
+      "label": "COMPLETE"
+    },
+    {
+      "id": "to-verification",
+      "from": "implement-review-precheck",
+      "to": "verification"
+    },
+    {
+      "id": "to-goals",
+      "from": "verification",
+      "to": "goals-check"
+    },
+    {
+      "id": "to-evidence",
+      "from": "goals-check",
+      "to": "evidence"
+    },
+    {
+      "id": "verification-evidence",
+      "from": "verification",
+      "to": "evidence",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "to-report",
+      "from": "evidence",
+      "to": "report",
+      "label": "any verdict"
+    },
+    {
+      "id": "to-open-pr",
+      "from": "report",
+      "to": "open-pr"
+    },
+    {
+      "id": "to-gate",
+      "from": "open-pr",
+      "to": "build-pr-gate",
+      "label": "hitl",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Loop",
+      "items": [
+        "run-build repeats RED, then GREEN, per slice until COMPLETE",
+        "implement-review-precheck runs Standards and Spec in parallel inside one node"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Evidence gate",
+      "items": [
+        "evidence writes evidence.json only on a pass verdict",
+        "open-pr runs whatever evidence concluded",
+        "evidence_policy ends the run completed only when evidence.json exists"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gate",
+      "items": [
+        "gates.build: hitl pauses at build-pr-gate",
+        "gates.build: afk skips it and the run ends after open-pr"
+      ]
+    }
+  ]
+}

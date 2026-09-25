@@ -1,0 +1,240 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "unic-dlc-explore pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "start",
+      "label": "Start"
+    },
+    {
+      "id": "research",
+      "label": "Research"
+    },
+    {
+      "id": "spike",
+      "label": "Synthesize, spike and preserve"
+    }
+  ],
+  "groups": [
+    {
+      "id": "parallel",
+      "label": "run in parallel",
+      "lane": "research",
+      "fromCol": 1,
+      "toCol": 4,
+      "variant": "emphasis"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bootstrap",
+      "lane": "start",
+      "col": 0,
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "width": 132
+    },
+    {
+      "id": "guard-not-ready",
+      "lane": "start",
+      "col": 1,
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "width": 132
+    },
+    {
+      "id": "research-stack",
+      "lane": "research",
+      "col": 1,
+      "type": "backend",
+      "label": "research-stack",
+      "width": 132
+    },
+    {
+      "id": "research-features",
+      "lane": "research",
+      "col": 2,
+      "type": "backend",
+      "label": "research-features",
+      "width": 140
+    },
+    {
+      "id": "research-architecture",
+      "lane": "research",
+      "col": 3,
+      "type": "backend",
+      "label": "research-architecture",
+      "width": 170
+    },
+    {
+      "id": "research-pitfalls",
+      "lane": "research",
+      "col": 4,
+      "type": "backend",
+      "label": "research-pitfalls",
+      "width": 140
+    },
+    {
+      "id": "synthesize",
+      "lane": "spike",
+      "col": 1,
+      "type": "backend",
+      "label": "synthesize",
+      "sublabel": "writes findings.md",
+      "width": 132
+    },
+    {
+      "id": "spike",
+      "lane": "spike",
+      "col": 2,
+      "type": "backend",
+      "label": "spike",
+      "sublabel": "adds spike verdicts",
+      "width": 132
+    },
+    {
+      "id": "spike-ticket",
+      "lane": "spike",
+      "col": 3,
+      "type": "backend",
+      "label": "spike-ticket",
+      "sublabel": "files a spike ticket",
+      "width": 132
+    },
+    {
+      "id": "spike-branch-gate",
+      "lane": "spike",
+      "col": 4,
+      "type": "security",
+      "label": "spike-branch-gate",
+      "sublabel": "gates.explore: hitl",
+      "width": 132
+    },
+    {
+      "id": "preserve-spike",
+      "lane": "spike",
+      "col": 5,
+      "type": "backend",
+      "label": "preserve-spike",
+      "sublabel": "commits spike/<slug>",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "bootstrap-research-stack",
+      "from": "bootstrap",
+      "to": "research-stack"
+    },
+    {
+      "id": "bootstrap-research-features",
+      "from": "bootstrap",
+      "to": "research-features"
+    },
+    {
+      "id": "bootstrap-research-architecture",
+      "from": "bootstrap",
+      "to": "research-architecture"
+    },
+    {
+      "id": "bootstrap-research-pitfalls",
+      "from": "bootstrap",
+      "to": "research-pitfalls"
+    },
+    {
+      "id": "research-stack-synthesize",
+      "from": "research-stack",
+      "to": "synthesize",
+      "toSide": "top"
+    },
+    {
+      "id": "research-features-synthesize",
+      "from": "research-features",
+      "to": "synthesize",
+      "toSide": "top"
+    },
+    {
+      "id": "research-architecture-synthesize",
+      "from": "research-architecture",
+      "to": "synthesize",
+      "toSide": "top"
+    },
+    {
+      "id": "research-pitfalls-synthesize",
+      "from": "research-pitfalls",
+      "to": "synthesize",
+      "toSide": "top"
+    },
+    {
+      "id": "synthesize-spike",
+      "from": "synthesize",
+      "to": "spike"
+    },
+    {
+      "id": "spike-spike-ticket",
+      "from": "spike",
+      "to": "spike-ticket"
+    },
+    {
+      "id": "spike-ticket-spike-branch-gate",
+      "from": "spike-ticket",
+      "to": "spike-branch-gate",
+      "label": "hitl",
+      "variant": "security"
+    },
+    {
+      "id": "spike-branch-gate-preserve-spike",
+      "from": "spike-branch-gate",
+      "to": "preserve-spike",
+      "label": "approve"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Parallel",
+      "items": [
+        "The four research nodes each depend only on bootstrap and run in parallel",
+        "synthesize waits for all four"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gate",
+      "items": [
+        "gates.explore: hitl pauses at spike-branch-gate; a reject leaves the spike code uncommitted",
+        "gates.explore: afk skips the gate and preserve-spike",
+        "spike-ticket runs before the gate, so the ticket survives a reject"
+      ]
+    }
+  ]
+}
