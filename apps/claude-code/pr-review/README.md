@@ -115,8 +115,8 @@ claude plugins install pr-review@unic
 **With aspect filter** (optional, default is all):
 
 ```
-/pr-review:review-pr https://dev.azure.com/FZAG/dxp/_git/DXP-Website/pullrequest/5472 errors
-/pr-review:review-pr https://dev.azure.com/FZAG/dxp/_git/DXP-Website/pullrequest/5472 code errors
+/pr-review:review-pr https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/5472 errors
+/pr-review:review-pr https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/5472 code errors
 ```
 
 Available aspects: `code`, `errors`, `tests`, `comments`, `types`, `all`

@@ -89,7 +89,7 @@ describe('discoverWorkItems', () => {
 		// discoverWorkItems must coerce via String(ref.id) so downstream id handling is stable
 		// regardless of wire shape — this exercises the integer branch the JSDoc `id: string | number`
 		// widening opened, which the fixture-shape tests below cannot reach.
-		const items = discoverWorkItems([{ id: 42622, url: 'https://dev.azure.com/FZAG/_apis/wit/workitems/42622' }])
+		const items = discoverWorkItems([{ id: 42622, url: 'https://dev.azure.com/o/_apis/wit/workitems/42622' }])
 		assert.equal(items.length, 1)
 		assert.equal(items[0].id, '42622')
 		assert.equal(typeof items[0].id, 'string')
