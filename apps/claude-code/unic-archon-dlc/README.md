@@ -23,6 +23,12 @@ plugin ships into your project.
 > **Vision diagram:** [`docs/20260703-Unic-dlc.mmd`](docs/20260703-Unic-dlc.mmd) (Mermaid; an
 > Excalidraw twin sits alongside). Dated `yyyymmdd-` snapshots are kept — the newest date is
 > canonical.
+>
+> **Architecture diagram:** [`20260925-unic-dlc-architecture.html`](docs/architecture/20260925-unic-dlc-architecture.html),
+> made with Archify. Its source JSON sits alongside, and the HTML opens in any browser. The vision
+> diagram shows the box set. This one shows the architecture: what the plugin ships, what `/setup`
+> installs into a Consumer, where each Box runs, and which parts the Harness decides, which the team
+> owns, and which are seams between the two.
 
 ---
 

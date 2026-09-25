@@ -6,7 +6,7 @@
 - (none)
 
 ### Added
-- (none)
+- An architecture diagram, `docs/architecture/20260925-unic-dlc-architecture.html` with its Archify source JSON, linked from the README next to the vision diagram. It shows what the plugin ships, what `/setup` installs into a Consumer, where each Box runs, and which parts the Harness decides, which the team owns, and which are seams between the two (#563).
 
 ### Fixed
 - (none)
