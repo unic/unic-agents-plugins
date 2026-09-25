@@ -14,7 +14,7 @@ import { findTerm, readTerms } from './nda-match.mjs'
 const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
 const CLAUDE_HOOK = join(HOOKS, '..', '.claude', 'hooks', 'block-nda-terms.mjs')
-const BASE64 = `QmFzZTY0${TERM}ZGF0YQ0Kc2VlbXMgcmFuZG9tIGVub3VnaA==`
+const BASE64 = `QmFzZTY0${TERM}ZGF0YQ0Kc2VlbXMgcmFuZG9tIGVub3VnaCB0byBwYXNzIHRoZSBlaWdodHkgY2hhcmFjdGVyIGJhcg==`
 const DATA_URI = `url(data:font/woff2;base64,AAB${TERM}Czz9+/)`
 
 const scratch = mkdtempSync(join(tmpdir(), 'nda-guard-'))
@@ -57,6 +57,12 @@ describe('findTerm', () => {
 	})
 	test('refuses the term in a long path that holds a digit', () => {
 		assert.equal(findTerm(`apps/claude-code/${TERM}/src/components/v2/HeaderNavigation`, [TERM]), TERM)
+	})
+	test('refuses the term in compact code that holds a digit and a plus', () => {
+		assert.equal(findTerm(`total=${TERM}CountForTheCurrentQuarter2+otherCountValue`, [TERM]), TERM)
+	})
+	test('refuses the term in a query string that holds a digit and a plus', () => {
+		assert.equal(findTerm(`https://x.io/r?next=${TERM}/2026/tree/main/src/components/header+nav`, [TERM]), TERM)
 	})
 	test('refuses the term after a character that lower-casing lengthens', () => {
 		assert.equal(findTerm(`\u0130 ${TERM}.`, [TERM]), TERM)
@@ -160,6 +166,15 @@ describe('Claude hook', () => {
 	test('refuses a staged term committed through GIT_DIR', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
 		assert.equal(claudeHook(`GIT_DIR=${join(dir, '.git')} git commit -m "add file"`, clone), 2)
+	})
+	test('refuses a staged term committed with a partly quoted -c value', () => {
+		assert.equal(claudeHook(`git -c core.editor='code -w' commit -m "add file"`, repoWith(`Built for ${TERM}.\n`)), 2)
+	})
+	test('passes a clean commit that reuses a message through commit -C', () => {
+		assert.equal(claudeHook('git commit -C HEAD', repoWith('clean\n')), 0)
+	})
+	test('passes a clean commit whose message mentions -C', () => {
+		assert.equal(claudeHook('git commit -m "use ls -C for columns"', repoWith('clean\n')), 0)
 	})
 	test('refuses a commit whose git -C path is a shell variable', () => {
 		assert.equal(claudeHook('git -C $WORKTREE commit -m "add file"', clone), 2)

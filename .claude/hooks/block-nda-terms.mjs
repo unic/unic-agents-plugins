@@ -34,9 +34,11 @@ const START = String.raw`(?:^|[|;&(]\s*|\s)`
 // `git -C <worktree> push` is how this repository's own Archon flow publishes
 // (.claude/commands/archon-pr-review.md), so the verb is never the first token. Skip git's global
 // options — the ones that take a value and the ones that do not — before reading it.
-// A value may be quoted and hold spaces: `git -C "/x/my wt" commit`.
-const OPTION_VALUE = String.raw`(?:"[^"]*"|'[^']*'|\S+)`
-const GIT_OPTIONS = String.raw`(?:\s+(?:-[cC]\s+${OPTION_VALUE}|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)${OPTION_VALUE}|--[\w-]+|-\w))*`
+// A value may be quoted, in whole or in part, and hold spaces: `git -C "/x/my wt" commit`,
+// `git -c core.editor='code -w' commit`.
+const OPTION_VALUE = String.raw`(?:[^\s'"]|"[^"]*"|'[^']*')+`
+const GIT_OPTION = String.raw`\s+(?:-[cC]\s+${OPTION_VALUE}|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)${OPTION_VALUE}|--[\w-]+|-\w)`
+const GIT_OPTIONS = `(?:${GIT_OPTION})*`
 /** @param {string} verbs */
 const gitVerb = (verbs) => new RegExp(`${START}git${GIT_OPTIONS}\\s+(?:${verbs})\\b`)
 const PUBLISHES = new RegExp(`${START}(?:gh|glab)\\s|${gitVerb('push|commit|tag').source}`)
@@ -68,7 +70,8 @@ function readNamedFiles(command) {
 const PATH_ARG = String.raw`(?:"([^"]*)"|'([^']*)'|([^\s'";&|()]+))`
 const CHANGES_DIR = new RegExp(String.raw`(?:^|[\n|;&(])\s*(?:cd|pushd)\s+${PATH_ARG}`, 'g')
 const NAMES_DIR = new RegExp(
-	String.raw`(?:\s-C\s*|\s--(?:work-tree|git-dir)(?:=|\s+)|\bGIT_(?:DIR|WORK_TREE)=)${PATH_ARG}`,
+	// `-C` only among git's own options, before the verb: `git commit -C HEAD` names a commit.
+	String.raw`(?:\bgit(?:${GIT_OPTION})*?\s+-C\s*|\s--(?:work-tree|git-dir)(?:=|\s+)|\bGIT_(?:DIR|WORK_TREE)=)${PATH_ARG}`,
 	'g',
 )
 

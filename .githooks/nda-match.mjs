@@ -5,11 +5,11 @@
 // guards cannot disagree on what counts as a match.
 //
 // The rule, in two steps:
-//   1. Remove base64 data first: every `data:…;base64,` URI, and every run of 40 or more base64
-//      characters that holds a digit and either a `+` or `=` padding. A short term inside embedded
+//   1. Remove base64 data first: every `data:…;base64,` URI, and every run of 80 or more base64
+//      characters that holds a digit, which a sha512 hash (88) fills. A short term inside embedded
 //      font or image data identifies nobody, and random base64 is full of case changes that step 2
-//      would read as boundaries. Paths, URLs and identifiers carry no `+` and end in no `=`, so a
-//      long one that holds a digit is still matched.
+//      would read as boundaries. A path, URL or identifier rarely runs 80 characters without a
+//      `.`, `-`, `_`, `?` or space, so a long one is still matched.
 //   2. Match a term, case-insensitively, only where it starts and ends on a word boundary. A
 //      boundary is the start or end of the text, a character that is not a letter or digit, a
 //      change between letter and digit, or a camelCase change: `acmeSite`, `myAcme` and
@@ -42,7 +42,7 @@ export function readTerms(path) {
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
 const DATA_URI = /data:[^,\s]*;base64,[A-Za-z0-9+/=]+/g
-const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)(?=[A-Za-z0-9/]*\+|[A-Za-z0-9+/]*=)[A-Za-z0-9+/]{40,}={0,2}/g
+const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)[A-Za-z0-9+/]{80,}={0,2}/g
 
 const isLetter = (/** @type {string | undefined} */ c) => c !== undefined && /\p{L}/u.test(c)
 const isDigit = (/** @type {string | undefined} */ c) => c !== undefined && /\p{N}/u.test(c)
