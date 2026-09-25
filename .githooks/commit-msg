@@ -5,9 +5,8 @@
 # `pre-commit` reads the staged diff and never sees the message, so this hook covers the message.
 # Both run the same rule, in nda-match.mjs. See the header of `pre-commit` for why the guard exists.
 #
-# INSTALL (per clone; `.git/hooks` is not version-controlled)
-#
-#   ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+# INSTALL: `pnpm install` sets `core.hooksPath` to `.githooks` (see `.githooks/set-hooks-path.mjs`).
+# That covers every hook in this directory and every worktree of the clone.
 
 set -eu
 

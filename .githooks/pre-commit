@@ -27,10 +27,8 @@
 # It fails CLOSED. No readable list means no commit, because a guard that waves work through when
 # its own configuration is missing protects nothing. `touch` the file to opt out deliberately.
 #
-# INSTALL (per clone; `.git/hooks` is not version-controlled)
-#
-#   ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
-#   ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+# INSTALL: `pnpm install` sets `core.hooksPath` to `.githooks` (see `.githooks/set-hooks-path.mjs`).
+# That covers every hook in this directory and every worktree of the clone.
 
 set -eu
 

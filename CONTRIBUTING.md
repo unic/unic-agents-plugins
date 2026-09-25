@@ -68,6 +68,8 @@ Everything else (Biome, Prettier, TypeScript) is a workspace devDependency and i
 pnpm install
 ```
 
+`pnpm install` also turns on the repository's git hooks in `.githooks/`, and they need `node` on `PATH`.
+
 ### Cloning on Windows
 
 Some vendored skills reach Claude Code through a symlink in `.claude/skills/`. Git checks a symlink out as a real one only when `core.symlinks` is true, and Git for Windows can create one only for a user who is allowed to: turn on Developer Mode, or use an elevated shell. Otherwise the symlink arrives as a short text file and the skill does not load.

@@ -58,11 +58,7 @@ The Archon worktrees under `~/.archon/workspaces/<org>/<repo>/worktrees/` are wo
 
 Archon also keeps a `default_branch` of its own per repository, set from whatever was checked out on its first run there and never re-read from the host. `worktree.baseBranch` in `.archon/config.yaml` overrides it, and `--from <branch>` overrides that. A bare top-level `baseBranch:` has no reader — the nesting is the whole setting. So fix a wrong fork point in that file, never in `~/.archon/archon.db`, which is one machine's row.
 
-`.git/hooks` is not version-controlled, so install it once per clone:
-
-```sh
-ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
-```
+`pnpm install` sets `core.hooksPath` to `.githooks`, and that covers every hook and every worktree. In a clone that still has symlinks in `.git/hooks`, run `pnpm install` once. Git then ignores the old symlinks in `.git/hooks`, so they may stay or go.
 
 ### The NDA publish guard
 
@@ -73,14 +69,9 @@ The terms are read from a file **outside every repository** — `$UNIC_NDA_DENYL
 | Guard                                          | Covers                                                                                                                                                                                   | Wired by                                                                                |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `.claude/hooks/block-nda-terms.mjs`            | What an agent session runs here: `gh`, `glab`, `git push`, `git commit`, `git tag`. It reads the command string, **every file the command names** and, for a commit, **the staged diff** | `.claude/settings.json`, `PreToolUse` on `Bash` — already committed, nothing to install |
-| `.githooks/pre-commit`, `.githooks/commit-msg` | Any commit in this clone, whoever makes it: the staged diff, then the message                                                                                                            | one symlink per hook per clone, below                                                   |
+| `.githooks/pre-commit`, `.githooks/commit-msg` | Any commit in this clone, whoever makes it: the staged diff, then the message                                                                                                            | `core.hooksPath`, which `pnpm install` sets (see above)                                 |
 
 Two leak paths make the file and diff reads compulsory rather than thorough: `gh issue create --body-file <path>` carries no term in the command at all, and `git commit -m "<clean message>"` puts it in the diff rather than the message. A guard that scans only the command line waves both through.
-
-```sh
-ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
-ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
-```
 
 **When you commit through `git -C`, `cd` or another directory, write the path literally.** The Claude hook reads the staged diff of the session's directory and of every directory the command names: `cd <path>` or `pushd <path>`, `git -C <path>`, `--work-tree` or `--git-dir`, and `GIT_DIR=` or `GIT_WORK_TREE=`. A path may be quoted. The hook refuses a commit when one of those diffs cannot be read, so a path in a shell variable such as `-C $WT` is refused. A form missing from that list is not read at all, so add it to `commitDirs` in the hook before you rely on it.
 
