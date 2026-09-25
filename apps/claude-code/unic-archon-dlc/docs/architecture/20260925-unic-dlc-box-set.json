@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "unic-archon-dlc box set",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Claude Code slash command"
+        },
+        "backend": {
+          "label": "Archon workflow"
+        },
+        "database": {
+          "label": "Session artefact"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "explore",
+      "type": "backend",
+      "label": "/explore",
+      "sublabel": "reads the repo",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "setup",
+      "type": "frontend",
+      "label": "/setup",
+      "sublabel": "installs the Boxes",
+      "pos": [
+        40,
+        140
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "cleanup",
+      "type": "frontend",
+      "label": "/cleanup",
+      "sublabel": "prunes on opt-in",
+      "pos": [
+        40,
+        240
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "archon-upgrade",
+      "type": "frontend",
+      "label": "/archon-upgrade",
+      "sublabel": "writes nothing here",
+      "pos": [
+        40,
+        340
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "improve",
+      "type": "frontend",
+      "label": "/improve-architecture",
+      "sublabel": "reads report.md",
+      "pos": [
+        40,
+        440
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "arch-review",
+      "type": "database",
+      "label": "arch-review.md",
+      "sublabel": "ADR proposals",
+      "pos": [
+        40,
+        540
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "triage",
+      "type": "frontend",
+      "label": "/triage",
+      "sublabel": "raw work in",
+      "pos": [
+        400,
+        240
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "specs",
+      "type": "frontend",
+      "label": "/specs",
+      "sublabel": "reads findings.md",
+      "pos": [
+        760,
+        140
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "tickets",
+      "type": "frontend",
+      "label": "/tickets",
+      "sublabel": "reads PRD.md",
+      "pos": [
+        760,
+        240
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "build",
+      "type": "backend",
+      "label": "/build",
+      "sublabel": "reads issues.json",
+      "pos": [
+        760,
+        340
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "pr-review",
+      "type": "backend",
+      "label": "/pr-review",
+      "sublabel": "reads the PR, PRD.md",
+      "pos": [
+        760,
+        440
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "qa",
+      "type": "backend",
+      "label": "/qa",
+      "sublabel": "reads PRD.md, report.md",
+      "pos": [
+        760,
+        540
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "findings",
+      "type": "database",
+      "label": "findings.md",
+      "sublabel": "spike verdicts",
+      "pos": [
+        1120,
+        40
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "prd",
+      "type": "database",
+      "label": "PRD.md",
+      "sublabel": "plus design contracts",
+      "pos": [
+        1120,
+        140
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "issues",
+      "type": "database",
+      "label": "issues.json",
+      "sublabel": "one slice per issue",
+      "pos": [
+        1120,
+        240
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "report",
+      "type": "database",
+      "label": "report.md",
+      "sublabel": "evidence.json, build-state.json",
+      "pos": [
+        1120,
+        340
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "review-files",
+      "type": "database",
+      "label": "pr-review/",
+      "sublabel": "comment.md, findings.json",
+      "pos": [
+        1120,
+        440
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "qa-checks",
+      "type": "database",
+      "label": "qa-checks.md",
+      "sublabel": "UAT checklist",
+      "pos": [
+        1120,
+        540
+      ],
+      "size": [
+        200,
+        56
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Off-line",
+      "wraps": [
+        "explore",
+        "setup",
+        "cleanup",
+        "archon-upgrade",
+        "improve",
+        "arch-review"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "On-ramps",
+      "wraps": [
+        "triage"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Main line",
+      "wraps": [
+        "specs",
+        "tickets",
+        "build",
+        "pr-review",
+        "qa"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Session artefacts, <artifacts_dir>/<slug>/",
+      "wraps": [
+        "findings",
+        "prd",
+        "issues",
+        "report",
+        "review-files",
+        "qa-checks"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "main-1",
+      "from": "specs",
+      "to": "tickets",
+      "variant": "emphasis"
+    },
+    {
+      "id": "main-2",
+      "from": "tickets",
+      "to": "build",
+      "variant": "emphasis"
+    },
+    {
+      "id": "main-3",
+      "from": "build",
+      "to": "pr-review",
+      "variant": "emphasis"
+    },
+    {
+      "id": "main-4",
+      "from": "pr-review",
+      "to": "qa",
+      "variant": "emphasis"
+    },
+    {
+      "id": "triage-in",
+      "from": "triage",
+      "to": "tickets",
+      "label": "agent-ready issues"
+    },
+    {
+      "id": "qa-in",
+      "from": "qa",
+      "to": "triage",
+      "label": "UAT reject files issues",
+      "variant": "dashed"
+    },
+    {
+      "id": "findings-read",
+      "from": "findings",
+      "to": "specs",
+      "label": "reads",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "id": "explore-writes-findings",
+      "from": "explore",
+      "to": "findings",
+      "label": "writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "specs-writes-prd",
+      "from": "specs",
+      "to": "prd",
+      "label": "writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "tickets-writes-issues",
+      "from": "tickets",
+      "to": "issues",
+      "label": "writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "build-writes-report",
+      "from": "build",
+      "to": "report",
+      "label": "writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "pr-review-writes-review-files",
+      "from": "pr-review",
+      "to": "review-files",
+      "label": "writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "qa-writes-qa-checks",
+      "from": "qa",
+      "to": "qa-checks",
+      "label": "writes",
+      "variant": "dashed"
+    },
+    {
+      "id": "improve-writes-arch-review",
+      "from": "improve",
+      "to": "arch-review",
+      "label": "writes",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        140,
+        518
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Main line",
+      "items": [
+        "One Session runs /specs, /tickets, /build, /pr-review and /qa for one Slug",
+        "Each Box writes into the Session directory, and later Boxes read from it"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Gates",
+      "items": [
+        "The slash commands pause for a human by design",
+        "Each Archon workflow pauses when gates.<box> is hitl, the default"
+      ]
+    }
+  ]
+}
