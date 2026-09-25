@@ -91,7 +91,7 @@
       "id": "step-1",
       "type": "frontend",
       "label": "1 Load config",
-      "sublabel": "tracker read-only",
+      "sublabel": "lenient, warns and continues",
       "pos": [300, 60],
       "size": [220, 40]
     },

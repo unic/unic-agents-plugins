@@ -145,7 +145,7 @@
       "id": "stop",
       "type": "external",
       "label": "Stop",
-      "sublabel": "file missing: run /setup",
+      "sublabel": "file missing, run /setup",
       "pos": [600, 185],
       "size": [220, 48]
     },

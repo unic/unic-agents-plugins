@@ -76,15 +76,15 @@
       "type": "cloud",
       "label": "unic-dlc.config.yaml",
       "sublabel": "read, never written",
-      "pos": [40, 99],
+      "pos": [40, 126],
       "size": [220, 40]
     },
     {
       "id": "contract",
       "type": "cloud",
       "label": "Tracker contract",
-      "sublabel": "issue-tracker.md",
-      "pos": [40, 153],
+      "sublabel": "Step 4, and the gate",
+      "pos": [40, 306],
       "size": [220, 40]
     },
     {
@@ -92,7 +92,7 @@
       "type": "cloud",
       "label": "PRD.md",
       "sublabel": "read on re-entry",
-      "pos": [40, 207],
+      "pos": [40, 180],
       "size": [220, 40]
     },
     {
@@ -100,7 +100,7 @@
       "type": "cloud",
       "label": "CONTEXT, ADRs, findings",
       "sublabel": "each if present",
-      "pos": [40, 261],
+      "pos": [40, 234],
       "size": [220, 40]
     },
     {
@@ -108,7 +108,7 @@
       "type": "cloud",
       "label": "Source",
       "sublabel": "URL, issue ref or idea",
-      "pos": [40, 320],
+      "pos": [40, 360],
       "size": [220, 40]
     },
     {
@@ -116,14 +116,14 @@
       "type": "cloud",
       "label": "Testing bar",
       "sublabel": "AGENTS.md, CLAUDE.md, tests",
-      "pos": [40, 400],
+      "pos": [40, 414],
       "size": [220, 40]
     },
     {
       "id": "design-doc",
       "type": "cloud",
       "label": "Design doc",
-      "sublabel": "if design.type is set",
+      "sublabel": "read at Step 4 or Step 7",
       "pos": [40, 474],
       "size": [220, 40]
     },
@@ -163,7 +163,7 @@
       "id": "stop",
       "type": "external",
       "label": "Stop",
-      "sublabel": "file missing: run /setup",
+      "sublabel": "file missing, run /setup",
       "pos": [600, 153],
       "size": [220, 40]
     },
@@ -171,7 +171,7 @@
       "id": "h-1",
       "type": "security",
       "label": "Human",
-      "sublabel": "slug; revise or restart",
+      "sublabel": "slug, then revise or restart",
       "pos": [600, 207],
       "size": [220, 40]
     },
@@ -211,7 +211,7 @@
       "id": "w-prd",
       "type": "messagebus",
       "label": "PRD.md",
-      "sublabel": "with Confirmations",
+      "sublabel": "and to docs, if docs.publish",
       "pos": [880, 430],
       "size": [230, 44]
     },
@@ -219,7 +219,7 @@
       "id": "w-contract",
       "type": "messagebus",
       "label": "Design contract",
-      "sublabel": "and screenshot, per component",
+      "sublabel": "screenshot; docs, if publish",
       "pos": [880, 488],
       "size": [230, 44]
     },
@@ -276,23 +276,22 @@
       "to": "p1",
       "fromSide": "right",
       "toSide": "left",
-      "via": [[280, 119], [280, 200]]
+      "via": [[280, 146], [280, 200]]
     },
     {
-      "id": "contract-p1",
+      "id": "contract-p2",
       "from": "contract",
-      "to": "p1",
+      "to": "p2",
       "fromSide": "right",
       "toSide": "left",
-      "via": [[280, 173], [280, 200]]
+      "via": [[280, 326], [280, 380]]
     },
     {
       "id": "r-prd-p1",
       "from": "r-prd",
       "to": "p1",
       "fromSide": "right",
-      "toSide": "left",
-      "via": [[280, 227], [280, 200]]
+      "toSide": "left"
     },
     {
       "id": "context-p1",
@@ -300,15 +299,14 @@
       "to": "p1",
       "fromSide": "right",
       "toSide": "left",
-      "via": [[280, 281], [280, 200]]
+      "via": [[280, 254], [280, 200]]
     },
     {
       "id": "source-p2",
       "from": "source",
       "to": "p2",
       "fromSide": "right",
-      "toSide": "left",
-      "via": [[280, 340], [280, 380]]
+      "toSide": "left"
     },
     {
       "id": "testing-p2",
@@ -316,7 +314,7 @@
       "to": "p2",
       "fromSide": "right",
       "toSide": "left",
-      "via": [[280, 420], [280, 380]]
+      "via": [[280, 434], [280, 380]]
     },
     {
       "id": "design-doc-p3",
@@ -414,14 +412,14 @@
     {
       "dot": "amber",
       "title": "Left to the agent",
-      "items": ["The three Methods set the interview and the PRD", "Steps 3, 5 and 7 fix no order inside the step"]
+      "items": ["The three Methods set the interview and the PRD", "Steps 3 and 5 read their lists in no stated order"]
     },
     {
       "dot": "rose",
       "title": "Stops and the gate",
       "items": [
         "Step 7 stops on a missing design doc or a blocked component",
-        "The gate refuses a missing halt record, and a reject returns to Step 4"
+        "The gate stops on a missing halt record or tracker contract; a reject returns to Step 4"
       ]
     }
   ]

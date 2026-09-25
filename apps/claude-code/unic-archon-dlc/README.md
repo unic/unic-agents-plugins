@@ -77,7 +77,7 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 | `/cleanup` ([diagram](docs/architecture/20260925-unic-dlc-cleanup-command.html))                           | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
 | `/archon-upgrade` ([diagram](docs/architecture/20260925-unic-dlc-archon-upgrade-command.html))             | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
 
-> **Command Box diagrams:** each command row links an Archify diagram drawn from that command's text.
+> Each command row links an Archify diagram drawn from that command's text.
 > It shows the Methods the command reads, the files it reads and writes, its tracker writes, and
 > every point where it waits for a human. `/specs`, `/tickets` and `/setup` group their steps into
 > phases so that each diagram fits one screen. Each source JSON sits beside its HTML.

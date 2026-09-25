@@ -8,13 +8,27 @@
     "legend": {
       "mode": "auto",
       "entries": {
-        "frontend": { "label": "Box step" },
-        "backend": { "label": "Tracker write" },
-        "database": { "label": "Method read" },
-        "cloud": { "label": "File read" },
-        "security": { "label": "Human halt" },
-        "messagebus": { "label": "File written" },
-        "external": { "label": "Stop" }
+        "frontend": {
+          "label": "Box step"
+        },
+        "backend": {
+          "label": "Tracker write"
+        },
+        "database": {
+          "label": "Method read"
+        },
+        "cloud": {
+          "label": "File read"
+        },
+        "security": {
+          "label": "Human halt"
+        },
+        "messagebus": {
+          "label": "File written"
+        },
+        "external": {
+          "label": "Stop"
+        }
       }
     },
     "views": [
@@ -22,7 +36,7 @@
         "id": "human",
         "label": "Human halts",
         "focus": ["p2", "p4", "h-2", "h-4a", "h-4b"],
-        "note": "The operator confirms every config value and every role value before Step 6 writes it."
+        "note": "The operator confirms each config gap Step 6 asks about, and each role value, before Step 6 writes it."
       },
       {
         "id": "writes",
@@ -60,7 +74,7 @@
     {
       "id": "r-bundle",
       "type": "cloud",
-      "label": "Method bundle",
+      "label": "Bundle",
       "sublabel": "copied, never followed",
       "pos": [40, 277],
       "size": [220, 40]
@@ -117,7 +131,7 @@
       "id": "stop",
       "type": "external",
       "label": "Stop",
-      "sublabel": "preflight fails: prints why",
+      "sublabel": "Steps 1-2 fail, print why",
       "pos": [600, 77],
       "size": [220, 40]
     },
@@ -133,7 +147,7 @@
       "id": "h-4a",
       "type": "security",
       "label": "Human",
-      "sublabel": "confirms each config value",
+      "sublabel": "confirms each gap asked",
       "pos": [600, 380],
       "size": [220, 40]
     },
@@ -186,7 +200,14 @@
       "size": [230, 44]
     }
   ],
-  "boundaries": [{ "kind": "region", "label": "Phases, numbered", "wraps": ["p1", "p2", "p3", "p4", "p5"], "pad": 8 }],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Phases, numbered",
+      "wraps": ["p1", "p2", "p3", "p4", "p5"],
+      "pad": 8
+    }
+  ],
   "connections": [
     {
       "id": "archon-p1",
@@ -204,7 +225,11 @@
       "toSide": "left",
       "via": [[280, 124], [280, 97]]
     },
-    { "id": "tools-p2", "from": "r-tools", "to": "p2" },
+    {
+      "id": "tools-p2",
+      "from": "r-tools",
+      "to": "p2"
+    },
     {
       "id": "bundle-p3",
       "from": "r-bundle",
@@ -221,12 +246,38 @@
       "toSide": "left",
       "via": [[280, 351], [280, 324]]
     },
-    { "id": "p1-p2", "from": "p1", "to": "p2" },
-    { "id": "p2-p3", "from": "p2", "to": "p3" },
-    { "id": "p3-p4", "from": "p3", "to": "p4" },
-    { "id": "p4-p5", "from": "p4", "to": "p5" },
-    { "id": "p1-stop", "from": "p1", "to": "stop", "variant": "security" },
-    { "id": "p2-h", "from": "p2", "to": "h-2", "variant": "security" },
+    {
+      "id": "p1-p2",
+      "from": "p1",
+      "to": "p2"
+    },
+    {
+      "id": "p2-p3",
+      "from": "p2",
+      "to": "p3"
+    },
+    {
+      "id": "p3-p4",
+      "from": "p3",
+      "to": "p4"
+    },
+    {
+      "id": "p4-p5",
+      "from": "p4",
+      "to": "p5"
+    },
+    {
+      "id": "p1-stop",
+      "from": "p1",
+      "to": "stop",
+      "variant": "security"
+    },
+    {
+      "id": "p2-h",
+      "from": "p2",
+      "to": "h-2",
+      "variant": "security"
+    },
     {
       "id": "p3-methods",
       "from": "p3",
@@ -277,7 +328,11 @@
       "toSide": "left",
       "via": [[850, 440], [850, 466]]
     },
-    { "id": "p5-blocks", "from": "p5", "to": "w-blocks" }
+    {
+      "id": "p5-blocks",
+      "from": "p5",
+      "to": "w-blocks"
+    }
   ],
   "cards": [
     {
@@ -285,14 +340,14 @@
       "title": "Left to the agent",
       "items": [
         "No line says the steps run in order; only Step 5 is placed before the questions",
-        "Steps 2, 4 and 6 read and ask in no stated order"
+        "Steps 4 and 6 ask in no stated order; Step 2 orders only its git refusals"
       ]
     },
     {
       "dot": "rose",
       "title": "Stops, and what it never does",
       "items": [
-        "Step 5 stops on a bundle defect; a missing capability only warns",
+        "Step 5 stops on a bundle defect, Step 6 on a failed write; a missing capability only warns",
         "It reads no Method, writes nothing to the tracker, and stages nothing"
       ]
     }

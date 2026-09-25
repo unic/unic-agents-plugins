@@ -171,7 +171,7 @@
       "id": "stop",
       "type": "external",
       "label": "Stop",
-      "sublabel": "Method missing: run /setup",
+      "sublabel": "Method missing, run /setup",
       "pos": [600, 140],
       "size": [220, 40]
     },
@@ -187,7 +187,7 @@
       "id": "h-6",
       "type": "security",
       "label": "Human",
-      "sublabel": "A, R or E; confirms home",
+      "sublabel": "approves each ADR and home",
       "pos": [600, 490],
       "size": [220, 40]
     },

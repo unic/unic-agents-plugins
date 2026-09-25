@@ -139,7 +139,7 @@
       "id": "h-1",
       "type": "security",
       "label": "Human",
-      "sublabel": "slug; revise or restart",
+      "sublabel": "slug, then revise or restart",
       "pos": [600, 187],
       "size": [220, 40]
     },
@@ -179,7 +179,7 @@
       "id": "w-item",
       "type": "backend",
       "label": "Item per slice",
-      "sublabel": "with ready-for-agent",
+      "sublabel": "state role, others retracted",
       "pos": [880, 450],
       "size": [230, 44]
     },
@@ -349,7 +349,7 @@
       "title": "Left to the agent",
       "items": [
         "Step 4 slices in the order the to-tickets Method sets",
-        "Steps 3, 6 and 9 fix no order inside the step"
+        "Step 6 checks its four dimensions in no stated order"
       ]
     },
     {
