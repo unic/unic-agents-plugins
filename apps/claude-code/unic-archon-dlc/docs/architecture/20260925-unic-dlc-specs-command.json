@@ -147,7 +147,7 @@
       "id": "p3",
       "type": "frontend",
       "label": "6-7 Write",
-      "sublabel": "estimate, PRD, contracts",
+      "sublabel": "estimate if set, PRD, contracts",
       "pos": [300, 470],
       "size": [220, 48]
     },

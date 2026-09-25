@@ -247,26 +247,6 @@
       "via": [[280, 351], [280, 324]]
     },
     {
-      "id": "p1-p2",
-      "from": "p1",
-      "to": "p2"
-    },
-    {
-      "id": "p2-p3",
-      "from": "p2",
-      "to": "p3"
-    },
-    {
-      "id": "p3-p4",
-      "from": "p3",
-      "to": "p4"
-    },
-    {
-      "id": "p4-p5",
-      "from": "p4",
-      "to": "p5"
-    },
-    {
       "id": "p1-stop",
       "from": "p1",
       "to": "stop",
@@ -339,8 +319,8 @@
       "dot": "amber",
       "title": "Left to the agent",
       "items": [
-        "No line says the steps run in order; only Step 5 is placed before the questions",
-        "Steps 4 and 6 ask in no stated order; Step 2 orders only its git refusals"
+        "No line orders the steps; the diagram draws no arrow between phases",
+        "Step 1 stops a failed run before any question, Step 5 runs before the conversation, and Step 6 offers what Step 4 found"
       ]
     },
     {

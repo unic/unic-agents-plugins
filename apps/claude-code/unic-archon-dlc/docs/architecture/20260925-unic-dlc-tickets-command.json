@@ -107,7 +107,7 @@
       "id": "p2",
       "type": "frontend",
       "label": "4-7 Slice and check",
-      "sublabel": "slices, test seams, estimate",
+      "sublabel": "slices, seams, estimate if set",
       "pos": [300, 300],
       "size": [220, 48]
     },
@@ -123,7 +123,7 @@
       "id": "p4",
       "type": "frontend",
       "label": "10-11 Gate, summary",
-      "sublabel": "commits issues.json",
+      "sublabel": "stages or commits issues.json",
       "pos": [300, 500],
       "size": [220, 48]
     },
