@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "unic-dlc-explore pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "not-ready",
+        "label": "Not ready",
+        "focus": ["bootstrap", "guard-not-ready"],
+        "note": "A run whose preconditions fail is cancelled before any research."
+      },
+      {
+        "id": "happy-path",
+        "label": "Happy path",
+        "focus": [
+          "bootstrap",
+          "research-stack",
+          "research-features",
+          "research-architecture",
+          "research-pitfalls",
+          "synthesize",
+          "spike",
+          "spike-ticket",
+          "spike-branch-gate",
+          "preserve-spike"
+        ],
+        "note": "The four research nodes run in parallel, and synthesize waits for all four."
+      },
+      {
+        "id": "gate",
+        "label": "Gate",
+        "focus": ["spike-ticket", "spike-branch-gate", "preserve-spike"],
+        "note": "hitl pauses at spike-branch-gate. afk skips the gate and preserve-spike."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "pos": [260, 40],
+      "size": [190, 48]
+    },
+    {
+      "id": "guard-not-ready",
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "pos": [40, 40],
+      "size": [150, 48]
+    },
+    {
+      "id": "research-stack",
+      "type": "backend",
+      "label": "research-stack",
+      "pos": [260, 190],
+      "size": [190, 48],
+      "sublabel": "runs in parallel"
+    },
+    {
+      "id": "research-features",
+      "type": "backend",
+      "label": "research-features",
+      "pos": [530, 190],
+      "size": [190, 48],
+      "sublabel": "runs in parallel"
+    },
+    {
+      "id": "research-architecture",
+      "type": "backend",
+      "label": "research-architecture",
+      "pos": [800, 190],
+      "size": [190, 48],
+      "sublabel": "runs in parallel"
+    },
+    {
+      "id": "research-pitfalls",
+      "type": "backend",
+      "label": "research-pitfalls",
+      "pos": [1070, 190],
+      "size": [190, 48],
+      "sublabel": "runs in parallel"
+    },
+    {
+      "id": "synthesize",
+      "type": "backend",
+      "label": "synthesize",
+      "sublabel": "writes findings.md",
+      "pos": [260, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "spike",
+      "type": "backend",
+      "label": "spike",
+      "sublabel": "adds spike verdicts",
+      "pos": [530, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "spike-ticket",
+      "type": "backend",
+      "label": "spike-ticket",
+      "sublabel": "files a spike ticket",
+      "pos": [800, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "spike-branch-gate",
+      "type": "security",
+      "label": "spike-branch-gate",
+      "sublabel": "gates.explore: hitl",
+      "pos": [1070, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "preserve-spike",
+      "type": "backend",
+      "label": "preserve-spike",
+      "sublabel": "commits spike/<slug>",
+      "pos": [260, 430],
+      "size": [190, 48]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Prepare",
+      "wraps": ["bootstrap"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Research",
+      "wraps": ["research-stack", "research-features", "research-architecture", "research-pitfalls"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Spike",
+      "wraps": ["synthesize", "spike", "spike-ticket", "spike-branch-gate", "preserve-spike"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security"
+    },
+    {
+      "id": "bootstrap-research-stack",
+      "from": "bootstrap",
+      "to": "research-stack",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "bootstrap-research-features",
+      "from": "bootstrap",
+      "to": "research-features",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "bootstrap-research-architecture",
+      "from": "bootstrap",
+      "to": "research-architecture",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "bootstrap-research-pitfalls",
+      "from": "bootstrap",
+      "to": "research-pitfalls",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "research-stack-synthesize",
+      "from": "research-stack",
+      "to": "synthesize",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "research-features-synthesize",
+      "from": "research-features",
+      "to": "synthesize",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "research-architecture-synthesize",
+      "from": "research-architecture",
+      "to": "synthesize",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "research-pitfalls-synthesize",
+      "from": "research-pitfalls",
+      "to": "synthesize",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "synthesize-spike",
+      "from": "synthesize",
+      "to": "spike"
+    },
+    {
+      "id": "spike-spike-ticket",
+      "from": "spike",
+      "to": "spike-ticket"
+    },
+    {
+      "id": "spike-ticket-spike-branch-gate",
+      "from": "spike-ticket",
+      "to": "spike-branch-gate",
+      "label": "hitl",
+      "variant": "security"
+    },
+    {
+      "id": "spike-branch-gate-preserve-spike",
+      "from": "spike-branch-gate",
+      "to": "preserve-spike",
+      "label": "approve",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [[1165, 454]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Gate",
+      "items": [
+        "gates.explore: hitl pauses at spike-branch-gate; a reject leaves the spike code uncommitted",
+        "gates.explore: afk skips the gate and preserve-spike",
+        "spike-ticket runs before the gate, so the ticket survives a reject"
+      ]
+    }
+  ]
+}

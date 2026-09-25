@@ -1,6 +1,6 @@
 # Traps proven the expensive way
 
-Facts about the tools an agent session drives here — Archon, Azure DevOps, `gh`, git, pnpm, the
+Facts about the tools an agent session drives here — Archon, Archify, Azure DevOps, `gh`, git, pnpm, the
 Copilot reviewer. Each one cost real time at least once. Each is a property of the tool, not of any
 one project, which is why this file is tracked and shareable.
 
@@ -345,6 +345,59 @@ every bullet added since carries the version and date it was measured on.
   real cost. Check per-node `duration_ms` in the run's `.jsonl` log before quoting a cost
   (2026-08-26).
 
+## Archify
+
+Measured on the vendored Archify `version: "2.17"` (`.agents/skills/archify/SKILL.md`
+frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564).
+Re-check every bullet in the commit that upgrades Archify, and update or delete it there.
+
+- **Put what a workflow node writes in its `sublabel`.** A node's `tag` renders with
+  `data-detail="fine"` (`.agents/skills/archify/renderers/workflow/workflow-compiler.mjs:4202`),
+  so the viewer shows it only when zoomed in, and a PNG export leaves it out. `validate`,
+  `deliver` and `visual-check` all pass with the text invisible.
+- **Give `mainPath` only a chain whose columns never decrease, and wrap a longer chain.** `col`
+  runs from 0 to 5 (`.agents/skills/archify/schemas/workflow.schema.json:275-278`), and
+  `mainPath` refuses a step to a lower column with "moves backward from col N to M"
+  (`workflow-compiler.mjs:2441`). A chain of more than six nodes therefore needs a lane per extra
+  node. The four pipeline diagrams here left the `workflow` type for this reason, as the next
+  bullet describes.
+- **Choose the `architecture` type for a flow that runs top to bottom, or for a chain longer
+  than six nodes.** Workflow lanes are always horizontal rows, and `workflow.schema.json` has no
+  orientation field. The `architecture` type places each component by `pos`, so the layout is a
+  matter of coordinates. Every diagram under `apps/claude-code/unic-archon-dlc/docs/architecture/`
+  uses it. The box set places its Boxes in columns. Each pipeline stacks one region per group of
+  nodes from top to bottom, and places that group's nodes left to right inside its region.
+- **Size a diagram by the height of a 1440 by 900 screen.** The viewer scales the diagram to the
+  width of its panel, so a tall, narrow viewBox grows downwards. `deliver` refuses a viewBox
+  wider than about 1240 at that screen, because node text would drop below 6 px, and
+  `visual-check` refuses any page taller than the screen. Ten pipeline nodes in one column
+  measured 2161 px tall. Rows of three or four nodes fit, with one card below.
+- **Expect nested region labels to stack 2 px apart, whatever `pad` says.** An `architecture`
+  region puts its label just above its first member, and lifts it only as far as clears another
+  label (`.agents/skills/archify/renderers/architecture/render-architecture.mjs:212-215` and
+  `:254`). `pad` moves the frame, not the label, and the top pad is never below 22 px
+  (`:118-122`). A `pad` larger than the label needs leaves an empty band above the label.
+- **Export a PNG preview through the viewer's own Export > PNG, driven over CDP.** The Playwright
+  MCP refuses `file:` URLs, and the viewer's PNG button fires no download while
+  `window.showSaveFilePicker` exists (observed, not traced in the vendored source). The route that
+  worked, as one Node ES module run from the worktree root:
+  1. Import `ChromeVisualBrowser` and `findChrome` from `.agents/skills/archify/bin/visual-check.mjs`.
+     Construct `new ChromeVisualBrowser(findChrome())`, which launches Chrome, and await its
+     `sessionPromise` for the `sessionId`.
+  2. Send every CDP command with `browser.cdp.send(method, params, sessionId)`. Send
+     `Emulation.setDeviceMetricsOverride` (1600 by 1000). Per export, send
+     `Browser.setDownloadBehavior` without a `sessionId`, with `behavior: 'allow'` and a fresh,
+     empty, absolute `downloadPath`.
+  3. Navigate to the HTML's `file:` URL with `?theme=light` or `?theme=dark`, and wait for
+     `Page.loadEventFired`.
+  4. With `Runtime.evaluate`, set `window.showSaveFilePicker = undefined`, click the button whose
+     text includes `Export`, wait 300 ms, and click the button whose text includes `Lossless image`.
+  5. Poll the download directory for the `.png`, and rename it to `<diagram>.<theme>.png`.
+  6. Scale each file to 2620 px wide with any image tool. On macOS,
+     `sips --resampleWidth 2620 <in> --out <out>` does it. `sips` does not exist on Linux or
+     Windows.
+  7. Call `browser.close()`.
+
 ## git
 
 - **`git checkout -b <name> origin/<base>` sets the branch's upstream to `origin/<base>`**, so a
@@ -499,7 +552,8 @@ been wrong — and each was caught by a check that was one command away.
   is per worktree, and `git rev-parse --git-path FETCH_HEAD` prints its path.
 - **Run `pnpm install --frozen-lockfile` in a new worktree before any gate.** A fresh worktree has
   no `node_modules`, and `npx biome` then falls back to another install that exited 0 on a file
-  the pinned Biome fails (measured 2026-09-24).
+  the pinned Biome fails (measured 2026-09-24). `pnpm ci:check` fails there with "biome: command
+  not found" (2026-09-25).
 - **Only a process in a new session outlives the session that starts it on macOS** (2026-08-28).
   `nohup … &`, `nohup … & disown` and `( nohup … & )` all keep the parent's process group and die on
   the `SIGINT` that reaches it; `setsid` does not exist on macOS. Node's

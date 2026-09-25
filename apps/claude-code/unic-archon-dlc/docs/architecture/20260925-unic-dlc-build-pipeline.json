@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "unic-dlc-build pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "messagebus": {
+          "label": "Script node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "not-ready",
+        "label": "Not ready",
+        "focus": ["bootstrap", "guard-not-ready"],
+        "note": "A run whose preconditions fail is cancelled before any build work."
+      },
+      {
+        "id": "happy-path",
+        "label": "Happy path",
+        "focus": [
+          "bootstrap",
+          "slopcheck",
+          "run-build",
+          "implement-review-precheck",
+          "verification",
+          "goals-check",
+          "evidence",
+          "report",
+          "open-pr",
+          "build-pr-gate"
+        ],
+        "note": "From bootstrap to the PR gate, in run order."
+      },
+      {
+        "id": "evidence-and-approval",
+        "label": "Evidence and approval",
+        "focus": ["verification", "goals-check", "evidence", "report", "open-pr", "build-pr-gate"],
+        "note": "open-pr runs whatever evidence concluded. The evidence gate decides only whether the run ends completed."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "pos": [290, 40],
+      "size": [220, 48]
+    },
+    {
+      "id": "slopcheck",
+      "type": "messagebus",
+      "label": "slopcheck",
+      "sublabel": "new packages exist",
+      "pos": [910, 40],
+      "size": [220, 48]
+    },
+    {
+      "id": "guard-not-ready",
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "pos": [40, 40],
+      "size": [160, 48]
+    },
+    {
+      "id": "run-build",
+      "type": "backend",
+      "label": "run-build",
+      "sublabel": "writes build-state.json",
+      "pos": [290, 190],
+      "size": [220, 48]
+    },
+    {
+      "id": "implement-review-precheck",
+      "type": "backend",
+      "label": "implement-review-precheck",
+      "sublabel": "Standards + Spec, in parallel",
+      "pos": [600, 190],
+      "size": [220, 48]
+    },
+    {
+      "id": "verification",
+      "type": "backend",
+      "label": "verification",
+      "sublabel": "tests, stubs, coverage",
+      "pos": [290, 340],
+      "size": [220, 48]
+    },
+    {
+      "id": "goals-check",
+      "type": "backend",
+      "label": "goals-check",
+      "sublabel": "criteria to evidence",
+      "pos": [600, 340],
+      "size": [220, 48]
+    },
+    {
+      "id": "evidence",
+      "type": "messagebus",
+      "label": "evidence",
+      "sublabel": "writes evidence.json",
+      "pos": [910, 340],
+      "size": [220, 48]
+    },
+    {
+      "id": "report",
+      "type": "backend",
+      "label": "report",
+      "sublabel": "writes report.md",
+      "pos": [290, 490],
+      "size": [220, 48]
+    },
+    {
+      "id": "open-pr",
+      "type": "backend",
+      "label": "open-pr",
+      "sublabel": "opens the PR",
+      "pos": [600, 490],
+      "size": [220, 48]
+    },
+    {
+      "id": "build-pr-gate",
+      "type": "security",
+      "label": "build-pr-gate",
+      "sublabel": "gates.build: hitl",
+      "pos": [910, 490],
+      "size": [220, 48]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Prepare",
+      "wraps": ["bootstrap", "slopcheck"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Red / green",
+      "wraps": ["run-build", "implement-review-precheck"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Verify",
+      "wraps": ["verification", "goals-check", "evidence"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Deliver",
+      "wraps": ["report", "open-pr", "build-pr-gate"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "ready",
+      "from": "bootstrap",
+      "to": "slopcheck",
+      "label": "ready"
+    },
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security"
+    },
+    {
+      "id": "packages-ok",
+      "from": "slopcheck",
+      "to": "run-build",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[1020, 138], [400, 138]]
+    },
+    {
+      "id": "loop-done",
+      "from": "run-build",
+      "to": "implement-review-precheck",
+      "label": "COMPLETE"
+    },
+    {
+      "id": "to-verification",
+      "from": "implement-review-precheck",
+      "to": "verification",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [[710, 288], [256, 288], [256, 364]]
+    },
+    {
+      "id": "to-goals",
+      "from": "verification",
+      "to": "goals-check"
+    },
+    {
+      "id": "to-evidence",
+      "from": "goals-check",
+      "to": "evidence"
+    },
+    {
+      "id": "verification-evidence",
+      "from": "verification",
+      "to": "evidence",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [[400, 328], [1020, 328]]
+    },
+    {
+      "id": "to-report",
+      "from": "evidence",
+      "to": "report",
+      "label": "any verdict",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[1020, 438], [400, 438]]
+    },
+    {
+      "id": "to-open-pr",
+      "from": "report",
+      "to": "open-pr"
+    },
+    {
+      "id": "to-gate",
+      "from": "open-pr",
+      "to": "build-pr-gate",
+      "label": "hitl",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Evidence gate",
+      "items": [
+        "evidence writes evidence.json only on a pass verdict",
+        "open-pr runs whatever evidence concluded",
+        "evidence_policy ends the run completed only when evidence.json exists"
+      ]
+    }
+  ]
+}
