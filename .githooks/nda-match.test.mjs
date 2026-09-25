@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -206,6 +206,13 @@ describe('git hooks', () => {
 	})
 	test('pre-commit installed as a symlink refuses a staged term', { skip: process.platform === 'win32' }, () => {
 		assertRefused(commit(repoWith(`Built for ${TERM}.\n`, 'repo-', true)), 1)
+	})
+	test('pre-commit refuses readably when nda-match.mjs is in neither the hooks nor the work tree', () => {
+		const hooks = mkdtempSync(join(scratch, 'hooks-'))
+		for (const name of ['pre-commit', 'commit-msg']) copyFileSync(join(HOOKS, name), join(hooks, name))
+		const dir = repoWith('clean\n')
+		git(dir, 'config', 'core.hooksPath', hooks)
+		assertRefused(commit(dir), 1, /cannot find nda-match\.mjs/)
 	})
 	test('commit-msg refuses the term in the message', () => {
 		assertRefused(commit(repoWith('clean\n'), `fix: ${TERM} typo`), 1)

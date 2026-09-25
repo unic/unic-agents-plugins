@@ -10,21 +10,5 @@
 
 set -eu
 
-# Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
-# older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy (Windows).
-self=$0
-if link=$(readlink "$self" 2>/dev/null); then
-	case $link in
-		/*) self=$link ;;
-		*) self="$(dirname "$self")/$link" ;;
-	esac
-fi
-matcher="$(dirname "$self")/nda-match.mjs"
-[ -f "$matcher" ] || matcher="$(git rev-parse --show-toplevel)/.githooks/nda-match.mjs"
-
-if ! command -v node >/dev/null 2>&1; then
-	printf '%s\n' "commit-msg: node is not on PATH, so the NDA guard cannot run and this commit is refused." >&2
-	exit 1
-fi
-
-node "$matcher" commit-msg "$1"
+# `pre-commit` finds the matcher and checks for node. It reads the message when given one.
+exec sh "$(dirname "$0")/pre-commit" "$1"
