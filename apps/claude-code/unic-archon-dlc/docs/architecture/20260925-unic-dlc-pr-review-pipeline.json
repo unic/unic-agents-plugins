@@ -72,7 +72,7 @@
       "id": "review",
       "type": "backend",
       "label": "review",
-      "sublabel": "writes review.json",
+      "sublabel": "Standards + Spec, in parallel",
       "pos": [290, 190],
       "size": [220, 48]
     },
@@ -190,10 +190,11 @@
   "cards": [
     {
       "dot": "rose",
-      "title": "Gate",
+      "title": "Gate and files",
       "items": [
         "gates.pr-review: hitl pauses at review-gate; a reject cancels the run and posts nothing",
-        "gates.pr-review: afk skips review-gate, and post runs because its trigger_rule is all_done"
+        "gates.pr-review: afk skips review-gate, and post runs because its trigger_rule is all_done",
+        "Every file sits under <artifacts_dir>/<slug>/pr-review/. review writes findings/review.json, and reconcile also writes threads.json"
       ]
     }
   ]

@@ -228,6 +228,13 @@
         "merge runs only when test is pass, e2e and coverage-gate are not fail, and base_ok is true",
         "merge marks the linked items resolved"
       ]
+    },
+    {
+      "dot": "rose",
+      "title": "UAT reject",
+      "items": [
+        "A uat-gate reject files each defect as an agent-ready issue, which feeds /tickets, and cancels the run"
+      ]
     }
   ]
 }

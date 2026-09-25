@@ -91,7 +91,7 @@
       "id": "implement-review-precheck",
       "type": "backend",
       "label": "implement-review-precheck",
-      "sublabel": "Standards + Spec",
+      "sublabel": "Standards + Spec, in parallel",
       "pos": [600, 190],
       "size": [220, 48]
     },

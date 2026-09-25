@@ -128,7 +128,7 @@
       "id": "build",
       "type": "database",
       "label": "/build",
-      "sublabel": "reads issues.json",
+      "sublabel": "reads issues.json, PRD.md",
       "pos": [760, 340],
       "size": [200, 56]
     },
@@ -258,14 +258,17 @@
       "id": "triage-in",
       "from": "triage",
       "to": "tickets",
-      "label": "agent-ready issues"
+      "label": "agent-ready issues",
+      "toSide": "left"
     },
     {
       "id": "qa-in",
       "from": "qa",
-      "to": "triage",
-      "label": "UAT reject files issues",
-      "variant": "dashed"
+      "to": "tickets",
+      "label": "UAT reject",
+      "variant": "dashed",
+      "toSide": "left",
+      "fromSide": "left"
     },
     {
       "id": "findings-read",
