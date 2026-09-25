@@ -1,0 +1,587 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "/tickets command",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Box step"
+        },
+        "backend": {
+          "label": "Tracker write"
+        },
+        "database": {
+          "label": "Method read"
+        },
+        "cloud": {
+          "label": "File read"
+        },
+        "security": {
+          "label": "Human halt"
+        },
+        "messagebus": {
+          "label": "File written"
+        },
+        "external": {
+          "label": "Stop"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "human",
+        "label": "Human halts",
+        "focus": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "h-1",
+          "h-2",
+          "h-3",
+          "h-4"
+        ],
+        "note": "The Box waits for the human in every phase, from the slug to the PR review."
+      },
+      {
+        "id": "writes",
+        "label": "Writes",
+        "focus": [
+          "p3",
+          "p4",
+          "w-issues",
+          "w-item",
+          "w-pr"
+        ],
+        "note": "issues.json and one tracker item per slice, plus a PR in open-pr mode."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "m-to-tickets",
+      "type": "database",
+      "label": "to-tickets",
+      "sublabel": "slicing, issue template",
+      "pos": [
+        300,
+        36
+      ],
+      "size": [
+        220,
+        44
+      ]
+    },
+    {
+      "id": "contract",
+      "type": "cloud",
+      "label": "Tracker contract",
+      "sublabel": "issue-tracker, triage-labels",
+      "pos": [
+        40,
+        79
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "config",
+      "type": "cloud",
+      "label": "unic-dlc.config.yaml",
+      "sublabel": "read, never written",
+      "pos": [
+        40,
+        133
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "prd",
+      "type": "cloud",
+      "label": "PRD.md, issues.json",
+      "sublabel": "issues.json on re-entry",
+      "pos": [
+        40,
+        187
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "context",
+      "type": "cloud",
+      "label": "CONTEXT, ADRs, findings",
+      "sublabel": "each if present",
+      "pos": [
+        40,
+        241
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "templates",
+      "type": "cloud",
+      "label": "Issue templates",
+      "sublabel": "issue or bug",
+      "pos": [
+        40,
+        404
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "p1",
+      "type": "frontend",
+      "label": "1-3 Prepare",
+      "sublabel": "config, slug, PRD, context",
+      "pos": [
+        300,
+        150
+      ],
+      "size": [
+        220,
+        60
+      ]
+    },
+    {
+      "id": "p2",
+      "type": "frontend",
+      "label": "4-7 Slice and check",
+      "sublabel": "slices, test seams, estimate",
+      "pos": [
+        300,
+        300
+      ],
+      "size": [
+        220,
+        48
+      ]
+    },
+    {
+      "id": "p3",
+      "type": "frontend",
+      "label": "8-9 Write and publish",
+      "sublabel": "blockers first",
+      "pos": [
+        300,
+        400
+      ],
+      "size": [
+        220,
+        48
+      ]
+    },
+    {
+      "id": "p4",
+      "type": "frontend",
+      "label": "10-11 Gate, summary",
+      "sublabel": "commits issues.json",
+      "pos": [
+        300,
+        500
+      ],
+      "size": [
+        220,
+        48
+      ]
+    },
+    {
+      "id": "stop",
+      "type": "external",
+      "label": "Stop",
+      "sublabel": "file missing, or no PRD",
+      "pos": [
+        600,
+        133
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "h-1",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "slug; revise or restart",
+      "pos": [
+        600,
+        187
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "h-2",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "approves slices, or a gap",
+      "pos": [
+        600,
+        304
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "h-3",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "fixes missing fields",
+      "pos": [
+        600,
+        360
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "h-4",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "reviews the PR",
+      "pos": [
+        600,
+        560
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "w-issues",
+      "type": "messagebus",
+      "label": "issues.json",
+      "sublabel": "gets each tracker id",
+      "pos": [
+        880,
+        358
+      ],
+      "size": [
+        230,
+        44
+      ]
+    },
+    {
+      "id": "w-item",
+      "type": "backend",
+      "label": "Item per slice",
+      "sublabel": "with ready-for-agent",
+      "pos": [
+        880,
+        450
+      ],
+      "size": [
+        230,
+        44
+      ]
+    },
+    {
+      "id": "w-pr",
+      "type": "backend",
+      "label": "PR to develop",
+      "sublabel": "open-pr mode only",
+      "pos": [
+        880,
+        502
+      ],
+      "size": [
+        230,
+        44
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Method, read in full",
+      "wraps": [
+        "m-to-tickets"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Phases, in order",
+      "wraps": [
+        "p1",
+        "p2",
+        "p3",
+        "p4"
+      ],
+      "pad": 8
+    },
+    {
+      "kind": "region",
+      "label": "Tracker writes",
+      "wraps": [
+        "w-item",
+        "w-pr"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "m-p1",
+      "from": "m-to-tickets",
+      "to": "p1",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "contract-p1",
+      "from": "contract",
+      "to": "p1",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          280,
+          99
+        ],
+        [
+          280,
+          180
+        ]
+      ]
+    },
+    {
+      "id": "config-p1",
+      "from": "config",
+      "to": "p1",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          280,
+          153
+        ],
+        [
+          280,
+          180
+        ]
+      ]
+    },
+    {
+      "id": "prd-p1",
+      "from": "prd",
+      "to": "p1",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          280,
+          207
+        ],
+        [
+          280,
+          180
+        ]
+      ]
+    },
+    {
+      "id": "context-p1",
+      "from": "context",
+      "to": "p1",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          280,
+          261
+        ],
+        [
+          280,
+          180
+        ]
+      ]
+    },
+    {
+      "id": "templates-p3",
+      "from": "templates",
+      "to": "p3"
+    },
+    {
+      "id": "p1-p2",
+      "from": "p1",
+      "to": "p2"
+    },
+    {
+      "id": "p2-p3",
+      "from": "p2",
+      "to": "p3"
+    },
+    {
+      "id": "p3-p4",
+      "from": "p3",
+      "to": "p4"
+    },
+    {
+      "id": "p1-stop",
+      "from": "p1",
+      "to": "stop",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          180
+        ],
+        [
+          560,
+          153
+        ]
+      ]
+    },
+    {
+      "id": "p1-h",
+      "from": "p1",
+      "to": "h-1",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          180
+        ],
+        [
+          560,
+          207
+        ]
+      ]
+    },
+    {
+      "id": "p2-h",
+      "from": "p2",
+      "to": "h-2",
+      "variant": "security"
+    },
+    {
+      "id": "p3-h",
+      "from": "p3",
+      "to": "h-3",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          424
+        ],
+        [
+          560,
+          380
+        ]
+      ]
+    },
+    {
+      "id": "p3-issues",
+      "from": "p3",
+      "to": "w-issues",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          850,
+          424
+        ],
+        [
+          850,
+          380
+        ]
+      ]
+    },
+    {
+      "id": "p3-item",
+      "from": "p3",
+      "to": "w-item",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          850,
+          424
+        ],
+        [
+          850,
+          472
+        ]
+      ]
+    },
+    {
+      "id": "item-issues",
+      "from": "w-item",
+      "to": "w-issues",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "p4-pr",
+      "from": "p4",
+      "to": "w-pr"
+    },
+    {
+      "id": "p4-h",
+      "from": "p4",
+      "to": "h-4",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          524
+        ],
+        [
+          560,
+          580
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Left to the agent",
+      "items": [
+        "Step 4 slices in the order the to-tickets Method sets",
+        "Steps 3, 6 and 9 fix no order inside the step"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Stops and the gate",
+      "items": [
+        "Step 8 stops on a dependency cycle, and stage-only stops before the commit",
+        "A reject at the gate returns to Step 4, then re-runs from Step 8"
+      ]
+    }
+  ]
+}

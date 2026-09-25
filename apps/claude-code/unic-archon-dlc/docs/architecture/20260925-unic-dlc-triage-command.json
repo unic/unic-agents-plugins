@@ -234,7 +234,7 @@
       "label": "Stop",
       "sublabel": "file missing: run /setup",
       "pos": [
-        560,
+        600,
         185
       ],
       "size": [
@@ -248,7 +248,7 @@
       "label": "Human",
       "sublabel": "grilled, agrees the outcome",
       "pos": [
-        560,
+        600,
         320
       ],
       "size": [
@@ -262,7 +262,7 @@
       "label": "<concept>.md",
       "sublabel": "rejected enhancement only",
       "pos": [
-        560,
+        600,
         500
       ],
       "size": [
@@ -276,7 +276,7 @@
       "label": "State role",
       "sublabel": "retracts other many-value states",
       "pos": [
-        840,
+        880,
         320
       ],
       "size": [
@@ -290,7 +290,7 @@
       "label": "Type role",
       "sublabel": "bug or feature",
       "pos": [
-        840,
+        880,
         380
       ],
       "size": [
@@ -304,7 +304,7 @@
       "label": "Comment",
       "sublabel": "opens with the AI disclaimer",
       "pos": [
-        840,
+        880,
         440
       ],
       "size": [
@@ -318,7 +318,7 @@
       "label": "Close the item",
       "sublabel": "rejected or closed only",
       "pos": [
-        840,
+        880,
         500
       ],
       "size": [
@@ -451,14 +451,14 @@
       "label": "missing",
       "variant": "security",
       "labelAt": [
-        595,
+        615,
         164
       ],
       "fromSide": "right",
       "toSide": "top",
       "via": [
         [
-          670,
+          710,
           164
         ]
       ]
@@ -470,14 +470,14 @@
       "label": "missing",
       "variant": "security",
       "labelAt": [
-        595,
+        615,
         254
       ],
       "fromSide": "right",
       "toSide": "bottom",
       "via": [
         [
-          670,
+          710,
           254
         ]
       ]
@@ -501,11 +501,11 @@
           474
         ],
         [
-          545,
+          580,
           474
         ],
         [
-          545,
+          580,
           524
         ]
       ]
@@ -518,11 +518,11 @@
       "toSide": "left",
       "via": [
         [
-          810,
+          850,
           434
         ],
         [
-          810,
+          850,
           344
         ]
       ]
@@ -535,11 +535,11 @@
       "toSide": "left",
       "via": [
         [
-          810,
+          850,
           434
         ],
         [
-          810,
+          850,
           404
         ]
       ]
@@ -552,11 +552,11 @@
       "toSide": "left",
       "via": [
         [
-          810,
+          850,
           434
         ],
         [
-          810,
+          850,
           464
         ]
       ]
@@ -569,11 +569,11 @@
       "toSide": "left",
       "via": [
         [
-          810,
+          850,
           434
         ],
         [
-          810,
+          850,
           524
         ]
       ]
