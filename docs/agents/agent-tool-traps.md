@@ -346,12 +346,25 @@ and update or delete it there.
   runs from 0 to 5 (`.agents/skills/archify/schemas/workflow.schema.json:275-278`), and
   `mainPath` refuses a step to a lower column with "moves backward from col N to M"
   (`workflow-compiler.mjs:2441`). A chain of more than six nodes therefore needs a lane per extra
-  node. The workaround used here is to drop `mainPath` and wrap the chain into two lanes that read
-  as a U-turn, the second lane right to left.
-- **Choose the `architecture` type for a flow that must run top to bottom.** Workflow lanes are
-  always horizontal rows, and `workflow.schema.json` has no orientation field. The `architecture`
-  type places each component by `pos`, so a vertical main line is a matter of coordinates. The
-  box-set diagram under `apps/claude-code/unic-archon-dlc/docs/architecture/` is built that way.
+  node. The four pipeline diagrams here left the `workflow` type for this reason, as the next
+  bullet describes.
+- **Choose the `architecture` type for a flow that runs top to bottom, or for a chain longer
+  than six nodes.** Workflow lanes are always horizontal rows, and `workflow.schema.json` has no
+  orientation field. The `architecture` type places each component by `pos`, so the layout is a
+  matter of coordinates. Every diagram under `apps/claude-code/unic-archon-dlc/docs/architecture/`
+  is built that way: the box set as columns, and each pipeline as one region per phase, stacked
+  top to bottom, with the phase's nodes left to right inside it.
+- **Size a diagram by the height of a 1440 by 900 screen.** The viewer scales the diagram to the
+  width of its panel, so a tall, narrow viewBox grows downwards. `deliver` refuses a viewBox
+  wider than about 1240 at that screen, because node text would drop below 6 px, and
+  `visual-check` refuses any page taller than the screen. Ten pipeline nodes in one column
+  measured 2161 px tall. Rows of three or four nodes fit, with one card below.
+- **Expect nested region labels to stack 2 px apart, whatever `pad` says.** An `architecture`
+  region puts its label just above its first member, and lifts it only as far as clears another
+  label (`.agents/skills/archify/renderers/architecture/render-architecture.mjs:212-215` and
+  `:254`). `pad` moves the frame, not the label, and the top pad is never below 22 px
+  (`:118-122`). A `pad` larger than the label needs leaves an empty band above the label.
+
 - **Export a PNG preview through the viewer's own Export > PNG, driven over CDP.** The Playwright
   MCP refuses `file:` URLs, and the viewer's PNG button fires no download while
   `window.showSaveFilePicker` exists. The route that worked, as one Node script run from the
