@@ -45,7 +45,7 @@ plugin ships into your project.
 ```
 MAIN LINE   /specs ──▶ /tickets ──▶ /build ──▶ /pr-review ──▶ /qa
                           ▲
-ON-RAMPS    /triage ──────┤   raw bugs · requests · /qa findings · humans → agent-ready issues
+ON-RAMPS    /triage ──────┤   raw bugs · requests · QA findings a person brings → agent-ready issues
             humans ───────┘
 OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-upgrade   (+ /handoff, /prototype — Matt's, referenced)
 ```
@@ -63,19 +63,24 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
   </picture>
 </a>
 
-| Box                     | Container | Gate              | Role                                                                                                                           |
-| ----------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `/setup`                | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
-| `/explore`              | Archon    | `gates.explore`   | Off-line, optional research + AFK spike → `findings.md` (ADR-0029)                                                             |
-| `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md`, plus one design contract per component when `design.type` is set (ADR-0020)                        |
-| `/tickets`              | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)                                             |
-| `/triage`               | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)                                            |
-| `/build`                | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                                                             |
-| `/pr-review`            | Archon    | `gates.pr-review` | Fan-out review of the open PR, intent-grounded; posts summary + inline (ADR-0026)                                              |
-| `/qa`                   | Archon    | `gates.qa`        | test → e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                                          |
-| `/improve-architecture` | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                                                     |
-| `/cleanup`              | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
-| `/archon-upgrade`       | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
+| Box                                                                                                        | Container | Gate              | Role                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `/setup` ([diagram](docs/architecture/20260925-unic-dlc-setup-command.html))                               | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
+| `/explore`                                                                                                 | Archon    | `gates.explore`   | Off-line, optional research + AFK spike → `findings.md` (ADR-0029)                                                             |
+| `/specs` ([diagram](docs/architecture/20260925-unic-dlc-specs-command.html))                               | skill     | HITL              | Branch-on-input → `PRD.md`, plus one design contract per component when `design.type` is set (ADR-0020)                        |
+| `/tickets` ([diagram](docs/architecture/20260925-unic-dlc-tickets-command.html))                           | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)                                             |
+| `/triage` ([diagram](docs/architecture/20260925-unic-dlc-triage-command.html))                             | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)                                            |
+| `/build`                                                                                                   | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                                                             |
+| `/pr-review`                                                                                               | Archon    | `gates.pr-review` | Fan-out review of the open PR, intent-grounded; posts summary + inline (ADR-0026)                                              |
+| `/qa`                                                                                                      | Archon    | `gates.qa`        | test → e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                                          |
+| `/improve-architecture` ([diagram](docs/architecture/20260925-unic-dlc-improve-architecture-command.html)) | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                                                     |
+| `/cleanup` ([diagram](docs/architecture/20260925-unic-dlc-cleanup-command.html))                           | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
+| `/archon-upgrade` ([diagram](docs/architecture/20260925-unic-dlc-archon-upgrade-command.html))             | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
+
+> **Command Box diagrams:** each command row links an Archify diagram drawn from that command's text.
+> It shows the Methods the command reads, the files it reads and writes, its tracker writes, and
+> every point where it waits for a human. `/specs`, `/tickets` and `/setup` group their steps into
+> phases so that each diagram fits one screen. Each source JSON sits beside its HTML.
 
 Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
 inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
