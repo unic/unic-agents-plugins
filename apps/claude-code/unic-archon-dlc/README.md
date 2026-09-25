@@ -81,6 +81,10 @@ Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interact
 inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
 human to run and deliberately not bundled (see [Dependencies](#dependencies)).
 
+Run `/specs` and `/tickets` in one Claude Code conversation. `/specs` grills you to write `PRD.md`,
+and `/tickets` uses what that grilling left in the conversation to slice the PRD into vertical
+slices. A new conversation starts `/tickets` with only the PRD.
+
 ## Archon workflow pipelines
 
 The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
