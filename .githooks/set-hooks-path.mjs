@@ -24,8 +24,8 @@ const git = (args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ign
  */
 function warn(reason, hooksDir) {
 	process.stderr.write(
-		`prepare: ${reason}, so the NDA git hooks may be off in this clone.\n` +
-			`  Set them by hand: git config core.hooksPath "${hooksDir}"\n`
+		`prepare: ${reason}.\n` +
+			`  Check the NDA git hooks, or set them by hand: git config core.hooksPath "${hooksDir}"\n`
 	)
 }
 
@@ -37,14 +37,15 @@ try {
 	// `safe.directory` refusal, means a clone whose hooks would silently stay off.
 	const { code, stderr } = /** @type {{ code?: string, stderr?: unknown }} */ (error)
 	if (code !== 'ENOENT' && !/not a git repository/i.test(String(stderr))) {
-		warn(`git rev-parse failed (${String(stderr).trim()})`, join(process.cwd(), '.githooks'))
+		warn(`git rev-parse failed, so the hooks are off (${String(stderr).trim()})`, join(process.cwd(), '.githooks'))
 	}
 	process.exit(0)
 }
 if (prefix !== '') process.exit(0)
 
 // The first entry of `git worktree list` is the main work tree, whatever the git directory is
-// called. A bare repository has none, and its hooks then come from this work tree instead.
+// called. A bare repository has none, and with `--separate-git-dir` git lists the git directory
+// there instead. Both then fall back to this work tree's `.githooks`.
 const here = join(process.cwd(), '.githooks')
 let hooksDir = here
 try {
@@ -52,8 +53,8 @@ try {
 	const mainTree = first.match(/^worktree (.+)$/m)?.[1]
 	const candidate = mainTree && !/^bare$/m.test(first) ? join(mainTree, '.githooks') : ''
 	if (candidate && existsSync(candidate)) hooksDir = candidate
-	else warn('found no .githooks in a main work tree, so only this work tree runs its own hooks', here)
+	else warn("found no main work tree with a .githooks, so core.hooksPath points at this work tree's", here)
 	git(['config', 'core.hooksPath', hooksDir])
 } catch {
-	warn('could not set core.hooksPath', hooksDir)
+	warn('could not set core.hooksPath, so the hooks are off', hooksDir)
 }
