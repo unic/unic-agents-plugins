@@ -7,7 +7,7 @@
 
 ### Added
 - An architecture diagram, `docs/architecture/20260925-unic-dlc-architecture.html` with its Archify source JSON, linked from the README next to the vision diagram, with a PNG preview per colour scheme. It shows what the plugin ships, what `/setup` installs into a Consumer, where each Box runs, and which parts the Harness decides, which the team owns, and which are seams between the two (#563).
-- A box-set diagram and one pipeline diagram for each Archon Box (`/build`, `/pr-review`, `/qa`, `/explore`), in `docs/architecture/` with their Archify source JSON and a PNG preview per colour scheme, linked from the README's box-set section and from each row of its pipelines table. Every pipeline diagram is drawn from its workflow YAML (#564).
+- A box-set diagram and one pipeline diagram for each Archon Box (`/build`, `/pr-review`, `/qa`, `/explore`), in `docs/architecture/` with their Archify source JSON and a PNG preview per colour scheme, linked from the README's box-set section and from each row of its pipelines table. Every pipeline diagram follows its workflow YAML (#564).
 
 ### Fixed
 - (none)
