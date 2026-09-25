@@ -124,6 +124,14 @@ Each is dated to the day it was adopted, and each came from a session that went 
   export, iterate, and only then draw the rest and export._ A description of a diagram is not that
   checkpoint. The tool's own checks do not replace it either. Every Archify check passed on designs
   the maintainer then changed.
+- **When every option a ticket lists changes the same component, ask which component sees what
+  is actually at stake** (2026-09-26, #579: the opener's four options each redefined the Claude
+  hook's job, and the answer was a fifth outside the list, because git hands `pre-push` the exact
+  commits a push sends, so the scan moved there). An opener that lists options names this question
+  beside them.
+- **A grilling asks one question at a time while the answers still branch** (2026-09-26, #579).
+  Once the remaining questions no longer depend on each other, ask them together. The maintainer
+  confirmed that shape.
 
 ### Before you post one: the four reads
 
