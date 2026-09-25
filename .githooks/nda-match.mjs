@@ -35,7 +35,7 @@
 // on a match or when the term list cannot be read. The list lives outside every repository:
 // $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt.
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -73,7 +73,7 @@ const isUpper = (/** @type {string | undefined} */ c) => isLetter(c) && c === c?
 const isLower = (/** @type {string | undefined} */ c) => isLetter(c) && c === c?.toLowerCase() && c !== c?.toUpperCase()
 
 /**
- * Is there a word boundary between `text[i - 1]` and `text[i]`?
+ * Is there a word boundary between the character that ends at `i` and the one that starts there?
  * @param {string} text
  * @param {number} i
  */
@@ -147,4 +147,6 @@ async function main() {
 	process.exit(1)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()
+// Node resolves symlinks in `import.meta.url` but not in `argv[1]`, so compare the real paths. A
+// `core.hooksPath` set through a symlink would otherwise run nothing and exit 0.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) main()

@@ -231,6 +231,11 @@ describe('git hooks', () => {
 			assertRefused(commit(dir, `fix: ${TERM} typo`), 1, /cannot find nda-match\.mjs/)
 		}
 	)
+	test('the matcher refuses a term when reached through a symlinked directory', () => {
+		const link = join(scratch, `linked-hooks-${Date.now()}`)
+		symlinkSync(HOOKS, link, 'junction')
+		assertRefused(run('node', [join(link, 'nda-match.mjs'), 'pre-commit'], scratch, {}, `Built for ${TERM}.\n`), 1)
+	})
 	test('commit-msg refuses the term in the message', () => {
 		assertRefused(commit(createStagedRepo('clean\n'), `fix: ${TERM} typo`), 1)
 	})
