@@ -81,10 +81,10 @@ Two leak paths make the file and diff reads compulsory rather than thorough: `gh
 
 **Both guards apply one matching rule, from `.githooks/nda-match.mjs`.** The git hooks run it with `node`, and the Claude hook imports it. Change the rule there and nowhere else. It works in two steps:
 
-1. It removes base64 data: every `data:…;base64,` URI, and every run of 80 or more base64 characters that holds a digit, which a sha512 hash fills. A short term inside embedded font data identifies nobody, and every Archify diagram embeds a font.
+1. It removes base64 data: every `data:…;base64,` URI whose payload has 80 or more characters, and every run of 80 or more base64 characters that holds a digit and either a `+` after its first character or `=` padding at its end. A sha512 hash fills such a run. A short term inside embedded font data identifies nobody, and every Archify diagram embeds a font. A path has no `+` or `=`, so a long path is still matched.
 2. It matches a term, ignoring case, only on a word boundary at both ends. A boundary is the edge of the text, any character that is not a letter or digit, a change between letter and digit, or a camelCase change. So `acme`, `acme-site`, `acme_site`, `acme2026`, `acmeSite`, `myAcme` and `ACMESite` all match `acme`.
 
-The rule lets two shapes through, so check a text for them yourself before it goes public. The first is a term inside a longer word with no case change, such as `acmesite` or `Acmesite`. The second is a term inside a run of 80 or more base64 characters that holds a digit, with no `.`, `-`, `_`, `?` or space in it.
+The rule lets three shapes through, so check a text for them yourself before it goes public. The first is a term inside a longer word with no case change, such as `acmesite` or `Acmesite`. The second is a term inside a `data:…;base64,` payload of 80 or more characters. The third is a term inside a run of 80 or more base64 characters that holds a digit and a `+` or trailing `=`, with no `.`, `-`, `_`, `?` or space in it.
 
 **Describe no client in public, whether or not it is under an NDA.** Write no word that tells a reader which client a piece of work is for: no sector, city, site or product name, and no example drawn from one. That also applies when the example appears in a warning about identifying a client, where it is easiest to write. The term list carries such descriptors as well as names, so the guards refuse them. A paraphrase the list does not hold still passes, so read every public text for it before you send.
 
