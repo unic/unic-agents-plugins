@@ -60,11 +60,9 @@ Archon also keeps a `default_branch` of its own per repository, set from whateve
 
 Run `pnpm install` once in every clone, including one that still has symlinks in `.git/hooks`. It points `core.hooksPath` at the main work tree's `.githooks`, as an absolute path, so every worktree of the clone runs the hooks the main work tree has checked out. Git then reads no hook from `.git/hooks`. The old symlinks may stay or go, but a hook of your own there, such as a personal `post-commit`, stops running.
 
-A worktree on a branch without hooks is guarded too, but only while the main work tree is on a branch that carries them. Today `main` carries only `pre-push`, so with the main work tree on `main` no worktree runs the NDA commit hooks, and `pnpm install` fails with the name of each missing hook. That gap closes once [#576](https://github.com/unic/unic-agents-plugins/pull/576) and [#577](https://github.com/unic/unic-agents-plugins/pull/577) reach `main`.
+A worktree on a branch without hooks is guarded too, but only while the main work tree is on a branch that carries them. Today `main` carries only `pre-push`, so with the main work tree on `main` no worktree runs the NDA commit hooks, and `pnpm install` fails with the name of each missing file. That gap closes once [#576](https://github.com/unic/unic-agents-plugins/pull/576) and [#577](https://github.com/unic/unic-agents-plugins/pull/577) reach `main`.
 
-Two cases leave the hooks off without a message. One is a moved clone, where the absolute path is stale. The other is an install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, where `prepare` never runs. In both, run `pnpm install` again without that setting, or set the path by hand with `git config core.hooksPath <absolute path to the main work tree>/.githooks`.
-
-Every other case that leaves the hooks off fails `pnpm install` and prints why. That covers git failing to run, a hooks directory without a guard, a failed write, and a `core.hooksPath` in `config.worktree` that wins over the shared value. `prepare` exits 1 there rather than warn, because at a terminal pnpm replaces the output of a script that exits 0 with "Done".
+When the hooks end up off, `pnpm install` fails and prints why, except in two cases. One is a moved clone, where the absolute path is stale. The other is an install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, where `prepare` never runs. In both, run `pnpm install` again without that setting, or set the path by hand with `git config core.hooksPath <absolute path to the main work tree>/.githooks`.
 
 ### The NDA publish guard
 
