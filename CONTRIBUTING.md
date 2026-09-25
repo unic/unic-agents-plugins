@@ -70,7 +70,9 @@ pnpm install
 
 `pnpm install` also turns on the repository's git hooks in `.githooks/`. Of those, `pre-commit` and `commit-msg` need `node` on `PATH`. From then on, every commit is refused until the NDA term list exists at `~/.config/unic/nda-denylist.txt`, or at the path in `$UNIC_NDA_DENYLIST`. Create it with one term per line, or `touch` it to opt out deliberately.
 
-An install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, leaves the hooks off without a message. So does moving the clone. In both cases, set them by hand with `git config core.hooksPath <absolute path to this clone>/.githooks`.
+Git reads hooks from one directory only, so a hook of your own in `.git/hooks`, such as a personal `post-commit`, stops running.
+
+An install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, leaves the hooks off without a message. So does moving the clone. In both cases, set them by hand with `git config core.hooksPath <absolute path to this clone>/.githooks`. In every other case that leaves the hooks off, `pnpm install` fails and prints why.
 
 ### Cloning on Windows
 
