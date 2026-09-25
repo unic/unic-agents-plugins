@@ -1,0 +1,545 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "/cleanup command",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Box step"
+        },
+        "backend": {
+          "label": "Tracker write"
+        },
+        "database": {
+          "label": "Method read"
+        },
+        "cloud": {
+          "label": "File read"
+        },
+        "security": {
+          "label": "Human halt"
+        },
+        "messagebus": {
+          "label": "File written"
+        },
+        "external": {
+          "label": "Stop"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "report",
+        "label": "Report only",
+        "focus": [
+          "step-1",
+          "step-2",
+          "step-3",
+          "step-4",
+          "step-5",
+          "step-6",
+          "stop"
+        ],
+        "note": "The default run reports what is prunable and deletes nothing."
+      },
+      {
+        "id": "apply",
+        "label": "Apply",
+        "focus": [
+          "step-2",
+          "h-2",
+          "step-7",
+          "h-7",
+          "w-worktrees",
+          "w-dirs",
+          "w-prs"
+        ],
+        "note": "With --apply, each category needs its own yes before anything is removed."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "config",
+      "type": "cloud",
+      "label": "unic-dlc.config.yaml",
+      "sublabel": "absent only warns",
+      "pos": [
+        40,
+        33
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "contract",
+      "type": "cloud",
+      "label": "Tracker contract",
+      "sublabel": "issue-tracker.md",
+      "pos": [
+        40,
+        87
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "r-worktrees",
+      "type": "cloud",
+      "label": "Archon worktrees",
+      "sublabel": "archon isolation list",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "r-prs",
+      "type": "cloud",
+      "label": "Open PRs",
+      "sublabel": "read through the tracker",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "r-dirs",
+      "type": "cloud",
+      "label": "Slug dirs",
+      "sublabel": "children of artifacts_dir",
+      "pos": [
+        40,
+        340
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-1",
+      "type": "frontend",
+      "label": "1 Load config",
+      "sublabel": "tracker read-only",
+      "pos": [
+        300,
+        60
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-2",
+      "type": "frontend",
+      "label": "2 Determine mode",
+      "sublabel": "report-only by default",
+      "pos": [
+        300,
+        130
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-3",
+      "type": "frontend",
+      "label": "3 Enumerate worktrees",
+      "sublabel": "merged, stale, active",
+      "pos": [
+        300,
+        200
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-4",
+      "type": "frontend",
+      "label": "4 Detect stale PRs",
+      "sublabel": "and their branches",
+      "pos": [
+        300,
+        270
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-5",
+      "type": "frontend",
+      "label": "5 Detect slug dirs",
+      "sublabel": "prunable or kept",
+      "pos": [
+        300,
+        340
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-6",
+      "type": "frontend",
+      "label": "6 Report",
+      "sublabel": "every prunable item",
+      "pos": [
+        300,
+        410
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-7",
+      "type": "frontend",
+      "label": "7 Apply",
+      "sublabel": "--apply only",
+      "pos": [
+        300,
+        480
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "step-8",
+      "type": "frontend",
+      "label": "8 Print the summary",
+      "sublabel": "what each action did",
+      "pos": [
+        300,
+        550
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "h-2",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "overrides dry_run, if asked",
+      "pos": [
+        600,
+        130
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "stop",
+      "type": "external",
+      "label": "Stop",
+      "sublabel": "report-only run ends here",
+      "pos": [
+        600,
+        410
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "h-7",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "yes or no per category",
+      "pos": [
+        600,
+        480
+      ],
+      "size": [
+        220,
+        40
+      ]
+    },
+    {
+      "id": "w-worktrees",
+      "type": "messagebus",
+      "label": "Worktrees, branches",
+      "sublabel": "removed through archon",
+      "pos": [
+        880,
+        465
+      ],
+      "size": [
+        230,
+        40
+      ]
+    },
+    {
+      "id": "w-dirs",
+      "type": "messagebus",
+      "label": "Slug dirs",
+      "sublabel": "deleted; LICENSE dirs skipped",
+      "pos": [
+        880,
+        515
+      ],
+      "size": [
+        230,
+        40
+      ]
+    },
+    {
+      "id": "w-prs",
+      "type": "backend",
+      "label": "Stale PRs closed",
+      "sublabel": "opt-in only",
+      "pos": [
+        880,
+        565
+      ],
+      "size": [
+        230,
+        40
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Steps, in order",
+      "wraps": [
+        "step-1",
+        "step-2",
+        "step-3",
+        "step-4",
+        "step-5",
+        "step-6",
+        "step-7",
+        "step-8"
+      ],
+      "pad": 8
+    }
+  ],
+  "connections": [
+    {
+      "id": "config-s1",
+      "from": "config",
+      "to": "step-1",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          280,
+          53
+        ],
+        [
+          280,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "contract-s1",
+      "from": "contract",
+      "to": "step-1",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          280,
+          107
+        ],
+        [
+          280,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "worktrees-s3",
+      "from": "r-worktrees",
+      "to": "step-3"
+    },
+    {
+      "id": "prs-s4",
+      "from": "r-prs",
+      "to": "step-4"
+    },
+    {
+      "id": "dirs-s5",
+      "from": "r-dirs",
+      "to": "step-5"
+    },
+    {
+      "id": "s1-s2",
+      "from": "step-1",
+      "to": "step-2"
+    },
+    {
+      "id": "s2-s3",
+      "from": "step-2",
+      "to": "step-3"
+    },
+    {
+      "id": "s3-s4",
+      "from": "step-3",
+      "to": "step-4"
+    },
+    {
+      "id": "s4-s5",
+      "from": "step-4",
+      "to": "step-5"
+    },
+    {
+      "id": "s5-s6",
+      "from": "step-5",
+      "to": "step-6"
+    },
+    {
+      "id": "s6-s7",
+      "from": "step-6",
+      "to": "step-7",
+      "label": "--apply",
+      "labelAt": [
+        470,
+        465
+      ]
+    },
+    {
+      "id": "s7-s8",
+      "from": "step-7",
+      "to": "step-8"
+    },
+    {
+      "id": "s2-h",
+      "from": "step-2",
+      "to": "h-2",
+      "variant": "security"
+    },
+    {
+      "id": "s6-stop",
+      "from": "step-6",
+      "to": "stop",
+      "label": "report-only",
+      "variant": "security"
+    },
+    {
+      "id": "s7-h",
+      "from": "step-7",
+      "to": "h-7",
+      "variant": "security"
+    },
+    {
+      "id": "s7-worktrees",
+      "from": "step-7",
+      "to": "w-worktrees",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          500
+        ],
+        [
+          560,
+          535
+        ],
+        [
+          850,
+          535
+        ],
+        [
+          850,
+          485
+        ]
+      ]
+    },
+    {
+      "id": "s7-dirs",
+      "from": "step-7",
+      "to": "w-dirs",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          500
+        ],
+        [
+          560,
+          535
+        ]
+      ]
+    },
+    {
+      "id": "s7-prs",
+      "from": "step-7",
+      "to": "w-prs",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          560,
+          500
+        ],
+        [
+          560,
+          535
+        ],
+        [
+          850,
+          535
+        ],
+        [
+          850,
+          585
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Left to the agent",
+      "items": [
+        "Steps 3 to 5 apply their rules in no stated order",
+        "Step 7 takes the categories in no stated order"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "No error stops",
+      "items": [
+        "Every failure warns and the run continues",
+        "--include-closed needs its own opt-in inside Step 7"
+      ]
+    }
+  ]
+}
