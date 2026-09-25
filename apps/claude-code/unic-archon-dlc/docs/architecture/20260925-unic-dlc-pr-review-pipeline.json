@@ -190,11 +190,18 @@
   "cards": [
     {
       "dot": "rose",
-      "title": "Gate and files",
+      "title": "Gate",
       "items": [
         "gates.pr-review: hitl pauses at review-gate; a reject cancels the run and posts nothing",
-        "gates.pr-review: afk skips review-gate, and post runs because its trigger_rule is all_done",
-        "Every file sits under <artifacts_dir>/<slug>/pr-review/. review writes findings/review.json, and reconcile also writes threads.json"
+        "gates.pr-review: afk skips review-gate, and post runs because its trigger_rule is all_done"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Files",
+      "items": [
+        "Every file sits under <artifacts_dir>/<slug>/pr-review/. prep writes intent-brief.md, diff.patch, changed-files.txt and prep.json",
+        "review writes findings/review.json, synthesize writes findings.json and summary-sections.md, and reconcile writes comment.md and threads.json"
       ]
     }
   ]

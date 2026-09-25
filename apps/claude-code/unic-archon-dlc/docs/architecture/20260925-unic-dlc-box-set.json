@@ -184,7 +184,7 @@
       "id": "review-files",
       "type": "external",
       "label": "pr-review/",
-      "sublabel": "comment.md, findings.json",
+      "sublabel": "comment.md, threads.json, …",
       "pos": [1120, 440],
       "size": [200, 56]
     },
