@@ -28,7 +28,15 @@ plugin ships into your project.
 > made with Archify. Its source JSON sits alongside, and the HTML opens in any browser. The vision
 > diagram shows the box set. This one shows the architecture: what the plugin ships, what `/setup`
 > installs into a Consumer, where each Box runs, and which parts the Harness decides, which the team
-> owns, and which are seams between the two.
+> owns, and which are seams between the two. The preview below is a PNG export from the diagram's
+> own viewer, one per colour scheme; export both again whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-architecture.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-architecture.dark.png">
+    <img alt="unic-archon-dlc architecture: the plugin, what /setup installs into a Consumer repository, Claude Code and Archon on the developer machine, the team's systems, and an optional Practice Pack" src="docs/architecture/20260925-unic-dlc-architecture.light.png">
+  </picture>
+</a>
 
 ---
 
