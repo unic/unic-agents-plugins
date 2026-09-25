@@ -27,17 +27,15 @@
 # It fails CLOSED. No readable list means no commit, because a guard that waves work through when
 # its own configuration is missing protects nothing. `touch` the file to opt out deliberately.
 #
-# INSTALL (per clone; `.git/hooks` is not version-controlled)
-#
-#   ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
-#   ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+# INSTALL: `pnpm install` points `core.hooksPath` at the main work tree's `.githooks`, so every
+# worktree of the clone runs these hooks. See `.githooks/set-hooks-path.mjs`.
 
 set -eu
 
 # The matching rule lives in nda-match.mjs, which `.claude/hooks/block-nda-terms.mjs` shares, so the
 # two guards cannot disagree. It also reads the term list and fails closed when it cannot.
-# Next to the script that runs: this file under `core.hooksPath`, or the target of the symlink in
-# `.git/hooks`. Fall back to the work tree where the symlink became a plain copy (Windows).
+# Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
+# older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy (Windows).
 self=$0
 if link=$(readlink "$self" 2>/dev/null); then
 	case $link in

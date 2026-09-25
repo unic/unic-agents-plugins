@@ -68,6 +68,10 @@ Everything else (Biome, Prettier, TypeScript) is a workspace devDependency and i
 pnpm install
 ```
 
+`pnpm install` also turns on the repository's git hooks in `.githooks/`. Of those, `pre-commit` and `commit-msg` need `node` on `PATH`. From then on, every commit is refused until the NDA term list exists at `~/.config/unic/nda-denylist.txt`, or at the path in `$UNIC_NDA_DENYLIST`. Create it with one term per line, or `touch` it to opt out deliberately.
+
+An install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, leaves the hooks off without a message. So does moving the clone. In both cases, set them by hand with `git config core.hooksPath <absolute path to this clone>/.githooks`.
+
 ### Cloning on Windows
 
 Some vendored skills reach Claude Code through a symlink in `.claude/skills/`. Git checks a symlink out as a real one only when `core.symlinks` is true, and Git for Windows can create one only for a user who is allowed to: turn on Developer Mode, or use an elevated shell. Otherwise the symlink arrives as a short text file and the skill does not load.

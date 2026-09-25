@@ -21,12 +21,8 @@
 # escape hatch for a deliberate human push; no environment override is provided, because an
 # autonomous agent that hit a block would be just as able to set the variable as you are.
 #
-# INSTALL (per clone; `.git/hooks` is not version-controlled)
-#
-#   ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
-#
-# `core.hooksPath` in this repo points at the main clone's `.git/hooks`, and every linked worktree
-# resolves hooks through that same shared config — so one install covers all of them.
+# INSTALL: `pnpm install` points `core.hooksPath` at the main work tree's `.githooks`, so every
+# worktree of the clone runs these hooks. See `.githooks/set-hooks-path.mjs`.
 #
 # Arguments: $1 = remote name, $2 = remote URL.
 # Stdin: one line per ref being pushed — "<local ref> <local sha> <remote ref> <remote sha>".
