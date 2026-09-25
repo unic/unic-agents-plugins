@@ -9,6 +9,7 @@
     "pnpm": ">=10"
   },
   "scripts": {
+    "prepare": "node .githooks/set-hooks-path.mjs",
     "format": "biome format --write . && prettier --write \"**/*.md\"",
     "check": "biome check . && prettier --check \"**/*.md\"",
     "ci:check": "biome ci . && prettier --check \"**/*.md\"",
