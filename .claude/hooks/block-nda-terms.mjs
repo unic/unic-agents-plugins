@@ -98,8 +98,9 @@ const MESSAGE_ARG = /(?:\s-m|\s--message)(?:=|\s*)(?:"(?:[^"\\]|\\.)*"|'[^']*')/
 const HEREDOC_OPEN = /\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<(-?)\s*(['"]?)(\w+)\2[^\n]*/g
 
 /**
- * Drops each heredoc message body, closing it where the shell would: a `<<-` heredoc on a
- * tab-indented word, a `<<` heredoc only on the word at column 0. An unclosed heredoc is kept.
+ * Drops each heredoc message body, closing it where the shell would. A `<<` heredoc closes only
+ * on its word at column 0, and a `<<-` heredoc on its word after any number of tabs, including
+ * none. An unclosed heredoc is kept.
  * @param {string} command
  */
 function withoutMessages(command) {

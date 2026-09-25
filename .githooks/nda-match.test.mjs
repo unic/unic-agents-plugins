@@ -78,6 +78,10 @@ describe('findTerm', () => {
 	test('passes the term inside a base64 run that holds a plus after a digit', () => {
 		assert.equal(findTerm(`${'Ab1+'.repeat(10)}${TERM}Q${'Ab1+'.repeat(10)}`, [TERM]), null)
 	})
+	test('refuses the term in a long form-encoded run with no digit', () => {
+		const body = `body=Built+for+${TERM}+last+week+and+the+team+shipped+the+new+header+navigation+to+production`
+		assert.equal(findTerm(body, [TERM]), TERM)
+	})
 	test('refuses the term in a SvelteKit route on a staged line', () => {
 		const route = `+apps/web/src/routes/customers/${TERM}/dashboard/settings/v2/billing/invoices/details/+page.svelte`
 		assert.equal(findTerm(route, [TERM]), TERM)
@@ -85,7 +89,8 @@ describe('findTerm', () => {
 	test('reads 40,000 hex characters in under 100 ms', () => {
 		const start = performance.now()
 		findTerm('0123456789abcdef'.repeat(2500), [TERM])
-		assert.ok(performance.now() - start < 100)
+		const ms = performance.now() - start
+		assert.ok(ms < 100, `${ms} ms`)
 	})
 	test('refuses the term in the media type of a data URI', () => {
 		assert.equal(findTerm(`data:text/${TERM};base64,${'A'.repeat(90)}`, [TERM]), TERM)
@@ -283,6 +288,16 @@ describe('Claude hook', () => {
 	test('refuses a staged term committed after cd when a << heredoc holds a tab-indented closing word', () => {
 		const dir = repoWith(`Built for ${TERM}.\n`)
 		const command = `git commit -F - <<EOF\n\tEOF\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
+		assertRefused(claudeHook(command, clone), 2)
+	})
+	test('refuses a staged term committed after cd when a << heredoc holds a line that starts with its word', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		const command = `git commit -F - <<EOF\nEOFX\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
+		assertRefused(claudeHook(command, clone), 2)
+	})
+	test('refuses a staged term committed after cd when a <<- heredoc holds a space-indented closing word', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		const command = `git commit -F - <<-EOF\n  EOF\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
 		assertRefused(claudeHook(command, clone), 2)
 	})
 	test('refuses a staged term in a long absolute path', () => {
