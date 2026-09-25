@@ -34,6 +34,26 @@ and may not survive an upgrade.
   through entirely, because zsh does not word-split unquoted expansions, so `for x in $LIST`
   iterates once.
 - **A check that cannot be made to fail is inert, not passing.** Ship a positive control beside it.
+- **Run `pnpm ci:check` before a push, not only `pnpm format`.** `pnpm format` runs
+  `biome format --write`, which never applies the `organizeImports` assist, while `biome ci` fails on
+  unsorted named imports. So a file can pass `pnpm format` and turn Root checks red.
+  `npx biome check --write <file>` applies the fix. Measured 2026-09-24.
+- **GitHub runs pull-request checks on the merge commit, not on the branch.** When CI is red and a
+  local `pnpm ci:check` is green, suspect a stale merge base first: `git merge origin/develop`, re-run,
+  push. Biome's "Found N infos" line exits 0, so find the step that exits non-zero (2026-06-09,
+  PR #235).
+- **Run `pnpm format` after editing one cell of a Markdown table.** Prettier pads every cell to the
+  widest in its column, so one changed cell re-pads the whole table, and a commit without the
+  realignment fails Root checks (2026-07-03).
+- **Keep a gate's output and exit code visible.** `cmd >/dev/null 2>&1 && echo ok` prints nothing on
+  failure, and nothing is easy to read as a pass. Run `cmd; echo "exit: $?"` (2026-06-05, PR #198:
+  a failed typecheck was committed this way). The failure there was `tsc --checkJs` typing a
+  `catch (err)` binding as `unknown`; read its fields through a JSDoc cast,
+  `/** @type {{ status?: number }} */ (err).status`.
+- **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
+  path.** `rg <path> --glob '!test/**'` still searches `<path>/test/`. Write `--glob '!**/test/**'`.
+  It fails towards more matches, so a criterion written as "this `rg` finds nothing except under X"
+  can become unsatisfiable (2026-08-13, #348; re-measured 2026-09-24).
 
 ## `gh`
 
@@ -128,6 +148,27 @@ Measured against one ruleset, on pull requests targeting the default integration
   request from a work item is a UI click.
 - **A work item that is `Resolved` with ticked criteria cannot be a pull request's acceptance
   surface.** A review workflow will correctly refuse to read those criteria as that pull request's.
+- **Check which field a work-item type renders before writing to it.** On one board measured
+  2026-09-01 the Bug form shows `Microsoft.VSTS.TCM.ReproSteps` and not `System.Description`, so
+  text written to the description was stored and never seen. User Story and Task render
+  `System.Description`. After any programmatic write, read the fields back.
+- **Editing a work item never removes old text.** Every revision stays readable in the History tab
+  and through `az devops invoke --area wit --resource revisions`. To stop an item carrying something,
+  create a new item and remove the old one (2026-08-31).
+- **`az boards work-item update --fields "<Field>=<value>"` replaces a scalar field cleanly;
+  `System.Tags` is the exception**, because Azure DevOps merges tags additively, so a tag removal
+  fails where every other field succeeds. Do not read a tag failure as "the CLI cannot write work
+  items" (2026-09-03).
+- **`--description ""` is accepted and clears the field with no warning.** A generator that failed
+  before a write loop blanked four descriptions through `--description "$(cat missing.html)"`
+  (2026-09-02). See the destructive-write rule in [Environment](#environment).
+- **`az devops invoke` parses `--api-version` as a float.** `7.1-preview.4`, as Microsoft's API pages
+  print it, fails with `could not convert string to float: '7.1.4'`. Pass `7.1-preview`; the service
+  picks the revision (2026-09-05). Work-item comments have no `az boards` subcommand, so this is
+  their route.
+- **The `azure-devops` MCP's `wit_query action=wiql` returns only `id` and `url` per item.** The
+  `SELECT` columns come back only as `columns` metadata. Reading work items is two calls: the `wiql`
+  for ids, then `wit_work_item action=get_batch` with a `fields` array (2026-08-27).
 
 ## Archon
 
@@ -154,11 +195,16 @@ every bullet added since carries the version and date it was measured on.
   is one machine, the file travels.
 - **`archon workflow approve <id>` from the terminal approves and resumes.** Approving in the UI
   records `approved` and leaves the run paused forever.
-- **`archon --help` hides four verbs: `approve`, `reject`, `resume`, `abandon`.** A session that
-  checks help concludes there is no way to stop a run. Read them from the binary instead:
-  `strings "$(readlink -f "$(command -v archon)")" | grep -oE '.{55}"abandon".{55}'`. `cancel` and
-  `abandon` are aliases. **Absence from `--help` is not absence from the tool.**
-- **`abandon` works on a paused run and on a live one.** So the proof recipe for a gated workflow
+- **Read a verb's meaning from `archon workflow --help`, and read the binary when help is silent.**
+  On v0.7.0 help listed none of `approve`, `reject`, `resume` or `abandon`, so a session concluded
+  there was no way to stop a run. On v0.10.1 (measured 2026-09-24) help lists `resume`, `cancel`,
+  `abandon` and `respond`, and names `approve` and `reject` only as sugar inside `respond`'s line.
+  `cancel` and `abandon` are **not** aliases on v0.10.1: `cancel` stops a run started with
+  `--detach`, and `abandon` marks a run cancelled without stopping host work. To read the binary:
+  `strings "$(readlink -f "$(command -v archon)")" | grep -oE '.{55}"abandon".{55}'`. **Absence
+  from `--help` is not absence from the tool.**
+- **`abandon` works on a paused run and on a live one**, but on a live one it only marks the row
+  cancelled and does not stop host work (v0.10.1 help, 2026-09-24). So the proof recipe for a gated workflow
   is: dispatch with the gate on `hitl`, harvest the artefacts and the run events at the pause, then
   abandon, then complete.
 - **`resume` walks through an unresolved approval gate.** A run that died `SIGTERM` while paused at
@@ -187,7 +233,10 @@ every bullet added since carries the version and date it was measured on.
   exclusive exception to "all feature work in a worktree": take it only when no other session is
   working in that clone, and restore it before releasing the clone. One session moved a shared
   clone under another session's five uncommitted files, and recovery worked only because the edits
-  were uncommitted.**
+  were uncommitted.** The copy reads the clone's working tree, not a ref, and it is gated on the
+  `.archon` directory mtimes: certain at worktree creation, intermittent on resume. So a run that
+  shows no clobber proves nothing; never plan one as evidence. Read from the v0.7.0 binary,
+  2026-08-24.
 - **Re-copy the definition to the consumer, then run the verification — never run, then patch.**
   What gets verified must hash-match what ships.
 - **Harvest before completing any terminal run.** Every workflow writes outward last, so a killed
@@ -233,6 +282,54 @@ every bullet added since carries the version and date it was measured on.
   to probe a config key has none, so the first run of every probe fails on the environment rather
   than on the thing being measured. Add a dummy remote, or pass `--no-worktree`, which a probe wants
   anyway. Measured on v0.10.1, 2026-09-22, by two seats independently.
+- **A node gets `CLAUDE.md` and nothing else by default.** `AGENTS.md` never reaches it, a project
+  skill reaches it only with `skills: [<name>]` on the node, and an MCP server only with `mcp:`.
+  `settingSources: [project]` changes none of this, and `skills: all` cannot be expressed. A
+  misspelt skill name loads nothing and the node continues. Measured on v0.10.1, 2026-09-22.
+- **To stop a run started with `--detach`, use `archon workflow cancel <run-id>`.** `abandon`
+  marks the run cancelled without stopping host work, so it is orphan cleanup, not a stop. Source:
+  `archon workflow --help` on v0.10.1, measured 2026-09-24. Whether `cancel` stops a run started
+  without `--detach` is unmeasured. Stopping the launching task is not a stop either: on 2026-08-26
+  a `TaskStop` on the launching Claude Code task left the run working in later nodes, and on
+  2026-08-27 an outside kill of the launching task took two runs down with `SIGTERM`; that
+  task-level behaviour is unverified since v0.8.0. A run also keeps working after it opens its pull
+  request, and later nodes can push more commits, so judge a run by `archon workflow get <run-id>`
+  and by what reaches GitHub.
+- **The binary answers "why" and "does this verb exist".** It is a Bun single-file bundle, so
+  `strings -n 6 "$(readlink -f "$(command -v archon)")"` extracts the JavaScript. The bundle is
+  minified onto few lines, so grep with a window (`grep -oE '.{200}<event name>.{200}'`) and search
+  by logger or event name. Read the source before designing a reproduction run (2026-08-24, #411).
+- **`$ARTIFACTS_DIR` is outside the repository**, under `~/.archon/workspaces/<workspace>/artifacts/`,
+  so nothing written there shows in a pull request. It is reused on resume, so delete a
+  presence-checked file before it is re-written, or a stale copy certifies the new attempt. It is
+  not `unic-archon-dlc`'s repo-relative `artifacts_dir` key. Measured on v0.7.0, 2026-08-03.
+- **Never put `$node.output…` syntax in a dispatch prompt.** Archon interpolates the prompt into
+  nodes and resolves every `$node.output.*` token; an unknown one fails the run at node 1 in about
+  15 ms with no node error. Describe node outputs in prose. Only `$node.output` was measured;
+  write `$ARTIFACTS_DIR` and other `$`-tokens in prose too, as a precaution. A sub-second failure at
+  node 1 means template resolution, not the model
+  (2026-08-05).
+- **A `cancel:` node ends the run `cancelled`, not `failed`**, and the CLI still exits non-zero. A
+  node after a conditional `cancel:` is skipped on the green path unless it carries
+  `trigger_rule: all_done`. A `script:` node ignores `output_format`: to be read by a `when:`, it
+  must print `JSON.stringify(...)`. `when:` parses only `$nodeId.output <op> 'VALUE'` with `&&` and
+  `||`, and skips the node on anything else. Measured on v0.7.0, 2026-09-04.
+- **A config-key probe needs five runs, one of them with no `worktree:` block at all** as the
+  control, and remote names unique to the run: `~/.archon/archon.db` keys a codebase by remote URL
+  and reuses its stored path, so a reused name breaks the next probe. Measured on v0.7.0,
+  2026-08-25.
+- **`archon.db` stores UTC; `stat` and `ls` print local time.** The offset once turned a mid-run
+  install into a post-run human one. Convert in the query, `datetime(created_at, 'localtime')`, or
+  on the file side with `TZ=UTC stat -f '%SB' <path>` on macOS or `TZ=UTC stat -c '%w' <path>` on
+  Linux (2026-09-03, #430; the Linux form is unmeasured here).
+- **A killed run is recoverable from `archon.db`.** Every `tool_called` row in
+  `remote_agent_workflow_events` carries the tool's full input, so each `Write` and heredoc a node
+  made is there verbatim after the worktree is gone; `node_completed` rows show how far it got
+  (2026-09-02). Harvest the worktree first; the database is the fallback.
+- **A resumed run keeps only the resumed segment's cost and start time.** Resume after a `hitl` gate
+  rewrites `started_at` and `metadata.total_cost_usd`, so the database reports a fraction of the
+  real cost. Check per-node `duration_ms` in the run's `.jsonl` log before quoting a cost
+  (2026-08-26).
 
 ## git
 
@@ -248,9 +345,19 @@ every bullet added since carries the version and date it was measured on.
 - **A symlinked git hook resolves only while the checked-out branch carries the file.** On a branch
   that predates it the link dangles, git finds no hook, and the guard is silently inert — on the
   very branch it exists to protect. Copy it (`install -m 755`), do not symlink.
-- **Global `push.default` was `matching` on this machine until 2026-09-01.** A bare `git push`
-  pushed every name-matching local branch, other worktrees' branches included. Now `simple`;
-  explicit refspecs stay good practice on a shared clone.
+- **Global `push.default` was `matching` on the maintainer's macOS machine until 2026-09-22.** A
+  bare `git push` pushed every name-matching local branch, other worktrees' branches included. It is
+  `simple` there now (re-measured 2026-09-24). An earlier version of this line dated the fix
+  2026-09-01, which was false. The Linux machine was never measured, and a global setting does not
+  travel, so push with an explicit refspec everywhere.
+- **`git check-ignore` never matches a tracked file.** It exits 1 on a tracked path whether or not a
+  rule matches, so that exit code says nothing about the rule. Use `git check-ignore --no-index`
+  (measured 2026-09-24).
+- **`git rev-parse --git-dir` and `--git-common-dir` print a relative path**, relative to the working
+  directory. Joined into a path, `git -C <repo> rev-parse --git-common-dir` points into your own
+  directory. Pass `--path-format=absolute` whenever the output becomes part of a path (2026-09-22;
+  re-measured 2026-09-24). The tell: identical sizes and timestamps from things that should differ
+  mean you measured one thing N times.
 
 ## Writing and reading claims
 
@@ -327,6 +434,41 @@ been wrong — and each was caught by a check that was one command away.
   ask which steps could be dropped with no effect on the outcome. A wrong fact once became a
   _gate_, and two sessions spent three exchanges verifying a condition that did not matter. A
   vacuous instruction costs what a vacuous criterion costs.
+- **A command is evidence only if it can see the shape of the fact** (2026-08-28). A grep for a
+  flattened name cannot match a nested source, every `git` subcommand is blind to gitignored build
+  output, and an on-disk build can be days stale. For anything that renders, build it and read the
+  computed value.
+- **Run a check from where the artefact resolves paths, and never truncate it** (2026-08-25, #383:
+  three false passes in one session). A relative Markdown link resolves from its file's directory,
+  and a `| head` cut a sweep off before the file that held the defects. When the answer is
+  "nothing found", run the command once against a known-present case.
+- **An absence under the default configuration is not a limit** (2026-09-22). Before writing that
+  something cannot reach a node or a tool, spend one run trying to pass it: look for the declaring
+  field in the validator's errors or the binary. Until then, write "not by default", not "not
+  possible".
+- **A probe proves the items it called and nothing beside them** (2026-09-06). Two passing calls
+  became "the defaults carry what is needed", and the first real run hung on the one tool the probe
+  never called. List what the real run needs and test each item, or set the field.
+- **Never ask a session what its own prompt contains** (2026-09-06). Three runs gave three
+  contradictory answers. Make it do the thing and report the tool result, with one case that must
+  fail as the control.
+- **Re-read a document at the moment you claim it leaves something open** (2026-09-05, #456). A
+  sentence that joins a query run just now with a body remembered from hours ago lends the stale
+  half the fresh half's authority. If part of a claim came from a fresh query, ask which part did
+  not.
+- **Grep for the fact, not for the heading** (2026-08-31). A regenerated document folds content into
+  other sections, so a heading missing from a structural diff is not missing content.
+- **A predicted number copied from a ticket is not a done criterion until you have seen the
+  mechanism that produces it** (2026-09-08, #476: the predicted `unchanged: 4` could never happen,
+  because the content hash includes provenance). Prefer a criterion that reads one field with one
+  meaning over a derived count.
+- **Prose that describes the state a change will create reads as the state that exists**
+  (2026-08-23). Mark each present-tense claim as measured now or created by this change, and write
+  the second kind as intent. In review, check each present-tense claim in the diff's prose against
+  the tree.
+- **A count stated beside the list it counts drifts on the next edit** (2026-08-25). State it once,
+  or drop it and let each item carry its own marker. In review, check every "the N …" against its
+  list.
 
 ## Environment
 
@@ -341,3 +483,72 @@ been wrong — and each was caught by a check that was one command away.
   belongs to `tail`. Run the command without the pipe, or set `pipefail` first (`set -o pipefail` in
   bash and zsh). Judge a fetch by the timestamp of `.git/FETCH_HEAD`. In a linked worktree that file
   is per worktree, and `git rev-parse --git-path FETCH_HEAD` prints its path.
+- **Run `pnpm install --frozen-lockfile` in a new worktree before any gate.** A fresh worktree has
+  no `node_modules`, and `npx biome` then falls back to another install that exited 0 on a file
+  the pinned Biome fails (measured 2026-09-24).
+- **Only a process in a new session outlives the session that starts it on macOS** (2026-08-28).
+  `nohup … &`, `nohup … & disown` and `( nohup … & )` all keep the parent's process group and die on
+  the `SIGINT` that reaches it; `setsid` does not exist on macOS. Node's
+  `spawn(cmd, args, { detached: true, stdio: [...] }).unref()` works on POSIX and Windows. A detached
+  dispatch writes nowhere by default, so redirect its output or the run id is lost.
+- **Gate a destructive write on its generated input** (2026-09-02). Before a write that replaces a
+  field, body or file wholesale, keep a copy of the current value and check the new input exists
+  and is not trivially small (`[ -s "$f" ]`). Generate and verify every item before the first write;
+  never interleave generate and write per item.
+- **`npm install -g` lands inside whichever fnm Node version the shell holds**, and a repository's
+  `.nvmrc` can pin that per directory, so the tool is invisible outside that repository
+  (2026-09-21). Check `command -v <tool>` from a plain login shell, and prefer a package manager that
+  does not nest in a Node version for a binary that must resolve everywhere.
+- **Windows CI checks this repository out with CRLF**, because there is no `.gitattributes`. A test
+  that reads a file from disk and matches a pattern across a line break passes on macOS and Linux
+  and fails on Windows. Normalise on read, `.replace(/\r\n/g, '\n')`. A template literal in the test
+  source is already LF (2026-08-10, PR #311).
+- **In pnpm 11, `nodeVersion` in `pnpm-workspace.yaml` only feeds the `engines` check**, and
+  `useNodeVersion` is removed. The runtime pin is `devEngines.runtime` in `package.json`, with
+  `onFail: "download"`. Prove a pin with `pnpm node --version` inside the repository against a shell
+  outside it (measured 2026-09-16 on pnpm 11.1.1; the release-note half is unverified here).
+
+## Claude Code
+
+Measured on the Claude Code build each bullet names. Re-measure after an upgrade.
+
+- **Only a routine runs unattended.** `CronCreate` with `durable: true` fires only while a REPL is
+  open and idle, and on build 2.1.263 its schema says `durable` has no effect. Routines run in the
+  cloud with no terminal, can use claude.ai connectors but no local MCP server, and cannot be deleted
+  from the CLI (2026-09-06).
+- **A routine's default `allowed_tools` omits `Artifact`**, and the failure is a hang: the run parks
+  at `worker_status: requires_action` on a permission prompt and the old page stays up. Set
+  `["preset:default", "Artifact"]`, and watch `list_runs` for `requires_action` (2026-09-06).
+  Connectors attach by themselves and arrive deferred, so a run must `ToolSearch` first.
+  `extra_marketplaces` and `enabled_plugins` are discarded or rejected server-side.
+- **A routine's sandbox can obtain what it needs at run time** (2026-09-06). The account's claude.ai
+  skills sync into `~/.claude/skills/synced/` and are invocable, and a skill written to
+  `~/.claude/skills/<id>/SKILL.md` mid-run is invocable in the same turn. `environment_id` is a run
+  location, not a repository; the repository is `session_context.sources[]`. A routine needs exactly
+  one of `cron_expression` or `run_once_at`. `get_run_log` lags by up to a minute and truncates a
+  long final answer, so ask the run for short output.
+- **`claude plugin uninstall` and `claude plugin update` default to `--scope user`.** A
+  project-scope install needs `--scope project`, run from the project that owns the record, and the
+  default-scope error names a different project's enablement (2026-08-24, 2026-09-05).
+- **A `version` in `plugin.json` pins a plugin against `autoUpdate`.** A consumer receives a new
+  version when the version string changes on the marketplace's branch, not on every commit, so here
+  it arrives when the bump merges to `develop`, before the tag. The exact firing moment is
+  undocumented. Source: the version-management note on
+  <https://code.claude.com/docs/en/plugin-marketplaces>, read 2026-08-24.
+- **`CLAUDE_PROJECT_DIR` is the directory the session started in, not the git root**, and it
+  reaches hook processes only: a `Bash` tool call prints it empty. Project settings do not walk up
+  from a subdirectory, and a hook in a worktree sees the worktree, not the main clone. Anchor
+  per-repository state to `git rev-parse --path-format=absolute --git-common-dir` (build 2.1.278,
+  2026-09-22, #516).
+- **A skill whose frontmatter sets `disable-model-invocation: true` refuses the `Skill` tool**, and
+  says not to replicate its workflow. Here that includes `wayfinder`, `grill-with-docs`, `to-spec`,
+  `to-tickets`, `triage`, `implement` and `wait-what`, while `grilling` is not gated (re-measured
+  2026-09-24 by grepping `.claude/skills/*/SKILL.md`). When the maintainer types `/wait-what` at you,
+  re-state your last point in plainer words; do not report the refusal as a blocker.
+
+## Confluence
+
+- **Confluence storage format drops HTML comments**, so an injection marker must be a visible
+  element such as a panel. `panel-warning` comes back as a `note` macro, and a `<time>` element
+  loses its label. Read the storage value back after the first write of a new block shape
+  (2026-08-26).

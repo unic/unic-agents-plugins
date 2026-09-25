@@ -91,6 +91,31 @@ Each is dated to the day it was adopted, and each came from a session that went 
 - **Absolute paths in every shell call** where `cd` does not persist between calls, and **never a
   foreground `sleep`** where the harness blocks it (2026-09-02) — it kills the compound command
   silently, so a polling read comes back as "nothing yet".
+- **Read the frontier from the native dependency graph, never from a handoff table** (2026-08-20:
+  a table dropped one open blocker and kept a reversed edge, and a ticket was dispatched over an
+  undecided prerequisite). See [`issue-tracker.md`](issue-tracker.md). When a dependency reverses,
+  flip the native relation in the same edit as the prose. A dispatch against an open `blockedBy`
+  carries a written reason.
+- **An isolation run's read list is closed** (2026-08-31: three attempts leaked three times, each
+  through an instruction to read something). Name the comment ids and file paths, never "all
+  comments" or "the history", and open each item before sending to see what it holds now.
+- **A run that measures improvement gets the method on its ticket, never the expected findings**
+  (2026-08-31). The worker reads the ticket, so a listed expectation becomes an instruction. Seal the
+  prediction where the worker never reads it, and check it yourself afterwards.
+- **An item that edits the maintainer's own files goes to the maintainer as a proposal** (2026-09-17).
+  A peer session cannot grant permission over a person's files. Ask the maintainer first, then
+  write the brief as "the maintainer approved X on <date>; do X".
+- **Retire an instruction out loud when its reason expires** (2026-08-31: a worker blocked, rightly,
+  on a stale "do not hand-fix" beside a new "proceed to the fix"). Say "retracting X, because its
+  reason is gone" in the message that gives the new one, and write the reason into an instruction
+  when you first give it.
+- **When a pull request is closed for bad criteria, the re-dispatch opener forbids reading it**
+  (2026-08-05, PR #307). Its diff and its review comments carry the wrong pattern. Name the pull
+  request, the reason and what it contains.
+- **When two tickets both falsify one sentence, split ownership by claim, not by file location**
+  (2026-09-03, #430/#439). Count the claims in a sentence you were told to leave alone; if your change
+  falsifies one, say so and quote it. Name the sentence by what it tells the reader, never by line or
+  clause position.
 
 ### Before you post one: the four reads
 
@@ -137,6 +162,19 @@ and belong in the orchestrator's configuration.
    - **When a document records upstream provenance, record a commit and state what would make it
      stale** (2026-08-24, #394 hit the moving-fact defect three times in one ticket: a branch tip, a
      "still unmerged", a pre-tag version).
+   - **Run every step a review workflow prescribes, or ask before skipping one** (2026-05-29,
+     PR #168: a skipped toolkit step was the one that found the defects).
+   - **An edit to a document an agent reads top-down gets a third review axis** (2026-08-28). A
+     skill, an `AGENTS.md`, a `CLAUDE.md` or a `docs/agents/` file is read in order, and neither the
+     Standards nor the Spec axis asks whether it is shaped for that. Read it against
+     `writing-for-agents`: the thing to do first, reasons after. A prohibition listed before the
+     working command makes the banned shape more available. After pruning, re-read what remains.
+   - **Review the shell snippets inside agent `.md` prompts by hand** (2026-06-05, PR #198). CI never
+     runs them, so a `jq`, `awk` or `sort` passes every job and fails on Windows git-bash. Use
+     `node -e` or a `node` helper instead.
+   - **Do small follow-ups that only make sense now, rather than filing them** (2026-08-04,
+     PR #293). An issue filed for context-bound work rots, because the context stays in the session.
+     File only work that needs a decision, a dependency or a slot.
 4. **If the pull request was opened as a draft only to hold the reviewer off, flip it once checks
    are green by exit code** — never on the worker's own judgement, and never at all when someone
    drafted it deliberately. Read the timeline first; see the rule above.
@@ -181,6 +219,9 @@ switched the branch under a working session:
   for. It says nothing about the remote: the local `origin/<target>` is a cached ref, so a target
   that advanced on the server leaves the count unchanged. To catch that, `git fetch` first and
   compare the `origin/<target>` OID against the one the session started from.
+- **Push early from a worktree, and check its path exists after any idle gap** (2026-08-25: a
+  worktree outside the clone was deleted by no session, and nothing was lost only because
+  everything had been pushed).
 
 ## When an opener goes stale
 
@@ -213,6 +254,10 @@ carries one; the three behind it should not, until they move up.
 
 A body is a specification; an opener is advice as of a date. Specifications get corrected; advice
 gets superseded.
+
+**The newest opener wins, so mark a superseded one in place** (2026-08-20). `gh issue view
+--comments` reads oldest first, so an unmarked stale opener is followed by default. Edit the old
+comment to open with "**Stale — do not follow**" and a pointer to the new one.
 
 ### A freshness check you can actually run
 
@@ -328,3 +373,20 @@ Treat a silent session that has been busy a long time as a question to ask, not 
   find the real one. A configuration key sat at the wrong path for weeks while being cited in prose.
 - **Running the tool against a real consumer finds what tests cannot.** Two review runs against one
   small pull request produced four real defects in the tool itself.
+- **A bar written from the defects you found detects those defects and nothing else** (2026-08-28).
+  Name the property that makes each a defect, then ask which instances your wording misses. For a
+  claim carried over from another branch, the bar is that every present-tense claim about repository
+  state is checked against the target branch, whatever the sentence cites as its authority.
+- **A step described as always running is a claim about every branch above it** (2026-08-24, #396:
+  a version check stopped on equal versions, so the "unconditional" step never ran on the common
+  path). Walk the most boring input through.
+- **A new issue names the ADRs it adds by slug, not by number** (2026-08-03). Tickets in flight take
+  numbers first, so a number written today is a collision or a dead pointer later. Say the number is
+  taken at authoring time.
+- **Before round 1 of an audit, list what only the maintainer can decide, and put it to him once**
+  (2026-08-13: tickets with an undecided question took six and seven rounds; one without took two).
+  Keep each amendment's mandate narrow, never let the amender audit its own work, and publish each
+  round's brief before spawning the amender.
+- **An audit brief carries the defect, its evidence and what a human must decide** (2026-08-13).
+  Not the reasoning that reached them. A brief on an open ticket expires as the branch moves, so
+  re-run the audit after a few days of merges rather than trusting it.
