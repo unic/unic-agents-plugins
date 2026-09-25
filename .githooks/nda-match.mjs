@@ -56,7 +56,8 @@ export function readTerms(path) {
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
-// Only the payload goes, so a term in the media type is still matched.
+// Only the payload goes, so a short media type is still matched. A media type that is itself a
+// base64 run falls to BASE64_RUN, as the third let-through shape says.
 const DATA_URI = /(data:[^,\s]*;base64,)[A-Za-z0-9+/=]{80,}/g
 // Match each run once and test it after. A lookahead that fails rescans the run at every start
 // position, which takes seconds on a long hex string.
