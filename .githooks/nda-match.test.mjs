@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -15,19 +15,12 @@ const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
 const CLAUDE_HOOK = join(HOOKS, '..', '.claude', 'hooks', 'block-nda-terms.mjs')
 const BASE64 = `QmFzZTY0${TERM}ZGF0YQ0Kc2VlbXMgcmFuZG9tIGVub3VnaCB0byBwYXNzIHRoZSBlaWdodHkgY2hhcmFjdGVyIGJhcg==`
-// A real font from an Archify diagram, with the term spliced into its payload.
-const ARCHIFY_HTML = join(
-	HOOKS,
-	'..',
-	'apps',
-	'claude-code',
-	'unic-archon-dlc',
-	'docs',
-	'architecture',
-	'20260925-unic-dlc-architecture.html'
-)
+// A real font from an Archify diagram, with the term spliced into its payload. Any diagram will do,
+// so a renamed or regenerated one does not break this suite.
+const ARCHIFY_DIR = join(HOOKS, '..', 'apps', 'claude-code', 'unic-archon-dlc', 'docs', 'architecture')
+const ARCHIFY_HTML = join(ARCHIFY_DIR, readdirSync(ARCHIFY_DIR).find((name) => name.endsWith('.html')) ?? '')
 const FONT = /data:font\/[^,\s]*;base64,[A-Za-z0-9+/=]+/.exec(readFileSync(ARCHIFY_HTML, 'utf8'))?.[0] ?? ''
-const DATA_URI = `url(${FONT.slice(0, 1000)}${TERM}${FONT.slice(1000)})`
+const FONT_WITH_TERM = `url(${FONT.slice(0, 1000)}${TERM}${FONT.slice(1000)})`
 const LONG_PATH = `/Users/someone/Sites/UNIC/${TERM}/apps/claudecode/plugins/src/lib/deep/nested/dir2/more/file.md`
 const SHORT_DATA_URI = `data:text/plain;base64,${TERM}`
 const REFUSED = /carries the NDA term/
@@ -62,7 +55,7 @@ describe('findTerm', () => {
 		assert.equal(findTerm(`a${TERM}ish`, [TERM]), null)
 	})
 	test('passes the term inside a real font', () => {
-		assert.equal(findTerm(DATA_URI, [TERM]), null)
+		assert.equal(findTerm(FONT_WITH_TERM, [TERM]), null)
 	})
 	test('passes the term inside a base64 run', () => {
 		assert.equal(findTerm(BASE64, [TERM]), null)
@@ -70,8 +63,14 @@ describe('findTerm', () => {
 	test('refuses the term in a long URL that holds a digit', () => {
 		assert.equal(findTerm(`https://github.com/unic/${TERM}2026/tree/main/src/components`, [TERM]), TERM)
 	})
-	test('finds a font in the Archify diagram to test with', () => {
-		assert.ok(FONT.length > 1000)
+	test('refuses the term in a long path on a staged line that starts with a plus', () => {
+		assert.equal(
+			findTerm(`\n++apps/claude/${TERM}/src/components/v2/HeaderNavigation/deep/nested/dir/more/stuff/x`, [TERM]),
+			TERM
+		)
+	})
+	test('refuses the term in the media type of a data URI', () => {
+		assert.equal(findTerm(`data:text/${TERM};base64,${'A'.repeat(90)}`, [TERM]), TERM)
 	})
 	test('refuses the term in a long absolute path with no dot, hyphen or underscore before the file name', () => {
 		assert.equal(findTerm(LONG_PATH, [TERM]), TERM)
@@ -167,7 +166,7 @@ describe('git hooks', () => {
 		assertRefused(commit(repoWith(`${SHORT_DATA_URI}\n`)))
 	})
 	test('pre-commit passes a staged term inside a real font', () => {
-		assert.equal(commit(repoWith(`${DATA_URI}\n`)).status, 0)
+		assert.equal(commit(repoWith(`${FONT_WITH_TERM}\n`)).status, 0)
 	})
 	test('pre-commit refuses when the term list is missing', () => {
 		assertRefused(
@@ -263,7 +262,7 @@ describe('Claude hook', () => {
 		assertRefused(claudeHook('git commit -m "add file"', repoWith(`${SHORT_DATA_URI}\n`)))
 	})
 	test('passes a staged term inside a real font', () => {
-		const dir = repoWith(`${DATA_URI}\n`)
+		const dir = repoWith(`${FONT_WITH_TERM}\n`)
 		assert.equal(claudeHook('git commit -m "add file"', dir).status, 0)
 	})
 	test('refuses the term in the commit message', () => {

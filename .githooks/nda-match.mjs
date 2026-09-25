@@ -5,11 +5,12 @@
 // guards cannot disagree on what counts as a match.
 //
 // The rule, in two steps:
-//   1. Remove base64 data first: every `data:…;base64,` URI with a payload of 80 or more
-//      characters, and every run of 80 or more base64 characters that holds a digit and either a
-//      `+` or `=` padding, as a sha512 hash (88) does. A short term inside embedded font or image
-//      data identifies nobody, and random base64 is full of case changes that step 2 would read as
-//      boundaries. A path or URL rarely holds a `+`, so a long one is still matched.
+//   1. Remove base64 data first: the payload of every `data:…;base64,` URI that has 80 or more
+//      characters, and every run of 80 or more base64 characters that holds a digit and either
+//      `=` padding or a `+` after a letter, digit or `/`. A sha512 hash (88, ending `==`) is such a
+//      run. A short term inside embedded font or image data identifies nobody, and random base64
+//      is full of case changes that step 2 would read as boundaries. A path or URL rarely holds a
+//      `+`, so a long one is still matched.
 //   2. Match a term, case-insensitively, only where it starts and ends on a word boundary. A
 //      boundary is the start or end of the text, a character that is not a letter or digit, a
 //      change between letter and digit, or a camelCase change: `acmeSite`, `myAcme` and
@@ -41,10 +42,12 @@ export function readTerms(path) {
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
-const DATA_URI = /data:[^,\s]*;base64,[A-Za-z0-9+/=]{80,}/g
+// Only the payload goes: a term in the media type is still matched.
+const DATA_URI = /(data:[^,\s]*;base64,)[A-Za-z0-9+/=]{80,}/g
 // A path is also a run of letters, digits and `/`, so a run must hold a `+` or end in `=` as well.
-// That `+` cannot be the first character: a diff line starts with one.
-const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)(?=[A-Za-z0-9+/]+[+=])[A-Za-z0-9+/]{80,}={0,2}/g
+// That `+` must follow a letter, digit or `/`: a staged diff line starts with `+`, and a line that
+// already starts with `+`, as in a diff inside Markdown, arrives as `++`.
+const BASE64_RUN = /(?=[A-Za-z0-9+/]*\d)(?=[A-Za-z0-9+/]*(?:[A-Za-z0-9/]\+|=))[A-Za-z0-9+/]{80,}={0,2}/g
 
 const isLetter = (/** @type {string | undefined} */ c) => c !== undefined && /\p{L}/u.test(c)
 const isDigit = (/** @type {string | undefined} */ c) => c !== undefined && /\p{N}/u.test(c)
@@ -73,7 +76,7 @@ function isBoundary(text, i) {
  * @param {string[]} terms
  */
 export function findTerm(text, terms) {
-	const cleaned = text.replace(DATA_URI, ' ').replace(BASE64_RUN, ' ')
+	const cleaned = text.replace(DATA_URI, '$1 ').replace(BASE64_RUN, ' ')
 	for (const term of terms) {
 		// Search the original text case-insensitively, so every index points into `cleaned` even
 		// where lower-casing would change the length (`İ`).
