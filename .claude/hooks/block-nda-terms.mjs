@@ -93,9 +93,11 @@ function commitDirs(command, cwd) {
 }
 
 // A commit message is text, not shell: `-m "wrap it (cd docs first)"` names no directory. The term
-// scan still reads the whole command, so this only narrows where commitDirs looks.
+// scan still reads the whole command, so this only narrows where commitDirs looks. A `<<-` heredoc
+// closes on a tab-indented word; accepting the tabs after `<<` too can only end a strip early, which
+// scans more directories, never fewer.
 const MESSAGE_ARG = /(?:\s-m|\s--message)(?:=|\s*)(?:"(?:[^"\\]|\\.)*"|'[^']*')/g
-const MESSAGE_HEREDOC = /(\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<-?\s*(['"]?)(\w+)\2[^\n]*\n)[\s\S]*?\n\3(?=\n|$)/g
+const MESSAGE_HEREDOC = /(\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<-?\s*(['"]?)(\w+)\2[^\n]*\n)[\s\S]*?\n\t*\3(?=\n|$)/g
 
 /** @param {string} command */
 const withoutMessages = (command) => command.replace(MESSAGE_ARG, ' ').replace(MESSAGE_HEREDOC, '$1')
