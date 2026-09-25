@@ -21,8 +21,10 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 // Git exports GIT_DIR to hooks in linked worktrees. Inherited, it would point every call below at
-// another repository, and the write at the end would change that repository's hooks.
-const { GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR, ...env } = process.env
+// another repository, and the write at the end would change that repository's hooks. GIT_CONFIG
+// would redirect the write to another file, and the `-c` variables would override what it reads back.
+const { GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR, GIT_CONFIG, GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT, ...env } =
+	process.env
 
 /** @param {string[]} args */
 const git = (args) =>
@@ -105,20 +107,14 @@ try {
 	if (previous && previous !== hooksDir) {
 		process.stderr.write(`prepare: core.hooksPath was ${previous}, and is now ${hooksDir}.\n`)
 	}
+	// With `extensions.worktreeConfig`, a value in `config.worktree` wins over the one just written.
+	const effective = git(['config', '--show-origin', '--get', 'core.hooksPath'])
+	if (!effective.endsWith(`\t${hooksDir}`)) {
+		fail(
+			`core.hooksPath resolves to ${effective.replace('\t', ' ')}, which wins over ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`,
+			hooksDir
+		)
+	}
 } catch (error) {
 	fail(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`, hooksDir)
-}
-
-// With `extensions.worktreeConfig`, a value in `config.worktree` wins over the one written above.
-let effective = ''
-try {
-	effective = git(['config', '--show-origin', '--get', 'core.hooksPath'])
-} catch (error) {
-	effective = `nothing (${causeOf(error)})`
-}
-if (!effective.endsWith(`\t${hooksDir}`)) {
-	fail(
-		`core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. A per-worktree value in config.worktree wins over the shared one. Remove it with: git config --worktree --unset core.hooksPath`,
-		hooksDir
-	)
 }

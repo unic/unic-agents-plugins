@@ -51,8 +51,9 @@ const prepare = (cwd, env = {}) =>
 
 /**
  * Run the script the way a person does, through `pnpm install`. At a terminal pnpm's default reporter
- * replaces a lifecycle script's output with "Done" when the script exits 0, and `--reporter=default`
- * picks that reporter in a pipe too. So a line in this output is a line the person sees.
+ * replaces a lifecycle script's output with "Done" when the script exits 0. In a pipe that reporter can
+ * still show the line of a slow script, so only a non-zero exit, after which pnpm prints the output in
+ * full, proves the person sees it.
  * @param {string} cwd
  */
 function install(cwd) {
@@ -122,6 +123,14 @@ describe('set-hooks-path', () => {
 		const dir = repo()
 		prepare(dir, { GIT_DIR: join(repo(), '.git') })
 		assert.equal(canonical(git(['config', '--get', 'core.hooksPath'], dir)), canonical(join(dir, '.githooks')))
+	})
+	test('sets its own repository when GIT_CONFIG names another file', () => {
+		const dir = repo()
+		prepare(dir, { GIT_CONFIG: join(scratch, `config-${Date.now()}`) })
+		assert.equal(
+			canonical(git(['config', '--local', '--get', 'core.hooksPath'], dir)),
+			canonical(join(dir, '.githooks'))
+		)
 	})
 	test('exits non-zero with a readable cause when git cannot be run', { skip: process.platform === 'win32' }, () => {
 		const bin = mkdtempSync(join(scratch, 'bin-'))

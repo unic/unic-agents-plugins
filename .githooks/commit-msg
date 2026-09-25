@@ -10,5 +10,14 @@
 
 set -eu
 
-# `pre-commit` finds the matcher and checks for node. It reads the message when given one.
-exec sh "$(dirname "$0")/pre-commit" "$1"
+# `pre-commit` checks for node and reads the message when given one. An older install may have left
+# this file as a lone symlink in `.git/hooks`, where a `pre-commit` beside it is someone's own hook,
+# so without the matcher here use the work tree's hooks.
+dir=$(dirname "$0")
+[ -f "$dir/nda-match.mjs" ] || dir="$(git rev-parse --show-toplevel)/.githooks"
+if [ ! -f "$dir/pre-commit" ] || [ ! -f "$dir/nda-match.mjs" ]; then
+	printf '%s\n' "commit-msg: cannot find nda-match.mjs next to this hook or in the work tree, so this commit is refused." \
+		"  Run pnpm install on a branch that carries .githooks/nda-match.mjs." >&2
+	exit 1
+fi
+exec sh "$dir/pre-commit" "$1"

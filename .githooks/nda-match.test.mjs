@@ -220,6 +220,17 @@ describe('git hooks', () => {
 		git(dir, 'config', 'core.hooksPath', hooks)
 		assertRefused(commit(dir), 1, /cannot find nda-match\.mjs/)
 	})
+	test(
+		'commit-msg linked alone in .git/hooks skips a personal pre-commit there',
+		{ skip: process.platform === 'win32' },
+		() => {
+			const dir = createStagedRepo('clean\n')
+			git(dir, 'config', '--unset', 'core.hooksPath')
+			symlinkSync(join(HOOKS, 'commit-msg'), join(dir, '.git', 'hooks', 'commit-msg'))
+			writeFileSync(join(dir, '.git', 'hooks', 'pre-commit'), '#!/bin/sh\n', { mode: 0o755 })
+			assertRefused(commit(dir, `fix: ${TERM} typo`), 1, /cannot find nda-match\.mjs/)
+		}
+	)
 	test('commit-msg refuses the term in the message', () => {
 		assertRefused(commit(createStagedRepo('clean\n'), `fix: ${TERM} typo`), 1)
 	})
