@@ -160,9 +160,7 @@
     {
       "dot": "emerald",
       "title": "Parallel",
-      "items": [
-        "review runs the Standards and Spec sub-agents in parallel inside one node"
-      ]
+      "items": ["review runs the Standards and Spec sub-agents in parallel inside one node"]
     },
     {
       "dot": "cyan",

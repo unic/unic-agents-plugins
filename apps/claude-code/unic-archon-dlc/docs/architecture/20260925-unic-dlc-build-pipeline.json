@@ -227,10 +227,7 @@
     {
       "dot": "rose",
       "title": "Gate",
-      "items": [
-        "gates.build: hitl pauses at build-pr-gate",
-        "gates.build: afk skips it and the run ends after open-pr"
-      ]
+      "items": ["gates.build: hitl pauses at build-pr-gate", "gates.build: afk skips it and the run ends after open-pr"]
     }
   ]
 }
