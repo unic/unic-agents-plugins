@@ -50,6 +50,19 @@ ON-RAMPS    /triage ──────┤   raw bugs · requests · /qa findings
 OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-upgrade   (+ /handoff, /prototype — Matt's, referenced)
 ```
 
+> **Box-set diagram:** [`20260925-unic-dlc-box-set.html`](docs/architecture/20260925-unic-dlc-box-set.html), made with
+> Archify. Its source JSON sits alongside. It runs the main line from top to bottom and puts each
+> Session artefact in the row of the Box that writes it, with the on-ramps and the off-line Boxes to
+> the left. The preview below is a PNG export from the diagram's own viewer, one per colour scheme;
+> export both again whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-box-set.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-box-set.dark.png">
+    <img alt="unic-archon-dlc box set: the main line from /specs to /qa, the /triage on-ramp, the off-line Boxes, and the Session artefact each Box writes" src="docs/architecture/20260925-unic-dlc-box-set.light.png">
+  </picture>
+</a>
+
 | Box                     | Container | Gate              | Role                                                                                                                           |
 | ----------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `/setup`                | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
@@ -73,12 +86,12 @@ human to run and deliberately not bundled (see [Dependencies](#dependencies)).
 The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
 ([ADR-0011](docs/adr/0011-archon-schema-target.md)):
 
-| Workflow             | Node pipeline                                                                                                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
-| `unic-dlc-pr-review` | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
-| `unic-dlc-qa`        | `bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                  |
-| `unic-dlc-explore`   | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
+| Workflow                                                                                      | Node pipeline                                                                                                                                                                               |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unic-dlc-build` ([diagram](docs/architecture/20260925-unic-dlc-build-pipeline.html))         | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
+| `unic-dlc-pr-review` ([diagram](docs/architecture/20260925-unic-dlc-pr-review-pipeline.html)) | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
+| `unic-dlc-qa` ([diagram](docs/architecture/20260925-unic-dlc-qa-pipeline.html))               | `bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                  |
+| `unic-dlc-explore` ([diagram](docs/architecture/20260925-unic-dlc-explore-pipeline.html))     | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
 
 > **✓** = config-gated `approval:` node — it pauses for a human when the box's gate is `hitl` and
 > auto-proceeds when `afk` (ADR-0017). Parallel nodes are shown in `{…}`.
@@ -90,6 +103,40 @@ The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/
 > `evidence` writes `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check` both report
 > `passed: true` — the workflow-level `evidence_policy: { required: true }` fails the run closed otherwise
 > (ADR-0034).
+
+Each workflow name links its pipeline diagram, made with Archify from the workflow YAML. Its source
+JSON sits alongside. Each diagram shows the nodes in run order, the nodes that run in parallel, each
+`approval:` node with the `gates.<box>` key that decides whether it pauses, and the files the
+workflow writes. The previews below are PNG exports from each diagram's own viewer, one per colour
+scheme; export both again whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-build-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-build-pipeline.dark.png">
+    <img alt="unic-dlc-build pipeline: bootstrap and slopcheck, the run-build loop, the review precheck, verification, goals-check and evidence, then report, open-pr and build-pr-gate" src="docs/architecture/20260925-unic-dlc-build-pipeline.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-pr-review-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-pr-review-pipeline.dark.png">
+    <img alt="unic-dlc-pr-review pipeline: bootstrap, prep, review, synthesize and reconcile, then review-gate and post" src="docs/architecture/20260925-unic-dlc-pr-review-pipeline.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-qa-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-qa-pipeline.dark.png">
+    <img alt="unic-dlc-qa pipeline: bootstrap, test, e2e, coverage-gate, uat-prep and uat-gate, then verify-pr-base, merge-gate and merge" src="docs/architecture/20260925-unic-dlc-qa-pipeline.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-explore-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-explore-pipeline.dark.png">
+    <img alt="unic-dlc-explore pipeline: bootstrap, four research nodes in parallel, synthesize, spike, spike-ticket, spike-branch-gate and preserve-spike" src="docs/architecture/20260925-unic-dlc-explore-pipeline.light.png">
+  </picture>
+</a>
 
 ---
 
