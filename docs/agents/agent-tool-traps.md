@@ -286,6 +286,20 @@ every bullet added since carries the version and date it was measured on.
   skill reaches it only with `skills: [<name>]` on the node, and an MCP server only with `mcp:`.
   `settingSources: [project]` changes none of this, and `skills: all` cannot be expressed. A
   misspelt skill name loads nothing and the node continues. Measured on v0.10.1, 2026-09-22.
+- **A node's `skills:` limits the node's own agent, not a subagent it spawns.** A `general-purpose`
+  subagent sees every skill the host has, whether or not the node declared any: user, plugin and
+  project skills, 58 on the machine measured. So a Box that delegates runs on whatever that machine
+  has installed, and the YAML does not show it. Three more results from the same run:
+
+  - A declared skill with `disable-model-invocation: true` is not offered. `Skill` refuses it, and
+    the node still finishes green.
+  - An undeclared skill fails with `Skill <name> is not in this session's skills allowlist`, and the
+    node still finishes green.
+  - A skill's `references/` files are an ordinary disk read. The declaration only gives the agent
+    the base directory.
+
+  Measured on v0.10.1 with Claude Code 2.1.281, 2026-09-24 ([#521](https://github.com/unic/unic-agents-plugins/issues/521#issuecomment-5817026080)). Not measured: whether a subagent inherits the host's MCP servers, or inline `agents:` on a node.
+
 - **To stop a run started with `--detach`, use `archon workflow cancel <run-id>`.** `abandon`
   marks the run cancelled without stopping host work, so it is orphan cleanup, not a stop. Source:
   `archon workflow --help` on v0.10.1, measured 2026-09-24. Whether `cancel` stops a run started
