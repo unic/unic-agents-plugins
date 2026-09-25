@@ -42,8 +42,31 @@ function repo({ without = '' } = {}) {
 	return dir
 }
 
-/** @param {string} cwd */
-const prepare = (cwd) => spawnSync('node', [SCRIPT], { cwd, encoding: 'utf8' })
+/**
+ * @param {string} cwd
+ * @param {Record<string, string>} [env]
+ */
+const prepare = (cwd, env = {}) =>
+	spawnSync('node', [SCRIPT], { cwd, encoding: 'utf8', env: { ...process.env, ...env } })
+
+/**
+ * Run the script the way a person does, through `pnpm install`. At a terminal pnpm's default reporter
+ * replaces a lifecycle script's output with "Done" when the script exits 0, and `--reporter=default`
+ * picks that reporter in a pipe too. So a line in this output is a line the person sees.
+ * @param {string} cwd
+ */
+function install(cwd) {
+	writeFileSync(
+		join(cwd, 'package.json'),
+		JSON.stringify({ name: 't', private: true, scripts: { prepare: `node "${SCRIPT}"` } })
+	)
+	const result = spawnSync('pnpm', ['install', '--reporter=default'], {
+		cwd,
+		encoding: 'utf8',
+		shell: process.platform === 'win32',
+	})
+	return { status: result.status, output: result.stdout + result.stderr }
+}
 
 describe('set-hooks-path', () => {
 	test('points a normal clone at its own .githooks', () => {
@@ -74,5 +97,40 @@ describe('set-hooks-path', () => {
 		const dir = repo()
 		git(['config', 'core.hooksPath', '/old/hooks'], dir)
 		assert.match(prepare(dir).stderr, /was \/old\/hooks, and is now /)
+	})
+	test('fails pnpm install and shows why when the main work tree lacks a guard', () => {
+		const { status, output } = install(repo({ without: 'pre-commit' }))
+		assert.deepEqual(
+			{ failed: status !== 0, shown: /lacks pre-commit,/.test(output) },
+			{ failed: true, shown: true },
+			output
+		)
+	})
+	test('exits non-zero and names config.worktree when a per-worktree core.hooksPath wins', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], dir)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual({ status, named: /config\.worktree/.test(stderr) }, { status: 1, named: true }, stderr)
+	})
+	test('leaves the repository an exported GIT_DIR names alone', () => {
+		const outer = repo()
+		prepare(repo(), { GIT_DIR: join(outer, '.git') })
+		assert.equal(git(['config', '--get', 'core.hooksPath'], outer), '')
+	})
+	test('sets its own repository when GIT_DIR names another', () => {
+		const dir = repo()
+		prepare(dir, { GIT_DIR: join(repo(), '.git') })
+		assert.equal(canonical(git(['config', '--get', 'core.hooksPath'], dir)), canonical(join(dir, '.githooks')))
+	})
+	test('exits non-zero with a readable cause when git cannot be run', { skip: process.platform === 'win32' }, () => {
+		const bin = mkdtempSync(join(scratch, 'bin-'))
+		writeFileSync(join(bin, 'git'), '#!/bin/sh\n', { mode: 0o644 })
+		const { status, stderr } = spawnSync(process.execPath, [SCRIPT], {
+			cwd: repo(),
+			encoding: 'utf8',
+			env: { ...process.env, PATH: bin },
+		})
+		assert.deepEqual({ status, cause: /EACCES/.test(stderr) }, { status: 1, cause: true }, stderr)
 	})
 })

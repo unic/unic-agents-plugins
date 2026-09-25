@@ -11,13 +11,22 @@
 //
 // It does nothing where this directory is not the top of a git work tree: an installed tarball has
 // no repository, and a copy inside another repository must not rewrite that repository's hooks.
+//
+// It exits 1 wherever the hooks end up off, so `pnpm install` fails and shows why. At a terminal pnpm
+// replaces the output of a script that exits 0 with "Done", so a warning alone reaches nobody. The
+// fallbacks for a bare or `--separate-git-dir` layout still set the hooks, so they only warn.
 
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
+// Git exports GIT_DIR to hooks in linked worktrees. Inherited, it would point every call below at
+// another repository, and the write at the end would change that repository's hooks.
+const { GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR, ...env } = process.env
+
 /** @param {string[]} args */
-const git = (args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+const git = (args) =>
+	execFileSync('git', args, { encoding: 'utf8', env, timeout: 30_000, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 
 /** @param {unknown} error */
 function causeOf(error) {
@@ -36,6 +45,15 @@ function warn(reason, hooksDir) {
 	)
 }
 
+/**
+ * @param {string} reason
+ * @param {string} hooksDir
+ */
+function fail(reason, hooksDir) {
+	warn(reason, hooksDir)
+	process.exitCode = 1
+}
+
 let prefix
 try {
 	prefix = git(['rev-parse', '--show-prefix'])
@@ -44,9 +62,9 @@ try {
 	// `safe.directory` refusal, means a clone whose hooks would silently stay off.
 	const { code, stderr } = /** @type {{ code?: string, stderr?: unknown }} */ (error)
 	if (code !== 'ENOENT' && !/not a git repository/i.test(String(stderr))) {
-		warn(`git rev-parse failed, so the hooks are off (${causeOf(error)})`, join(process.cwd(), '.githooks'))
+		fail(`git rev-parse failed, so the hooks are off (${causeOf(error)})`, join(process.cwd(), '.githooks'))
 	}
-	process.exit(0)
+	process.exit()
 }
 if (prefix !== '') process.exit(0)
 
@@ -69,7 +87,7 @@ try {
 // `main`, or a `develop` from before `commit-msg`. Every worktree then commits with that gap.
 const missing = ['pre-commit', 'commit-msg', 'nda-match.mjs'].filter((file) => !existsSync(join(hooksDir, file)))
 if (missing.length > 0) {
-	warn(
+	fail(
 		`${hooksDir} lacks ${missing.join(', ')}, so no worktree of this clone runs the full NDA commit guards`,
 		hooksDir
 	)
@@ -88,5 +106,19 @@ try {
 		process.stderr.write(`prepare: core.hooksPath was ${previous}, and is now ${hooksDir}.\n`)
 	}
 } catch (error) {
-	warn(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`, hooksDir)
+	fail(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`, hooksDir)
+}
+
+// With `extensions.worktreeConfig`, a value in `config.worktree` wins over the one written above.
+let effective = ''
+try {
+	effective = git(['config', '--show-origin', '--get', 'core.hooksPath'])
+} catch (error) {
+	effective = `nothing (${causeOf(error)})`
+}
+if (!effective.endsWith(`\t${hooksDir}`)) {
+	fail(
+		`core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. A per-worktree value in config.worktree wins over the shared one. Remove it with: git config --worktree --unset core.hooksPath`,
+		hooksDir
+	)
 }
