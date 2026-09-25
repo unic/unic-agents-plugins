@@ -68,7 +68,9 @@ Everything else (Biome, Prettier, TypeScript) is a workspace devDependency and i
 pnpm install
 ```
 
-`pnpm install` also turns on the repository's git hooks in `.githooks/`, and they need `node` on `PATH`.
+`pnpm install` also turns on the repository's git hooks in `.githooks/`, and they need `node` on `PATH`. From then on, every commit is refused until the NDA term list exists at `~/.config/unic/nda-denylist.txt`, or at the path in `$UNIC_NDA_DENYLIST`. Create it with one term per line, or `touch` it to opt out deliberately.
+
+An install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, leaves the hooks off without a message. So does moving the clone. In both cases, set them by hand with `git config core.hooksPath <absolute path to this clone>/.githooks`.
 
 ### Cloning on Windows
 
