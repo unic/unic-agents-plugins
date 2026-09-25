@@ -68,6 +68,25 @@ Everything else (Biome, Prettier, TypeScript) is a workspace devDependency and i
 pnpm install
 ```
 
+### Cloning on Windows
+
+Some vendored skills reach Claude Code through a symlink in `.claude/skills/`. Git checks a symlink out as a real one only when `core.symlinks` is true, and Git for Windows can create one only for a user who is allowed to: turn on Developer Mode, or use an elevated shell. Otherwise the symlink arrives as a short text file and the skill does not load.
+
+Clone with symlinks enabled:
+
+```sh
+git clone -c core.symlinks=true https://github.com/unic/unic-agents-plugins.git
+```
+
+In a clone you already have, enable them and check the links out again:
+
+```sh
+git config core.symlinks true
+git checkout -- .claude/skills
+```
+
+This is taken from the Git documentation and has not been tested on Windows in this repository yet.
+
 ## Starting new work
 
 All work enters through the issue tracker as a Feature. The recommended flow:

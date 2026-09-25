@@ -214,7 +214,7 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 
 ### Upgrading
 
-This repo vendors from three sources. All go through `npx skills` and all are tracked in `skills-lock.json`.
+This repo vendors skills from the sources in the table below. Every one goes through `npx skills` and is tracked in `skills-lock.json`.
 
 | Source              | What comes from it                                 | Selection policy                                                                                                               |
 | ------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -224,7 +224,7 @@ This repo vendors from three sources. All go through `npx skills` and all are tr
 
 `unslop` cuts AI tells from prose. It is vendored here because this repo's product is prose, and because the maintainer's output style and user `CLAUDE.md` both tell a session to read it. Its frontmatter sets `disable-model-invocation: true`, so an agent reads the file rather than invoking the skill. Take nothing else from `cursor/plugins` without deciding it the same way.
 
-`archify` renders the diagrams under `apps/claude-code/unic-archon-dlc/docs/architecture/` from their source JSON, and `archify-review` is its maintenance companion. They are vendored so every session and worktree can regenerate a diagram without a per-machine install ([#569](https://github.com/unic/unic-agents-plugins/issues/569)).
+`archify` renders the diagrams under `apps/<agent>/<plugin>/docs/architecture/` from their source JSON, and `archify-review` is its maintenance companion. They are vendored so every session and worktree can regenerate a diagram without a per-machine install ([#569](https://github.com/unic/unic-agents-plugins/issues/569)).
 
 **The same skill name can exist at user scope and at project scope, and the user copy wins.** Claude Code resolves a name clash enterprise over personal, and personal over project, so a session in this repo runs the maintainer's `~/.claude/skills/unslop/`, not the copy vendored here. The vendored copy is what a teammate without it reads. The two can drift, and nothing reports it. When you upgrade one, diff the other. A plugin skill never enters this clash: it is namespaced as `/plugin-name:skill-name` and loads alongside.
 
@@ -246,7 +246,7 @@ Add `-l` to any `add` command to list the source's catalogue and install nothing
 
 Most vendored skills are a plain `.claude/skills/<name>/` directory. `archify` and `archify-review` are a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink to it, because that is what `npx skills` wrote when they were added on 2026-09-25. `skills-lock.json` carries a hash for every vendored skill in either shape.
 
-**Claude Code discovers project skills only under `.claude/skills/`** ([skills documentation](https://code.claude.com/docs/en/skills)), so in the second shape the symlink is what loads the skill. Commit the directory and the symlink together. A checkout that writes symlinks as plain files gets a short text file in place of the skill, and the skill does not load there. On Windows that is the default: git checks a symlink out as a real one only when `core.symlinks` is true, and Git for Windows can create one only for a user allowed to, through Developer Mode or an elevated shell. Clone there with `git clone -c core.symlinks=true <url>`. CI does not catch a broken link, because its Windows job runs plugin logic, not the vendored skills.
+**Claude Code discovers project skills only under `.claude/skills/`** ([skills documentation](https://code.claude.com/docs/en/skills)), so in the second shape the symlink is what loads the skill. Commit the directory and the symlink together. A checkout that writes symlinks as plain files gets a short text file in place of the skill, and the skill does not load there. On Windows that is the default unless the clone was made with symlinks enabled; [CONTRIBUTING.md § Cloning on Windows](CONTRIBUTING.md#cloning-on-windows) says how. CI does not catch a broken link, because its Windows job runs plugin logic, not the vendored skills.
 
 It was not always so. Until 2026-09-21 the `mattpocock/skills` entries were a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink, while `unslop` was already a plain directory. An ordinary `npx skills add` of the 26 tracked names rewrote all of them as plain directories in one run, reported each as `copied`, and left the whole `.agents/skills/` tree orphaned. **The CLI picks the shape, not you**, and it can change the shape of skills already installed. So read the installed tree after an upgrade rather than before, and never convert a shape by hand.
 
