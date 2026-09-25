@@ -1,0 +1,327 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "unic-archon-dlc architecture",
+    "locale": "en",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "viewBox": [1310, 694],
+    "views": [
+      {
+        "id": "what-ships",
+        "label": "What ships",
+        "focus": ["boxes", "bundle", "setup"],
+        "note": "One Claude Code plugin: eleven Boxes, the Method Bundle pinned to one upstream tag, and /setup."
+      },
+      {
+        "id": "what-setup-installs",
+        "label": "What /setup installs",
+        "focus": ["setup", "archonBoxes", "methods", "config", "contract"],
+        "note": "Plugin-owned trees are replaced on every run. Tenant-owned files are written once, then only reported on."
+      },
+      {
+        "id": "how-it-runs",
+        "label": "How it runs",
+        "focus": ["boxes", "claude", "archon", "archonBoxes", "methods", "artefacts"],
+        "note": "Commands run in Claude Code with a human. Archon Boxes run AFK in isolated worktrees. State travels as files."
+      },
+      {
+        "id": "stays-generic",
+        "label": "How it stays generic",
+        "focus": ["config", "contract", "context", "pack", "tracker", "docs"],
+        "note": "The Harness fixes the shape of config and tracker contract. The team fills in the values and owns the HOW."
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "WHAT · Harness decides"
+        },
+        "security": {
+          "label": "Seam · Harness shape, team values"
+        },
+        "database": {
+          "label": "HOW · team's own"
+        },
+        "frontend": {
+          "label": "Runtime"
+        },
+        "external": {
+          "label": "Session state · optional"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "claude",
+      "type": "frontend",
+      "label": "Claude Code",
+      "sublabel": "interactive · HITL",
+      "pos": [60, 100],
+      "size": [170, 64]
+    },
+    {
+      "id": "artefacts",
+      "type": "external",
+      "label": "workflows/<slug>/",
+      "sublabel": "PRD · issues.json · evidence",
+      "pos": [760, 100],
+      "size": [190, 64]
+    },
+    {
+      "id": "archon",
+      "type": "frontend",
+      "label": "Archon engine",
+      "sublabel": "≥ 0.7 · AFK · worktrees",
+      "pos": [260, 100],
+      "size": [180, 64]
+    },
+    {
+      "id": "boxes",
+      "type": "backend",
+      "label": "Boxes ×11",
+      "sublabel": "7 commands · 4 Archon YAML",
+      "pos": [60, 290],
+      "size": [170, 64]
+    },
+    {
+      "id": "setup",
+      "type": "backend",
+      "label": "/setup",
+      "sublabel": "the install Box",
+      "pos": [60, 400],
+      "size": [170, 64]
+    },
+    {
+      "id": "bundle",
+      "type": "backend",
+      "label": "Method Bundle",
+      "sublabel": "upstream skill text, pinned",
+      "pos": [60, 510],
+      "size": [170, 64]
+    },
+    {
+      "id": "archonBoxes",
+      "type": "backend",
+      "label": ".archon/workflows/",
+      "sublabel": "unic-dlc-*.yaml",
+      "pos": [500, 290],
+      "size": [180, 64]
+    },
+    {
+      "id": "methods",
+      "type": "backend",
+      "label": ".archon/methods/",
+      "sublabel": "<name>/SKILL.md",
+      "pos": [500, 510],
+      "size": [180, 64]
+    },
+    {
+      "id": "config",
+      "type": "security",
+      "label": "unic-dlc.config.yaml",
+      "sublabel": "gates · sdlc_needs · knobs",
+      "pos": [760, 290],
+      "size": [190, 64]
+    },
+    {
+      "id": "contract",
+      "type": "security",
+      "label": "Tracker contract",
+      "sublabel": "roles · axis · holds",
+      "pos": [760, 400],
+      "size": [190, 64]
+    },
+    {
+      "id": "context",
+      "type": "database",
+      "label": "Project context",
+      "sublabel": "CONTEXT.md · ADRs · own skills",
+      "pos": [760, 510],
+      "size": [190, 64]
+    },
+    {
+      "id": "pack",
+      "type": "external",
+      "label": "Practice Pack",
+      "sublabel": "optional · design open",
+      "pos": [1110, 540],
+      "size": [150, 64]
+    },
+    {
+      "id": "tracker",
+      "type": "database",
+      "label": "Tracker",
+      "sublabel": "via system-skills",
+      "pos": [1110, 400],
+      "size": [150, 64]
+    },
+    {
+      "id": "docs",
+      "type": "database",
+      "label": "Docs & design",
+      "sublabel": "via system-skills",
+      "pos": [1110, 290],
+      "size": [150, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Developer machine",
+      "wraps": ["claude", "archon"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "unic-archon-dlc plugin",
+      "wraps": ["boxes", "setup", "bundle"],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Consumer repository",
+      "wraps": ["archonBoxes", "methods", "config", "contract", "context", "artefacts"],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Team's systems",
+      "wraps": ["tracker", "docs"]
+    },
+    {
+      "kind": "region",
+      "label": "Practice Pack repo",
+      "wraps": ["pack"],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    {
+      "id": "commands-run",
+      "from": "boxes",
+      "to": "claude",
+      "label": "loads 7 slash commands",
+      "variant": "emphasis",
+      "labelAt": [145, 220]
+    },
+    {
+      "id": "copy-boxes",
+      "from": "setup",
+      "to": "archonBoxes",
+      "label": "copies Archon Boxes"
+    },
+    {
+      "id": "copy-methods",
+      "from": "setup",
+      "to": "methods",
+      "label": "copies Bundle"
+    },
+    {
+      "id": "archon-runs",
+      "from": "archon",
+      "to": "archonBoxes",
+      "label": "runs AFK",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[350, 208], [590, 208]]
+    },
+    {
+      "id": "claude-writes",
+      "from": "claude",
+      "to": "artefacts",
+      "label": "writes",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [[145, 40], [855, 40]],
+      "labelAt": [500, 40]
+    },
+    {
+      "id": "archon-writes",
+      "from": "archon",
+      "to": "artefacts",
+      "label": "writes"
+    },
+    {
+      "id": "boxes-read-methods",
+      "from": "boxes",
+      "to": "methods",
+      "label": "every Box reads procedure",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [[16, 322], [16, 610], [590, 610]],
+      "labelAt": [300, 610]
+    },
+    {
+      "id": "config-names-docs",
+      "from": "config",
+      "to": "docs",
+      "label": "docs.type · design.type"
+    },
+    {
+      "id": "contract-addresses",
+      "from": "contract",
+      "to": "tracker",
+      "label": "role → value"
+    },
+    {
+      "id": "methods-read-context",
+      "from": "methods",
+      "to": "context",
+      "label": "reads"
+    },
+    {
+      "id": "pack-context",
+      "from": "pack",
+      "to": "context",
+      "label": "packaged context",
+      "variant": "dashed"
+    },
+    {
+      "id": "setup-writes-contract",
+      "from": "setup",
+      "to": "contract",
+      "label": "writes once"
+    },
+    {
+      "id": "boxes-read-config",
+      "from": "archonBoxes",
+      "to": "config",
+      "label": "reads gates"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "WHAT: the Harness decides",
+      "items": [
+        "Boxes, their gates and the Methods they read",
+        "/setup replaces them on every run, so local edits are lost",
+        "Upgrading the plugin moves the Method pin"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Seams: Harness shape, team values",
+      "items": [
+        "/setup writes them once, then only reports on them",
+        "config.yaml: fixed keys, the project's values; sdlc_needs names needs, never tools",
+        "Tracker contract: fixed roles, this tracker's values and axes"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "HOW: the team's own",
+      "items": [
+        "CONTEXT.md and ADRs tell the Boxes about this project",
+        "Tracker, docs and design through the team's own system-skills",
+        "A Practice Pack could package this context for reuse (design open)"
+      ]
+    }
+  ]
+}
