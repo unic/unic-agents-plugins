@@ -228,7 +228,7 @@ describe('git hooks', () => {
 			git(dir, 'config', '--unset', 'core.hooksPath')
 			symlinkSync(join(HOOKS, 'commit-msg'), join(dir, '.git', 'hooks', 'commit-msg'))
 			writeFileSync(join(dir, '.git', 'hooks', 'pre-commit'), '#!/bin/sh\n', { mode: 0o755 })
-			assertRefused(commit(dir, `fix: ${TERM} typo`), 1, /cannot find nda-match\.mjs/)
+			assertRefused(commit(dir, `fix: ${TERM} typo`), 1, /commit-msg: cannot find pre-commit /)
 		}
 	)
 	test('the matcher refuses a term when reached through a symlinked directory', () => {
