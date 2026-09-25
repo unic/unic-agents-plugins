@@ -176,6 +176,19 @@ describe('Claude hook', () => {
 	test('passes a clean commit whose message mentions -C', () => {
 		assert.equal(claudeHook('git commit -m "use ls -C for columns"', repoWith('clean\n')), 0)
 	})
+	test('passes a clean commit whose quoted message mentions cd in parentheses', () => {
+		assert.equal(claudeHook('git commit -m "docs: wrap it (cd docs first)"', repoWith('clean\n')), 0)
+	})
+	test('passes a clean commit whose quoted message names GIT_DIR and --work-tree', () => {
+		assert.equal(claudeHook(`git commit -m 'docs: set GIT_DIR=foo, pass --work-tree bar'`, repoWith('clean\n')), 0)
+	})
+	test('passes a clean commit whose heredoc message starts a line with cd', () => {
+		assert.equal(claudeHook("git commit -F - <<'EOF'\ndocs: steps\n\ncd docs\nEOF", repoWith('clean\n')), 0)
+	})
+	test('refuses a staged term committed after cd even when the message mentions cd', () => {
+		const dir = repoWith(`Built for ${TERM}.\n`)
+		assert.equal(claudeHook(`cd ${dir} && git commit -m "docs: (cd docs first)"`, clone), 2)
+	})
 	test('refuses a commit whose git -C path is a shell variable', () => {
 		assert.equal(claudeHook('git -C $WORKTREE commit -m "add file"', clone), 2)
 	})

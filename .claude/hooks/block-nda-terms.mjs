@@ -84,12 +84,21 @@ const NAMES_DIR = new RegExp(
  */
 function commitDirs(command, cwd) {
 	const dirs = new Set([cwd])
-	for (const match of [...command.matchAll(CHANGES_DIR), ...command.matchAll(NAMES_DIR)]) {
+	const shell = withoutMessages(command)
+	for (const match of [...shell.matchAll(CHANGES_DIR), ...shell.matchAll(NAMES_DIR)]) {
 		const path = (match[1] ?? match[2] ?? match[3]).replace(/^~(?=\/|$)/, homedir())
 		dirs.add(resolve(cwd, path).replace(/[\\/]\.git$/, ''))
 	}
 	return [...dirs]
 }
+
+// A commit message is text, not shell: `-m "wrap it (cd docs first)"` names no directory. The term
+// scan still reads the whole command, so this only narrows where commitDirs looks.
+const MESSAGE_ARG = /(?:\s-m|\s--message)(?:=|\s*)(?:"(?:[^"\\]|\\.)*"|'[^']*')/g
+const MESSAGE_HEREDOC = /(\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<-?\s*(['"]?)(\w+)\2[^\n]*\n)[\s\S]*?\n\3(?=\n|$)/g
+
+/** @param {string} command */
+const withoutMessages = (command) => command.replace(MESSAGE_ARG, ' ').replace(MESSAGE_HEREDOC, '$1')
 
 /** @param {string} cwd */
 function stagedDiff(cwd) {
