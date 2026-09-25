@@ -334,9 +334,8 @@ every bullet added since carries the version and date it was measured on.
 ## Archify
 
 Measured on the vendored Archify `version: "2.17"` (`.agents/skills/archify/SKILL.md`
-frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564). Each
-fact is a property of that renderer. Re-check every bullet in the commit that upgrades Archify,
-and update or delete it there.
+frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564).
+Re-check every bullet in the commit that upgrades Archify, and update or delete it there.
 
 - **Put what a workflow node writes in its `sublabel`.** A node's `tag` renders with
   `data-detail="fine"` (`.agents/skills/archify/renderers/workflow/workflow-compiler.mjs:4202`),
@@ -352,8 +351,8 @@ and update or delete it there.
   than six nodes.** Workflow lanes are always horizontal rows, and `workflow.schema.json` has no
   orientation field. The `architecture` type places each component by `pos`, so the layout is a
   matter of coordinates. Every diagram under `apps/claude-code/unic-archon-dlc/docs/architecture/`
-  is built that way: the box set as columns, and each pipeline as one region per phase, stacked
-  top to bottom, with the phase's nodes left to right inside it.
+  uses it. The box set places its Boxes in columns. Each pipeline stacks one region per group of
+  nodes from top to bottom, and places that group's nodes left to right inside its region.
 - **Size a diagram by the height of a 1440 by 900 screen.** The viewer scales the diagram to the
   width of its panel, so a tall, narrow viewBox grows downwards. `deliver` refuses a viewBox
   wider than about 1240 at that screen, because node text would drop below 6 px, and
@@ -364,22 +363,26 @@ and update or delete it there.
   label (`.agents/skills/archify/renderers/architecture/render-architecture.mjs:212-215` and
   `:254`). `pad` moves the frame, not the label, and the top pad is never below 22 px
   (`:118-122`). A `pad` larger than the label needs leaves an empty band above the label.
-
 - **Export a PNG preview through the viewer's own Export > PNG, driven over CDP.** The Playwright
   MCP refuses `file:` URLs, and the viewer's PNG button fires no download while
-  `window.showSaveFilePicker` exists. The route that worked, as one Node script run from the
-  worktree root:
-  1. Import `ChromeVisualBrowser` and `findChrome` from `.claude/skills/archify/bin/visual-check.mjs`,
-     start the browser, and await its `sessionPromise`.
-  2. Send `Emulation.setDeviceMetricsOverride` (1600 by 1000), and, per export,
-     `Browser.setDownloadBehavior` with `behavior: 'allow'` and a fresh empty `downloadPath`.
+  `window.showSaveFilePicker` exists (observed, not traced in the vendored source). The route that
+  worked, as one Node ES module run from the worktree root:
+  1. Import `ChromeVisualBrowser` and `findChrome` from `.agents/skills/archify/bin/visual-check.mjs`.
+     Construct `new ChromeVisualBrowser(findChrome())`, which launches Chrome, and await its
+     `sessionPromise` for the `sessionId`.
+  2. Send every CDP command with `browser.cdp.send(method, params, sessionId)`. Send
+     `Emulation.setDeviceMetricsOverride` (1600 by 1000). Per export, send
+     `Browser.setDownloadBehavior` without a `sessionId`, with `behavior: 'allow'` and a fresh,
+     empty, absolute `downloadPath`.
   3. Navigate to the HTML's `file:` URL with `?theme=light` or `?theme=dark`, and wait for
      `Page.loadEventFired`.
   4. With `Runtime.evaluate`, set `window.showSaveFilePicker = undefined`, click the button whose
      text includes `Export`, wait 300 ms, and click the button whose text includes `Lossless image`.
   5. Poll the download directory for the `.png`, and rename it to `<diagram>.<theme>.png`.
-  6. Scale each file to 2620 px wide. `sips --resampleWidth 2620 <in> --out <out>` does it, but
-     `sips` exists only on macOS.
+  6. Scale each file to 2620 px wide with any image tool. On macOS,
+     `sips --resampleWidth 2620 <in> --out <out>` does it. `sips` does not exist on Linux or
+     Windows.
+  7. Call `browser.close()`.
 
 ## git
 
@@ -522,8 +525,6 @@ been wrong — and each was caught by a check that was one command away.
 
 ## Environment
 
-- **Run `pnpm install` in a fresh worktree before `pnpm ci:check`.** A new worktree has no
-  `node_modules`, so `ci:check` fails with "biome: command not found" (2026-09-25).
 - **Absolute paths in every `Bash` call** where `cd` does not persist between calls, and **never a
   foreground `sleep`** where the harness blocks it: it kills the compound command silently, so a
   polling read comes back as "nothing yet".
@@ -537,7 +538,8 @@ been wrong — and each was caught by a check that was one command away.
   is per worktree, and `git rev-parse --git-path FETCH_HEAD` prints its path.
 - **Run `pnpm install --frozen-lockfile` in a new worktree before any gate.** A fresh worktree has
   no `node_modules`, and `npx biome` then falls back to another install that exited 0 on a file
-  the pinned Biome fails (measured 2026-09-24).
+  the pinned Biome fails (measured 2026-09-24). `pnpm ci:check` fails there with "biome: command
+  not found" (2026-09-25).
 - **Only a process in a new session outlives the session that starts it on macOS** (2026-08-28).
   `nohup … &`, `nohup … & disown` and `( nohup … & )` all keep the parent's process group and die on
   the `SIGINT` that reaches it; `setsid` does not exist on macOS. Node's
