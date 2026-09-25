@@ -78,14 +78,24 @@ const isLower = (/** @type {string | undefined} */ c) => isLetter(c) && c === c?
  * @param {number} i
  */
 function isBoundary(text, i) {
-	const before = text[i - 1]
-	const after = text[i]
+	const before = charBefore(text, i)
+	const after = charAt(text, i)
 	if (!isLetter(before) && !isDigit(before)) return true
 	if (!isLetter(after) && !isDigit(after)) return true
 	if (isLetter(before) !== isLetter(after)) return true
 	if (isLower(before) && isUpper(after)) return true
 	// `ACMESite`: an upper-case run ends where the next word's capital starts.
-	return isUpper(before) && isUpper(after) && isLower(text[i + 1])
+	return isUpper(before) && isUpper(after) && isLower(charAt(text, i + (after?.length ?? 0)))
+}
+
+// Read whole code points: a letter outside the BMP is two UTF-16 units, and neither one alone is a letter.
+const charAt = (/** @type {string} */ text, /** @type {number} */ i) => {
+	const code = text.codePointAt(i)
+	return code === undefined ? undefined : String.fromCodePoint(code)
+}
+const charBefore = (/** @type {string} */ text, /** @type {number} */ i) => {
+	const code = i >= 2 ? text.codePointAt(i - 2) : undefined
+	return code !== undefined && code > 0xffff ? String.fromCodePoint(code) : text[i - 1]
 }
 
 /**

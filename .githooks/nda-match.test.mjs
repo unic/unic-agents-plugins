@@ -113,6 +113,12 @@ describe('findTerm', () => {
 	test('refuses the term in a query string that holds a digit and a plus', () => {
 		assert.equal(findTerm(`https://x.io/r?next=${TERM}/2026/tree/main/src/components/header+nav`, [TERM]), TERM)
 	})
+	test('passes the term joined to a letter outside the BMP', () => {
+		assert.equal(findTerm(`${TERM}\u{1D41A}`, [TERM]), null)
+	})
+	test('passes the term after a letter outside the BMP', () => {
+		assert.equal(findTerm(`\u{1D41A}${TERM}`, [TERM]), null)
+	})
 	test('refuses the term after a character that lower-casing lengthens', () => {
 		assert.equal(findTerm(`\u0130 ${TERM}.`, [TERM]), TERM)
 	})
