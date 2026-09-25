@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "/improve-architecture command",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Box step"
+        },
+        "backend": {
+          "label": "Tracker write"
+        },
+        "database": {
+          "label": "Method read"
+        },
+        "cloud": {
+          "label": "File read"
+        },
+        "security": {
+          "label": "Human halt"
+        },
+        "messagebus": {
+          "label": "File written"
+        },
+        "external": {
+          "label": "Stop"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "human",
+        "label": "Human halts",
+        "focus": ["step-3", "step-6", "h-3", "h-6"],
+        "note": "The grill runs in Step 3. Step 6 is the only step that writes an ADR, one approval at a time."
+      },
+      {
+        "id": "writes",
+        "label": "Writes",
+        "focus": ["step-3", "step-5", "step-6", "w-html", "w-context", "w-review", "w-adr"],
+        "note": "The HTML report is ephemeral. arch-review.md and the ADRs are the durable output."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "m-ica",
+      "type": "database",
+      "label": "improve-codebase-architecture",
+      "sublabel": "with HTML-REPORT",
+      "pos": [20, 30],
+      "size": [260, 44]
+    },
+    {
+      "id": "m-design",
+      "type": "database",
+      "label": "codebase-design",
+      "sublabel": "deep-module vocabulary",
+      "pos": [300, 30],
+      "size": [220, 44]
+    },
+    {
+      "id": "m-grilling",
+      "type": "database",
+      "label": "grilling",
+      "sublabel": "for the grill",
+      "pos": [560, 30],
+      "size": [220, 44]
+    },
+    {
+      "id": "m-domain",
+      "type": "database",
+      "label": "domain-modeling",
+      "sublabel": "keeps CONTEXT.md current",
+      "pos": [820, 30],
+      "size": [220, 44]
+    },
+    {
+      "id": "config",
+      "type": "cloud",
+      "label": "unic-dlc.config.yaml",
+      "sublabel": "absent only warns",
+      "pos": [40, 140],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-slug",
+      "type": "cloud",
+      "label": "PRD, report, issues.json",
+      "sublabel": "per slug, if present",
+      "pos": [40, 210],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-code",
+      "type": "cloud",
+      "label": "CONTEXT.md, build diff",
+      "sublabel": "whole codebase repo-wide",
+      "pos": [40, 280],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-adr",
+      "type": "cloud",
+      "label": "ADR homes",
+      "sublabel": "docs/adr/ and its index",
+      "pos": [40, 490],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-1",
+      "type": "frontend",
+      "label": "1 Load config, Methods",
+      "sublabel": "config is lenient",
+      "pos": [300, 140],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-2",
+      "type": "frontend",
+      "label": "2 Determine mode",
+      "sublabel": "per slug or repo-wide",
+      "pos": [300, 210],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-3",
+      "type": "frontend",
+      "label": "3 Technical drift",
+      "sublabel": "the Method sets the order",
+      "pos": [300, 280],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-4",
+      "type": "frontend",
+      "label": "4 Intent drift",
+      "sublabel": "per slug only",
+      "pos": [300, 350],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-5",
+      "type": "frontend",
+      "label": "5 Write arch-review",
+      "sublabel": "durable markdown",
+      "pos": [300, 420],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-6",
+      "type": "frontend",
+      "label": "6 Consolidate ADRs",
+      "sublabel": "one candidate at a time",
+      "pos": [300, 490],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-7",
+      "type": "frontend",
+      "label": "7 Print the summary",
+      "sublabel": "points to /tickets",
+      "pos": [300, 560],
+      "size": [220, 40]
+    },
+    {
+      "id": "stop",
+      "type": "external",
+      "label": "Stop",
+      "sublabel": "Method missing, run /setup",
+      "pos": [600, 140],
+      "size": [220, 40]
+    },
+    {
+      "id": "h-3",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "grilled by the Method",
+      "pos": [600, 280],
+      "size": [220, 40]
+    },
+    {
+      "id": "h-6",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "decides each ADR and its home",
+      "pos": [600, 490],
+      "size": [220, 40]
+    },
+    {
+      "id": "w-html",
+      "type": "messagebus",
+      "label": "HTML report",
+      "sublabel": "OS temp dir, ephemeral",
+      "pos": [880, 280],
+      "size": [230, 40]
+    },
+    {
+      "id": "w-context",
+      "type": "messagebus",
+      "label": "CONTEXT.md",
+      "sublabel": "kept current",
+      "pos": [880, 340],
+      "size": [230, 40]
+    },
+    {
+      "id": "w-review",
+      "type": "messagebus",
+      "label": "arch-review.md",
+      "sublabel": "per slug, or dated",
+      "pos": [880, 420],
+      "size": [230, 40]
+    },
+    {
+      "id": "w-adr",
+      "type": "messagebus",
+      "label": "ADRs and index",
+      "sublabel": "supersede, never delete",
+      "pos": [880, 525],
+      "size": [230, 40]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Methods, read in full",
+      "wraps": ["m-ica", "m-design", "m-grilling", "m-domain"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Steps, in order",
+      "wraps": ["step-1", "step-2", "step-3", "step-4", "step-5", "step-6", "step-7"],
+      "pad": 8
+    }
+  ],
+  "connections": [
+    {
+      "id": "m-ica-s1",
+      "from": "m-ica",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[150, 112], [410, 112]]
+    },
+    {
+      "id": "m-design-s1",
+      "from": "m-design",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "m-grilling-s1",
+      "from": "m-grilling",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[670, 112], [410, 112]]
+    },
+    {
+      "id": "m-domain-s1",
+      "from": "m-domain",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[930, 112], [410, 112]]
+    },
+    {
+      "id": "config-s1",
+      "from": "config",
+      "to": "step-1"
+    },
+    {
+      "id": "slug-s2",
+      "from": "r-slug",
+      "to": "step-2"
+    },
+    {
+      "id": "code-s3",
+      "from": "r-code",
+      "to": "step-3"
+    },
+    {
+      "id": "adr-s6",
+      "from": "r-adr",
+      "to": "step-6"
+    },
+    {
+      "id": "s1-s2",
+      "from": "step-1",
+      "to": "step-2"
+    },
+    {
+      "id": "s2-s3",
+      "from": "step-2",
+      "to": "step-3"
+    },
+    {
+      "id": "s3-s4",
+      "from": "step-3",
+      "to": "step-4"
+    },
+    {
+      "id": "s4-s5",
+      "from": "step-4",
+      "to": "step-5"
+    },
+    {
+      "id": "s5-s6",
+      "from": "step-5",
+      "to": "step-6"
+    },
+    {
+      "id": "s6-s7",
+      "from": "step-6",
+      "to": "step-7"
+    },
+    {
+      "id": "s1-stop",
+      "from": "step-1",
+      "to": "stop",
+      "variant": "security"
+    },
+    {
+      "id": "s3-h",
+      "from": "step-3",
+      "to": "h-3",
+      "variant": "security"
+    },
+    {
+      "id": "s6-h",
+      "from": "step-6",
+      "to": "h-6",
+      "variant": "security"
+    },
+    {
+      "id": "s3-html",
+      "from": "step-3",
+      "to": "w-html",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[560, 300], [560, 325], [850, 325], [850, 300]]
+    },
+    {
+      "id": "s3-context",
+      "from": "step-3",
+      "to": "w-context",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[560, 300], [560, 325], [850, 325], [850, 360]]
+    },
+    {
+      "id": "s5-review",
+      "from": "step-5",
+      "to": "w-review"
+    },
+    {
+      "id": "s6-adr",
+      "from": "step-6",
+      "to": "w-adr",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[560, 510], [560, 545]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Left to the agent",
+      "items": [
+        "Step 3 follows the improve-codebase-architecture Method verbatim",
+        "Steps 1, 2, 4 and 6 list what they read or gather in no order"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Skips, and no tracker",
+      "items": [
+        "Step 4 is skipped repo-wide; Step 6 skips to 7 with no candidates",
+        "It touches no tracker; Step 7 points to /tickets for follow-ups"
+      ]
+    }
+  ]
+}

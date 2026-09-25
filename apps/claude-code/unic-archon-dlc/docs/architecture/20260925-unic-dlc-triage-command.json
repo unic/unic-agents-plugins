@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "/triage command",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Box step"
+        },
+        "backend": {
+          "label": "Tracker write"
+        },
+        "database": {
+          "label": "Method read"
+        },
+        "cloud": {
+          "label": "File read"
+        },
+        "security": {
+          "label": "Human halt"
+        },
+        "messagebus": {
+          "label": "File written"
+        },
+        "external": {
+          "label": "Stop"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "reads",
+        "label": "Reads",
+        "focus": ["m-triage", "m-grilling", "m-domain", "config", "contract", "oos-read", "step-1", "step-2", "step-3"],
+        "note": "Step 1 reads the config and three Methods. Step 3 reads the out-of-scope dir before it chooses an outcome."
+      },
+      {
+        "id": "human",
+        "label": "Human halt",
+        "focus": ["step-3", "human", "step-4"],
+        "note": "The triage Method grills the human in Step 3, and Step 4 applies only the outcome the human agreed."
+      },
+      {
+        "id": "writes",
+        "label": "Writes",
+        "focus": ["step-4", "w-state", "w-type", "w-comment", "w-close", "oos-file"],
+        "note": "Every write goes directly, with no PR gate, because a human is present at every transition."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "m-triage",
+      "type": "database",
+      "label": "triage",
+      "sublabel": "with AGENT-BRIEF, OUT-OF-SCOPE",
+      "pos": [40, 30],
+      "size": [220, 48]
+    },
+    {
+      "id": "m-grilling",
+      "type": "database",
+      "label": "grilling",
+      "sublabel": "for the grill",
+      "pos": [300, 30],
+      "size": [220, 48]
+    },
+    {
+      "id": "m-domain",
+      "type": "database",
+      "label": "domain-modeling",
+      "sublabel": "for the grill",
+      "pos": [560, 30],
+      "size": [220, 48]
+    },
+    {
+      "id": "config",
+      "type": "cloud",
+      "label": "unic-dlc.config.yaml",
+      "sublabel": "read, never written",
+      "pos": [40, 140],
+      "size": [220, 48]
+    },
+    {
+      "id": "contract",
+      "type": "cloud",
+      "label": "Tracker contract",
+      "sublabel": "issue-tracker.md, triage-labels.md",
+      "pos": [40, 230],
+      "size": [220, 48]
+    },
+    {
+      "id": "oos-read",
+      "type": "cloud",
+      "label": "Out-of-scope dir",
+      "sublabel": "prior-rejection check",
+      "pos": [40, 320],
+      "size": [220, 48]
+    },
+    {
+      "id": "step-1",
+      "type": "frontend",
+      "label": "1 Load config, Methods",
+      "sublabel": "no key is mandatory",
+      "pos": [300, 140],
+      "size": [220, 48]
+    },
+    {
+      "id": "step-2",
+      "type": "frontend",
+      "label": "2 Read tracker contract",
+      "sublabel": "resolves each role, unordered",
+      "pos": [300, 230],
+      "size": [220, 48]
+    },
+    {
+      "id": "step-3",
+      "type": "frontend",
+      "label": "3 Follow triage Method",
+      "sublabel": "the Method sets the order",
+      "pos": [300, 320],
+      "size": [220, 48]
+    },
+    {
+      "id": "step-4",
+      "type": "frontend",
+      "label": "4 Apply agreed outcome",
+      "sublabel": "one of six outcomes",
+      "pos": [300, 410],
+      "size": [220, 48]
+    },
+    {
+      "id": "step-5",
+      "type": "frontend",
+      "label": "5 Print the summary",
+      "sublabel": "state, brief, next Box",
+      "pos": [300, 500],
+      "size": [220, 48]
+    },
+    {
+      "id": "stop",
+      "type": "external",
+      "label": "Stop",
+      "sublabel": "file missing, run /setup",
+      "pos": [600, 185],
+      "size": [220, 48]
+    },
+    {
+      "id": "human",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "grilled, agrees the outcome",
+      "pos": [600, 320],
+      "size": [220, 48]
+    },
+    {
+      "id": "oos-file",
+      "type": "messagebus",
+      "label": "<concept>.md",
+      "sublabel": "rejected enhancement only",
+      "pos": [600, 500],
+      "size": [220, 48]
+    },
+    {
+      "id": "w-state",
+      "type": "backend",
+      "label": "State role",
+      "sublabel": "retracts other many-value states",
+      "pos": [880, 320],
+      "size": [230, 48]
+    },
+    {
+      "id": "w-type",
+      "type": "backend",
+      "label": "Type role",
+      "sublabel": "bug or feature",
+      "pos": [880, 380],
+      "size": [230, 48]
+    },
+    {
+      "id": "w-comment",
+      "type": "backend",
+      "label": "Comment",
+      "sublabel": "opens with the AI disclaimer",
+      "pos": [880, 440],
+      "size": [230, 48]
+    },
+    {
+      "id": "w-close",
+      "type": "backend",
+      "label": "Close the item",
+      "sublabel": "rejected or closed only",
+      "pos": [880, 500],
+      "size": [230, 48]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Methods, read in full",
+      "wraps": ["m-triage", "m-grilling", "m-domain"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Steps, in order",
+      "wraps": ["step-1", "step-2", "step-3", "step-4", "step-5"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Tracker writes",
+      "wraps": ["w-state", "w-type", "w-comment", "w-close"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "m-triage-step-1",
+      "from": "m-triage",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[150, 112], [410, 112]]
+    },
+    {
+      "id": "m-grilling-step-1",
+      "from": "m-grilling",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "m-domain-step-1",
+      "from": "m-domain",
+      "to": "step-1",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[670, 112], [410, 112]]
+    },
+    {
+      "id": "config-step-1",
+      "from": "config",
+      "to": "step-1"
+    },
+    {
+      "id": "contract-step-2",
+      "from": "contract",
+      "to": "step-2"
+    },
+    {
+      "id": "oos-read-step-3",
+      "from": "oos-read",
+      "to": "step-3"
+    },
+    {
+      "id": "step-1-step-2",
+      "from": "step-1",
+      "to": "step-2"
+    },
+    {
+      "id": "step-2-step-3",
+      "from": "step-2",
+      "to": "step-3"
+    },
+    {
+      "id": "step-3-step-4",
+      "from": "step-3",
+      "to": "step-4",
+      "label": "agreed outcome",
+      "labelAt": [470, 389]
+    },
+    {
+      "id": "step-4-step-5",
+      "from": "step-4",
+      "to": "step-5"
+    },
+    {
+      "id": "step-1-stop",
+      "from": "step-1",
+      "to": "stop",
+      "label": "missing",
+      "variant": "security",
+      "labelAt": [615, 164],
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [[710, 164]]
+    },
+    {
+      "id": "step-2-stop",
+      "from": "step-2",
+      "to": "stop",
+      "label": "missing",
+      "variant": "security",
+      "labelAt": [615, 254],
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [[710, 254]]
+    },
+    {
+      "id": "step-3-human",
+      "from": "step-3",
+      "to": "human",
+      "label": "grills",
+      "variant": "security"
+    },
+    {
+      "id": "step-4-oos-file",
+      "from": "step-4",
+      "to": "oos-file",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [[410, 474], [580, 474], [580, 524]]
+    },
+    {
+      "id": "step-4-w-state",
+      "from": "step-4",
+      "to": "w-state",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[850, 434], [850, 344]]
+    },
+    {
+      "id": "step-4-w-type",
+      "from": "step-4",
+      "to": "w-type",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[850, 434], [850, 404]]
+    },
+    {
+      "id": "step-4-w-comment",
+      "from": "step-4",
+      "to": "w-comment",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[850, 434], [850, 464]]
+    },
+    {
+      "id": "step-4-w-close",
+      "from": "step-4",
+      "to": "w-close",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[850, 434], [850, 524]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Left to the agent",
+      "items": [
+        "Step 2 lists what it resolves with no order",
+        "Step 3 runs in the order the triage Method sets, and this command fixes none"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Outcomes",
+      "items": [
+        "ready-for-agent, ready-for-human, needs-info, needs-specs, rejected, closed",
+        "Only rejected writes the out-of-scope file, and rejected and closed close the item"
+      ]
+    }
+  ]
+}
