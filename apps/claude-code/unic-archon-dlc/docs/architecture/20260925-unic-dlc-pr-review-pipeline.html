@@ -5511,12 +5511,22 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <div class="card">
         <div class="card-header">
           <div class="card-dot rose"></div>
-          <h3>Gate and files</h3>
+          <h3>Gate</h3>
         </div>
         <ul>
           <li>&bull; gates.pr-review: hitl pauses at review-gate; a reject cancels the run and posts nothing</li>
           <li>&bull; gates.pr-review: afk skips review-gate, and post runs because its trigger_rule is all_done</li>
-          <li>&bull; Every file sits under &lt;artifacts_dir&gt;/&lt;slug&gt;/pr-review/. review writes findings/review.json, and reconcile also writes threads.json</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot cyan"></div>
+          <h3>Files</h3>
+        </div>
+        <ul>
+          <li>&bull; Every file sits under &lt;artifacts_dir&gt;/&lt;slug&gt;/pr-review/. prep writes intent-brief.md, diff.patch, changed-files.txt and prep.json</li>
+          <li>&bull; review writes findings/review.json, synthesize writes findings.json and summary-sections.md, and reconcile writes comment.md and threads.json</li>
         </ul>
       </div>
     </div>
