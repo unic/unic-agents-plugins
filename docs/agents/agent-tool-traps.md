@@ -1,6 +1,6 @@
 # Traps proven the expensive way
 
-Facts about the tools an agent session drives here — Archon, Azure DevOps, `gh`, git, pnpm, the
+Facts about the tools an agent session drives here — Archon, Archify, Azure DevOps, `gh`, git, pnpm, the
 Copilot reviewer. Each one cost real time at least once. Each is a property of the tool, not of any
 one project, which is why this file is tracked and shareable.
 
@@ -330,6 +330,28 @@ every bullet added since carries the version and date it was measured on.
   rewrites `started_at` and `metadata.total_cost_usd`, so the database reports a fraction of the
   real cost. Check per-node `duration_ms` in the run's `.jsonl` log before quoting a cost
   (2026-08-26).
+
+## Archify
+
+Measured on the vendored Archify `version: "2.17"` (`.agents/skills/archify/SKILL.md`
+frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564). Each
+fact is a property of that renderer. Re-check all three in the commit that upgrades Archify, and
+update or delete each bullet there.
+
+- **Put what a workflow node writes in its `sublabel`.** A node's `tag` renders with
+  `data-detail="fine"` (`.agents/skills/archify/renderers/workflow/workflow-compiler.mjs:4202`),
+  so the viewer shows it only when zoomed in, and a PNG export leaves it out. `validate`,
+  `deliver` and `visual-check` all pass with the text invisible.
+- **Give `mainPath` only a chain whose columns never decrease, and wrap a longer chain.** `col`
+  runs from 0 to 5 (`.agents/skills/archify/schemas/workflow.schema.json:275-278`), and
+  `mainPath` refuses a step to a lower column with "moves backward from col N to M"
+  (`workflow-compiler.mjs:2441`). A chain of more than six nodes therefore needs a lane per extra
+  node. The workaround used here is to drop `mainPath` and wrap the chain into two lanes that read
+  as a U-turn, the second lane right to left.
+- **Choose the `architecture` type for a flow that must run top to bottom.** Workflow lanes are
+  always horizontal rows, and `workflow.schema.json` has no orientation field. The `architecture`
+  type places each component by `pos`, so a vertical main line is a matter of coordinates. The
+  box-set diagram under `apps/claude-code/unic-archon-dlc/docs/architecture/` is built that way.
 
 ## git
 
