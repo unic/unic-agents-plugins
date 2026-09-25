@@ -122,7 +122,7 @@ Each is dated to the day it was adopted, and each came from a session that went 
   the pull request was open, and every change after that re-ran the render and the export).
   Standing line for a visual ticket: _draw one item, show the maintainer the rendered file or its
   export, iterate, and only then draw the rest and export._ A description of a diagram is not that
-  checkpoint. The tool's own checks do not replace it either: every Archify check passed on designs
+  checkpoint. The tool's own checks do not replace it either. Every Archify check passed on designs
   the maintainer then changed.
 
 ### Before you post one: the four reads
