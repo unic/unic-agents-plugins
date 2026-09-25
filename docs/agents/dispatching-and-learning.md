@@ -117,16 +117,13 @@ Each is dated to the day it was adopted, and each came from a session that went 
   falsifies one, say so and quote it. Name the sentence by what it tells the reader, never by line or
   clause position.
 - **A ticket whose output is visual names a design checkpoint where the maintainer sees the
-  rendered item, before the bulk of the work** (2026-09-25, #563/#564). #563's diagram was shaped
-  with the maintainer over several rounds and came out as wanted. #564's opener named no such
-  point. The worker drew five diagrams and exported ten PNGs alone. The maintainer steered one
-  layout choice from the worker's prose descriptions, because the screenshots the worker read were
-  visible only to the worker, and first saw the diagrams after the pull request was open. Every
-  change from then on re-ran the render and the export, and HTML commits needed a per-commit guard
-  exception while #566 was open. Standing line for a visual ticket: _draw one item, show the
-  maintainer the rendered file or its export, iterate, and only then draw the rest and export._ A
-  description of a diagram is not that checkpoint. The tool's own checks do not replace it either:
-  all nine Archify checks passed on designs the maintainer then changed.
+  rendered item, before the bulk of the work** (2026-09-25, #564: the worker drew five diagrams and
+  exported ten PNGs from screenshots only it could see, the maintainer had prose descriptions until
+  the pull request was open, and every change after that re-ran the render and the export).
+  Standing line for a visual ticket: _draw one item, show the maintainer the rendered file or its
+  export, iterate, and only then draw the rest and export._ A description of a diagram is not that
+  checkpoint. The tool's own checks do not replace it either: every Archify check passed on designs
+  the maintainer then changed.
 
 ### Before you post one: the four reads
 
