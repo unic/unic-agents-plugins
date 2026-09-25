@@ -200,7 +200,7 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 - [domain.md](docs/agents/domain.md) — multi-context layout, `CONTEXT.md` and ADR locations
 - [feature-runner.md](docs/agents/feature-runner.md) — AFK invocation of the feature runner
 - [orchestrator-and-wayfinder.md](docs/agents/orchestrator-and-wayfinder.md) — who plans and who dispatches; why the orchestrator is a session, not an agent
-- [agent-tool-traps.md](docs/agents/agent-tool-traps.md) — measured traps in Archon, Azure DevOps, `gh`, git and the Copilot reviewer, and the shapes in which a session's claims go wrong
+- [agent-tool-traps.md](docs/agents/agent-tool-traps.md) — measured traps in the tools this repo uses, and the shapes in which a session's claims go wrong
 - [dispatching-and-learning.md](docs/agents/dispatching-and-learning.md) — writing a session opener, when to rewrite it, and where a worker's learnings go. **Read its § Route each learning by its lifetime before writing project memory.** Project memory stays on one machine, so every entry names a `destination:` in git and moves there at the next handoff
 
 ### Who owns which files
