@@ -348,7 +348,8 @@ every bullet added since carries the version and date it was measured on.
 ## Archify
 
 Measured on the vendored Archify `version: "2.17"` (`.agents/skills/archify/SKILL.md`
-frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564).
+frontmatter) on 2026-09-25, while drawing the `unic-archon-dlc` pipeline diagrams (#564) and
+command diagrams (#565).
 Re-check every bullet in the commit that upgrades Archify, and update or delete it there.
 
 - **Put what a workflow node writes in its `sublabel`.** A node's `tag` renders with
@@ -372,6 +373,21 @@ Re-check every bullet in the commit that upgrades Archify, and update or delete 
   wider than about 1240 at that screen, because node text would drop below 6 px, and
   `visual-check` refuses any page taller than the screen. Ten pipeline nodes in one column
   measured 2161 px tall. Rows of three or four nodes fit, with one card below.
+- **Give each step its own box only up to about eight steps, and group a longer command into
+  phase boxes.** `deliver` refuses two consecutive boxes closer than 24 px ("Connection
+  "step-1->step-2" is too short (16px; minimum 24px)"), so the screen height in the bullet above
+  holds about eight boxes in one column. The first `/tickets` draft, eleven steps in one column,
+  measured a 1207 px page at 1440 by 900. Rows of three or four steps, as in the pipelines, fitted, but the maintainer
+  rejected them as hard to read. A phase box names its step range, for example
+  `4-7 Slice and check`.
+- **Keep every node that is not a member clear of a region's title, or the frame grows over it.**
+  The renderer lifts a region title above any component the title overlaps, member or not
+  (`.agents/skills/archify/renderers/architecture/render-architecture.mjs:248-255`), and under a
+  quality profile it extends the frame up to the lifted title (`:267-269`). A one-member "Tracker
+  writes" region in the `/specs` command diagram framed the two nodes above its member. Removing a
+  region can also break `visual-check`. The viewBox narrows, the viewer scales the narrower diagram
+  up to its panel width, and the page grows taller. Dropping that region took the `/specs`
+  page from under 900 px to 909 px.
 - **Expect nested region labels to stack 2 px apart, whatever `pad` says.** An `architecture`
   region puts its label just above its first member, and lifts it only as far as clears another
   label (`.agents/skills/archify/renderers/architecture/render-architecture.mjs:212-215` and
