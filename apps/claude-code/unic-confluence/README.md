@@ -261,11 +261,7 @@ pnpm tag                  # creates local git tag vX.Y.Z
 git push --follow-tags    # pushes tag to GitHub
 ```
 
-**Optional — enable the local pre-push changelog check:**
-
-```sh
-git config core.hooksPath .githooks
-```
+The repository's git hooks turn on with `pnpm install` at the repository root. See the root `AGENTS.md`.
 
 ## Contributing
 

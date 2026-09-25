@@ -427,7 +427,9 @@ Re-check every bullet in the commit that upgrades Archify, and update or delete 
   This produced two false negatives inside one verification pass on 2026-08-26.
 - **A symlinked git hook resolves only while the checked-out branch carries the file.** On a branch
   that predates it the link dangles, git finds no hook, and the guard is silently inert — on the
-  very branch it exists to protect. Copy it (`install -m 755`), do not symlink.
+  very branch it exists to protect. This repository now points `core.hooksPath` at the main work
+  tree's `.githooks` on `pnpm install`, which has the same limit: the main work tree must be on a
+  branch that carries the hooks, and `prepare` warns when it is not.
 - **Global `push.default` was `matching` on the maintainer's macOS machine until 2026-09-22.** A
   bare `git push` pushed every name-matching local branch, other worktrees' branches included. It is
   `simple` there now (re-measured 2026-09-24). An earlier version of this line dated the fix
