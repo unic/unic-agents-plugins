@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# commit-msg — refuse a commit whose message carries an NDA-protected term.
+#
+# `pre-commit` reads the staged diff and never sees the message, so this hook covers the message.
+# Both run the same rule, in nda-match.mjs. See the header of `pre-commit` for why the guard exists.
+#
+# INSTALL (per clone; `.git/hooks` is not version-controlled)
+#
+#   ln -sf ../../.githooks/commit-msg "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+
+set -eu
+
+# Next to this script under `core.hooksPath`, else in the work tree when `.git/hooks` holds a symlink.
+matcher="$(dirname "$0")/nda-match.mjs"
+[ -f "$matcher" ] || matcher="$(git rev-parse --show-toplevel)/.githooks/nda-match.mjs"
+
+if ! command -v node >/dev/null 2>&1; then
+	printf '%s\n' "commit-msg: node is not on PATH, so the NDA guard cannot run and this commit is refused." >&2
+	exit 1
+fi
+
+node "$matcher" commit-msg "$1"

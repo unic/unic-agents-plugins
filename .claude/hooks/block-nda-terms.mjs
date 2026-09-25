@@ -14,12 +14,20 @@
 //   2. every existing file the command names  (`gh issue create --body-file <path>`)
 //   3. the staged diff, for a commit          (`git commit -m "<clean message>"`)
 //
+// It reads the staged diff of every repository the command can commit in: the session's cwd, each
+// `git -C <path>` and each `cd <path>`. Reading the cwd alone let `git -C <worktree> commit` from
+// the clone through with an empty diff (#566).
+//
+// The matching rule lives in `.githooks/nda-match.mjs`, which the git hooks share.
+//
 // Fails closed: no readable list means no publishing. `touch` the file to opt out.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { resolve } from 'node:path'
+
+import { findTerm, listPath, readTerms, redact } from '../../.githooks/nda-match.mjs'
 
 const MAX_BYTES = 2_000_000
 const START = String.raw`(?:^|[|;&(]\s*|\s)`
@@ -31,11 +39,6 @@ const GIT_OPTIONS = String.raw`(?:\s+(?:-[cC]\s+\S+|--(?:git-dir|work-tree|names
 const gitVerb = (verbs) => new RegExp(`${START}git${GIT_OPTIONS}\\s+(?:${verbs})\\b`)
 const PUBLISHES = new RegExp(`${START}(?:gh|glab)\\s|${gitVerb('push|commit|tag').source}`)
 const COMMITS = gitVerb('commit')
-
-const listPath = process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
-
-/** @param {string} term */
-const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
 /** @param {string} reason */
 function block(reason) {
@@ -59,11 +62,24 @@ function readNamedFiles(command) {
 	return found
 }
 
+/**
+ * The session's cwd, then every `git -C <path>` and `cd <path>` in the command, resolved against it.
+ * @param {string} command
+ * @param {string} cwd
+ */
+function commitDirs(command, cwd) {
+	const dirs = new Set([cwd])
+	for (const [, , path] of command.matchAll(/(?:\bgit\s+(?:\S+\s+)*?-C|(?:^|[|;&(]\s*)cd)\s+(['"]?)([^'"\s;&|]+)\1/g)) {
+		dirs.add(resolve(cwd, path.replace(/^~(?=\/|$)/, homedir())))
+	}
+	return [...dirs]
+}
+
 /** @param {string} cwd */
 function stagedDiff(cwd) {
 	try {
 		return execFileSync('git', ['diff', '--cached', '-U0'], {
-			cwd: cwd || process.cwd(),
+			cwd,
 			encoding: 'utf8',
 			maxBuffer: MAX_BYTES,
 		})
@@ -90,13 +106,10 @@ async function main() {
 
 	let terms
 	try {
-		terms = readFileSync(listPath, 'utf8')
-			.split('\n')
-			.map((line) => line.trim())
-			.filter((line) => line && !line.startsWith('#'))
+		terms = readTerms(listPath())
 	} catch {
 		block(
-			`cannot read the NDA term list at ${listPath}, so publishing is refused. ` +
+			`cannot read the NDA term list at ${listPath()}, so publishing is refused. ` +
 				'Create it with one term per line, or touch it to opt out deliberately. ' +
 				'See AGENTS.md § The NDA publish guard.',
 		)
@@ -107,21 +120,21 @@ async function main() {
 	/** @type {Array<[string, string]>} */
 	const surfaces = [['the command itself', command]]
 	if (COMMITS.test(command)) {
-		const diff = stagedDiff(event?.cwd ?? '')
-		if (diff === null) block('cannot read the staged diff, so this commit is refused.')
-		else surfaces.push(['the staged diff', diff])
+		for (const dir of commitDirs(command, event?.cwd || process.cwd())) {
+			const diff = stagedDiff(dir)
+			if (diff === null) block(`cannot read the staged diff in ${dir}, so this commit is refused.`)
+			else surfaces.push([`the staged diff in ${dir}`, diff])
+		}
 	}
 	surfaces.push(...readNamedFiles(command))
 
 	for (const [where, text] of surfaces) {
-		const haystack = text.toLowerCase()
-		for (const term of terms) {
-			if (haystack.includes(term.toLowerCase())) {
-				block(
-					`${where} carries the NDA term ${redact(term)}, and this command publishes ` +
-						'outside this machine. Remove it. This repository is public.',
-				)
-			}
+		const term = findTerm(text, terms)
+		if (term !== null) {
+			block(
+				`${where} carries the NDA term ${redact(term)}, and this command publishes ` +
+					'outside this machine. Remove it. This repository is public.',
+			)
 		}
 	}
 }
