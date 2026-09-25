@@ -11,7 +11,7 @@
 set -eu
 
 # Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
-# older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy.
+# older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy (Windows).
 self=$0
 if link=$(readlink "$self" 2>/dev/null); then
 	case $link in

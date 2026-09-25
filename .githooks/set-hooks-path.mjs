@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
 // Runs as the root `prepare` script, so `pnpm install` turns on the hooks in `.githooks/`. A clone
-// that skips this commits with no NDA guard, and nothing says so.
+// that skips this commits with no git-hook NDA guard, and nothing says so. The Claude hook still
+// guards agent sessions.
 //
 // It points `core.hooksPath` at the main work tree's `.githooks`, as an absolute path. Every linked
 // worktree then runs the hooks the main work tree has checked out, including a worktree whose own
@@ -59,15 +60,19 @@ try {
 	const mainTree = first.match(/^worktree (.+)$/m)?.[1]
 	const candidate = mainTree && !/^bare$/m.test(first) ? join(mainTree, '.githooks') : ''
 	if (candidate && existsSync(candidate)) hooksDir = candidate
-	else warn("found no main work tree with a .githooks, so core.hooksPath points at this work tree's", here)
+	else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`, here)
 } catch (error) {
-	warn(`git worktree list failed, so core.hooksPath points at this work tree's (${causeOf(error)})`, here)
+	warn(`git worktree list failed, so core.hooksPath points at ${here} (${causeOf(error)})`, here)
 }
 
-// The main work tree may be on a branch that carries no commit hooks, such as `main` before the
-// hooks reach it. Every worktree then commits unguarded until it checks out a branch that has them.
-if (!existsSync(join(hooksDir, 'pre-commit'))) {
-	warn(`${hooksDir} has no pre-commit, so no worktree of this clone runs the NDA commit guards`, hooksDir)
+// The main work tree may be on a branch that carries none or only some of the commit guards, such as
+// `main`, or a `develop` from before `commit-msg`. Every worktree then commits with that gap.
+const missing = ['pre-commit', 'commit-msg', 'nda-match.mjs'].filter((file) => !existsSync(join(hooksDir, file)))
+if (missing.length > 0) {
+	warn(
+		`${hooksDir} lacks ${missing.join(', ')}, so no worktree of this clone runs the full NDA commit guards`,
+		hooksDir
+	)
 }
 
 let previous = ''
@@ -83,5 +88,5 @@ try {
 		process.stderr.write(`prepare: core.hooksPath was ${previous}, and is now ${hooksDir}.\n`)
 	}
 } catch (error) {
-	warn(`could not set core.hooksPath, so the hooks are off (${causeOf(error)})`, hooksDir)
+	warn(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`, hooksDir)
 }
