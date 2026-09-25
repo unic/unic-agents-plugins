@@ -5172,7 +5172,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <path data-edge-from="build" data-edge-to="pr-review" data-edge-key="2" data-edge-id="main-3" data-composition-points="860,396;860,440" d="M 860 396 L 860 440" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="pr-review" data-edge-to="qa" data-edge-key="3" data-edge-id="main-4" data-composition-points="860,496;860,540" d="M 860 496 L 860 540" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="triage" data-edge-to="tickets" data-edge-label="agent-ready issues" data-edge-key="4" data-edge-id="triage-in" data-composition-points="600,261;760,261" d="M 600 261 L 760 261" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="qa" data-edge-to="triage" data-edge-label="UAT reject files issues" data-edge-key="5" data-edge-id="qa-in" data-composition-points="760,568;680,568;680,275;600,275" d="M 760 568 L 688 568 Q 680 568 680 560 L 680 283 Q 680 275 672 275 L 600 275" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="qa" data-edge-to="tickets" data-edge-label="UAT reject" data-edge-key="5" data-edge-id="qa-in" data-composition-points="760,568;736,568;736,275;760,275" d="M 760 568 L 744 568 Q 736 568 736 560 L 736 283 Q 736 275 744 275 L 760 275" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="findings" data-edge-to="specs" data-edge-label="reads" data-edge-key="6" data-edge-id="findings-read" data-composition-points="1120,75;860,75;860,140" d="M 1120 75 L 868 75 Q 860 75 860 83 L 860 140" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="explore" data-edge-to="findings" data-edge-label="writes" data-edge-key="7" data-edge-id="explore-writes-findings" data-composition-points="240,61;1120,61" d="M 240 61 L 1120 61" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="specs" data-edge-to="prd" data-edge-label="writes" data-edge-key="8" data-edge-id="specs-writes-prd" data-composition-points="960,168;1120,168" d="M 960 168 L 1120 168" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
@@ -5305,8 +5305,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="860" y="282" class="t-muted" font-size="9" text-anchor="middle">reads PRD.md</text>
         </g>
 
-        <g id="node-build" data-node-id="build" data-node-label="/build" tabindex="0" role="button" aria-label="Focus /build, reads issues.json, Main line" aria-pressed="false" data-node-kind="database" data-node-sublabel="reads issues.json" data-node-context="Main line">
-          <title>/build · reads issues.json · Main line</title>
+        <g id="node-build" data-node-id="build" data-node-label="/build" tabindex="0" role="button" aria-label="Focus /build, reads issues.json, PRD.md, Main line" aria-pressed="false" data-node-kind="database" data-node-sublabel="reads issues.json, PRD.md" data-node-context="Main line">
+          <title>/build · reads issues.json, PRD.md · Main line</title>
           <rect x="760" y="340" width="200" height="56" rx="6" class="c-mask"/>
           <rect x="760" y="340" width="200" height="56" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(766 346) scale(0.6875)">
@@ -5314,7 +5314,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="860" y="366" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">/build</text>
-        <text data-detail="context" x="860" y="382" class="t-muted" font-size="9" text-anchor="middle">reads issues.json</text>
+        <text data-detail="context" x="860" y="382" class="t-muted" font-size="9" text-anchor="middle">reads issues.json, PRD.md</text>
         </g>
 
         <g id="node-pr-review" data-node-id="pr-review" data-node-label="/pr-review" tabindex="0" role="button" aria-label="Focus /pr-review, reads the PR, PRD.md, Main line" aria-pressed="false" data-node-kind="database" data-node-sublabel="reads the PR, PRD.md" data-node-context="Main line">
@@ -5422,9 +5422,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <rect x="631.8" y="241" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
           <text x="680" y="251" class="t-muted" font-size="8" text-anchor="middle">agent-ready issues</text>
         </g>
-        <g data-detail="context" data-edge-from="qa" data-edge-to="triage" data-edge-label="UAT reject files issues" data-edge-key="5" data-edge-id="qa-in">
-          <rect x="619.8" y="401.5" width="120.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="680" y="411.5" class="t-messagebus" font-size="8" text-anchor="middle">UAT reject files issues</text>
+        <g data-detail="context" data-edge-from="qa" data-edge-to="tickets" data-edge-label="UAT reject" data-edge-key="5" data-edge-id="qa-in">
+          <rect x="707" y="401.5" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="736" y="411.5" class="t-messagebus" font-size="8" text-anchor="middle">UAT reject</text>
         </g>
         <g data-detail="context" data-edge-from="findings" data-edge-to="specs" data-edge-label="reads" data-edge-key="6" data-edge-id="findings-read">
           <rect x="843" y="87.5" width="34" height="14" rx="3" class="c-mask"/>
