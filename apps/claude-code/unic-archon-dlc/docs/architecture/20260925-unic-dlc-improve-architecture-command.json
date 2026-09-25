@@ -187,7 +187,7 @@
       "id": "h-6",
       "type": "security",
       "label": "Human",
-      "sublabel": "approves each ADR and home",
+      "sublabel": "decides each ADR and its home",
       "pos": [600, 490],
       "size": [220, 40]
     },

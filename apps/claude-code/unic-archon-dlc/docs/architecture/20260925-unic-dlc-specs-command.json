@@ -219,7 +219,7 @@
       "id": "w-contract",
       "type": "messagebus",
       "label": "Design contract",
-      "sublabel": "screenshot; docs, if publish",
+      "sublabel": "with screenshot, per component",
       "pos": [880, 488],
       "size": [230, 44]
     },
@@ -419,7 +419,7 @@
       "title": "Stops and the gate",
       "items": [
         "Step 7 stops on a missing design doc or a blocked component",
-        "The gate stops on a missing halt record or tracker contract; a reject returns to Step 4"
+        "The gate stops on a missing halt record, tracker contract or explicit repository; a reject returns to Step 4"
       ]
     }
   ]

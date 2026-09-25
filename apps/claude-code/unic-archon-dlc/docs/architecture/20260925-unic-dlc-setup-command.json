@@ -347,7 +347,7 @@
       "dot": "rose",
       "title": "Stops, and what it never does",
       "items": [
-        "Step 5 stops on a bundle defect, Step 6 on a failed write; a missing capability only warns",
+        "Step 5 stops on any failure, Step 6 on a failed write; a missing capability only warns",
         "It reads no Method, writes nothing to the tracker, and stages nothing"
       ]
     }
