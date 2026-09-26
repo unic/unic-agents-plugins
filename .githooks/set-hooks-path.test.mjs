@@ -3,13 +3,25 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { findMainWorkTree } from './main-work-tree.mjs'
+
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'set-hooks-path.mjs')
+const { packageManager: PNPM } = JSON.parse(readFileSync(join(dirname(SCRIPT), '..', 'package.json'), 'utf8'))
 
 const scratch = realpathSync.native(mkdtempSync(join(tmpdir(), 'hooks-path-')))
 after(() => rmSync(scratch, { recursive: true, force: true }))
@@ -50,16 +62,17 @@ const prepare = (cwd, env = {}) =>
 	spawnSync('node', [SCRIPT], { cwd, encoding: 'utf8', env: { ...process.env, ...env } })
 
 /**
- * Run the script the way a person does, through `pnpm install`. At a terminal pnpm's default reporter
- * replaces a lifecycle script's output with "Done" when the script exits 0. In a pipe that reporter can
- * still show the line of a slow script, so only a non-zero exit, after which pnpm prints the output in
- * full, proves the person sees it.
+ * Run the script the way a person does, through `pnpm install`, with the pnpm this repository pins.
+ * Reporters differ between pnpm versions. At a terminal pnpm 10 replaces a lifecycle script's output
+ * with "Done" when the script exits 0, and pnpm 12 cuts the line at the terminal width. In a pipe the
+ * reporter can still show the line of a slow script, so only a non-zero exit, after which the pinned
+ * pnpm prints the output in full, proves the person sees it.
  * @param {string} cwd
  */
 function install(cwd) {
 	writeFileSync(
 		join(cwd, 'package.json'),
-		JSON.stringify({ name: 't', private: true, scripts: { prepare: `node "${SCRIPT}"` } })
+		JSON.stringify({ name: 't', private: true, packageManager: PNPM, scripts: { prepare: `node "${SCRIPT}"` } })
 	)
 	const result = spawnSync('pnpm', ['install', '--reporter=default'], {
 		cwd,
@@ -81,16 +94,16 @@ describe('set-hooks-path', () => {
 	})
 	test('points a linked worktree at the main work tree', () => {
 		const dir = repo()
-		const worktree = join(scratch, `wt-${Date.now()}`)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
 		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
 		prepare(worktree)
 		assert.equal(canonical(git(['config', '--get', 'core.hooksPath'], worktree)), canonical(join(dir, '.githooks')))
 	})
 	test('names pre-commit when the main work tree lacks it', () => {
-		assert.match(prepare(repo({ without: 'pre-commit' })).stderr, /lacks pre-commit,/)
+		assert.match(prepare(repo({ without: 'pre-commit' })).stderr, /lacks pre-commit\./)
 	})
 	test('names commit-msg when the main work tree lacks it', () => {
-		assert.match(prepare(repo({ without: 'commit-msg' })).stderr, /lacks commit-msg,/)
+		assert.match(prepare(repo({ without: 'commit-msg' })).stderr, /lacks commit-msg\./)
 	})
 	test('prints nothing where there is no repository', () => {
 		assert.equal(prepare(mkdtempSync(join(scratch, 'plain-'))).stderr, '')
@@ -103,7 +116,7 @@ describe('set-hooks-path', () => {
 	test('fails pnpm install and shows why when the main work tree lacks a guard', () => {
 		const { status, output } = install(repo({ without: 'pre-commit' }))
 		assert.deepEqual(
-			{ failed: status !== 0, shown: /lacks pre-commit,/.test(output) },
+			{ failed: status !== 0, shown: /lacks pre-commit\./.test(output) },
 			{ failed: true, shown: true },
 			output
 		)
@@ -127,7 +140,7 @@ describe('set-hooks-path', () => {
 	})
 	test('sets its own repository, not the file GIT_CONFIG names', () => {
 		const dir = repo()
-		const other = join(scratch, `config-${Date.now()}`)
+		const other = join(mkdtempSync(join(scratch, 'config-')), 'config')
 		prepare(dir, { GIT_CONFIG: other })
 		const local = canonical(git(['config', '--local', '--get', 'core.hooksPath'], dir))
 		assert.deepEqual(
@@ -174,7 +187,7 @@ describe('set-hooks-path', () => {
 	})
 	test('exits non-zero in a linked worktree when the main work tree has no .githooks', () => {
 		const dir = repo()
-		const worktree = join(scratch, `wt-${Date.now()}`)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
 		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
 		rmSync(join(dir, '.githooks'), { recursive: true })
 		const { status, stderr } = prepare(worktree)
@@ -186,16 +199,19 @@ describe('set-hooks-path', () => {
 		)
 	})
 	test('warns and exits 0 in a worktree of a bare repository', () => {
-		const bare = join(scratch, `bare-${Date.now()}.git`)
+		const bare = mkdtempSync(join(scratch, 'bare-'))
 		git(['clone', '-q', '--bare', repo(), bare], scratch)
-		const worktree = join(scratch, `bare-wt-${Date.now()}`)
+		const worktree = mkdtempSync(join(scratch, 'bare-wt-'))
 		git(['worktree', 'add', '-q', worktree], bare)
 		const { status, stderr } = prepare(worktree)
 		assert.deepEqual({ status, warned: /found no main work tree/.test(stderr) }, { status: 0, warned: true }, stderr)
 	})
 	test('warns and exits 0 in a clone made with --separate-git-dir', () => {
 		const dir = mkdtempSync(join(scratch, 'sep-'))
-		git(['clone', '-q', '--separate-git-dir', join(scratch, `sep-${Date.now()}.git`), repo(), dir], scratch)
+		git(
+			['clone', '-q', '--separate-git-dir', join(mkdtempSync(join(scratch, 'sep-git-')), 'git'), repo(), dir],
+			scratch
+		)
 		const { status, stderr } = prepare(dir)
 		assert.deepEqual({ status, warned: /found no main work tree/.test(stderr) }, { status: 0, warned: true }, stderr)
 	})
@@ -207,7 +223,7 @@ describe('set-hooks-path', () => {
 			chmodSync(join(dir, '.githooks', 'pre-commit'), 0o644)
 			const { status, stderr } = prepare(dir)
 			assert.deepEqual(
-				{ status, named: /pre-commit is not executable/.test(stderr) },
+				{ status, named: /skips pre-commit, because it is not executable/.test(stderr) },
 				{ status: 1, named: true },
 				stderr
 			)
@@ -247,5 +263,75 @@ describe('set-hooks-path', () => {
 			env: { ...process.env, PATH: bin },
 		})
 		assert.deepEqual({ status, cause: /EACCES/.test(stderr) }, { status: 1, cause: true }, stderr)
+	})
+	test('runs pnpm install with the pnpm this repository pins', () => {
+		const { status, output } = install(repo())
+		assert.deepEqual(
+			{ status, pinned: output.includes(`using pnpm v${PNPM.split('@')[1]}`) },
+			{ status: 0, pinned: true },
+			output
+		)
+	})
+	test('gives the docs remedy, not a path set by hand, when it fails', () => {
+		const { stderr } = prepare(repo({ without: 'pre-commit' }))
+		assert.deepEqual(
+			{
+				docs: /check out one that carries it there, then run pnpm install there/.test(stderr),
+				byHand: /git config core\.hookspath "/i.test(stderr),
+			},
+			{ docs: true, byHand: false },
+			stderr
+		)
+	})
+	test('puts the reason before any path in every prepare: line', { skip: process.platform === 'win32' }, () => {
+		const dir = repo({ without: 'pre-commit' })
+		chmodSync(join(dir, '.githooks', 'commit-msg'), 0o644)
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
+		const lines = prepare(dir)
+			.stderr.split('\n')
+			.filter((line) => line.startsWith('prepare: '))
+		assert.deepEqual(
+			{ count: lines.length, pathFirst: lines.filter((line) => !/^prepare: [a-z]/.test(line)) },
+			{ count: 4, pathFirst: [] },
+			lines.join('\n')
+		)
+	})
+	test('exits non-zero and names another worktree whose config.worktree overrides the value', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{
+				status,
+				named:
+					stderr.includes(`resolves there to`) &&
+					stderr.includes('/elsewhere') &&
+					stderr.includes(worktree.split(/[\\/]/).pop() ?? ''),
+			},
+			{ status: 1, named: true },
+			stderr
+		)
+	})
+	test('warns, skips the check and exits 0 for a worktree whose directory is gone', () => {
+		const dir = repo()
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		rmSync(worktree, { recursive: true, force: true })
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{ status, skipped: /skipped the core\.hooksPath check in a stale worktree/.test(stderr) },
+			{ status: 0, skipped: true },
+			stderr
+		)
+	})
+	test('reads a main work tree path without the \\r of a CRLF worktree list', () => {
+		assert.equal(findMainWorkTree('worktree /repo\r\nHEAD abc\r\nbranch refs/heads/main\r\n\r\n'), '/repo')
 	})
 })

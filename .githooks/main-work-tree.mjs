@@ -9,7 +9,23 @@
  * @param {string} porcelain
  */
 export function findMainWorkTree(porcelain) {
-	const [first = ''] = porcelain.split(/\r?\n\r?\n/)
-	if (/^bare$/m.test(first)) return ''
-	return first.match(/^worktree (.+)$/m)?.[1] ?? ''
+	const [first] = listWorktrees(porcelain)
+	return !first || first.isBare ? '' : first.path
+}
+
+/**
+ * Every entry of `git worktree list --porcelain`, in its order. In a JavaScript regex `.` stops at
+ * `\r` and a multiline `$` matches before it, so a `\r\n` line end leaves no `\r` in a field.
+ * @param {string} porcelain
+ * @returns {{ path: string, isBare: boolean, isPrunable: boolean }[]}
+ */
+export function listWorktrees(porcelain) {
+	return porcelain
+		.split(/\r?\n\r?\n/)
+		.filter((entry) => entry.trim() !== '')
+		.map((entry) => ({
+			path: entry.match(/^worktree (.+)$/m)?.[1] ?? '',
+			isBare: /^bare$/m.test(entry),
+			isPrunable: /^prunable\b/m.test(entry),
+		}))
 }

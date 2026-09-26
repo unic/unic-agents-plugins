@@ -17,12 +17,20 @@
 // The fallbacks for a bare or `--separate-git-dir` layout still set the hooks, so they only warn. It
 // cannot report what happens while it does not run: an install with `--ignore-scripts`, a moved
 // clone, or an install on a branch whose `package.json` has no `prepare` script, such as `main`.
+// Nor can it see a change after it ran: a later branch switch in the main work tree, or an
+// `includeIf` in the git config whose condition starts to hold.
+//
+// With `extensions.worktreeConfig`, each worktree can hold its own value, so it reads the value back
+// in every worktree of the clone, not only this one.
+//
+// Each message puts its reason before any path. At a terminal pnpm may cut a line at the terminal
+// width, and a long path first would push the reason out of sight.
 
 import { execFileSync } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import { findMainWorkTree } from './main-work-tree.mjs'
+import { findMainWorkTree, listWorktrees } from './main-work-tree.mjs'
 
 // Git exports GIT_DIR to hooks in linked worktrees. Inherited, it would point every call below at
 // another repository, and the write at the end would change that repository's hooks. GIT_CONFIG
@@ -40,23 +48,16 @@ function causeOf(error) {
 	return String(stderr ?? '').trim() || String(message ?? error)
 }
 
-/**
- * @param {string} reason
- * @param {string} hooksDir
- */
-function warn(reason, hooksDir) {
-	process.stderr.write(
-		`prepare: ${reason}.\n` +
-			`  Check the NDA git hooks, or set them by hand: git config core.hooksPath "${hooksDir}"\n`
-	)
-}
+/** @param {string} reason */
+const warn = (reason) => process.stderr.write(`prepare: ${reason}.\n`)
 
-/**
- * @param {string} reason
- * @param {string} hooksDir
- */
-function fail(reason, hooksDir) {
-	warn(reason, hooksDir)
+// A path set by hand is no remedy. With the main work tree on `main`, it holds only `pre-push`.
+/** @param {string} reason */
+function fail(reason) {
+	warn(reason)
+	process.stderr.write(
+		'  The NDA git hooks stay off until pnpm install passes. Fix the cause above. If the main work tree is on a branch without .githooks, check out one that carries it there, then run pnpm install there.\n'
+	)
 	process.exitCode = 1
 }
 
@@ -70,7 +71,7 @@ let prefix
 try {
 	prefix = git(['rev-parse', '--show-prefix'])
 } catch (error) {
-	fail(`git rev-parse failed, so the hooks are off (${causeOf(error)})`, join(process.cwd(), '.githooks'))
+	fail(`git rev-parse failed, so the hooks are off (${causeOf(error)})`)
 	process.exit()
 }
 if (prefix !== '') process.exit(0)
@@ -80,21 +81,20 @@ if (prefix !== '') process.exit(0)
 // `.githooks` must not: every worktree would run this one's hooks, and lose them when it is removed.
 const here = join(process.cwd(), '.githooks')
 let hooksDir = here
+let porcelain
 try {
-	const mainTree = findMainWorkTree(git(['worktree', 'list', '--porcelain']))
+	porcelain = git(['worktree', 'list', '--porcelain'])
+	const mainTree = findMainWorkTree(porcelain)
 	const candidate = mainTree ? join(mainTree, '.githooks') : ''
 	const isLinked = git(['rev-parse', '--git-dir']) !== git(['rev-parse', '--git-common-dir'])
 	if (candidate && existsSync(candidate)) hooksDir = candidate
 	else if (candidate && isLinked) {
-		fail(
-			`${candidate} does not exist, and this is a linked worktree, so the hooks stay off. Check out a branch that carries .githooks in the main work tree, then run pnpm install`,
-			candidate
-		)
+		fail(`the hooks stay off, because this is a linked worktree and its main work tree has no ${candidate}`)
 		process.exit()
-	} else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`, here)
+	} else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`)
 } catch (error) {
 	// A git failure is not a layout, so it gets no fallback.
-	fail(`git worktree list failed, so the hooks are off (${causeOf(error)})`, here)
+	fail(`git worktree list failed, so the hooks are off (${causeOf(error)})`)
 	process.exit()
 }
 
@@ -104,7 +104,9 @@ const missing = ['pre-commit', 'commit-msg', 'pre-push', 'nda-match.mjs', 'nda-p
 	(file) => !existsSync(join(hooksDir, file))
 )
 if (missing.length > 0) {
-	fail(`${hooksDir} lacks ${missing.join(', ')}, so no worktree of this clone runs the full NDA guards`, hooksDir)
+	fail(
+		`no worktree of this clone runs the full NDA guards, because the hooks directory lacks ${missing.join(', ')}. It is ${hooksDir}`
+	)
 }
 // Git skips a hook that is not executable and prints only a hint. Windows has no such bit.
 if (process.platform !== 'win32') {
@@ -112,10 +114,7 @@ if (process.platform !== 'win32') {
 		try {
 			accessSync(join(hooksDir, file), constants.X_OK)
 		} catch {
-			fail(
-				`${join(hooksDir, file)} is not executable, so git skips it. Fix it with: chmod +x "${join(hooksDir, file)}"`,
-				hooksDir
-			)
+			fail(`git skips ${file}, because it is not executable. Fix it with: chmod +x "${join(hooksDir, file)}"`)
 		}
 	}
 }
@@ -130,22 +129,48 @@ try {
 try {
 	git(['config', 'core.hooksPath', hooksDir])
 } catch (error) {
-	fail(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`, hooksDir)
+	fail(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`)
 	process.exit()
 }
 
-// With `extensions.worktreeConfig`, a value in `config.worktree` wins over the one just written.
-let effective
-try {
-	effective = git(['config', '--show-origin', '--get', 'core.hooksPath'])
-} catch (error) {
-	effective = `nothing (${causeOf(error)})`
+/**
+ * The value git uses, with the file it comes from, here or in the worktree that `where` names as
+ * `-C <path>`. A value in `config.worktree` wins over the one just written.
+ * @param {string[]} where
+ */
+function readEffective(where) {
+	try {
+		return git([...where, 'config', '--show-origin', '--get', 'core.hooksPath'])
+	} catch (error) {
+		return `nothing (${causeOf(error)})`
+	}
 }
+
+const effective = readEffective([])
 if (!effective.endsWith(`\t${hooksDir}`)) {
 	fail(
-		`core.hooksPath resolves to ${effective.replace('\t', ' ')}, which wins over ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`,
-		hooksDir
+		`another value wins over the one just written, so the hooks are off here. core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`
 	)
 } else if (previous && previous !== hooksDir) {
 	process.stderr.write(`prepare: core.hooksPath was ${previous}, and is now ${hooksDir}.\n`)
+}
+
+// Every other worktree reads the shared value too, unless its own `config.worktree` overrides it.
+// A stale worktree must not break every install, so skip one that git marks prunable or whose
+// directory is gone.
+const top = git(['rev-parse', '--show-toplevel'])
+for (const { path, isBare, isPrunable } of listWorktrees(porcelain)) {
+	if (isBare || !path || path === top) continue
+	if (isPrunable || !existsSync(path)) {
+		warn(
+			`skipped the core.hooksPath check in a stale worktree, which git marks prunable or whose directory is gone: ${path}`
+		)
+		continue
+	}
+	const value = readEffective(['-C', path])
+	if (!value.endsWith(`\t${hooksDir}`)) {
+		fail(
+			`the hooks are off in another worktree of this clone, because core.hooksPath resolves there to ${value.replace('\t', ' ')}, not ${hooksDir}. The worktree is ${path}. For a value in config.worktree, remove it with: git -C "${path}" config --worktree --unset core.hooksPath`
+		)
+	}
 }
