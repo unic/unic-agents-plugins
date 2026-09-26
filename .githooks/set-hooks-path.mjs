@@ -23,7 +23,7 @@
 // With `extensions.worktreeConfig`, each worktree can hold its own value, so it reads the value back
 // in every worktree of the clone, not only this one.
 //
-// Each message puts its reason before any path. At a terminal pnpm may cut a line at the terminal
+// Each message says "because" and its reason before any path. At a terminal pnpm may cut a line at the terminal
 // width, and a long path first would push the reason out of sight.
 
 import { execFileSync } from 'node:child_process'
@@ -71,7 +71,7 @@ let prefix
 try {
 	prefix = git(['rev-parse', '--show-prefix'])
 } catch (error) {
-	fail(`git rev-parse failed, so the hooks are off (${causeOf(error)})`)
+	fail(`the hooks are off, because git rev-parse failed (${causeOf(error)})`)
 	process.exit()
 }
 if (prefix !== '') process.exit(0)
@@ -89,12 +89,17 @@ try {
 	const isLinked = git(['rev-parse', '--git-dir']) !== git(['rev-parse', '--git-common-dir'])
 	if (candidate && existsSync(candidate)) hooksDir = candidate
 	else if (candidate && isLinked) {
-		fail(`the hooks stay off, because this is a linked worktree and its main work tree has no ${candidate}`)
+		fail(
+			`the hooks stay off, because this is a linked worktree and its main work tree has no .githooks. It looks for ${candidate}`
+		)
 		process.exit()
-	} else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`)
+	} else
+		warn(
+			`core.hooksPath points at this work tree's .githooks, because git found no main work tree with a .githooks. It is ${here}`
+		)
 } catch (error) {
 	// A git failure is not a layout, so it gets no fallback.
-	fail(`git worktree list failed, so the hooks are off (${causeOf(error)})`)
+	fail(`the hooks are off, because git worktree list failed (${causeOf(error)})`)
 	process.exit()
 }
 
@@ -129,7 +134,7 @@ try {
 try {
 	git(['config', 'core.hooksPath', hooksDir])
 } catch (error) {
-	fail(`core.hooksPath was not updated, and may still hold an earlier value (${causeOf(error)})`)
+	fail(`core.hooksPath may still hold an earlier value, because git could not update it (${causeOf(error)})`)
 	process.exit()
 }
 
@@ -149,10 +154,10 @@ function readEffective(where) {
 const effective = readEffective([])
 if (!effective.endsWith(`\t${hooksDir}`)) {
 	fail(
-		`another value wins over the one just written, so the hooks are off here. core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`
+		`the hooks are off here, because another value wins over the one just written. core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`
 	)
 } else if (previous && previous !== hooksDir) {
-	process.stderr.write(`prepare: core.hooksPath was ${previous}, and is now ${hooksDir}.\n`)
+	warn(`core.hooksPath changed, because it pointed at another directory. It was ${previous}, and is now ${hooksDir}`)
 }
 
 // Every other worktree reads the shared value too, unless its own `config.worktree` overrides it.

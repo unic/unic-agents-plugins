@@ -111,7 +111,7 @@ describe('set-hooks-path', () => {
 	test('reports a core.hooksPath it overwrites', () => {
 		const dir = repo()
 		git(['config', 'core.hooksPath', '/old/hooks'], dir)
-		assert.match(prepare(dir).stderr, /was \/old\/hooks, and is now /)
+		assert.match(prepare(dir).stderr, /It was \/old\/hooks, and is now /)
 	})
 	test('fails pnpm install and shows why when the main work tree lacks a guard', () => {
 		const { status, output } = install(repo({ without: 'pre-commit' }))
@@ -252,7 +252,11 @@ describe('set-hooks-path', () => {
 		const dir = repo()
 		writeFileSync(join(dir, '.git', 'config.lock'), '')
 		const { status, stderr } = prepare(dir)
-		assert.deepEqual({ status, named: /was not updated/.test(stderr) }, { status: 1, named: true }, stderr)
+		assert.deepEqual(
+			{ status, named: /because git could not update it/.test(stderr) },
+			{ status: 1, named: true },
+			stderr
+		)
 	})
 	test('exits non-zero with a readable cause when git cannot be run', { skip: process.platform === 'win32' }, () => {
 		const bin = mkdtempSync(join(scratch, 'bin-'))
@@ -276,30 +280,48 @@ describe('set-hooks-path', () => {
 		const { stderr } = prepare(repo({ without: 'pre-commit' }))
 		assert.deepEqual(
 			{
-				docs: /Some or all of the NDA git hooks are off until pnpm install passes.*check out a branch that carries it in the main work tree, then run pnpm install there/.test(stderr),
+				docs: /Some or all of the NDA git hooks are off until pnpm install passes.*check out a branch that carries it in the main work tree, then run pnpm install there/.test(
+					stderr
+				),
 				byHand: /git config core\.hookspath "/i.test(stderr),
 			},
 			{ docs: true, byHand: false },
 			stderr
 		)
 	})
-	test('puts the reason before any path in every prepare: line', { skip: process.platform === 'win32' }, () => {
-		const dir = repo({ without: 'pre-commit' })
-		chmodSync(join(dir, '.githooks', 'commit-msg'), 0o644)
-		git(['config', 'extensions.worktreeConfig', 'true'], dir)
-		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], dir)
-		const worktree = mkdtempSync(join(scratch, 'wt-'))
-		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
-		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
-		const lines = prepare(dir)
-			.stderr.split('\n')
-			.filter((line) => line.startsWith('prepare: '))
-		assert.deepEqual(
-			{ count: lines.length, pathFirst: lines.filter((line) => !/^prepare: [a-z]/.test(line)) },
-			{ count: 4, pathFirst: [] },
-			lines.join('\n')
-		)
-	})
+	test(
+		'says because and the reason before any path in every prepare: line',
+		{ skip: process.platform === 'win32' },
+		() => {
+			const dir = repo({ without: 'pre-commit' })
+			chmodSync(join(dir, '.githooks', 'commit-msg'), 0o644)
+			git(['config', 'core.hooksPath', '/old/hooks'], dir)
+			git(['config', 'extensions.worktreeConfig', 'true'], dir)
+			const worktree = mkdtempSync(join(scratch, 'wt-'))
+			git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+			git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
+			const linked = repo()
+			const orphan = mkdtempSync(join(scratch, 'wt-'))
+			git(['worktree', 'add', '-q', orphan, '-b', 'wt'], linked)
+			rmSync(join(linked, '.githooks'), { recursive: true })
+			const bare = mkdtempSync(join(scratch, 'bare-'))
+			git(['clone', '-q', '--bare', repo(), bare], scratch)
+			const bareWorktree = mkdtempSync(join(scratch, 'bare-wt-'))
+			git(['worktree', 'add', '-q', bareWorktree], bare)
+			const own = repo()
+			git(['config', 'extensions.worktreeConfig', 'true'], own)
+			git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], own)
+			const stderr = [prepare(dir), prepare(orphan), prepare(bareWorktree), prepare(own)]
+				.map((run) => run.stderr)
+				.join('\n')
+			const lines = stderr.split('\n').filter((line) => line.startsWith('prepare: '))
+			const pathFirst = lines.filter((line) => {
+				const reasonAt = line.indexOf(' because ')
+				return reasonAt < 0 || /[\\/]/.test(line.slice(0, reasonAt))
+			})
+			assert.deepEqual({ count: lines.length, pathFirst }, { count: 7, pathFirst: [] }, stderr)
+		}
+	)
 	test('exits non-zero and names another worktree whose config.worktree overrides the value', () => {
 		const dir = repo()
 		git(['config', 'extensions.worktreeConfig', 'true'], dir)
