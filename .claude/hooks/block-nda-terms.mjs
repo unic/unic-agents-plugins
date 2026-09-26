@@ -1,187 +1,177 @@
 #!/usr/bin/env node
 // @ts-check
-// Refuses a command that would publish an NDA-protected term to this public repository.
+// Refuses a Bash command that would publish an NDA-protected term to this public repository.
 //
-// It reads the term list from a file OUTSIDE every repository, so the list itself never
-// becomes the leak. This script names no term and is safe to commit.
+// It guards what git never sees: the text of `gh` and `glab` commands and the files they name. Git
+// guards what git writes and sends. `pre-commit` and `commit-msg` read the real staged content and
+// message, and `pre-push` reads every commit a push sends. So for git this hook checks only that
+// those hooks will run. It reads no staged diff and parses no commit directory. See
+// docs/adr/0036-split-nda-guards-by-what-each-sees.md.
+//
+// The checks, in order:
+//   1. A command whose own text holds `--no-verify` or `hookspath`, in any case, is refused, whatever
+//      the verb. Both switch the git hooks off.
+//   2. A command with `push` as a word is refused unless the session's cwd is in a repository whose
+//      `core.hooksPath` points at the `.githooks` of that repository's main work tree.
+//   3. A command with `git`, `gh` or `glab` as a word anywhere has its text scanned for a term.
+//   4. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd`, because
+//      a relative path after them would resolve somewhere this hook does not look.
+//   5. For such a command, the text is split on whitespace, quotes, `=`, `@`, `<`, `(`, `)` and `$`,
+//      and every piece that is an existing file, resolved against the session's cwd, is scanned.
+//      A file over 2 MB is refused, not skipped. Reading more than the command needs costs nothing:
+//      the hook refuses only when it finds a term.
+//
+// It fails closed. An empty or malformed payload, an exception, or an unreadable term list exits 2,
+// the only exit that blocks a `PreToolUse` call. `touch` the list to opt out.
 //
 //   list:  $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt
-//   scope: this repository only — it is wired in .claude/settings.json, so a session in a
-//          client's own repository is unaffected, where those names are legitimate.
-//
-// It inspects three surfaces, because two of them carry no term in the command string:
-//   1. the command itself
-//   2. every existing file the command names  (`gh issue create --body-file <path>`)
-//   3. the staged diff, for a commit          (`git commit -m "<clean message>"`)
-//
-// It reads the staged diff of every repository the command can commit in: the session's cwd, each
-// `git -C <path>` and each `cd <path>`. Reading the cwd alone let `git -C <worktree> commit` from
-// the clone through with an empty diff (#566).
+//   scope: this repository only. It is wired in .claude/settings.json, so a session in a client's
+//          own repository is unaffected, where those names are legitimate.
 //
 // The matching rule lives in `.githooks/nda-match.mjs`, which the git hooks share.
-//
-// Fails closed: no readable list means no publishing. `touch` the file to opt out.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { resolve } from 'node:path'
-
-import { findTerm, listPath, readTerms, redact } from '../../.githooks/nda-match.mjs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
+import { isAbsolute, join, resolve } from 'node:path'
 
 const MAX_BYTES = 2_000_000
-const START = String.raw`(?:^|[|;&(]\s*|\s)`
-// `git -C <worktree> push` is how this repository's own Archon flow publishes
-// (.claude/commands/archon-pr-review.md), so the verb is never the first token. Skip git's global
-// options — the ones that take a value and the ones that do not — before reading it.
-// A value may be quoted, in whole or in part, and hold spaces: `git -C "/x/my wt" commit`,
-// `git -c core.editor='code -w' commit`.
-const OPTION_VALUE = String.raw`(?:[^\s'"]|"[^"]*"|'[^']*')+`
-const GIT_OPTION = String.raw`\s+(?:-[cC]\s+${OPTION_VALUE}|--(?:git-dir|work-tree|namespace|exec-path)(?:=|\s+)${OPTION_VALUE}|--[\w-]+|-\w)`
-const GIT_OPTIONS = `(?:${GIT_OPTION})*`
-/** @param {string} verbs */
-const gitVerb = (verbs) => new RegExp(`${START}git${GIT_OPTIONS}\\s+(?:${verbs})\\b`)
-const PUBLISHES = new RegExp(`${START}(?:gh|glab)\\s|${gitVerb('push|commit|tag').source}`)
-const COMMITS = gitVerb('commit')
+const SWITCHES_HOOKS_OFF = /--no-verify|hookspath/i
+const PUSHES = /\bpush\b/
+const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
+const RUNS_GH = /\b(?:gh|glab)\b/
+const CHANGES_DIR = /\b(?:cd|pushd)\b/
+const PATH_SEPARATORS = /[\s'"=@<()$]+/
 
-/** @param {string} reason */
+/** @param {string} reason @returns {never} */
 function block(reason) {
 	process.stderr.write(`Block: ${reason}\n`)
 	process.exit(2)
 }
 
-/** @param {string} command */
-function readNamedFiles(command) {
-	/** @type {Array<[string, string]>} */
-	const found = []
-	for (const raw of command.match(/[^\s'"]+/g) ?? []) {
-		const path = raw.replace(/^[('"]+|[)'"]+$/g, '')
-		try {
-			if (!statSync(path).isFile() || statSync(path).size > MAX_BYTES) continue
-			found.push([path, readFileSync(path, 'utf8')])
-		} catch {
-			// not a readable path; the token was a flag or an argument
-		}
-	}
-	return found
-}
-
-// A path argument: double-quoted, single-quoted, or bare.
-const PATH_ARG = String.raw`(?:"([^"]*)"|'([^']*)'|([^\s'";&|()]+))`
-const CHANGES_DIR = new RegExp(String.raw`(?:^|[\n|;&(])\s*(?:cd|pushd)\s+${PATH_ARG}`, 'g')
-const NAMES_DIR = new RegExp(
-	// `-C` only among git's own options, before the verb: `git commit -C HEAD` names a commit.
-	String.raw`(?:\bgit(?:${GIT_OPTION})*?\s+-C\s*|\s--(?:work-tree|git-dir)(?:=|\s+)|\bGIT_(?:DIR|WORK_TREE)=)${PATH_ARG}`,
-	'g',
-)
-
 /**
- * The session's cwd, then every directory the command moves to or points git at, resolved against
- * it. A git dir counts as its work tree. A path this misses, or cannot read, is the gap: keep the
- * list of forms in step with AGENTS.md.
- * @param {string} command
+ * @param {string[]} args
  * @param {string} cwd
  */
-function commitDirs(command, cwd) {
-	const dirs = new Set([cwd])
-	const shell = withoutMessages(command)
-	for (const match of [...shell.matchAll(CHANGES_DIR), ...shell.matchAll(NAMES_DIR)]) {
-		const path = (match[1] ?? match[2] ?? match[3]).replace(/^~(?=\/|$)/, homedir())
-		dirs.add(resolve(cwd, path).replace(/[\\/]\.git$/, ''))
-	}
-	return [...dirs]
-}
+const git = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
 
-// A commit message is text, not shell: `-m "wrap it (cd docs first)"` names no directory. The term
-// scan still reads the whole command, so this only narrows where commitDirs looks.
-const MESSAGE_ARG = /(?:\s-m|\s--message)(?:=|\s*)(?:"(?:[^"\\]|\\.)*"|'[^']*')/g
-const HEREDOC_OPEN = /\scommit\b[^\n]*\s(?:-F|--file)(?:=|\s+)-[^\n]*<<(-?)\s*(['"]?)(\w+)\2[^\n]*/g
+/** @param {string} path */
+function toRealPath(path) {
+	try {
+		return realpathSync.native(path)
+	} catch {
+		return resolve(path)
+	}
+}
 
 /**
- * Drops each heredoc message body, closing it where the shell would. A `<<` heredoc closes only
- * on its word at column 0, and a `<<-` heredoc on its word after any number of tabs, including
- * none. An unclosed heredoc is kept.
- * @param {string} command
+ * Does `cwd` sit in a repository whose `core.hooksPath` is its main work tree's `.githooks`?
+ * @param {string} cwd
  */
-function withoutMessages(command) {
-	const text = command.replace(MESSAGE_ARG, ' ')
-	let kept = ''
-	let at = 0
-	HEREDOC_OPEN.lastIndex = 0
-	for (let open = HEREDOC_OPEN.exec(text); open; open = HEREDOC_OPEN.exec(text)) {
-		const close = new RegExp(`\\n${open[1] ? '\\t*' : ''}${open[3]}(?=\\n|$)`, 'g')
-		close.lastIndex = HEREDOC_OPEN.lastIndex
-		const end = close.exec(text)
-		if (!end) break
-		kept += text.slice(at, HEREDOC_OPEN.lastIndex)
-		at = end.index + end[0].length
-		HEREDOC_OPEN.lastIndex = at
+async function isPushGuarded(cwd) {
+	const { findMainWorkTree } = await import('../../.githooks/main-work-tree.mjs')
+	try {
+		const top = git(['rev-parse', '--show-toplevel'], cwd)
+		const hooksPath = git(['config', '--get', 'core.hooksPath'], cwd)
+		const mainTree = findMainWorkTree(git(['worktree', 'list', '--porcelain'], cwd))
+		if (!mainTree) return false
+		const expected = toRealPath(join(mainTree, '.githooks'))
+		const actual = toRealPath(isAbsolute(hooksPath) ? hooksPath : join(top, hooksPath))
+		return process.platform === 'win32' ? expected.toLowerCase() === actual.toLowerCase() : expected === actual
+	} catch {
+		// Not a repository, or no `core.hooksPath`: git exits non-zero for both.
+		return false
 	}
-	return kept + text.slice(at)
 }
 
-/** @param {string} cwd */
-function stagedDiff(cwd) {
-	try {
-		return execFileSync('git', ['diff', '--cached', '-U0'], {
-			cwd,
-			encoding: 'utf8',
-			maxBuffer: MAX_BYTES,
-		})
-	} catch {
-		return null
+/**
+ * Every existing file a piece of the command names, resolved against the session's cwd.
+ * @param {string} command
+ * @param {string} cwd
+ * @returns {Array<[string, string]>}
+ */
+function readNamedFiles(command, cwd) {
+	/** @type {Array<[string, string]>} */
+	const found = []
+	for (const piece of new Set(command.split(PATH_SEPARATORS).filter(Boolean))) {
+		const path = resolve(cwd, piece)
+		let stats
+		try {
+			stats = statSync(path)
+		} catch {
+			// Not a path: the piece was a flag or an argument.
+			continue
+		}
+		if (!stats.isFile()) continue
+		if (stats.size > MAX_BYTES) block(`${path} is larger than 2 MB, so this hook cannot scan it and refuses the command.`)
+		found.push([path, readFileSync(path, 'utf8')])
 	}
+	return found
 }
 
 async function main() {
 	let buf = ''
 	for await (const chunk of process.stdin) buf += chunk
-	if (!buf.trim()) return
+	if (!buf.trim()) block('the hook received an empty payload, so it cannot check this command.')
 
 	let event
 	try {
 		event = JSON.parse(buf)
 	} catch {
-		return
+		block('the hook received a payload that is not JSON, so it cannot check this command.')
 	}
 
-	if (event?.tool_name !== 'Bash') return
-	const command = event?.tool_input?.command ?? ''
-	if (!PUBLISHES.test(command)) return
+	if (event.tool_name !== 'Bash') return
+	/** @type {string} */
+	const command = event.tool_input.command
+	const cwd = event.cwd || process.cwd()
 
-	let terms
+	if (SWITCHES_HOOKS_OFF.test(command)) {
+		block(
+			'this command holds --no-verify or hooksPath, which switch the NDA git hooks off. ' +
+				'To mention either in a commit message, write the message to a file and commit with -F <file>. ' +
+				'An authorised use is for the maintainer to run with !.',
+		)
+	}
+	if (PUSHES.test(command) && !(await isPushGuarded(cwd))) {
+		block(
+			`${cwd} is not in a repository whose core.hooksPath points at its main work tree's .githooks, ` +
+				'so pre-push would not scan this push. Push from the unic-agents-plugins clone or one of its ' +
+				'worktrees after pnpm install, or have the maintainer run it with !.',
+		)
+	}
+	if (!RUNS_GIT_OR_GH.test(command)) return
+
+	const { findTerm, getListPath, readTerms, redact } = await import('../../.githooks/nda-match.mjs')
+	let terms = []
 	try {
-		terms = readTerms(listPath())
+		terms = readTerms(getListPath())
 	} catch {
 		block(
-			`cannot read the NDA term list at ${listPath()}, so publishing is refused. ` +
+			`cannot read the NDA term list at ${getListPath()}, so publishing is refused. ` +
 				'Create it with one term per line, or touch it to opt out deliberately. ' +
 				'See AGENTS.md § The NDA publish guard.',
 		)
-		return
 	}
 	if (terms.length === 0) return
 
 	/** @type {Array<[string, string]>} */
 	const surfaces = [['the command itself', command]]
-	if (COMMITS.test(command)) {
-		for (const dir of commitDirs(command, event?.cwd || process.cwd())) {
-			const diff = stagedDiff(dir)
-			if (diff === null) block(`cannot read the staged diff in ${dir}, so this commit is refused.`)
-			else surfaces.push([`the staged diff in ${dir}`, diff])
+	if (RUNS_GH.test(command)) {
+		if (CHANGES_DIR.test(command)) {
+			block('this gh or glab command also holds cd or pushd. Name every file by its absolute path, or have the maintainer run it with !.')
 		}
+		surfaces.push(...readNamedFiles(command, cwd))
 	}
-	surfaces.push(...readNamedFiles(command))
 
 	for (const [where, text] of surfaces) {
 		const term = findTerm(text, terms)
 		if (term !== null) {
-			block(
-				`${where} carries the NDA term ${redact(term)}, and this command publishes ` +
-					'outside this machine. Remove it. This repository is public.',
-			)
+			block(`${where} carries the NDA term ${redact(term)}, and this repository is public. Remove it.`)
 		}
 	}
 }
 
-main()
+main().catch((/** @type {unknown} */ error) => {
+	const { name, message } = /** @type {{ name?: unknown, message?: unknown }} */ (error ?? {})
+	block(`the NDA hook failed with ${String(name ?? 'an error')}: ${String(message ?? error)}. The command is refused.`)
+})

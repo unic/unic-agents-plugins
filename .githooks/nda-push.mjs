@@ -1,0 +1,141 @@
+#!/usr/bin/env node
+// @ts-check
+// The NDA scan of `.githooks/pre-push`: it refuses a push when anything the push sends carries an
+// NDA term. The commit hooks run inside git, but a commit made with `--no-verify`, by `am`,
+// `cherry-pick` or `merge`, or in another clone, never met them. So this is the git guard that
+// matters, and the commit hooks are an early warning.
+//
+// For each ref line git passes on stdin, "<local ref> <local sha> <remote ref> <remote sha>", it reads:
+//   - both ref names, so a branch or tag named with a term is refused;
+//   - an annotated tag's object, which holds the tag message;
+//   - the message and the added lines of every commit the push sends. A merge commit's patch is read
+//     against its first parent.
+//
+// The commits a push sends are those reachable from the local sha and from neither the remote sha nor
+// any `refs/remotes/<remote>/*` ref. A stale remote-tracking ref makes it scan more, never less. A
+// remote sha missing from the local object store, as after a force push over commits never fetched,
+// is left out rather than failing the listing, which also scans more.
+//
+// It skips a line that deletes a ref. Deleted lines of a patch do not count, as in `pre-commit`.
+//
+// CLI: `node nda-push.mjs <remote>` with git's ref lines on stdin. It exits 1 on a match, and when the
+// term list cannot be read or git cannot list or show the commits. The matching rule is the one in
+// `./nda-match.mjs`.
+
+import { execFileSync } from 'node:child_process'
+
+import { dropDeletedLines, findTerm, getListPath, readTerms, redact } from './nda-match.mjs'
+
+const ZERO = /^0+$/
+// ponytail: whole output in memory. A push past this size is refused, stream `git log` if one ever is.
+const MAX_BUFFER = 512 * 1024 * 1024
+
+/** @param {string[]} args */
+const git = (args) =>
+	execFileSync('git', args, { encoding: 'utf8', maxBuffer: MAX_BUFFER, stdio: ['ignore', 'pipe', 'pipe'] })
+
+/** @param {string} sha */
+function hasObject(sha) {
+	try {
+		git(['cat-file', '-e', `${sha}^{commit}`])
+		return true
+	} catch {
+		return false
+	}
+}
+
+/**
+ * The `git rev-list` arguments for the commits one ref line sends.
+ * @param {string} localSha
+ * @param {string} remoteSha
+ * @param {string} remote
+ */
+function getPushedRange(localSha, remoteSha, remote) {
+	const range = [localSha, '--not', `--remotes=${remote}`]
+	if (!ZERO.test(remoteSha) && hasObject(remoteSha)) range.push(remoteSha)
+	return range
+}
+
+/**
+ * Splits `git log` output whose format starts each commit with a NUL and its sha.
+ * @param {string} output
+ * @returns {Array<[string, string]>}
+ */
+const splitCommits = (output) =>
+	output
+		.split('\0')
+		.filter(Boolean)
+		.map((entry) => [entry.slice(0, 12), entry.slice(entry.indexOf('\n') + 1)])
+
+/**
+ * Each text one ref line publishes, with where it comes from.
+ * @param {string} line
+ * @param {string} remote
+ * @returns {Array<[string, string]>}
+ */
+function readPushedTexts(line, remote) {
+	const [localRef = '', localSha = '', remoteRef = '', remoteSha = ''] = line.trim().split(/\s+/)
+	if (!localSha || ZERO.test(localSha)) return []
+	/** @type {Array<[string, string]>} */
+	const texts = [['the ref names', `${localRef} ${remoteRef}`]]
+	if (git(['cat-file', '-t', localSha]).trim() === 'tag')
+		texts.push([`the tag ${remoteRef}`, git(['cat-file', 'tag', localSha])])
+	const range = getPushedRange(localSha, remoteSha, remote)
+	for (const [sha, message] of splitCommits(git(['log', '--format=%x00%H%n%B', ...range]))) {
+		texts.push([`the message of commit ${sha}`, message])
+	}
+	// One text for every patch: a binary file can hold the NUL that separates the messages above.
+	const diffFlags = ['-p', '-U0', '--text', '--no-ext-diff', '--no-textconv', '--diff-merges=first-parent']
+	const patches = git(['log', '--format=', ...diffFlags, ...range])
+	texts.push([`the patch of a commit pushed to ${remoteRef}`, dropDeletedLines(patches)])
+	return texts
+}
+
+/**
+ * @param {string} message
+ * @returns {never}
+ */
+function refuse(message) {
+	process.stderr.write(`pre-push: ${message}\n`)
+	process.exit(1)
+}
+
+async function main() {
+	const remote = process.argv[2] ?? ''
+	const path = getListPath()
+	let terms
+	try {
+		terms = readTerms(path)
+	} catch {
+		refuse(
+			`cannot read the NDA term list at ${path}, so this push is refused.\n` +
+				"  Create it with one term per line, or 'touch' it to opt out deliberately.\n" +
+				'  See AGENTS.md, "The NDA publish guard".'
+		)
+	}
+
+	let input = ''
+	for await (const chunk of process.stdin) input += chunk
+
+	for (const line of input.split(/\r?\n/).filter((text) => text.trim())) {
+		let texts
+		try {
+			texts = readPushedTexts(line, remote)
+		} catch (error) {
+			const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
+			refuse(`cannot list the commits this push sends, so it is refused (${String(stderr || message).trim()}).`)
+		}
+		for (const [where, text] of texts) {
+			const term = findTerm(text, terms)
+			if (term === null) continue
+			// Redact the term: the transcript of a refusal must not republish it.
+			refuse(
+				`refusing this push to ${remote}.\n` +
+					`  ${where[0]?.toUpperCase()}${where.slice(1)} carries the NDA term ${redact(term)}, and this repository is public.\n` +
+					'  Rewrite the commit, the tag or the ref name, then push again.'
+			)
+		}
+	}
+}
+
+main()

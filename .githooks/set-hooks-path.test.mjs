@@ -23,7 +23,7 @@ const git = (args, cwd) => spawnSync('git', args, { cwd, encoding: 'utf8' }).std
 /** Resolve short names and symlinks, so two spellings of one directory compare equal. */
 const canonical = (/** @type {string} */ path) => realpathSync.native(path).toLowerCase()
 
-const GUARDS = ['pre-commit', 'commit-msg', 'nda-match.mjs']
+const GUARDS = ['pre-commit', 'commit-msg', 'pre-push', 'nda-match.mjs', 'nda-push.mjs', 'main-work-tree.mjs']
 
 /**
  * A fresh repository with one commit. Its `.githooks` holds every guard file unless told otherwise.

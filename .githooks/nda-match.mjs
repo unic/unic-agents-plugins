@@ -32,7 +32,9 @@
 // digit can take this shape.
 //
 // CLI: `node nda-match.mjs <label> [file]` reads the text from the file, or from stdin, and exits 1
-// on a match or when the term list cannot be read. The list lives outside every repository:
+// on a match or when the term list cannot be read. With the label `pre-commit` the text is a diff,
+// and its deleted lines do not count: they are already in the published history, and refusing them
+// would block the commit that removes a term. The list lives outside every repository:
 // $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt.
 
 import { readFileSync, realpathSync } from 'node:fs'
@@ -40,7 +42,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const listPath = () => process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
+export const getListPath = () => process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
 
 /**
  * Throws when the list cannot be read: the callers turn that into a refusal.
@@ -52,6 +54,18 @@ export function readTerms(path) {
 		.map((line) => line.trim())
 		.filter((line) => line && !line.startsWith('#'))
 }
+
+/**
+ * A diff without its deleted lines, and without the context git copies into a hunk header from a line
+ * above the hunk. File headers stay, so a path that carries a term is still read.
+ * @param {string} diff
+ */
+export const dropDeletedLines = (diff) =>
+	diff
+		.split('\n')
+		.filter((line) => !line.startsWith('-') || line.startsWith('--- '))
+		.map((line) => line.replace(/^(@@ [^@]* @@).*/, '$1'))
+		.join('\n')
 
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
@@ -119,7 +133,7 @@ export function findTerm(text, terms) {
 
 async function main() {
 	const [label = 'nda-match', file] = process.argv.slice(2)
-	const path = listPath()
+	const path = getListPath()
 	let terms
 	try {
 		terms = readTerms(path)
@@ -136,7 +150,7 @@ async function main() {
 	if (file) text = readFileSync(file, 'utf8')
 	else for await (const chunk of process.stdin) text += chunk
 
-	const term = findTerm(text, terms)
+	const term = findTerm(label === 'pre-commit' ? dropDeletedLines(text) : text, terms)
 	if (term === null) return
 	// Redact the term: the transcript of a refusal must not republish it.
 	process.stderr.write(

@@ -1,8 +1,13 @@
 #!/bin/sh
 #
-# pre-push — refuse pushes of a protected branch that originate from an Archon worktree.
+# pre-push — two guards, in this order:
 #
-# WHY THIS EXISTS
+#   1. The NDA scan, on every push. `nda-push.mjs` refuses a push when a commit it sends, a ref name
+#      or an annotated tag carries an NDA term. See its header and AGENTS.md, "The NDA publish guard".
+#      It fails closed: no node, no readable term list, or no commit listing means no push.
+#   2. The Archon guard: refuse pushes of a protected branch that originate from an Archon worktree.
+#
+# WHY THE ARCHON GUARD EXISTS
 #
 # The Archon worktrees under ~/.archon/workspaces/<org>/<repo>/worktrees/ are worktrees of THIS
 # clone, not of a separate checkout. They share this clone's ref store, its config and its `origin`.
@@ -32,6 +37,34 @@ set -eu
 PROTECTED_BRANCHES='develop main'
 
 remote_name=${1:-'(unnamed remote)'}
+
+# Both guards read the ref lines, so read stdin once.
+refs=$(cat)
+
+# Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
+# older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy.
+self=$0
+if link=$(readlink "$self" 2>/dev/null); then
+	case $link in
+		/*) self=$link ;;
+		*) self="$(dirname "$self")/$link" ;;
+	esac
+fi
+scanner="$(dirname "$self")/nda-push.mjs"
+[ -f "$scanner" ] || scanner="$(git rev-parse --show-toplevel)/.githooks/nda-push.mjs"
+
+if [ ! -f "$scanner" ]; then
+	printf '%s\n' "pre-push: cannot find nda-push.mjs next to this hook or in the work tree, so this push is refused." \
+		"  Check out a branch that carries .githooks/nda-push.mjs in the main work tree, then run pnpm install." >&2
+	exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+	printf '%s\n' "pre-push: node is not on PATH, so the NDA guard cannot run and this push is refused." >&2
+	exit 1
+fi
+
+printf '%s\n' "$refs" | node "$scanner" "${1:-}" || exit 1
 
 # Where is this push coming from? --show-toplevel is the invoking worktree's root. If git cannot
 # answer, fall back to the working directory rather than guessing a repo layout.
@@ -72,6 +105,8 @@ while read -r _local_ref local_sha remote_ref _remote_sha; do
 		printf '%s\n' "  Push the run's own feature branch instead, and open a PR targeting develop." >&2
 		status=1
 	done
-done
+done <<EOF
+$refs
+EOF
 
 exit $status
