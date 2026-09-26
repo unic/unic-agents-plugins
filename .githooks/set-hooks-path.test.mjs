@@ -22,6 +22,8 @@ import { findMainWorkTree } from './main-work-tree.mjs'
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'set-hooks-path.mjs')
 const { packageManager: PNPM } = JSON.parse(readFileSync(join(dirname(SCRIPT), '..', 'package.json'), 'utf8'))
+// The pin may carry a `+sha512.…` suffix, which pnpm leaves out of its version.
+const PNPM_VERSION = /^pnpm@([^+]+)/.exec(PNPM)?.[1] ?? ''
 
 const scratch = realpathSync.native(mkdtempSync(join(tmpdir(), 'hooks-path-')))
 after(() => rmSync(scratch, { recursive: true, force: true }))
@@ -271,7 +273,7 @@ describe('set-hooks-path', () => {
 	test('runs pnpm install with the pnpm this repository pins', () => {
 		const { status, output } = install(repo())
 		assert.deepEqual(
-			{ status, pinned: output.includes(`using pnpm v${PNPM.split('@')[1]}`) },
+			{ status, pinned: PNPM_VERSION !== '' && output.includes(`using pnpm v${PNPM_VERSION}`) },
 			{ status: 0, pinned: true },
 			output
 		)
@@ -414,5 +416,13 @@ describe('set-hooks-path', () => {
 			{ status: 0, skipped: true, remedy: true },
 			stderr
 		)
+	})
+	test('exits 0 and prints nothing with a healthy linked worktree beside the main work tree', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual({ status, stderr }, { status: 0, stderr: '' })
 	})
 })
