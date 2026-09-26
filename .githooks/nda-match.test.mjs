@@ -738,6 +738,16 @@ describe('round 3', () => {
 		writeFileSync(file, `Built for ${TERM}.\n`)
 		assertRefused(runClaudeHook(`gh issue create --body-file=${file}`, outside), 2)
 	})
+	test('refuses the term in a file named by -F body=@ with a later @ in its name', () => {
+		const file = join(mkdtempSync(join(scratch, 'at-')), 'a@b.md')
+		writeFileSync(file, `Built for ${TERM}.\n`)
+		assertRefused(runClaudeHook(`gh api repos/o/r/issues -F body=@${file}`, outside), 2)
+	})
+	test('passes a clean file named by -F body=@ with a later @ in its name', () => {
+		const file = join(mkdtempSync(join(scratch, 'at-clean-')), 'a@b.md')
+		writeFileSync(file, 'clean\n')
+		assert.equal(runClaudeHook(`gh api repos/o/r/issues -F body=@${file}`, outside).status, 0)
+	})
 	test('passes --no-verbose', () => {
 		assert.equal(runClaudeHook('git commit --no-verbose -m "x"', outside).status, 0)
 	})

@@ -135,7 +135,8 @@ async function findUnguardedPushReason(cwd) {
 function getPathCandidates(command) {
 	const pieces = command.split(PATH_SEPARATORS)
 	for (const match of command.matchAll(QUOTED)) pieces.push(match[1] ?? match[2] ?? '')
-	for (const token of command.split(/\s+/)) pieces.push(token, token.slice(token.indexOf('=') + 1))
+	// After `=`, drop only a leading `@`: `-F body=@dir/a@b.md` names `dir/a@b.md`.
+	for (const token of command.split(/\s+/)) pieces.push(token, token.slice(token.indexOf('=') + 1).replace(/^@/, ''))
 	return new Set(pieces.filter(Boolean).map((piece) => piece.replace(/^~(?=[\\/])/, homedir())))
 }
 
