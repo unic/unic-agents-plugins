@@ -10,56 +10,58 @@ disable-model-invocation: true
 Run it under `/loop` with no interval, so the loop paces itself with `ScheduleWakeup`:
 
 ```text
-/loop /afk-loop 582 take the p1 tickets first
+/loop /afk-loop 582 merge authorised, take the p1 tickets first
+/loop /afk-loop 582 dry-run
 ```
 
-`$ARGUMENTS` starts with the **parent**: the issue number of a stream, a `wayfinder:map` or any
-parent ticket. The rest is the maintainer's **instructions** for this run. They add to this file and
-win where the two disagree, except on the hard rules: the NDA publish guard and everything
-`AGENTS.md` forbids.
+`$ARGUMENTS` starts with the **parent**: a stream, a `wayfinder:map` or any parent ticket, written
+as `582`, `#582` or the issue URL. The rest is the maintainer's **instructions** for this run. They
+add to this file and win where the two disagree, except on the hard rules: the NDA publish guard and
+everything `AGENTS.md` forbids.
 
 This session is the **orchestrator**. It picks tickets, dispatches subagents, verifies what they
 claim, and merges when the gate holds. It writes no implementation file. Workers and reviewers are
 background subagents. No other session is opened. `/night-shift` is the Archon-based way to do the
 same job, and this skill uses no Archon.
 
-`/loop` re-invokes this skill on every wake-up with the same arguments. Each invocation reads the
-**state file** first, re-measures what it claims, then takes the next action.
+`/loop` re-invokes this skill on every wake-up with the same arguments, and a subagent's completion
+re-invokes the session too. Each invocation reads the **state file** first, re-measures what it
+claims, then takes the next action.
 
 ## State file
 
 `.orchestration/<parent>/HANDOFF.md`, outside git because `.gitignore` excludes `.orchestration/`.
 One `STATE` block, replaced whole after every change, never appended:
 
-- the merge authority: granted or refused, when, and the exact words;
+- the session that holds the run, and whether the run is active or stopped;
+- the merge authority: granted or not, and the words of the instruction that granted it;
 - the probe result;
 - the current ticket, the worker's agent id, the PR and its head, the review round;
-- tickets merged, handed back, and follow-ups filed during this run;
+- tickets merged, stopped, and follow-ups filed during this run;
 - the next action.
 
 A worker's report can be wrong and corrected minutes later. Record the correction, not only the
 first claim.
 
-## First invocation: authority and probe
+## Start of a run
 
-The first invocation is the one with no state file, or with one whose `STATE` says an earlier run
-stopped. The maintainer is present for it.
+A run starts in any session that did not write the current `STATE` itself: no state file, a
+stopped run, or a run a dead session left active. The maintainer typed the `/loop` command, so they
+are present. Take the state file's facts as leads to re-measure, and take no authority from it.
 
-1. **Read the queue** (§ Queue) and the parent's body.
-2. **Ask for merge authority** when the queue holds any ticket that ends in a PR, which is the usual
-   case. In prose, one message:
-   - the parent and the queue as it stands, by name and link;
-   - that the queue grows only with tickets someone moves to `ready-for-agent` during the run;
-   - the request: merge each PR with `gh pr merge <n> --merge` when § Merge gate holds, then remove
-     its worktree, local branch and remote branch;
-   - § Stop conditions, so the boundary is visible before the run.
-
-   End the turn there, with no `ScheduleWakeup`. When the answer arrives, record it in the state
-   file and continue. The authority covers this run and this parent only.
-3. **Without merge authority**, each ticket ends at the merge gate. Comment the evidence on the PR,
-   and take the next ticket only when it is not blocked by the unmerged one and touches none of its
-   files. Otherwise stop (§ Stop conditions).
-4. **Probe**, in under ten minutes, and record both results:
+1. **Merge authority** comes from this session's own instructions, and nowhere else. It is granted
+   when they grant it in words, such as `merge authorised`, and it covers this run and this parent
+   only. Outside a dry run, if the queue holds a ticket that ends in a PR and the instructions
+   neither grant authority nor say `no merge`, say so in one message: the queue by name and link,
+   the merge and cleanup that authority would allow, and § Stop conditions. Tell the maintainer to
+   start again with `merge authorised` or `no merge` in the instructions. Then call
+   `ScheduleWakeup` with `stop: true`.
+2. **With `no merge`**, every ticket ends at the merge gate: comment the evidence on the PR and take
+   the next ticket. Each worker branches from `origin/develop`, so two PRs can conflict. The
+   maintainer resolves that at merge time.
+3. **Probe**, in under ten minutes, and record each result:
+   - Load `PushNotification` with `ToolSearch`. It is a deferred tool, and the stop conditions need
+     it.
    - List the subagent types. Expect `pr-review-toolkit:code-reviewer`,
      `pr-review-toolkit:pr-test-analyzer`, `pr-review-toolkit:silent-failure-hunter` and
      `pr-review-toolkit:comment-analyzer`. They come from a user-level plugin, not from this
@@ -68,6 +70,21 @@ stopped. The maintainer is present for it.
    - Spawn one background `general-purpose` subagent that runs `git worktree add --no-track` to a
      path outside the clone, reports `git -C <path> rev-parse --show-toplevel`, and removes the
      worktree. Pass no `isolation: "worktree"`, because the tool then picks the path.
+   - Read the NDA term list (§ Verification) and record how many terms it holds. An unreadable list
+     stops the run. An empty list is a deliberate opt-out: record it.
+
+## Dry run
+
+When the instructions say `dry-run`, the run writes only to its state file and the scratchpad. It
+publishes nothing, claims and labels no ticket, spawns no worker or reviewer, and merges nothing.
+In one pass:
+
+1. Run § Start of a run, and report the authority the instructions would grant.
+2. Read the queue, and for each ticket in order give what the run would do: the opener, drafted in
+   the scratchpad, the branch name, the worker prompt filled, and the files the ticket names.
+3. Write the `STATE` block a real run would hold at that point, and name the `ScheduleWakeup` delay
+   it would choose.
+4. Report, then call `ScheduleWakeup` with `stop: true`.
 
 ## Queue
 
@@ -93,9 +110,9 @@ time.
    each fix round.
 4. **Verify the handover** (§ Verification).
 5. **Review rounds.** In each round, spawn the four reviewers in parallel, in the background, each
-   with the filled [`reviewer-prompt.md`](reviewer-prompt.md). Rounds 1 and 2 always run, round 2
-   on the head that round 1's fixes produced. Round 3 runs only when round 2 found a new Critical or
-   High. Three rounds is the limit.
+   with the filled [`reviewer-prompt.md`](reviewer-prompt.md). Round 1 always runs. Round 2 runs on
+   the head that round 1's fixes produced, and only when round 1 led to a fix. Round 3 runs only
+   when round 2 found a new Critical or High. Three rounds is the limit.
 6. **Triage each round yourself.** Re-measure the one or two findings that matter most, against the
    current head. Then sort each finding:
    - **fix now**: anything Critical or High, anything that leaks or fails open, any false claim in a
@@ -110,7 +127,8 @@ time.
 8. **Threads.** Answer every open review thread, then resolve it: fixed, with the fixing commit;
    deferred, with the follow-up ticket's link; refuted, with the evidence. Leave a review
    workflow's own summary thread open.
-9. **Merge**, when § Merge gate holds and the run has merge authority.
+9. **Merge**, when § Merge gate holds and the run has merge authority, with
+   `gh pr merge <n> --merge --match-head-commit <verified head>`.
 10. **After the merge.** Confirm the merge commit is on `origin/develop`. Move the ticket from
     `resolved` to `closed`. Remove the worker's worktree, local branch and remote branch after
     checking each is clean and an ancestor of `origin/develop`. Replace the `STATE` block. Take the
@@ -136,20 +154,22 @@ and that widening lasts for the run.
 
 All of these, on the head about to merge:
 
+- the head is the one § Verification last checked, and the base is `develop`;
 - every CI check has a conclusion, and none is a failure;
 - `mergeable` is `MERGEABLE`;
 - no finding rated Critical or High is open, from any review;
 - every review thread is resolved;
-- the leak check gives 0 on the added lines, every commit message, the title, the body and every
-  comment this run posted;
+- the leak check ran on the added lines, every commit message, the title, the body and every comment
+  this run posted, and gave 0;
 - the ticket is on `resolved`.
 
 ## Verification, every time a head moves
 
-- `gh pr view` for the head, `mergeable` and every check by name. A check with no conclusion is
-  pending.
-- The leak check with the real term list, counts only: read the list into a temporary file and print
-  `grep -c`. Print no match.
+- `gh pr view` for the head, the base, `mergeable` and every check by name. A check with no
+  conclusion is pending.
+- The leak check with the real term list, `$UNIC_NDA_DENYLIST` or else `~/.config/unic/nda-denylist.txt`,
+  counts only: read the list into a temporary file and print `grep -c`. Print no match. An
+  unreadable list fails the check.
 - Re-run the ticket's key claim yourself, from the file at the PR head (`git show` into the
   scratchpad).
 - After a docs fix, grep the head for the sentence the fix removed.
@@ -160,14 +180,13 @@ Call `ScheduleWakeup` with `stop: true`, send a `PushNotification`, and write th
 file when any of these happens:
 
 - the queue is empty: post the report (§ Report) first;
-- the probe fails;
+- the probe fails, or the NDA term list is unreadable;
 - a guard refuses a commit, and the only way on is to switch the hooks off;
 - the leak check finds a match in anything published or about to be published;
 - a Critical or High is still open after round 3 and its fix;
 - CI fails twice in a row on the same check after a fix attempt;
 - a merge conflict that is not a mechanical rebase;
-- a finding shows that the ticket's criteria are wrong or contradict each other;
-- the next move needs merge authority the run lacks.
+- a finding shows that the ticket's criteria are wrong or contradict each other.
 
 ## Pacing
 
@@ -186,6 +205,7 @@ done when someone can reconstruct the run from it without the transcript:
 
 - what merged, with PR numbers;
 - what stopped, at which condition, with the evidence;
+- for each ticket not merged, its state label and its assignee as the run leaves them;
 - the follow-up tickets filed, by name and link;
 - what waits on a human, and the question.
 
