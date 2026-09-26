@@ -148,5 +148,14 @@ async function main() {
 }
 
 // Node resolves symlinks in `import.meta.url` but not in `argv[1]`, so compare the real paths. A
-// `core.hooksPath` set through a symlink would otherwise run nothing and exit 0.
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) main()
+// `core.hooksPath` set through a symlink would otherwise run nothing and exit 0. An import must never
+// throw here: `.claude/hooks/block-nda-terms.mjs` imports this file, and a throw there does not block.
+function isRunDirectly() {
+	try {
+		return import.meta.url === pathToFileURL(realpathSync(process.argv[1] ?? '')).href
+	} catch {
+		// `argv[1]` names no file, so this file is not the one node was asked to run.
+		return false
+	}
+}
+if (isRunDirectly()) main()

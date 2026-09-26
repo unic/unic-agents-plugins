@@ -157,7 +157,12 @@ describe('set-hooks-path', () => {
 		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
 		rmSync(join(dir, '.githooks'), { recursive: true })
 		const { status, stderr } = prepare(worktree)
-		assert.deepEqual({ status, named: /linked worktree/.test(stderr) }, { status: 1, named: true }, stderr)
+		const hooksPath = git(['config', '--get', 'core.hooksPath'], worktree)
+		assert.deepEqual(
+			{ status, named: /linked worktree/.test(stderr), hooksPath },
+			{ status: 1, named: true, hooksPath: '' },
+			stderr
+		)
 	})
 	test('warns and exits 0 in a worktree of a bare repository', () => {
 		const bare = join(scratch, `bare-${Date.now()}.git`)

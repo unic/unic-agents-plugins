@@ -7,7 +7,7 @@ import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSy
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { findTerm, readTerms } from './nda-match.mjs'
 
@@ -231,6 +231,12 @@ describe('git hooks', () => {
 			assertRefused(commit(dir, `fix: ${TERM} typo`), 1, /commit-msg: cannot find pre-commit /)
 		}
 	)
+	test('importing the matcher does not throw when argv[1] names no file', () => {
+		const matcher = pathToFileURL(join(HOOKS, 'nda-match.mjs')).href
+		const code = `process.argv[1] = ${JSON.stringify(join(scratch, 'missing.mjs'))}; await import(${JSON.stringify(matcher)})`
+		const { status, stderr } = run('node', ['--input-type=module', '-e', code], scratch)
+		assert.equal(status, 0, stderr)
+	})
 	test('the matcher refuses a term when reached through a symlinked directory', () => {
 		const link = join(scratch, `linked-hooks-${Date.now()}`)
 		symlinkSync(HOOKS, link, 'junction')

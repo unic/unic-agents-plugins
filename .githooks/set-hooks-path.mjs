@@ -85,8 +85,13 @@ try {
 	const candidate = mainTree && !/^bare$/m.test(first) ? join(mainTree, '.githooks') : ''
 	const isLinked = git(['rev-parse', '--git-dir']) !== git(['rev-parse', '--git-common-dir'])
 	if (candidate && existsSync(candidate)) hooksDir = candidate
-	else if (candidate && isLinked) fail(`${candidate} does not exist, and this is a linked worktree`, candidate)
-	else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`, here)
+	else if (candidate && isLinked) {
+		fail(
+			`${candidate} does not exist, and this is a linked worktree, so the hooks stay off. Check out a branch that carries .githooks in the main work tree, then run pnpm install`,
+			candidate
+		)
+		process.exit()
+	} else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`, here)
 } catch (error) {
 	warn(`git worktree list failed, so core.hooksPath points at ${here} (${causeOf(error)})`, here)
 }
