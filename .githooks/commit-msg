@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# commit-msg — refuse a commit whose message carries an NDA-protected term.
+#
+# Git passes the message only to this hook, so it hands the message file to `pre-commit`, which
+# then reads the message with the rule in nda-match.mjs. See the header of `pre-commit` for why the
+# guard exists.
+#
+# INSTALL: `pnpm install` points `core.hooksPath` at the main work tree's `.githooks`, so every
+# worktree of the clone runs these hooks. See `.githooks/set-hooks-path.mjs`.
+
+set -eu
+
+# `pre-commit` checks for node and reads the message when given one. With no matcher beside this
+# file, it may be a symlink an older install left in `.git/hooks`, and a `pre-commit` there may be
+# someone's own hook. So use the work tree's hooks then.
+dir=$(dirname "$0")
+[ -f "$dir/nda-match.mjs" ] || dir="$(git rev-parse --show-toplevel)/.githooks"
+for file in pre-commit nda-match.mjs; do
+	if [ ! -f "$dir/$file" ]; then
+		printf '%s\n' "commit-msg: cannot find $file next to this hook or in the work tree, so this commit is refused." \
+			"  Check out a branch that carries .githooks/$file in the main work tree, then run pnpm install." >&2
+		exit 1
+	fi
+done
+exec sh "$dir/pre-commit" "$1"

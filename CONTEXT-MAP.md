@@ -14,6 +14,7 @@ Each context maps to an `app:` area label on the issue tracker (see [Area labels
 - [unic-archon-dlc](./apps/claude-code/unic-archon-dlc/CONTEXT.md): Archon-powered AI development lifecycle DLC (`app:unic-archon-dlc`)
 - [unic-pr-review](./apps/claude-code/unic-pr-review/CONTEXT.md): AI-powered PR review with intent checking and Confidence-scored Findings (`app:unic-pr-review`)
 - [unic-spec-review](./apps/claude-code/unic-spec-review/CONTEXT.md): adversarial review of web specifications across Confluence, Figma, and the live system (`app:unic-spec-review`)
+- [unic-learning-loop](./apps/claude-code/unic-learning-loop/CONTEXT.md): repository learnings drafted from session transcripts into a reviewed rules file (`app:unic-learning-loop`)
 
 ## Workspace packages
 
@@ -37,7 +38,7 @@ All four tiers are repo conventions: hand-applied and maintained here, generated
 ## Relationships
 
 - All Plugin contexts share the vocabulary defined in the monorepo context
-- **auto-format**, **pr-review**, **unic-archon-dlc**, **unic-pr-review**, and **unic-spec-review** are Claude Code Plugins with no runtime dependencies on each other (`unic-spec-review` vendors shared code from `unic-pr-review` rather than importing it)
+- **auto-format**, **pr-review**, **unic-archon-dlc**, **unic-pr-review**, **unic-spec-review**, and **unic-learning-loop** are Claude Code Plugins with no runtime dependencies on each other (`unic-spec-review` vendors shared code from `unic-pr-review` rather than importing it)
 - **unic-confluence** can be installed as a git dependency for use outside Claude Code.
 - **pr-review** has a soft dependency on the `pr-review-toolkit` plugin from `anthropics/claude-plugins-official`
 - **unic-archon-dlc** requires the Archon workflow engine (version ≥ 0.7.0, [ADR-0033](apps/claude-code/unic-archon-dlc/docs/adr/0033-archon-070-schema-target.md)) in the target project; it has no runtime dependencies on any other plugin in this repo

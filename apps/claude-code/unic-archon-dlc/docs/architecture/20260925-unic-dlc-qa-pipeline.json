@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "unic-dlc-qa pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "messagebus": {
+          "label": "Script node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "not-ready",
+        "label": "Not ready",
+        "focus": ["bootstrap", "guard-not-ready"],
+        "note": "A run whose preconditions fail is cancelled before any check runs."
+      },
+      {
+        "id": "happy-path",
+        "label": "Happy path",
+        "focus": [
+          "bootstrap",
+          "test",
+          "e2e",
+          "coverage-gate",
+          "uat-prep",
+          "uat-gate",
+          "verify-pr-base",
+          "merge-gate",
+          "merge"
+        ],
+        "note": "From bootstrap to the merge, in run order."
+      },
+      {
+        "id": "gates",
+        "label": "Gates",
+        "focus": ["uat-prep", "uat-gate", "verify-pr-base", "merge-gate", "merge"],
+        "note": "hitl pauses at both gates. afk skips them, and the next node runs because its trigger_rule is all_done."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config, PRD.md",
+      "pos": [260, 40],
+      "size": [190, 48]
+    },
+    {
+      "id": "guard-not-ready",
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "pos": [40, 40],
+      "size": [150, 48]
+    },
+    {
+      "id": "test",
+      "type": "backend",
+      "label": "test",
+      "sublabel": "runs the tests",
+      "pos": [530, 40],
+      "size": [190, 48]
+    },
+    {
+      "id": "e2e",
+      "type": "backend",
+      "label": "e2e",
+      "sublabel": "runs e2e if declared",
+      "pos": [800, 40],
+      "size": [190, 48]
+    },
+    {
+      "id": "coverage-gate",
+      "type": "backend",
+      "label": "coverage-gate",
+      "sublabel": "checks coverage",
+      "pos": [260, 190],
+      "size": [190, 48]
+    },
+    {
+      "id": "uat-prep",
+      "type": "backend",
+      "label": "uat-prep",
+      "sublabel": "writes qa-checks.md",
+      "pos": [530, 190],
+      "size": [190, 48]
+    },
+    {
+      "id": "uat-gate",
+      "type": "security",
+      "label": "uat-gate",
+      "sublabel": "gates.qa: hitl",
+      "pos": [1070, 190],
+      "size": [190, 48]
+    },
+    {
+      "id": "verify-pr-base",
+      "type": "backend",
+      "label": "verify-pr-base",
+      "sublabel": "checks the PR base",
+      "pos": [260, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "merge-gate",
+      "type": "security",
+      "label": "merge-gate",
+      "sublabel": "gates.qa: hitl",
+      "pos": [1070, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "merge",
+      "type": "backend",
+      "label": "merge",
+      "sublabel": "merges the PR",
+      "pos": [260, 430],
+      "size": [190, 48]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Prepare + check",
+      "wraps": ["bootstrap", "test", "e2e"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Coverage + UAT",
+      "wraps": ["coverage-gate", "uat-prep", "uat-gate"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Merge",
+      "wraps": ["verify-pr-base", "merge-gate", "merge"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "bootstrap-test",
+      "from": "bootstrap",
+      "to": "test",
+      "label": "ready"
+    },
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security"
+    },
+    {
+      "id": "test-e2e",
+      "from": "test",
+      "to": "e2e"
+    },
+    {
+      "id": "e2e-coverage-gate",
+      "from": "e2e",
+      "to": "coverage-gate",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[895, 138], [355, 138]]
+    },
+    {
+      "id": "coverage-gate-uat-prep",
+      "from": "coverage-gate",
+      "to": "uat-prep"
+    },
+    {
+      "id": "uat-prep-uat-gate",
+      "from": "uat-prep",
+      "to": "uat-gate",
+      "label": "hitl",
+      "variant": "security"
+    },
+    {
+      "id": "uat-gate-verify-pr-base",
+      "from": "uat-gate",
+      "to": "verify-pr-base",
+      "label": "all_done",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[1165, 288], [355, 288]]
+    },
+    {
+      "id": "verify-pr-base-merge-gate",
+      "from": "verify-pr-base",
+      "to": "merge-gate",
+      "label": "hitl, base_ok",
+      "variant": "security"
+    },
+    {
+      "id": "merge-gate-merge",
+      "from": "merge-gate",
+      "to": "merge",
+      "label": "all_done",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [[1165, 454]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Merge condition",
+      "items": [
+        "merge runs only when test is pass, e2e and coverage-gate are not fail, and base_ok is true",
+        "merge marks the linked items resolved"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "UAT reject",
+      "items": [
+        "A first uat-gate reject files each defect as an agent-ready issue, which feeds /tickets",
+        "The gate then pauses again, and a second reject cancels the run"
+      ]
+    }
+  ]
+}

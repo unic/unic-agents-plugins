@@ -28,6 +28,10 @@
     {
       "name": "unic-spec-review",
       "source": "./apps/claude-code/unic-spec-review"
+    },
+    {
+      "name": "unic-learning-loop",
+      "source": "./apps/claude-code/unic-learning-loop"
     }
   ]
 }

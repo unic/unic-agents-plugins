@@ -23,6 +23,20 @@ plugin ships into your project.
 > **Vision diagram:** [`docs/20260703-Unic-dlc.mmd`](docs/20260703-Unic-dlc.mmd) (Mermaid; an
 > Excalidraw twin sits alongside). Dated `yyyymmdd-` snapshots are kept — the newest date is
 > canonical.
+>
+> **Architecture diagram:** [`20260925-unic-dlc-architecture.html`](docs/architecture/20260925-unic-dlc-architecture.html),
+> made with Archify. Its source JSON sits alongside, and the HTML opens in any browser. The vision
+> diagram shows the box set. This one shows the architecture: what the plugin ships, what `/setup`
+> installs into a Consumer, where each Box runs, and which parts the Harness decides, which the team
+> owns, and which are seams between the two. The preview below is a PNG export from the diagram's
+> own viewer, one per colour scheme; export both again whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-architecture.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-architecture.dark.png">
+    <img alt="unic-archon-dlc architecture: the plugin, what /setup installs into a Consumer repository, Claude Code and Archon on the developer machine, the team's systems, and an optional Practice Pack" src="docs/architecture/20260925-unic-dlc-architecture.light.png">
+  </picture>
+</a>
 
 ---
 
@@ -31,40 +45,62 @@ plugin ships into your project.
 ```
 MAIN LINE   /specs ──▶ /tickets ──▶ /build ──▶ /pr-review ──▶ /qa
                           ▲
-ON-RAMPS    /triage ──────┤   raw bugs · requests · /qa findings · humans → agent-ready issues
+ON-RAMPS    /triage ──────┤   raw bugs · requests · QA findings a person brings → agent-ready issues
             humans ───────┘
 OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-upgrade   (+ /handoff, /prototype — Matt's, referenced)
 ```
 
-| Box                     | Container | Gate              | Role                                                                                                                           |
-| ----------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `/setup`                | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
-| `/explore`              | Archon    | `gates.explore`   | Off-line, optional research + AFK spike → `findings.md` (ADR-0029)                                                             |
-| `/specs`                | skill     | HITL              | Branch-on-input → `PRD.md`, plus one design contract per component when `design.type` is set (ADR-0020)                        |
-| `/tickets`              | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)                                             |
-| `/triage`               | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)                                            |
-| `/build`                | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                                                             |
-| `/pr-review`            | Archon    | `gates.pr-review` | Fan-out review of the open PR, intent-grounded; posts summary + inline (ADR-0026)                                              |
-| `/qa`                   | Archon    | `gates.qa`        | test → e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                                          |
-| `/improve-architecture` | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                                                     |
-| `/cleanup`              | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
-| `/archon-upgrade`       | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
+> **Box-set diagram:** [`20260925-unic-dlc-box-set.html`](docs/architecture/20260925-unic-dlc-box-set.html), made with
+> Archify. Its source JSON sits alongside. It runs the main line from top to bottom and puts each
+> Session artefact in the row of the Box that writes it, with the on-ramps and the off-line Boxes to
+> the left. The preview below is a PNG export from the diagram's own viewer, one per colour scheme;
+> export both again whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-box-set.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-box-set.dark.png">
+    <img alt="unic-archon-dlc box set: the main line from /specs to /qa, the /triage on-ramp, the off-line Boxes, and the Session artefact each Box writes" src="docs/architecture/20260925-unic-dlc-box-set.light.png">
+  </picture>
+</a>
+
+| Box                                                                                                        | Container | Gate              | Role                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `/setup` ([diagram](docs/architecture/20260925-unic-dlc-setup-command.html))                               | skill     | HITL              | Conversational config: detects the stack, writes `.archon/unic-dlc.config.yaml` (ADR-0019)                                     |
+| `/explore`                                                                                                 | Archon    | `gates.explore`   | Off-line, optional research + AFK spike → `findings.md` (ADR-0029)                                                             |
+| `/specs` ([diagram](docs/architecture/20260925-unic-dlc-specs-command.html))                               | skill     | HITL              | Branch-on-input → `PRD.md`, plus one design contract per component when `design.type` is set (ADR-0020)                        |
+| `/tickets` ([diagram](docs/architecture/20260925-unic-dlc-tickets-command.html))                           | skill     | HITL              | Slice the PRD into build-ready `issues.json` with a `test_command` each (ADR-0022)                                             |
+| `/triage` ([diagram](docs/architecture/20260925-unic-dlc-triage-command.html))                             | skill     | HITL              | Intake on-ramp: raw work → agent-ready tracker issues, DLC-config labels (ADR-0024)                                            |
+| `/build`                                                                                                   | Archon    | `gates.build`     | Anti-cheat red/green loop over `issues.json` (ADR-0012 / ADR-0023)                                                             |
+| `/pr-review`                                                                                               | Archon    | `gates.pr-review` | Fan-out review of the open PR, intent-grounded; posts summary + inline (ADR-0026)                                              |
+| `/qa`                                                                                                      | Archon    | `gates.qa`        | test → e2e → coverage → UAT → merge; a UAT reject files agent-ready issues (ADR-0025)                                          |
+| `/improve-architecture` ([diagram](docs/architecture/20260925-unic-dlc-improve-architecture-command.html)) | skill     | HITL              | Arch-health + intent-drift + ADR superseding → `arch-review.md` (ADR-0027)                                                     |
+| `/cleanup` ([diagram](docs/architecture/20260925-unic-dlc-cleanup-command.html))                           | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
+| `/archon-upgrade` ([diagram](docs/architecture/20260925-unic-dlc-archon-upgrade-command.html))             | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
+
+> Each command row links an Archify diagram drawn from that command's text.
+> It shows the Methods the command reads, the files it reads and writes, its tracker writes, and
+> every point where it waits for a human. `/specs`, `/tickets` and `/setup` group their steps into
+> phases so that each diagram fits one screen. Each source JSON sits beside its HTML.
 
 Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
 inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
 human to run and deliberately not bundled (see [Dependencies](#dependencies)).
+
+Run `/specs` and `/tickets` in one Claude Code conversation. `/specs` grills you to write `PRD.md`,
+and `/tickets` uses what that grilling left in the conversation to slice the PRD into vertical
+slices. A new conversation starts `/tickets` with only the PRD.
 
 ## Archon workflow pipelines
 
 The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
 ([ADR-0011](docs/adr/0011-archon-schema-target.md)):
 
-| Workflow             | Node pipeline                                                                                                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unic-dlc-build`     | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
-| `unic-dlc-pr-review` | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
-| `unic-dlc-qa`        | `bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                  |
-| `unic-dlc-explore`   | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
+| Workflow                                                                                      | Node pipeline                                                                                                                                                                               |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unic-dlc-build` ([diagram](docs/architecture/20260925-unic-dlc-build-pipeline.html))         | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
+| `unic-dlc-pr-review` ([diagram](docs/architecture/20260925-unic-dlc-pr-review-pipeline.html)) | `bootstrap → guard-not-ready → prep → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
+| `unic-dlc-qa` ([diagram](docs/architecture/20260925-unic-dlc-qa-pipeline.html))               | `bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                  |
+| `unic-dlc-explore` ([diagram](docs/architecture/20260925-unic-dlc-explore-pipeline.html))     | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
 
 > **✓** = config-gated `approval:` node — it pauses for a human when the box's gate is `hitl` and
 > auto-proceeds when `afk` (ADR-0017). Parallel nodes are shown in `{…}`.
@@ -76,6 +112,40 @@ The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/
 > `evidence` writes `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check` both report
 > `passed: true` — the workflow-level `evidence_policy: { required: true }` fails the run closed otherwise
 > (ADR-0034).
+
+Each workflow name links its pipeline diagram, made with Archify from the workflow YAML. Its source
+JSON sits alongside. Each diagram shows the nodes in run order, the nodes that run in parallel, each
+`approval:` node with the `gates.<box>` key that decides whether it pauses, and the files the
+workflow writes. The previews below are PNG exports from each diagram's own viewer, one per colour
+scheme; export both again whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-build-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-build-pipeline.dark.png">
+    <img alt="unic-dlc-build pipeline: bootstrap and slopcheck, the run-build loop, the review precheck, verification, goals-check and evidence, then report, open-pr and build-pr-gate" src="docs/architecture/20260925-unic-dlc-build-pipeline.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-pr-review-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-pr-review-pipeline.dark.png">
+    <img alt="unic-dlc-pr-review pipeline: bootstrap, prep, review, synthesize and reconcile, then review-gate and post" src="docs/architecture/20260925-unic-dlc-pr-review-pipeline.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-qa-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-qa-pipeline.dark.png">
+    <img alt="unic-dlc-qa pipeline: bootstrap, test, e2e, coverage-gate, uat-prep and uat-gate, then verify-pr-base, merge-gate and merge" src="docs/architecture/20260925-unic-dlc-qa-pipeline.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-explore-pipeline.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-explore-pipeline.dark.png">
+    <img alt="unic-dlc-explore pipeline: bootstrap, four research nodes in parallel, synthesize, spike, spike-ticket, spike-branch-gate and preserve-spike" src="docs/architecture/20260925-unic-dlc-explore-pipeline.light.png">
+  </picture>
+</a>
 
 ---
 

@@ -6,64 +6,14 @@ Guidance for any AI agent working in this repository. `CLAUDE.md` is a symlink t
 
 A pnpm workspace monorepo hosting AI agent plugins developed at Unic. Today it contains Claude Code plugins; the structure supports plugins for other agents (GitHub Copilot, etc.) in the future.
 
-## Workspace layout
-
-```tree
-apps/
-├── claude-code/              # Claude Code plugins — one dir per plugin
-│   ├── pr-review/
-│   ├── auto-format/
-│   ├── unic-confluence/
-│   ├── unic-archon-dlc/
-│   ├── unic-pr-review/
-│   └── unic-spec-review/
-└── copilot/                  # GitHub Copilot plugins (future)
-packages/
-├── biome-config/             # @unic/biome-config
-├── tsconfig/                 # @unic/tsconfig
-├── release-tools/            # @unic/release-tools (bump / sync-version / tag / verify-changelog)
-└── tracker-streams/          # @unic/tracker-streams (generates the published streams page)
-docs/
-├── adr/                      # Architectural Decision Records
-├── agents/                   # Agent skill documentation
-├── inbox/                    # Retired idea-capture notes (historical)
-├── issues/                   # Grilled and scoped feature issues
-├── process/                  # Process and workflow guides
-└── research/                 # Research notes and explorations
-ci/                           # Vendored marketplace mapper — copied verbatim, never edited
-```
-
-## Navigation
-
-- Plugin manifests: `apps/<agent>/<plugin>/.claude-plugin/plugin.json` and `marketplace.json`
-- Shared release scripts: `packages/release-tools/scripts/`
-- Architectural decisions: `docs/adr/`
-- Process templates: `docs/process/`
-- Marketplace mapper: `ci/map-to-envelope.mjs` (vendored — see [Marketplace ingest](#marketplace-ingest))
-
 ## Commands
 
-```sh
-pnpm install                            # install all workspace deps
-pnpm check                              # Biome + Prettier check (whole tree)
-pnpm format                             # Biome + Prettier fix (whole tree)
-pnpm ci:check                           # same as check, non-interactive (for CI)
-pnpm test                               # run tests across all packages
-pnpm typecheck                          # type-check across all packages
+Root scripts are in `package.json`. Per-plugin operations:
 
-# Per-plugin operations
+```sh
 pnpm --filter <name> bump patch         # bump plugin version
 pnpm --filter <name> verify:changelog   # check changelog
 ```
-
-## Tech stack
-
-- **Runtime**: Node.js ≥ 22. `.nvmrc` is the source of truth for local dev (currently `24.15.0`) and is consumed by `actions/setup-node` in CI.
-- **Package manager**: pnpm 10 (workspace mode, catalog pinning)
-- **Module system**: ESM (`"type": "module"`) throughout
-- **Linter/formatter**: Biome 2 for code/JSON; Prettier for Markdown only
-- **Type checking**: `tsc --checkJs --noEmit` on `.mjs` files; no compilation step
-- **Test runner**: `node:test` built-in
 
 ## Cross-platform requirement
 
@@ -71,10 +21,8 @@ Every plugin must work on **macOS, Windows, and Linux**. Use Node.js APIs (`node
 
 ## Code conventions
 
-- Tabs for indentation in `.mjs`/`.js`/`.ts` files; spaces (2) for `.json`/`.yml`/`.yaml`
-- Single quotes, no semicolons, trailing commas ES5-style (enforced by Biome)
-- Line width 120 (Biome)
-- Prettier for Markdown only
+Formatting is enforced by Biome and Prettier; read `biome.json` for the values.
+
 - No TypeScript compilation — `// @ts-check` + JSDoc for type safety
 
 ## Versioning
@@ -110,11 +58,39 @@ The Archon worktrees under `~/.archon/workspaces/<org>/<repo>/worktrees/` are wo
 
 Archon also keeps a `default_branch` of its own per repository, set from whatever was checked out on its first run there and never re-read from the host. `worktree.baseBranch` in `.archon/config.yaml` overrides it, and `--from <branch>` overrides that. A bare top-level `baseBranch:` has no reader — the nesting is the whole setting. So fix a wrong fork point in that file, never in `~/.archon/archon.db`, which is one machine's row.
 
-`.git/hooks` is not version-controlled, so install it once per clone:
+Run `pnpm install` once in every clone, including one that still has symlinks in `.git/hooks`. It points `core.hooksPath` at the main work tree's `.githooks`, as an absolute path, so every worktree of the clone runs the hooks the main work tree has checked out. Git then reads no hook from `.git/hooks`. The old symlinks may stay or go, but a hook of your own there, such as a personal `post-commit`, stops running.
 
-```sh
-ln -sf ../../.githooks/pre-push "$(git rev-parse --git-common-dir)/hooks/pre-push"
-```
+A worktree on a branch without hooks is guarded too, but only while the main work tree is on a branch that carries them. Today `main` carries only `pre-push`, so with the main work tree on `main` no worktree runs the NDA commit hooks. `pnpm install` then fails with the name of each missing file, but only in a worktree whose branch carries `.githooks/set-hooks-path.mjs`. In the main work tree, `main` has no `prepare` script, so the install passes in silence. That gap closes once [#576](https://github.com/unic/unic-agents-plugins/pull/576) and [#577](https://github.com/unic/unic-agents-plugins/pull/577) reach `main`.
+
+When the hooks end up off, `pnpm install` fails and prints why, except in three cases. One is a moved clone, where the absolute path is stale. Another is an install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, where `prepare` never runs. The third is an install on a branch with no `prepare` script, such as `main` today. In each, check out a branch that carries `.githooks` in the main work tree, then run `pnpm install` there without that setting.
+
+### The NDA publish guard
+
+**This repository is public, and one client of the DLC work is under an NDA**: its name, its repository name, and anything that would identify it must never reach GitHub. Two guards enforce that, the Claude hook and the git hooks, and neither of them names a protected term, which is why both can live here.
+
+The terms are read from a file **outside every repository** — `$UNIC_NDA_DENYLIST`, else `~/.config/unic/nda-denylist.txt`, one term per line, `#` for comments. A denylist that names the client is itself the leak, so it is never committed anywhere.
+
+| Guard                                          | Covers                                                                                                                                                                                   | Wired by                                                                                |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `.claude/hooks/block-nda-terms.mjs`            | What an agent session runs here: `gh`, `glab`, `git push`, `git commit`, `git tag`. It reads the command string, **every file the command names** and, for a commit, **the staged diff** | `.claude/settings.json`, `PreToolUse` on `Bash` — already committed, nothing to install |
+| `.githooks/pre-commit`, `.githooks/commit-msg` | Any commit in this clone, whoever makes it: the staged diff, then the message                                                                                                            | `core.hooksPath`, which `pnpm install` sets (see above)                                 |
+
+Two leak paths make the file and diff reads compulsory rather than thorough: `gh issue create --body-file <path>` carries no term in the command at all, and `git commit -m "<clean message>"` puts it in the diff rather than the message. A guard that scans only the command line waves both through.
+
+**When you commit through `git -C`, `cd` or another directory, write the path literally.** The Claude hook reads the staged diff of the session's directory and of every directory the command names: `cd <path>` or `pushd <path>`, `git -C <path>`, `--work-tree` or `--git-dir`, and `GIT_DIR=` or `GIT_WORK_TREE=`. A path may be quoted. The hook refuses a commit when one of those diffs cannot be read, so a path in a shell variable such as `-C $WT` is refused. A form missing from that list is not read at all, so add it to `commitDirs` in the hook before you rely on it.
+
+**Both guards apply one matching rule, from `.githooks/nda-match.mjs`.** The git hooks run it with `node`, and the Claude hook imports it. Change the rule there and nowhere else. It works in two steps:
+
+1. It removes base64 data. It removes the payload of every `data:…;base64,` URI whose payload has 80 or more characters, and keeps the media type. It also removes every run of 80 or more characters made only of letters, digits, `+` and `/` that holds a digit and either is followed by `=` or holds a `+` right after a letter or digit. A sha512 hash, 88 characters ending in `==`, is such a run. A `+` must follow a letter or digit, so neither the `+` that starts every staged diff line, the second `+` of a diff line inside Markdown, nor the `+` of a SvelteKit `/+page` route counts. A short term inside embedded font data identifies nobody, and every Archify diagram embeds a font. A long path or URL rarely has a `+` right after a letter or digit, or an `=` right after it, so the rule still matches one.
+2. It matches a term, ignoring case, only on a word boundary at both ends. A boundary is the edge of the text, any character that is not a letter or digit, a change between letter and digit, a change from lower to upper case, or the capital that starts a capitalised word after another capital. So `acme`, `acme-site`, `acme_site`, `acme2026`, `acmeSite`, `myAcme`, `XAcme` and `ACMESite` all match `acme`.
+
+Before a text goes public, check it for the four shapes the rule lets through. The first is a term joined to a letter where the join is neither a change from lower to upper case nor the capital that starts a capitalised word after another capital, such as `acmesite`, `Acmesite` or `ACMEsite`. The second is a term inside a `data:…;base64,` payload of 80 or more characters. The third is a term inside a run of 80 or more characters made only of letters, digits, `+` and `/`, where the run holds a digit and either is followed by `=` or holds a `+` right after a letter or digit, such as form-encoded text or a path under a `c++` directory. The fourth is a term that starts or ends with a digit and is joined there to another digit, such as `acme2` inside `acme26`. Only a term that starts or ends with a digit can take this shape.
+
+**Describe no client in public, whether or not it is under an NDA.** Write no word that tells a reader which client a piece of work is for: no sector, city, site or product name, and no example drawn from one. That also applies when the example appears in a warning about identifying a client, where it is easiest to write. The term list carries such descriptors as well as names, so the guards refuse them. A paraphrase the list does not hold still passes, so read every public text for it before you send.
+
+**Both fail closed.** With no readable term list, a publishing command is refused and the message names the file to create. `touch` that file to opt out deliberately — an empty list allows everything. The git hooks also refuse a commit when `node` is not on `PATH`. This is the opposite of the `git-guardrails` defect described below, where a missing `jq` makes the hook exit 0 and read as a successful block.
+
+What neither guard covers: `--no-verify` skips the git hooks; the Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded; and an Archon workflow node inherits no ambient settings, so a Box almost certainly runs without it. Measure that before dispatching a Box that could publish.
 
 Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `feature/` (the prefix encodes PR topology, not change kind). Archon-dispatched branches add a scope sub-namespace: `feature/<scope>/<issue#>-<slug>`, where `<scope>` is the area label with its tier stripped (`app:unic-pr-review` → `unic-pr-review`, `repo` → `repo`). The `/archon-rollout` command owns the full derivation rule.
 
@@ -122,8 +98,8 @@ Bugs are not a separate prefix: a `bug` issue that targets `develop` uses `featu
 
 To ship a new plugin version:
 
-1. On a feature branch, bump the version: `pnpm --filter <name> bump <patch|minor|major>`
-2. Add a dated entry to the plugin's `CHANGELOG.md` under the new version.
+1. On a feature branch, add the change to the plugin's `CHANGELOG.md` under `## [Unreleased]`, and commit it with the change. `pnpm bump` refuses an `[Unreleased]` section that holds only `- (none)`, and it refuses a working tree with uncommitted changes.
+2. Bump the version: `pnpm --filter <name> bump <patch|minor|major>`. The bump turns the `[Unreleased]` entries into a dated `## [X.Y.Z] — YYYY-MM-DD` section and does not commit. Commit its result on its own, as `chore(<name>): release X.Y.Z`.
 3. Open a PR targeting `develop`. CI runs `verify:changelog` on all PRs — it will fail if the changelog entry is missing or malformed.
 4. After the PR merges to `develop`, open a release PR from `develop` → `main`.
 5. After the release PR merges, the release workflow on `main` detects that `<name>@<version>` has no tag yet and creates it automatically.
@@ -138,7 +114,7 @@ To ship a new plugin version:
 
 ## Marketplace ingest
 
-Every push to `main` publishes this repository's six plugin cards to the Unic AI Artefact Marketplace, source `unic-agents-plugins`. `.github/workflows/marketplace-ingest.yml` maps the catalogue with `ci/map-to-envelope.mjs` and posts it to the public ingest sidecar. The mapper kind is `unic-agents`, because this is a Claude-plugin monorepo. The full documentation is [Push your catalog](https://vp.unic.com/docs/#/marketplace/), which needs a VP login. Run it by hand to see the envelope:
+Every push to `main` publishes a card for every plugin in the root `.claude-plugin/marketplace.json` to the Unic AI Artefact Marketplace, source `unic-agents-plugins`. `.github/workflows/marketplace-ingest.yml` maps the catalogue with `ci/map-to-envelope.mjs` and posts it to the public ingest sidecar. The mapper kind is `unic-agents`, because this is a Claude-plugin monorepo. The full documentation is [Push your catalog](https://vp.unic.com/docs/#/marketplace/), which needs a VP login. Run it by hand to see the envelope:
 
 ```sh
 node ci/map-to-envelope.mjs unic-agents . > body.json
@@ -228,38 +204,66 @@ Matt Pocock's skills ([`mattpocock/skills`](https://github.com/mattpocock/skills
 - [labels.md](docs/agents/labels.md) — four-tier label taxonomy: state, type, priority, area
 - [domain.md](docs/agents/domain.md) — multi-context layout, `CONTEXT.md` and ADR locations
 - [feature-runner.md](docs/agents/feature-runner.md) — AFK invocation of the feature runner
+- [orchestrator-and-wayfinder.md](docs/agents/orchestrator-and-wayfinder.md) — who plans and who dispatches; why the orchestrator is a session, not an agent
+- [agent-tool-traps.md](docs/agents/agent-tool-traps.md) — measured traps in the tools this repo uses, and the shapes in which a session's claims go wrong
+- [dispatching-and-learning.md](docs/agents/dispatching-and-learning.md) — writing a session opener, when to rewrite it, and where a worker's learnings go. **Read its § Route each learning by its lifetime before writing project memory.** Project memory stays on one machine, so every entry names a `destination:` in git and moves there at the next handoff
 
 ### Who owns which files
 
-| Path                                             | Owner                        | Rule                                                                                                                                         |
-| ------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.agents/skills/**`                              | Upstream `mattpocock/skills` | **Never hand-edit.** Every `npx skills add` overwrites it; edits die silently                                                                |
-| `.claude/skills/<name>` symlinks                 | `npx skills`                 | Managed. `skills remove` leaves the `.agents/skills/` source directory behind, so pair it with `git rm -r`                                   |
-| `.claude/skills/{archon,new-plugin,verify-spec}` | This repo                    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
-| `skills-lock.json`                               | `npx skills`                 | Never hand-edit — the hashes are computed                                                                                                    |
-| `docs/agents/*.md`                               | This repo                    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
+| Path                                                                                        | Owner        | Rule                                                                                                                                         |
+| ------------------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/skills/<vendored name>`, and the `.agents/skills/<name>` a symlink there points to | `npx skills` | **Never hand-edit.** Every `npx skills add` overwrites the directory; edits die silently. `skills-lock.json` says which names are vendored   |
+| `.claude/skills/{archon,new-plugin,verify-spec}`                                            | This repo    | Real directories, repo-authored. `npx skills` does not manage them — never remove them while pruning vendored skills                         |
+| `skills-lock.json`                                                                          | `npx skills` | Never hand-edit — the hashes are computed                                                                                                    |
+| `docs/agents/*.md`                                                                          | This repo    | Hand-maintained, no generator. Do **not** run `/setup-matt-pocock-skills`: it reverts `triage-labels.md` to a five-role `wontfix` vocabulary |
 
 ### Upgrading
 
-Selection policy: all of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/`.
+This repo vendors skills from the sources in the table below. Every one goes through `npx skills` and is tracked in `skills-lock.json`.
 
-Two entries the policy needs to name explicitly:
+| Source              | What comes from it                                 | Selection policy                                                                                                               |
+| ------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `mattpocock/skills` | The agent-skill driver — most of `.claude/skills/` | All of `skills/engineering/` and `skills/productivity/`, `skills/misc/` by explicit justification, never `skills/in-progress/` |
+| `cursor/plugins`    | `unslop` only                                      | By name, one skill at a time. Nothing is taken from this source wholesale                                                      |
+| `tt-a1i/archify`    | `archify` and `archify-review`                     | By name. Nothing else is taken from this source                                                                                |
+
+`unslop` cuts AI tells from prose. It is vendored here because this repo's product is prose, and because the maintainer's output style and user `CLAUDE.md` both tell a session to read it. Its frontmatter sets `disable-model-invocation: true`, so an agent reads the file rather than invoking the skill. Take nothing else from `cursor/plugins` without deciding it the same way.
+
+`archify` renders the diagrams under `apps/<agent>/<plugin>/docs/architecture/` from their source JSON, and `archify-review` is its maintenance companion. They are vendored so every session and worktree can regenerate a diagram without a per-machine install ([#569](https://github.com/unic/unic-agents-plugins/issues/569)).
+
+**The same skill name can exist at user scope and at project scope, and the user copy wins.** Claude Code resolves a name clash enterprise over personal, and personal over project, so a session in this repo runs the maintainer's `~/.claude/skills/unslop/`, not the copy vendored here. The vendored copy is what a teammate without it reads. The two can drift, and nothing reports it. When you upgrade one, diff the other. A plugin skill never enters this clash: it is namespaced as `/plugin-name:skill-name` and loads alongside.
+
+Two `mattpocock/skills` entries the policy needs to name explicitly:
 
 - **`misc/git-guardrails-claude-code`** is the one `misc/` entry installed. Justification: it is the only vendored skill that installs a repo-local safety hook, so it belongs where the repo is. Read the caveat below before wiring it up.
 - **`setup-matt-pocock-skills` stays installed but must never run.** It is the reference `docs/agents/*.md` was hand-authored from, which is why it is kept. A run reverts `docs/agents/triage-labels.md` to the five-role `wontfix` vocabulary. Four installed skills tell an agent to invoke it when a tracker or label mapping looks missing — `triage`, `wayfinder`, `to-spec`, `to-tickets`. Those files exist and are correct here, so that condition is never met: if a skill asks for them, read `docs/agents/`, do not run the setup skill.
 
 ```sh
 npx skills@latest add mattpocock/skills -a claude-code -y -s <name> -s <name> …
+npx skills@latest add cursor/plugins -a claude-code -y -s unslop
+npx skills@latest add tt-a1i/archify -a claude-code -y -s archify -s archify-review
 npx skills@latest remove -s <name> -s <name> … -a claude-code -y
 ```
 
+Add `-l` to any `add` command to list the source's catalogue and install nothing. Use it to check a source before you take from it.
+
+#### Two vendoring shapes, and how they arose
+
+Most vendored skills are a plain `.claude/skills/<name>/` directory. `archify` and `archify-review` are a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink to it, because that is what `npx skills` wrote when they were added on 2026-09-25. `skills-lock.json` carries a hash for every vendored skill in either shape.
+
+**Claude Code discovers project skills only under `.claude/skills/`** ([skills documentation](https://code.claude.com/docs/en/skills)), so in the second shape the symlink is what loads the skill. Commit the directory and the symlink together. A checkout that writes symlinks as plain files gets a short text file in place of the skill, and the skill does not load there. On Windows that is the default unless the clone was made with symlinks enabled; [CONTRIBUTING.md § Cloning on Windows](CONTRIBUTING.md#cloning-on-windows) says how. CI does not catch a broken link, because its Windows job runs plugin logic, not the vendored skills.
+
+The shape has changed before. Until 2026-09-21 the `mattpocock/skills` entries were a `.agents/skills/<name>/` directory plus a `.claude/skills/<name>` symlink, while `unslop` was already a plain directory. An ordinary `npx skills add` of the 26 tracked names rewrote all of them as plain directories in one run, reported each as `copied`, and left the whole `.agents/skills/` tree orphaned. **The CLI picks the shape, not you**, and it can change the shape of skills already installed. So read the installed tree after an upgrade rather than before, and never convert a shape by hand.
+
 Three traps the CLI sets:
 
-- **Target `-a claude-code`, never `-a '*'`.** The wildcard installs a second, frontmatter-rewritten copy of every skill into a top-level `agent/skills/` tree for foreign agents, which then drifts from `.agents/skills/`. `remove` rejects `-a '*'` outright.
-- **`-s` takes repeated flags, not a comma list.** `-s a,b,c` reports "no matching skills found" and exits 0.
-- **`remove` is 2-for-3.** It cleans the `.claude/skills/<name>` symlink and the lockfile entry but leaves `.agents/skills/<name>/` behind. Pair every removal with `git rm -r .agents/skills/<name>`.
+- **Target `-a claude-code`, never `-a '*'`.** The wildcard installs a second, frontmatter-rewritten copy of every skill into a top-level `agent/skills/` tree for foreign agents, which then drifts from the one under `.claude/skills/`. `remove` rejects `-a '*'` outright.
+- **`-s` takes repeated flags, not a comma list.** `-s a,b,c` reports "no matching skills found" and exits 0. In zsh, `for n in $names` does not split on newlines either, so a list built that way collapses into one bogus name and the CLI prints its catalogue instead of installing.
+- **`remove` left the source directory behind under the old shape.** Whether it now cleans the plain `.claude/skills/<name>/` directory is unverified here. Run `git status` after a removal and delete what it leaves.
 
-Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree and remove what no longer exists there.
+Upstream renames and deletes skills between releases, and nothing prunes. After upgrading, diff the installed set against the upstream tree (`add -l`) and remove what no longer exists there. Do this per source: a `cursor/plugins` listing says nothing about what `mattpocock/skills` still ships.
+
+`docs/adr/0032-label-taxonomy.md` and `docs/adr/0033-de-dogfood-unic-archon-dlc.md` still name `.agents/skills/**` as the upstream-owned tree. They record the decision as it was taken and are left as written; the path they cite is now `.claude/skills/<name>/`, and the rule that upstream owns it is unchanged.
 
 ### Vendored hook caveat: `git-guardrails-claude-code` needs `jq`
 

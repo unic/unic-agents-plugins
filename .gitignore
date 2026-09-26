@@ -352,3 +352,6 @@ packages/**/pnpm-lock.yaml
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Orchestrator coordination artefacts: STATE names the client Consumer repo, and this repo is public.
+.orchestration/

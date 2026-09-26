@@ -1,7 +1,7 @@
 # Run 2 findings register — `profile-card`, 2026-08-31
 
 One register for everything the second `unic-archon-dlc` run produced, so the findings stop living in
-five places. Sources harvested: [WI 43004](https://dev.azure.com/FZAG/dxp/_workitems/edit/43004)
+five places. Sources harvested: WI 43004
 comments, threads on PR 5825, 5834 and 5835, the `implement-review-precheck` node output recovered from
 `~/.archon/archon.db`, and the orchestrator handoff.
 
@@ -103,15 +103,15 @@ it for `spacing` alone. The cure was not applied to the diagnosis.
 
 # B. Figma — owed to design, no code change fixes any of these
 
-| #   | Finding                                                                                                                                                                         | Status                                                                         |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 28  | Focus ring measures 2.48:1 against SC 1.4.11's 3:1; disabled title 2.95:1.                                                                                                      | **Filed as [Bug 43000](https://dev.azure.com/FZAG/dxp/_workitems/edit/43000)** |
-| 29  | `icon/interface/User2` `Style=line` (`7133:49`) strokes a bare `black`; `get_variable_defs` returns `{}`. Unbacked literal. Located by `cmp` against the icon set's own export. | Owner unknown, unfiled                                                         |
-| 30  | `badge-main` binds `spec-gap-inner-c` = 60, following none of the naming conventions of every other variable on that node. Nothing consumes it.                                 | Owner unknown, unfiled                                                         |
-| 31  | Badge text node renders `typo/p-tiny` with an **11px fallback** while the token resolves to 12.                                                                                 | **Run 1 recorded it; run 2 did not**                                           |
-| 32  | Hover badge text node carries a **raw hex `#01013b`** typed beside the token-bound colour.                                                                                      | Run 1 only                                                                     |
-| 33  | Font style string reads `Inter:Regular` where sibling nodes read `Inter:regular`.                                                                                               | Run 1 only                                                                     |
-| 34  | The card's width is a drawn **356 with `min-width: 356`** and no binding behind either number.                                                                                  | Run 1 only                                                                     |
+| #   | Finding                                                                                                                                                                         | Status                               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 28  | Focus ring measures 2.48:1 against SC 1.4.11's 3:1; disabled title 2.95:1.                                                                                                      | **Filed as Bug 43000**               |
+| 29  | `icon/interface/User2` `Style=line` (`7133:49`) strokes a bare `black`; `get_variable_defs` returns `{}`. Unbacked literal. Located by `cmp` against the icon set's own export. | Owner unknown, unfiled               |
+| 30  | `badge-main` binds `spec-gap-inner-c` = 60, following none of the naming conventions of every other variable on that node. Nothing consumes it.                                 | Owner unknown, unfiled               |
+| 31  | Badge text node renders `typo/p-tiny` with an **11px fallback** while the token resolves to 12.                                                                                 | **Run 1 recorded it; run 2 did not** |
+| 32  | Hover badge text node carries a **raw hex `#01013b`** typed beside the token-bound colour.                                                                                      | Run 1 only                           |
+| 33  | Font style string reads `Inter:Regular` where sibling nodes read `Inter:regular`.                                                                                               | Run 1 only                           |
+| 34  | The card's width is a drawn **356 with `min-width: 356`** and no binding behind either number.                                                                                  | Run 1 only                           |
 
 **31–34 are the substance of the contract comparison.** Measurement density is _identical_ between the
 two runs — 28 node ids, 15 hex values, 92 bullets in both card contracts. **Run 2 lost no facts and four
@@ -232,16 +232,16 @@ different question: _what would have caught this without anyone reading anything
 
 ## F1 — Mechanisms (M)
 
-| From                                                      | The rule that already existed                                                       | What would catch it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **11** `dxp:font-body` absent                             | ADR-0005, explicitly, written from run 1's fix                                      | An assertion that every component root's class list carries it. **A document has now failed at this twice.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| **1**, **15** `cn` extends one scale of four              | none — but `utils.ts`'s own comment diagnoses the general defect and fixes one case | A check that **every** custom `--<family>-*` in `styles.css` appears in `utils.ts`. Kills both findings with one test.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **3** `argTypes` incomplete                               | `CLAUDE.md`, **and** an acceptance criterion on all seven slices                    | A check that every prop in the component's type has an `argTypes` entry. **This failed three times after being made a criterion — a criterion is not a mechanism.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| **12** icon-only badge unnamed                            | the component's own warning                                                         | An a11y rule that flags an unnamed interactive element. **axe does not flag an unnamed `span`, so "a11y passes" held vacuously.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **12**, second half (added 2026-09-02, PR 5843)           | none                                                                                | The badge root at `5e683a7` is a plain `span`, not interactive, so an interactive-naming rule (43024) does not catch it. Finding 12 is a **text-alternative** defect: an element whose only content is an `aria-hidden` glyph, conveying a status and exposing nothing. Needs its own rule and work item; candidate shape from `DS-43020`: no accessible name, no text content, at least one element child, every descendant `aria-hidden`. **Not filed yet.**                                                                                                                                                                                                                                                                                                                          |
-| **a sixth check** (added 2026-09-02, PR 5843 iteration 2) | none                                                                                | **A component with no `test`-tagged story is invisible to 43022, 43023 and 43024**: the hooks fire on every rendered story, and a build that ships a component and no story satisfies all five mechanisms while enforcing none. Closing it needs a check that walks `packages/ui-react/src/` for a component directory no story renders. Its shape is a decision, not an implementer's guess: whether an icon counts, whether a `DEMOS` composition counts, whether a component may ship story-less behind a tag. **Load-bearing for run 3; filed 2026-09-02 as [WI 43028](https://dev.azure.com/FZAG/dxp/_workitems/edit/43028)** under 42989, predecessor 43020, with the three shape decisions derived from the bar and stated in the body. PR 5843 thread 65652 holds the evidence. |
-| **4** one story without a snapshot                        | `CLAUDE.md` § The bar, item 3                                                       | `count(test-tagged stories) == count(snapshots)`. Round 2 did this arithmetic by hand; nothing runs it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| **25** badge and icon position                            | **the contract records the arrangement with y-coordinates**                         | An assertion on document order and geometry — **blocked by F3, because the bar may forbid the assertion that would prove it**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| From                                                                               | The rule that already existed                                                       | What would catch it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **11** `dxp:font-body` absent                                                      | ADR-0005, explicitly, written from run 1's fix                                      | An assertion that every component root's class list carries it. **A document has now failed at this twice.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **1**, **15** `cn` extends one scale of four                                       | none — but `utils.ts`'s own comment diagnoses the general defect and fixes one case | A check that **every** custom `--<family>-*` in `styles.css` appears in `utils.ts`. Kills both findings with one test.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **3** `argTypes` incomplete                                                        | `CLAUDE.md`, **and** an acceptance criterion on all seven slices                    | A check that every prop in the component's type has an `argTypes` entry. **This failed three times after being made a criterion — a criterion is not a mechanism.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **12** icon-only badge unnamed                                                     | the component's own warning                                                         | An a11y rule that flags an unnamed interactive element. **axe does not flag an unnamed `span`, so "a11y passes" held vacuously.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **12**, second half (added 2026-09-02, PR 5843)                                    | none                                                                                | The badge root at `5e683a7` is a plain `span`, not interactive, so an interactive-naming rule (43024) does not catch it. Finding 12 is a **text-alternative** defect: an element whose only content is an `aria-hidden` glyph, conveying a status and exposing nothing. Needs its own rule and work item; candidate shape from `DS-43020`: no accessible name, no text content, at least one element child, every descendant `aria-hidden`. **Not filed yet.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **a sixth check** (added 2026-09-02, PR 5843 iteration 2 · **SHIPPED 2026-09-06**) | none                                                                                | **A component with no `test`-tagged story is invisible to 43022, 43023 and 43024**: the hooks fire on every rendered story, and a build that ships a component and no story satisfies the other mechanisms while enforcing none. Closing it needed a check that walks `packages/ui-react/src/` for a component directory no story renders. Its shape was a decision, not an implementer's guess: whether an icon counts, whether a `DEMOS` composition counts, whether a component may ship story-less behind a tag — all three ruled in the body. **Filed 2026-09-02 as WI 43028** under 42989, predecessor 43020. **Merged 2026-09-06 as PR 5854 (`f77ee51` on the Consumer's `develop`), 43028 Resolved**: `checks/component-stories.ts` plus 17 tests, `story-tags.ts` gains `excludingTags`, and `countStories` becomes the one reader of the tag arithmetic so 43022 and 43028 cannot drift apart. Three `unic-dlc-pr-review` iterations, twenty-three findings. PR 5843 thread 65652 holds the original evidence; PR 5854 thread 65722 holds the review. **What it produced beyond the check is in F5.** |
+| **4** one story without a snapshot                                                 | `CLAUDE.md` § The bar, item 3                                                       | `count(test-tagged stories) == count(snapshots)`. Round 2 did this arithmetic by hand; nothing runs it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **25** badge and icon position                                                     | **the contract records the arrangement with y-coordinates**                         | An assertion on document order and geometry — **blocked by F3, because the bar may forbid the assertion that would prove it**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## F2 — Reads (R)
 
@@ -266,10 +266,11 @@ different question: _what would have caught this without anyone reading anything
 
 **Widened 2026-09-02 15:58 (maintainer).** Run 3 also carries [#441](https://github.com/unic/unic-agents-plugins/issues/441)
 (after [#452](https://github.com/unic/unic-agents-plugins/issues/452)), so one run assesses two legs: on the specs leg, whether
-the grilling fires and the halts halt; on the build leg, whether the five checks (ADO 43020–43024) reach the implementer.
-This is not a confound, because the five checks test properties a PRD cannot mask (`dxp:font-body` on the root, an
+the grilling fires and the halts halt; on the build leg, whether the checks in the F1 table above reach the implementer.
+**Six of them ship as of 2026-09-06** — ADO 43020–43024 and 43028 — and the table is the count, not this sentence.
+This is not a confound, because the checks test properties a PRD cannot mask (`dxp:font-body` on the root, an
 `argTypes` entry per prop, a snapshot per test story, every `@theme` scale in `cn()`, a name on every interactive
-element), so each leg's result is observable on its own. What the run can no longer say is whether the build got
+element, a rendered story per component directory), so each leg's result is observable on its own. What the run can no longer say is whether the build got
 better _overall_ because of one change or the other, and that was never the hypothesis. The sealed predictions
 must cover both legs.
 
@@ -322,7 +323,7 @@ run-2-versus-run-3 diff is new infrastructure rather than a changed chain. **Acc
 Sharpened 2026-09-02, while amending 43020–43024: `apps/storybook-react`'s `test` script pins
 `--project=storybook` and `packages/ui-react` has no `test` script, so the new node-environment project is
 invisible to root `pnpm test` until one of those changes. That script change is part of the same new
-infrastructure and belongs in the confound, not in run 3's report as a surprise. And the five checks' "Done
+infrastructure and belongs in the confound, not in run 3's report as a surprise. And the checks' "Done
 when" lines were all satisfiable on the empty `develop` tree — the all-negative shape #381 already measured —
 so each now proves its negative path on a fixture (WI revisions of 2026-09-02).
 
@@ -335,7 +336,275 @@ the fixture proofs of 43023 and 43024. Run 3's diff against run 2 carries both.
 
 ---
 
+## F5 — What building the mechanisms taught, which the mechanisms did not
+
+Added 2026-09-06, from WI 43028 (the sixth check, PR 5854) and the three `unic-dlc-pr-review` iterations against it.
+**Every row here is about a green that means nothing.** That is one shape, found in four places in a single day, and
+three of the four were found while building the instrument run 3 will be read through.
+
+### 1. A mechanism can read green by construction
+
+43028's check shipped with 12 tests, four of them fixtures written to fail. Iteration 1 found a hole none reached:
+
+```ts
+import { BadgeMain } from './badge-main/BadgeMain.js'
+export { BadgeMain } // no module specifier
+```
+
+That clause hit the skip written for `export {}`, so the check returned `[]` directories, `[]` gaps, green run. **The
+barrel shape that triggers it is the one `develop` gets the day the first component lands**, if whoever adds it
+writes a local re-export. The check would have been silently inert exactly when it first mattered. Fixed by turning
+the skip on the name count rather than on the specifier.
+
+**Why this outranks the bug.** The checks are run 3's treatment. If a check can pass vacuously, then in the run's
+output _"the mechanism fired and found nothing"_ and _"the mechanism was inert"_ are the same observation — and
+telling those two apart is the whole of run 3's question.
+
+### 2. So every check gets a positive control, and the technique is per-check
+
+**The obligation is universal; the technique is not.** Prove each check can fail against the run's own tree before
+the result is read. A check with no working control scores **inert**, never pass — a finding about the mechanism,
+which is a different finding from "the implementer produced no defect".
+
+| Check       | Reads                                                         | Its control                                                          |
+| ----------- | ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 43028       | the barrel `packages/ui-react/src/index.ts`                   | append a failing export, watch it fail naming the directory, revert  |
+| 43020       | stylesheets, via `uiReactStyleSheets()` — **throws on empty** | **not** a barrel append: needs a `@theme` scale `cn()` does not know |
+| 43021–43024 | stories                                                       | unwritten. Four controls owed before run 3's result is read          |
+
+Fixtures do not substitute. Fixtures are what missed row 1.
+
+**The correction that produced this table is itself the finding.** The first version of the rule generalised 43028's
+technique to all six checks, and 43020 breaks it. The same session over-claimed the same way inside
+`checks/README.md`'s new paragraph — the paragraph it added to stop over-claims — writing "every real-tree call here
+passes on an empty set", false of 43020 for the same reason. Two people, one hour, each inside prose whose subject
+was that move:
+
+> **A quantifier over a set of mechanisms is an unverified claim per member until each member is named.** "Every
+> real-tree call here" and "each of the six" are cheaper to write than the enumeration and read as if the
+> enumeration had been done.
+
+### 3. With no CI, the PR description is the only record that a check ran
+
+Three of iteration 2's four findings were in the **PR description**, not the code. One was Critical: it claimed 12
+tests while the file ran 16, because a later commit falsified the author's own evidence row and two re-reads missed
+it.
+
+`DXP-DesignSystem` has no CI, so nothing re-runs what a description asserts. **A description patched rather than
+rewritten is an unversioned test report.** The treatment is cheap and belongs in every Consumer opener: **quote the
+runner's output rather than asserting it — a quoted count goes stale visibly, an asserted one does not.** The author
+then repeated the shape in its own handover message, after the Box had caught it twice, and sharpened the entry:
+**a number written from memory is not evidence, whether or not it was ever true.**
+
+### 4. The reviewer itself failed the same bar, on its first observation
+
+`unic-dlc-pr-review` iteration 3 (run `a7e55042`, 2026-09-05) reviewed the diff, produced **eight findings across
+both axes**, wrote none to disk, and exited 0 reporting success. The `review` node's `node_output` holds all 14038
+characters of the review; its last line is **"Standards axis still running."** — it returned believing one of its
+two axes had not finished. `synthesize` then read the empty directory and emitted three zeros, `reconcile` emitted
+`verdicts: 0, unmatched_priors: 18`, and `post` refused because publishing would have meant inventing 18 verdicts.
+
+**A Box that reviewed and lost its review is indistinguishable, at the exit code, from a Box that found nothing.**
+`post`'s refusal reads as "nothing to say", not as "something broke". The eight findings were recovered by hand out
+of `~/.archon/archon.db`; six were real and were fixed, including one falsehood the check itself would have printed.
+Filed as [#465](https://github.com/unic/unic-agents-plugins/issues/465), p1. **Not a blocker for run 3 — a caution
+about reading it**, because `/pr-review` is one of the mechanisms run 3 is read through.
+
+### 4b. The same shape, a third time, and this one destroys rather than loses
+
+Added 2026-09-15, from `DS-43028` while clearing its own worktree.
+
+Rows 1 and 4 are an operation that **loses** evidence and exits green. There is a third, and it **destroys**:
+`archon complete --force` removes an Archon worktree **and its branch**, and `docs/agents/unic-archon-dlc.md`
+records `/cleanup --apply` as unguarded against an Azure DevOps remote.
+
+`DXP-DesignSystem` carried 29 worktree registrations on 2026-09-15. Four of the branches under them are this
+stream's only addressable copy of what run 1 and run 2 produced:
+
+| branch                                     | ahead of `develop` | what it is                                   |
+| ------------------------------------------ | ------------------ | -------------------------------------------- |
+| `archon/task-unic-dlc-build-1787780831333` | 23                 | run 1's build, PR 5807, abandoned on purpose |
+| `feature/43004_build-profile-card`         | 15                 | run 2's build, PR 5835, same                 |
+| `archon/task-unic-dlc-build-1788195731247` | 15                 | same tip as run 2's                          |
+| `feature/42999_run2-profile-card`          | 1                  | run 2's setup                                |
+
+Run 2's branch also carries five real fixes that are unmerged **by design**. A tidy-up pass over that directory
+deletes the comparison run 3 exists to make, and reports success.
+
+**So the pattern is not a defect of one Box.** Three independent operations in this stream end green having lost or
+destroyed the thing they were run to produce or protect. Write it as the property, not as three bugs: **an operation
+whose failure mode is the absence of an artefact cannot report that failure by exiting on the artefact.**
+
+**The trap that makes the safe rule unsafe here.** `artifacts_dir` in `.archon/unic-dlc.config.yaml` is `workflows`,
+and `workflows/profile-card/PRD.md` and `workflows/profile-card/issues.json` are **tracked on `develop`**. So
+"harvest `<artifacts_dir>/<slug>/` before you remove the worktree" reads, in this repository, as an instruction to
+rescue committed files. Only the copies inside an `archon/task-*` worktree are artefacts. The same collision sits
+under run 3's own preparation, which deletes those two tracked files on the run's branch.
+
+### 5. Four of the Consumer's eight declared commands cannot fail
+
+Measured 2026-09-05 against `sdlc_needs` in `.archon/unic-dlc.config.yaml`, each documented in a comment beside its
+own key:
+
+| Key        | Why a pass proves nothing                                                                                                                                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lint`     | `eslint-plugin-only-warn` downgrades every rule, and `apps/storybook-react` runs bare `eslint .` with no `--max-warnings 0` — and that app holds every story, check and test                                            |
+| `format`   | `prettier --write` rewrites the tree and exits 0 either way                                                                                                                                                             |
+| `coverage` | `Unknown% (0/0)`; vitest does not collect an untested file outside the project root, and the stories import `@repo/ui-react`, which resolves to `dist/index.js`. Structural, not a state waiting on the first component |
+| `test`     | `passWithNoTests: true`. Inert today at 51 tests; a tag-filter change that empties the run turns the merge floor into a pass                                                                                            |
+
+`test` and `check-types` are the two that mean something today. **Any run-3 prediction about `lint`, `format` or
+`coverage` is unfalsifiable and must not be scored.** A related non-defect, recorded so nobody reads it as
+evidence: `sdlc_needs.install` is a two-command chain and the Box reports one `ok`, so a fetched chromium and a
+warm-cache no-op are the same line.
+
+### 6. `estimations` changed the baseline between run 2 and run 3
+
+`estimations` was `'off'` from 2026-08-17 through run 2 and is `'both'` since `1995549` (2026-09-05 16:17), kept for
+run 3 by the maintainer's ruling. It turns on the provisional wave in `/specs` and the definitive wave in
+`/tickets`. **Not a confound for the treatment** — planning legs, separately observable from whether a check fires —
+but it retires two of the five numbers in § D:
+
+- **Cost**: build 6, review round 1 3, round 2 2. Two extra planning waves add cost run 2 never paid.
+- **Unattended: no — four halts in `/specs` alone.** An estimation wave can halt, so a run-3 halt count is counting
+  a different command.
+
+**Dedup, reconcile and praise still compare.** Together with the three commands in row 5, these two are what the
+seal marks not-comparable rather than scores; do not restate them as a total anywhere, because the list is the
+count.
+
 # E. Proposed tickets
+
+## The sealed prediction, scored — run 3 (2026-09-16)
+
+Sealed 2026-09-16 14:55 CEST in `~/Desktop/run3-sealed-predictions-2026-09-16.md` by `wayfinder-orchestrator-9`,
+before dispatch, off the tracker; arm 3 added at 16:30 after `/specs` was dispatched and before it reported. Scored
+by `wayfinder-orchestrator-10` against the diff, the check output in the sub-session transcripts and the pull-request
+threads, never against a leg's own report. The maintainer ruled the shape on 2026-09-15 ([#457 comment
+5683363982](https://github.com/unic/unic-agents-plugins/issues/457#issuecomment-5683363982)); [#457](https://github.com/unic/unic-agents-plugins/issues/457)
+holds the dispatch record from its opener down.
+
+### The run
+
+|            |                                                                                                                                                                                                                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline   | `ddefc51` on the Consumer's `develop`. Run 2's PRD, `issues.json`, three contracts and three screenshots were deleted on the run's setup branch (`5e39db6`), as `d09feff` did for run 2                                                                                                                       |
+| Plan       | `/specs` → PR 5879 (`404f5ba`), `/tickets` → PR 5880 (`7f8fedd`), both merged to `develop` by the maintainer before the build, the shape run 2 used. Four slices as Tasks 43096–43099 under User Story 43095                                                                                                  |
+| Build      | `archon workflow run unic-dlc-build "profile-card"` from `develop` at `7f8fedd`; run `c283e2962b9509c105391bfcfffe576e`, 37m38s, 11/11 nodes, no gate reached (`gates.build: afk`). Branch `archon/task-unic-dlc-build-1789577744739` at `08e2523`, nine commits, PR 5881, **abandoned with the branch kept** |
+| Review     | `unic-dlc-pr-review` twice on PR 5881, the second on a byte-identical commit: runs `26f0f16c…` and `908e3735…`                                                                                                                                                                                                |
+| Instrument | plugin 0.28.0 · Archon 0.8.0 · pnpm 11.1.1 · Node `v24.20.0`, supplied by mise's shim, not by the repository (`nodeVersion` in `pnpm-workspace.yaml` downloaded nothing) · bun 1.4.2, installed during the run because two Box nodes declare `runtime: bun` and nothing documents it                          |
+| Evidence   | `~/Desktop/run3-parked/` on the maintainer's machine, 44 MB: run record (2323 lines), every node's artefacts, every run's events, and the 39 sub-session transcripts that hold the runner output the Archon database does not keep                                                                            |
+
+**Stated confound.** The mechanism tickets added a `checks` and a `checks-dom` vitest project neither earlier run had,
+and every slice's test command runs the full three-project suite, so the six checks fired on every slice rather than
+once at the end. The transcripts also show the implementer reading the checks' source (`arg-types.ts`,
+`theme-scales.ts`, `component-root.test.ts`, `component-stories.ts`) while implementing, and one commit cites a check
+by work item. So the treatment reached the implementer by two channels at once, being run and being read, and this
+run cannot separate them.
+
+### Arm 1 — one arm per mechanism
+
+Each row was predicted twice, defect and firing. **A check whose control does not make it fail scores `inert`**; all
+six had a working control (43020 and 43028 from their own builds, 43021–43024 run on 2026-09-16 against the build's tip
+on a scratch branch, each making its check fail and name the right thing; 43024 on the third attempt, the first two
+dying on the ancestor snapshot and on 43023 first, the documented ordering).
+
+| Check                                  | Defect predicted  | Defect observed                                                                                                                                                                                   | Firing predicted     | Firing observed                                                                                                                                                         | Score                                                                                                                            |
+| -------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **43020** `@theme` scales in `cn()`    | absent            | **absent**: `utils.ts` registers every scale, with a comment naming WI 43020 and the check file                                                                                                   | silent               | silent                                                                                                                                                                  | held                                                                                                                             |
+| **43021** `argTypes` per prop          | **present, high** | **absent**: every prop and slot has an entry on all four stories                                                                                                                                  | fires                | fired **three times on RED**, each time "story names component X and nothing exports it", the fail-closed path for a story written before its component; never on GREEN | **wrong on the defect**. Fourth attempt with the criterion, first with the check, first without the defect                       |
+| **43022** snapshot per `test` story    | present, moderate | **absent as defined**: 14 stories, 14 snapshots. **Present one definition away**: `BadgeMain` `Default` snapshots the inner `<span>Verified</span>`, not the root, so the baseline guards nothing | fires                | silent                                                                                                                                                                  | **wrong on the defect as sealed**, and the cell _defect present, check green_ appears in the adjacent shape the check cannot see |
+| **43023** `dxp:font-body` on the root  | **present, high** | **absent on every root**; over-applied on five nested parts and the `<svg>`, a new adjacent defect                                                                                                | fires, conditionally | silent                                                                                                                                                                  | **wrong on the defect**. Third run, first with the check, first without ADR-0005's defect                                        |
+| **43024** name on interactive elements | absent            | absent                                                                                                                                                                                            | silent               | silent                                                                                                                                                                  | held                                                                                                                             |
+| **43028** a story per barrel export    | absent            | absent                                                                                                                                                                                            | silent               | silent                                                                                                                                                                  | held                                                                                                                             |
+
+**Three of six held, three wrong, and the three wrong ones are the three the seal called its strong test.** Every
+defect predicted present was absent. The seal's own § What this seal predicts said that if 43020, 43024 or 43028
+fired the run would be better than predicted; the opposite happened, the three exercised mechanisms never had to
+fire because the implementer produced nothing for them to catch. **Read against F4: the run stopped failing on the
+rules the checks enforce. Mechanisms win the question run 3 asked**, with the confound above stated: the checks were
+in the tree and in every test run, and they were read.
+
+### Arm 2 — defects no mechanism guards
+
+| #                                                          | Predicted                      | Observed                                                                                                                                                                                                      | Score                                                                                                                       |
+| ---------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **12, second half** aria-hidden glyph, no text alternative | present, unguarded, unreported | **absent**: the icon-only badge is `role="img"` with `aria-labelledby` to a visually hidden label. The slice notes say why: `toHaveAccessibleName` in its own story, a seam the maintainer approved at Halt 2 | wrong. A criterion reached the implementer here                                                                             |
+| **25** badge and icon arrangement                          | present, unguarded, unreported | **absent**: `IconPrecedesText` asserts document order; the card stories compare two edges without naming a number                                                                                             | wrong. **Human intervention**: the maintainer widened the seams at Halt 2 to cover exactly this, and the run record says so |
+| **26** the `fade` annotation                               | present (never implemented)    | **implemented**, with a defect no mechanism guards: the transition declares a 150 ms duration and a curve AC-22 forbids, proved from the compiled stylesheet by the review (Spec, confidence 92)              | wrong on the letter; the fade exists and is wrong                                                                           |
+| **31–34** nested-layer reads                               | unpredicted                    | run 3's three contracts name 41 unique node ids in 124 bullets against run 2's 38 in 176. Whether the nested-layer pass found design defects is unread and stays so                                           | unscored, as sealed                                                                                                         |
+| **new, unlisted**                                          | —                              | **`User2.tsx` invents its glyph**, two hand-drawn paths, its own NOTE says so; three snapshot baselines freeze it. Found by the precheck, by both review iterations, by nobody's check                        | **the seal's arm 2 was incomplete**. This is run 3's unguarded defect                                                       |
+
+### Arm 3 — the specs leg
+
+**This arm is a weakened seal, and its five "held" carry that weight.** Seat 9's seal held no specs-leg prediction
+although F4 requires both legs. Arm 3 was written at 16:30, after `/specs profile-card` had been dispatched in the
+second Consumer session and before that session reported anything from it; and 3.1 had already been observed once,
+at 15:31, when the first session reached Halt 1 before it was closed for having read a run-2 contract. So the
+document's opening method, predictions sealed before the run started, holds for arms 1 and 2 and not for this one.
+Read these rows as predicted before observation but after dispatch, and treat 3.1 as not blind. Run 4's seal covers
+both legs before the first dispatch, or it does not seal.
+
+| #                                                                      | Predicted           | Observed                                                                                               | Score |
+| ---------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------ | ----- |
+| 3.1 grilling fires, Halt 1 stops                                       | high, **not blind** | nine questions, Halt 1 answered "We have met a shared understanding."                                  | held  |
+| 3.2 Halt 2 stops for a human turn                                      | high                | answered **twice**; the maintainer widened the seams and the halt was reopened                         | held  |
+| 3.3 one `## Confirmations`, two verbatim entries, gate does not refuse | moderate            | one section, two entries, both quoted, first Halt 2 answer kept beside the second; gate opened PR 5879 | held  |
+| 3.4 `halts:` names both answered, count agrees with ADR-0020           | moderate            | `halts: Halt 1 answered · Halt 2 answered (answered twice; both recorded)`                             | held  |
+| 3.5 PRD + a contract per component with Figma provenance               | high                | PRD, three contracts, each with a `## Provenance` block naming node and asset key; three ADRs          | held  |
+
+### The three comparables, and one the seal did not name
+
+|                                       | Run 2                                        | Run 3                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dedup**, precheck vs review round 1 | 19 distinct, 5 shared, ~26%                  | precheck 10 distinct, round 1 13 distinct, **4 shared, 19 distinct, ~21%**. Round 2 added one (AC-22 vs the description) and re-found two the precheck had and round 1 missed. Twenty distinct across three passes, as in run 2                                        |
+| **Reconcile**                         | six FIXED claimed, six real, zero false      | on a **byte-identical commit**: `fixed 6 · still_present 7 · new 4 · unverified_fixed 0`. **The six `fixed` are the six Standards findings the second reviewer did not mention** (confidence 78, 74, 72, 72, 64, 61), and `post` set six threads to `fixed` on PR 5881 |
+| **Praise**                            | reproducible findings, unreproducible praise | 13 bullets each round; ~7 survive reworded, 3 file-and-line bullets vanished, one new bullet praises what round 1 filed as defect `6049eab9`, now also `fixed`                                                                                                         |
+| **Hash reproduction**                 | six reproduced                               | **0 of 13**. The hash includes the normalised title (`unic-dlc-pr-review.yaml:354`), so rewording alone explains it; `reconcile`'s fallback (`:448`) matched 7 by semantic title across axis flips and re-anchors                                                      |
+
+**The register's sentence for the review leg: on code nobody changed, the reviewer's variance became six resolved
+threads, and nothing in the Box checks a `fixed` against the diff.** A duplicate thread is noise a reader discards; a
+false `fixed` is a defect a reader stops looking for.
+
+### What run 3 answers, and what it does not
+
+**Answered.** The six rules the six checks enforce (F4 names them) were honoured by an implementer that violated
+four of them in run 2 with the rule written in front of it: every `@theme` scale in `cn()` (43020; run-2 findings 1
+and 15), an `argTypes` entry per prop (43021; finding 3, three times, with the criterion on every slice), a snapshot
+per `test` story (43022; finding 4), and `dxp:font-body` on the root (43023; finding 11, with ADR-0005 loaded every
+turn). Run 2 violated neither of the other two, a name on every interactive element (43024) and a story per barrel
+export (43028). The checks fired on nothing in GREEN because there was nothing to fire
+on; the controls prove they could have. **Mechanisms reach the implementer where documents did not.**
+
+**Not answered.** Whether being run or being read carried it (confound above). Whether a mechanism reaches an
+implementer that does not read `checks/`. And the reviewer: run 3 shows the review Box's non-determinism turning
+into false state on the pull request, which run 2 could not show because it fixed things between rounds.
+
+## G. What run 3 taught about the instrument
+
+Each row is measured, has its evidence in `~/Desktop/run3-parked/`, and is owed a ticket. None is about
+`profile-card`.
+
+| #   | Finding                                                                                                                                                                                                                     | Evidence                                                                                                     | Where it goes                                                                                                            |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| G1  | **`archon complete <branch> --force` deletes the branch on `origin`**, silently, with no mention of the remote                                                                                                              | `git ls-remote --heads origin` before 11 heads, after 10, restored from a `refs/rescue/*` pin                | Consumer `docs/agents/unic-archon-dlc.md`; upstream Archon                                                               |
+| G2  | **Two Box nodes declare `runtime: bun` and nothing in either repository names the dependency**; the first build dispatch died at node 2                                                                                     | `unic-dlc-build.yaml:137`, `:596`; `Executable not found in $PATH: "bun"`                                    | plugin, `unic-archon-dlc`                                                                                                |
+| G3  | **A folder-project registration on a parent directory swallows every child clone**, removes worktree isolation, never reads `worktree.baseBranch`, and `archon doctor` reports it as a pass. No CLI verb removes a codebase | `remote_agent_codebases` row `<org> \| /home/otf/Sites/<org> \| folder`; "Folder project — running in place" | upstream Archon; Consumer doc                                                                                            |
+| G4  | **`reconcile` marks a finding `fixed` when the next reviewer does not mention it**, `unverified_fixed` stays 0, and `post` resolves the thread                                                                              | iteration 2 counters and threads 65901, 65904–65906, 65909, 65910                                            | plugin, p1                                                                                                               |
+| G5  | **The review Box is not deterministic across iterations**: 0/13 hashes, 6 findings gone, axis split 9/5 → 3/10 on identical code                                                                                            | `findings/review.json` of both iterations                                                                    | plugin; the comparison method for run 4                                                                                  |
+| G6  | **`synthesize` dedupes before `reconcile` assigns identity and without prior awareness** (`:376`), and merged across two files against its own `:390` rule. Latent: `reconcile` absorbed it this time                       | the two dropped twins `eef8a1fb`, `c30c2e7d`                                                                 | plugin                                                                                                                   |
+| G7  | **The summary's § "Checks this review did not run" is false**: it says none of seven declared commands ran while the review sub-agent ran `pnpm check-types` and the praise reports its result                              | events `tool_called`; transcript "pnpm check-types (clean)"                                                  | plugin                                                                                                                   |
+| G8  | **`goals-check` counts that a thing exists; the precheck reads what it contains**. Only the counter reaches `evidence.json`, so eleven findings including a documented-standard breach certify as a pass                    | `evidence.json` vs `report.md` § 5                                                                           | plugin; same family as #465                                                                                              |
+| G9  | **`report.md` says "nothing was flaky"** while `build-state.json` records three retried slices; the sentence is `verification`'s single final run speaking for the loop                                                     | both artefacts                                                                                               | plugin                                                                                                                   |
+| G10 | **The loop node reports its last iteration's duration as the node's**: `65697 ms` against 24 minutes observed                                                                                                               | `node_completed` for `run-build` vs commit timestamps                                                        | upstream Archon                                                                                                          |
+| G11 | **`node_output` is an abridged rendering**: the review's read 8+5 where the artefact held 14, with no sign it was cut                                                                                                       | `findings/review.json` vs the event row                                                                      | every opener: count from artefacts                                                                                       |
+| G12 | **The Archon database keeps tool inputs, not output**; the runner output lives only in `~/.claude/projects/<worktree-path>/*.jsonl`, a live directory a same-named worktree reuses                                          | 374 rows, zero `passed`                                                                                      | Consumer doc § Recovering a killed run                                                                                   |
+| G13 | **`slopcheck` and `evidence` ran but were never exercised**: no new package, no lookup                                                                                                                                      | `slopcheck: no new packages detected` in 40 ms                                                               | note, no ticket                                                                                                          |
+| G14 | **The run reached no gate**: `build-pr-gate` skipped on `afk`, `dag.evidence_gate_passed` was the only thing before the PR                                                                                                  | dispatch log                                                                                                 | #463's family                                                                                                            |
+| G15 | **The Box commits and posts under the maintainer's git and ADO identity**; only message shape, branch name and HTML markers distinguish it                                                                                  | nine commits, fifteen threads                                                                                | Consumer doc                                                                                                             |
+| G16 | **The Remember plugin captures the Claude sessions Archon spawns**: `.remember` held one entry per Box node and can reach a later session's SessionStart; parked thirteen times, it returned each time                      | thirteen parked directories                                                                                  | run-4 opener: measure, do not assert                                                                                     |
+| G17 | **`nodeVersion` in `pnpm-workspace.yaml` is a dead pin**: pnpm 11 removed the runtime setting; the key governs the `engines` check. PR 5876 replaced one dead pin with another                                              | `pnpm node --version` → 24.15.0 outside mise's shim; no `~/.local/share/pnpm/nodejs`                         | Consumer PR: `devEngines.runtime`                                                                                        |
+| G18 | **A positive control is a one-session ritual today**; three `declaresInteractive` branches (`a[href]`, `role="button"`, `onClick`) have none                                                                                | the four control outputs in the run record                                                                   | Consumer PR under 43037: a control beside each check in `checks/README.md`; plugin ticket: a `controls` node in `/build` |
 
 ## `unic-agents-plugins` (GitHub) — FILED 2026-09-01
 
@@ -385,7 +654,7 @@ listed under GitHub in this register by mistake.
 ## `DXP-DesignSystem` (Azure DevOps) — FILED 2026-09-01
 
 **No ticket fixes run 2's output.** These are mechanisms and decisions only. All eight are Tasks under
-**42989**, area `dxp\DXP - ZRH\DS - Design System`, tags `P: DesignSystem` + `readyForImplementation`,
+**42989**, in the design-system area, tags `P: DesignSystem` + `readyForImplementation`,
 priority 2.
 
 | id        | was | Title                                                                                 |
@@ -431,8 +700,8 @@ is what makes the mistake cheap to make twice.
 | **W1 — enforce what the documents already say**      | F1 rows 1–5                | Five checks, one ticket per check or one ticket with five. **The hypothesis under test**            |
 | **W2 — settle the assertion rule**                   | 23, 24, F3                 | **Blocks W1's last row.** A documentation gap, not a code defect                                    |
 | **W3 — ADR: how stories and controls are organised** | 27, 60                     | You prefer run 1's. Nothing documents it, which is why two runs invented two answers → unblocks T10 |
-| **43000** · filed                                    | 28                         | Two faint colours · Jessica Moser                                                                   |
-| **43017** · filed                                    | 29–34, 26                  | Ten design questions · Jessica Moser                                                                |
+| **43000** · filed                                    | 28                         | Two faint colours · design owner                                                                    |
+| **43017** · filed                                    | 29–34, 26                  | Ten design questions · design owner                                                                 |
 | **42998** · open                                     | 54, 55, the Bug-field trap | Retitled 2026-09-01                                                                                 |
 
 ## Deliberately no ticket

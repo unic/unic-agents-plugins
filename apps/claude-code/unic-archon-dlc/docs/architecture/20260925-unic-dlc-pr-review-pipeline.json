@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "unic-dlc-pr-review pipeline",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Prompt node"
+        },
+        "messagebus": {
+          "label": "Script node"
+        },
+        "security": {
+          "label": "Approval node"
+        },
+        "external": {
+          "label": "Cancel node"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "not-ready",
+        "label": "Not ready",
+        "focus": ["bootstrap", "guard-not-ready"],
+        "note": "A run whose preconditions fail is cancelled before any review work."
+      },
+      {
+        "id": "happy-path",
+        "label": "Happy path",
+        "focus": ["bootstrap", "prep", "review", "synthesize", "reconcile", "review-gate", "post"],
+        "note": "From bootstrap to the posted review. review runs the Standards and Spec sub-agents in parallel inside one node."
+      },
+      {
+        "id": "approval",
+        "label": "Approval",
+        "focus": ["reconcile", "review-gate", "post"],
+        "note": "hitl pauses at review-gate. afk skips it, and post runs because its trigger_rule is all_done."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "guard-not-ready",
+      "type": "external",
+      "label": "guard-not-ready",
+      "sublabel": "cancels the run",
+      "pos": [40, 40],
+      "size": [160, 48]
+    },
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "pos": [290, 40],
+      "size": [220, 48]
+    },
+    {
+      "id": "prep",
+      "type": "backend",
+      "label": "prep",
+      "sublabel": "writes intent-brief.md",
+      "pos": [600, 40],
+      "size": [220, 48]
+    },
+    {
+      "id": "review",
+      "type": "backend",
+      "label": "review",
+      "sublabel": "Standards + Spec, in parallel",
+      "pos": [290, 190],
+      "size": [220, 48]
+    },
+    {
+      "id": "synthesize",
+      "type": "backend",
+      "label": "synthesize",
+      "sublabel": "writes findings.json",
+      "pos": [600, 190],
+      "size": [220, 48]
+    },
+    {
+      "id": "reconcile",
+      "type": "backend",
+      "label": "reconcile",
+      "sublabel": "writes comment.md",
+      "pos": [290, 340],
+      "size": [220, 48]
+    },
+    {
+      "id": "review-gate",
+      "type": "security",
+      "label": "review-gate",
+      "sublabel": "gates.pr-review: hitl",
+      "pos": [910, 340],
+      "size": [220, 48]
+    },
+    {
+      "id": "post",
+      "type": "backend",
+      "label": "post",
+      "sublabel": "posts to the PR",
+      "pos": [290, 490],
+      "size": [220, 48]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Prepare",
+      "wraps": ["bootstrap", "prep"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Review",
+      "wraps": ["review", "synthesize"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Approve",
+      "wraps": ["reconcile", "review-gate"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Post",
+      "wraps": ["post"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "bootstrap-prep",
+      "from": "bootstrap",
+      "to": "prep",
+      "label": "ready"
+    },
+    {
+      "id": "not-ready",
+      "from": "bootstrap",
+      "to": "guard-not-ready",
+      "label": "not ready",
+      "variant": "security"
+    },
+    {
+      "id": "prep-review",
+      "from": "prep",
+      "to": "review",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[710, 138], [400, 138]]
+    },
+    {
+      "id": "review-synthesize",
+      "from": "review",
+      "to": "synthesize"
+    },
+    {
+      "id": "synthesize-reconcile",
+      "from": "synthesize",
+      "to": "reconcile",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[710, 288], [400, 288]]
+    },
+    {
+      "id": "reconcile-review-gate",
+      "from": "reconcile",
+      "to": "review-gate",
+      "label": "hitl",
+      "variant": "security"
+    },
+    {
+      "id": "review-gate-post",
+      "from": "review-gate",
+      "to": "post",
+      "label": "all_done",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[1020, 438], [400, 438]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Gate",
+      "items": [
+        "gates.pr-review: hitl pauses at review-gate; a reject cancels the run and posts nothing",
+        "gates.pr-review: afk skips review-gate, and post runs because its trigger_rule is all_done"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Files",
+      "items": [
+        "Every file sits under <artifacts_dir>/<slug>/pr-review/. prep writes intent-brief.md, diff.patch, changed-files.txt and prep.json",
+        "review writes findings/review.json, synthesize writes findings.json and summary-sections.md, and reconcile writes comment.md and threads.json"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "/archon-upgrade command",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "Box step"
+        },
+        "backend": {
+          "label": "Tracker write"
+        },
+        "database": {
+          "label": "Method read"
+        },
+        "cloud": {
+          "label": "File read"
+        },
+        "security": {
+          "label": "Human halt"
+        },
+        "messagebus": {
+          "label": "File written"
+        },
+        "external": {
+          "label": "Stop"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "human",
+        "label": "Human halts",
+        "focus": ["step-2", "step-3", "h-2", "h-3"],
+        "note": "The human fills a gap only when discovery or the release notes fail. Neither halt is an approval."
+      },
+      {
+        "id": "probe",
+        "label": "Probe",
+        "focus": ["step-6", "r-probe", "w-repo", "w-archon"],
+        "note": "The probe is the one write, and it lands outside every clone."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "r-version",
+      "type": "cloud",
+      "label": "Installed Archon",
+      "sublabel": "archon --version",
+      "pos": [40, 60],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-package",
+      "type": "cloud",
+      "label": "Package metadata",
+      "sublabel": "Archon's homepage",
+      "pos": [40, 130],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-notes",
+      "type": "cloud",
+      "label": "Release notes",
+      "sublabel": "each tag in the range",
+      "pos": [40, 200],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-boxes",
+      "type": "cloud",
+      "label": "Installed Boxes",
+      "sublabel": "unic-dlc-*.yaml",
+      "pos": [40, 305],
+      "size": [220, 40]
+    },
+    {
+      "id": "r-probe",
+      "type": "cloud",
+      "label": "Probe output",
+      "sublabel": "Archon's log lines",
+      "pos": [40, 410],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-1",
+      "type": "frontend",
+      "label": "1 Compare with floor",
+      "sublabel": "branches on the output",
+      "pos": [300, 60],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-2",
+      "type": "frontend",
+      "label": "2 Discover upstream",
+      "sublabel": "owner/repo",
+      "pos": [300, 130],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-3",
+      "type": "frontend",
+      "label": "3 Fetch release notes",
+      "sublabel": "tags in no order",
+      "pos": [300, 200],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-4",
+      "type": "frontend",
+      "label": "4 Classify changes",
+      "sublabel": "one of four verdicts each",
+      "pos": [300, 270],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-5",
+      "type": "frontend",
+      "label": "5 Re-assert traps",
+      "sublabel": "always runs",
+      "pos": [300, 340],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-6",
+      "type": "frontend",
+      "label": "6 Probe config keys",
+      "sublabel": "always runs",
+      "pos": [300, 410],
+      "size": [220, 40]
+    },
+    {
+      "id": "step-7",
+      "type": "frontend",
+      "label": "7 Print the report",
+      "sublabel": "one block, fixed order",
+      "pos": [300, 480],
+      "size": [220, 40]
+    },
+    {
+      "id": "stop",
+      "type": "external",
+      "label": "Stop",
+      "sublabel": "no Archon, or below 0.7.0",
+      "pos": [600, 60],
+      "size": [220, 40]
+    },
+    {
+      "id": "h-2",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "names owner/repo, if asked",
+      "pos": [600, 130],
+      "size": [220, 40]
+    },
+    {
+      "id": "h-3",
+      "type": "security",
+      "label": "Human",
+      "sublabel": "pastes notes, if offered",
+      "pos": [600, 200],
+      "size": [220, 40]
+    },
+    {
+      "id": "w-repo",
+      "type": "messagebus",
+      "label": "Throwaway repo",
+      "sublabel": "OS temp dir, then deleted",
+      "pos": [880, 380],
+      "size": [230, 40]
+    },
+    {
+      "id": "w-archon",
+      "type": "messagebus",
+      "label": "Archon's own store",
+      "sublabel": "workspace deleted, row left",
+      "pos": [880, 440],
+      "size": [230, 40]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Steps, in order",
+      "wraps": ["step-1", "step-2", "step-3", "step-4", "step-5", "step-6", "step-7"],
+      "pad": 8
+    }
+  ],
+  "connections": [
+    {
+      "id": "version-s1",
+      "from": "r-version",
+      "to": "step-1"
+    },
+    {
+      "id": "package-s2",
+      "from": "r-package",
+      "to": "step-2"
+    },
+    {
+      "id": "notes-s3",
+      "from": "r-notes",
+      "to": "step-3"
+    },
+    {
+      "id": "boxes-s4",
+      "from": "r-boxes",
+      "to": "step-4",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[280, 325], [280, 290]]
+    },
+    {
+      "id": "boxes-s5",
+      "from": "r-boxes",
+      "to": "step-5",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[280, 325], [280, 360]]
+    },
+    {
+      "id": "probe-s6",
+      "from": "r-probe",
+      "to": "step-6"
+    },
+    {
+      "id": "s1-s2",
+      "from": "step-1",
+      "to": "step-2"
+    },
+    {
+      "id": "s2-s3",
+      "from": "step-2",
+      "to": "step-3"
+    },
+    {
+      "id": "s3-s4",
+      "from": "step-3",
+      "to": "step-4"
+    },
+    {
+      "id": "s4-s5",
+      "from": "step-4",
+      "to": "step-5"
+    },
+    {
+      "id": "s5-s6",
+      "from": "step-5",
+      "to": "step-6"
+    },
+    {
+      "id": "s6-s7",
+      "from": "step-6",
+      "to": "step-7"
+    },
+    {
+      "id": "s1-stop",
+      "from": "step-1",
+      "to": "stop",
+      "variant": "security"
+    },
+    {
+      "id": "s2-h",
+      "from": "step-2",
+      "to": "h-2",
+      "variant": "security"
+    },
+    {
+      "id": "s3-h",
+      "from": "step-3",
+      "to": "h-3",
+      "variant": "security"
+    },
+    {
+      "id": "s6-repo",
+      "from": "step-6",
+      "to": "w-repo",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[850, 430], [850, 400]]
+    },
+    {
+      "id": "s6-archon",
+      "from": "step-6",
+      "to": "w-archon",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[850, 430], [850, 460]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Left to the agent",
+      "items": [
+        "Step 1 branches on what the version output shows",
+        "Steps 3 to 6 fix no order for tags, traps or probe runs"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Skips, and what it never writes",
+      "items": [
+        "A dev build, the floor version, no repo or no notes skips to Step 5",
+        "It reads no Method, writes nothing in this repository and files no issue"
+      ]
+    }
+  ]
+}

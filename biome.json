@@ -8,10 +8,12 @@
       "!**/.history",
       "!**/pnpm-lock.yaml",
       "!**/.claude",
+      "!**/.agents/skills",
       "!**/.ralph",
       "!**/.remember",
       "!**/*.min.js",
-      "!ci/map-to-envelope.mjs"
+      "!ci/map-to-envelope.mjs",
+      "!apps/claude-code/unic-archon-dlc/docs/architecture/*.html"
     ]
   }
 }

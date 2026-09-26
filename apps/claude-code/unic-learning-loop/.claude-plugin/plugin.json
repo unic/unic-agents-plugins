@@ -1,0 +1,12 @@
+{
+  "name": "unic-learning-loop",
+  "version": "0.1.0",
+  "description": "Collects what a team learns about its repository from Claude Code sessions. A Stop hook says when learnings are due; a read-only subagent drafts .claude/rules/learned.md, and nothing is written without your yes.",
+  "author": {
+    "name": "Unic AG",
+    "url": "https://www.unic.com"
+  },
+  "homepage": "https://github.com/unic/unic-agents-plugins",
+  "license": "LGPL-3.0-or-later",
+  "keywords": ["learnings", "rules", "transcripts", "hook", "unic"]
+}

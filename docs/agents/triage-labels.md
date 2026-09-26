@@ -39,4 +39,6 @@ It carries two different meanings depending on which issue holds it. On a **tick
 | `resolved`    | Implemented; ready for a PR                     | `ready-for-*` → `closed`     |
 | `closed`      | PR has been merged                              | after `resolved`             |
 
+No command writes `resolved` or `closed`. Whoever opens the pull request moves the issue from `ready-for-*` to `resolved`, and whoever handles the merge moves it to `closed`. GitHub closes the issue on merge but never changes its labels, so a skipped step leaves a closed issue that still reads `ready-for-agent`.
+
 Full order: `needs-triage` → `needs-info` → `needs-specs` → `ready-for-agent` / `ready-for-human` → `resolved` → `closed`, with `rejected` reachable at any point.
