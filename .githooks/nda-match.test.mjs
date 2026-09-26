@@ -131,11 +131,20 @@ describe('findTerm', () => {
 	test('refuses the term in a long path that holds a digit', () => {
 		assert.equal(findTerm(`apps/claude-code/${TERM}/src/components/v2/HeaderNavigation`, [TERM]), TERM)
 	})
-	test('refuses the term in compact code under 80 characters that holds a digit and a plus', () => {
+	test('refuses the term in short compact code that holds a digit and a plus', () => {
 		assert.equal(findTerm(`total=${TERM}CountForTheCurrentQuarter2+otherCountValue`, [TERM]), TERM)
 	})
-	test('refuses the term in a query string under 80 characters that holds a digit and a plus', () => {
+	test('refuses the term in a short query string that holds a digit and a plus', () => {
 		assert.equal(findTerm(`https://x.io/r?next=${TERM}/2026/tree/main/src/components/header+nav`, [TERM]), TERM)
+	})
+	test('refuses the term in a 79-character run that holds a digit and a plus', () => {
+		assert.equal(findTerm(`${TERM}2+${'a'.repeat(79 - TERM.length - 2)}`, [TERM]), TERM)
+	})
+	test('passes the term in an 80-character run that holds a digit and a plus', () => {
+		assert.equal(findTerm(`${TERM}2+${'a'.repeat(80 - TERM.length - 2)}`, [TERM]), null)
+	})
+	test('refuses the term in capitals before an upper-case letter outside the BMP that starts a word', () => {
+		assert.equal(findTerm(` ${TERM.toUpperCase()}\u{10400}\u{10428}`, [TERM]), TERM)
 	})
 	test('passes the term joined to a letter outside the BMP', () => {
 		assert.equal(findTerm(`${TERM}\u{1D41A}`, [TERM]), null)
