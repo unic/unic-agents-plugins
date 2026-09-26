@@ -64,6 +64,13 @@ A worktree on a branch without hooks is guarded too, but only while the main wor
 
 When the hooks end up off, `pnpm install` fails and prints why, except in three cases. One is a moved clone, where the absolute path is stale. Another is an install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, where `prepare` never runs. The third is an install on a branch with no `prepare` script, such as `main` today. In each, check out a branch that carries `.githooks` in the main work tree, then run `pnpm install` there without that setting.
 
+`pnpm install` reads the value back in every worktree of the clone, so a value in the `config.worktree` of any worktree fails the install and names that worktree. It skips a worktree that git marks prunable or whose directory is gone, and prints a warning. `prepare` runs only at install, so two later changes turn the hooks off with no report:
+
+- The main work tree moves to a branch where `pre-commit` or `commit-msg` has no executable bit. Git then skips the hook and prints only a `hint:`, and `advice.ignoredHook=false` hides even that. Since [#589](https://github.com/unic/unic-agents-plugins/pull/589) the Claude hook refuses a push when `pre-push` is not executable, but nothing checks the bit of `pre-commit` or `commit-msg` after install.
+- An `includeIf` in the git config sets `core.hooksPath`. Its value wins as soon as its condition holds, for example an `onbranch:` include after a branch switch, or a `gitdir:` include in the worktree it names.
+
+After either change, run `pnpm install` again in the main work tree.
+
 ### The NDA publish guard
 
 **This repository is public, and one client of the DLC work is under an NDA**: its name, its repository name, and anything that would identify it must never reach GitHub. Two guards enforce that, the Claude hook and the git hooks, and neither of them names a protected term, which is why both can live here.
