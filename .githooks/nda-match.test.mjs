@@ -340,18 +340,26 @@ function createCommittedRepo(content, name = 'file.txt') {
  * @param {string} command
  * @param {string} cwd
  * @param {Record<string, string>} [env]
+ * @param {string} [hook]
  */
-const runClaudeHook = (command, cwd, env) =>
-	run('node', [CLAUDE_HOOK], cwd, env, JSON.stringify({ tool_name: 'Bash', cwd, tool_input: { command } }))
+const runClaudeHook = (command, cwd, env, hook = CLAUDE_HOOK) =>
+	run('node', [hook], cwd, env, JSON.stringify({ tool_name: 'Bash', cwd, tool_input: { command } }))
 
 /**
- * A repository whose `core.hooksPath` is its own `.githooks`, as `pnpm install` leaves this clone,
- * with one commit so that a linked worktree can be added.
+ * A copy of this clone's guard files in a fresh repository whose `core.hooksPath` is its own
+ * `.githooks`, as `pnpm install` leaves a clone, with one commit so that a linked worktree can be
+ * added. Its own copy of the Claude hook proves a push from it, or from its worktrees, is guarded.
+ * @param {{ without?: string }} [options]
  */
-function createGuardedRepo() {
+function createGuardedRepo({ without = '' } = {}) {
 	const dir = mkdtempSync(join(scratch, 'guarded-'))
 	git(dir, 'init', '-q')
 	mkdirSync(join(dir, '.githooks'))
+	mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+	for (const file of ['pre-push', 'nda-push.mjs', 'nda-match.mjs', 'main-work-tree.mjs'].filter((f) => f !== without)) {
+		copyFileSync(join(HOOKS, file), join(dir, '.githooks', file))
+	}
+	copyFileSync(CLAUDE_HOOK, join(dir, '.claude', 'hooks', 'block-nda-terms.mjs'))
 	git(dir, 'config', 'core.hooksPath', join(dir, '.githooks'))
 	git(
 		dir,
@@ -365,13 +373,17 @@ function createGuardedRepo() {
 		'-m',
 		'init'
 	)
-	return dir
+	return { dir, hook: join(dir, '.claude', 'hooks', 'block-nda-terms.mjs') }
 }
+
+const PUSH_REFUSED = /pre-push would not scan this push\. Push from the clone or one of its worktrees.*run it with !/
 
 describe('Claude hook', () => {
 	const guarded = createGuardedRepo()
 	const worktree = join(scratch, 'guarded-worktree')
-	git(guarded, 'worktree', 'add', '-q', '-b', 'wt', worktree)
+	git(guarded.dir, 'worktree', 'add', '-q', '-b', 'wt', worktree)
+	const unrelated = createGuardedRepo()
+	const withoutScan = createGuardedRepo({ without: 'nda-push.mjs' })
 	const other = createStagedRepo('clean\n', 'other-')
 	git(other, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'elsewhere-')))
 	const outside = mkdtempSync(join(scratch, 'outside-'))
@@ -380,64 +392,82 @@ describe('Claude hook', () => {
 	writeFileSync(clean, 'clean\n')
 	const dirty = join(scratch, 'dirty.md')
 	writeFileSync(dirty, `Built for ${TERM}.\n`)
+	const spaced = join(mkdtempSync(join(scratch, 'with space-')), 'body.md')
+	writeFileSync(spaced, `Built for ${TERM}.\n`)
+	const home = mkdtempSync(join(scratch, 'home-'))
+	writeFileSync(join(home, 'draft.md'), `Built for ${TERM}.\n`)
 	const mentionsNoVerify = join(scratch, 'mentions-no-verify.md')
 	writeFileSync(mentionsNoVerify, 'Never commit with --no-verify.\n')
 	const large = join(scratch, 'large.md')
 	writeFileSync(large, 'clean\n'.repeat(400_000))
+	// A gh executable larger than 2 MB, so the result does not depend on the machine's own gh.
+	const fakeGh = join(mkdtempSync(join(scratch, 'bin-')), 'gh')
+	writeFileSync(fakeGh, 'clean\n'.repeat(400_000))
 
 	test('passes a cat heredoc that writes a draft quoting git -C with a missing path', () => {
 		const command = `cat > ${join(scratch, 'draft.md')} <<'EOF'\nRun git -C /nonexistent/wt commit -m "x".\nEOF`
-		assert.equal(runClaudeHook(command, guarded).status, 0)
+		assert.equal(runClaudeHook(command, guarded.dir).status, 0)
 	})
 	test('passes a commit over a staged term, which pre-commit guards instead', () => {
 		assert.equal(runClaudeHook('git commit -m "add file"', createStagedRepo(`Built for ${TERM}.\n`)).status, 0)
 	})
 
 	test('refuses --no-verify and names -F <file> and !', () => {
-		assertRefused(runClaudeHook('git commit --no-verify -m "add file"', guarded), 2, /-F <file>.*run with !/)
+		assertRefused(runClaudeHook('git commit --no-verify -m "add file"', outside), 2, /-F <file>.*run with !/)
 	})
 	test('refuses --NO-VERIFY in upper case after any verb', () => {
-		assertRefused(runClaudeHook('echo --NO-VERIFY', outside), 2, /--no-verify or hooksPath/)
+		assertRefused(runClaudeHook('echo --NO-VERIFY', outside), 2, /--no-verify, an abbreviation of it, or hooksPath/)
+	})
+	test('refuses --no-verif, an abbreviation git accepts, on a push', () => {
+		assertRefused(runClaudeHook('git push --no-verif origin x', outside), 2, /an abbreviation of it/)
+	})
+	test('refuses --no-veri, an abbreviation git accepts, on a commit', () => {
+		assertRefused(runClaudeHook('git commit --no-veri -m "x"', outside), 2, /an abbreviation of it/)
 	})
 	test('refuses core.hooksPath set through -c', () => {
-		assertRefused(
-			runClaudeHook('git -c core.hooksPath=/dev/null commit -m "x"', guarded),
-			2,
-			/--no-verify or hooksPath/
-		)
+		assertRefused(runClaudeHook('git -c core.hooksPath=/dev/null commit -m "x"', outside), 2, /or hooksPath/)
 	})
 	test('refuses core.hooksPath set through GIT_CONFIG_KEY_0', () => {
 		const command = 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit -m "x"'
-		assertRefused(runClaudeHook(command, guarded), 2, /--no-verify or hooksPath/)
+		assertRefused(runClaudeHook(command, outside), 2, /or hooksPath/)
 	})
 	test('passes a gh command whose body file mentions --no-verify', () => {
-		assert.equal(runClaudeHook(`gh issue create --body-file ${mentionsNoVerify}`, guarded).status, 0)
+		assert.equal(runClaudeHook(`gh issue create --body-file ${mentionsNoVerify}`, outside).status, 0)
 	})
 
-	test('passes a push from a repository whose hooks path is its own .githooks', () => {
-		assert.equal(runClaudeHook('git push -u origin feature/x', guarded).status, 0)
+	test('passes a push from the clone whose hooks path is its own .githooks', () => {
+		assert.equal(runClaudeHook('git push -u origin feature/x', guarded.dir, {}, guarded.hook).status, 0)
 	})
-	test('passes a push from a linked worktree of that repository', () => {
-		assert.equal(runClaudeHook('git push -u origin wt', worktree).status, 0)
+	test('passes a push from a linked worktree of that clone', () => {
+		assert.equal(runClaudeHook('git push -u origin wt', worktree, {}, guarded.hook).status, 0)
 	})
-	test('refuses a push from outside any repository', () => {
-		assertRefused(runClaudeHook('git push origin x', outside), 2, /pre-push would not scan this push/)
+	test('refuses a push from outside any repository, and offers the clone and !', () => {
+		assertRefused(runClaudeHook('git push origin x', outside, {}, guarded.hook), 2, PUSH_REFUSED)
 	})
 	test('refuses a push from a repository whose hooks path is elsewhere', () => {
-		assertRefused(runClaudeHook('git push origin x', other), 2, /pre-push would not scan this push/)
+		assertRefused(runClaudeHook('git push origin x', other, {}, guarded.hook), 2, PUSH_REFUSED)
+	})
+	test('refuses a push from an unrelated repository with its own guarded .githooks', () => {
+		assertRefused(runClaudeHook('git push origin x', unrelated.dir, {}, guarded.hook), 2, PUSH_REFUSED)
+	})
+	test('refuses a push from the clone when its .githooks lacks nda-push.mjs', () => {
+		assertRefused(runClaudeHook('git push origin x', withoutScan.dir, {}, withoutScan.hook), 2, PUSH_REFUSED)
 	})
 
 	test('refuses the term in a gh command run through sh -c', () => {
 		assertRefused(runClaudeHook(`sh -c 'gh issue create --title "${TERM}"'`, outside), 2)
 	})
 	test('refuses the term in a gh command run by its absolute path', () => {
-		assertRefused(runClaudeHook(`/usr/bin/gh issue create --title "${TERM}"`, outside), 2)
+		assertRefused(runClaudeHook(`${fakeGh} issue create --title "${TERM}"`, outside), 2)
+	})
+	test('passes a clean gh command run by the absolute path of an executable over 2 MB', () => {
+		assert.equal(runClaudeHook(`${fakeGh} issue list`, outside).status, 0)
 	})
 	test('refuses the term in a gh command run through a backslash', () => {
 		assertRefused(runClaudeHook(`\\gh issue create --title "${TERM}"`, outside), 2)
 	})
 	test('refuses the term in a git branch name', () => {
-		assertRefused(runClaudeHook(`git switch -c ${TERM}-fix`, guarded), 2)
+		assertRefused(runClaudeHook(`git switch -c ${TERM}-fix`, outside), 2)
 	})
 	test('passes the term in a command that runs neither git, gh nor glab', () => {
 		assert.equal(runClaudeHook(`echo ${TERM}`, outside).status, 0)
@@ -461,6 +491,24 @@ describe('Claude hook', () => {
 	test('refuses the term in a file named by a path relative to the session cwd', () => {
 		assertRefused(runClaudeHook('gh issue create --body-file dirty.md', scratch), 2)
 	})
+	test('refuses the term in a file named by a path under ~/', () => {
+		assertRefused(
+			runClaudeHook('gh issue create --body-file ~/draft.md', outside, { HOME: home, USERPROFILE: home }),
+			2
+		)
+	})
+	test('refuses the term in a file named by a quoted path with a space', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file "${spaced}"`, outside), 2)
+	})
+	test('refuses the term in a file named before a semicolon', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirty}; echo done`, outside), 2)
+	})
+	test('refuses the term in a file named right before &&', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirty}&&echo done`, outside), 2)
+	})
+	test('refuses the term in a file read through backticks', () => {
+		assertRefused(runClaudeHook(`gh issue create --body \`cat ${dirty}\``, outside), 2)
+	})
 	test('passes a clean file named by --body-file=', () => {
 		assert.equal(runClaudeHook(`gh issue create --body-file=${clean}`, outside).status, 0)
 	})
@@ -470,12 +518,25 @@ describe('Claude hook', () => {
 	test('refuses a gh command that also runs cd', () => {
 		assertRefused(runClaudeHook(`cd ${scratch} && gh issue create --body-file clean.md`, outside), 2, /absolute path/)
 	})
+	test('refuses a gh command that also runs pushd', () => {
+		assertRefused(
+			runClaudeHook(`pushd ${scratch} && gh issue create --body-file clean.md`, outside),
+			2,
+			/absolute path/
+		)
+	})
 
 	test('refuses an empty payload', () => {
 		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, ''), 2, /empty payload/)
 	})
 	test('refuses a payload that is not JSON', () => {
 		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, 'not json'), 2, /not JSON/)
+	})
+	test('refuses a JSON string payload', () => {
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, '"hello"'), 2, /not a JSON object/)
+	})
+	test('refuses a JSON array payload', () => {
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, '[]'), 2, /not a JSON object/)
 	})
 	test('passes a valid payload for another tool', () => {
 		const payload = JSON.stringify({ tool_name: 'Read', cwd: outside, tool_input: { file_path: dirty } })

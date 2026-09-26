@@ -8,21 +8,25 @@
 // those hooks will run. It reads no staged diff and parses no commit directory. See
 // docs/adr/0036-split-nda-guards-by-what-each-sees.md.
 //
-// The checks, in order:
-//   1. A command whose own text holds `--no-verify` or `hookspath`, in any case, is refused, whatever
-//      the verb. Both switch the git hooks off.
-//   2. A command with `push` as a word is refused unless the session's cwd is in a repository whose
-//      `core.hooksPath` points at the `.githooks` of that repository's main work tree.
-//   3. A command with `git`, `gh` or `glab` as a word anywhere has its text scanned for a term.
-//   4. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd`, because
+// The checks, in the order they run:
+//   1. A command whose own text holds `--no-ver` (every abbreviation git accepts for `--no-verify`)
+//      or `hookspath`, in any case, is refused, whatever the verb. Both can switch the git hooks off.
+//   2. A command with `push` as a word is refused unless `pre-push` of this clone will run: the
+//      session's cwd must be in this clone or one of its worktrees, `core.hooksPath` must point at
+//      the main work tree's `.githooks`, and that directory must hold `pre-push` and `nda-push.mjs`.
+//   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
+//   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
+//   3. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd`, because
 //      a relative path after them would resolve somewhere this hook does not look.
-//   5. For such a command, the text is split on whitespace, quotes, `=`, `@`, `<`, `(`, `)` and `$`,
-//      and every piece that is an existing file, resolved against the session's cwd, is scanned.
-//      A file over 2 MB is refused, not skipped. Reading more than the command needs costs nothing:
-//      the hook refuses only when it finds a term.
+//   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
+//      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
+//      that is an existing file, resolved against the session's cwd with a leading `~/` expanded, is
+//      read, except the `gh` or `glab` executable itself. A file over 2 MB is refused, not skipped.
+//      Reading more than the command needs costs nothing: the hook refuses only when it finds a term.
+//   5. The command text and every file read are scanned for a term.
 //
-// It fails closed. An empty or malformed payload, an exception, or an unreadable term list exits 2,
-// the only exit that blocks a `PreToolUse` call. `touch` the list to opt out.
+// It fails closed. A payload that is empty or not a JSON object, an exception, or an unreadable term
+// list exits 2, the only exit that blocks a `PreToolUse` call. `touch` the list to opt out.
 //
 //   list:  $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt
 //   scope: this repository only. It is wired in .claude/settings.json, so a session in a client's
@@ -31,16 +35,21 @@
 // The matching rule lives in `.githooks/nda-match.mjs`, which the git hooks share.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, realpathSync, statSync } from 'node:fs'
-import { isAbsolute, join, resolve } from 'node:path'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const MAX_BYTES = 2_000_000
-const SWITCHES_HOOKS_OFF = /--no-verify|hookspath/i
+const SWITCHES_HOOKS_OFF = /--no-ver|hookspath/i
 const PUSHES = /\bpush\b/
 const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
 const RUNS_GH = /\b(?:gh|glab)\b/
 const CHANGES_DIR = /\b(?:cd|pushd)\b/
-const PATH_SEPARATORS = /[\s'"=@<()$]+/
+const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
+const QUOTED = /"([^"]*)"|'([^']*)'/g
+const GH_EXECUTABLES = new Set(['gh', 'glab', 'gh.exe', 'glab.exe'])
+const HOOK_DIR = dirname(fileURLToPath(import.meta.url))
 
 /** @param {string} reason @returns {never} */
 function block(reason) {
@@ -52,35 +61,54 @@ function block(reason) {
  * @param {string[]} args
  * @param {string} cwd
  */
-const git = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+const git = (args, cwd) =>
+	execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
 
 /** @param {string} path */
 function toRealPath(path) {
+	let real
 	try {
-		return realpathSync.native(path)
+		real = realpathSync.native(path)
 	} catch {
-		return resolve(path)
+		real = resolve(path)
 	}
+	return process.platform === 'win32' ? real.toLowerCase() : real
 }
 
+/** @param {string} cwd */
+const getCommonDir = (cwd) => toRealPath(resolve(cwd, git(['rev-parse', '--git-common-dir'], cwd)))
+
 /**
- * Does `cwd` sit in a repository whose `core.hooksPath` is its main work tree's `.githooks`?
+ * Will this clone's `pre-push` run for a push from `cwd`? The cwd must be in the clone this hook
+ * belongs to, `core.hooksPath` must be the main work tree's `.githooks`, and that directory must
+ * hold the NDA scan.
  * @param {string} cwd
  */
 async function isPushGuarded(cwd) {
 	const { findMainWorkTree } = await import('../../.githooks/main-work-tree.mjs')
 	try {
+		if (getCommonDir(cwd) !== getCommonDir(HOOK_DIR)) return false
 		const top = git(['rev-parse', '--show-toplevel'], cwd)
 		const hooksPath = git(['config', '--get', 'core.hooksPath'], cwd)
 		const mainTree = findMainWorkTree(git(['worktree', 'list', '--porcelain'], cwd))
 		if (!mainTree) return false
-		const expected = toRealPath(join(mainTree, '.githooks'))
-		const actual = toRealPath(isAbsolute(hooksPath) ? hooksPath : join(top, hooksPath))
-		return process.platform === 'win32' ? expected.toLowerCase() === actual.toLowerCase() : expected === actual
+		const hooksDir = join(mainTree, '.githooks')
+		if (!['pre-push', 'nda-push.mjs'].every((file) => existsSync(join(hooksDir, file)))) return false
+		return toRealPath(hooksDir) === toRealPath(isAbsolute(hooksPath) ? hooksPath : join(top, hooksPath))
 	} catch {
 		// Not a repository, or no `core.hooksPath`: git exits non-zero for both.
 		return false
 	}
+}
+
+/**
+ * Every piece of the command that may name a file: the split pieces and each quoted string whole.
+ * @param {string} command
+ */
+function getPathCandidates(command) {
+	const pieces = command.split(PATH_SEPARATORS)
+	for (const match of command.matchAll(QUOTED)) pieces.push(match[1] ?? match[2] ?? '')
+	return new Set(pieces.filter(Boolean).map((piece) => piece.replace(/^~(?=[\\/])/, homedir())))
 }
 
 /**
@@ -92,8 +120,10 @@ async function isPushGuarded(cwd) {
 function readNamedFiles(command, cwd) {
 	/** @type {Array<[string, string]>} */
 	const found = []
-	for (const piece of new Set(command.split(PATH_SEPARATORS).filter(Boolean))) {
+	for (const piece of getPathCandidates(command)) {
 		const path = resolve(cwd, piece)
+		// The executable itself holds no text worth reading, and it is larger than 2 MB.
+		if (GH_EXECUTABLES.has(basename(path).toLowerCase())) continue
 		let stats
 		try {
 			stats = statSync(path)
@@ -119,6 +149,9 @@ async function main() {
 	} catch {
 		block('the hook received a payload that is not JSON, so it cannot check this command.')
 	}
+	if (typeof event !== 'object' || event === null || Array.isArray(event)) {
+		block('the hook received a payload that is not a JSON object, so it cannot check this command.')
+	}
 
 	if (event.tool_name !== 'Bash') return
 	/** @type {string} */
@@ -127,16 +160,15 @@ async function main() {
 
 	if (SWITCHES_HOOKS_OFF.test(command)) {
 		block(
-			'this command holds --no-verify or hooksPath, which switch the NDA git hooks off. ' +
+			'this command holds --no-verify, an abbreviation of it, or hooksPath, which can switch the NDA git hooks off. ' +
 				'To mention either in a commit message, write the message to a file and commit with -F <file>. ' +
-				'An authorised use is for the maintainer to run with !.',
+				'An authorised use is for the maintainer to run with !.'
 		)
 	}
 	if (PUSHES.test(command) && !(await isPushGuarded(cwd))) {
 		block(
-			`${cwd} is not in a repository whose core.hooksPath points at its main work tree's .githooks, ` +
-				'so pre-push would not scan this push. Push from the unic-agents-plugins clone or one of its ' +
-				'worktrees after pnpm install, or have the maintainer run it with !.',
+			`${cwd} is not in the unic-agents-plugins clone with its NDA hooks on, so pre-push would not scan this push. ` +
+				'Push from the clone or one of its worktrees after pnpm install, or have the maintainer run it with !.'
 		)
 	}
 	if (!RUNS_GIT_OR_GH.test(command)) return
@@ -149,7 +181,7 @@ async function main() {
 		block(
 			`cannot read the NDA term list at ${getListPath()}, so publishing is refused. ` +
 				'Create it with one term per line, or touch it to opt out deliberately. ' +
-				'See AGENTS.md § The NDA publish guard.',
+				'See AGENTS.md § The NDA publish guard.'
 		)
 	}
 	if (terms.length === 0) return
@@ -158,7 +190,9 @@ async function main() {
 	const surfaces = [['the command itself', command]]
 	if (RUNS_GH.test(command)) {
 		if (CHANGES_DIR.test(command)) {
-			block('this gh or glab command also holds cd or pushd. Name every file by its absolute path, or have the maintainer run it with !.')
+			block(
+				'this gh or glab command also holds cd or pushd. Name every file by its absolute path, or have the maintainer run it with !.'
+			)
 		}
 		surfaces.push(...readNamedFiles(command, cwd))
 	}
