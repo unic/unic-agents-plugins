@@ -11,9 +11,11 @@
 // The checks, in the order they run:
 //   1. A command whose own text holds `--no-ver` (every abbreviation git accepts for `--no-verify`)
 //      or `hookspath`, in any case, is refused, whatever the verb. Both can switch the git hooks off.
-//   2. A command with `push` as a word is refused unless `pre-push` of this clone will run: the
-//      session's cwd must be in this clone or one of its worktrees, `core.hooksPath` must point at
-//      the main work tree's `.githooks`, and that directory must hold `pre-push` and `nda-push.mjs`.
+//   2. A command with `send-pack` as a word is refused: git runs no `pre-push` for it. A command with
+//      `push` as a word is refused unless `pre-push` of this clone will run: the session's cwd must be
+//      in this clone or one of its worktrees, `core.hooksPath` must point at the main work tree's
+//      `.githooks`, and that directory must hold `pre-push` and `nda-push.mjs`, with `pre-push`
+//      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
 //   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
 //   3. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd`, because
@@ -35,7 +37,7 @@
 // The matching rule lives in `.githooks/nda-match.mjs`, which the git hooks share.
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -43,6 +45,7 @@ import { fileURLToPath } from 'node:url'
 const MAX_BYTES = 2_000_000
 const SWITCHES_HOOKS_OFF = /--no-ver|hookspath/i
 const PUSHES = /\bpush\b/
+const SENDS_PACK = /\bsend-pack\b/
 const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
 const RUNS_GH = /\b(?:gh|glab)\b/
 const CHANGES_DIR = /\b(?:cd|pushd)\b/
@@ -79,26 +82,45 @@ function toRealPath(path) {
 const getCommonDir = (cwd) => toRealPath(resolve(cwd, git(['rev-parse', '--git-common-dir'], cwd)))
 
 /**
- * Will this clone's `pre-push` run for a push from `cwd`? The cwd must be in the clone this hook
- * belongs to, `core.hooksPath` must be the main work tree's `.githooks`, and that directory must
- * hold the NDA scan.
+ * Why this clone's `pre-push` would not run for a push from `cwd`, or null when it will. The cwd
+ * must be in the clone this hook belongs to, `core.hooksPath` must be the main work tree's
+ * `.githooks`, and that directory must hold the NDA scan, with `pre-push` executable where the OS
+ * has an executable bit: git skips a hook that is not, with only a hint.
  * @param {string} cwd
+ * @returns {Promise<string | null>}
  */
-async function isPushGuarded(cwd) {
+async function findUnguardedPushReason(cwd) {
 	const { findMainWorkTree } = await import('../../.githooks/main-work-tree.mjs')
+	let commonDir
 	try {
-		if (getCommonDir(cwd) !== getCommonDir(HOOK_DIR)) return false
-		const top = git(['rev-parse', '--show-toplevel'], cwd)
-		const hooksPath = git(['config', '--get', 'core.hooksPath'], cwd)
-		const mainTree = findMainWorkTree(git(['worktree', 'list', '--porcelain'], cwd))
-		if (!mainTree) return false
-		const hooksDir = join(mainTree, '.githooks')
-		if (!['pre-push', 'nda-push.mjs'].every((file) => existsSync(join(hooksDir, file)))) return false
-		return toRealPath(hooksDir) === toRealPath(isAbsolute(hooksPath) ? hooksPath : join(top, hooksPath))
+		commonDir = getCommonDir(cwd)
 	} catch {
-		// Not a repository, or no `core.hooksPath`: git exits non-zero for both.
-		return false
+		return `${cwd} is not in a git repository`
 	}
+	if (commonDir !== getCommonDir(HOOK_DIR)) return `${cwd} is in another repository than the unic-agents-plugins clone`
+	const mainTree = findMainWorkTree(git(['worktree', 'list', '--porcelain'], cwd))
+	if (!mainTree) return 'this clone has no main work tree with a .githooks'
+	const hooksDir = join(mainTree, '.githooks')
+	let hooksPath = ''
+	try {
+		hooksPath = git(['config', '--get', 'core.hooksPath'], cwd)
+	} catch {
+		// Unset: `git config --get` exits 1.
+	}
+	const top = git(['rev-parse', '--show-toplevel'], cwd)
+	if (!hooksPath || toRealPath(hooksDir) !== toRealPath(isAbsolute(hooksPath) ? hooksPath : join(top, hooksPath))) {
+		return `core.hooksPath is ${hooksPath || 'unset'}, not ${hooksDir}`
+	}
+	const missing = ['pre-push', 'nda-push.mjs'].filter((file) => !existsSync(join(hooksDir, file)))
+	if (missing.length > 0) return `${hooksDir} lacks ${missing.join(' and ')}`
+	if (process.platform !== 'win32') {
+		try {
+			accessSync(join(hooksDir, 'pre-push'), constants.X_OK)
+		} catch {
+			return `${join(hooksDir, 'pre-push')} is not executable, so git skips it`
+		}
+	}
+	return null
 }
 
 /**
@@ -165,11 +187,17 @@ async function main() {
 				'An authorised use is for the maintainer to run with !.'
 		)
 	}
-	if (PUSHES.test(command) && !(await isPushGuarded(cwd))) {
-		block(
-			`${cwd} is not in the unic-agents-plugins clone with its NDA hooks on, so pre-push would not scan this push. ` +
-				'Push from the clone or one of its worktrees after pnpm install, or have the maintainer run it with !.'
-		)
+	if (SENDS_PACK.test(command)) {
+		block('git send-pack runs no pre-push hook, so nothing would scan what it sends. Have the maintainer run it with !.')
+	}
+	if (PUSHES.test(command)) {
+		const reason = await findUnguardedPushReason(cwd)
+		if (reason !== null) {
+			block(
+				`${reason}, so pre-push would not scan this push. ` +
+					'Push from the clone or one of its worktrees after pnpm install, or have the maintainer run it with !.'
+			)
+		}
 	}
 	if (!RUNS_GIT_OR_GH.test(command)) return
 

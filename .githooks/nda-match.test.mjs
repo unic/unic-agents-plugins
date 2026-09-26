@@ -587,3 +587,118 @@ describe('Claude hook', () => {
 		)
 	})
 })
+
+describe('Claude hook, round 2', () => {
+	const outside = mkdtempSync(join(scratch, 'outside-r2-'))
+	const other = createStagedRepo('clean\n', 'other-r2-')
+	git(other, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'elsewhere-r2-')))
+	const emptyList = join(scratch, 'empty-list.txt')
+	writeFileSync(emptyList, '')
+	const clean = join(scratch, 'clean-r2.md')
+	writeFileSync(clean, 'clean\n')
+	const dirty = join(scratch, 'dirty-r2.md')
+	writeFileSync(dirty, `Built for ${TERM}.\n`)
+	const dirtyLe = join(scratch, 'dirty-le.md')
+	writeFileSync(dirtyLe, toUtf16le(`Built for ${TERM}.\n`))
+	const dirtyBe = join(scratch, 'dirty-be.md')
+	writeFileSync(dirtyBe, toUtf16be(`Built for ${TERM}.\n`))
+
+	test('refuses the term in a UTF-16LE file named by --body-file', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirtyLe}`, outside), 2)
+	})
+	test('refuses the term in a UTF-16BE file named by --body-file', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirtyBe}`, outside), 2)
+	})
+	test('refuses the term in a dirty file named after a clean one', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${clean} --template ${dirty}`, outside), 2)
+	})
+	test('resolves a relative file against the payload cwd, not the process cwd', () => {
+		const payload = JSON.stringify({
+			tool_name: 'Bash',
+			cwd: scratch,
+			tool_input: { command: 'gh issue create --body-file dirty-r2.md' },
+		})
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, payload), 2)
+	})
+
+	test('refuses git -C . push from a repository whose hooks path is elsewhere', () => {
+		assertRefused(runClaudeHook('git -C . push origin x', other), 2, PUSH_REFUSED)
+	})
+	test('refuses a push inside sh -c from a repository whose hooks path is elsewhere', () => {
+		assertRefused(runClaudeHook(`sh -c 'git push origin x'`, other), 2, PUSH_REFUSED)
+	})
+	test('refuses git send-pack even from a guarded clone', () => {
+		const guarded = createGuardedRepo()
+		assertRefused(
+			runClaudeHook('git send-pack ../remote main', guarded.dir, {}, guarded.hook),
+			2,
+			/send-pack runs no pre-push hook.*!/
+		)
+	})
+	test('refuses a push from a clone whose pre-push is not executable', { skip: process.platform === 'win32' }, () => {
+		const guarded = createGuardedRepo()
+		chmodSync(join(guarded.dir, '.githooks', 'pre-push'), 0o644)
+		assertRefused(
+			runClaudeHook('git push origin x', guarded.dir, {}, guarded.hook),
+			2,
+			/is not executable, so git skips it/
+		)
+	})
+	test('refuses a push from a clone whose hooks path points away from its .githooks, and says so', () => {
+		const guarded = createGuardedRepo()
+		git(guarded.dir, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'away-')))
+		assertRefused(
+			runClaudeHook('git push origin x', guarded.dir, {}, guarded.hook),
+			2,
+			/core\.hooksPath is .*so pre-push would not scan/
+		)
+	})
+	test('refuses a push from a clone whose .githooks lacks pre-push', () => {
+		const guarded = createGuardedRepo({ without: 'pre-push' })
+		assertRefused(runClaudeHook('git push origin x', guarded.dir, {}, guarded.hook), 2, /lacks pre-push/)
+	})
+
+	test('refuses --no-verify with an empty term list', () => {
+		assertRefused(
+			runClaudeHook('git commit --no-verify -m x', outside, { UNIC_NDA_DENYLIST: emptyList }),
+			2,
+			/--no-verify/
+		)
+	})
+	test('refuses hooksPath with an empty term list', () => {
+		assertRefused(
+			runClaudeHook('git config core.hooksPath /x', outside, { UNIC_NDA_DENYLIST: emptyList }),
+			2,
+			/hooksPath/
+		)
+	})
+	test('refuses an unguarded push with an empty term list', () => {
+		assertRefused(runClaudeHook('git push origin x', outside, { UNIC_NDA_DENYLIST: emptyList }), 2, PUSH_REFUSED)
+	})
+})
+
+describe('Claude hook entry in .claude/settings.json', () => {
+	const settings = JSON.parse(readFileSync(join(HOOKS, '..', '.claude', 'settings.json'), 'utf8'))
+	/** @type {string} */
+	const entry = settings.hooks.PreToolUse.flatMap(
+		(/** @type {{ hooks: Array<{ command: string }> }} */ group) => group.hooks
+	)
+		.map((/** @type {{ command: string }} */ hook) => hook.command)
+		.find((/** @type {string} */ command) => command.includes('block-nda-terms.mjs'))
+	const projectDir = join(HOOKS, '..')
+	const outside = mkdtempSync(join(scratch, 'subdir-'))
+
+	test('blocks from a directory other than the project root', () => {
+		const result = run('sh', ['-c', entry], outside, { CLAUDE_PROJECT_DIR: projectDir }, 'not json')
+		assertRefused(result, 2, /not JSON/)
+	})
+	test('blocks when node is not on PATH', { skip: process.platform === 'win32' }, () => {
+		const result = spawnSync('/bin/sh', ['-c', entry], {
+			cwd: outside,
+			input: '{}',
+			encoding: 'utf8',
+			env: { PATH: mkdtempSync(join(scratch, 'no-node-')), CLAUDE_PROJECT_DIR: projectDir },
+		})
+		assert.equal(result.status, 2, result.stderr)
+	})
+})
