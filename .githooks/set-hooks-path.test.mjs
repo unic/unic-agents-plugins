@@ -631,4 +631,33 @@ describe('set-hooks-path', () => {
 			stderr
 		)
 	})
+	test('passes a worktree whose value names the same .githooks with a trailing slash', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		git(['config', '--worktree', 'core.hooksPath', `${join(dir, '.githooks')}/`], worktree)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual({ status, stderr }, { status: 0, stderr: '' })
+	})
+	test(
+		'fails closed when git worktree list -z fails for a reason other than the switch',
+		{ skip: process.platform === 'win32' },
+		() => {
+			const dir = repo()
+			const { status, stderr } = prepare(
+				dir,
+				withFakeGit('for arg in "$@"; do [ "$arg" = -z ] && { echo broken >&2; exit 3; }; done')
+			)
+			assert.deepEqual(
+				{
+					status,
+					named: /because git worktree list failed \(broken\)/.test(stderr),
+					hooksPath: git(['config', '--get', 'core.hooksPath'], dir),
+				},
+				{ status: 1, named: true, hooksPath: '' },
+				stderr
+			)
+		}
+	)
 })

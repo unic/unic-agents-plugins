@@ -95,7 +95,9 @@ try {
 	// the plain form. A failure of the plain form still reaches the catch below and fails closed.
 	try {
 		porcelain = git(['worktree', 'list', '--porcelain', '-z'])
-	} catch {
+	} catch (error) {
+		// Git exits 129 for an unknown switch. Any other failure is a failure.
+		if (/** @type {{ status?: unknown }} */ (error).status !== 129) throw error
 		porcelain = git(['worktree', 'list', '--porcelain'])
 	}
 	const mainTree = findMainWorkTree(porcelain)
@@ -177,11 +179,11 @@ try {
 	fail(`the hooks may be off here, because git could not read the config back (${causeOf(error)})`)
 	process.exit()
 }
-if (!effective.endsWith(`\t${hooksDir}`)) {
+if (!pointsAtHooks(effective, process.cwd())) {
 	fail(
 		`the hooks are off here, because another value wins over the one just written. core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`
 	)
-} else if (previous && previous !== hooksDir) {
+} else if (previous && resolveReal(previous, process.cwd()) !== resolveReal(hooksDir, process.cwd())) {
 	warn(
 		`core.hooksPath changed, because pnpm install set it to this clone's .githooks. It was ${previous}, and is now ${hooksDir}`
 	)
@@ -227,11 +229,23 @@ for (const { path, isBare, isPrunable, isLocked } of listWorktrees(porcelain)) {
 		)
 		continue
 	}
-	if (!value.endsWith(`\t${hooksDir}`)) {
+	if (!pointsAtHooks(value, path)) {
 		fail(
 			`the hooks are off in another worktree of this clone, because core.hooksPath resolves there to ${value.replace('\t', ' ')}, not ${hooksDir}. The worktree is ${path}. For a value in config.worktree, remove it with: git -C "${path}" config --worktree --unset core.hooksPath`
 		)
 	}
+}
+
+/**
+ * Does a `<origin>\t<value>` line from readEffective point at `hooksDir`? Compare resolved paths, so a
+ * trailing slash or another spelling of the same directory still matches. A relative value is
+ * relative to the work tree at `base`, as git reads it.
+ * @param {string} line
+ * @param {string} base
+ */
+function pointsAtHooks(line, base) {
+	const tab = line.indexOf('\t')
+	return tab >= 0 && resolveReal(line.slice(tab + 1), base) === resolveReal(hooksDir, process.cwd())
 }
 
 /**
