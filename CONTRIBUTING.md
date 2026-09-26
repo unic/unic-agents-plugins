@@ -72,7 +72,7 @@ pnpm install
 
 If you keep a hook of your own in `.git/hooks`, such as a personal `post-commit`, expect it to stop running. Git reads hooks from one directory only, and this repository has no place for a personal hook next to the guards.
 
-An install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, leaves the hooks off without a message. So does moving the clone, and so does an install on a branch with no `prepare` script, such as `main` today. In those cases, check out a branch that carries `.githooks` in the main work tree, then run `pnpm install` there without that setting. In every other case that leaves the hooks off, `pnpm install` fails and prints why.
+An install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, leaves the hooks off without a message. So does moving the clone, and so does an install on a branch with no `prepare` script, such as `main` today. In those cases, check out a branch that carries `.githooks` in the main work tree, then run `pnpm install` there without that setting. [AGENTS.md § The Archon pre-push guard](AGENTS.md#the-archon-pre-push-guard) describes other states that leave the hooks off with no failure, such as a worktree moved by hand or a change after install.
 
 ### Cloning on Windows
 
