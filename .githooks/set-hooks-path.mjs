@@ -83,7 +83,13 @@ const here = join(process.cwd(), '.githooks')
 let hooksDir = here
 let porcelain
 try {
-	porcelain = git(['worktree', 'list', '--porcelain', '-z'])
+	// `-z` reads a path that holds a newline, but needs git 2.36. Older git rejects it, so fall back to
+	// the plain form. A failure of the plain form still reaches the catch below and fails closed.
+	try {
+		porcelain = git(['worktree', 'list', '--porcelain', '-z'])
+	} catch {
+		porcelain = git(['worktree', 'list', '--porcelain'])
+	}
 	const mainTree = findMainWorkTree(porcelain)
 	const candidate = mainTree ? join(mainTree, '.githooks') : ''
 	const isLinked = git(['rev-parse', '--git-dir']) !== git(['rev-parse', '--git-common-dir'])

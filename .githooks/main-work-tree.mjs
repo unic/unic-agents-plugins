@@ -14,9 +14,10 @@ export function findMainWorkTree(porcelain) {
 }
 
 /**
- * Every entry of `git worktree list --porcelain`, in its order. It reads the `-z` form (git 2.36 and
- * later), where a NUL ends each line and a path may hold a newline, and the plain form, where a
- * `\r\n` line end leaves no `\r` in a field.
+ * Every entry of `git worktree list --porcelain`, in its order. It reads both forms git prints.
+ * `set-hooks-path.mjs` asks for the `-z` form, where a NUL ends each line and a path may hold a
+ * newline, and falls back to the plain form on git before 2.36, which rejects `-z`. The Claude hook
+ * passes the plain form. In the plain form a `\r\n` line end leaves no `\r` in a field.
  * @param {string} porcelain
  * @returns {{ path: string, isBare: boolean, isPrunable: boolean }[]}
  */

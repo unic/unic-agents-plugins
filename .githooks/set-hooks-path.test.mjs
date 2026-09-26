@@ -425,4 +425,29 @@ describe('set-hooks-path', () => {
 		const { status, stderr } = prepare(dir)
 		assert.deepEqual({ status, stderr }, { status: 0, stderr: '' })
 	})
+	test(
+		'falls back to the plain worktree list and sets the value when git rejects -z',
+		{ skip: process.platform === 'win32' },
+		() => {
+			const dir = repo()
+			const bin = mkdtempSync(join(scratch, 'bin-'))
+			const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
+			writeFileSync(
+				join(bin, 'git'),
+				`#!/bin/sh\nfor arg in "$@"; do [ "$arg" = -z ] && { echo "error: unknown switch \\\`z'" >&2; exit 129; }; done\nexec "${realGit}" "$@"\n`,
+				{ mode: 0o755 }
+			)
+			const { status, stderr } = spawnSync(process.execPath, [SCRIPT], {
+				cwd: dir,
+				encoding: 'utf8',
+				env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+			})
+			const hooksPath = canonical(git(['config', '--get', 'core.hooksPath'], dir))
+			assert.deepEqual(
+				{ status, stderr, hooksPath },
+				{ status: 0, stderr: '', hooksPath: canonical(join(dir, '.githooks')) },
+				stderr
+			)
+		}
+	)
 })
