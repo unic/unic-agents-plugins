@@ -14,18 +14,21 @@ export function findMainWorkTree(porcelain) {
 }
 
 /**
- * Every entry of `git worktree list --porcelain`, in its order. In a JavaScript regex `.` stops at
- * `\r` and a multiline `$` matches before it, so a `\r\n` line end leaves no `\r` in a field.
+ * Every entry of `git worktree list --porcelain`, in its order. It reads the `-z` form (git 2.36 and
+ * later), where a NUL ends each line and a path may hold a newline, and the plain form, where a
+ * `\r\n` line end leaves no `\r` in a field.
  * @param {string} porcelain
  * @returns {{ path: string, isBare: boolean, isPrunable: boolean }[]}
  */
 export function listWorktrees(porcelain) {
+	const isNul = porcelain.includes('\0')
 	return porcelain
-		.split(/\r?\n\r?\n/)
-		.filter((entry) => entry.trim() !== '')
-		.map((entry) => ({
-			path: entry.match(/^worktree (.+)$/m)?.[1] ?? '',
-			isBare: /^bare$/m.test(entry),
-			isPrunable: /^prunable\b/m.test(entry),
+		.split(isNul ? '\0\0' : /\r?\n\r?\n/)
+		.map((entry) => entry.split(isNul ? '\0' : /\r?\n/))
+		.filter((lines) => lines.some((line) => line !== ''))
+		.map((lines) => ({
+			path: lines.find((line) => line.startsWith('worktree '))?.slice('worktree '.length) ?? '',
+			isBare: lines.includes('bare'),
+			isPrunable: lines.some((line) => line === 'prunable' || line.startsWith('prunable ')),
 		}))
 }

@@ -83,7 +83,7 @@ const here = join(process.cwd(), '.githooks')
 let hooksDir = here
 let porcelain
 try {
-	porcelain = git(['worktree', 'list', '--porcelain'])
+	porcelain = git(['worktree', 'list', '--porcelain', '-z'])
 	const mainTree = findMainWorkTree(porcelain)
 	const candidate = mainTree ? join(mainTree, '.githooks') : ''
 	const isLinked = git(['rev-parse', '--git-dir']) !== git(['rev-parse', '--git-common-dir'])
@@ -139,19 +139,30 @@ try {
 }
 
 /**
- * The value git uses, with the file it comes from, here or in the worktree that `where` names as
- * `-C <path>`. A value in `config.worktree` wins over the one just written.
+ * Read the value git uses, here or in the worktree that `where` names as `-C <path>`. A value in
+ * `config.worktree` wins over the one just written.
  * @param {string[]} where
+ * @returns {string} git's `<origin>\t<value>` line, or `nothing` when no value is set
+ * @throws when git itself fails, for example when it cannot read that worktree's config
  */
 function readEffective(where) {
 	try {
 		return git([...where, 'config', '--show-origin', '--get', 'core.hooksPath'])
 	} catch (error) {
-		return `nothing (${causeOf(error)})`
+		// `git config --get` exits 1 with no message when the key is unset. Anything else is a failure.
+		const { status, stderr } = /** @type {{ status?: unknown, stderr?: unknown }} */ (error)
+		if (status === 1 && String(stderr ?? '').trim() === '') return 'nothing'
+		throw error
 	}
 }
 
-const effective = readEffective([])
+let effective
+try {
+	effective = readEffective([])
+} catch (error) {
+	fail(`the hooks may be off here, because git could not read the config back (${causeOf(error)})`)
+	process.exit()
+}
 if (!effective.endsWith(`\t${hooksDir}`)) {
 	fail(
 		`the hooks are off here, because another value wins over the one just written. core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`
@@ -163,7 +174,13 @@ if (!effective.endsWith(`\t${hooksDir}`)) {
 // Every other worktree reads the shared value too, unless its own `config.worktree` overrides it.
 // A stale worktree must not break every install, so skip one that git marks prunable or whose
 // directory is gone.
-const top = git(['rev-parse', '--show-toplevel'])
+let top
+try {
+	top = git(['rev-parse', '--show-toplevel'])
+} catch (error) {
+	fail(`the other worktrees went unchecked, because git rev-parse --show-toplevel failed (${causeOf(error)})`)
+	process.exit()
+}
 for (const { path, isBare, isPrunable } of listWorktrees(porcelain)) {
 	if (isBare || !path || path === top) continue
 	if (isPrunable || !existsSync(path)) {
@@ -172,7 +189,15 @@ for (const { path, isBare, isPrunable } of listWorktrees(porcelain)) {
 		)
 		continue
 	}
-	const value = readEffective(['-C', path])
+	let value
+	try {
+		value = readEffective(['-C', path])
+	} catch (error) {
+		fail(
+			`the hooks may be off in another worktree of this clone, because git could not read its config (${causeOf(error)}). The worktree is ${path}`
+		)
+		continue
+	}
 	if (!value.endsWith(`\t${hooksDir}`)) {
 		fail(
 			`the hooks are off in another worktree of this clone, because core.hooksPath resolves there to ${value.replace('\t', ' ')}, not ${hooksDir}. The worktree is ${path}. For a value in config.worktree, remove it with: git -C "${path}" config --worktree --unset core.hooksPath`

@@ -356,4 +356,44 @@ describe('set-hooks-path', () => {
 	test('reads a main work tree path without the \\r of a CRLF worktree list', () => {
 		assert.equal(findMainWorkTree('worktree /repo\r\nHEAD abc\r\nbranch refs/heads/main\r\n\r\n'), '/repo')
 	})
+	test('exits non-zero with the cause, not a stack trace, when git rev-parse --show-toplevel fails', () => {
+		const bare = mkdtempSync(join(scratch, 'bare-'))
+		git(['clone', '-q', '--bare', repo(), bare], scratch)
+		git(['config', 'extensions.worktreeConfig', 'true'], bare)
+		const worktree = mkdtempSync(join(scratch, 'bare-wt-'))
+		git(['worktree', 'add', '-q', worktree], bare)
+		git(['config', 'core.bare', 'true'], bare)
+		const { status, stderr } = prepare(worktree)
+		assert.deepEqual(
+			{ status, named: /because git rev-parse --show-toplevel failed \(/.test(stderr), stack: /\n\s+at /.test(stderr) },
+			{ status: 1, named: true, stack: false },
+			stderr
+		)
+	})
+	test('says git could not read the config of another worktree, rather than blame its value', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		writeFileSync(join(dir, '.git', 'worktrees', worktree.split(/[\\/]/).pop() ?? '', 'config.worktree'), '[core\n')
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{ status, named: /because git could not read its config/.test(stderr), blamed: /resolves there to/.test(stderr) },
+			{ status: 1, named: true, blamed: false },
+			stderr
+		)
+	})
+	test('checks a worktree whose path holds a newline', { skip: process.platform === 'win32' }, () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = join(mkdtempSync(join(scratch, 'wt-')), 'new\nline')
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{ status, named: /resolves there to/.test(stderr), skipped: /skipped/.test(stderr) },
+			{ status: 1, named: true, skipped: false },
+			stderr
+		)
+	})
 })
