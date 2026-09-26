@@ -2,29 +2,25 @@
 #
 # commit-msg — refuse a commit whose message carries an NDA-protected term.
 #
-# `pre-commit` reads the staged diff and never sees the message, so this hook covers the message.
-# Both run the same rule, in nda-match.mjs. See the header of `pre-commit` for why the guard exists.
+# Git passes the message only to this hook, so it hands the message file to `pre-commit`, which
+# then reads the message with the rule in nda-match.mjs. See the header of `pre-commit` for why the
+# guard exists.
 #
 # INSTALL: `pnpm install` points `core.hooksPath` at the main work tree's `.githooks`, so every
 # worktree of the clone runs these hooks. See `.githooks/set-hooks-path.mjs`.
 
 set -eu
 
-# Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
-# older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy (Windows).
-self=$0
-if link=$(readlink "$self" 2>/dev/null); then
-	case $link in
-		/*) self=$link ;;
-		*) self="$(dirname "$self")/$link" ;;
-	esac
-fi
-matcher="$(dirname "$self")/nda-match.mjs"
-[ -f "$matcher" ] || matcher="$(git rev-parse --show-toplevel)/.githooks/nda-match.mjs"
-
-if ! command -v node >/dev/null 2>&1; then
-	printf '%s\n' "commit-msg: node is not on PATH, so the NDA guard cannot run and this commit is refused." >&2
-	exit 1
-fi
-
-node "$matcher" commit-msg "$1"
+# `pre-commit` checks for node and reads the message when given one. With no matcher beside this
+# file, it may be a symlink an older install left in `.git/hooks`, and a `pre-commit` there may be
+# someone's own hook. So use the work tree's hooks then.
+dir=$(dirname "$0")
+[ -f "$dir/nda-match.mjs" ] || dir="$(git rev-parse --show-toplevel)/.githooks"
+for file in pre-commit nda-match.mjs; do
+	if [ ! -f "$dir/$file" ]; then
+		printf '%s\n' "commit-msg: cannot find $file next to this hook or in the work tree, so this commit is refused." \
+			"  Check out a branch that carries .githooks/$file in the main work tree, then run pnpm install." >&2
+		exit 1
+	fi
+done
+exec sh "$dir/pre-commit" "$1"
