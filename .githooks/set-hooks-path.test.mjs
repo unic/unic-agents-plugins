@@ -84,6 +84,17 @@ function install(cwd) {
 	return { status: result.status, output: `${result.error?.message ?? ''}${result.stdout ?? ''}${result.stderr ?? ''}` }
 }
 
+/**
+ * An environment whose `git` runs one shell line first, then the real git. POSIX only.
+ * @param {string} line
+ */
+function withFakeGit(line) {
+	const bin = mkdtempSync(join(scratch, 'bin-'))
+	const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
+	writeFileSync(join(bin, 'git'), `#!/bin/sh\n${line}\nexec "${realGit}" "$@"\n`, { mode: 0o755 })
+	return { PATH: `${bin}:${process.env.PATH}` }
+}
+
 describe('set-hooks-path', () => {
 	test('points a normal clone at its own .githooks', () => {
 		const dir = repo()
@@ -291,37 +302,103 @@ describe('set-hooks-path', () => {
 			stderr
 		)
 	})
+	test('says because and the reason before any path in every prepare: line', () => {
+		const isPosix = process.platform !== 'win32'
+		/** @type {string[]} */
+		const outputs = []
+		/** @param {string} cwd @param {Record<string, string>} [env] */
+		const collect = (cwd, env) => outputs.push(prepare(cwd, env).stderr)
+
+		const dir = repo({ without: 'pre-commit' })
+		if (isPosix) chmodSync(join(dir, '.githooks', 'commit-msg'), 0o644)
+		git(['config', 'core.hooksPath', '/old/hooks'], dir)
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const overridden = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', overridden, '-b', 'overridden'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], overridden)
+		const unreadable = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', unreadable, '-b', 'unreadable'], dir)
+		writeFileSync(join(dir, '.git', 'worktrees', unreadable.split(/[\\/]/).pop() ?? '', 'config.worktree'), '[core\n')
+		const gone = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', gone, '-b', 'gone'], dir)
+		rmSync(gone, { recursive: true, force: true })
+		const reused = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', reused, '-b', 'reused'], dir)
+		rmSync(reused, { recursive: true, force: true })
+		mkdirSync(reused)
+		git(['init', '-q'], reused)
+		collect(dir)
+
+		const linked = repo()
+		const orphan = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', orphan, '-b', 'wt'], linked)
+		rmSync(join(linked, '.githooks'), { recursive: true })
+		collect(orphan)
+
+		const bare = mkdtempSync(join(scratch, 'bare-'))
+		git(['clone', '-q', '--bare', repo(), bare], scratch)
+		git(['config', 'extensions.worktreeConfig', 'true'], bare)
+		const bareWorktree = mkdtempSync(join(scratch, 'bare-wt-'))
+		git(['worktree', 'add', '-q', bareWorktree], bare)
+		git(['config', 'core.bare', 'true'], bare)
+		collect(bareWorktree)
+
+		const own = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], own)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], own)
+		collect(own)
+
+		const locked = repo()
+		writeFileSync(join(locked, '.git', 'config.lock'), '')
+		collect(locked)
+
+		const expected = [
+			/the hooks stay off, because this is a linked worktree/,
+			/because git found no main work tree with a \.githooks/,
+			/because git rev-parse failed/,
+			/because the hooks directory lacks pre-commit/,
+			/prepare replaced an earlier core\.hooksPath, because/,
+			/the hooks are off here, because another value wins/,
+			/because core\.hooksPath resolves there to/,
+			/because git could not read its config/,
+			/because git marks it prunable or its directory is gone/,
+			/because its old path now holds another git repository/,
+			/because git could not update it/,
+		]
+		if (isPosix) {
+			collect(repo(), withFakeGit('[ "$1" = rev-parse ] && [ "$2" = --show-prefix ] && { echo nope >&2; exit 5; }'))
+			collect(repo(), withFakeGit('[ "$1" = worktree ] && exit 3'))
+			collect(repo(), withFakeGit('[ "$2" = --show-origin ] && { echo nope >&2; exit 2; }'))
+			expected.push(
+				/because it is not executable/,
+				/the hooks are off, because git rev-parse failed/,
+				/because git worktree list failed/,
+				/because git could not read the config back/
+			)
+		}
+		const stderr = outputs.join('\n')
+		const lines = stderr.split('\n').filter((line) => line.startsWith('prepare: '))
+		const pathFirst = lines.filter((line) => {
+			const reasonAt = line.indexOf(' because ')
+			return reasonAt < 0 || /[\\/]/.test(line.slice(0, reasonAt))
+		})
+		const missing = expected.filter((pattern) => !lines.some((line) => pattern.test(line))).map(String)
+		assert.deepEqual({ missing, pathFirst }, { missing: [], pathFirst: [] }, stderr)
+	})
 	test(
-		'says because and the reason before any path in every prepare: line',
+		'exits non-zero and blames git, not the value, when it cannot read the config back',
 		{ skip: process.platform === 'win32' },
 		() => {
-			const dir = repo({ without: 'pre-commit' })
-			chmodSync(join(dir, '.githooks', 'commit-msg'), 0o644)
-			git(['config', 'core.hooksPath', '/old/hooks'], dir)
-			git(['config', 'extensions.worktreeConfig', 'true'], dir)
-			const worktree = mkdtempSync(join(scratch, 'wt-'))
-			git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
-			git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
-			const linked = repo()
-			const orphan = mkdtempSync(join(scratch, 'wt-'))
-			git(['worktree', 'add', '-q', orphan, '-b', 'wt'], linked)
-			rmSync(join(linked, '.githooks'), { recursive: true })
-			const bare = mkdtempSync(join(scratch, 'bare-'))
-			git(['clone', '-q', '--bare', repo(), bare], scratch)
-			const bareWorktree = mkdtempSync(join(scratch, 'bare-wt-'))
-			git(['worktree', 'add', '-q', bareWorktree], bare)
-			const own = repo()
-			git(['config', 'extensions.worktreeConfig', 'true'], own)
-			git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], own)
-			const stderr = [prepare(dir), prepare(orphan), prepare(bareWorktree), prepare(own)]
-				.map((run) => run.stderr)
-				.join('\n')
-			const lines = stderr.split('\n').filter((line) => line.startsWith('prepare: '))
-			const pathFirst = lines.filter((line) => {
-				const reasonAt = line.indexOf(' because ')
-				return reasonAt < 0 || /[\\/]/.test(line.slice(0, reasonAt))
-			})
-			assert.deepEqual({ count: lines.length, pathFirst }, { count: 7, pathFirst: [] }, stderr)
+			const { status, stderr } = prepare(repo(), withFakeGit('[ "$2" = --show-origin ] && { echo nope >&2; exit 2; }'))
+			assert.deepEqual(
+				{
+					status,
+					named: /because git could not read the config back \(nope\)/.test(stderr),
+					blamed: /resolves to/.test(stderr),
+				},
+				{ status: 1, named: true, blamed: false },
+				stderr
+			)
 		}
 	)
 	test('exits non-zero and names another worktree whose config.worktree overrides the value', () => {
