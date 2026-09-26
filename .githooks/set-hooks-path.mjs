@@ -18,7 +18,8 @@
 // cannot report what happens while it does not run: an install with `--ignore-scripts`, a moved
 // clone, or an install on a branch whose `package.json` has no `prepare` script, such as `main`.
 // Nor can it see a change after it ran: a later branch switch in the main work tree, or an
-// `includeIf` in the git config whose condition starts to hold.
+// `includeIf` in the git config whose condition starts to hold. It also only warns, and exits 0,
+// when it skips a stale worktree, because it cannot see where a worktree moved by hand now lives.
 //
 // With `extensions.worktreeConfig`, each worktree can hold its own value, so it reads the value back
 // in every worktree of the clone, not only this one.
