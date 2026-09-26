@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -35,7 +35,7 @@ function repo({ without = '' } = {}) {
 	mkdirSync(join(dir, '.githooks'))
 	writeFileSync(join(dir, '.githooks', 'README'), 'hooks\n')
 	for (const file of GUARDS.filter((name) => name !== without)) {
-		writeFileSync(join(dir, '.githooks', file), '#!/bin/sh\n')
+		writeFileSync(join(dir, '.githooks', file), '#!/bin/sh\n', { mode: 0o755 })
 	}
 	git(['add', '.'], dir)
 	git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'init'], dir)
@@ -66,7 +66,7 @@ function install(cwd) {
 		encoding: 'utf8',
 		shell: process.platform === 'win32',
 	})
-	return { status: result.status, output: result.stdout + result.stderr }
+	return { status: result.status, output: `${result.error?.message ?? ''}${result.stdout ?? ''}${result.stderr ?? ''}` }
 }
 
 describe('set-hooks-path', () => {
@@ -75,8 +75,9 @@ describe('set-hooks-path', () => {
 		prepare(dir)
 		assert.equal(canonical(git(['config', '--get', 'core.hooksPath'], dir)), canonical(join(dir, '.githooks')))
 	})
-	test('prints nothing in a normal clone', () => {
-		assert.equal(prepare(repo()).stderr, '')
+	test('exits 0 and prints nothing in a normal clone', () => {
+		const { status, stderr } = prepare(repo())
+		assert.deepEqual({ status, stderr }, { status: 0, stderr: '' })
 	})
 	test('points a linked worktree at the main work tree', () => {
 		const dir = repo()
@@ -131,6 +132,85 @@ describe('set-hooks-path', () => {
 			canonical(git(['config', '--local', '--get', 'core.hooksPath'], dir)),
 			canonical(join(dir, '.githooks'))
 		)
+	})
+	test('exits non-zero when a clone has no git on PATH', { skip: process.platform === 'win32' }, () => {
+		const bin = mkdtempSync(join(scratch, 'bin-'))
+		const { status, stderr } = spawnSync(process.execPath, [SCRIPT], {
+			cwd: repo(),
+			encoding: 'utf8',
+			env: { ...process.env, PATH: bin },
+		})
+		assert.deepEqual({ status, cause: /ENOENT/.test(stderr) }, { status: 1, cause: true }, stderr)
+	})
+	test('exits 0 in silence where there is no repository and no git', { skip: process.platform === 'win32' }, () => {
+		const bin = mkdtempSync(join(scratch, 'bin-'))
+		const { status, stderr } = spawnSync(process.execPath, [SCRIPT], {
+			cwd: mkdtempSync(join(scratch, 'plain-')),
+			encoding: 'utf8',
+			env: { ...process.env, PATH: bin },
+		})
+		assert.deepEqual({ status, stderr }, { status: 0, stderr: '' })
+	})
+	test('exits non-zero in a linked worktree when the main work tree has no .githooks', () => {
+		const dir = repo()
+		const worktree = join(scratch, `wt-${Date.now()}`)
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		rmSync(join(dir, '.githooks'), { recursive: true })
+		const { status, stderr } = prepare(worktree)
+		assert.deepEqual({ status, named: /linked worktree/.test(stderr) }, { status: 1, named: true }, stderr)
+	})
+	test('warns and exits 0 in a worktree of a bare repository', () => {
+		const bare = join(scratch, `bare-${Date.now()}.git`)
+		git(['clone', '-q', '--bare', repo(), bare], scratch)
+		const worktree = join(scratch, `bare-wt-${Date.now()}`)
+		git(['worktree', 'add', '-q', worktree], bare)
+		const { status, stderr } = prepare(worktree)
+		assert.deepEqual({ status, warned: /found no main work tree/.test(stderr) }, { status: 0, warned: true }, stderr)
+	})
+	test('warns and exits 0 in a clone made with --separate-git-dir', () => {
+		const dir = mkdtempSync(join(scratch, 'sep-'))
+		git(['clone', '-q', '--separate-git-dir', join(scratch, `sep-${Date.now()}.git`), repo(), dir], scratch)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual({ status, warned: /found no main work tree/.test(stderr) }, { status: 0, warned: true }, stderr)
+	})
+	test(
+		'exits non-zero and names the hook git would skip as not executable',
+		{ skip: process.platform === 'win32' },
+		() => {
+			const dir = repo()
+			chmodSync(join(dir, '.githooks', 'pre-commit'), 0o644)
+			const { status, stderr } = prepare(dir)
+			assert.deepEqual(
+				{ status, named: /pre-commit is not executable/.test(stderr) },
+				{ status: 1, named: true },
+				stderr
+			)
+		}
+	)
+	test('ignores a -c value from GIT_CONFIG_PARAMETERS when it reads the value back', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], dir)
+		const { status, stderr } = prepare(dir, { GIT_CONFIG_PARAMETERS: `'core.hookspath'='${join(dir, '.githooks')}'` })
+		assert.deepEqual({ status, named: /config\.worktree/.test(stderr) }, { status: 1, named: true }, stderr)
+	})
+	test('ignores a value from GIT_CONFIG_COUNT when it reads the value back', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], dir)
+		const env = {
+			GIT_CONFIG_COUNT: '1',
+			GIT_CONFIG_KEY_0: 'core.hooksPath',
+			GIT_CONFIG_VALUE_0: join(dir, '.githooks'),
+		}
+		const { status, stderr } = prepare(dir, env)
+		assert.deepEqual({ status, named: /config\.worktree/.test(stderr) }, { status: 1, named: true }, stderr)
+	})
+	test('exits non-zero and says so when core.hooksPath cannot be written', () => {
+		const dir = repo()
+		writeFileSync(join(dir, '.git', 'config.lock'), '')
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual({ status, named: /was not updated/.test(stderr) }, { status: 1, named: true }, stderr)
 	})
 	test('exits non-zero with a readable cause when git cannot be run', { skip: process.platform === 'win32' }, () => {
 		const bin = mkdtempSync(join(scratch, 'bin-'))
