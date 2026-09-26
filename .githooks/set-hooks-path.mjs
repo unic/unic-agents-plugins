@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
 // Runs as the root `prepare` script, so `pnpm install` turns on the hooks in `.githooks/`. A clone
-// that skips this commits with no git-hook NDA guard, and nothing says so. The Claude hook still
-// guards agent sessions.
+// that skips this commits and pushes with no git-hook NDA guard, and nothing says so. The Claude hook
+// then refuses an agent session's push, but it scans no commit.
 //
 // It points `core.hooksPath` at the main work tree's `.githooks`, as an absolute path. Every linked
 // worktree then runs the hooks the main work tree has checked out, including a worktree whose own
@@ -21,6 +21,8 @@
 import { execFileSync } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+
+import { findMainWorkTree } from './main-work-tree.mjs'
 
 // Git exports GIT_DIR to hooks in linked worktrees. Inherited, it would point every call below at
 // another repository, and the write at the end would change that repository's hooks. GIT_CONFIG
@@ -73,16 +75,14 @@ try {
 }
 if (prefix !== '') process.exit(0)
 
-// The first entry of `git worktree list` is normally the main work tree. A bare repository has
-// none, and with `--separate-git-dir` git lists the git directory there instead. Both then fall
-// back to this work tree's `.githooks`. A linked worktree of a main work tree that has no
+// A bare repository and a `--separate-git-dir` layout have no main work tree with a `.githooks`
+// (see main-work-tree.mjs). Both fall back to this work tree's `.githooks`. A linked worktree of a main work tree that has no
 // `.githooks` must not: every worktree would run this one's hooks, and lose them when it is removed.
 const here = join(process.cwd(), '.githooks')
 let hooksDir = here
 try {
-	const [first = ''] = git(['worktree', 'list', '--porcelain']).split(/\r?\n\r?\n/)
-	const mainTree = first.match(/^worktree (.+)$/m)?.[1]
-	const candidate = mainTree && !/^bare$/m.test(first) ? join(mainTree, '.githooks') : ''
+	const mainTree = findMainWorkTree(git(['worktree', 'list', '--porcelain']))
+	const candidate = mainTree ? join(mainTree, '.githooks') : ''
 	const isLinked = git(['rev-parse', '--git-dir']) !== git(['rev-parse', '--git-common-dir'])
 	if (candidate && existsSync(candidate)) hooksDir = candidate
 	else if (candidate && isLinked) {
@@ -98,18 +98,17 @@ try {
 	process.exit()
 }
 
-// The main work tree may be on a branch that carries none or only some of the commit guards, such as
+// The main work tree may be on a branch that carries none or only some of the NDA guards, such as
 // `main`, or a `develop` from before `commit-msg`. Every worktree then commits with that gap.
-const missing = ['pre-commit', 'commit-msg', 'nda-match.mjs'].filter((file) => !existsSync(join(hooksDir, file)))
+const missing = ['pre-commit', 'commit-msg', 'pre-push', 'nda-match.mjs', 'nda-push.mjs', 'main-work-tree.mjs'].filter(
+	(file) => !existsSync(join(hooksDir, file))
+)
 if (missing.length > 0) {
-	fail(
-		`${hooksDir} lacks ${missing.join(', ')}, so no worktree of this clone runs the full NDA commit guards`,
-		hooksDir
-	)
+	fail(`${hooksDir} lacks ${missing.join(', ')}, so no worktree of this clone runs the full NDA guards`, hooksDir)
 }
 // Git skips a hook that is not executable and prints only a hint. Windows has no such bit.
 if (process.platform !== 'win32') {
-	for (const file of ['pre-commit', 'commit-msg'].filter((name) => !missing.includes(name))) {
+	for (const file of ['pre-commit', 'commit-msg', 'pre-push'].filter((name) => !missing.includes(name))) {
 		try {
 			accessSync(join(hooksDir, file), constants.X_OK)
 		} catch {

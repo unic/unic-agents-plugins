@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // @ts-check
-// The matching rule both NDA guards share: `.githooks/pre-commit` and `.githooks/commit-msg` run
-// this file, and `.claude/hooks/block-nda-terms.mjs` imports it. One rule in one place, so the
-// guards cannot disagree on what counts as a match.
+// The matching rule every NDA guard shares: `.githooks/pre-commit` and `.githooks/commit-msg` run
+// this file, and `.githooks/nda-push.mjs` and `.claude/hooks/block-nda-terms.mjs` import it. One rule
+// in one place, so the guards cannot disagree on what counts as a match.
 //
-// The rule, in two steps:
+// The rule, in three steps:
 //   1. Remove base64 data first. Remove the payload of every `data:…;base64,` URI whose payload has
 //      80 or more characters, and keep the media type. Remove every run of 80 or more characters
 //      made only of letters, digits, `+` and `/` that holds a digit and either is followed by `=`
@@ -20,6 +20,10 @@
 //      digit, a change from lower to upper case, or the capital that starts a capitalised word
 //      after another capital. So `acme`, `acme-site`, `acme_site`, `acme2026`, `acmeSite`,
 //      `myAcme`, `XAcme` and `ACMESite` all match `acme`.
+//   3. When the text holds a NUL byte and step 2 found nothing, run steps 1 and 2 again on the text
+//      with every NUL byte removed. UTF-16 text in the ASCII range reads as letters with a NUL
+//      between each pair, so this finds a term in it. The first run keeps a NUL next to a term as a
+//      boundary.
 //
 // The rule lets four shapes through. The first is a term joined to a letter where the join is
 // neither a change from lower to upper case nor the capital that starts a capitalised word after
@@ -32,15 +36,19 @@
 // digit can take this shape.
 //
 // CLI: `node nda-match.mjs <label> [file]` reads the text from the file, or from stdin, and exits 1
-// on a match or when the term list cannot be read. The list lives outside every repository:
+// on a match or when the term list cannot be read. With the label `pre-commit` and no file, it reads
+// the staged diff itself and exits 1 when git cannot produce it. That text is a diff,
+// and its deleted lines do not count: they are already in the published history, and refusing them
+// would block the commit that removes a term. The list lives outside every repository:
 // $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt.
 
+import { execFileSync } from 'node:child_process'
 import { readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const listPath = () => process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
+export const getListPath = () => process.env.UNIC_NDA_DENYLIST ?? join(homedir(), '.config', 'unic', 'nda-denylist.txt')
 
 /**
  * Throws when the list cannot be read: the callers turn that into a refusal.
@@ -51,6 +59,54 @@ export function readTerms(path) {
 		.split('\n')
 		.map((line) => line.trim())
 		.filter((line) => line && !line.startsWith('#'))
+}
+
+/**
+ * Git options that make a diff show every added line as text, whatever the git config says.
+ * `--text` shows a binary file's content, `--no-ext-diff` and `--no-textconv` stop a `diff.external`
+ * command, a `-diff` attribute or a textconv filter from replacing it, and `--no-color` keeps
+ * `color.ui=always` from putting escape codes before the `-` and `+` of each line.
+ */
+export const DIFF_FLAGS = ['-U0', '--text', '--no-ext-diff', '--no-textconv', '--no-color']
+
+/**
+ * A diff without its deleted text. Inside a hunk, a line that starts with `-` goes. In a file header,
+ * `--- a/<name>`, `deleted file mode`, `rename from` and `copy from` go, and so does the `diff --git`
+ * line of a file that is deleted, renamed or copied. Any other `diff --git` line stays whole. A hunk header loses the context git copies into it from a
+ * line above the hunk. So an added path or line that carries a term is still read.
+ * @param {string} diff
+ */
+export function dropDeletedLines(diff) {
+	/** @type {string[]} */
+	const kept = []
+	let isInHunk = false
+	/** @type {string | null} */
+	let pendingHeader = null
+	const flush = () => {
+		if (pendingHeader !== null) kept.push(pendingHeader)
+		pendingHeader = null
+	}
+	for (const line of diff.split('\n')) {
+		if (line.startsWith('diff --git ')) {
+			flush()
+			isInHunk = false
+			// Kept whole: a path can hold ` b/`, so the new side cannot be cut out reliably.
+			pendingHeader = line
+		} else if (line.startsWith('@@')) {
+			flush()
+			isInHunk = true
+			kept.push(line.replace(/^(@@ [^@]* @@).*/, '$1'))
+		} else if (isInHunk) {
+			if (!line.startsWith('-')) kept.push(line)
+		} else if (/^(?:deleted file mode|rename from |copy from )/.test(line)) {
+			// The old name is published already. `rename to` or `copy to` carries the new one.
+			pendingHeader = null
+		} else if (!line.startsWith('--- ')) {
+			kept.push(line)
+		}
+	}
+	flush()
+	return kept.join('\n')
 }
 
 /** @param {string} term */
@@ -104,6 +160,16 @@ const charBefore = (/** @type {string} */ text, /** @type {number} */ i) => {
  * @param {string[]} terms
  */
 export function findTerm(text, terms) {
+	// UTF-16 text in the ASCII range reads as letters with a NUL between each pair. Read it again with
+	// the NULs removed, and keep the first read, where a NUL next to a term is a boundary.
+	return findTermOnce(text, terms) ?? (text.includes('\0') ? findTermOnce(text.replaceAll('\0', ''), terms) : null)
+}
+
+/**
+ * @param {string} text
+ * @param {string[]} terms
+ */
+function findTermOnce(text, terms) {
 	const cleaned = text.replace(DATA_URI, '$1 ').replace(BASE64_RUN, (run) => (isBase64(run) ? ' ' : run))
 	for (const term of terms) {
 		// Search the original text case-insensitively, so every index points into `cleaned` even
@@ -117,9 +183,35 @@ export function findTerm(text, terms) {
 	return null
 }
 
+// Read inside node, not through a shell variable: `$(...)` drops NUL bytes, which joins a term to the
+// text around it, and a failing `git diff` in a pipe would hand over an empty diff that passes.
+function readStagedDiff() {
+	try {
+		return execFileSync(
+			'git',
+			['--no-replace-objects', '-c', 'core.quotePath=false', 'diff', '--cached', ...DIFF_FLAGS],
+			{
+				encoding: 'utf8',
+				maxBuffer: 512 * 1024 * 1024,
+				stdio: ['ignore', 'pipe', 'pipe'],
+			}
+		)
+	} catch (error) {
+		const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
+		process.stderr.write(
+			`pre-commit: cannot read the staged diff, so this commit is refused (${
+				String(stderr || message)
+					.trim()
+					.split('\n')[0]
+			}).\n`
+		)
+		process.exit(1)
+	}
+}
+
 async function main() {
 	const [label = 'nda-match', file] = process.argv.slice(2)
-	const path = listPath()
+	const path = getListPath()
 	let terms
 	try {
 		terms = readTerms(path)
@@ -134,9 +226,10 @@ async function main() {
 
 	let text = ''
 	if (file) text = readFileSync(file, 'utf8')
+	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 
-	const term = findTerm(text, terms)
+	const term = findTerm(label === 'pre-commit' ? dropDeletedLines(text) : text, terms)
 	if (term === null) return
 	// Redact the term: the transcript of a refusal must not republish it.
 	process.stderr.write(

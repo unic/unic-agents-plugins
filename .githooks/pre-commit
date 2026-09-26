@@ -19,11 +19,11 @@
 #
 # WHAT IT DOES NOT PROTECT
 #
-# Run with no argument, it reads the staged diff. `.githooks/commit-msg` runs it again with the
-# message file, and then it reads the message. Neither run can judge a commit made with
-# `--no-verify`, nor content that reached the remote through another clone. It is one of two layers:
-# `.claude/hooks/block-nda-terms.mjs` covers what an agent session runs in this repository, including
-# `gh` commands that publish an issue body no commit ever sees.
+# Run with no argument, it reads the added lines of the staged diff. `.githooks/commit-msg` runs it
+# again with the message file, and then it reads the message. Neither run can judge a commit made
+# with `--no-verify`, by `am`, `cherry-pick` or `merge`, or in another clone. `.githooks/pre-push`
+# catches those when they are pushed, so this hook is an early warning. `.claude/hooks/block-nda-terms.mjs`
+# covers what git never sees, such as a `gh` command that publishes an issue body.
 #
 # It fails CLOSED. No readable list means no commit, because a guard that waves work through when
 # its own configuration is missing protects nothing. `touch` the file to opt out deliberately.
@@ -37,8 +37,8 @@ set -eu
 label=pre-commit
 [ $# -gt 0 ] && label=commit-msg
 
-# The matching rule lives in nda-match.mjs, which `.claude/hooks/block-nda-terms.mjs` shares, so the
-# two guards cannot disagree. It also reads the term list and fails closed when it cannot.
+# The matching rule lives in nda-match.mjs, which `.githooks/nda-push.mjs` and
+# `.claude/hooks/block-nda-terms.mjs` share, so the guards cannot disagree. It also reads the term list and fails closed when it cannot.
 # Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
 # older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy (Windows).
 self=$0
@@ -67,6 +67,5 @@ if [ $# -gt 0 ]; then
 	exit
 fi
 
-# Read the diff first: in a pipe, a failing `git diff` would hand node an empty diff that passes.
-diff=$(git diff --cached -U0)
-printf '%s' "$diff" | node "$matcher" pre-commit
+# The matcher reads the staged diff itself: see readStagedDiff in nda-match.mjs.
+exec node "$matcher" pre-commit

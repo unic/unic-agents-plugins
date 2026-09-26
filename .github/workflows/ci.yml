@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test .githooks/nda-match.test.mjs .githooks/set-hooks-path.test.mjs
+      - run: node --test .githooks/nda-match.test.mjs .githooks/nda-push.test.mjs .githooks/set-hooks-path.test.mjs
 
   changes:
     name: Detect changed packages
