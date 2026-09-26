@@ -366,7 +366,7 @@ describe('set-hooks-path', () => {
 		const expected = [
 			/the hooks stay off, because this is a linked worktree/,
 			/because git found no main work tree with a \.githooks/,
-			/because git rev-parse failed/,
+			/went unchecked, because git rev-parse failed/,
 			/because the hooks directory lacks pre-commit/,
 			/core\.hooksPath changed, because pnpm install set it/,
 			/the hooks are off here, because another value wins/,
@@ -455,7 +455,7 @@ describe('set-hooks-path', () => {
 		git(['config', 'core.bare', 'true'], bare)
 		const { status, stderr } = prepare(worktree)
 		assert.deepEqual(
-			{ status, named: /because git rev-parse failed \(/.test(stderr), stack: /\n\s+at /.test(stderr) },
+			{ status, named: /went unchecked, because git rev-parse failed \(/.test(stderr), stack: /\n\s+at /.test(stderr) },
 			{ status: 1, named: true, stack: false },
 			stderr
 		)
@@ -661,4 +661,36 @@ describe('set-hooks-path', () => {
 			)
 		}
 	)
+	test('names every worktree whose config.worktree overrides the value, not only the first', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const first = mkdtempSync(join(scratch, 'wt-'))
+		const second = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', first, '-b', 'first'], dir)
+		git(['worktree', 'add', '-q', second, '-b', 'second'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], first)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], second)
+		const { status, stderr } = prepare(dir)
+		/** @param {string} path */
+		const named = (path) => stderr.includes(`The worktree is ${git(['rev-parse', '--show-toplevel'], path)}.`)
+		assert.deepEqual(
+			{ status, first: named(first), second: named(second) },
+			{ status: 1, first: true, second: true },
+			stderr
+		)
+	})
+	test('checks a locked worktree whose directory still exists', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], worktree)
+		git(['worktree', 'lock', worktree], dir)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{ status, named: stderr.includes(`The worktree is ${git(['rev-parse', '--show-toplevel'], worktree)}.`) },
+			{ status: 1, named: true },
+			stderr
+		)
+	})
 })
