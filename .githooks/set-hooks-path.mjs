@@ -56,7 +56,7 @@ const warn = (reason) => process.stderr.write(`prepare: ${reason}.\n`)
 function fail(reason) {
 	warn(reason)
 	process.stderr.write(
-		'  The NDA git hooks stay off until pnpm install passes. Fix the cause above. If the main work tree is on a branch without .githooks, check out one that carries it there, then run pnpm install there.\n'
+		'  Some or all of the NDA git hooks are off until pnpm install passes. Fix the cause above. If the main work tree is on a branch without the full .githooks, check out a branch that carries it in the main work tree, then run pnpm install there.\n'
 	)
 	process.exitCode = 1
 }

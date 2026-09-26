@@ -276,7 +276,7 @@ describe('set-hooks-path', () => {
 		const { stderr } = prepare(repo({ without: 'pre-commit' }))
 		assert.deepEqual(
 			{
-				docs: /check out one that carries it there, then run pnpm install there/.test(stderr),
+				docs: /Some or all of the NDA git hooks are off until pnpm install passes.*check out a branch that carries it in the main work tree, then run pnpm install there/.test(stderr),
 				byHand: /git config core\.hookspath "/i.test(stderr),
 			},
 			{ docs: true, byHand: false },
