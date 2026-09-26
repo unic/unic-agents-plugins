@@ -68,7 +68,7 @@ Everything else (Biome, Prettier, TypeScript) is a workspace devDependency and i
 pnpm install
 ```
 
-`pnpm install` also turns on the repository's git hooks in `.githooks/`. Of those, `pre-commit` and `commit-msg` need `node` on `PATH`. From then on, every commit is refused until the NDA term list exists at `~/.config/unic/nda-denylist.txt`, or at the path in `$UNIC_NDA_DENYLIST`. Create it with one term per line, or `touch` it to opt out deliberately.
+`pnpm install` also turns on the repository's git hooks in `.githooks/`. Of those, `pre-commit`, `commit-msg` and `pre-push` need `node` on `PATH`. From then on, every commit and every push is refused until the NDA term list exists at `~/.config/unic/nda-denylist.txt`, or at the path in `$UNIC_NDA_DENYLIST`. Create it with one term per line, or `touch` it to opt out deliberately.
 
 If you keep a hook of your own in `.git/hooks`, such as a personal `post-commit`, expect it to stop running. Git reads hooks from one directory only, and this repository has no place for a personal hook next to the guards.
 

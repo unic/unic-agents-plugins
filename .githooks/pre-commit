@@ -19,11 +19,11 @@
 #
 # WHAT IT DOES NOT PROTECT
 #
-# Run with no argument, it reads the staged diff. `.githooks/commit-msg` runs it again with the
-# message file, and then it reads the message. Neither run can judge a commit made with
-# `--no-verify`, nor content that reached the remote through another clone. It is one of two layers:
-# `.claude/hooks/block-nda-terms.mjs` covers what an agent session runs in this repository, including
-# `gh` commands that publish an issue body no commit ever sees.
+# Run with no argument, it reads the added lines of the staged diff. `.githooks/commit-msg` runs it
+# again with the message file, and then it reads the message. Neither run can judge a commit made
+# with `--no-verify`, by `am`, `cherry-pick` or `merge`, or in another clone. `.githooks/pre-push`
+# catches those when they are pushed, so this hook is an early warning. `.claude/hooks/block-nda-terms.mjs`
+# covers what git never sees, such as a `gh` command that publishes an issue body.
 #
 # It fails CLOSED. No readable list means no commit, because a guard that waves work through when
 # its own configuration is missing protects nothing. `touch` the file to opt out deliberately.
