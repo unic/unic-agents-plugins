@@ -12,9 +12,11 @@
 // It does nothing where this directory is not the top of a git work tree: an installed tarball has
 // no repository, and a copy inside another repository must not rewrite that repository's hooks.
 //
-// It exits 1 wherever the hooks end up off, so `pnpm install` fails and shows why. At a terminal pnpm
-// replaces the output of a script that exits 0 with "Done", so a warning alone reaches nobody. The
-// fallbacks for a bare or `--separate-git-dir` layout still set the hooks, so they only warn.
+// It exits 1 wherever it leaves the hooks off, so `pnpm install` fails and shows why. At a terminal
+// pnpm replaces the output of a script that exits 0 with "Done", so a warning alone reaches nobody.
+// The fallbacks for a bare or `--separate-git-dir` layout still set the hooks, so they only warn. It
+// cannot report what happens while it does not run: an install with `--ignore-scripts`, a moved
+// clone, or an install on a branch whose `package.json` has no `prepare` script, such as `main`.
 
 import { execFileSync } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
@@ -58,7 +60,7 @@ function fail(reason, hooksDir) {
 
 // No `.git` here or above is the tarball case. Look on disk rather than read git's error: a clone
 // whose git is missing from PATH fails the same way as no repository, and the message is localised.
-/** @param {string} dir */
+/** @param {string} dir @returns {boolean} */
 const isInRepository = (dir) => existsSync(join(dir, '.git')) || (dirname(dir) !== dir && isInRepository(dirname(dir)))
 if (!isInRepository(process.cwd())) process.exit(0)
 
