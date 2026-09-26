@@ -67,9 +67,11 @@ are present. Take the state file's facts as leads to re-measure, and take no aut
      `pr-review-toolkit:comment-analyzer`. They come from a user-level plugin, not from this
      repository. If they are missing, use `general-purpose` subagents and paste each agent file's
      body into the prompt.
-   - Spawn one background `general-purpose` subagent that runs `git worktree add --no-track` to a
-     path outside the clone, reports `git -C <path> rev-parse --show-toplevel`, and removes the
-     worktree. Pass no `isolation: "worktree"`, because the tool then picks the path.
+   - Spawn one background `general-purpose` subagent that runs
+     `git worktree add --no-track -b <probe branch> <path> origin/develop` to a path outside the
+     clone, reports `git -C <path> rev-parse --show-toplevel`, and removes the worktree and the
+     branch. `--no-track` needs `-b`: with `--detach` git exits 128. Pass no
+     `isolation: "worktree"`, because the tool then picks the path.
    - Read the NDA term list (§ Verification) and record how many terms it holds. An unreadable list
      stops the run. An empty list is a deliberate opt-out: record it.
 
@@ -100,11 +102,14 @@ time.
 ## One ticket
 
 1. **Claim and check freshness.** Assign the ticket to yourself with `gh issue edit <n> --add-assignee @me`.
-   Confirm no open PR touches its files.
+   List the open PRs that touch its files. A PR from outside this run is no blocker: record it in the
+   `STATE` block and in the opener, because whichever PR merges second takes the conflict.
 2. **Opener.** Write it in the shape of `docs/agents/dispatching-and-learning.md` § The shape that
    has worked, with two changes for an unattended run: the worker reports in its final answer, not
    by message, and it stops after the handover. Leak-check it (§ Verification), then post it on the
-   ticket. Mark any older opener on the ticket "**Stale — do not follow**" in place.
+   ticket. Post every body from a file, with `--body-file` or `-F`, written with a file-writing
+   tool: the Claude hook refuses a command whose own text holds `--no-verify` or `hooksPath`, and
+   an opener often names them. Mark any older opener on the ticket "**Stale — do not follow**" in place.
 3. **Worker.** Spawn one background `general-purpose` subagent with the filled
    [`worker-prompt.md`](worker-prompt.md). Keep its agent id and continue it with `SendMessage` for
    each fix round.
@@ -167,9 +172,12 @@ All of these, on the head about to merge:
 
 - `gh pr view` for the head, the base, `mergeable` and every check by name. A check with no
   conclusion is pending.
-- The leak check with the real term list, `$UNIC_NDA_DENYLIST` or else `~/.config/unic/nda-denylist.txt`,
-  counts only: read the list into a temporary file and print `grep -c`. Print no match. An
-  unreadable list fails the check.
+- The leak check runs the guards' own matcher on each text, saved to a file first (fetch published
+  text with `gh` into the scratchpad): `node .githooks/nda-match.mjs leak-check <file> >/dev/null 2>&1`,
+  then read the exit code only. 0 is clean. 1 is a match or an unreadable term list, and both fail
+  the check. Pass `leak-check` as the label: `pre-commit` reads the staged diff instead of the file,
+  and `commit-msg` may drop Markdown headings as git comment lines. A `grep` for whole words is no
+  substitute, because the matcher also finds a term in `camelCase` and at other boundaries.
 - Re-run the ticket's key claim yourself, from the file at the PR head (`git show` into the
   scratchpad).
 - After a docs fix, grep the head for the sentence the fix removed.
