@@ -489,4 +489,19 @@ describe('set-hooks-path', () => {
 			stderr
 		)
 	})
+	test('prints the remedy once when several checks fail', () => {
+		const dir = repo({ without: 'pre-commit' })
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		git(['config', '--worktree', 'core.hooksPath', '/elsewhere'], dir)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{
+				status,
+				failures: stderr.split('\nprepare: ').length,
+				remedies: stderr.split('Some or all of the NDA git hooks are off').length - 1,
+			},
+			{ status: 1, failures: 2, remedies: 1 },
+			stderr
+		)
+	})
 })

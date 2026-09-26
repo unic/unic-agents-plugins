@@ -24,11 +24,11 @@
 // With `extensions.worktreeConfig`, each worktree can hold its own value, so it reads the value back
 // in every worktree of the clone, not only this one.
 //
-// Each message says "because" and its reason before any path. At a terminal pnpm may cut a line at the terminal
-// width, and a long path first would push the reason out of sight.
+// Each message says "because" and its reason before any path. At a terminal pnpm may cut a line
+// at its width, and a long path first would push the reason out of sight.
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, constants, existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync, readFileSync, realpathSync, writeSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 import { findMainWorkTree, listWorktrees } from './main-work-tree.mjs'
@@ -52,15 +52,22 @@ function causeOf(error) {
 /** @param {string} reason */
 const warn = (reason) => process.stderr.write(`prepare: ${reason}.\n`)
 
-// A path set by hand is no remedy. With the main work tree on `main`, it holds only `pre-push`.
 /** @param {string} reason */
 function fail(reason) {
 	warn(reason)
-	process.stderr.write(
-		'  Some or all of the NDA git hooks are off until pnpm install passes. Fix the cause above. If the main work tree is on a branch without the full .githooks, check out a branch that carries it in the main work tree, then run pnpm install there.\n'
-	)
 	process.exitCode = 1
 }
+
+// Print the remedy once, however many failures came before it. A path set by hand is no remedy: with
+// the main work tree on `main`, it holds only `pre-push`. The write is synchronous, because an
+// exit handler cannot wait for a stream.
+process.on('exit', (code) => {
+	if (code === 0) return
+	writeSync(
+		2,
+		'  Some or all of the NDA git hooks are off until pnpm install passes. Fix the cause above. If the main work tree is on a branch without the full .githooks, check out a branch that carries it in the main work tree, then run pnpm install there.\n'
+	)
+})
 
 // No `.git` here or above is the tarball case. Look on disk rather than read git's error: a clone
 // whose git is missing from PATH fails the same way as no repository, and the message is localised.
@@ -97,7 +104,7 @@ try {
 	if (candidate && existsSync(candidate)) hooksDir = candidate
 	else if (candidate && isLinked) {
 		fail(
-			`the hooks stay off, because this is a linked worktree and its main work tree has no .githooks. It looks for ${candidate}`
+			`the hooks stay off, because this is a linked worktree and its main work tree has no .githooks. prepare looked for ${candidate}`
 		)
 		process.exit()
 	} else
@@ -175,7 +182,9 @@ if (!effective.endsWith(`\t${hooksDir}`)) {
 		`the hooks are off here, because another value wins over the one just written. core.hooksPath resolves to ${effective.replace('\t', ' ')}, not ${hooksDir}. For a value in config.worktree, remove it with: git config --worktree --unset core.hooksPath`
 	)
 } else if (previous && previous !== hooksDir) {
-	warn(`core.hooksPath changed, because it pointed at another directory. It was ${previous}, and is now ${hooksDir}`)
+	warn(
+		`prepare replaced an earlier core.hooksPath, because it pointed at another directory. It was ${previous}, and is now ${hooksDir}`
+	)
 }
 
 // Every other worktree reads the shared value too, unless its own `config.worktree` overrides it.
