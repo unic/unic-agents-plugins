@@ -6,7 +6,7 @@
 
 This repository is public, and one client of the DLC work is under an NDA. Two guards keep its terms off GitHub: the git hooks in `.githooks/` and the Claude hook `.claude/hooks/block-nda-terms.mjs`.
 
-The Claude hook decided what to scan by parsing the command string. For a commit, it worked out every directory the command could commit in, from `cd`, `pushd`, `git -C`, `--work-tree`, `--git-dir` and `GIT_DIR=`, and read the staged diff of each. To avoid reading a commit message as shell, it stripped `-m` arguments and heredoc bodies. Every fix to that parser added a form, and every review found the next form it missed. [#579](https://github.com/unic/unic-agents-plugins/issues/579) lists 17 such findings plus three from [#580](https://github.com/unic/unic-agents-plugins/issues/580). They fall into three groups:
+The Claude hook decided what to scan by parsing the command string. For a commit, it resolved every directory the command could commit in and read each one's staged diff. To avoid reading a commit message as shell, it stripped `-m` arguments and heredoc bodies. Every fix to that parser added a form, and every review found the next form it missed. [#579](https://github.com/unic/unic-agents-plugins/issues/579) lists 17 such findings plus three from [#580](https://github.com/unic/unic-agents-plugins/issues/580). They fall into three groups:
 
 - The parser missed a form, such as `sh -c`, `/usr/bin/git`, `--body-file=<path>`, `commit -a` or a CRLF heredoc.
 - The parser saw a commit that was not there. A draft written with `cat <<EOF` that quoted a `git -C <path> commit` example was refused, because the hook tried to read a staged diff in a directory that does not exist.
@@ -30,7 +30,7 @@ The change ships as one pull request. Removing the Claude hook's commit scan bef
 ### Alternatives rejected
 
 - **Parse fully.** Keep the parser and fix each form as it is found. The review history showed the list of forms has no end: shell quoting, heredocs, `sh -c`, aliases and variables each add more, and each fix introduced the next miss. A shell parser inside the hook would be a second shell whose disagreements with the real one are the leaks.
-- **Read more of every directory form.** Resolve every path-like token as a possible commit directory and read its staged diff. This fails the other way: a token that names no repository is refused, which is the heredoc-draft false positive at a larger scale, and it still cannot see content that git stages after the hook runs.
+- **Read more of every directory form.** Keep the commit scan, and read the staged diff of every path in the command that resolves to an existing directory, as proposed in [the grilling of #579](https://github.com/unic/unic-agents-plugins/issues/579#issuecomment-5840700871). That removes most missed forms and refuses nothing that names no directory. Its real cost is that the hook runs before git stages anything, so it still cannot see what `commit -a` or a commit with a pathspec writes. `pre-commit` runs after git stages and sees it.
 - **Scan what is about to be published.** Make the Claude hook compute what a `git push` will send. That repeats the job `pre-push` does with git's own answer, from outside git and with a guess at the remote state. `pre-push` receives the exact ref lines, so the scan belongs there.
 
 ## Consequences

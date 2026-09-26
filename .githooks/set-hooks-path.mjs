@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
 // Runs as the root `prepare` script, so `pnpm install` turns on the hooks in `.githooks/`. A clone
-// that skips this commits with no git-hook NDA guard, and nothing says so. The Claude hook still
-// guards agent sessions.
+// that skips this commits and pushes with no git-hook NDA guard, and nothing says so. The Claude hook
+// then refuses an agent session's push, but it scans no commit.
 //
 // It points `core.hooksPath` at the main work tree's `.githooks`, as an absolute path. Every linked
 // worktree then runs the hooks the main work tree has checked out, including a worktree whose own
@@ -98,7 +98,7 @@ try {
 	process.exit()
 }
 
-// The main work tree may be on a branch that carries none or only some of the commit guards, such as
+// The main work tree may be on a branch that carries none or only some of the NDA guards, such as
 // `main`, or a `develop` from before `commit-msg`. Every worktree then commits with that gap.
 const missing = ['pre-commit', 'commit-msg', 'pre-push', 'nda-match.mjs', 'nda-push.mjs', 'main-work-tree.mjs'].filter(
 	(file) => !existsSync(join(hooksDir, file))
