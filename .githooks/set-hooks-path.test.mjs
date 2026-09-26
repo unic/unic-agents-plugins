@@ -95,6 +95,16 @@ function withFakeGit(line) {
 	return { PATH: `${bin}:${process.env.PATH}` }
 }
 
+/**
+ * Is the git on PATH at least `major.minor`?
+ * @param {number} major
+ * @param {number} minor
+ */
+function hasGit(major, minor) {
+	const [, a = '0', b = '0'] = /(\d+)\.(\d+)/.exec(spawnSync('git', ['--version'], { encoding: 'utf8' }).stdout) ?? []
+	return Number(a) > major || (Number(a) === major && Number(b) >= minor)
+}
+
 describe('set-hooks-path', () => {
 	test('points a normal clone at its own .githooks', () => {
 		const dir = repo()
@@ -293,7 +303,7 @@ describe('set-hooks-path', () => {
 		const { stderr } = prepare(repo({ without: 'pre-commit' }))
 		assert.deepEqual(
 			{
-				docs: /Some or all of the NDA git hooks are off until pnpm install passes.*check out a branch that carries it in the main work tree, then run pnpm install there/.test(
+				docs: /Some or all of the NDA git hooks may be off until the cause above is fixed\..*check out a branch that carries it in the main work tree, then run pnpm install there/.test(
 					stderr
 				),
 				byHand: /git config core\.hookspath "/i.test(stderr),
@@ -357,7 +367,7 @@ describe('set-hooks-path', () => {
 			/because git found no main work tree with a \.githooks/,
 			/because git rev-parse failed/,
 			/because the hooks directory lacks pre-commit/,
-			/prepare replaced an earlier core\.hooksPath, because/,
+			/core\.hooksPath changed, because pnpm install set it/,
 			/the hooks are off here, because another value wins/,
 			/because core\.hooksPath resolves there to/,
 			/because git could not read its config/,
@@ -486,7 +496,7 @@ describe('set-hooks-path', () => {
 				status,
 				skipped: /because git marks it prunable/.test(stderr),
 				remedy:
-					/may still be in use.*run git worktree repair <new path>, then pnpm install\. Otherwise run git worktree prune\./.test(
+					/may still be in use.*If it still exists, make it reachable, or run git worktree repair <new path>, then pnpm install\. Only when it is gone, run git worktree prune\./.test(
 						stderr
 					),
 			},
@@ -538,7 +548,7 @@ describe('set-hooks-path', () => {
 			{
 				status,
 				skipped: /because git marks it prunable or its directory is gone/.test(stderr),
-				unlock: /Otherwise run git worktree unlock ".+", then git worktree prune\./.test(stderr),
+				unlock: /Only when it is gone, run git worktree unlock ".+", then git worktree prune\./.test(stderr),
 			},
 			{ status: 0, skipped: true, unlock: true },
 			stderr
@@ -575,9 +585,49 @@ describe('set-hooks-path', () => {
 			{
 				status,
 				failures: stderr.split('\nprepare: ').length,
-				remedies: stderr.split('Some or all of the NDA git hooks are off').length - 1,
+				remedies: stderr.split('Some or all of the NDA git hooks may be off').length - 1,
 			},
 			{ status: 1, failures: 2, remedies: 1 },
+			stderr
+		)
+	})
+	test(
+		'names the admin directory of a reused entry that git wrote with a relative gitdir',
+		{ skip: !hasGit(2, 48) && 'needs git 2.48 for worktree.useRelativePaths' },
+		() => {
+			const dir = repo()
+			git(['config', 'worktree.useRelativePaths', 'true'], dir)
+			const worktree = mkdtempSync(join(scratch, 'wt-'))
+			git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+			const name = worktree.split(/[\\/]/).pop() ?? ''
+			rmSync(worktree, { recursive: true, force: true })
+			mkdirSync(worktree)
+			git(['init', '-q'], worktree)
+			const { status, stderr } = prepare(dir)
+			assert.deepEqual(
+				{ status, admin: stderr.includes(`worktrees${process.platform === 'win32' ? '\\' : '/'}${name}.`) },
+				{ status: 0, admin: true },
+				stderr
+			)
+		}
+	)
+	test('still warns and exits 0 for a reused entry when another admin entry has a gitdir it cannot read', () => {
+		const dir = repo()
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		const name = worktree.split(/[\\/]/).pop() ?? ''
+		rmSync(worktree, { recursive: true, force: true })
+		mkdirSync(worktree)
+		git(['init', '-q'], worktree)
+		mkdirSync(join(dir, '.git', 'worktrees', '0-leftover', 'gitdir'), { recursive: true })
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{
+				status,
+				skipped: /because its old path now holds another git repository/.test(stderr),
+				admin: stderr.includes(`worktrees${process.platform === 'win32' ? '\\' : '/'}${name}.`),
+			},
+			{ status: 0, skipped: true, admin: true },
 			stderr
 		)
 	})

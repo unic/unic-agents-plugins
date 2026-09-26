@@ -65,7 +65,7 @@ process.on('exit', (code) => {
 	if (code === 0) return
 	writeSync(
 		2,
-		'  Some or all of the NDA git hooks are off until pnpm install passes. Fix the cause above. If the main work tree is on a branch without the full .githooks, check out a branch that carries it in the main work tree, then run pnpm install there.\n'
+		'  Some or all of the NDA git hooks may be off until the cause above is fixed. Then run pnpm install again. If the main work tree is on a branch without the full .githooks, check out a branch that carries it in the main work tree, then run pnpm install there.\n'
 	)
 })
 
@@ -183,7 +183,7 @@ if (!effective.endsWith(`\t${hooksDir}`)) {
 	)
 } else if (previous && previous !== hooksDir) {
 	warn(
-		`prepare replaced an earlier core.hooksPath, because it pointed at another directory. It was ${previous}, and is now ${hooksDir}`
+		`core.hooksPath changed, because pnpm install set it to this clone's .githooks. It was ${previous}, and is now ${hooksDir}`
 	)
 }
 
@@ -208,7 +208,7 @@ for (const { path, isBare, isPrunable, isLocked } of listWorktrees(porcelain)) {
 	if (isPrunable || !existsSync(path)) {
 		const prune = isLocked ? `run git worktree unlock "${path}", then git worktree prune` : 'run git worktree prune'
 		warn(
-			`skipped the core.hooksPath check in one worktree, because git marks it prunable or its directory is gone. It may still be in use, for example after a move by hand, and then its hooks may be off. If you still use it, run git worktree repair <new path>, then pnpm install. Otherwise ${prune}. Its old path is ${path}`
+			`skipped the core.hooksPath check in one worktree that git cannot reach, because git marks it prunable or its directory is gone. It may still be in use, for example after a move by hand or under a parent directory git cannot read, and then its hooks may be off. If it still exists, make it reachable, or run git worktree repair <new path>, then pnpm install. Only when it is gone, ${prune}. Its old path is ${path}`
 		)
 		continue
 	}
@@ -251,16 +251,27 @@ function resolveReal(path, base) {
 
 /**
  * The admin directory under `<common dir>/worktrees` whose `gitdir` file names `path`, or a
- * placeholder when none does.
+ * placeholder when none does or the directory cannot be read. A relative `gitdir`, which git writes
+ * with `worktree.useRelativePaths`, is relative to its own admin directory. An entry whose `gitdir`
+ * cannot be read is passed over, so a leftover entry never turns this warning into a failure.
  * @param {string} path
  */
 function findAdminEntry(path) {
 	const admin = join(commonDir, 'worktrees')
 	const target = resolveReal(join(path, '.git'), path)
-	for (const name of existsSync(admin) ? readdirSync(admin) : []) {
-		const gitdir = join(admin, name, 'gitdir')
-		if (existsSync(gitdir) && resolveReal(readFileSync(gitdir, 'utf8').trim(), admin) === target)
-			return join(admin, name)
+	let names = []
+	try {
+		names = readdirSync(admin)
+	} catch {
+		// No readable admin directory: the placeholder below still tells the reader where to look.
+	}
+	for (const name of names) {
+		try {
+			const gitdir = readFileSync(join(admin, name, 'gitdir'), 'utf8').trim()
+			if (resolveReal(gitdir, join(admin, name)) === target) return join(admin, name)
+		} catch {
+			// A `gitdir` that is missing, a directory or unreadable names no path. Try the next entry.
+		}
 	}
 	return join(admin, '<name>')
 }
