@@ -4,7 +4,7 @@
 // this file, and `.githooks/nda-push.mjs` and `.claude/hooks/block-nda-terms.mjs` import it. One rule
 // in one place, so the guards cannot disagree on what counts as a match.
 //
-// The rule, in two steps:
+// The rule, in three steps:
 //   1. Remove base64 data first. Remove the payload of every `data:…;base64,` URI whose payload has
 //      80 or more characters, and keep the media type. Remove every run of 80 or more characters
 //      made only of letters, digits, `+` and `/` that holds a digit and either is followed by `=`
@@ -20,6 +20,10 @@
 //      digit, a change from lower to upper case, or the capital that starts a capitalised word
 //      after another capital. So `acme`, `acme-site`, `acme_site`, `acme2026`, `acmeSite`,
 //      `myAcme`, `XAcme` and `ACMESite` all match `acme`.
+//   3. When the text holds a NUL byte and step 2 found nothing, run steps 1 and 2 again on the text
+//      with every NUL byte removed. UTF-16 text in the ASCII range reads as letters with a NUL
+//      between each pair, so this finds a term in it. The first run keeps a NUL next to a term as a
+//      boundary.
 //
 // The rule lets four shapes through. The first is a term joined to a letter where the join is
 // neither a change from lower to upper case nor the capital that starts a capitalised word after
@@ -183,15 +187,23 @@ function findTermOnce(text, terms) {
 // text around it, and a failing `git diff` in a pipe would hand over an empty diff that passes.
 function readStagedDiff() {
 	try {
-		return execFileSync('git', ['--no-replace-objects', 'diff', '--cached', ...DIFF_FLAGS], {
-			encoding: 'utf8',
-			maxBuffer: 512 * 1024 * 1024,
-			stdio: ['ignore', 'pipe', 'pipe'],
-		})
+		return execFileSync(
+			'git',
+			['--no-replace-objects', '-c', 'core.quotePath=false', 'diff', '--cached', ...DIFF_FLAGS],
+			{
+				encoding: 'utf8',
+				maxBuffer: 512 * 1024 * 1024,
+				stdio: ['ignore', 'pipe', 'pipe'],
+			}
+		)
 	} catch (error) {
 		const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 		process.stderr.write(
-			`pre-commit: cannot read the staged diff, so this commit is refused (${String(stderr || message).trim()}).\n`
+			`pre-commit: cannot read the staged diff, so this commit is refused (${
+				String(stderr || message)
+					.trim()
+					.split('\n')[0]
+			}).\n`
 		)
 		process.exit(1)
 	}

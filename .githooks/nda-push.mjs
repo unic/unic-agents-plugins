@@ -9,14 +9,14 @@
 //   - both ref names, so a branch or tag named with a term is refused;
 //   - every annotated tag object on the way from the ref to what it points at, which holds each
 //     tag message, and a blob or a tree at the end of it;
-//   - the message and the added lines of every commit the push sends. A merge commit's patch is read
-//     against its first parent.
+//   - every commit the push sends: the whole commit object, headers and message, and the added lines
+//     of its patch. A merge commit's patch is read against its first parent.
 //
 // The commits a push sends are those reachable from the local sha and from neither the remote sha nor
 // any `refs/remotes/<remote>/*` ref. A remote-tracking ref behind the remote makes it scan more. One
 // that holds a commit the remote does not have makes it scan less: a ref set by hand, one left over
 // after a leaked commit was deleted from the remote, or one fetched from another URL than the push
-// goes to. AGENTS.md names that gap. A remote sha missing from the local object store, as after a
+// goes to. AGENTS.md names that gap. A remote sha that is not a local commit, as after a
 // force push over commits never fetched, is left out rather than failing the listing.
 //
 // It skips a line that deletes a ref. Deleted lines of a patch do not count, as in `pre-commit`.
@@ -40,7 +40,7 @@ const MAX_BUFFER = 512 * 1024 * 1024
  * @param {string} [input]
  */
 const git = (args, input) =>
-	execFileSync('git', ['--no-replace-objects', ...args], {
+	execFileSync('git', ['--no-replace-objects', '-c', 'core.quotePath=false', ...args], {
 		encoding: 'utf8',
 		input,
 		maxBuffer: MAX_BUFFER,
@@ -86,17 +86,6 @@ function getPushedRange(localSha, remoteSha, remote) {
 }
 
 /**
- * Splits `git log` output whose format starts each commit with a NUL and its sha.
- * @param {string} output
- * @returns {Array<[string, string]>}
- */
-const splitCommits = (output) =>
-	output
-		.split('\0')
-		.filter(Boolean)
-		.map((entry) => [entry.slice(0, 12), entry.slice(entry.indexOf('\n') + 1)])
-
-/**
  * Each text one ref line publishes, with where it comes from.
  * @param {string} line
  * @param {string} remote
@@ -122,13 +111,12 @@ function readPushedTexts(line, remote) {
 		return texts
 	}
 	const range = getPushedRange(sha, remoteSha, remote)
-	for (const [sha, message] of splitCommits(
-		git(['log', '--no-color', '--encoding=UTF-8', '--format=%x00%H%n%B', ...range])
-	)) {
-		texts.push([`the message of commit ${sha}`, message])
-	}
-	// `--encoding=UTF-8` above: `i18n.logOutputEncoding` would re-encode the messages out of reach.
-	// One text for every patch: a binary file can hold the NUL that separates the messages above.
+	// Each commit object whole: every header, such as author, committer and `mergetag`, and the whole
+	// message, NUL bytes and all. `git log --format` would drop headers, stop at a NUL and re-encode
+	// the message under `i18n.logOutputEncoding`.
+	const shas = git(['rev-list', ...range])
+	if (shas.trim()) texts.push([`a commit object pushed to ${remoteRef}`, git(['cat-file', '--batch'], shas)])
+	// One text for every patch.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
 	texts.push([`the patch of a commit pushed to ${remoteRef}`, dropDeletedLines(patches)])

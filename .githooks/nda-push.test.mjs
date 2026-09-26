@@ -463,3 +463,152 @@ describe('pre-push, round 2', () => {
 		assertRefused(push(dir, 'HEAD:refs/heads/main'), /cannot find nda-push\.mjs/)
 	})
 })
+
+/**
+ * Writes an object built by hand and returns its sha.
+ * @param {string} dir
+ * @param {'commit' | 'tag'} type
+ * @param {string} body
+ */
+function writeObject(dir, type, body) {
+	const result = run('git', ['hash-object', '-t', type, '-w', '--literally', '--stdin'], dir, {}, body)
+	assert.equal(result.status, 0, result.stderr)
+	return result.stdout.trim()
+}
+
+/**
+ * A commit on top of HEAD with HEAD's tree, the given extra headers and message, checked out.
+ * @param {string} dir
+ * @param {string} extraHeaders
+ * @param {string} message
+ */
+function commitByHand(dir, extraHeaders, message) {
+	const head = git(dir, 'rev-parse', 'HEAD')
+	const who = 'Guard Test <guard@example.com> 1700000000 +0000'
+	const body = `tree ${git(dir, 'rev-parse', 'HEAD^{tree}')}\nparent ${head}\nauthor ${who}\ncommitter ${who}\n${extraHeaders}\n${message}`
+	git(dir, 'reset', '-q', '--soft', writeObject(dir, 'commit', body))
+}
+
+/**
+ * Commits a clean change with the given environment, as `am` or `cherry-pick` keep an author.
+ * @param {string} dir
+ * @param {Record<string, string>} env
+ */
+function commitAs(dir, env) {
+	writeFileSync(join(dir, 'file.txt'), 'clean\nmore\n')
+	git(dir, 'add', 'file.txt')
+	const result = run('git', ['-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', 'change'], dir, env)
+	assert.equal(result.status, 0, result.stderr)
+}
+
+describe('pre-push, commit headers and raw objects', () => {
+	/** A clone with one pushed clean commit. */
+	function createPushedClone() {
+		const clone = createClone()
+		commitUnchecked(clone.dir, 'clean\n')
+		pushUnchecked(clone.dir, 'HEAD:refs/heads/main')
+		git(clone.dir, 'fetch', '-q', 'origin')
+		return clone
+	}
+
+	test('refuses a commit whose author name carries the term', () => {
+		const { dir } = createPushedClone()
+		commitAs(dir, { GIT_AUTHOR_NAME: `Dev ${TERM}` })
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a commit whose author email carries the term', () => {
+		const { dir } = createPushedClone()
+		commitAs(dir, { GIT_AUTHOR_EMAIL: `dev@${TERM}.example` })
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a commit whose committer carries the term', () => {
+		const { dir } = createPushedClone()
+		commitAs(dir, { GIT_COMMITTER_NAME: `Dev ${TERM}` })
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('pushes a commit with a clean author and committer', () => {
+		const { dir } = createPushedClone()
+		commitAs(dir, { GIT_AUTHOR_NAME: 'Dev Clean', GIT_COMMITTER_NAME: 'Dev Clean' })
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a commit whose mergetag header carries the term', () => {
+		const { dir } = createPushedClone()
+		const tagged = git(dir, 'rev-parse', 'HEAD')
+		const mergetag = `mergetag object ${tagged}\n type commit\n tag v1\n tagger Guard Test <guard@example.com> 1700000000 +0000\n \n release for ${TERM}`
+		commitByHand(dir, mergetag, 'merge v1\n')
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a commit whose raw message holds the term after a NUL byte', () => {
+		const { dir } = createPushedClone()
+		commitByHand(dir, '', `x\0${TERM}\n`)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('pushes a commit whose raw message holds a NUL byte and no term', () => {
+		const { dir } = createPushedClone()
+		commitByHand(dir, '', 'x\0clean\n')
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses an annotated tag whose message holds a NUL byte before the term', () => {
+		const { dir } = createPushedClone()
+		const who = 'Guard Test <guard@example.com> 1700000000 +0000'
+		const tag = writeObject(
+			dir,
+			'tag',
+			`object ${git(dir, 'rev-parse', 'HEAD')}\ntype commit\ntag v1\ntagger ${who}\n\nx\0${TERM}\n`
+		)
+		git(dir, 'update-ref', 'refs/tags/v1', tag)
+		assertRefused(push(dir, 'refs/tags/v1'))
+	})
+	test('pushes an annotated tag whose message holds a NUL byte and no term', () => {
+		const { dir } = createPushedClone()
+		const who = 'Guard Test <guard@example.com> 1700000000 +0000'
+		const tag = writeObject(
+			dir,
+			'tag',
+			`object ${git(dir, 'rev-parse', 'HEAD')}\ntype commit\ntag v1\ntagger ${who}\n\nx\0clean\n`
+		)
+		git(dir, 'update-ref', 'refs/tags/v1', tag)
+		assertPushed(push(dir, 'refs/tags/v1'))
+	})
+})
+
+describe('pre-push, quoted paths and pushes by URL', () => {
+	const accented = 'vörpleminx'
+	const accentedList = join(scratch, 'accented-list.txt')
+	writeFileSync(accentedList, `${accented}\n`)
+
+	test('refuses a non-ASCII term in a path under core.quotePath=true', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'core.quotePath', 'true')
+		writeFileSync(join(dir, `${accented}.txt`), 'clean\n')
+		git(dir, 'add', '.')
+		git(dir, '-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', 'add file')
+		const result = run('git', ['push', '-q', 'origin', 'HEAD:refs/heads/main'], dir, {
+			UNIC_NDA_DENYLIST: accentedList,
+		})
+		assertRefused(result)
+	})
+	test('refuses a tag on a tree with a non-ASCII term in a path under core.quotePath=true', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'core.quotePath', 'true')
+		writeFileSync(join(dir, `${accented}.txt`), 'clean\n')
+		git(dir, 'add', '.')
+		git(dir, 'tag', 'tree-tag', git(dir, 'write-tree'))
+		const result = run('git', ['push', '-q', 'origin', 'refs/tags/tree-tag'], dir, { UNIC_NDA_DENYLIST: accentedList })
+		assertRefused(result)
+	})
+	test('pushes by URL over published history with the term, leaving the remote sha out', () => {
+		const { dir, remote } = createClone()
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		pushUnchecked(dir, 'HEAD:refs/heads/main')
+		const second = mkdtempSync(join(scratch, 'by-url-'))
+		git(second, 'init', '-q')
+		git(second, 'config', 'core.hooksPath', HOOKS)
+		git(second, 'config', 'user.email', 'guard@example.com')
+		git(second, 'config', 'user.name', 'Guard Test')
+		git(second, 'fetch', '-q', remote, 'main')
+		git(second, 'switch', '-q', '-c', 'main', 'FETCH_HEAD')
+		commitUnchecked(second, 'clean\n')
+		assertPushed(run('git', ['push', '-q', remote, 'HEAD:refs/heads/main'], second))
+	})
+})

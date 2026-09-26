@@ -702,3 +702,29 @@ describe('Claude hook entry in .claude/settings.json', () => {
 		assert.equal(result.status, 2, result.stderr)
 	})
 })
+
+describe('round 3', () => {
+	const outside = mkdtempSync(join(scratch, 'outside-r3-'))
+	const accentedList = join(scratch, 'accented-list.txt')
+	writeFileSync(accentedList, 'vörpleminx\n')
+
+	test('pre-commit refuses a non-ASCII term in a path under core.quotePath=true', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.quotePath', 'true')
+		writeFileSync(join(dir, 'vörpleminx.txt'), 'clean\n')
+		git(dir, 'add', '.')
+		assertRefused(commit(dir, 'add file', { UNIC_NDA_DENYLIST: accentedList }), 1)
+	})
+	test('pre-commit refuses readably when git cannot produce the staged diff', () => {
+		const result = run('node', [join(HOOKS, 'nda-match.mjs'), 'pre-commit'], outside)
+		assert.deepEqual(
+			{
+				status: result.status,
+				reason: /cannot read the staged diff/.test(result.stderr),
+				lines: result.stderr.trim().split('\n').length,
+			},
+			{ status: 1, reason: true, lines: 1 },
+			result.stderr
+		)
+	})
+})
