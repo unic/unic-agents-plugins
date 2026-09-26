@@ -214,7 +214,9 @@ habit.
 It does not edit implementation files — not a `.mjs`, not a Box YAML, not a command prompt. Its
 value is a clean long-lived context and implementation detail destroys it. It does not merge: when
 a ticket or a pull request is ready it reports the evidence **on the ticket**, where the evidence
-outlives the session that produced it, and a developer merges.
+outlives the session that produced it, and a developer merges. The one exception is a session
+running `/afk-loop`, which merges only with the authority the maintainer grants at the start of that
+run, for that parent.
 
 ---
 
