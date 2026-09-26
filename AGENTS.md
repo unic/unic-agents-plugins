@@ -66,10 +66,10 @@ When the hooks end up off, `pnpm install` fails and prints why, except in six ca
 
 A worktree moved by hand is not reported either. Git marks its old path `prunable`, and `pnpm install` skips it with a warning and exits 0, because `prepare` cannot see the new path. The worktree still commits from its new place and reads its own `config.worktree`, so its hooks may be off. Git marks a worktree whose directory it cannot read as `prunable` too. If you still use such a worktree, run `git worktree repair <new path>`, then `pnpm install`. Otherwise run `git worktree prune`.
 
-`pnpm install` reads the value back in every worktree of the clone that git does not mark `prunable`, so a value in the `config.worktree` of any worktree fails the install and names that worktree. `prepare` runs only at install, so two later changes turn the hooks off with no report:
+`pnpm install` reads the value back in every worktree of the clone that git does not mark `prunable`, so a value in the `config.worktree` of any worktree that differs from the main work tree's `.githooks` fails the install and names that worktree. `prepare` runs only at install, so two later changes turn the hooks off with no report:
 
-- The main work tree moves to a branch where `pre-commit` or `commit-msg` has no executable bit. Git then skips the hook and prints only a `hint:`, and `advice.ignoredHook=false` hides even that. Since [#589](https://github.com/unic/unic-agents-plugins/pull/589) the Claude hook refuses a push when `pre-push` is not executable, but nothing checks the bit of `pre-commit` or `commit-msg` after install.
-- An `includeIf` in the git config sets `core.hooksPath`. Its value wins as soon as its condition holds, for example an `onbranch:` include after a branch switch, or a `gitdir:` include in the worktree it names.
+- The main work tree moves to a branch where `pre-commit` or `commit-msg` has no executable bit. Git then skips the hook and prints only a `hint:`, and `advice.ignoredHook=false` hides even that. For a push or commit made outside an agent session, no check covers the executable bit of any hook after install. Since [#589](https://github.com/unic/unic-agents-plugins/pull/589) the Claude hook refuses a push when `pre-push` is not executable, but only for a push from an agent session.
+- An `includeIf` in `.git/config`, after the `core.hooksPath` entry, sets `core.hooksPath`. Its value wins as soon as its condition holds, for example an `onbranch:` include after a branch switch, or a `gitdir:` include in the worktree it names. An `includeIf` in the global config does not win over `.git/config`.
 
 After either change, run `pnpm install` again in the main work tree.
 
