@@ -196,7 +196,9 @@ if (!pointsAtHooks(effective, process.cwd())) {
 // still commits with its own `config.worktree`. prepare cannot see the new path, so the warning
 // gives the remedy. Skip also an entry whose old path now holds another repository: `-C` would read
 // and change that repository instead.
+/** @type {string} */
 let top
+/** @type {string} */
 let commonDir
 try {
 	top = git(['rev-parse', '--show-toplevel'])
@@ -273,6 +275,7 @@ function resolveReal(path, base) {
 function findAdminEntry(path) {
 	const admin = join(commonDir, 'worktrees')
 	const target = resolveReal(join(path, '.git'), path)
+	/** @type {string[]} */
 	let names = []
 	try {
 		names = readdirSync(admin)
