@@ -19,7 +19,7 @@ export function findMainWorkTree(porcelain) {
  * newline, and falls back to the plain form on git before 2.36, which rejects `-z`. The Claude hook
  * passes the plain form. In the plain form a `\r\n` line end leaves no `\r` in a field.
  * @param {string} porcelain
- * @returns {{ path: string, isBare: boolean, isPrunable: boolean }[]}
+ * @returns {{ path: string, isBare: boolean, isPrunable: boolean, isLocked: boolean }[]}
  */
 export function listWorktrees(porcelain) {
 	const isNul = porcelain.includes('\0')
@@ -31,5 +31,6 @@ export function listWorktrees(porcelain) {
 			path: lines.find((line) => line.startsWith('worktree '))?.slice('worktree '.length) ?? '',
 			isBare: lines.includes('bare'),
 			isPrunable: lines.some((line) => line === 'prunable' || line.startsWith('prunable ')),
+			isLocked: lines.some((line) => line === 'locked' || line.startsWith('locked ')),
 		}))
 }

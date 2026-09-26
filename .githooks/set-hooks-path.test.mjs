@@ -350,7 +350,7 @@ describe('set-hooks-path', () => {
 		rmSync(worktree, { recursive: true, force: true })
 		const { status, stderr } = prepare(dir)
 		assert.deepEqual(
-			{ status, skipped: /because git marks it prunable or cannot find its directory/.test(stderr) },
+			{ status, skipped: /because git marks it prunable or its directory is gone/.test(stderr) },
 			{ status: 0, skipped: true },
 			stderr
 		)
@@ -367,7 +367,7 @@ describe('set-hooks-path', () => {
 		git(['config', 'core.bare', 'true'], bare)
 		const { status, stderr } = prepare(worktree)
 		assert.deepEqual(
-			{ status, named: /because git rev-parse --show-toplevel failed \(/.test(stderr), stack: /\n\s+at /.test(stderr) },
+			{ status, named: /because git rev-parse failed \(/.test(stderr), stack: /\n\s+at /.test(stderr) },
 			{ status: 1, named: true, stack: false },
 			stderr
 		)
@@ -450,4 +450,43 @@ describe('set-hooks-path', () => {
 			)
 		}
 	)
+	test('warns with git worktree unlock and exits 0 for a locked worktree whose directory is gone', () => {
+		const dir = repo()
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		git(['worktree', 'lock', worktree], dir)
+		rmSync(worktree, { recursive: true, force: true })
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{
+				status,
+				skipped: /because git marks it prunable or its directory is gone/.test(stderr),
+				unlock: /Otherwise run git worktree unlock ".+", then git worktree prune\./.test(stderr),
+			},
+			{ status: 0, skipped: true, unlock: true },
+			stderr
+		)
+	})
+	test('skips an entry whose old path holds another repository and names its admin directory', () => {
+		const dir = repo()
+		git(['config', 'extensions.worktreeConfig', 'true'], dir)
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		const name = worktree.split(/[\\/]/).pop() ?? ''
+		rmSync(worktree, { recursive: true, force: true })
+		mkdirSync(worktree)
+		git(['init', '-q'], worktree)
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{
+				status,
+				skipped: /because its old path now holds another git repository/.test(stderr),
+				admin: stderr.includes(`worktrees${process.platform === 'win32' ? '\\' : '/'}${name}.`),
+				blamed: /resolves there to/.test(stderr),
+				otherTouched: git(['config', '--get', 'core.hooksPath'], worktree),
+			},
+			{ status: 0, skipped: true, admin: true, blamed: false, otherTouched: '' },
+			stderr
+		)
+	})
 })

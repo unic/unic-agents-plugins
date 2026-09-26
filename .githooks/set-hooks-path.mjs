@@ -27,8 +27,8 @@
 // width, and a long path first would push the reason out of sight.
 
 import { execFileSync } from 'node:child_process'
-import { accessSync, constants, existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { accessSync, constants, existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 
 import { findMainWorkTree, listWorktrees } from './main-work-tree.mjs'
 
@@ -179,26 +179,37 @@ if (!effective.endsWith(`\t${hooksDir}`)) {
 
 // Every other worktree reads the shared value too, unless its own `config.worktree` overrides it.
 // A stale worktree must not break every install, so skip one that git marks prunable or whose
-// directory it cannot find. Such a worktree may still be in use: git marks a worktree moved by hand,
-// or one whose directory it cannot read, as prunable, and it still commits with its own
-// `config.worktree`. prepare cannot see the new path, so the warning gives the remedy.
+// directory is gone. Such a worktree may still be in use: git marks a worktree moved by hand, or one
+// whose directory it cannot read, as prunable, and lists a locked one moved by hand as locked. It
+// still commits with its own `config.worktree`. prepare cannot see the new path, so the warning
+// gives the remedy. Skip also an entry whose old path now holds another repository: `-C` would read
+// and change that repository instead.
 let top
+let commonDir
 try {
 	top = git(['rev-parse', '--show-toplevel'])
+	commonDir = resolveReal(git(['rev-parse', '--git-common-dir']), process.cwd())
 } catch (error) {
-	fail(`the other worktrees went unchecked, because git rev-parse --show-toplevel failed (${causeOf(error)})`)
+	fail(`the other worktrees went unchecked, because git rev-parse failed (${causeOf(error)})`)
 	process.exit()
 }
-for (const { path, isBare, isPrunable } of listWorktrees(porcelain)) {
+for (const { path, isBare, isPrunable, isLocked } of listWorktrees(porcelain)) {
 	if (isBare || !path || path === top) continue
 	if (isPrunable || !existsSync(path)) {
+		const prune = isLocked ? `run git worktree unlock "${path}", then git worktree prune` : 'run git worktree prune'
 		warn(
-			`skipped the core.hooksPath check in one worktree, because git marks it prunable or cannot find its directory. It may still be in use, for example after a move by hand, and then its hooks may be off. If you still use it, run git worktree repair <new path>, then pnpm install. Otherwise run git worktree prune. Its old path is ${path}`
+			`skipped the core.hooksPath check in one worktree, because git marks it prunable or its directory is gone. It may still be in use, for example after a move by hand, and then its hooks may be off. If you still use it, run git worktree repair <new path>, then pnpm install. Otherwise ${prune}. Its old path is ${path}`
 		)
 		continue
 	}
 	let value
 	try {
+		if (resolveReal(git(['-C', path, 'rev-parse', '--git-common-dir']), path) !== commonDir) {
+			warn(
+				`skipped the core.hooksPath check in one worktree entry, because its old path now holds another git repository. git worktree prune does not clear such an entry, so remove its admin directory by hand: ${findAdminEntry(path)}. Its old path is ${path}`
+			)
+			continue
+		}
 		value = readEffective(['-C', path])
 	} catch (error) {
 		fail(
@@ -211,4 +222,35 @@ for (const { path, isBare, isPrunable } of listWorktrees(porcelain)) {
 			`the hooks are off in another worktree of this clone, because core.hooksPath resolves there to ${value.replace('\t', ' ')}, not ${hooksDir}. The worktree is ${path}. For a value in config.worktree, remove it with: git -C "${path}" config --worktree --unset core.hooksPath`
 		)
 	}
+}
+
+/**
+ * Resolve a path git printed, which may be relative to `base`, to one spelling per directory.
+ * @param {string} path
+ * @param {string} base
+ */
+function resolveReal(path, base) {
+	const absolute = resolve(base, path)
+	try {
+		return realpathSync.native(absolute)
+	} catch {
+		// A path that cannot be resolved further still compares by its absolute spelling.
+		return absolute
+	}
+}
+
+/**
+ * The admin directory under `<common dir>/worktrees` whose `gitdir` file names `path`, or a
+ * placeholder when none does.
+ * @param {string} path
+ */
+function findAdminEntry(path) {
+	const admin = join(commonDir, 'worktrees')
+	const target = resolveReal(join(path, '.git'), path)
+	for (const name of existsSync(admin) ? readdirSync(admin) : []) {
+		const gitdir = join(admin, name, 'gitdir')
+		if (existsSync(gitdir) && resolveReal(readFileSync(gitdir, 'utf8').trim(), admin) === target)
+			return join(admin, name)
+	}
+	return join(admin, '<name>')
 }
