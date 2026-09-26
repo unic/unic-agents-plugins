@@ -62,7 +62,7 @@ Run `pnpm install` once in every clone, including one that still has symlinks in
 
 A worktree on a branch without hooks is guarded too, but only while the main work tree is on a branch that carries them. Today `main` carries only `pre-push`, so with the main work tree on `main` no worktree runs the NDA commit hooks. `pnpm install` then fails with the name of each missing file, but only in a worktree whose branch carries `.githooks/set-hooks-path.mjs`. In the main work tree, `main` has no `prepare` script, so the install passes in silence. That gap closes once [#576](https://github.com/unic/unic-agents-plugins/pull/576) and [#577](https://github.com/unic/unic-agents-plugins/pull/577) reach `main`.
 
-When the hooks end up off, `pnpm install` fails and prints why, except in three cases. One is a moved clone, where the absolute path is stale. Another is an install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, where `prepare` never runs. The third is an install on a branch with no `prepare` script, such as `main` today. In each, set the path by hand with `git config core.hooksPath <absolute path to the main work tree>/.githooks`, or run `pnpm install` again on a branch that has `prepare`, without that setting.
+When the hooks end up off, `pnpm install` fails and prints why, except in three cases. One is a moved clone, where the absolute path is stale. Another is an install with `--ignore-scripts`, or with `ignore-scripts=true` in any npmrc, where `prepare` never runs. The third is an install on a branch with no `prepare` script, such as `main` today. In each, check out a branch that carries `.githooks` in the main work tree, then run `pnpm install` there without that setting.
 
 ### The NDA publish guard
 
