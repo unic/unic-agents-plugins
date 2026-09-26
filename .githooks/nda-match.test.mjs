@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import {
+	chmodSync,
 	copyFileSync,
 	mkdirSync,
 	mkdtempSync,
@@ -40,6 +41,20 @@ after(() => rmSync(scratch, { recursive: true, force: true }))
 const list = join(scratch, 'denylist.txt')
 writeFileSync(list, `# synthetic\r\n${TERM}\r\n`)
 const missingList = join(scratch, 'missing.txt')
+
+/** @param {string} text */
+const toUtf16le = (text) => Buffer.from(text, 'utf16le')
+/** @param {string} text */
+const toUtf16be = (text) => Buffer.from(text, 'utf16le').swap16()
+
+/**
+ * Hides every `.txt` diff behind a textconv filter that prints nothing.
+ * @param {string} dir
+ */
+function hideBehindTextconv(dir) {
+	git(dir, 'config', 'diff.hide.textconv', 'true')
+	writeFileSync(join(dir, '.git', 'info', 'attributes'), '*.txt diff=hide\n')
+}
 
 describe('findTerm', () => {
 	test('refuses the term as a word in prose', () => {
@@ -154,7 +169,7 @@ const run = (cmd, args, cwd, env = {}, input) =>
 
 /**
  * A fresh repository with the git hooks of this checkout and one staged file.
- * @param {string} content
+ * @param {string | Buffer} content
  * @param {string} [prefix]
  * @param {boolean} [viaSymlink] install pre-commit as a symlink in `.git/hooks`, not `core.hooksPath`
  */
@@ -316,6 +331,24 @@ describe('git hooks', () => {
 		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n a\n c\n`)
 		git(dir, 'add', 'file.txt')
 		assert.equal(commit(dir, 'edit line').status, 0)
+	})
+	test('pre-commit refuses a staged term in a UTF-16LE file', () => {
+		assertRefused(commit(createStagedRepo(toUtf16le(`Built for ${TERM}.\n`))), 1)
+	})
+	test('pre-commit refuses a staged term in a UTF-16BE file', () => {
+		assertRefused(commit(createStagedRepo(toUtf16be(`Built for ${TERM}.\n`))), 1)
+	})
+	test('pre-commit refuses a staged term behind a textconv filter', () => {
+		const dir = createStagedRepo(`Built for ${TERM}.\n`)
+		hideBehindTextconv(dir)
+		assertRefused(commit(dir), 1)
+	})
+	test('pre-commit refuses an empty new file whose path holds the term before " b/"', () => {
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, `${TERM} b`))
+		writeFileSync(join(dir, `${TERM} b`, 'x'), '')
+		git(dir, 'add', '.')
+		assertRefused(commit(dir), 1)
 	})
 })
 

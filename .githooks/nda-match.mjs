@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
-// The matching rule both NDA guards share: `.githooks/pre-commit` and `.githooks/commit-msg` run
-// this file, and `.claude/hooks/block-nda-terms.mjs` imports it. One rule in one place, so the
-// guards cannot disagree on what counts as a match.
+// The matching rule every NDA guard shares: `.githooks/pre-commit` and `.githooks/commit-msg` run
+// this file, and `.githooks/nda-push.mjs` and `.claude/hooks/block-nda-terms.mjs` import it. One rule
+// in one place, so the guards cannot disagree on what counts as a match.
 //
 // The rule, in two steps:
 //   1. Remove base64 data first. Remove the payload of every `data:…;base64,` URI whose payload has
@@ -67,8 +67,8 @@ export const DIFF_FLAGS = ['-U0', '--text', '--no-ext-diff', '--no-textconv', '-
 
 /**
  * A diff without its deleted text. Inside a hunk, a line that starts with `-` goes. In a file header,
- * `--- a/<name>`, `rename from` and `copy from` go, a `diff --git` line keeps only its `b/` side, and
- * a deleted file's `diff --git` line goes. A hunk header loses the context git copies into it from a
+ * `--- a/<name>`, `deleted file mode`, `rename from` and `copy from` go, and so does the `diff --git`
+ * line of a file that is deleted, renamed or copied. Any other `diff --git` line stays whole. A hunk header loses the context git copies into it from a
  * line above the hunk. So an added path or line that carries a term is still read.
  * @param {string} diff
  */
@@ -86,17 +86,18 @@ export function dropDeletedLines(diff) {
 		if (line.startsWith('diff --git ')) {
 			flush()
 			isInHunk = false
-			const newSide = line.lastIndexOf(' b/')
-			pendingHeader = newSide === -1 ? line : `diff --git${line.slice(newSide)}`
+			// Kept whole: a path can hold ` b/`, so the new side cannot be cut out reliably.
+			pendingHeader = line
 		} else if (line.startsWith('@@')) {
 			flush()
 			isInHunk = true
 			kept.push(line.replace(/^(@@ [^@]* @@).*/, '$1'))
 		} else if (isInHunk) {
 			if (!line.startsWith('-')) kept.push(line)
-		} else if (line.startsWith('deleted file mode')) {
+		} else if (/^(?:deleted file mode|rename from |copy from )/.test(line)) {
+			// The old name is published already. `rename to` or `copy to` carries the new one.
 			pendingHeader = null
-		} else if (!/^(?:--- |rename from |copy from )/.test(line)) {
+		} else if (!line.startsWith('--- ')) {
 			kept.push(line)
 		}
 	}
@@ -155,6 +156,16 @@ const charBefore = (/** @type {string} */ text, /** @type {number} */ i) => {
  * @param {string[]} terms
  */
 export function findTerm(text, terms) {
+	// UTF-16 text in the ASCII range reads as letters with a NUL between each pair. Read it again with
+	// the NULs removed, and keep the first read, where a NUL next to a term is a boundary.
+	return findTermOnce(text, terms) ?? (text.includes('\0') ? findTermOnce(text.replaceAll('\0', ''), terms) : null)
+}
+
+/**
+ * @param {string} text
+ * @param {string[]} terms
+ */
+function findTermOnce(text, terms) {
 	const cleaned = text.replace(DATA_URI, '$1 ').replace(BASE64_RUN, (run) => (isBase64(run) ? ' ' : run))
 	for (const term of terms) {
 		// Search the original text case-insensitively, so every index points into `cleaned` even

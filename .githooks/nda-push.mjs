@@ -7,14 +7,17 @@
 //
 // For each ref line git passes on stdin, "<local ref> <local sha> <remote ref> <remote sha>", it reads:
 //   - both ref names, so a branch or tag named with a term is refused;
-//   - an annotated tag's object, which holds the tag message;
+//   - every annotated tag object on the way from the ref to what it points at, which holds each
+//     tag message, and a blob or a tree at the end of it;
 //   - the message and the added lines of every commit the push sends. A merge commit's patch is read
 //     against its first parent.
 //
 // The commits a push sends are those reachable from the local sha and from neither the remote sha nor
-// any `refs/remotes/<remote>/*` ref. A stale remote-tracking ref makes it scan more, never less. A
-// remote sha missing from the local object store, as after a force push over commits never fetched,
-// is left out rather than failing the listing, which also scans more.
+// any `refs/remotes/<remote>/*` ref. A remote-tracking ref behind the remote makes it scan more. One
+// that holds a commit the remote does not have makes it scan less: a ref set by hand, one left over
+// after a leaked commit was deleted from the remote, or one fetched from another URL than the push
+// goes to. AGENTS.md names that gap. A remote sha missing from the local object store, as after a
+// force push over commits never fetched, is left out rather than failing the listing.
 //
 // It skips a line that deletes a ref. Deleted lines of a patch do not count, as in `pre-commit`.
 //
@@ -104,18 +107,27 @@ function readPushedTexts(line, remote) {
 	if (!localSha || ZERO.test(localSha)) return []
 	/** @type {Array<[string, string]>} */
 	const texts = [['one of the ref names', `${localRef} ${remoteRef}`]]
-	if (git(['cat-file', '-t', localSha]).trim() === 'tag')
-		texts.push([`the tag ${remoteRef}`, git(['cat-file', 'tag', localSha])])
-	// A tag can point at a blob or a tree, which `git log` would list as nothing.
-	const peeledType = git(['cat-file', '-t', `${localSha}^{}`]).trim()
-	if (peeledType !== 'commit') {
-		texts.push([`the ${peeledType} ${remoteRef} points at`, readObject(`${localSha}^{}`, peeledType)])
+	// Peel one tag at a time: a tag can point at another tag, which the push also sends, and at a
+	// blob or a tree, which `git log` would list as nothing.
+	let sha = localSha
+	let type = git(['cat-file', '-t', sha]).trim()
+	while (type === 'tag') {
+		const tag = git(['cat-file', 'tag', sha])
+		texts.push([`a tag object that ${remoteRef} sends`, tag])
+		sha = /^object ([0-9a-f]+)$/m.exec(tag)?.[1] ?? ''
+		type = git(['cat-file', '-t', sha]).trim()
+	}
+	if (type !== 'commit') {
+		texts.push([`the ${type} ${remoteRef} points at`, readObject(sha, type)])
 		return texts
 	}
-	const range = getPushedRange(localSha, remoteSha, remote)
-	for (const [sha, message] of splitCommits(git(['log', '--no-color', '--format=%x00%H%n%B', ...range]))) {
+	const range = getPushedRange(sha, remoteSha, remote)
+	for (const [sha, message] of splitCommits(
+		git(['log', '--no-color', '--encoding=UTF-8', '--format=%x00%H%n%B', ...range])
+	)) {
 		texts.push([`the message of commit ${sha}`, message])
 	}
+	// `--encoding=UTF-8` above: `i18n.logOutputEncoding` would re-encode the messages out of reach.
 	// One text for every patch: a binary file can hold the NUL that separates the messages above.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])

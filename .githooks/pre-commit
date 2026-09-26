@@ -37,8 +37,8 @@ set -eu
 label=pre-commit
 [ $# -gt 0 ] && label=commit-msg
 
-# The matching rule lives in nda-match.mjs, which `.claude/hooks/block-nda-terms.mjs` shares, so the
-# two guards cannot disagree. It also reads the term list and fails closed when it cannot.
+# The matching rule lives in nda-match.mjs, which `.githooks/nda-push.mjs` and
+# `.claude/hooks/block-nda-terms.mjs` share, so the guards cannot disagree. It also reads the term list and fails closed when it cannot.
 # Next to the script that runs: this file under `core.hooksPath`, or the target of a symlink that an
 # older install left in `.git/hooks`. Fall back to the work tree where that symlink is a plain copy (Windows).
 self=$0

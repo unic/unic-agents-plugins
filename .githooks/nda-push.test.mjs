@@ -6,7 +6,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -66,7 +66,7 @@ function cloneOf(remote) {
 /**
  * Commits `content` with the hooks off, as `--no-verify`, `am` or another clone would.
  * @param {string} dir
- * @param {string} content
+ * @param {string | Buffer} content
  * @param {string} [message]
  */
 function commitUnchecked(dir, content, message = 'change') {
@@ -403,5 +403,63 @@ describe('pre-push, Archon guard', () => {
 	})
 	test('pushes a feature branch from an Archon worktree', () => {
 		assertPushed(push(createArchonClone(), 'HEAD:refs/heads/feature/x'))
+	})
+})
+
+describe('pre-push, round 2', () => {
+	test('refuses a term in a message under i18n.logOutputEncoding=UTF-16', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'i18n.logOutputEncoding', 'UTF-16')
+		commitUnchecked(dir, 'clean\n', `fix: ${TERM} typo`)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a term in the body of the first of two commits', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n', `fix: typo\n\nFound while building ${TERM}.`)
+		commitUnchecked(dir, 'clean\nmore\n')
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a clean tag two levels above a nested tag whose message carries the term', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n')
+		git(dir, 'tag', '-a', 'inner', '-m', `release for ${TERM}`)
+		git(dir, 'tag', '-a', 'middle', '-m', 'release', 'inner')
+		git(dir, 'tag', '-a', 'outer', '-m', 'release', 'middle')
+		git(dir, 'tag', '-d', 'inner', 'middle')
+		assertRefused(push(dir, 'refs/tags/outer'))
+	})
+	test('refuses the term in a UTF-16LE file', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, Buffer.from(`Built for ${TERM}.\n`, 'utf16le'))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses the term in a UTF-16BE file', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, Buffer.from(`Built for ${TERM}.\n`, 'utf16le').swap16())
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses the term behind a textconv filter', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'diff.hide.textconv', 'true')
+		writeFileSync(join(dir, '.git', 'info', 'attributes'), '*.txt diff=hide\n')
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses an empty new file whose path holds the term before " b/"', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n')
+		mkdirSync(join(dir, `${TERM} b`))
+		writeFileSync(join(dir, `${TERM} b`, 'x'), '')
+		git(dir, 'add', '.')
+		git(dir, '-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', 'add empty file')
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a push when nda-push.mjs is in neither the hooks nor the work tree', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n')
+		const hooks = mkdtempSync(join(scratch, 'hooks-without-scan-'))
+		copyFileSync(join(HOOKS, 'pre-push'), join(hooks, 'pre-push'))
+		git(dir, 'config', 'core.hooksPath', hooks)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'), /cannot find nda-push\.mjs/)
 	})
 })
