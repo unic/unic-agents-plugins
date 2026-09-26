@@ -68,7 +68,8 @@ const prepare = (cwd, env = {}) =>
  * Reporters differ between pnpm versions. At a terminal pnpm 10 replaces a lifecycle script's output
  * with "Done" when the script exits 0, and pnpm 12 cuts the line at the terminal width. In a pipe the
  * reporter can still show the line of a slow script, so only a non-zero exit, after which the pinned
- * pnpm prints the output in full, proves the person sees it.
+ * pnpm 10.33.2 prints the output in full, proves the person sees it. That holds for 10.33.2 only:
+ * pnpm 12 does not print the cut line again after the failure.
  * @param {string} cwd
  */
 function install(cwd) {

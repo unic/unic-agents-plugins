@@ -92,7 +92,9 @@ let hooksDir = here
 let porcelain
 try {
 	// `-z` reads a path that holds a newline, but needs git 2.36. Older git rejects it, so fall back to
-	// the plain form. A failure of the plain form still reaches the catch below and fails closed.
+	// the plain form. A failure of the plain form still reaches the catch below and fails closed. The
+	// plain form has a limit: a worktree path that holds a newline splits into two lines, so the loop
+	// below finds no such directory and skips it as gone.
 	try {
 		porcelain = git(['worktree', 'list', '--porcelain', '-z'])
 	} catch (error) {
