@@ -39,7 +39,7 @@ The change ships as one pull request. Removing the Claude hook's commit scan bef
 - `pre-push` reads every commit a push sends, so the first push to an empty remote scans the whole history.
 - These gaps are accepted. `AGENTS.md` § "The NDA publish guard" carries the same list:
   - `git commit -n` skips the commit hooks, and the Claude hook does not detect it, because in `push` the same `-n` means `--dry-run`. `pre-push` catches the commit.
-  - A push run against another clone, such as `git -C <other clone> push`, is checked against the cwd's config, not the other clone's.
+  - A push that the command points at another repository, such as `git -C <other clone> push`, or through any option or environment variable that changes git's directory, is checked against the cwd's config, not the other repository's.
   - A git alias that pushes holds no `push` word, so the Claude hook does not check it. `git -c include.path=<file> push`, where the file sets `core.hooksPath`, switches the hooks off without the word the hook looks for.
   - `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` are not checked, because the clone's local `core.hooksPath` overrides both. Do not add them.
   - A quote or a backslash inside `--no-verify` or `hooksPath`, such as `git push --no-"verify"`, `git -c core.hooks""Path=…` or `git -c core.hooks\Path=…`, splits the word the Claude hook looks for. The hook does not refuse that command, and the command can switch the git hooks off.
