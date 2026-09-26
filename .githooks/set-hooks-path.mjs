@@ -173,7 +173,9 @@ if (!effective.endsWith(`\t${hooksDir}`)) {
 
 // Every other worktree reads the shared value too, unless its own `config.worktree` overrides it.
 // A stale worktree must not break every install, so skip one that git marks prunable or whose
-// directory is gone.
+// directory it cannot find. Such a worktree may still be in use: git marks a worktree moved by hand,
+// or one whose directory it cannot read, as prunable, and it still commits with its own
+// `config.worktree`. prepare cannot see the new path, so the warning gives the remedy.
 let top
 try {
 	top = git(['rev-parse', '--show-toplevel'])
@@ -185,7 +187,7 @@ for (const { path, isBare, isPrunable } of listWorktrees(porcelain)) {
 	if (isBare || !path || path === top) continue
 	if (isPrunable || !existsSync(path)) {
 		warn(
-			`skipped the core.hooksPath check in a stale worktree, which git marks prunable or whose directory is gone: ${path}`
+			`skipped the core.hooksPath check in one worktree, because git marks it prunable or cannot find its directory. It may still be in use, for example after a move by hand, and then its hooks may be off. If you still use it, run git worktree repair <new path>, then pnpm install. Otherwise run git worktree prune. Its old path is ${path}`
 		)
 		continue
 	}

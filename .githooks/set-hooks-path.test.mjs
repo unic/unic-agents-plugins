@@ -348,7 +348,7 @@ describe('set-hooks-path', () => {
 		rmSync(worktree, { recursive: true, force: true })
 		const { status, stderr } = prepare(dir)
 		assert.deepEqual(
-			{ status, skipped: /skipped the core\.hooksPath check in a stale worktree/.test(stderr) },
+			{ status, skipped: /because git marks it prunable or cannot find its directory/.test(stderr) },
 			{ status: 0, skipped: true },
 			stderr
 		)
@@ -393,6 +393,25 @@ describe('set-hooks-path', () => {
 		assert.deepEqual(
 			{ status, named: /resolves there to/.test(stderr), skipped: /skipped/.test(stderr) },
 			{ status: 1, named: true, skipped: false },
+			stderr
+		)
+	})
+	test('warns with the repair remedy and exits 0 for a prunable worktree whose directory still exists', () => {
+		const dir = repo()
+		const worktree = mkdtempSync(join(scratch, 'wt-'))
+		git(['worktree', 'add', '-q', worktree, '-b', 'wt'], dir)
+		rmSync(join(worktree, '.git'))
+		const { status, stderr } = prepare(dir)
+		assert.deepEqual(
+			{
+				status,
+				skipped: /because git marks it prunable/.test(stderr),
+				remedy:
+					/may still be in use.*run git worktree repair <new path>, then pnpm install\. Otherwise run git worktree prune\./.test(
+						stderr
+					),
+			},
+			{ status: 0, skipped: true, remedy: true },
 			stderr
 		)
 	})
