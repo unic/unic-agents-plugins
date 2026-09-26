@@ -271,7 +271,7 @@ describe('git hooks', () => {
 		assert.equal(status, 0, stderr)
 	})
 	test('the matcher refuses a term when reached through a symlinked directory', () => {
-		const link = join(scratch, `linked-hooks-${Date.now()}`)
+		const link = join(mkdtempSync(join(scratch, 'linked-hooks-')), 'hooks')
 		symlinkSync(HOOKS, link, 'junction')
 		assertRefused(run('node', [join(link, 'nda-match.mjs'), 'nda-match'], scratch, {}, `Built for ${TERM}.\n`), 1)
 	})
@@ -778,7 +778,7 @@ describe('round 3', () => {
 	test('refuses a push from a linked worktree with a relative core.hooksPath', () => {
 		const guarded = createGuardedRepo()
 		git(guarded.dir, 'config', 'core.hooksPath', '.githooks')
-		const linked = join(scratch, `relative-worktree-${Date.now()}`)
+		const linked = join(mkdtempSync(join(scratch, 'relative-worktree-')), 'wt')
 		git(guarded.dir, 'worktree', 'add', '-q', '-b', 'rel', linked)
 		assertRefused(runClaudeHook('git push origin x', linked, {}, guarded.hook), 2, /core\.hooksPath is \.githooks/)
 	})
