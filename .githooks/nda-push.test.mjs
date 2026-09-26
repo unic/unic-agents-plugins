@@ -6,7 +6,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -265,9 +265,15 @@ describe('pre-push, failing closed', () => {
 		})
 		assertRefused(result, /cannot read the NDA term list/)
 	})
-	test('refuses when git cannot list the commits', () => {
+	test('refuses when git log cannot walk the commits', () => {
 		const { dir } = createClone()
-		const line = `refs/heads/main ${'1'.repeat(40)} refs/heads/main ${ZERO}\n`
+		commitUnchecked(dir, 'clean\n')
+		const parent = git(dir, 'rev-parse', 'HEAD')
+		commitUnchecked(dir, 'clean\nmore\n')
+		const object = join(dir, '.git', 'objects', parent.slice(0, 2), parent.slice(2))
+		chmodSync(object, 0o644)
+		rmSync(object)
+		const line = `refs/heads/main ${git(dir, 'rev-parse', 'HEAD')} refs/heads/main ${ZERO}\n`
 		assertRefused(run('sh', [join(HOOKS, 'pre-push'), 'origin', 'url'], dir, {}, line), /cannot list the commits/)
 	})
 	test('refuses when node is not on PATH', { skip: process.platform === 'win32' }, () => {
@@ -286,5 +292,116 @@ describe('pre-push, failing closed', () => {
 			env: { PATH: bin, UNIC_NDA_DENYLIST: list },
 		})
 		assertRefused(result, /node is not on PATH/)
+	})
+})
+
+describe('pre-push, git config and objects', () => {
+	test('pushes a commit that only deletes a term line under color.ui=always', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, `clean\nBuilt for ${TERM}.\n`)
+		pushUnchecked(dir, 'HEAD:refs/heads/main')
+		git(dir, 'config', 'color.ui', 'always')
+		commitUnchecked(dir, 'clean\n')
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a root commit that adds the term under log.showRoot=false', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'log.showRoot', 'false')
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a term commit that git replace hides behind a clean one', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n')
+		const clean = git(dir, 'rev-parse', 'HEAD')
+		git(dir, 'switch', '-q', '--orphan', 'dirty')
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		git(dir, 'replace', git(dir, 'rev-parse', 'HEAD'), clean)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a lightweight tag on a blob that carries the term', () => {
+		const { dir } = createClone()
+		writeFileSync(join(dir, 'blob.txt'), `Built for ${TERM}.\n`)
+		git(dir, 'tag', 'blob-tag', git(dir, 'hash-object', '-w', 'blob.txt'))
+		assertRefused(push(dir, 'refs/tags/blob-tag'))
+	})
+	test('pushes a lightweight tag on a clean blob', () => {
+		const { dir } = createClone()
+		writeFileSync(join(dir, 'blob.txt'), 'clean\n')
+		git(dir, 'tag', 'blob-tag', git(dir, 'hash-object', '-w', 'blob.txt'))
+		assertPushed(push(dir, 'refs/tags/blob-tag'))
+	})
+	test('refuses an annotated tag with a clean message on a blob that carries the term', () => {
+		const { dir } = createClone()
+		writeFileSync(join(dir, 'blob.txt'), `Built for ${TERM}.\n`)
+		git(dir, 'tag', '-a', '-m', 'release', 'blob-tag', git(dir, 'hash-object', '-w', 'blob.txt'))
+		assertRefused(push(dir, 'refs/tags/blob-tag'))
+	})
+	test('refuses a tag on a tree whose file carries the term', () => {
+		const { dir } = createClone()
+		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n`)
+		git(dir, 'add', 'file.txt')
+		git(dir, 'tag', 'tree-tag', git(dir, 'write-tree'))
+		assertRefused(push(dir, 'refs/tags/tree-tag'))
+	})
+})
+
+describe('pre-push, several refs and remotes', () => {
+	test('refuses a push of two refs when only the second carries the term', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n')
+		git(dir, 'branch', 'a')
+		git(dir, 'switch', '-q', '--orphan', 'b')
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		assertRefused(push(dir, 'a:refs/heads/a', 'b:refs/heads/b'))
+	})
+	test('pushes two clean refs', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'clean\n')
+		git(dir, 'branch', 'a')
+		git(dir, 'switch', '-q', '--orphan', 'b')
+		commitUnchecked(dir, 'other\n')
+		assertPushed(push(dir, 'a:refs/heads/a', 'b:refs/heads/b'))
+	})
+	test('refuses a term commit that only another remote already has', () => {
+		const { dir } = createClone()
+		const second = mkdtempSync(join(scratch, 'second-remote-'))
+		git(second, 'init', '-q', '--bare')
+		git(dir, 'remote', 'add', 'second', second)
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		git(dir, '-c', `core.hooksPath=${noHooks}`, 'push', '-q', 'second', 'HEAD:refs/heads/main')
+		git(dir, 'fetch', '-q', 'second')
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('pushes a new branch to the remote that already has the term commit', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		pushUnchecked(dir, 'HEAD:refs/heads/main')
+		git(dir, 'fetch', '-q', 'origin')
+		assertPushed(push(dir, 'HEAD:refs/heads/copy'))
+	})
+})
+
+describe('pre-push, Archon guard', () => {
+	/** A clone under `.archon/workspaces/`, as an Archon worktree is. */
+	function createArchonClone() {
+		const remote = mkdtempSync(join(scratch, 'remote-'))
+		git(remote, 'init', '-q', '--bare')
+		const dir = join(mkdtempSync(join(scratch, 'archon-')), '.archon', 'workspaces', 'o', 'r', 'worktrees', 'x')
+		mkdirSync(dir, { recursive: true })
+		git(dir, 'init', '-q')
+		git(dir, 'config', 'core.hooksPath', HOOKS)
+		git(dir, 'config', 'user.email', 'guard@example.com')
+		git(dir, 'config', 'user.name', 'Guard Test')
+		git(dir, 'remote', 'add', 'origin', remote)
+		commitUnchecked(dir, 'clean\n')
+		return dir
+	}
+
+	test('refuses a push of develop from an Archon worktree', () => {
+		assertRefused(push(createArchonClone(), 'HEAD:refs/heads/develop'), /This push comes from an Archon worktree/)
+	})
+	test('pushes a feature branch from an Archon worktree', () => {
+		assertPushed(push(createArchonClone(), 'HEAD:refs/heads/feature/x'))
 	})
 })

@@ -67,8 +67,5 @@ if [ $# -gt 0 ]; then
 	exit
 fi
 
-# Read the diff first: in a pipe, a failing `git diff` would hand node an empty diff that passes.
-# --text shows a binary file's content, and the two --no-* flags stop a `diff.external` command, a
-# `-diff` attribute or a textconv filter from replacing it.
-diff=$(git diff --cached -U0 --text --no-ext-diff --no-textconv)
-printf '%s' "$diff" | node "$matcher" pre-commit
+# The matcher reads the staged diff itself: see readStagedDiff in nda-match.mjs.
+exec node "$matcher" pre-commit

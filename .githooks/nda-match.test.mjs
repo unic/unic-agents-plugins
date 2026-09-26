@@ -249,7 +249,7 @@ describe('git hooks', () => {
 	test('the matcher refuses a term when reached through a symlinked directory', () => {
 		const link = join(scratch, `linked-hooks-${Date.now()}`)
 		symlinkSync(HOOKS, link, 'junction')
-		assertRefused(run('node', [join(link, 'nda-match.mjs'), 'pre-commit'], scratch, {}, `Built for ${TERM}.\n`), 1)
+		assertRefused(run('node', [join(link, 'nda-match.mjs'), 'nda-match'], scratch, {}, `Built for ${TERM}.\n`), 1)
 	})
 	test('commit-msg refuses the term in the message', () => {
 		assertRefused(commit(createStagedRepo('clean\n'), `fix: ${TERM} typo`), 1)
@@ -280,15 +280,56 @@ describe('git hooks', () => {
 		git(dir, 'add', 'file.txt')
 		assertRefused(commit(dir, 'add line'), 1)
 	})
+	test('pre-commit refuses a staged term joined to NUL bytes on both sides', () => {
+		assertRefused(commit(createStagedRepo(`aaa\0${TERM}\0bbb\n`)), 1)
+	})
+	test('pre-commit passes a deleted line under color.ui=always', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
+		git(dir, 'config', 'color.ui', 'always')
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'remove line').status, 0)
+	})
+	test('pre-commit passes the deletion of a content line that starts with two hyphens', () => {
+		const dir = createCommittedRepo(`-- ${TERM}\nclean\n`)
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'remove line').status, 0)
+	})
+	test('pre-commit passes the deletion of a file whose name carries the term', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		assert.equal(commit(dir, 'remove file').status, 0)
+	})
+	test('pre-commit passes the rename of a file whose name carries the term', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'mv', `${TERM}.txt`, 'clean.txt')
+		assert.equal(commit(dir, 'rename file').status, 0)
+	})
+	test('pre-commit refuses the rename of a file to a name that carries the term', () => {
+		const dir = createCommittedRepo('clean\n')
+		git(dir, 'mv', 'file.txt', `${TERM}.txt`)
+		assertRefused(commit(dir, 'rename file'), 1)
+	})
+	test('pre-commit passes an edit below a line that already holds the term', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\n a\n b\n`)
+		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n a\n c\n`)
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'edit line').status, 0)
+	})
 })
 
 /**
  * A repository whose first commit holds `content`, made before the hooks were set, as if it came
  * from history that is already published. The hooks of this checkout run from then on.
  * @param {string} content
+ * @param {string} [name]
  */
-function createCommittedRepo(content) {
+function createCommittedRepo(content, name = 'file.txt') {
 	const dir = createStagedRepo(content, 'seed-')
+	if (name !== 'file.txt') {
+		git(dir, 'mv', 'file.txt', name)
+	}
 	git(dir, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'no-hooks-')))
 	git(dir, 'commit', '-q', '-m', 'seed')
 	git(dir, 'config', 'core.hooksPath', HOOKS)

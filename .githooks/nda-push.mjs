@@ -24,15 +24,41 @@
 
 import { execFileSync } from 'node:child_process'
 
-import { dropDeletedLines, findTerm, getListPath, readTerms, redact } from './nda-match.mjs'
+import { DIFF_FLAGS, dropDeletedLines, findTerm, getListPath, readTerms, redact } from './nda-match.mjs'
 
 const ZERO = /^0+$/
 // ponytail: whole output in memory. A push past this size is refused, stream `git log` if one ever is.
 const MAX_BUFFER = 512 * 1024 * 1024
 
-/** @param {string[]} args */
-const git = (args) =>
-	execFileSync('git', args, { encoding: 'utf8', maxBuffer: MAX_BUFFER, stdio: ['ignore', 'pipe', 'pipe'] })
+// `--no-replace-objects`: after `git replace`, git would show the replacement while the push sends
+// the original.
+/**
+ * @param {string[]} args
+ * @param {string} [input]
+ */
+const git = (args, input) =>
+	execFileSync('git', ['--no-replace-objects', ...args], {
+		encoding: 'utf8',
+		input,
+		maxBuffer: MAX_BUFFER,
+		stdio: ['pipe', 'pipe', 'pipe'],
+	})
+
+/**
+ * The text of an object a ref points at that is not a commit: a blob's content, or every path and
+ * blob of a tree.
+ * @param {string} sha
+ * @param {string} type
+ */
+function readObject(sha, type) {
+	if (type !== 'tree') return git(['cat-file', '-p', sha])
+	const listing = git(['ls-tree', '-r', sha])
+	const blobs = listing
+		.split('\n')
+		.filter((line) => line.split(/\s/)[1] === 'blob')
+		.map((line) => line.split(/\s/)[2])
+	return `${listing}\n${blobs.length > 0 ? git(['cat-file', '--batch'], `${blobs.join('\n')}\n`) : ''}`
+}
 
 /** @param {string} sha */
 function hasObject(sha) {
@@ -77,16 +103,22 @@ function readPushedTexts(line, remote) {
 	const [localRef = '', localSha = '', remoteRef = '', remoteSha = ''] = line.trim().split(/\s+/)
 	if (!localSha || ZERO.test(localSha)) return []
 	/** @type {Array<[string, string]>} */
-	const texts = [['the ref names', `${localRef} ${remoteRef}`]]
+	const texts = [['one of the ref names', `${localRef} ${remoteRef}`]]
 	if (git(['cat-file', '-t', localSha]).trim() === 'tag')
 		texts.push([`the tag ${remoteRef}`, git(['cat-file', 'tag', localSha])])
+	// A tag can point at a blob or a tree, which `git log` would list as nothing.
+	const peeledType = git(['cat-file', '-t', `${localSha}^{}`]).trim()
+	if (peeledType !== 'commit') {
+		texts.push([`the ${peeledType} ${remoteRef} points at`, readObject(`${localSha}^{}`, peeledType)])
+		return texts
+	}
 	const range = getPushedRange(localSha, remoteSha, remote)
-	for (const [sha, message] of splitCommits(git(['log', '--format=%x00%H%n%B', ...range]))) {
+	for (const [sha, message] of splitCommits(git(['log', '--no-color', '--format=%x00%H%n%B', ...range]))) {
 		texts.push([`the message of commit ${sha}`, message])
 	}
 	// One text for every patch: a binary file can hold the NUL that separates the messages above.
-	const diffFlags = ['-p', '-U0', '--text', '--no-ext-diff', '--no-textconv', '--diff-merges=first-parent']
-	const patches = git(['log', '--format=', ...diffFlags, ...range])
+	// `--root` shows a root commit's patch even with `log.showRoot=false`.
+	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
 	texts.push([`the patch of a commit pushed to ${remoteRef}`, dropDeletedLines(patches)])
 	return texts
 }

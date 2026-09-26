@@ -32,11 +32,13 @@
 // digit can take this shape.
 //
 // CLI: `node nda-match.mjs <label> [file]` reads the text from the file, or from stdin, and exits 1
-// on a match or when the term list cannot be read. With the label `pre-commit` the text is a diff,
+// on a match or when the term list cannot be read. With the label `pre-commit` and no file, it reads
+// the staged diff itself and exits 1 when git cannot produce it. That text is a diff,
 // and its deleted lines do not count: they are already in the published history, and refusing them
 // would block the commit that removes a term. The list lives outside every repository:
 // $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt.
 
+import { execFileSync } from 'node:child_process'
 import { readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -56,16 +58,51 @@ export function readTerms(path) {
 }
 
 /**
- * A diff without its deleted lines, and without the context git copies into a hunk header from a line
- * above the hunk. File headers stay, so a path that carries a term is still read.
+ * Git options that make a diff show every added line as text, whatever the git config says.
+ * `--text` shows a binary file's content, `--no-ext-diff` and `--no-textconv` stop a `diff.external`
+ * command, a `-diff` attribute or a textconv filter from replacing it, and `--no-color` keeps
+ * `color.ui=always` from putting escape codes before the `-` and `+` of each line.
+ */
+export const DIFF_FLAGS = ['-U0', '--text', '--no-ext-diff', '--no-textconv', '--no-color']
+
+/**
+ * A diff without its deleted text. Inside a hunk, a line that starts with `-` goes. In a file header,
+ * `--- a/<name>`, `rename from` and `copy from` go, a `diff --git` line keeps only its `b/` side, and
+ * a deleted file's `diff --git` line goes. A hunk header loses the context git copies into it from a
+ * line above the hunk. So an added path or line that carries a term is still read.
  * @param {string} diff
  */
-export const dropDeletedLines = (diff) =>
-	diff
-		.split('\n')
-		.filter((line) => !line.startsWith('-') || line.startsWith('--- '))
-		.map((line) => line.replace(/^(@@ [^@]* @@).*/, '$1'))
-		.join('\n')
+export function dropDeletedLines(diff) {
+	/** @type {string[]} */
+	const kept = []
+	let isInHunk = false
+	/** @type {string | null} */
+	let pendingHeader = null
+	const flush = () => {
+		if (pendingHeader !== null) kept.push(pendingHeader)
+		pendingHeader = null
+	}
+	for (const line of diff.split('\n')) {
+		if (line.startsWith('diff --git ')) {
+			flush()
+			isInHunk = false
+			const newSide = line.lastIndexOf(' b/')
+			pendingHeader = newSide === -1 ? line : `diff --git${line.slice(newSide)}`
+		} else if (line.startsWith('@@')) {
+			flush()
+			isInHunk = true
+			kept.push(line.replace(/^(@@ [^@]* @@).*/, '$1'))
+		} else if (isInHunk) {
+			if (!line.startsWith('-')) kept.push(line)
+		} else if (line.startsWith('deleted file mode')) {
+			pendingHeader = null
+		} else if (!/^(?:--- |rename from |copy from )/.test(line)) {
+			kept.push(line)
+		}
+	}
+	flush()
+	return kept.join('\n')
+}
 
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
@@ -131,6 +168,24 @@ export function findTerm(text, terms) {
 	return null
 }
 
+// Read inside node, not through a shell variable: `$(...)` drops NUL bytes, which joins a term to the
+// text around it, and a failing `git diff` in a pipe would hand over an empty diff that passes.
+function readStagedDiff() {
+	try {
+		return execFileSync('git', ['--no-replace-objects', 'diff', '--cached', ...DIFF_FLAGS], {
+			encoding: 'utf8',
+			maxBuffer: 512 * 1024 * 1024,
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+	} catch (error) {
+		const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
+		process.stderr.write(
+			`pre-commit: cannot read the staged diff, so this commit is refused (${String(stderr || message).trim()}).\n`
+		)
+		process.exit(1)
+	}
+}
+
 async function main() {
 	const [label = 'nda-match', file] = process.argv.slice(2)
 	const path = getListPath()
@@ -148,6 +203,7 @@ async function main() {
 
 	let text = ''
 	if (file) text = readFileSync(file, 'utf8')
+	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 
 	const term = findTerm(label === 'pre-commit' ? dropDeletedLines(text) : text, terms)
