@@ -9,11 +9,13 @@
 // docs/adr/0036-split-nda-guards-by-what-each-sees.md.
 //
 // The checks, in the order they run:
-//   1. A command whose own text holds `--no-ver` (every abbreviation git accepts for `--no-verify`)
-//      or `hookspath`, in any case, is refused, whatever the verb. Both can switch the git hooks off.
+//   1. A command whose own text holds `--no-veri` (the shortest abbreviation of `--no-verify` that git
+//      does not reject as ambiguous) or `hookspath`, in any case, is refused, whatever the verb. Both
+//      can switch the git hooks off. `--no-verbose` passes.
 //   2. A command with `send-pack` as a word is refused: git runs no `pre-push` for it. A command with
-//      `push` as a word is refused unless `pre-push` of this clone will run: the session's cwd must be
-//      in this clone or one of its worktrees, `core.hooksPath` must point at the main work tree's
+//      `push` as a word is refused unless `pre-push` of this clone will run. A hyphen or a dot bounds
+//      a word too, so `pre-push` and `nda-push.mjs` count. The session's cwd must be in this clone
+//      or one of its worktrees, `core.hooksPath` must point at the main work tree's
 //      `.githooks`, and that directory must hold `pre-push` and `nda-push.mjs`, with `pre-push`
 //      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
@@ -23,12 +25,15 @@
 //   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
 //      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
 //      that is an existing file, resolved against the session's cwd with a leading `~/` expanded, is
-//      read, except the `gh` or `glab` executable itself. A file over 2 MB is refused, not skipped.
+//      read, except a file whose lowercased basename is `gh`, `glab`, `gh.exe` or `glab.exe`, which is
+//      taken for the executable. Each whitespace-split token is also tried whole, and so is the part
+//      after its first `=`, so a path that holds `@` or `=` is read. A file over 2 MB is refused.
 //      Reading more than the command needs costs nothing: the hook refuses only when it finds a term.
 //   5. The command text and every file read are scanned for a term.
 //
-// It fails closed. A payload that is empty or not a JSON object, an exception, or an unreadable term
-// list exits 2, the only exit that blocks a `PreToolUse` call. `touch` the list to opt out.
+// It fails closed. A payload that is empty or not a JSON object, or an exception, exits 2, the only
+// exit that blocks a `PreToolUse` call. An unreadable term list exits 2 for a command with `git`,
+// `gh` or `glab` as a word. `touch` the list to opt out.
 //
 //   list:  $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt
 //   scope: this repository only. It is wired in .claude/settings.json, so a session in a client's
@@ -43,7 +48,7 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const MAX_BYTES = 2_000_000
-const SWITCHES_HOOKS_OFF = /--no-ver|hookspath/i
+const SWITCHES_HOOKS_OFF = /--no-veri|hookspath/i
 const PUSHES = /\bpush\b/
 const SENDS_PACK = /\bsend-pack\b/
 const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
@@ -65,7 +70,7 @@ function block(reason) {
  * @param {string} cwd
  */
 const git = (args, cwd) =>
-	execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+	execFileSync('git', ['-c', 'core.quotePath=false', ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
 
 /** @param {string} path */
 function toRealPath(path) {
@@ -130,6 +135,7 @@ async function findUnguardedPushReason(cwd) {
 function getPathCandidates(command) {
 	const pieces = command.split(PATH_SEPARATORS)
 	for (const match of command.matchAll(QUOTED)) pieces.push(match[1] ?? match[2] ?? '')
+	for (const token of command.split(/\s+/)) pieces.push(token, token.slice(token.indexOf('=') + 1))
 	return new Set(pieces.filter(Boolean).map((piece) => piece.replace(/^~(?=[\\/])/, homedir())))
 }
 

@@ -727,4 +727,40 @@ describe('round 3', () => {
 			result.stderr
 		)
 	})
+
+	test('refuses the term in an unquoted gh file path that holds @', () => {
+		const file = join(mkdtempSync(join(scratch, 'notes-')), 'auto-format@0.5.5.md')
+		writeFileSync(file, `Built for ${TERM}.\n`)
+		assertRefused(runClaudeHook(`gh release edit auto-format@0.5.5 --notes-file ${file}`, outside), 2)
+	})
+	test('refuses the term in an unquoted gh file path that holds =', () => {
+		const file = join(mkdtempSync(join(scratch, 'eq-')), 'a=b.md')
+		writeFileSync(file, `Built for ${TERM}.\n`)
+		assertRefused(runClaudeHook(`gh issue create --body-file=${file}`, outside), 2)
+	})
+	test('passes --no-verbose', () => {
+		assert.equal(runClaudeHook('git commit --no-verbose -m "x"', outside).status, 0)
+	})
+	test('refuses --no-veri', () => {
+		assertRefused(runClaudeHook('git push --no-veri origin x', outside), 2, /an abbreviation of it/)
+	})
+
+	test('passes a push from the main work tree with a relative core.hooksPath', () => {
+		const guarded = createGuardedRepo()
+		git(guarded.dir, 'config', 'core.hooksPath', '.githooks')
+		// The process runs elsewhere, so the path must resolve against the repository, not the process.
+		const payload = JSON.stringify({
+			tool_name: 'Bash',
+			cwd: guarded.dir,
+			tool_input: { command: 'git push origin x' },
+		})
+		assert.equal(run('node', [guarded.hook], outside, {}, payload).status, 0)
+	})
+	test('refuses a push from a linked worktree with a relative core.hooksPath', () => {
+		const guarded = createGuardedRepo()
+		git(guarded.dir, 'config', 'core.hooksPath', '.githooks')
+		const linked = join(scratch, `relative-worktree-${Date.now()}`)
+		git(guarded.dir, 'worktree', 'add', '-q', '-b', 'rel', linked)
+		assertRefused(runClaudeHook('git push origin x', linked, {}, guarded.hook), 2, /core\.hooksPath is \.githooks/)
+	})
 })
