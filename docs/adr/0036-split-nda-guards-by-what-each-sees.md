@@ -12,20 +12,20 @@ The Claude hook decided what to scan by parsing the command string. For a commit
 - The parser saw a commit that was not there. A draft written with `cat <<EOF` that quoted a `git -C <path> commit` example was refused, because the hook tried to read a staged diff in a directory that does not exist.
 - The hook read the staged diff before git staged anything, so `commit -a` and a commit with a pathspec showed it an empty diff.
 
-Meanwhile a push scanned only the command string, never the commits it sent. A commit made with `--no-verify`, by `am`, `cherry-pick` or `merge`, or in another clone left unchecked.
+Meanwhile a push scanned only the command string, never the commits it sent. A commit made with `--no-verify`, by `am`, `cherry-pick` or `merge`, or in another clone was pushed unchecked.
 
 ## Decision
 
 Each guard covers what it can see, and nothing more.
 
-- **Git guards what git writes and sends.** `pre-commit` and `commit-msg` run inside git and see the real staged content and message, whatever the command string says. `pre-push` scans every commit a push sends: its message and the added lines of its patch, a merge commit against its first parent, both ref names and an annotated tag's object. `pre-push` is the git guard that matters, and the commit hooks are an early warning.
+- **Git guards what git writes and sends.** `pre-commit` and `commit-msg` run inside git and see the real staged content and message, whatever the command string says. `pre-push` scans every commit a push sends: the whole commit object, headers and message, and the added lines of its patch, a merge commit against its first parent, both ref names and an annotated tag's object. `pre-push` is the git guard that matters, and the commit hooks are an early warning.
 - **The Claude hook guards what git never sees.** That is the text of `gh` and `glab` commands and the files they name. For git, it checks only that `pre-push` will run. It refuses `--no-verify`, its abbreviations and `hookspath` in any command text, and `send-pack`. It refuses a push unless this clone's `pre-push` will run: a push from outside any repository, from another repository even one with correct hooks, from a clone whose `core.hooksPath` is not its main work tree's `.githooks`, or whose `.githooks` lacks an executable `pre-push` or `nda-push.mjs`.
 - **The Claude hook parses no commit directory.** It reads no staged diff and strips no message and no heredoc.
 - **Parsing is limited to `gh` and `glab`, and it reads more than it needs.** A missed read is a leak. An extra read costs nothing, because the hook refuses only when it finds a term. So the hook splits a `gh` or `glab` command on a fixed set of characters and reads every piece that is an existing file.
 
-Where a choice exists, the scans read more. A remote sha missing from the local object store is left out of the exclusion rather than failing the listing. The exclusion by `refs/remotes/<remote>/*` is the one place a scan can read less: a remote-tracking ref that holds a commit the remote does not have hides that commit, as the gaps below say. Deleted lines do not count in either git hook, because the deleted text is already published and refusing it would block the commit that removes a term.
+Where a choice exists, the scans read more. A remote sha that is not a local commit is left out of the exclusion rather than failing the listing. The exclusion by `refs/remotes/<remote>/*` is the one place a scan can read less: a remote-tracking ref that holds a commit the remote does not have hides that commit, as the gaps below say. Deleted lines do not count in either git hook, because the deleted text is already published and refusing it would block the commit that removes a term.
 
-The change ships as one pull request. Removing the Claude hook's commit scan before `pre-push` scans pushed commits would open a window in which a commit with a term leaves unchecked.
+The change ships as one pull request. Removing the Claude hook's commit scan before `pre-push` scans pushed commits would open a window in which a commit with a term goes out unchecked.
 
 ### Alternatives rejected
 
@@ -35,7 +35,7 @@ The change ships as one pull request. Removing the Claude hook's commit scan bef
 
 ## Consequences
 
-- The Claude hook refuses some commands on purpose: any command text that holds `--no-verify` or `hookspath`, including `git config --get core.hooksPath` and a `grep` for it, and any `gh` or `glab` command that also runs `cd` or `pushd`. The maintainer runs an authorised one with `!`.
+- The Claude hook refuses some commands on purpose: any command text that holds `--no-veri`, a prefix of `--no-verify`, or `hookspath`, including `git config --get core.hooksPath` and a `grep` for it, and any `gh` or `glab` command that also runs `cd` or `pushd`. The maintainer runs an authorised one with `!`.
 - `pre-push` reads every commit a push sends, so the first push to an empty remote scans the whole history.
 - These gaps are accepted. `AGENTS.md` § "The NDA publish guard" carries the same list:
   - `git commit -n` skips the commit hooks, and the Claude hook does not detect it, because in `push` the same `-n` means `--dry-run`. `pre-push` catches the commit.
@@ -44,11 +44,14 @@ The change ships as one pull request. Removing the Claude hook's commit scan bef
   - `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` are not checked, because the clone's local `core.hooksPath` overrides both. Do not add them.
   - A quote or a backslash inside `--no-verify` or `hooksPath`, such as `git push --no-"verify"`, `git -c core.hooks""Path=…` or `git -c core.hooks\Path=…`, splits the word the Claude hook looks for. The hook does not refuse that command, and the command can switch the git hooks off.
   - A `gh` file is not read when it is named through a shell variable, a glob, a brace expansion or a backslash-escaped space, or read after `env --chdir=<dir>`.
-  - A file whose basename is `gh` or `glab` is never read, whether or not it is the executable.
+  - A file whose lowercased basename is `gh`, `glab`, `gh.exe` or `glab.exe` is never read, whether or not it is the executable.
+  - A non-ASCII term in Latin-1 or UTF-16 content is not found. The second read without NUL bytes covers UTF-16 in the ASCII range only.
+  - The Claude hook's matcher is `Bash`, so a command run through the `PowerShell` tool on Windows is not checked.
+  - `pre-commit` does not see the author or the committer of a commit. `pre-push` reads both, so it catches a term there.
   - A Git Bash path such as `/c/Users/x/body.md` after `--body-file` does not resolve on Windows, so the file is not read. Use a Windows path or `!`.
   - Compressed content, such as a `.gz`, `.zip` or `.docx` file, is scanned as its compressed bytes, so a term inside it is not found by any guard.
   - A remote-tracking ref that holds a commit the remote does not have makes `pre-push` scan less: a ref set by hand, one left over after a leaked commit was deleted from the remote, or one fetched from another URL than the push goes to.
   - In a worktree, git runs the hooks the main work tree has checked out. While the main work tree is on `main`, the `pre-push` with the NDA scan runs only once it reaches `main`.
   - When `node` is missing, the Claude hook's entry in `.claude/settings.json` exits 2 and blocks every `Bash` command, so the session can run no shell command until `node` is on `PATH`.
-  - A person who pushes with `--no-verify` outside an agent session skips every git hook. A publish through an MCP tool is unguarded, and an Archon workflow node runs without the Claude hook.
+  - A person who pushes with `--no-verify` outside an agent session skips every git hook. The Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded. An Archon workflow node inherits no ambient settings, so a Box almost certainly runs without the Claude hook. Measure that before dispatching a Box that could publish.
 - `AGENTS.md` § "The NDA publish guard" describes the checks and names these gaps. It links here for the reasoning.

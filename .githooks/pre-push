@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# pre-push — two guards, in this order:
+# pre-push: two guards, in this order.
 #
 #   1. The NDA scan, on every push. `nda-push.mjs` refuses a push when a commit it sends, a ref name
 #      or an annotated tag carries an NDA term. See its header and AGENTS.md, "The NDA publish guard".

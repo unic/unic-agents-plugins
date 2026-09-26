@@ -3,9 +3,9 @@
 // `.githooks` that `core.hooksPath` should point at.
 
 /**
- * The main work tree of a repository, from `git worktree list --porcelain`, or '' when it has none.
- * The first entry is normally the main work tree. A bare repository has none, and with
- * `--separate-git-dir` git lists the git directory there instead, which holds no `.githooks`.
+ * The first entry of `git worktree list --porcelain`, which is normally the main work tree, or ''
+ * for a bare repository. With `--separate-git-dir`, git lists the git directory there instead, and
+ * this returns that directory. It holds no `.githooks`, so each caller finds no hooks there.
  * @param {string} porcelain
  */
 export function findMainWorkTree(porcelain) {
