@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
@@ -125,12 +125,33 @@ describe('set-hooks-path', () => {
 		prepare(dir, { GIT_DIR: join(repo(), '.git') })
 		assert.equal(canonical(git(['config', '--get', 'core.hooksPath'], dir)), canonical(join(dir, '.githooks')))
 	})
-	test('sets its own repository when GIT_CONFIG names another file', () => {
+	test('sets its own repository, not the file GIT_CONFIG names', () => {
 		const dir = repo()
-		prepare(dir, { GIT_CONFIG: join(scratch, `config-${Date.now()}`) })
-		assert.equal(
-			canonical(git(['config', '--local', '--get', 'core.hooksPath'], dir)),
-			canonical(join(dir, '.githooks'))
+		const other = join(scratch, `config-${Date.now()}`)
+		prepare(dir, { GIT_CONFIG: other })
+		const local = canonical(git(['config', '--local', '--get', 'core.hooksPath'], dir))
+		assert.deepEqual(
+			{ local, isOtherWritten: existsSync(other) },
+			{ local: canonical(join(dir, '.githooks')), isOtherWritten: false }
+		)
+	})
+	test('exits non-zero and writes nothing when git worktree list fails', { skip: process.platform === 'win32' }, () => {
+		const dir = repo()
+		const bin = mkdtempSync(join(scratch, 'bin-'))
+		const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
+		writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ "$1" = worktree ] && exit 3\nexec "${realGit}" "$@"\n`, {
+			mode: 0o755,
+		})
+		const { status, stderr } = spawnSync(process.execPath, [SCRIPT], {
+			cwd: dir,
+			encoding: 'utf8',
+			env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+		})
+		const hooksPath = git(['config', '--get', 'core.hooksPath'], dir)
+		assert.deepEqual(
+			{ status, named: /worktree list failed/.test(stderr), hooksPath },
+			{ status: 1, named: true, hooksPath: '' },
+			stderr
 		)
 	})
 	test('exits non-zero when a clone has no git on PATH', { skip: process.platform === 'win32' }, () => {

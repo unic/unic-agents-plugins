@@ -93,7 +93,9 @@ try {
 		process.exit()
 	} else warn(`found no main work tree with a .githooks, so core.hooksPath points at ${here}`, here)
 } catch (error) {
-	warn(`git worktree list failed, so core.hooksPath points at ${here} (${causeOf(error)})`, here)
+	// A git failure is not a layout, so it gets no fallback.
+	fail(`git worktree list failed, so the hooks are off (${causeOf(error)})`, here)
+	process.exit()
 }
 
 // The main work tree may be on a branch that carries none or only some of the commit guards, such as
