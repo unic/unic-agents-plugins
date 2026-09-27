@@ -668,10 +668,25 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
-	test('names the PNG when its tEXt chunk holds the term', () => {
+	test('names the chunk and the PNG when its tEXt chunk holds the term', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
-		assertRefused(push(dir, 'HEAD:refs/heads/main'), /A chunk of the PNG image\.png, or its whole blob, in a commit/)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'), /The tEXt chunk of the PNG image\.png in a commit/)
+	})
+	test('leaves the chunk type out of the refusal when the type is the term', () => {
+		const shortList = join(scratch, 'short-denylist.txt')
+		writeFileSync(shortList, 'zqrx\n')
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([IHDR, ['zqrx', 'data'], IEND]))
+		const result = run('git', ['push', '-q', 'origin', 'HEAD:refs/heads/main'], dir, { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				failed: result.status !== 0,
+				namesPng: /A chunk of the PNG image\.png in a commit/.test(result.stderr),
+				namesType: result.stderr.toLowerCase().includes('zqrx'),
+			},
+			{ failed: true, namesPng: true, namesType: false }
+		)
 	})
 	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
 		const { dir } = createClone()
@@ -684,7 +699,7 @@ describe('pre-push, PNG files', () => {
 		assert.deepEqual(
 			{
 				failed: result.status !== 0,
-				namesPng: /A chunk of a PNG,/.test(result.stderr),
+				namesPng: /The tEXt chunk of a PNG in a commit/.test(result.stderr),
 				namesTerm: result.stderr.includes(TERM),
 			},
 			{ failed: true, namesPng: true, namesTerm: false }
@@ -706,10 +721,13 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, createPng([['IDAT', `\0${TERM}\0`]]))
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
-	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term', () => {
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term, and says it did not parse', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))
-		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+		assertRefused(
+			push(dir, 'HEAD:refs/heads/main'),
+			/The whole blob of the PNG image\.png in a commit .* carries the NDA term.*\n.*did not parse, so the guard scanned its whole blob, IDAT included/
+		)
 	})
 	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
 		const { dir } = createClone()
