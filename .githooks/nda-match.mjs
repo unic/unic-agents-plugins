@@ -39,8 +39,8 @@
 // on a match or when the term list cannot be read. With the label `pre-commit` and no file, it reads
 // the staged diff itself and exits 1 when git cannot produce it. That text is a diff,
 // and its deleted lines do not count: they are already in the published history, and refusing them
-// would block the commit that removes a term. An added or modified PNG is read from its blob, every
-// chunk but `IDAT`, as `readDiffTexts` says. The list lives outside every repository:
+// would block the commit that removes a term. The guard reads an added or modified PNG from its blob,
+// every chunk but `IDAT`, as `readDiffTexts` says. The list lives outside every repository:
 // $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt.
 
 import { execFileSync } from 'node:child_process'
@@ -129,8 +129,7 @@ export function readDiffTexts(diff, readBlob) {
 
 /**
  * The type and data of every chunk but `IDAT`, one text per chunk, or null when the blob is not a
- * PNG: a wrong signature, a chunk that runs past the end, or fewer than 12 bytes after the last whole
- * chunk.
+ * PNG: a wrong signature, a chunk that runs past the end, or 1 to 11 bytes after the last whole chunk.
  * @param {Buffer} blob
  */
 export function readPngChunkTexts(blob) {
@@ -151,8 +150,8 @@ export function readPngChunkTexts(blob) {
 
 /**
  * A blob's content, or null when git cannot read it. The caller then scans the file's diff lines.
- * The stderr line names the blob id and never the path: it is written before any scan, so a term in
- * the path would reach the transcript unredacted.
+ * The hook writes this line before any scan, so it names the blob id and never the path. A term in
+ * the path would otherwise reach the transcript unredacted.
  * @param {string} id
  * @param {string} label the hook that reads it
  */
@@ -166,7 +165,7 @@ export function readBlob(id, label) {
 	} catch (error) {
 		const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 		process.stderr.write(
-			`${label}: cannot read the blob ${id}, so its diff lines are scanned instead (${
+			`${label}: cannot read the blob ${id}, so the guard scans its diff lines instead (${
 				String(stderr || message)
 					.trim()
 					.split('\n')[0]

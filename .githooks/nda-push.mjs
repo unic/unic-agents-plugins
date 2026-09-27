@@ -10,8 +10,8 @@
 //   - every annotated tag object on the way from the ref to what it points at, which holds each
 //     tag message, and a blob or a tree at the end of it;
 //   - every commit the push sends: the whole commit object, headers and message, and the added lines
-//     of its patch. A merge commit's patch is read against its first parent. An added or modified PNG
-//     is read from its blob, every chunk but `IDAT`, as `readDiffTexts` in `./nda-match.mjs` says.
+//     of its patch. A merge commit's patch is read against its first parent. The guard reads an added
+//     or modified PNG from its blob, every chunk but `IDAT`, as `readDiffTexts` in `./nda-match.mjs` says.
 //
 // The commits a push sends are those reachable from the local sha and from neither the remote sha nor
 // any `refs/remotes/<remote>/*` ref. A remote-tracking ref behind the remote makes it scan more. One
@@ -118,8 +118,8 @@ function readPushedTexts(line, remote, terms) {
 	// the message under `i18n.logOutputEncoding`.
 	const shas = git(['rev-list', ...range])
 	if (shas.trim()) texts.push([`a commit object pushed to ${remoteRef}`, git(['cat-file', '--batch'], shas)])
-	// One text for the added lines of every patch, one for each chunk but `IDAT` of a PNG a patch adds
-	// or modifies, and one whole blob for each such PNG that does not parse.
+	// One text holds the added lines of every patch. Each PNG a patch adds or modifies gives one more
+	// text for each chunk but `IDAT`. A PNG that does not parse gives its whole blob as one text.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
 	for (const [pngPath, text] of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {

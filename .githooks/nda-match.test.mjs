@@ -461,7 +461,7 @@ describe('pre-commit, PNG files', () => {
 		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
 	})
 	/**
-	 * A repository in the middle of a merge. The side branch adds `png` and changes `file.txt`, the
+	 * A repository in the middle of a merge. The side branch adds `image.png` with the content `png` and changes `file.txt`, the
 	 * current branch changes `file.txt` too, and the conflict is resolved and staged.
 	 * @param {Buffer} png
 	 */
@@ -493,7 +493,7 @@ describe('pre-commit, PNG files', () => {
 		const dir = createStagedRepo('clean\n')
 		assert.equal(commit(dir).status, 0)
 		const id = run('git', ['rev-parse', 'HEAD'], dir).stdout.trim()
-		// A gitlink named `.png`: its id names a commit, so `git cat-file blob` fails on it.
+		// A gitlink named `.png` has the id of a commit. So `git cat-file blob` fails on it.
 		git(dir, 'update-index', '--add', '--cacheinfo', `160000,${id},${TERM}.png`)
 		const { stderr } = commit(dir, 'add link')
 		assert.deepEqual(
