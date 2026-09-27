@@ -673,13 +673,21 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
 		assertRefused(push(dir, 'HEAD:refs/heads/main'), /A chunk of the PNG image\.png, or its whole blob, in a commit/)
 	})
-	test('leaves the path out of the refusal when a PNG path and its tEXt chunk both hold the term', () => {
+	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
 		const { dir } = createClone()
-		commitUnchecked(dir, PNG_WITH_TERM_IN_TEXT, 'change image', `${TERM}.png`)
+		// With `b/` in front, the path starts an 80-character run that holds a digit and a `+`. The
+		// base64 step removes that run from the patch text, so only the tEXt chunk matches.
+		const folder = `x1+${'a'.repeat(78)}`
+		mkdirSync(join(dir, folder))
+		commitUnchecked(dir, PNG_WITH_TERM_IN_TEXT, 'change image', `${folder}/${TERM}.png`)
 		const result = push(dir, 'HEAD:refs/heads/main')
 		assert.deepEqual(
-			{ failed: result.status !== 0, refused: REFUSED.test(result.stderr), namesTerm: result.stderr.includes(TERM) },
-			{ failed: true, refused: true, namesTerm: false }
+			{
+				failed: result.status !== 0,
+				namesPng: /A chunk of a PNG,/.test(result.stderr),
+				namesTerm: result.stderr.includes(TERM),
+			},
+			{ failed: true, namesPng: true, namesTerm: false }
 		)
 	})
 	test('refuses a PNG whose eXIf chunk holds the term', () => {

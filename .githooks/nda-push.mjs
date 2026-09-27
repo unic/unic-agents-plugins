@@ -123,8 +123,11 @@ function readPushedTexts(line, remote, terms) {
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
 	for (const [pngPath, text] of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {
-		// The refusal prints this label, so it names the path only when the path holds no term.
-		const png = pngPath === null || findTerm(pngPath, terms) !== null ? 'a PNG' : `the PNG ${pngPath}`
+		// The refusal prints this label, so it names the path only when no term appears in it at all.
+		// `findTerm` is not enough here: its base64 step can remove a long run of the path.
+		const lowerPath = pngPath?.toLowerCase() ?? ''
+		const holdsTerm = terms.some((term) => lowerPath.includes(term.toLowerCase()))
+		const png = pngPath === null || holdsTerm ? 'a PNG' : `the PNG ${pngPath}`
 		const where = pngPath === null ? 'the patch of a commit' : `a chunk of ${png}, or its whole blob, in a commit`
 		texts.push([`${where} pushed to ${remoteRef}`, text])
 	}
