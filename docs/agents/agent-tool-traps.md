@@ -59,10 +59,11 @@ and may not survive an upgrade.
   `tsc --noEmit --project .githooks/tsconfig.json`. The `NDA guards / <os> / Node <n>` CI job
   runs that `tsc` command on every pull request, on all three OSes. `.claude/hooks/` belongs to no
   package either. Its `.claude/hooks/tsconfig.json` extends the same base and includes every `.mjs`
-  file under `.claude/hooks/`. Through the imports in `block-nda-terms.mjs`, it also loads
-  `.githooks/nda-match.mjs` and `.githooks/main-work-tree.mjs`.
-  The root `pnpm typecheck` and the same CI job run the `.githooks/` check first. When that passes,
-  each runs `tsc --noEmit --project .claude/hooks/tsconfig.json`. So a run with type errors in both
+  file under `.claude/hooks/`. `tsc` also loads `.githooks/nda-match.mjs` and
+  `.githooks/main-work-tree.mjs` through the imports in `block-nda-terms.mjs`.
+  In the root `pnpm typecheck` and in the same CI job, the `.claude/hooks/` check,
+  `tsc --noEmit --project .claude/hooks/tsconfig.json`, runs after the `.githooks/` check, and only
+  when that check passes. So a run with type errors in both
   directories reports only the `.githooks/` errors. Before a push that
   changes a `.githooks/*.mjs` or a `.claude/hooks/*.mjs` file, run `pnpm typecheck`
   from the repository root. Round 3 of the PR #593
