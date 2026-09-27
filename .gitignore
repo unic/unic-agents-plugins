@@ -355,3 +355,6 @@ vite.config.ts.timestamp-*
 
 # Orchestrator coordination artefacts: STATE names the client Consumer repo, and this repo is public.
 .orchestration/
+
+# Claude Code runtime lock for scheduled tasks: holds one session id and pid, never content.
+.claude/scheduled_tasks.lock
