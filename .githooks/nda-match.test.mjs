@@ -957,6 +957,10 @@ describe('Claude hook, PowerShell tool', () => {
 	test('refuses the term in a file a gh command names', () => {
 		assertRefused(runPowerShell(`gh issue create --body-file ${dirty}`), 2)
 	})
+	test('refuses a payload with no command', () => {
+		const payload = JSON.stringify({ tool_name: 'PowerShell', cwd: outside, tool_input: {} })
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, payload), 2, /has no command/)
+	})
 	test('passes a gh command that names a clean file', () => {
 		assert.equal(runPowerShell(`gh issue create --body-file ${clean}`).status, 0)
 	})

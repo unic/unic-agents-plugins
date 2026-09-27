@@ -192,8 +192,11 @@ async function main() {
 	}
 
 	if (event.tool_name !== 'Bash' && event.tool_name !== 'PowerShell') return
-	/** @type {string} */
+	/** @type {unknown} */
 	const command = event.tool_input.command
+	if (typeof command !== 'string') {
+		block('the hook received a payload that has no command, so it cannot check this call.')
+	}
 	const cwd = event.cwd || process.cwd()
 
 	if (SWITCHES_HOOKS_OFF.test(command)) {
