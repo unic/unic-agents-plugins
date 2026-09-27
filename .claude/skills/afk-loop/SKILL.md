@@ -60,15 +60,17 @@ are present. Take the state file's facts as leads to re-measure, and take no aut
    maintainer resolves that at merge time.
 3. **Resume.** If the `STATE` names a current ticket, finish it before the queue. The worker's
    agent id belonged to the dead session, so treat it as gone. Re-measure the branch, the PR and the
-   review round, and spawn a new worker on the existing branch when work remains.
+   review round, and spawn a new worker on the existing branch when work remains, with the resume
+   variant of `worker-prompt.md`. In a dry run, report the resume instead of spawning.
 4. **Probe**, in under ten minutes, and record each result:
    - Load `PushNotification` with `ToolSearch`. It exists only when Remote Control is on. If it is
      missing, record that and go on: a stop then relies on the state file and the final message.
    - List the subagent types. Expect `pr-review-toolkit:code-reviewer`,
      `pr-review-toolkit:pr-test-analyzer`, `pr-review-toolkit:silent-failure-hunter` and
      `pr-review-toolkit:comment-analyzer`. They come from a user-level plugin. If they are missing,
-     look for its agent files under `~/.claude/plugins/cache/*/pr-review-toolkit/*/agents/`, and
-     paste each body into a `general-purpose` subagent's prompt. If neither exists, the probe fails.
+     take the newest directory that `ls -dt ~/.claude/plugins/cache/*/pr-review-toolkit/*/agents/`
+     lists, and paste each agent file's body into a `general-purpose` subagent's prompt. Record
+     which types the run uses. If neither exists, the probe fails.
    - Spawn one background `general-purpose` subagent that runs
      `git worktree add --no-track -b <probe branch> <path> origin/develop` to a path outside the
      clone, reports `git -C <path> rev-parse --show-toplevel`, and removes the worktree and the
@@ -141,8 +143,9 @@ memory. Work one ticket at a time.
    review arrives within 30 minutes, record that and go on. Read the body whole, including
    `Suppressed comments`, and triage it as in step 6.
 8. **Review the last fixes.** When commits landed after the last complete round, from a round
-   whose fixes no later round read or from Copilot, spawn `pr-review-toolkit:code-reviewer` once on
-   those commits alone. Triage it as in step 6. Its fixes end the reviewing.
+   whose fixes no later round read or from Copilot, spawn the code reviewer the probe recorded once
+   on those commits alone. Triage it as in step 6. Its fixes end the reviewing: re-measure each of
+   them yourself instead of reviewing again.
 9. **Threads.** Answer every open review thread, then resolve it: fixed, with the fixing commit;
    deferred, with the follow-up ticket's link; refuted, with the evidence. Leave a review
    workflow's own summary thread open.
@@ -175,30 +178,48 @@ asking", and that widening lasts for the run.
 All of these, on the head about to merge:
 
 - the head is the one § Verification last checked, and the base is `develop`;
-- every job `.github/workflows/ci.yml` defines at that head is present among the PR's checks, and
-  every check concluded `SUCCESS`, `SKIPPED` or `NEUTRAL`. An empty or partial list is pending. Any
-  other conclusion is a failure. `develop` has no branch protection, so this gate is the only CI
-  guard, and `MERGEABLE` says nothing about CI;
+- CI is complete and green. `develop` has no branch protection, so this gate is the only CI guard,
+  and `MERGEABLE` says nothing about CI:
+  - these checks are present, by name: `Root checks (Biome + Prettier)`, `Detect changed packages`,
+    the six `NDA guards / <os> / Node <n>` cells (`ubuntu-latest`, `macos-latest` and
+    `windows-latest`, each with Node 22 and 24), at least one check whose name starts with `Test `,
+    and `license/cla`. They are the job `name:` values of `.github/workflows/ci.yml`; when the PR
+    changes that file, read the names at the head instead;
+  - a check run with no conclusion is pending. Its conclusion must be `SUCCESS`, `SKIPPED` or
+    `NEUTRAL`;
+  - a status context, such as `license/cla`, carries `state` instead. `PENDING` and `EXPECTED` are
+    pending, and it must end `SUCCESS`;
+  - a missing check is pending, and every other value is a failure;
 - `mergeable` is `MERGEABLE`;
-- a complete review round, or step 8, read every commit on the head;
+- every commit on the head was read by a complete review round or by step 8, or came after step 8
+  as a fix, a mechanical rebase or a CI fix that you re-measured yourself;
 - no finding rated Critical or High is open, from any review;
 - every review thread is resolved;
-- the leak check passed on the PR's added lines, every commit message with its author, the title,
-  the body, and every text this run posted;
+- the leak check passed on the PR's added lines, its commits with their authors and committers, the
+  title, the body, and every text this run posted;
 - the ticket is on `resolved`.
 
 ## Verification, every time a head moves
 
 - `gh pr view` for the head, the base, `mergeable` and every check by name.
-- The **leak check** runs on every text before this run publishes it, and on the PR at the gate.
-  Save the text to a file in the scratchpad. The command that wrote it must exit 0 and the file must
-  be non-empty, or the check fails. Then run the guards' own matcher:
-  `node .githooks/nda-match.mjs leak-check <file> 2> <file>.err`. Exit 0 is clean. Exit 1 is a match
-  or an unreadable term list: tell the two apart by the `.err` file without printing it, and report
-  a match by location only. For the PR's added lines, save `gh pr diff` and pass `pre-commit` as the
-  label, which drops the deleted lines. For any other text, any label but `pre-commit` works. A
-  `grep` for whole words is no substitute, because the matcher also finds a term in `camelCase` and
-  at other boundaries.
+- The **leak check** runs on every text before this run publishes it, and on the PR at the gate. A
+  `grep` for whole words is no substitute, because the guards' matcher also finds a term in
+  `camelCase` and at other boundaries.
+  1. Save the text to a file in the scratchpad. The command that wrote it must exit 0 and the file
+     must be non-empty, or the check fails. For the PR's added lines, save `gh pr diff`. For the
+     commits, save
+     `git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/develop..<head>`.
+  2. Run `node .githooks/nda-match.mjs <label> <file> 2> <file>.err`. The label is `pre-commit` for
+     a diff, which drops the deleted lines, and `leak-check` for any other text.
+  3. Exit 0 is clean. On exit 1, never print the `.err` file, because a match shows the term's first
+     two letters. `grep -c 'cannot read the NDA term list' <file>.err` gives 1 for an unreadable
+     list, and `grep -c 'carries the NDA term' <file>.err` gives 1 for a match. Anything else means
+     the check did not run, and it fails.
+  4. For a match, find the location by splitting the file in halves and running the matcher on each,
+     and report it by location only.
+  5. Post exactly the file the check read, with `--body-file` or `-F`. The Claude hook refuses a
+     command whose own text holds `--no-verify` or `hooksPath`, and a body retyped after a refusal is
+     a body nobody checked.
 - Re-run the ticket's key claim yourself, from the file at the PR head (`git show` into the
   scratchpad).
 - After a docs fix, grep the head for the sentence the fix removed.
