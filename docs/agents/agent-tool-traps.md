@@ -51,11 +51,15 @@ and may not survive an upgrade.
   `catch (err)` binding as `unknown`; read its fields through a JSDoc cast,
   `/** @type {{ status?: number }} */ (err).status`.
 - **`pnpm typecheck` checks packages, not the whole repository** (2026-09-26, PR #593). It runs
-  each package's own `typecheck` script, CI runs it per changed package, and `pnpm ci:check` runs
-  Biome and Prettier only. Until [#602](https://github.com/unic/unic-agents-plugins/issues/602)
-  lands, no gate type-checks `.githooks/*.mjs`, because `.githooks/` belongs to no package, so run a
-  strict `tsc --checkJs` on the changed files before a push. Round 3 of the PR #593 review found a
-  TS7034 error in one of them. The entry above has the fix for a `catch (err)` binding.
+  each package's own `typecheck` script. CI runs `pnpm --filter <package> --if-present typecheck`
+  for each changed package, and `pnpm ci:check` runs Biome and Prettier only. Until
+  [#602](https://github.com/unic/unic-agents-plugins/issues/602) lands, no gate type-checks
+  `.githooks/*.mjs`, because `.githooks/` belongs to no package. Before a push that changes one of
+  them, run
+  `pnpm exec tsc --noEmit --allowJs --checkJs --noImplicitAny --module nodenext --target es2022 --types node <changed files>`
+  from the repository root. Round 3 of the PR #593 review found a TS7034 error in one of
+  them, and `--noImplicitAny` is the option that reports it. The entry "Keep a gate's output and exit code visible"
+  has the fix for a `catch (err)` binding.
 - **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
   path.** `rg <path> --glob '!test/**'` still searches `<path>/test/`. Write `--glob '!**/test/**'`.
   It fails towards more matches, so a criterion written as "this `rg` finds nothing except under X"
@@ -450,8 +454,8 @@ Re-check every bullet in the commit that upgrades Archify, and update or delete 
   re-measured 2026-09-24). The tell: identical sizes and timestamps from things that should differ
   mean you measured one thing N times.
 - **Git 2.54.0 writes no `mergetag` header when it merges an unsigned annotated tag** (measured
-  2026-09-27 on git 2.54.0 only, #579). A test that needs the header builds the commit by hand with
-  `git hash-object --literally`. CI's git version was not measured.
+  2026-09-27 on that version only, #579). A test that needs the header builds the commit by hand
+  with `git hash-object --literally`. Nobody measured the git version CI runs.
 
 ## Writing and reading claims
 

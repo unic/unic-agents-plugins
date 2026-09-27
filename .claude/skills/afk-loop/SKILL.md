@@ -144,9 +144,9 @@ memory. Work one ticket at a time.
    current head. Then sort each finding:
    - **fix now**: anything Critical or High, anything that leaks or fails open, any false claim in a
      doc, and any CI failure. Send the full text to the worker. Reviewers report to you only, so the
-     worker never reads them. When a fix adds a flag to a command, the fix text names the oldest
-     version of that tool the change must support (2026-09-26, PR #593: round 1 asked for `-z`,
-     which broke git before 2.36).
+     worker never reads them. When a fix adds a flag to a command, the fix list names the oldest
+     version of that tool the change must support (2026-09-26, PR #593: round 1 asked for `-z` on
+     `git worktree list --porcelain`, which broke git before 2.36).
    - **another open ticket**, when that ticket owns the file or the question: comment there.
    - **follow-up ticket**: Medium and below that is not fix-now (§ Follow-up tickets).
 7. **Copilot, once, last.** After the last review round is fixed, request the Copilot review.
