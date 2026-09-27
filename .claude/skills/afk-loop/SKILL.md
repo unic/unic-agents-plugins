@@ -74,8 +74,9 @@ tracker call, so a second session sees it.
      missing, record that and go on: a stop then relies on the state file and the final message.
    - List the subagent types. Expect `pr-review-toolkit:code-reviewer`,
      `pr-review-toolkit:pr-test-analyzer`, `pr-review-toolkit:silent-failure-hunter` and
-     `pr-review-toolkit:comment-analyzer`. They come from `pr-review-toolkit@claude-plugins-official`, which `.claude/settings.json` enables. A
-     teammate without it runs `/plugin install pr-review-toolkit@claude-plugins-official`. If they are missing,
+     `pr-review-toolkit:comment-analyzer`. They come from
+     `pr-review-toolkit@claude-plugins-official`, which `.claude/settings.json` enables. A teammate
+     without it runs `/plugin install pr-review-toolkit@claude-plugins-official`. If they are missing,
      take the most recently modified `~/.claude/plugins/cache/*/pr-review-toolkit/*/agents/`
      directory, found with a tool that works on the current OS, and paste each agent file's body into a `general-purpose` subagent's prompt. Record
      which types the run uses. If neither exists, the probe fails.
