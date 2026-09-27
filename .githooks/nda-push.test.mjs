@@ -688,6 +688,21 @@ describe('pre-push, PNG files', () => {
 			{ failed: true, namesPng: true, namesType: false }
 		)
 	})
+	test('leaves the chunk type out of the refusal when the term is the type with its NUL removed', () => {
+		const shortList = join(scratch, 'nul-denylist.txt')
+		writeFileSync(shortList, 'zqr\n')
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([IHDR, ['zq\0r', 'data'], IEND]))
+		const result = run('git', ['push', '-q', 'origin', 'HEAD:refs/heads/main'], dir, { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				failed: result.status !== 0,
+				namesPng: /A chunk of the PNG image\.png in a commit/.test(result.stderr),
+				namesType: result.stderr.replaceAll('\0', '').toLowerCase().includes('zqr'),
+			},
+			{ failed: true, namesPng: true, namesType: false }
+		)
+	})
 	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
 		const { dir } = createClone()
 		// With `b/` in front, the path starts an 80-character run that holds a digit and a `+`. The

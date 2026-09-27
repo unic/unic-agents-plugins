@@ -138,16 +138,24 @@ export function readDiffTexts(diff, readBlob) {
 
 /**
  * Where a PNG text comes from, for a refusal to print: `the tEXt chunk of the PNG image.png`, or
- * `the whole blob of the PNG image.png` when the PNG did not parse. The label names the path and the
- * chunk type only when no term appears in them. `findTerm` is not enough here, because its base64
- * step can remove a long run of the path, and a short term can be the four bytes of a chunk type.
+ * `the whole blob of the PNG image.png` when the PNG did not parse. The label names the path only
+ * when no term appears in it. `findTerm` is not enough there, because its base64 step can remove a
+ * long run of the path. The label names the chunk type only when the type is four ASCII letters, no
+ * term appears in it, and it appears in no term. `findTerm` misses a term joined to other letters of
+ * the type, and matches a type such as `zq\0r` only once the NUL is gone. A type that is part of a
+ * term would print most of the term next to its redacted form. Otherwise the label says `a chunk`.
  * @param {DiffText & { pngPath: string }} source
  * @param {string[]} terms
  */
 export function describePngText({ pngPath, chunkType }, terms) {
 	const png = holdsTerm(pngPath, terms) ? 'a PNG' : `the PNG ${pngPath}`
 	if (chunkType === null) return `the whole blob of ${png}`
-	return holdsTerm(chunkType, terms) ? `a chunk of ${png}` : `the ${chunkType} chunk of ${png}`
+	const lowerType = chunkType.toLowerCase()
+	const isSafeType =
+		/^[A-Za-z]{4}$/.test(chunkType) &&
+		!holdsTerm(chunkType, terms) &&
+		!terms.some((term) => term.toLowerCase().includes(lowerType))
+	return isSafeType ? `the ${chunkType} chunk of ${png}` : `a chunk of ${png}`
 }
 
 // A refusal for the whole blob of a PNG prints this line, so the developer knows a match can be chance.

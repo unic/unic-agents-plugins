@@ -498,6 +498,42 @@ describe('pre-commit, PNG files', () => {
 			{ status: 1, namesPng: true, namesType: false }
 		)
 	})
+	test('leaves the chunk type out of the refusal when the term is the type with its NUL removed', () => {
+		const shortList = join(scratch, 'nul-denylist.txt')
+		writeFileSync(shortList, 'zqr\n')
+		const png = createPng([IHDR, ['zq\0r', 'data'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.replaceAll('\0', '').toLowerCase().includes('zqr'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves out a chunk type that is not four letters', () => {
+		const png = createPng([IHDR, ['\n\x1b[7', `Comment\0${TERM}`], IEND])
+		const { status, stderr } = commit(createStagedPng(png))
+		assert.deepEqual(
+			{ status, namesPng: stderr.includes('a chunk of the PNG image.png.'), printsEscape: stderr.includes('\x1b') },
+			{ status: 1, namesPng: true, printsEscape: false }
+		)
+	})
+	test('leaves out a chunk type that a term contains', () => {
+		const longList = join(scratch, 'long-denylist.txt')
+		writeFileSync(longList, 'vexmoral\n')
+		const png = createPng([IHDR, ['xmor', 'vexmoral'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: longList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('xmor'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
 	test('refuses a PNG whose name holds the term', () => {
 		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
 	})
