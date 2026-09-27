@@ -57,8 +57,9 @@ and may not survive an upgrade.
   package. Until [#602](https://github.com/unic/unic-agents-plugins/issues/602) lands, no gate
   type-checks `.githooks/*.mjs`. Before a push that changes one of them, run
   `pnpm exec tsc --noEmit --allowJs --checkJs --strict --skipLibCheck --module nodenext --target es2022 --types node <changed files>`
-  from the repository root. Today that command reports one TS2322 at `.githooks/nda-match.mjs:125`,
-  which [#602](https://github.com/unic/unic-agents-plugins/issues/602) owns. Round 3 of the PR #593
+  from the repository root. When the changed files include `.githooks/nda-match.mjs` or a file
+  that imports it, the command reports one TS2322 in `nda-match.mjs` (measured 2026-09-27, after
+  #603), which [#602](https://github.com/unic/unic-agents-plugins/issues/602) owns. Round 3 of the PR #593
   review found a TS7034 error in one of these files. The entry "Keep a gate's output and exit code
   visible" has the fix for a `catch (err)` binding.
 - **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
