@@ -53,13 +53,12 @@ and may not survive an upgrade.
 - **Check which gate type-checks a file outside every package** (2026-09-26, PR #593).
   `pnpm ci:check` runs Biome and Prettier only. CI runs
   `pnpm --filter <package> --if-present typecheck` for each changed package.
-  `pnpm typecheck` runs each package's own `typecheck` script, and `.githooks/` belongs to no
-  package. Until [#602](https://github.com/unic/unic-agents-plugins/issues/602) lands, no gate
-  type-checks `.githooks/*.mjs`. Before a push that changes one of them, run
-  `pnpm exec tsc --noEmit --allowJs --checkJs --strict --skipLibCheck --module nodenext --target es2022 --types node <changed files>`
-  from the repository root. When the changed files include `.githooks/nda-match.mjs` or a file
-  that imports it, the command reports one TS2322 in `nda-match.mjs` (measured 2026-09-27, after
-  #603), which [#602](https://github.com/unic/unic-agents-plugins/issues/602) owns. Round 3 of the PR #593
+  `.githooks/` belongs to no package, so it has its own `.githooks/tsconfig.json`, which extends
+  `@unic/tsconfig/tsconfig.base.json` and includes every `.githooks/*.mjs` file. The root
+  `pnpm typecheck` runs each package's `typecheck` script and then
+  `tsc --noEmit --project .githooks/tsconfig.json`. The `NDA guards / <os> / Node <n>` CI job
+  runs that `tsc` command on every pull request, on all three OSes. Before a push that changes a
+  `.githooks/*.mjs` file, run `pnpm typecheck` from the repository root. Round 3 of the PR #593
   review found a TS7034 error in one of these files. The entry "Keep a gate's output and exit code
   visible" has the fix for a `catch (err)` binding.
 - **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
