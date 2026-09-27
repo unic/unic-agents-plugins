@@ -55,7 +55,8 @@ is deliberate: its value is a clean, long-lived context, and implementation deta
 
 It does not merge. When a ticket or a pull request is ready it reports the evidence on the
 ticket, where the evidence outlives the session that produced it, and a repository developer
-merges.
+merges. The one exception is a session running `/afk-loop`, which merges only with the authority
+the maintainer grants at the start of that run, for that parent.
 
 ## Where the rest lives
 
