@@ -6,9 +6,21 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.29.0] — 2026-09-27
+
+### Breaking
+- (none)
+
+### Added
 - An architecture diagram, `docs/architecture/20260925-unic-dlc-architecture.html` with its Archify source JSON, linked from the README next to the vision diagram, with a PNG preview per colour scheme. It shows what the plugin ships, what `/setup` installs into a Consumer, where each Box runs, and which parts the Harness decides, which the team owns, and which are seams between the two (#563).
 - A box-set diagram and one pipeline diagram for each Archon Box (`/build`, `/pr-review`, `/qa`, `/explore`), in `docs/architecture/` with their Archify source JSON and a PNG preview per colour scheme, linked from the README's box-set section and from each row of its pipelines table. Every pipeline diagram follows its workflow YAML (#564).
 - One diagram for each command Box (`/setup`, `/specs`, `/tickets`, `/triage`, `/improve-architecture`, `/cleanup`, `/archon-upgrade`), in `docs/architecture/` with its Archify source JSON and a PNG preview per colour scheme, linked from that Box's row of the README's box-set table. Each one shows the Methods the command reads, what it writes, and every point where it waits for a human. The box-set ASCII line now says `/triage` takes QA findings a person brings, not the `/qa` reject path (#565).
+- The README now shows a PNG preview of each command Box diagram, one per colour scheme, after the box-set table and in the order of its rows, the way it already shows each Archon workflow diagram. A heading names the Box above each command and pipeline preview (#610).
 
 ### Fixed
 - (none)
