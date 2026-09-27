@@ -19,7 +19,7 @@ as `582`, `#582` or the issue URL. Use its number wherever this file says `<pare
 the maintainer's **instructions** for this run. They grant or withhold merge authority, set the
 order, and may widen § Follow-up tickets. They cannot relax § Merge gate, § Verification,
 § Stop conditions, the NDA publish guard, or anything `AGENTS.md` forbids. An instruction that would
-is reported at the start and ignored.
+relax any of them is reported at the start and ignored.
 
 This session is the **orchestrator**. It picks tickets, dispatches subagents, verifies what they
 claim, and merges when the gate holds. It writes no implementation file. Workers and reviewers are
