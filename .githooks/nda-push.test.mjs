@@ -688,7 +688,7 @@ describe('pre-push, PNG files', () => {
 			{ failed: true, namesPng: true, namesType: false }
 		)
 	})
-	test('leaves the chunk type out of the refusal when the term is the type with its NUL removed', () => {
+	test('leaves out a chunk type with a NUL byte, which is not four letters, when the term is the type without it', () => {
 		const shortList = join(scratch, 'nul-denylist.txt')
 		writeFileSync(shortList, 'zqr\n')
 		const { dir } = createClone()
@@ -719,6 +719,23 @@ describe('pre-push, PNG files', () => {
 				namesTerm: result.stderr.includes(TERM),
 			},
 			{ failed: true, namesPng: true, namesTerm: false }
+		)
+	})
+	test('leaves the path out of the refusal for a PNG that does not parse, and keeps the note', () => {
+		const { dir } = createClone()
+		// The same run of more than 80 characters as above keeps the path out of the patch text's match.
+		const folder = `x1+${'a'.repeat(78)}`
+		mkdirSync(join(dir, folder))
+		commitUnchecked(dir, createPng([IHDR, ['IDAT', `\0${TERM}\0`]]), 'change image', `${folder}/${TERM}.png`)
+		const result = push(dir, 'HEAD:refs/heads/main')
+		assert.deepEqual(
+			{
+				failed: result.status !== 0,
+				namesBlob: /The whole blob of a PNG in a commit/.test(result.stderr),
+				notes: result.stderr.includes('did not parse, so the guard scanned its whole blob'),
+				namesTerm: result.stderr.includes(TERM),
+			},
+			{ failed: true, namesBlob: true, notes: true, namesTerm: false }
 		)
 	})
 	test('refuses a PNG whose eXIf chunk holds the term', () => {

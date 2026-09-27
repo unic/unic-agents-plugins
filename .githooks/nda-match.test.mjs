@@ -470,7 +470,7 @@ describe('pre-commit, PNG files', () => {
 		const png = createPng([IHDR, ['IDAT', `\0${TERM}\0`]])
 		assertRefused(commit(createStagedPng(png.subarray(0, png.length - 2))), 1)
 	})
-	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
+	test('leaves the path out of the refusal when a PNG path the diff text scan misses holds the term', () => {
 		// With `b/` in front, the path starts a run of more than 80 characters, file name included, that
 		// holds a digit and a `+`. The base64 step removes that run from the diff text, so only the
 		// tEXt chunk matches.
@@ -521,7 +521,7 @@ describe('pre-commit, PNG files', () => {
 		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM}`], ['eXIf', `\0${TERM}\0`], IEND])
 		assertRefused(commit(createStagedPng(png)), 1, /The term is in the tEXt chunk of the PNG image\.png\./)
 	})
-	test('leaves the chunk type out of the refusal when the term is the type with its NUL removed', () => {
+	test('leaves out a chunk type with a NUL byte, which is not four letters, when the term is the type without it', () => {
 		const shortList = join(scratch, 'nul-denylist.txt')
 		writeFileSync(shortList, 'zqr\n')
 		const png = createPng([IHDR, ['zq\0r', 'data'], IEND])
@@ -541,6 +541,20 @@ describe('pre-commit, PNG files', () => {
 		assert.deepEqual(
 			{ status, namesPng: stderr.includes('a chunk of the PNG image.png.'), printsEscape: stderr.includes('\x1b') },
 			{ status: 1, namesPng: true, printsEscape: false }
+		)
+	})
+	test('leaves out a four-letter chunk type that holds the term', () => {
+		const shortList = join(scratch, 'qrx-denylist.txt')
+		writeFileSync(shortList, 'qrx\n')
+		const png = createPng([IHDR, ['zqrx', ' qrx '], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('zqrx'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
 		)
 	})
 	test('leaves out a chunk type that a term contains', () => {
