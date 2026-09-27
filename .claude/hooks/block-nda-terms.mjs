@@ -57,9 +57,11 @@ const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
 const RUNS_GH = /\b(?:gh|glab)\b/
 const CHANGES_DIR = /\b(?:cd|pushd)\b/
 // PowerShell ignores case in command names, so this regex does too. `CHANGES_DIR` keeps case, so
-// a title such as `CI/CD fix` passes. PowerShell names count only in command position, so a path
-// such as `docs/sl/x.md` passes.
-const CHANGES_DIR_POWERSHELL = /(?:^|[;|&(\n])\s*(?:set-location|sl|push-location)\b/im
+// a title such as `CI/CD fix` passes. `Set-Location` and `Push-Location` count as a word anywhere,
+// since no path segment carries them. `sl` counts only at the start of the text or of a line, or
+// after `;`, `|`, `&`, `(`, `{`, `"`, `'` or `=` and optional whitespace, so a path such as
+// `docs/sl/x.md` passes.
+const CHANGES_DIR_POWERSHELL = /\b(?:set-location|push-location)\b|(?:^|[;|&({"'=])\s*sl\b/im
 const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
 const QUOTED = /"([^"]*)"|'([^']*)'/g
 const GH_EXECUTABLES = new Set(['gh', 'glab', 'gh.exe', 'glab.exe'])

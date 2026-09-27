@@ -980,4 +980,22 @@ describe('Claude hook, PowerShell tool', () => {
 	test('passes a gh command whose path holds sl as a directory name', () => {
 		assert.equal(runPowerShell(`gh issue create --body-file ${underSl}`).status, 0)
 	})
+
+	mkdirSync(join(outside, 'sub'))
+	writeFileSync(join(outside, 'sub', 'body.md'), `Built for ${TERM}.\n`)
+	const GH_BODY = 'gh issue create --body-file body.md'
+	for (const [form, command] of [
+		['inside an if block', `if ($true) { Set-Location sub }; ${GH_BODY}`],
+		['inside a script block', `& { sl sub; ${GH_BODY} }`],
+		['inside a double-quoted pwsh -Command', `pwsh -Command "Set-Location sub; ${GH_BODY}"`],
+		['inside a single-quoted pwsh -Command', `pwsh -Command 'Set-Location sub; ${GH_BODY}'`],
+		['with a module-qualified name', `Microsoft.PowerShell.Management\\Set-Location sub; ${GH_BODY}`],
+		['after an assignment', `$null = Set-Location sub; ${GH_BODY}`],
+		['after a pipe', `'sub' | sl; ${GH_BODY}`],
+		['after the call operator', `& sl sub; ${GH_BODY}`],
+	]) {
+		test(`refuses a gh command that changes directory ${form}`, () => {
+			assertRefused(runPowerShell(command), 2, /absolute path/)
+		})
+	}
 })
