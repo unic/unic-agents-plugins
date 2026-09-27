@@ -35,7 +35,7 @@ The change ships as one pull request. Removing the Claude hook's commit scan bef
 
 ## Consequences
 
-- The Claude hook refuses some commands on purpose: any command text that holds `--no-veri`, a prefix of `--no-verify`, or `hookspath`, including `git config --get core.hooksPath` and a `grep` for it, and any `gh` or `glab` command that also runs `cd` or `pushd`. The maintainer runs an authorised one with `!`.
+- The Claude hook refuses some commands on purpose: any command text that holds `--no-veri`, a prefix of `--no-verify`, or `hookspath`, including `git config --get core.hooksPath` and a `grep` for it, and any `gh` or `glab` command that also runs `cd`, `pushd`, `Set-Location`, `sl` or `Push-Location`. The maintainer runs an authorised one with `!`.
 - `pre-push` reads every commit a push sends, so the first push to an empty remote scans the whole history.
 - These gaps are accepted. `AGENTS.md` § "The NDA publish guard" carries the same list:
   - `git commit -n` skips the commit hooks, and the Claude hook does not detect it, because in `push` the same `-n` means `--dry-run`. `pre-push` catches the commit.
@@ -46,13 +46,14 @@ The change ships as one pull request. Removing the Claude hook's commit scan bef
   - A `gh` file is not read when it is named through a shell variable, a glob, a brace expansion or a backslash-escaped space, or read after `env --chdir=<dir>`.
   - A file whose lowercased basename is `gh`, `glab`, `gh.exe` or `glab.exe` is never read, whether or not it is the executable.
   - A non-ASCII term in Latin-1 or UTF-16 content is not found. The second read without NUL bytes covers UTF-16 in the ASCII range only.
-  - The Claude hook's matcher is `Bash`, so a command run through the `PowerShell` tool on Windows is not checked.
+  - In PowerShell the backtick is the escape character, so a backtick inside `--no-verify` or `hooksPath`, such as ``git push --no-`verify``, splits the word the Claude hook looks for, as a quote or a backslash does.
+  - On Windows without Git Bash no NDA guard works. The git hooks are `sh` scripts, and the Claude hook's entry in `.claude/settings.json` is `sh` syntax that no measurement has shown to run there.
   - `pre-commit` does not see the author or the committer of a commit. `pre-push` reads both, so it catches a term there.
   - `commit-msg` drops every line from the scissors line down and every line that starts with the comment string before it matches. Git does not always drop them, and the hook cannot see when it keeps them. Git keeps comment lines when it opens no editor, as under `-m`, `-F`, `-C` and `--no-edit`. It also keeps them under `--cleanup=verbatim`, `--cleanup=whitespace` and `--cleanup=scissors`. It cuts at the scissors line only with `-v`, `commit.verbose` or `--cleanup=scissors`. Without a cut, git applies its cleanup mode to the lines below the scissors line as to any other line. A term on such a line reaches the commit, and `pre-push` refuses it there, because it reads the whole commit message.
   - A Git Bash path such as `/c/Users/x/body.md` after `--body-file` does not resolve on Windows, so the file is not read. Use a Windows path or `!`.
   - Compressed content, such as a `.gz`, `.zip` or `.docx` file, is scanned as its compressed bytes, so a term inside it is not found by any guard.
   - A remote-tracking ref that holds a commit the remote does not have makes `pre-push` scan less: a ref set by hand, one left over after a leaked commit was deleted from the remote, or one fetched from another URL than the push goes to.
   - In a worktree, git runs the hooks the main work tree has checked out. While the main work tree is on `main`, the `pre-push` with the NDA scan runs only once it reaches `main`.
-  - When `node` is missing, the Claude hook's entry in `.claude/settings.json` exits 2 and blocks every `Bash` command, so the session can run no shell command until `node` is on `PATH`.
-  - A person who pushes with `--no-verify` outside an agent session skips every git hook. The Claude hook sees `Bash` only, so a publish through an MCP tool is unguarded. An Archon workflow node inherits no ambient settings, so a Box almost certainly runs without the Claude hook. Measure that before dispatching a Box that could publish.
+  - When `node` is missing, the Claude hook's entry in `.claude/settings.json` exits 2 and blocks every `Bash` and `PowerShell` command, so the session can run no shell command until `node` is on `PATH`.
+  - A person who pushes with `--no-verify` outside an agent session skips every git hook. The Claude hook sees `Bash` and `PowerShell` only, so a publish through an MCP tool is unguarded. An Archon workflow node inherits no ambient settings, so a Box almost certainly runs without the Claude hook. Measure that before dispatching a Box that could publish.
 - `AGENTS.md` § "The NDA publish guard" describes the checks and names these gaps. It links here for the reasoning.
