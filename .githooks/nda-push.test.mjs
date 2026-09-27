@@ -705,8 +705,9 @@ describe('pre-push, PNG files', () => {
 	})
 	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
 		const { dir } = createClone()
-		// With `b/` in front, the path starts an 80-character run that holds a digit and a `+`. The
-		// base64 step removes that run from the patch text, so only the tEXt chunk matches.
+		// With `b/` in front, the path starts a run of more than 80 characters, file name included, that
+		// holds a digit and a `+`. The base64 step removes that run from the patch text, so only the
+		// tEXt chunk matches.
 		const folder = `x1+${'a'.repeat(78)}`
 		mkdirSync(join(dir, folder))
 		commitUnchecked(dir, PNG_WITH_TERM_IN_TEXT, 'change image', `${folder}/${TERM}.png`)

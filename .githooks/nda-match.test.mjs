@@ -471,8 +471,9 @@ describe('pre-commit, PNG files', () => {
 		assertRefused(commit(createStagedPng(png.subarray(0, png.length - 2))), 1)
 	})
 	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
-		// With `b/` in front, the path starts an 80-character run that holds a digit and a `+`. The
-		// base64 step removes that run from the diff text, so only the tEXt chunk matches.
+		// With `b/` in front, the path starts a run of more than 80 characters, file name included, that
+		// holds a digit and a `+`. The base64 step removes that run from the diff text, so only the
+		// tEXt chunk matches.
 		const folder = `x1+${'a'.repeat(78)}`
 		const dir = createStagedRepo('clean\n')
 		mkdirSync(join(dir, folder))
