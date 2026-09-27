@@ -20,7 +20,7 @@ You are the worker for issue #<N> in unic-agents-plugins. Your orchestrator is t
 4. Edit every prose text you write by every rule of `.claude/skills/unslop/SKILL.md`: docs, comments, commit messages and the PR body. Read the file, because its frontmatter blocks invoking it as a skill. Code, commands and identifiers stay exact.
 5. Report counts and term indices only, never matched text. If a guard refuses a commit or a push, stop and report it. The hooks stay on.
 6. Open the PR with `gh pr create --base develop --head <branch> --body-file <absolute path>`. Write the body to that file first with a file-writing tool, and put `Closes #<N>` in it. Then move #<N> to `resolved`.
-7. Report in your final answer: the PR, its head, each check you ran with its exit code, and any fact that would have changed your opener. Stop after the handover.
+7. Report in your final answer: the PR, its head, each check you ran with its exit code, and any fact that would have changed your opener. Then end your turn. Your orchestrator may continue you with `SendMessage` for fix rounds, with your context intact.
 ```
 
 ## Resume variant
@@ -28,6 +28,6 @@ You are the worker for issue #<N> in unic-agents-plugins. Your orchestrator is t
 Replace steps 2 and 6 with these two:
 
 ```text
-2. Your branch <branch> already exists. If `git -C <worktree> rev-parse --abbrev-ref HEAD` prints `<branch>`, work in that worktree. Run `git -C <worktree> status --porcelain` first: commit uncommitted work that belongs to the ticket, and report anything else without discarding it. If the command fails or prints another branch, run `git worktree prune`, then `git worktree add <worktree> <branch>`. If that fails, stop and report. Use absolute paths in every shell call, and never `cd`.
+2. Your branch <branch> already exists. If `git -C <worktree> rev-parse --abbrev-ref HEAD` prints `<branch>`, work in that worktree. Run `git -C <worktree> status --porcelain` first: commit uncommitted work that belongs to the ticket, and report anything else without discarding it. If `<worktree>` is not listed by `git worktree list`, run `git worktree add <worktree> <branch>`. If it is listed but missing, or prints another branch, stop and report: pruning or repairing is the maintainer's call, because `git worktree prune` acts on every worktree of the clone. Use absolute paths in every shell call, and never `cd`.
 6. If `gh pr list --head <branch> --state open --json number` returns a PR, push to it and skip creating one. Otherwise open the PR with `gh pr create --base develop --head <branch> --body-file <absolute path>`, with `Closes #<N>` in the body. Then move #<N> to `resolved` if it is not there.
 ```

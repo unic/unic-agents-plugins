@@ -224,8 +224,11 @@ All of these, on the head about to merge:
   `camelCase` and at other boundaries.
   1. Save the text to a file in the scratchpad. The command that wrote it must exit 0 and the file
      must be non-empty, or the check fails. For the PR's added lines, save `gh pr diff`. For each
-     commit's added lines, save `git log -p --format= origin/develop..<head>`: a term added in one
-     commit and removed in a later one is gone from the final diff but stays in the public history.
+     commit's added lines, save the same patch log the push guard reads:
+     `git --no-replace-objects log --format= -p --root --diff-merges=first-parent -U0 --text --no-ext-diff --no-textconv --no-color origin/develop..<head>`.
+     Without those flags a merge commit's patch, a root commit, or a textconv or external diff hides
+     a term. The per-commit scan matters because a term added in one commit and removed in a later
+     one is gone from the final diff but stays in the public history.
      For the commit messages, save
      `git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/develop..<head>`. Fetch `develop` first.
   2. Run `node .githooks/nda-match.mjs <label> <file> 2> <file>.err`. The label is `pre-commit` for
