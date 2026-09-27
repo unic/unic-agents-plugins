@@ -29,13 +29,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      # set-hooks-path.test.mjs runs pnpm install, to prove what the person sees.
+      # set-hooks-path.test.mjs runs pnpm install, to prove what the person sees. The install and tsc steps below need pnpm too.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
       - run: node --test .githooks/nda-match.test.mjs .githooks/nda-push.test.mjs .githooks/set-hooks-path.test.mjs
-      # The install puts tsc, @types/node and @unic/tsconfig on disk. It runs after the tests, so they see the checkout as it was.
+      # The install puts tsc, @types/node and @unic/tsconfig on disk for the tsc step. The tests need none of them.
+      # No test reads the checkout's node_modules or its .git/config, so the install could also run first.
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit --project .githooks/tsconfig.json
 
