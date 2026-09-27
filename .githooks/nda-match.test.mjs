@@ -499,6 +499,28 @@ describe('pre-commit, PNG files', () => {
 			{ status: 1, namesPng: true, namesType: false }
 		)
 	})
+	test('leaves the path out of the refusal for a PNG that does not parse, and keeps the note', () => {
+		// The same run of more than 80 characters as above keeps the path out of the diff text's match.
+		const folder = `x1+${'a'.repeat(78)}`
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, folder))
+		writeFileSync(join(dir, folder, `${TERM}.png`), createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))
+		git(dir, 'add', '.')
+		const { status, stderr } = commit(dir)
+		assert.deepEqual(
+			{
+				status,
+				namesBlob: stderr.includes('the whole blob of a PNG.'),
+				notes: stderr.includes('did not parse, so the guard scanned its whole blob'),
+				namesTerm: stderr.includes(TERM),
+			},
+			{ status: 1, namesBlob: true, notes: true, namesTerm: false }
+		)
+	})
+	test('names the first chunk that holds the term when two chunks hold it', () => {
+		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM}`], ['eXIf', `\0${TERM}\0`], IEND])
+		assertRefused(commit(createStagedPng(png)), 1, /The term is in the tEXt chunk of the PNG image\.png\./)
+	})
 	test('leaves the chunk type out of the refusal when the term is the type with its NUL removed', () => {
 		const shortList = join(scratch, 'nul-denylist.txt')
 		writeFileSync(shortList, 'zqr\n')
