@@ -651,6 +651,12 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
 		assertPushed(push(dir, 'HEAD:refs/heads/main'))
 	})
+	test('pushes a PNG whose IDAT data holds the term under diff.noprefix=true', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'diff.noprefix', 'true')
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
 	test('pushes a PNG modified in a later commit of the same push whose IDAT data holds the term', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, CLEAN_PNG)

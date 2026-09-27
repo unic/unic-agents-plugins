@@ -66,9 +66,22 @@ export function readTerms(path) {
  * Git options that make a diff show every added line as text, whatever the git config says.
  * `--text` shows a binary file's content, `--no-ext-diff` and `--no-textconv` stop a `diff.external`
  * command, a `-diff` attribute or a textconv filter from replacing it, and `--no-color` keeps
- * `color.ui=always` from putting escape codes before the `-` and `+` of each line.
+ * `color.ui=always` from putting escape codes before the `-` and `+` of each line. `--full-index`
+ * gives the whole post-image id that `readDiffTexts` reads a PNG blob by. `--src-prefix=a/` and
+ * `--dst-prefix=b/` keep `diff.noprefix`, `diff.mnemonicPrefix` and `diff.dstPrefix` from changing the
+ * `+++ b/` line that `readDiffTexts` finds a PNG by. `--default-prefix` would do the same, but it needs
+ * git 2.41.
  */
-export const DIFF_FLAGS = ['-U0', '--text', '--no-ext-diff', '--no-textconv', '--no-color', '--full-index']
+export const DIFF_FLAGS = [
+	'-U0',
+	'--text',
+	'--no-ext-diff',
+	'--no-textconv',
+	'--no-color',
+	'--full-index',
+	'--src-prefix=a/',
+	'--dst-prefix=b/',
+]
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 // The path of a file section's new side, from `+++ b/<path>`, `rename to <path>` or `copy to <path>`.

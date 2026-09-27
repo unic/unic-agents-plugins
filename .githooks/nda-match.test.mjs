@@ -416,6 +416,11 @@ describe('pre-commit, PNG files', () => {
 		git(dir, 'add', 'image.png')
 		assert.equal(commit(dir, 'change image').status, 0)
 	})
+	test('passes a PNG whose IDAT data holds the term under diff.noprefix=true', () => {
+		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
+		git(dir, 'config', 'diff.noprefix', 'true')
+		assert.equal(commit(dir).status, 0)
+	})
 	test('passes a PNG named in capitals whose IDAT data holds the term', () => {
 		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'IMAGE.PNG')).status, 0)
 	})
