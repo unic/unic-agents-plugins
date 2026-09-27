@@ -992,6 +992,22 @@ describe('Claude hook, PowerShell tool', () => {
 	mkdirSync(join(outside, 'sub'))
 	writeFileSync(join(outside, 'sub', 'body.md'), `Built for ${TERM}.\n`)
 	const GH_BODY = 'gh issue create --body-file body.md'
+	test('refuses the term in a file that GH in upper case names', () => {
+		assertRefused(runPowerShell('GH issue create --body-file sub/body.md'), 2)
+	})
+	test('refuses the term in a file that GlAb in mixed case names', () => {
+		assertRefused(runPowerShell('GlAb issue create --body-file sub/body.md'), 2)
+	})
+	test('refuses the term in the text of a Git command in mixed case', () => {
+		assertRefused(runPowerShell(`Git commit -m "Built for ${TERM}"`), 2)
+	})
+	test('refuses a Git push in mixed case that pre-push would not scan', () => {
+		assertRefused(runPowerShell('Git push origin x'), 2, PUSH_REFUSED)
+	})
+	test('passes a GH command in upper case that names a clean file', () => {
+		assert.equal(runPowerShell(`GH issue create --body-file ${clean}`).status, 0)
+	})
+
 	for (const [form, command] of [
 		['inside an if block', `if ($true) { Set-Location sub }; ${GH_BODY}`],
 		['inside a script block', `& { sl sub; ${GH_BODY} }`],

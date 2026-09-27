@@ -20,7 +20,8 @@
 //      `.githooks`, and that directory must hold `pre-push` and `nda-push.mjs`, with `pre-push`
 //      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
-//   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
+//   list holds a term. An empty list turns off the term checks, but not checks 1 and 2. In a
+//   PowerShell command, `git`, `gh` and `glab` count in any case, here and in checks 3 and 4.
 //   3. A command with `gh` or `glab` as a word is refused when it also changes directory. That is
 //      `cd` or `pushd` as a word, or `Set-Location` or `Push-Location` as a word in any case. It is
 //      also `sl`, `cd`, `pushd` or `chdir` in any case at the start of a command. That is the start
@@ -55,10 +56,13 @@ import { fileURLToPath } from 'node:url'
 
 const MAX_BYTES = 2_000_000
 const SWITCHES_HOOKS_OFF = /--no-veri|hookspath/i
+// git rejects `PUSH` and `SEND-PACK`, so the subcommand words keep case in both tools.
 const PUSHES = /\bpush\b/
 const SENDS_PACK = /\bsend-pack\b/
-const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
-const RUNS_GH = /\b(?:gh|glab)\b/
+// Bash command names keep case. PowerShell and Windows ignore it, so `GH` runs `gh.exe` there. A
+// `.` bounds a word, so `gh.exe` counts as `gh`.
+const RUNS_GIT_OR_GH = { Bash: /\b(?:git|gh|glab)\b/, PowerShell: /\b(?:git|gh|glab)\b/i }
+const RUNS_GH = { Bash: /\b(?:gh|glab)\b/, PowerShell: /\b(?:gh|glab)\b/i }
 const CHANGES_DIR = /\b(?:cd|pushd)\b/
 // PowerShell ignores case in command names, so this regex does too. `CHANGES_DIR` keeps case, so
 // a title such as `CI/CD fix` passes. `Set-Location` and `Push-Location` count as a word anywhere.
@@ -195,7 +199,9 @@ async function main() {
 		block('the hook received a payload that is not a JSON object, so it cannot check this command.')
 	}
 
-	if (event.tool_name !== 'Bash' && event.tool_name !== 'PowerShell') return
+	/** @type {unknown} */
+	const tool = event.tool_name
+	if (tool !== 'Bash' && tool !== 'PowerShell') return
 	/** @type {unknown} */
 	const command = event.tool_input.command
 	if (typeof command !== 'string') {
@@ -222,7 +228,7 @@ async function main() {
 			)
 		}
 	}
-	if (!RUNS_GIT_OR_GH.test(command)) return
+	if (!RUNS_GIT_OR_GH[tool].test(command)) return
 
 	const { findTerm, getListPath, readTerms, redact } = await import('../../.githooks/nda-match.mjs')
 	let terms = []
@@ -239,7 +245,7 @@ async function main() {
 
 	/** @type {Array<[string, string]>} */
 	const surfaces = [['the command itself', command]]
-	if (RUNS_GH.test(command)) {
+	if (RUNS_GH[tool].test(command)) {
 		if (CHANGES_DIR.test(command) || CHANGES_DIR_POWERSHELL.test(command)) {
 			block(
 				'this gh or glab command also changes directory with cd, pushd, chdir, Set-Location, sl or Push-Location. Name every file by its absolute path, or have the maintainer run it with !.'
