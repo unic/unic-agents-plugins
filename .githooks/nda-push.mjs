@@ -179,6 +179,7 @@ async function main() {
 			const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 			refuse(`cannot list the commits this push sends, so it is refused (${String(stderr || message).trim()}).`)
 		}
+		// The refusal names the first text that holds a term, in the order `readPushedTexts` returns them.
 		for (const [where, text, note] of texts) {
 			const term = findTerm(text, terms)
 			if (term === null) continue

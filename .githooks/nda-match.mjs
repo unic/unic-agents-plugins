@@ -91,24 +91,23 @@ const POST_IMAGE_ID = /^index [0-9a-f]+\.\.([0-9a-f]+)/
 
 /**
  * One text a diff publishes. `pngPath` is the path of the PNG the text comes from, or null for the
- * added lines. `chunkType` is the type of the PNG chunk the text holds, or null for the added lines,
- * and for the whole blob of a PNG that did not parse, `IDAT` included.
+ * added lines. `chunkType` is the chunk type, or null. It is null for the added lines and for the
+ * whole blob of a PNG that did not parse.
  * @typedef {{ pngPath: string | null, chunkType: string | null, text: string }} DiffText
  */
 
 /**
- * The texts a diff publishes. When two of them hold a term, a hook refuses on the first in the
- * order this function returns them and names that one, so a PNG refusal names one chunk even when
- * two hold a term. The first text holds the added lines of every file, as `dropDeletedLines` keeps
- * them. For an added or modified `*.png`, the guard scans the file header but not the hunks, and
- * reads the file's post-image blob by the id on its `index` line, which `--full-index` makes whole.
- * That works in a `git log -p` stream too, which has no commit boundary to read the file at. When
- * the blob parses as a PNG, the guard adds one text per chunk except `IDAT`, whose compressed bytes
- * match a short term by chance and hold no text anyone wrote. Each chunk is its own text, so no
- * match spans two chunks. When the blob does not parse, the guard adds the whole blob as one text.
- * When git cannot read the blob, the guard scans the hunks as for any other file. For every file
- * the guard drops the `index` lines, because they hold only object ids. The file header stays, so
- * the guard still reads the path.
+ * The texts a diff publishes: the added lines first, then the texts of each PNG in file order. The
+ * first text holds the added lines of every file, as `dropDeletedLines` keeps them. For an added or
+ * modified `*.png`, the guard scans the file header but not the hunks, and reads the file's
+ * post-image blob by the id on its `index` line, which `--full-index` makes whole. That works in a
+ * `git log -p` stream too, which has no commit boundary to read the file at. When the blob parses
+ * as a PNG, the guard adds one text per chunk except `IDAT`, whose compressed bytes match a short
+ * term by chance and hold no text anyone wrote. Each chunk is its own text, so no match spans two
+ * chunks. When the blob does not parse, the guard adds the whole blob as one text. When git cannot
+ * read the blob, the guard scans the hunks as for any other file. For every file the guard drops
+ * the `index` lines, because they hold only object ids. The file header stays, so the guard still
+ * reads the path.
  * @param {string} diff
  * @param {(id: string) => Buffer | null} readBlob
  * @returns {DiffText[]}
@@ -143,8 +142,9 @@ export function readDiffTexts(diff, readBlob) {
  * when no term appears in it. `findTerm` is not enough there, because its base64 step can remove a
  * long run of the path. The label names the chunk type only when the type is four ASCII letters, no
  * term appears in it, and it appears in no term. `findTerm` misses a term joined to other letters of
- * the type, and matches a type such as `zq\0r` only once the NUL is gone. A type that is part of a
- * term would print most of the term next to its redacted form. Otherwise the label says `a chunk`.
+ * the type. The substring test misses a type such as `zq\0r`, which `findTerm` matches once the NUL
+ * is gone, so the four-letter test keeps it out. A type that is part of a term would print most of
+ * the term next to its redacted form. Otherwise the label says `a chunk`.
  * @param {DiffText & { pngPath: string }} source
  * @param {string[]} terms
  */
