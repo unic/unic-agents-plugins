@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
-// Refuses a Bash command that would publish an NDA-protected term to this public repository.
+// Refuses a command from the Bash or PowerShell tool that would publish an NDA-protected term to this
+// public repository. Both tools send the command in `tool_input.command`, and every check applies to both.
 //
 // It guards what git never sees: the text of `gh` and `glab` commands and the files they name. Git
 // guards what git writes and sends. `pre-commit` and `commit-msg` read the real staged content and
@@ -20,8 +21,9 @@
 //      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
 //   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
-//   3. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd`, because
-//      a relative path after them would resolve somewhere this hook does not look.
+//   3. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd` as a word,
+//      or `Set-Location`, `sl` or `Push-Location` in any case at the start of a command. A relative
+//      path after them would resolve somewhere this hook does not look.
 //   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
 //      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
 //      that is an existing file, resolved against the session's cwd with a leading `~/` expanded, is
@@ -53,7 +55,8 @@ const PUSHES = /\bpush\b/
 const SENDS_PACK = /\bsend-pack\b/
 const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
 const RUNS_GH = /\b(?:gh|glab)\b/
-const CHANGES_DIR = /\b(?:cd|pushd)\b/
+// PowerShell names count only in command position, so a path such as `docs/sl/x.md` passes.
+const CHANGES_DIR = /\b(?:cd|pushd)\b|(?:^|[;|&(\n])\s*(?:set-location|sl|push-location)\b/im
 const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
 const QUOTED = /"([^"]*)"|'([^']*)'/g
 const GH_EXECUTABLES = new Set(['gh', 'glab', 'gh.exe', 'glab.exe'])
@@ -182,7 +185,7 @@ async function main() {
 		block('the hook received a payload that is not a JSON object, so it cannot check this command.')
 	}
 
-	if (event.tool_name !== 'Bash') return
+	if (event.tool_name !== 'Bash' && event.tool_name !== 'PowerShell') return
 	/** @type {string} */
 	const command = event.tool_input.command
 	const cwd = event.cwd || process.cwd()
@@ -226,7 +229,7 @@ async function main() {
 	if (RUNS_GH.test(command)) {
 		if (CHANGES_DIR.test(command)) {
 			block(
-				'this gh or glab command also holds cd or pushd. Name every file by its absolute path, or have the maintainer run it with !.'
+				'this gh or glab command also changes directory with cd, pushd, Set-Location, sl or Push-Location. Name every file by its absolute path, or have the maintainer run it with !.'
 			)
 		}
 		surfaces.push(...readNamedFiles(command, cwd))
