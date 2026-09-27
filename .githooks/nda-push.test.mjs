@@ -668,6 +668,11 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
+	test('names the PNG when its tEXt chunk holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'), /A chunk of the PNG image\.png, or its whole blob, in a commit/)
+	})
 	test('refuses a PNG whose eXIf chunk holds the term', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND]))

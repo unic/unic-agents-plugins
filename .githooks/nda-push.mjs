@@ -117,11 +117,15 @@ function readPushedTexts(line, remote) {
 	// the message under `i18n.logOutputEncoding`.
 	const shas = git(['rev-list', ...range])
 	if (shas.trim()) texts.push([`a commit object pushed to ${remoteRef}`, git(['cat-file', '--batch'], shas)])
-	// One text for every patch, and one for each chunk of a PNG it adds or modifies.
+	// One text for the added lines of every patch, one for each chunk but `IDAT` of a PNG a patch adds
+	// or modifies, and one whole blob for each such PNG that does not parse.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
-	for (const text of readDiffTexts(patches, readBlob))
-		texts.push([`the patch of a commit pushed to ${remoteRef}`, text])
+	for (const [pngPath, text] of readDiffTexts(patches, (id, path) => readBlob(id, path, 'pre-push'))) {
+		const where =
+			pngPath === null ? 'the patch of a commit' : `a chunk of the PNG ${pngPath}, or its whole blob, in a commit`
+		texts.push([`${where} pushed to ${remoteRef}`, text])
+	}
 	return texts
 }
 

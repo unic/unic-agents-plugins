@@ -86,48 +86,51 @@ export const DIFF_FLAGS = [
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 // The path of a file section's new side, from `+++ b/<path>`, `rename to <path>` or `copy to <path>`.
 // Git quotes a path with special characters, and ends a `+++` line with a tab when the path holds a space.
-const PNG_PATH_LINE = /^(?:\+\+\+ "?b\/|rename to |copy to ).*\.png"?\t?$/i
+const PNG_PATH_LINE = /^(?:\+\+\+ "?b\/|rename to "?|copy to "?)(.*\.png)"?\t?$/i
 const POST_IMAGE_ID = /^index [0-9a-f]+\.\.([0-9a-f]+)/
 
 /**
- * The texts a diff publishes: its added lines, as `dropDeletedLines` keeps them, and the chunks of
- * every added or modified PNG. A `*.png` section loses its hunks, and the guard reads the file's
- * post-image blob instead, by the id on its `index` line, which `--full-index` makes whole. That
- * works in a `git log -p` stream too, which has no commit boundary to read the file at. A blob that
- * parses as a PNG gives one text per chunk except `IDAT`, whose compressed bytes match a short term
- * by chance and identify nobody. Each chunk is its own text, so no match spans two chunks. A blob that
- * does not parse is one text, whole. A blob that git cannot read keeps its hunks. The `index` lines
- * go, because they hold only object ids. The file header stays, so the path is still read.
+ * The texts a diff publishes, each with the path of the PNG it comes from, or null. The first text
+ * holds the added lines of every file, as `dropDeletedLines` keeps them. For an added or modified
+ * `*.png`, the guard scans the file header but not the hunks, and reads the file's post-image blob
+ * by the id on its `index` line, which `--full-index` makes whole. That works in a `git log -p`
+ * stream too, which has no commit boundary to read the file at. When the blob parses as a PNG, the
+ * guard adds one text per chunk except `IDAT`, whose compressed bytes match a short term by chance
+ * and hold no text anyone wrote. Each chunk is its own text, so no match spans two chunks. When the
+ * blob does not parse, the guard adds the whole blob as one text. When git cannot read the blob, the
+ * guard scans the hunks as for any other file. For every file the guard drops the `index` lines,
+ * because they hold only object ids. The file header stays, so the guard still reads the path.
  * @param {string} diff
- * @param {(id: string) => Buffer | null} readBlob
- * @returns {string[]}
+ * @param {(id: string, path: string) => Buffer | null} readBlob
+ * @returns {Array<[string | null, string]>}
  */
 export function readDiffTexts(diff, readBlob) {
 	/** @type {string[]} */
 	const kept = []
-	/** @type {string[]} */
+	/** @type {Array<[string, string]>} */
 	const blobTexts = []
 	for (const section of diff.split(/^(?=diff --git )/m)) {
 		const lines = section.split('\n')
 		const hunkStart = lines.findIndex((line) => line.startsWith('@@'))
 		const header = hunkStart === -1 ? lines : lines.slice(0, hunkStart)
 		const postImageId = header.map((line) => POST_IMAGE_ID.exec(line)?.[1]).find(Boolean)
-		const isPng = header.some((line) => PNG_PATH_LINE.test(line))
-		const blob = isPng && postImageId && !/^0+$/.test(postImageId) ? readBlob(postImageId) : null
+		const pngPath = header.map((line) => PNG_PATH_LINE.exec(line)?.[1]).find(Boolean)
+		const blob = pngPath && postImageId && !/^0+$/.test(postImageId) ? readBlob(postImageId, pngPath) : null
 		const headerOnly = header.filter((line) => !line.startsWith('index '))
 		if (blob === null) {
 			kept.push([...headerOnly, ...(hunkStart === -1 ? [] : lines.slice(hunkStart))].join('\n'))
 			continue
 		}
 		kept.push(`${headerOnly.join('\n')}\n`)
-		blobTexts.push(...(readPngChunkTexts(blob) ?? [blob.toString('utf8')]))
+		for (const text of readPngChunkTexts(blob) ?? [blob.toString('utf8')]) blobTexts.push([pngPath, text])
 	}
-	return [dropDeletedLines(kept.join('')), ...blobTexts]
+	return [[null, dropDeletedLines(kept.join(''))], ...blobTexts]
 }
 
 /**
  * The type and data of every chunk but `IDAT`, one text per chunk, or null when the blob is not a
- * PNG: a wrong signature, or a chunk that runs past the end.
+ * PNG: a wrong signature, a chunk that runs past the end, or fewer than 12 bytes after the last whole
+ * chunk.
  * @param {Buffer} blob
  */
 export function readPngChunkTexts(blob) {
@@ -147,17 +150,27 @@ export function readPngChunkTexts(blob) {
 }
 
 /**
- * A blob's content, or null when git cannot read it.
+ * A blob's content, or null when git cannot read it. The caller then scans the file's diff lines.
  * @param {string} id
+ * @param {string} path
+ * @param {string} label the hook that reads it
  */
-export function readBlob(id) {
+export function readBlob(id, path, label) {
 	try {
 		return execFileSync('git', ['--no-replace-objects', 'cat-file', 'blob', id], {
 			encoding: 'buffer',
 			maxBuffer: 512 * 1024 * 1024,
 			stdio: ['ignore', 'pipe', 'pipe'],
 		})
-	} catch {
+	} catch (error) {
+		const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
+		process.stderr.write(
+			`${label}: cannot read the blob ${id} of ${path}, so its diff lines are scanned instead (${
+				String(stderr || message)
+					.trim()
+					.split('\n')[0]
+			}).\n`
+		)
 		return null
 	}
 }
@@ -394,7 +407,10 @@ async function main() {
 	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 
-	const texts = label === 'pre-commit' ? readDiffTexts(text, readBlob) : [text]
+	const texts =
+		label === 'pre-commit'
+			? readDiffTexts(text, (id, path) => readBlob(id, path, label)).map(([, each]) => each)
+			: [text]
 	const term = texts.map((each) => findTerm(each, terms)).find((found) => found !== null) ?? null
 	if (term === null) return
 	// Redact the term: the transcript of a refusal must not republish it.
