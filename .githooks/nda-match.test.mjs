@@ -720,7 +720,11 @@ describe('Claude hook', () => {
 		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, '[]'), 2, /not a JSON object/)
 	})
 	test('passes a valid payload for another tool', () => {
-		const payload = JSON.stringify({ tool_name: 'Read', cwd: outside, tool_input: { file_path: dirty } })
+		const payload = JSON.stringify({
+			tool_name: 'Read',
+			cwd: outside,
+			tool_input: { file_path: dirty, command: 'git push origin x' },
+		})
 		assert.equal(run('node', [CLAUDE_HOOK], outside, {}, payload).status, 0)
 	})
 	test('refuses and names the exception when the hook throws', () => {
