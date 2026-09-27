@@ -151,6 +151,10 @@ memory. Work one ticket at a time.
    `docs/agents/agent-tool-traps.md` § The Copilot reviewer has the mutation and the bot id. If no
    review arrives within 30 minutes, record that and go on. Read the body whole, including
    `Suppressed comments`, and triage it as in step 6.
+   Most Copilot comments carry a suggested change. Take it as a proposed fix to verify like any
+   finding, and have the worker commit it, or a better fix, from its worktree. Never commit a
+   suggestion through GitHub: that commit skips the git hooks and the leak check, and moves the head
+   without the worker.
 8. **Review the last fixes.** When commits landed after the last complete round, from a round
    whose fixes no later round read or from Copilot, spawn the code reviewer the probe recorded once
    on those commits alone. Triage it as in step 6. Its fixes end the reviewing: re-measure each of
