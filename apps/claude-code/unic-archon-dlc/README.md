@@ -84,12 +84,24 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 > below are PNG exports from each diagram's own viewer, one per colour scheme; export both again
 > whenever the JSON changes.
 
+Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
+inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
+human to run and deliberately not bundled (see [Dependencies](#dependencies)).
+
+Run `/specs` and `/tickets` in one Claude Code conversation. `/specs` grills you to write `PRD.md`,
+and `/tickets` uses what that grilling left in the conversation to slice the PRD into vertical
+slices. A new conversation starts `/tickets` with only the PRD.
+
+### `/setup` command diagram
+
 <a href="docs/architecture/20260925-unic-dlc-setup-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-setup-command.dark.png">
     <img alt="/setup command: read the Archon version, the project and the tools, discover the stack, install the Methods and workflows, write the config and the tracker contract, then patch CLAUDE.md and print a summary, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-setup-command.light.png">
   </picture>
 </a>
+
+### `/specs` command diagram
 
 <a href="docs/architecture/20260925-unic-dlc-specs-command.html">
   <picture>
@@ -98,12 +110,16 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
   </picture>
 </a>
 
+### `/tickets` command diagram
+
 <a href="docs/architecture/20260925-unic-dlc-tickets-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-tickets-command.dark.png">
     <img alt="/tickets command: prepare, slice the PRD and check the slices with the to-tickets Method, write issues.json and publish one tracker item per slice, then open the tickets gate as a PR to develop, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-tickets-command.light.png">
   </picture>
 </a>
+
+### `/triage` command diagram
 
 <a href="docs/architecture/20260925-unic-dlc-triage-command.html">
   <picture>
@@ -112,12 +128,16 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
   </picture>
 </a>
 
+### `/improve-architecture` command diagram
+
 <a href="docs/architecture/20260925-unic-dlc-improve-architecture-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-improve-architecture-command.dark.png">
     <img alt="/improve-architecture command: load the config and the Methods, pick a mode, check technical drift with the human and then intent drift, write arch-review.md, consolidate the ADRs with the human deciding each one, then print a summary" src="docs/architecture/20260925-unic-dlc-improve-architecture-command.light.png">
   </picture>
 </a>
+
+### `/cleanup` command diagram
 
 <a href="docs/architecture/20260925-unic-dlc-cleanup-command.html">
   <picture>
@@ -126,20 +146,14 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
   </picture>
 </a>
 
+### `/archon-upgrade` command diagram
+
 <a href="docs/architecture/20260925-unic-dlc-archon-upgrade-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-archon-upgrade-command.dark.png">
     <img alt="/archon-upgrade command: compare the installed Archon with the floor, discover the upstream repository and fetch its release notes, classify each change, re-assert the traps, probe the config keys in a throwaway repo, then print the report, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-archon-upgrade-command.light.png">
   </picture>
 </a>
-
-Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
-inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
-human to run and deliberately not bundled (see [Dependencies](#dependencies)).
-
-Run `/specs` and `/tickets` in one Claude Code conversation. `/specs` grills you to write `PRD.md`,
-and `/tickets` uses what that grilling left in the conversation to slice the PRD into vertical
-slices. A new conversation starts `/tickets` with only the PRD.
 
 ## Archon workflow pipelines
 
@@ -170,12 +184,16 @@ JSON sits alongside. Each diagram shows the nodes in run order, the nodes that r
 workflow writes. The previews below are PNG exports from each diagram's own viewer, one per colour
 scheme; export both again whenever the JSON changes.
 
+### `unic-dlc-build` pipeline diagram, for `/build`
+
 <a href="docs/architecture/20260925-unic-dlc-build-pipeline.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-build-pipeline.dark.png">
     <img alt="unic-dlc-build pipeline: bootstrap and slopcheck, the run-build loop, the review precheck, verification, goals-check and evidence, then report, open-pr and build-pr-gate" src="docs/architecture/20260925-unic-dlc-build-pipeline.light.png">
   </picture>
 </a>
+
+### `unic-dlc-pr-review` pipeline diagram, for `/pr-review`
 
 <a href="docs/architecture/20260925-unic-dlc-pr-review-pipeline.html">
   <picture>
@@ -184,12 +202,16 @@ scheme; export both again whenever the JSON changes.
   </picture>
 </a>
 
+### `unic-dlc-qa` pipeline diagram, for `/qa`
+
 <a href="docs/architecture/20260925-unic-dlc-qa-pipeline.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-qa-pipeline.dark.png">
     <img alt="unic-dlc-qa pipeline: bootstrap, test, e2e, coverage-gate, uat-prep and uat-gate, then verify-pr-base, merge-gate and merge" src="docs/architecture/20260925-unic-dlc-qa-pipeline.light.png">
   </picture>
 </a>
+
+### `unic-dlc-explore` pipeline diagram, for `/explore`
 
 <a href="docs/architecture/20260925-unic-dlc-explore-pipeline.html">
   <picture>
