@@ -80,7 +80,58 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 > Each command row links an Archify diagram drawn from that command's text.
 > It shows the Methods the command reads, the files it reads and writes, its tracker writes, and
 > every point where it waits for a human. `/specs`, `/tickets` and `/setup` group their steps into
-> phases so that each diagram fits one screen. Each source JSON sits beside its HTML.
+> phases so that each diagram fits one screen. Each source JSON sits beside its HTML. The previews
+> below are PNG exports from each diagram's own viewer, one per colour scheme; export both again
+> whenever the JSON changes.
+
+<a href="docs/architecture/20260925-unic-dlc-setup-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-setup-command.dark.png">
+    <img alt="/setup command: read the Archon version, the project and the tools, discover the stack, install the Methods and workflows, write the config and the tracker contract after the operator confirms each gap, then patch CLAUDE.md and print a summary" src="docs/architecture/20260925-unic-dlc-setup-command.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-specs-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-specs-command.dark.png">
+    <img alt="/specs command: prepare, understand the input through the to-spec, grilling and domain-modeling Methods, write PRD.md and a design contract per component, then open the PRD gate as a PR to develop, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-specs-command.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-tickets-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-tickets-command.dark.png">
+    <img alt="/tickets command: prepare, slice the PRD and check the slices with the to-tickets Method, write issues.json and publish one tracker item per slice, then open the tickets gate as a PR to develop, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-tickets-command.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-triage-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-triage-command.dark.png">
+    <img alt="/triage command: load the config and the Methods, read the tracker contract, follow the triage Method with the human, apply the agreed state, type, comment or close to the tracker item, then print a summary" src="docs/architecture/20260925-unic-dlc-triage-command.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-improve-architecture-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-improve-architecture-command.dark.png">
+    <img alt="/improve-architecture command: load the config and the Methods, pick a mode, check technical drift with the human and then intent drift, write arch-review.md, consolidate the ADRs with the human deciding each one, then print a summary" src="docs/architecture/20260925-unic-dlc-improve-architecture-command.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-cleanup-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-cleanup-command.dark.png">
+    <img alt="/cleanup command: load the config, pick a mode, enumerate stale worktrees, PRs and slug dirs, report them, prune only under --apply with a yes or no per category, then print a summary" src="docs/architecture/20260925-unic-dlc-cleanup-command.light.png">
+  </picture>
+</a>
+
+<a href="docs/architecture/20260925-unic-dlc-archon-upgrade-command.html">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-archon-upgrade-command.dark.png">
+    <img alt="/archon-upgrade command: compare the installed Archon with the floor, fetch the upstream release notes, classify each change, re-assert the traps, probe the config keys in a throwaway repo, then print the report" src="docs/architecture/20260925-unic-dlc-archon-upgrade-command.light.png">
+  </picture>
+</a>
 
 Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
 inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
