@@ -90,9 +90,10 @@ function getPushedRange(localSha, remoteSha, remote) {
  * Each text one ref line publishes, with where it comes from.
  * @param {string} line
  * @param {string} remote
+ * @param {string[]} terms to keep a PNG path that holds one out of the refusal message
  * @returns {Array<[string, string]>}
  */
-function readPushedTexts(line, remote) {
+function readPushedTexts(line, remote, terms) {
 	const [localRef = '', localSha = '', remoteRef = '', remoteSha = ''] = line.trim().split(/\s+/)
 	if (!localSha || ZERO.test(localSha)) return []
 	/** @type {Array<[string, string]>} */
@@ -122,8 +123,9 @@ function readPushedTexts(line, remote) {
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
 	for (const [pngPath, text] of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {
-		const where =
-			pngPath === null ? 'the patch of a commit' : `a chunk of the PNG ${pngPath}, or its whole blob, in a commit`
+		// The refusal prints this label, so it names the path only when the path holds no term.
+		const png = pngPath === null || findTerm(pngPath, terms) !== null ? 'a PNG' : `the PNG ${pngPath}`
+		const where = pngPath === null ? 'the patch of a commit' : `a chunk of ${png}, or its whole blob, in a commit`
 		texts.push([`${where} pushed to ${remoteRef}`, text])
 	}
 	return texts
@@ -158,7 +160,7 @@ async function main() {
 	for (const line of input.split(/\r?\n/).filter((text) => text.trim())) {
 		let texts
 		try {
-			texts = readPushedTexts(line, remote)
+			texts = readPushedTexts(line, remote, terms)
 		} catch (error) {
 			const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 			refuse(`cannot list the commits this push sends, so it is refused (${String(stderr || message).trim()}).`)

@@ -673,6 +673,15 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
 		assertRefused(push(dir, 'HEAD:refs/heads/main'), /A chunk of the PNG image\.png, or its whole blob, in a commit/)
 	})
+	test('leaves the path out of the refusal when a PNG path and its tEXt chunk both hold the term', () => {
+		const { dir } = createClone()
+		commitUnchecked(dir, PNG_WITH_TERM_IN_TEXT, 'change image', `${TERM}.png`)
+		const result = push(dir, 'HEAD:refs/heads/main')
+		assert.deepEqual(
+			{ failed: result.status !== 0, refused: REFUSED.test(result.stderr), namesTerm: result.stderr.includes(TERM) },
+			{ failed: true, refused: true, namesTerm: false }
+		)
+	})
 	test('refuses a PNG whose eXIf chunk holds the term', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND]))
