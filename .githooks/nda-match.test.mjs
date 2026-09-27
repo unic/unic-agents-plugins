@@ -161,9 +161,10 @@ describe('findTerm', () => {
 })
 
 describe('dropCommentLines', () => {
-	test('cuts at a scissors line that ends in CRLF', () => {
+	// Git cuts only where the scissors line ends in a bare LF, and keeps the lines below a CRLF one.
+	test('keeps the lines below a scissors line that ends in CRLF', () => {
 		const message = `fix\r\n# ------------------------ >8 ------------------------\r\nBuilt for ${TERM}.\r\n`
-		assert.equal(dropCommentLines(message, '#'), 'fix')
+		assert.equal(dropCommentLines(message, '#'), `fix\r\nBuilt for ${TERM}.\r\n`)
 	})
 })
 

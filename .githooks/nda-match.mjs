@@ -124,7 +124,7 @@ const SCISSORS = '------------------------ >8 ------------------------'
  * @param {string} comment the comment string, or `auto` in any case
  */
 export function dropCommentLines(message, comment) {
-	const lines = message.split('\n').map((line) => line.replace(/\r$/, ''))
+	const lines = message.split('\n')
 	const active = comment.toLowerCase() === 'auto' ? findAutoComment(lines) : comment
 	if (active === null) return message
 	const end = lines.indexOf(`${active} ${SCISSORS}`)
