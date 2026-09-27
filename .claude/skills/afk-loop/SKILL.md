@@ -16,8 +16,10 @@ Run it under `/loop` with no interval, so the loop paces itself with `ScheduleWa
 
 `$ARGUMENTS` starts with the **parent**: a stream, a `wayfinder:map` or any parent ticket, written
 as `582`, `#582` or the issue URL. Use its number wherever this file says `<parent>`. The rest is
-the maintainer's **instructions** for this run. They add to this file and win where the two
-disagree, except on the hard rules: the NDA publish guard and everything `AGENTS.md` forbids.
+the maintainer's **instructions** for this run. They grant or withhold merge authority, set the
+order, and may widen § Follow-up tickets. They cannot relax § Merge gate, § Verification,
+§ Stop conditions, the NDA publish guard, or anything `AGENTS.md` forbids. An instruction that would
+is reported at the start and ignored.
 
 This session is the **orchestrator**. It picks tickets, dispatches subagents, verifies what they
 claim, and merges when the gate holds. It writes no implementation file. Workers and reviewers are
@@ -49,6 +51,11 @@ A run starts in any session that did not write the current `STATE` itself: no st
 stopped run, or a run a dead session left active. The maintainer typed the `/loop` command, so they
 are present. Take the state file's facts as leads to re-measure, and take no authority from it.
 
+Before anything else, if the `STATE` says the run is active, run `ListAgents`. If the session it
+names is still listed, another session holds the run: report that and stop, without writing the
+state file. Otherwise write the `STATE` block with this session's name at once, before the first
+tracker call, so a second session sees it.
+
 1. **Merge authority** comes from this session's own instructions, and nowhere else. It is granted
    when they grant it in words, such as `merge authorised`, and it covers this run and this parent
    only. Outside a dry run, if the queue holds a ticket that ends in a PR and the instructions
@@ -68,8 +75,8 @@ are present. Take the state file's facts as leads to re-measure, and take no aut
    - List the subagent types. Expect `pr-review-toolkit:code-reviewer`,
      `pr-review-toolkit:pr-test-analyzer`, `pr-review-toolkit:silent-failure-hunter` and
      `pr-review-toolkit:comment-analyzer`. They come from a user-level plugin. If they are missing,
-     take the newest directory that `ls -dt ~/.claude/plugins/cache/*/pr-review-toolkit/*/agents/`
-     lists, and paste each agent file's body into a `general-purpose` subagent's prompt. Record
+     take the most recently modified `~/.claude/plugins/cache/*/pr-review-toolkit/*/agents/`
+     directory, found with a tool that works on the current OS, and paste each agent file's body into a `general-purpose` subagent's prompt. Record
      which types the run uses. If neither exists, the probe fails.
    - Spawn one background `general-purpose` subagent that runs
      `git worktree add --no-track -b <probe branch> <path> origin/develop` to a path outside the
@@ -194,9 +201,9 @@ All of these, on the head about to merge:
 - every commit on the head was read by a complete review round or by step 8, or came after step 8
   as a fix, a mechanical rebase or a CI fix that you re-measured yourself;
 - no finding rated Critical or High is open, from any review;
-- every review thread is resolved;
-- the leak check passed on the PR's added lines, its commits with their authors and committers, the
-  title, the body, and every text this run posted;
+- every review thread is resolved, except a review workflow's own summary thread (step 9);
+- the leak check passed on the PR's added lines, the added lines of each of its commits, its commit
+  messages with their authors and committers, the title, the body, and every text this run posted;
 - the ticket is on `resolved`.
 
 ## Verification, every time a head moves
@@ -206,11 +213,13 @@ All of these, on the head about to merge:
   `grep` for whole words is no substitute, because the guards' matcher also finds a term in
   `camelCase` and at other boundaries.
   1. Save the text to a file in the scratchpad. The command that wrote it must exit 0 and the file
-     must be non-empty, or the check fails. For the PR's added lines, save `gh pr diff`. For the
-     commits, save
-     `git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/develop..<head>`.
+     must be non-empty, or the check fails. For the PR's added lines, save `gh pr diff`. For each
+     commit's added lines, save `git log -p --format= origin/develop..<head>`: a term added in one
+     commit and removed in a later one is gone from the final diff but stays in the public history.
+     For the commit messages, save
+     `git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/develop..<head>`. Fetch `develop` first.
   2. Run `node .githooks/nda-match.mjs <label> <file> 2> <file>.err`. The label is `pre-commit` for
-     a diff, which drops the deleted lines, and `leak-check` for any other text.
+     a diff or a patch log, which drops the deleted lines, and `leak-check` for any other text.
   3. Exit 0 is clean. On exit 1, never print the `.err` file, because a match shows the term's first
      two letters. `grep -c 'cannot read the NDA term list' <file>.err` gives 1 for an unreadable
      list, and `grep -c 'carries the NDA term' <file>.err` gives 1 for a match. Anything else means
