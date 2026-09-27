@@ -10,7 +10,8 @@
 //   - every annotated tag object on the way from the ref to what it points at, which holds each
 //     tag message, and a blob or a tree at the end of it;
 //   - every commit the push sends: the whole commit object, headers and message, and the added lines
-//     of its patch. A merge commit's patch is read against its first parent.
+//     of its patch. A merge commit's patch is read against its first parent. The guard reads an added
+//     or modified PNG from its blob, every chunk but `IDAT`, as `readDiffTexts` in `./nda-match.mjs` says.
 //
 // The commits a push sends are those reachable from the local sha and from neither the remote sha nor
 // any `refs/remotes/<remote>/*` ref. A remote-tracking ref behind the remote makes it scan more. One
@@ -27,7 +28,7 @@
 
 import { execFileSync } from 'node:child_process'
 
-import { DIFF_FLAGS, dropDeletedLines, findTerm, getListPath, readTerms, redact } from './nda-match.mjs'
+import { DIFF_FLAGS, findTerm, getListPath, readBlob, readDiffTexts, readTerms, redact } from './nda-match.mjs'
 
 const ZERO = /^0+$/
 // ponytail: whole output in memory. A push past this size is refused, stream `git log` if one ever is.
@@ -89,9 +90,10 @@ function getPushedRange(localSha, remoteSha, remote) {
  * Each text one ref line publishes, with where it comes from.
  * @param {string} line
  * @param {string} remote
+ * @param {string[]} terms to keep a PNG path that holds one out of the refusal message
  * @returns {Array<[string, string]>}
  */
-function readPushedTexts(line, remote) {
+function readPushedTexts(line, remote, terms) {
 	const [localRef = '', localSha = '', remoteRef = '', remoteSha = ''] = line.trim().split(/\s+/)
 	if (!localSha || ZERO.test(localSha)) return []
 	/** @type {Array<[string, string]>} */
@@ -116,10 +118,19 @@ function readPushedTexts(line, remote) {
 	// the message under `i18n.logOutputEncoding`.
 	const shas = git(['rev-list', ...range])
 	if (shas.trim()) texts.push([`a commit object pushed to ${remoteRef}`, git(['cat-file', '--batch'], shas)])
-	// One text for every patch.
+	// One text holds the added lines of every patch. Each PNG a patch adds or modifies gives one more
+	// text for each chunk but `IDAT`. A PNG that does not parse gives its whole blob as one text.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
-	texts.push([`the patch of a commit pushed to ${remoteRef}`, dropDeletedLines(patches)])
+	for (const [pngPath, text] of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {
+		// The refusal prints this label, so it names the path only when no term appears in it at all.
+		// `findTerm` is not enough here: its base64 step can remove a long run of the path.
+		const lowerPath = pngPath?.toLowerCase() ?? ''
+		const holdsTerm = terms.some((term) => lowerPath.includes(term.toLowerCase()))
+		const png = pngPath === null || holdsTerm ? 'a PNG' : `the PNG ${pngPath}`
+		const where = pngPath === null ? 'the patch of a commit' : `a chunk of ${png}, or its whole blob, in a commit`
+		texts.push([`${where} pushed to ${remoteRef}`, text])
+	}
 	return texts
 }
 
@@ -152,7 +163,7 @@ async function main() {
 	for (const line of input.split(/\r?\n/).filter((text) => text.trim())) {
 		let texts
 		try {
-			texts = readPushedTexts(line, remote)
+			texts = readPushedTexts(line, remote, terms)
 		} catch (error) {
 			const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 			refuse(`cannot list the commits this push sends, so it is refused (${String(stderr || message).trim()}).`)

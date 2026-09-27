@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { dropCommentLines, findTerm, readTerms } from './nda-match.mjs'
+import { dropCommentLines, findTerm, readDiffTexts, readTerms } from './nda-match.mjs'
 
 const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
@@ -35,12 +35,37 @@ const LONG_PATH = `/Users/someone/Sites/UNIC/${TERM}/apps/claudecode/plugins/src
 const SHORT_DATA_URI = `data:text/plain;base64,${TERM}`
 const REFUSED = /carries the NDA term/
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+/**
+ * A PNG made of these chunks. Each CRC is zero, because the guards never check it.
+ * @param {Array<[string, string | Buffer]>} chunks
+ */
+function createPng(chunks) {
+	const parts = [PNG_SIGNATURE]
+	for (const [type, data] of chunks) {
+		const body = Buffer.from(data)
+		const length = Buffer.alloc(4)
+		length.writeUInt32BE(body.length)
+		parts.push(length, Buffer.from(type, 'latin1'), body, Buffer.alloc(4))
+	}
+	return Buffer.concat(parts)
+}
+
+/** @type {[string, Buffer]} */
+const IHDR = ['IHDR', Buffer.alloc(13)]
+/** @type {[string, string]} */
+const IEND = ['IEND', '']
+const CLEAN_PNG = createPng([IHDR, ['IDAT', '\0clean\0'], IEND])
+const PNG_WITH_TERM_IN_IDAT = createPng([IHDR, ['IDAT', `\0${TERM}\0`], IEND])
+
 const scratch = mkdtempSync(join(tmpdir(), 'nda-guard-'))
 after(() => rmSync(scratch, { recursive: true, force: true }))
 
 const list = join(scratch, 'denylist.txt')
 writeFileSync(list, `# synthetic\r\n${TERM}\r\n`)
 const missingList = join(scratch, 'missing.txt')
+const noHooks = mkdtempSync(join(scratch, 'no-hooks-'))
 
 /** @param {string} text */
 const toUtf16le = (text) => Buffer.from(text, 'utf16le')
@@ -366,6 +391,152 @@ describe('git hooks', () => {
 		writeFileSync(join(dir, `${TERM} b`, 'x'), '')
 		git(dir, 'add', '.')
 		assertRefused(commit(dir), 1)
+	})
+})
+
+describe('pre-commit, PNG files', () => {
+	/**
+	 * A fresh repository with the git hooks of this checkout and one staged PNG.
+	 * @param {Buffer} content
+	 * @param {string} [name]
+	 */
+	function createStagedPng(content, name = 'image.png') {
+		const dir = createStagedRepo('clean\n')
+		writeFileSync(join(dir, name), content)
+		git(dir, 'add', '.')
+		return dir
+	}
+
+	test('passes an added PNG whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT)).status, 0)
+	})
+	test('passes a modified PNG whose new IDAT data holds the term', () => {
+		const dir = createStagedPng(CLEAN_PNG)
+		assert.equal(commit(dir).status, 0)
+		writeFileSync(join(dir, 'image.png'), PNG_WITH_TERM_IN_IDAT)
+		git(dir, 'add', 'image.png')
+		assert.equal(commit(dir, 'change image').status, 0)
+	})
+	test('passes a PNG whose IDAT data holds the term under diff.noprefix=true', () => {
+		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
+		git(dir, 'config', 'diff.noprefix', 'true')
+		assert.equal(commit(dir).status, 0)
+	})
+	test('passes a PNG named in capitals whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'IMAGE.PNG')).status, 0)
+	})
+	test('passes a PNG with a space in its name whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my image.png')).status, 0)
+	})
+	test(
+		'passes a PNG with a quote in its name whose IDAT data holds the term',
+		{ skip: process.platform === 'win32' },
+		() => {
+			assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my "image".png')).status, 0)
+		}
+	)
+	test('refuses a PNG whose tEXt chunk after IDAT holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+		assertRefused(commit(createStagedPng(png)), 1)
+	})
+	test('refuses a PNG whose eXIf chunk holds the term', () => {
+		const png = createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND])
+		assertRefused(commit(createStagedPng(png)), 1)
+	})
+	test('refuses a modified PNG whose new tEXt chunk holds the term', () => {
+		const dir = createStagedPng(CLEAN_PNG)
+		assert.equal(commit(dir).status, 0)
+		writeFileSync(join(dir, 'image.png'), createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND]))
+		git(dir, 'add', 'image.png')
+		assertRefused(commit(dir, 'change image'), 1)
+	})
+	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
+		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`]]))), 1)
+	})
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term', () => {
+		assertRefused(commit(createStagedPng(createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))), 1)
+	})
+	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
+		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`], IEND]))), 1)
+	})
+	test('refuses a file named .png that is not a PNG and holds the term', () => {
+		assertRefused(commit(createStagedPng(Buffer.from(`not a png, built for ${TERM}\n`))), 1)
+	})
+	test('refuses a PNG whose last chunk runs past the end and whose IDAT data holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', `\0${TERM}\0`]])
+		assertRefused(commit(createStagedPng(png.subarray(0, png.length - 2))), 1)
+	})
+	test('refuses a PNG whose name holds the term', () => {
+		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
+	})
+	/**
+	 * A repository in the middle of a merge. The side branch adds `image.png` with the content `png`
+	 * and changes `file.txt`, the current branch changes `file.txt` too, and the conflict is resolved
+	 * and staged.
+	 * @param {Buffer} png
+	 */
+	function createResolvedMerge(png) {
+		const dir = createStagedRepo('base\n')
+		assert.equal(commit(dir, 'base').status, 0)
+		git(dir, 'switch', '-q', '-c', 'side')
+		writeFileSync(join(dir, 'image.png'), png)
+		writeFileSync(join(dir, 'file.txt'), 'side\n')
+		git(dir, 'add', '.')
+		git(dir, '-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', 'side')
+		git(dir, 'switch', '-q', '-')
+		writeFileSync(join(dir, 'file.txt'), 'main\n')
+		git(dir, 'commit', '-q', '-am', 'main')
+		assert.notEqual(run('git', ['merge', '-q', 'side'], dir).status, 0)
+		writeFileSync(join(dir, 'file.txt'), 'resolved\n')
+		git(dir, 'add', 'file.txt')
+		return dir
+	}
+
+	test('passes a resolved merge that brings in a PNG whose IDAT data holds the term', () => {
+		assert.equal(commit(createResolvedMerge(PNG_WITH_TERM_IN_IDAT), 'merge side').status, 0)
+	})
+	test('refuses a resolved merge that brings in a PNG whose tEXt chunk holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+		assertRefused(commit(createResolvedMerge(png), 'merge side'), 1)
+	})
+	test('names the blob id and not the path when git cannot read a PNG blob', () => {
+		const dir = createStagedRepo('clean\n')
+		assert.equal(commit(dir).status, 0)
+		const id = run('git', ['rev-parse', 'HEAD'], dir).stdout.trim()
+		// A gitlink named `.png` has the id of a commit. So `git cat-file blob` fails on it.
+		git(dir, 'update-index', '--add', '--cacheinfo', `160000,${id},${TERM}.png`)
+		const { stderr } = commit(dir, 'add link')
+		assert.deepEqual(
+			{ namesId: stderr.includes(`cannot read the blob ${id}`), namesTerm: stderr.includes(TERM) },
+			{ namesId: true, namesTerm: false }
+		)
+	})
+	test('passes a PNG whose two tEXt chunks each hold half of the term', () => {
+		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM.slice(0, 4)}`], ['tEXt', TERM.slice(4)], IEND])
+		assert.equal(commit(createStagedPng(png)).status, 0)
+	})
+	test('refuses the term typed into a text file staged with a PNG', () => {
+		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
+		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n`)
+		git(dir, 'add', 'file.txt')
+		assertRefused(commit(dir), 1)
+	})
+})
+
+describe('readDiffTexts', () => {
+	test('scans the hunks of a PNG whose blob git cannot read', () => {
+		const diff = [
+			'diff --git a/image.png b/image.png',
+			'new file mode 100644',
+			`index ${'0'.repeat(40)}..${'1'.repeat(40)}`,
+			'--- /dev/null',
+			'+++ b/image.png',
+			'@@ -0,0 +1 @@',
+			`+\0${TERM}\0`,
+			'',
+		].join('\n')
+		const texts = readDiffTexts(diff, () => null).map(([, text]) => text)
+		assert.equal(findTerm(texts.join('\n'), [TERM]), TERM)
 	})
 })
 

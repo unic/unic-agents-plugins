@@ -17,6 +17,31 @@ const HOOKS = dirname(fileURLToPath(import.meta.url))
 const REFUSED = /refusing this push[\s\S]*carries the NDA term/
 const ZERO = '0'.repeat(40)
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+/**
+ * A PNG made of these chunks. Each CRC is zero, because the guards never check it.
+ * @param {Array<[string, string | Buffer]>} chunks
+ */
+function createPng(chunks) {
+	const parts = [PNG_SIGNATURE]
+	for (const [type, data] of chunks) {
+		const body = Buffer.from(data)
+		const length = Buffer.alloc(4)
+		length.writeUInt32BE(body.length)
+		parts.push(length, Buffer.from(type, 'latin1'), body, Buffer.alloc(4))
+	}
+	return Buffer.concat(parts)
+}
+
+/** @type {[string, Buffer]} */
+const IHDR = ['IHDR', Buffer.alloc(13)]
+/** @type {[string, string]} */
+const IEND = ['IEND', '']
+const CLEAN_PNG = createPng([IHDR, ['IDAT', '\0clean\0'], IEND])
+const PNG_WITH_TERM_IN_IDAT = createPng([IHDR, ['IDAT', `\0${TERM}\0`], IEND])
+const PNG_WITH_TERM_IN_TEXT = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+
 const scratch = mkdtempSync(join(tmpdir(), 'nda-push-'))
 after(() => rmSync(scratch, { recursive: true, force: true }))
 
@@ -68,10 +93,11 @@ function cloneOf(remote) {
  * @param {string} dir
  * @param {string | Buffer} content
  * @param {string} [message]
+ * @param {string} [name]
  */
-function commitUnchecked(dir, content, message = 'change') {
-	writeFileSync(join(dir, 'file.txt'), content)
-	git(dir, 'add', 'file.txt')
+function commitUnchecked(dir, content, message = 'change', name = 'file.txt') {
+	writeFileSync(join(dir, name), content)
+	git(dir, 'add', name)
 	git(dir, '-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', message)
 }
 
@@ -610,5 +636,121 @@ describe('pre-push, quoted paths and pushes by URL', () => {
 		git(second, 'switch', '-q', '-c', 'main', 'FETCH_HEAD')
 		commitUnchecked(second, 'clean\n')
 		assertPushed(run('git', ['push', '-q', remote, 'HEAD:refs/heads/main'], second))
+	})
+})
+
+describe('pre-push, PNG files', () => {
+	/**
+	 * @param {string} dir
+	 * @param {Buffer} content
+	 */
+	const commitPngUnchecked = (dir, content) => commitUnchecked(dir, content, 'change image', 'image.png')
+
+	test('pushes an added PNG whose IDAT data holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('pushes a PNG whose IDAT data holds the term under diff.noprefix=true', () => {
+		const { dir } = createClone()
+		git(dir, 'config', 'diff.noprefix', 'true')
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('pushes a PNG modified in a later commit of the same push whose IDAT data holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, CLEAN_PNG)
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
+		assertPushed(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a PNG whose tEXt chunk after IDAT holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('names the PNG when its tEXt chunk holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'), /A chunk of the PNG image\.png, or its whole blob, in a commit/)
+	})
+	test('leaves the path out of the refusal when a PNG path the patch scan misses holds the term', () => {
+		const { dir } = createClone()
+		// With `b/` in front, the path starts an 80-character run that holds a digit and a `+`. The
+		// base64 step removes that run from the patch text, so only the tEXt chunk matches.
+		const folder = `x1+${'a'.repeat(78)}`
+		mkdirSync(join(dir, folder))
+		commitUnchecked(dir, PNG_WITH_TERM_IN_TEXT, 'change image', `${folder}/${TERM}.png`)
+		const result = push(dir, 'HEAD:refs/heads/main')
+		assert.deepEqual(
+			{
+				failed: result.status !== 0,
+				namesPng: /A chunk of a PNG,/.test(result.stderr),
+				namesTerm: result.stderr.includes(TERM),
+			},
+			{ failed: true, namesPng: true, namesTerm: false }
+		)
+	})
+	test('refuses a PNG whose eXIf chunk holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a tEXt term in the first of two commits when the second replaces the PNG', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_TEXT)
+		commitPngUnchecked(dir, CLEAN_PNG)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([['IDAT', `\0${TERM}\0`]]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([['IDAT', `\0${TERM}\0`], IEND]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a file named .png that is not a PNG and holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, Buffer.from(`not a png, built for ${TERM}\n`))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	/**
+	 * A clone whose history ends in a merge. The side branch adds `image.png` with the content `png`
+	 * and changes `file.txt`, the main line changes `file.txt` too, and the merge resolves the
+	 * conflict. Every commit skips the hooks.
+	 * @param {Buffer} png
+	 */
+	function createResolvedMerge(png) {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'base\n', 'base')
+		git(dir, 'switch', '-q', '-c', 'side')
+		writeFileSync(join(dir, 'image.png'), png)
+		git(dir, 'add', 'image.png')
+		commitUnchecked(dir, 'side\n', 'side')
+		git(dir, 'switch', '-q', '-')
+		commitUnchecked(dir, 'main\n', 'main')
+		assert.notEqual(run('git', ['merge', '-q', 'side'], dir).status, 0)
+		commitUnchecked(dir, 'resolved\n', 'merge side')
+		return dir
+	}
+
+	test('pushes a resolved merge that brings in a PNG whose IDAT data holds the term', () => {
+		assertPushed(push(createResolvedMerge(PNG_WITH_TERM_IN_IDAT), 'HEAD:refs/heads/main'))
+	})
+	test('refuses a resolved merge that brings in a PNG whose tEXt chunk holds the term', () => {
+		assertRefused(push(createResolvedMerge(PNG_WITH_TERM_IN_TEXT), 'HEAD:refs/heads/main'))
+	})
+	test('refuses the term typed into a text file pushed with a PNG', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
+		commitUnchecked(dir, `Built for ${TERM}.\n`)
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
 })
