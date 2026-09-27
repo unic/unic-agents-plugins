@@ -595,7 +595,7 @@ been wrong — and each was caught by a check that was one command away.
 - **Run `pnpm install --frozen-lockfile` in a new worktree before any gate.** A fresh worktree has
   no `node_modules`, and `npx biome` then falls back to another install that exited 0 on a file
   the pinned Biome fails (measured 2026-09-24). `pnpm ci:check` fails there with "biome: command
-  not found" (2026-09-25).
+  not found" (2026-09-25), and `pnpm typecheck` exits 2 (2026-09-27).
 - **Only a process in a new session outlives the session that starts it on macOS** (2026-08-28).
   `nohup … &`, `nohup … & disown` and `( nohup … & )` all keep the parent's process group and die on
   the `SIGINT` that reaches it; `setsid` does not exist on macOS. Node's
