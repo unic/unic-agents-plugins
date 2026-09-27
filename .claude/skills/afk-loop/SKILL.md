@@ -2,7 +2,6 @@
 name: afk-loop
 description: Work every ready-for-agent child of a stream, map or parent ticket through to merge, unattended, with native Claude Code loops and subagents.
 argument-hint: '<parent-issue> [instructions for this run]'
-disable-model-invocation: true
 ---
 
 # AFK loop
