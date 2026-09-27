@@ -112,11 +112,14 @@ export function dropDeletedLines(diff) {
 const SCISSORS = '------------------------ >8 ------------------------'
 
 /**
- * A commit message file without what git removes after `commit-msg` runs: everything from the
- * scissors line down, and every line that starts with the comment string. Under `auto` git picks the
- * character at commit time, so it comes from the scissors line or from the template line that names
- * it in quotes. With neither in the file, no comment line goes. Git keeps comment lines under `-m`,
- * `-F` and `--cleanup=verbatim`, which the hook cannot see, so `pre-push` catches a term there.
+ * A commit message file without every line from the scissors line down and every line that starts
+ * with the comment string. Git removes both from a message edited under the default cleanup, the
+ * scissors part only with `-v`. Under `auto` git picks the character at commit time, so it comes
+ * from the scissors line or from the template line that names it in quotes. With neither in the file,
+ * no comment line goes. Git keeps comment lines under `-m`, `-F`, `--cleanup=verbatim`,
+ * `--cleanup=whitespace` and `--cleanup=scissors`. It keeps the scissors line and every line below
+ * it under `-m` or `-F` without `-v`. The hook cannot see either case, so `pre-push` refuses a
+ * term there.
  * @param {string} message
  * @param {string} comment the comment string, or `auto` in any case
  */
