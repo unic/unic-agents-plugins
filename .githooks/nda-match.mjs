@@ -101,7 +101,7 @@ const POST_IMAGE_ID = /^index [0-9a-f]+\.\.([0-9a-f]+)/
  * guard scans the hunks as for any other file. For every file the guard drops the `index` lines,
  * because they hold only object ids. The file header stays, so the guard still reads the path.
  * @param {string} diff
- * @param {(id: string, path: string) => Buffer | null} readBlob
+ * @param {(id: string) => Buffer | null} readBlob
  * @returns {Array<[string | null, string]>}
  */
 export function readDiffTexts(diff, readBlob) {
@@ -115,7 +115,7 @@ export function readDiffTexts(diff, readBlob) {
 		const header = hunkStart === -1 ? lines : lines.slice(0, hunkStart)
 		const postImageId = header.map((line) => POST_IMAGE_ID.exec(line)?.[1]).find(Boolean)
 		const pngPath = header.map((line) => PNG_PATH_LINE.exec(line)?.[1]).find(Boolean)
-		const blob = pngPath && postImageId && !/^0+$/.test(postImageId) ? readBlob(postImageId, pngPath) : null
+		const blob = pngPath && postImageId && !/^0+$/.test(postImageId) ? readBlob(postImageId) : null
 		const headerOnly = header.filter((line) => !line.startsWith('index '))
 		if (blob === null) {
 			kept.push([...headerOnly, ...(hunkStart === -1 ? [] : lines.slice(hunkStart))].join('\n'))
@@ -151,11 +151,12 @@ export function readPngChunkTexts(blob) {
 
 /**
  * A blob's content, or null when git cannot read it. The caller then scans the file's diff lines.
+ * The stderr line names the blob id and never the path: it is written before any scan, so a term in
+ * the path would reach the transcript unredacted.
  * @param {string} id
- * @param {string} path
  * @param {string} label the hook that reads it
  */
-export function readBlob(id, path, label) {
+export function readBlob(id, label) {
 	try {
 		return execFileSync('git', ['--no-replace-objects', 'cat-file', 'blob', id], {
 			encoding: 'buffer',
@@ -165,7 +166,7 @@ export function readBlob(id, path, label) {
 	} catch (error) {
 		const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 		process.stderr.write(
-			`${label}: cannot read the blob ${id} of ${path}, so its diff lines are scanned instead (${
+			`${label}: cannot read the blob ${id}, so its diff lines are scanned instead (${
 				String(stderr || message)
 					.trim()
 					.split('\n')[0]
@@ -408,9 +409,7 @@ async function main() {
 	else for await (const chunk of process.stdin) text += chunk
 
 	const texts =
-		label === 'pre-commit'
-			? readDiffTexts(text, (id, path) => readBlob(id, path, label)).map(([, each]) => each)
-			: [text]
+		label === 'pre-commit' ? readDiffTexts(text, (id) => readBlob(id, label)).map(([, each]) => each) : [text]
 	const term = texts.map((each) => findTerm(each, terms)).find((found) => found !== null) ?? null
 	if (term === null) return
 	// Redact the term: the transcript of a refusal must not republish it.

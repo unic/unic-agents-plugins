@@ -489,6 +489,18 @@ describe('pre-commit, PNG files', () => {
 		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
 		assertRefused(commit(createResolvedMerge(png), 'merge side'), 1)
 	})
+	test('names the blob id and not the path when git cannot read a PNG blob', () => {
+		const dir = createStagedRepo('clean\n')
+		assert.equal(commit(dir).status, 0)
+		const id = run('git', ['rev-parse', 'HEAD'], dir).stdout.trim()
+		// A gitlink named `.png`: its id names a commit, so `git cat-file blob` fails on it.
+		git(dir, 'update-index', '--add', '--cacheinfo', `160000,${id},${TERM}.png`)
+		const { stderr } = commit(dir, 'add link')
+		assert.deepEqual(
+			{ namesId: stderr.includes(`cannot read the blob ${id}`), namesTerm: stderr.includes(TERM) },
+			{ namesId: true, namesTerm: false }
+		)
+	})
 	test('passes a PNG whose two tEXt chunks each hold half of the term', () => {
 		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM.slice(0, 4)}`], ['tEXt', TERM.slice(4)], IEND])
 		assert.equal(commit(createStagedPng(png)).status, 0)

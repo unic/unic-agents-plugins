@@ -121,7 +121,7 @@ function readPushedTexts(line, remote) {
 	// or modifies, and one whole blob for each such PNG that does not parse.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
-	for (const [pngPath, text] of readDiffTexts(patches, (id, path) => readBlob(id, path, 'pre-push'))) {
+	for (const [pngPath, text] of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {
 		const where =
 			pngPath === null ? 'the patch of a commit' : `a chunk of the PNG ${pngPath}, or its whole blob, in a commit`
 		texts.push([`${where} pushed to ${remoteRef}`, text])
