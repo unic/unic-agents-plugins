@@ -117,7 +117,7 @@ export function readDiffTexts(diff, readBlob) {
 		const pngPath = header.map((line) => PNG_PATH_LINE.exec(line)?.[1]).find(Boolean)
 		const blob = pngPath && postImageId && !/^0+$/.test(postImageId) ? readBlob(postImageId) : null
 		const headerOnly = header.filter((line) => !line.startsWith('index '))
-		if (blob === null) {
+		if (blob === null || pngPath === undefined) {
 			kept.push([...headerOnly, ...(hunkStart === -1 ? [] : lines.slice(hunkStart))].join('\n'))
 			continue
 		}
