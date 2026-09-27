@@ -129,23 +129,27 @@ export function readDiffTexts(diff, readBlob) {
 
 /**
  * The type and data of every chunk but `IDAT`, one text per chunk, or null when the blob is not a
- * PNG: a wrong signature, a chunk that runs past the end, or 1 to 11 bytes after the last whole chunk.
+ * PNG: a wrong signature, a chunk that runs past the end, 1 to 11 bytes after the last whole chunk, or
+ * a first chunk that is not `IHDR` or a last chunk that is not `IEND`.
  * @param {Buffer} blob
  */
 export function readPngChunkTexts(blob) {
 	if (!blob.subarray(0, 8).equals(PNG_SIGNATURE)) return null
 	/** @type {string[]} */
 	const texts = []
+	/** @type {string[]} */
+	const types = []
 	for (let at = 8; at < blob.length; ) {
 		// Four bytes of length, four of type, the data, and four of CRC.
 		if (at + 12 > blob.length) return null
 		const end = at + 12 + blob.readUInt32BE(at)
 		if (end > blob.length) return null
 		const type = blob.toString('latin1', at + 4, at + 8)
+		types.push(type)
 		if (type !== 'IDAT') texts.push(`${type}\n${blob.toString('utf8', at + 8, end - 4)}`)
 		at = end
 	}
-	return texts
+	return types[0] === 'IHDR' && types.at(-1) === 'IEND' ? texts : null
 }
 
 /**

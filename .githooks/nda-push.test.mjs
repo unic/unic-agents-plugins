@@ -693,6 +693,11 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, CLEAN_PNG)
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
+	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([['IDAT', `\0${TERM}\0`]]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
 	test('refuses a file named .png that is not a PNG and holds the term', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, Buffer.from(`not a png, built for ${TERM}\n`))

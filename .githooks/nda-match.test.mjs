@@ -450,6 +450,9 @@ describe('pre-commit, PNG files', () => {
 		git(dir, 'add', 'image.png')
 		assertRefused(commit(dir, 'change image'), 1)
 	})
+	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
+		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`]]))), 1)
+	})
 	test('refuses a file named .png that is not a PNG and holds the term', () => {
 		assertRefused(commit(createStagedPng(Buffer.from(`not a png, built for ${TERM}\n`))), 1)
 	})
