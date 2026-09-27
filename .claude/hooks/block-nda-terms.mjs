@@ -55,8 +55,11 @@ const PUSHES = /\bpush\b/
 const SENDS_PACK = /\bsend-pack\b/
 const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
 const RUNS_GH = /\b(?:gh|glab)\b/
-// PowerShell names count only in command position, so a path such as `docs/sl/x.md` passes.
-const CHANGES_DIR = /\b(?:cd|pushd)\b|(?:^|[;|&(\n])\s*(?:set-location|sl|push-location)\b/im
+const CHANGES_DIR = /\b(?:cd|pushd)\b/
+// PowerShell ignores case in command names, so this regex does too. `CHANGES_DIR` keeps case, so
+// a title such as `CI/CD fix` passes. PowerShell names count only in command position, so a path
+// such as `docs/sl/x.md` passes.
+const CHANGES_DIR_POWERSHELL = /(?:^|[;|&(\n])\s*(?:set-location|sl|push-location)\b/im
 const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
 const QUOTED = /"([^"]*)"|'([^']*)'/g
 const GH_EXECUTABLES = new Set(['gh', 'glab', 'gh.exe', 'glab.exe'])
@@ -227,7 +230,7 @@ async function main() {
 	/** @type {Array<[string, string]>} */
 	const surfaces = [['the command itself', command]]
 	if (RUNS_GH.test(command)) {
-		if (CHANGES_DIR.test(command)) {
+		if (CHANGES_DIR.test(command) || CHANGES_DIR_POWERSHELL.test(command)) {
 			block(
 				'this gh or glab command also changes directory with cd, pushd, Set-Location, sl or Push-Location. Name every file by its absolute path, or have the maintainer run it with !.'
 			)

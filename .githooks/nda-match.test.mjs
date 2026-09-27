@@ -703,6 +703,10 @@ describe('Claude hook', () => {
 		)
 	})
 
+	test('passes a gh command whose title holds CD in upper case', () => {
+		assert.equal(runClaudeHook('gh pr create --title "CI/CD fix" --body x', outside).status, 0)
+	})
+
 	test('refuses an empty payload', () => {
 		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, ''), 2, /empty payload/)
 	})
