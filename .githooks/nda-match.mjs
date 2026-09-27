@@ -154,8 +154,8 @@ export function readPngChunkTexts(blob) {
 
 /**
  * A blob's content, or null when git cannot read it. The caller then scans the file's diff lines.
- * The hook writes this line before any scan, so it names the blob id and never the path. A term in
- * the path would otherwise reach the transcript unredacted.
+ * The hook writes the stderr line below before any scan, so it names the blob id and never the path.
+ * A term in the path would otherwise reach the transcript unredacted.
  * @param {string} id
  * @param {string} label the hook that reads it
  */

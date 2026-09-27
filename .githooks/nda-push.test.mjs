@@ -722,8 +722,9 @@ describe('pre-push, PNG files', () => {
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
 	/**
-	 * A clone whose history ends in a merge. The side branch adds `image.png` with the content `png` and changes `file.txt`, the
-	 * main line changes `file.txt` too, and the merge resolves the conflict. Every commit skips the hooks.
+	 * A clone whose history ends in a merge. The side branch adds `image.png` with the content `png`
+	 * and changes `file.txt`, the main line changes `file.txt` too, and the merge resolves the
+	 * conflict. Every commit skips the hooks.
 	 * @param {Buffer} png
 	 */
 	function createResolvedMerge(png) {

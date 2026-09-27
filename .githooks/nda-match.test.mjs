@@ -470,8 +470,9 @@ describe('pre-commit, PNG files', () => {
 		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
 	})
 	/**
-	 * A repository in the middle of a merge. The side branch adds `image.png` with the content `png` and changes `file.txt`, the
-	 * current branch changes `file.txt` too, and the conflict is resolved and staged.
+	 * A repository in the middle of a merge. The side branch adds `image.png` with the content `png`
+	 * and changes `file.txt`, the current branch changes `file.txt` too, and the conflict is resolved
+	 * and staged.
 	 * @param {Buffer} png
 	 */
 	function createResolvedMerge(png) {
