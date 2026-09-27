@@ -470,6 +470,10 @@ describe('commit-msg through an editor', () => {
 		const result = commitInEditor(dir, '', '--cleanup=scissors', '-e', '-m', '#1 remove file')
 		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
 	})
+	// The accepted gap: git keeps this line under -m, and pre-push refuses it. See AGENTS.md.
+	test('passes a term on a # line under -m', () => {
+		assert.equal(commit(createStagedRepo('clean\n'), `fix\n# ${TERM}`).status, 0)
+	})
 	test('removes no line under core.commentChar=auto when a message line quotes its own first letter', () => {
 		const dir = createStagedRepo('clean\n')
 		git(dir, 'config', 'core.commentChar', 'auto')
