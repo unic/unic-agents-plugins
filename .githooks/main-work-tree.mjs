@@ -34,7 +34,3 @@ export function listWorktrees(porcelain) {
 			isLocked: lines.some((line) => line === 'locked' || line.startsWith('locked ')),
 		}))
 }
-
-export function positiveControl(value) {
-	return value
-}
