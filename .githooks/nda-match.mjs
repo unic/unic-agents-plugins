@@ -109,6 +109,78 @@ export function dropDeletedLines(diff) {
 	return kept.join('\n')
 }
 
+const SCISSORS = '------------------------ >8 ------------------------'
+
+/**
+ * Returns the commit message without every line from the scissors line down and every line that
+ * starts with the comment string. Under `auto` git picks the character at commit time, so it comes
+ * from the scissors line and from every template line that names it in quotes. When those name no
+ * character, or name more than one, it removes no comment line. Git keeps some of these lines, and the hook cannot see when.
+ * `AGENTS.md`, "The NDA publish guard", lists those cases in its accepted gaps. `pre-push` refuses a
+ * term there.
+ * @param {string} message
+ * @param {string} comment the comment string, or `auto` in any case
+ */
+export function dropCommentLines(message, comment) {
+	const lines = message.split('\n')
+	const active = comment.toLowerCase() === 'auto' ? findAutoComment(lines) : comment
+	if (active === null) return message
+	const end = lines.indexOf(`${active} ${SCISSORS}`)
+	return lines
+		.slice(0, end === -1 ? undefined : end)
+		.filter((line) => !line.startsWith(active))
+		.join('\n')
+}
+
+// Under `auto`, git picks the comment character from this set only.
+const AUTO_COMMENT_CHARS = '#;@!$%^&|:'
+
+/** @param {string[]} lines */
+function findAutoComment(lines) {
+	// Candidates are the scissors line and every line that starts with one of those characters and
+	// names it in quotes, as git's template does in `# with '#' will be ignored`. The match is loose.
+	const found = new Set(
+		lines
+			.filter(
+				(line) =>
+					AUTO_COMMENT_CHARS.includes(line[0]) && (line === `${line[0]} ${SCISSORS}` || /^(.) .*'\1'/u.test(line))
+			)
+			.map((line) => line[0])
+	)
+	// Candidates that disagree mean the user typed one of them, so the hook removes no line and reads the whole file.
+	return found.size === 1 ? [...found][0] : null
+}
+
+// Git reads `core.commentString` and `core.commentChar` as one setting, and the value read last wins,
+// across scopes too. Git uses `#` when neither is set.
+function readCommentString() {
+	try {
+		const output = execFileSync('git', ['config', '--get-regexp', '^core\\.comment(char|string)$'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+		const last =
+			output
+				.replace(/\r?\n$/, '')
+				.split(/\r?\n/)
+				.at(-1) ?? ''
+		// Git refuses an empty value, and an empty prefix would drop every line.
+		return last.includes(' ') ? last.slice(last.indexOf(' ') + 1) : '#'
+	} catch (error) {
+		const { status, stderr, message } = /** @type {{ status?: unknown, stderr?: unknown, message?: unknown }} */ (error)
+		// Exit 1 means neither key is set.
+		if (status === 1) return '#'
+		process.stderr.write(
+			`commit-msg: cannot read core.commentString or core.commentChar, so this commit is refused (${
+				String(stderr || message)
+					.trim()
+					.split('\n')[0]
+			}).\n`
+		)
+		process.exit(1)
+	}
+}
+
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
@@ -225,7 +297,7 @@ async function main() {
 	}
 
 	let text = ''
-	if (file) text = readFileSync(file, 'utf8')
+	if (file) text = dropCommentLines(readFileSync(file, 'utf8'), readCommentString())
 	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 

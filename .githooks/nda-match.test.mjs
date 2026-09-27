@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { findTerm, readTerms } from './nda-match.mjs'
+import { dropCommentLines, findTerm, readTerms } from './nda-match.mjs'
 
 const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
@@ -157,6 +157,14 @@ describe('findTerm', () => {
 	})
 	test('refuses an overlapping match that ends on a boundary', () => {
 		assert.equal(findTerm('aAa', ['aa']), 'aa')
+	})
+})
+
+describe('dropCommentLines', () => {
+	// Git cuts only where the scissors line ends in a bare LF, and keeps the lines below a CRLF one.
+	test('keeps the lines below a scissors line that ends in CRLF', () => {
+		const message = `fix\r\n# ------------------------ >8 ------------------------\r\nBuilt for ${TERM}.\r\n`
+		assert.equal(dropCommentLines(message, '#'), `fix\r\nBuilt for ${TERM}.\r\n`)
 	})
 })
 
@@ -358,6 +366,133 @@ describe('git hooks', () => {
 		writeFileSync(join(dir, `${TERM} b`, 'x'), '')
 		git(dir, 'add', '.')
 		assertRefused(commit(dir), 1)
+	})
+})
+
+// A commit with -m or -F keeps git's comment lines and writes no template, so only a commit through
+// an editor tests what commit-msg must strip.
+const EDITOR = join(scratch, 'editor.mjs')
+writeFileSync(
+	EDITOR,
+	"import { readFileSync, writeFileSync } from 'node:fs'\n" +
+		'const file = process.argv[2]\n' +
+		"writeFileSync(file, (process.env.MESSAGE ?? '') + readFileSync(file, 'utf8') + (process.env.APPEND ?? ''))\n"
+)
+
+/**
+ * Commits through an editor that puts `message` above the template git wrote.
+ * @param {string} dir
+ * @param {string} message
+ * @param {string[]} args
+ */
+const commitInEditor = (dir, message, ...args) =>
+	run('git', ['commit', '-q', ...args], dir, { GIT_EDITOR: `node ${JSON.stringify(EDITOR)}`, MESSAGE: message })
+
+/**
+ * The status and the subject of the new commit, so a pass shows that the editor wrote the message.
+ * @param {string} dir
+ * @param {{ status: number | null, stderr: string }} result
+ */
+function getOutcome(dir, result) {
+	const subject = run('git', ['log', '-1', '--format=%s'], dir).stdout.trim()
+	return { status: result.status, subject, stderr: result.status === 0 ? '' : result.stderr }
+}
+
+describe('commit-msg through an editor', () => {
+	test('passes a deletion-only commit made with -v', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		const result = commitInEditor(dir, 'remove line\n', '-v')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove line', stderr: '' })
+	})
+	test('passes the deletion of a file named with the term', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, 'remove file\n')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term in the message', () => {
+		assertRefused(commitInEditor(createStagedRepo('clean\n'), `fix: ${TERM} typo\n`, '-v'), 1)
+	})
+	test('passes the deletion of a file named with the term under core.commentChar=;', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', ';')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, 'remove file\n', '-v')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term on a # line under core.commentChar=;', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', ';')
+		assertRefused(commitInEditor(dir, `add file\n\n# ${TERM}\n`), 1)
+	})
+	test('takes core.commentString when it is read after core.commentChar', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', '%')
+		git(dir, 'config', 'core.commentString', ';')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, 'remove file\n')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term on a line that starts with core.commentString when core.commentChar is read last', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentString', ';')
+		git(dir, 'config', 'core.commentChar', '%')
+		assertRefused(commitInEditor(dir, `add file\n\n; ${TERM}\n`), 1)
+	})
+	test('keeps the trailing space of core.commentString', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentString', '; ')
+		assertRefused(commitInEditor(dir, `add file\n\n;${TERM}\n`), 1)
+	})
+	test('takes the comment character from the template under core.commentChar=auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'auto')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		// A message line that starts with # makes git pick another comment character.
+		const result = commitInEditor(dir, '', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
+	test('reads core.commentChar=AUTO as auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'AUTO')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, '', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
+	test('takes the comment character from the scissors line under core.commentChar=auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'auto')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		// Under --cleanup=scissors, git's template names no comment character, so the scissors line is
+		// the only source.
+		const result = commitInEditor(dir, '', '--cleanup=scissors', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
+	// The accepted gap: git keeps this line under -m, and pre-push refuses it. See AGENTS.md.
+	test('passes a term on a # line under -m', () => {
+		assert.equal(commit(createStagedRepo('clean\n'), `fix\n# ${TERM}`).status, 0)
+	})
+	test('removes no line under core.commentChar=auto when a message line quotes its own first letter', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		assertRefused(commit(dir, `add file\n\nI mean 'I' here\nI built ${TERM}`), 1)
+	})
+	test('removes no line under core.commentChar=auto when a line typed after the template names another character', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		const env = {
+			GIT_EDITOR: `node ${JSON.stringify(EDITOR)}`,
+			MESSAGE: 'add file\n',
+			APPEND: `; note ';'\n; Built for ${TERM}\n`,
+		}
+		assertRefused(run('git', ['commit', '-q'], dir, env), 1)
+	})
+	test('removes no line under core.commentChar=auto when the file holds no template', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		assertRefused(commit(dir, `add file\n\n# ${TERM}`), 1)
 	})
 })
 
