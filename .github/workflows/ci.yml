@@ -35,10 +35,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test .githooks/nda-match.test.mjs .githooks/nda-push.test.mjs .githooks/set-hooks-path.test.mjs
-      # The install puts tsc, @types/node and @unic/tsconfig on disk for the tsc step. The tests need none of them.
-      # The tsc step needs no lifecycle script, so the install skips them, as ADR-0014 asks on Windows.
+      # The install puts tsc, @types/node and @unic/tsconfig on disk for the tsc steps. The tests need none of them.
+      # The tsc steps need no lifecycle scripts, so the install skips those scripts, as ADR-0014 asks on Windows.
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm exec tsc --noEmit --project .githooks/tsconfig.json
+      - run: pnpm exec tsc --noEmit --project .claude/hooks/tsconfig.json
 
   changes:
     name: Detect changed packages
