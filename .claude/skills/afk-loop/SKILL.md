@@ -123,7 +123,7 @@ memory. Work one ticket at a time.
    `STATE` block and in the opener, because whichever PR merges second takes the conflict.
 2. **Opener.** Write it in the shape of `docs/agents/dispatching-and-learning.md` § The shape that
    has worked. Its first line is `**Opener for #<N>**`. For an unattended run, replace the shape's
-   report-back clause with this: the worker reports in its final answer, as `worker-prompt.md` step 6
+   report-back clause with this: the worker reports in its final answer, as `worker-prompt.md` step 7
    says, and stops after the handover. Leak-check it, then post it, and record its comment id and
    your login. Mark any older opener on the ticket "**Stale — do not follow**" in place.
 3. **Worker.** Spawn one background `general-purpose` subagent with the filled
@@ -211,6 +211,10 @@ All of these, on the head about to merge:
 ## Verification, every time a head moves
 
 - `gh pr view` for the head, the base, `mergeable` and every check by name.
+- **Unslop** every prose text before its leak check: openers, comments, follow-up bodies, triage
+  notes, thread replies, the report and anything else this run publishes. Apply every rule of
+  `.claude/skills/unslop/SKILL.md`. Read the file, because its frontmatter blocks invoking it as a
+  skill. Code, commands, identifiers and quoted error text stay exact.
 - The **leak check** runs on every text before this run publishes it, and on the PR at the gate. A
   `grep` for whole words is no substitute, because the guards' matcher also finds a term in
   `camelCase` and at other boundaries.
