@@ -77,13 +77,6 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 | `/cleanup` ([diagram](docs/architecture/20260925-unic-dlc-cleanup-command.html))                           | command   | HITL              | Repo-global janitor: prune stale worktrees / branches / PRs / slug dirs, report-first (ADR-0028)                               |
 | `/archon-upgrade` ([diagram](docs/architecture/20260925-unic-dlc-archon-upgrade-command.html))             | command   | —                 | Report what a new Archon release means for this Plugin; writes nothing here, probes config keys in a throwaway repo (ADR-0035) |
 
-> Each command row links an Archify diagram drawn from that command's text.
-> It shows the Methods the command reads, the files it reads and writes, its tracker writes, and
-> every point where it waits for a human. `/specs`, `/tickets` and `/setup` group their steps into
-> phases so that each diagram fits one screen. Each source JSON sits beside its HTML. The previews
-> below are PNG exports from each diagram's own viewer, one per colour scheme; export both again
-> whenever the JSON changes.
-
 Archon boxes gate via config (`gates.<box>: hitl | afk`, HITL default); interactive skill boxes are
 inherently HITL. `/handoff` and `/prototype` are **referenced** Matt skills, named in prose for a
 human to run and deliberately not bundled (see [Dependencies](#dependencies)).
@@ -92,12 +85,19 @@ Run `/specs` and `/tickets` in one Claude Code conversation. `/specs` grills you
 and `/tickets` uses what that grilling left in the conversation to slice the PRD into vertical
 slices. A new conversation starts `/tickets` with only the PRD.
 
+> Each command row links an Archify diagram drawn from that command's text.
+> It shows the Methods the command reads, the files it reads and writes, its tracker writes, and
+> every point where it waits for a human. `/specs`, `/tickets` and `/setup` group their steps into
+> phases so that each diagram fits one screen. Each source JSON sits beside its HTML. The previews
+> below are PNG exports from each diagram's own viewer, one per colour scheme; export both again
+> whenever the JSON changes.
+
 ### `/setup` command diagram
 
 <a href="docs/architecture/20260925-unic-dlc-setup-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-setup-command.dark.png">
-    <img alt="/setup command: read the Archon version, the project and the tools, discover the stack, install the Methods and workflows, write the config and the tracker contract, then patch CLAUDE.md and print a summary, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-setup-command.light.png">
+    <img alt="/setup command: read the Archon version and the project, discover the tools and the stack, install the Methods and workflows, write the config and the tracker contract, then patch CLAUDE.md and print a summary, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-setup-command.light.png">
   </picture>
 </a>
 
@@ -106,7 +106,7 @@ slices. A new conversation starts `/tickets` with only the PRD.
 <a href="docs/architecture/20260925-unic-dlc-specs-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-specs-command.dark.png">
-    <img alt="/specs command: prepare, understand the input through the to-spec, grilling and domain-modeling Methods, write PRD.md and a design contract per component, then open the PRD gate as a PR to develop, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-specs-command.light.png">
+    <img alt="/specs command: prepare, understand the input through the to-spec, grilling and domain-modeling Methods, write PRD.md and a design contract per component, then open the PRD gate, as a PR to develop in open-pr mode, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-specs-command.light.png">
   </picture>
 </a>
 
@@ -115,7 +115,7 @@ slices. A new conversation starts `/tickets` with only the PRD.
 <a href="docs/architecture/20260925-unic-dlc-tickets-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-tickets-command.dark.png">
-    <img alt="/tickets command: prepare, slice the PRD and check the slices with the to-tickets Method, write issues.json and publish one tracker item per slice, then open the tickets gate as a PR to develop, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-tickets-command.light.png">
+    <img alt="/tickets command: prepare, slice the PRD and check the slices with the to-tickets Method, write issues.json and publish one tracker item per slice, then open the tickets gate, as a PR to develop in open-pr mode, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-tickets-command.light.png">
   </picture>
 </a>
 
@@ -124,7 +124,7 @@ slices. A new conversation starts `/tickets` with only the PRD.
 <a href="docs/architecture/20260925-unic-dlc-triage-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-triage-command.dark.png">
-    <img alt="/triage command: load the config and the Methods, read the tracker contract, follow the triage Method with the human, apply the agreed state, type, comment or close to the tracker item, then print a summary" src="docs/architecture/20260925-unic-dlc-triage-command.light.png">
+    <img alt="/triage command: load the config and the Methods, read the tracker contract, follow the triage Method with the human, apply the agreed state, type, comment or close to the tracker item or record a rejected enhancement in the out-of-scope dir, then print a summary" src="docs/architecture/20260925-unic-dlc-triage-command.light.png">
   </picture>
 </a>
 
@@ -142,7 +142,7 @@ slices. A new conversation starts `/tickets` with only the PRD.
 <a href="docs/architecture/20260925-unic-dlc-cleanup-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-cleanup-command.dark.png">
-    <img alt="/cleanup command: load the config, pick a mode, enumerate stale worktrees, PRs and slug dirs, report them, prune only under --apply with a yes or no per category, then print a summary" src="docs/architecture/20260925-unic-dlc-cleanup-command.light.png">
+    <img alt="/cleanup command: load the config, pick a mode, enumerate stale worktrees, PRs and slug dirs, report them, prune only under --apply with a yes or no per category, then print a summary, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-cleanup-command.light.png">
   </picture>
 </a>
 
