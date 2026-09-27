@@ -1,0 +1,23 @@
+# Reviewer prompt
+
+Fill `<PR>`, `<SHA>`, `<BASE>`, `<TICKET>`, `<clone>`, `<scratchpad>`, `<role>` and `<round>` for each reviewer. `<clone>` is the absolute path of the main clone. `<BASE>` is `git merge-base origin/develop <SHA>`, computed after `git fetch origin develop`, because a clone of the clone sees its local branches, not the remote's. `<role>`
+is a slug of the reviewer type with no colon, such as `code-reviewer`. Append the reviewer's agent
+file body when the probe fell back to `general-purpose`.
+
+```text
+Review PR #<PR> in unic-agents-plugins at head <SHA>: `git diff <BASE> <SHA>`, against issue #<TICKET>. The spec is the issue body and its agent brief comment, which starts with "## Agent Brief" after the triage disclaimer. If there is no Agent Brief, the body is the spec. Ignore openers and other comments. Read no earlier review and none of the PR's comments first.
+Edit, commit and post nothing. Probe in a fresh copy: `git clone --no-local <clone> <scratchpad>/<role>-r<round>/repo`, then `git -C <scratchpad>/<role>-r<round>/repo checkout --detach <SHA>`. Work nowhere else: not in an existing clone, and not in the scratchpad root, which the other reviewers share.
+Leave the NDA term list unread, whether `$UNIC_NDA_DENYLIST` names it or it is `~/.config/unic/nda-denylist.txt`, and print no term from it.
+Report prose the diff adds that breaks a rule of `.claude/skills/unslop/SKILL.md` as a Low finding, naming the rule.
+In your final answer: each finding with a severity (Critical, High, Medium, Low), whether you reproduced it, and the file and line at <SHA>. End with a plain answer: is there a reason not to merge?
+```
+
+## NDA block
+
+Append it when the ticket touches the NDA guards (`SKILL.md` § When the ticket touches the NDA
+guards).
+
+```text
+Test a guard with a synthetic term only, from a temporary file that `UNIC_NDA_DENYLIST` points at. For a probe that pushes this repository's history, make up a fresh term and confirm `git log --all -S <term>` prints nothing.
+For every refusal you test, assert on the message as well as the exit code. For the Claude hook, exit 2 is the only blocking exit.
+```

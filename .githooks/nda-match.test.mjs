@@ -3,13 +3,23 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+	chmodSync,
+	copyFileSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { findTerm, readTerms } from './nda-match.mjs'
+import { dropCommentLines, findTerm, readDiffTexts, readTerms } from './nda-match.mjs'
 
 const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
@@ -25,12 +35,51 @@ const LONG_PATH = `/Users/someone/Sites/UNIC/${TERM}/apps/claudecode/plugins/src
 const SHORT_DATA_URI = `data:text/plain;base64,${TERM}`
 const REFUSED = /carries the NDA term/
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+/**
+ * A PNG made of these chunks. Each CRC is zero, because the guards never check it.
+ * @param {Array<[string, string | Buffer]>} chunks
+ */
+function createPng(chunks) {
+	const parts = [PNG_SIGNATURE]
+	for (const [type, data] of chunks) {
+		const body = Buffer.from(data)
+		const length = Buffer.alloc(4)
+		length.writeUInt32BE(body.length)
+		parts.push(length, Buffer.from(type, 'latin1'), body, Buffer.alloc(4))
+	}
+	return Buffer.concat(parts)
+}
+
+/** @type {[string, Buffer]} */
+const IHDR = ['IHDR', Buffer.alloc(13)]
+/** @type {[string, string]} */
+const IEND = ['IEND', '']
+const CLEAN_PNG = createPng([IHDR, ['IDAT', '\0clean\0'], IEND])
+const PNG_WITH_TERM_IN_IDAT = createPng([IHDR, ['IDAT', `\0${TERM}\0`], IEND])
+
 const scratch = mkdtempSync(join(tmpdir(), 'nda-guard-'))
 after(() => rmSync(scratch, { recursive: true, force: true }))
 
 const list = join(scratch, 'denylist.txt')
 writeFileSync(list, `# synthetic\r\n${TERM}\r\n`)
 const missingList = join(scratch, 'missing.txt')
+const noHooks = mkdtempSync(join(scratch, 'no-hooks-'))
+
+/** @param {string} text */
+const toUtf16le = (text) => Buffer.from(text, 'utf16le')
+/** @param {string} text */
+const toUtf16be = (text) => Buffer.from(text, 'utf16le').swap16()
+
+/**
+ * Hides every `.txt` diff behind a textconv filter that prints nothing.
+ * @param {string} dir
+ */
+function hideBehindTextconv(dir) {
+	git(dir, 'config', 'diff.hide.textconv', 'true')
+	writeFileSync(join(dir, '.git', 'info', 'attributes'), '*.txt diff=hide\n')
+}
 
 describe('findTerm', () => {
 	test('refuses the term as a word in prose', () => {
@@ -107,11 +156,20 @@ describe('findTerm', () => {
 	test('refuses the term in a long path that holds a digit', () => {
 		assert.equal(findTerm(`apps/claude-code/${TERM}/src/components/v2/HeaderNavigation`, [TERM]), TERM)
 	})
-	test('refuses the term in compact code under 80 characters that holds a digit and a plus', () => {
+	test('refuses the term in short compact code that holds a digit and a plus', () => {
 		assert.equal(findTerm(`total=${TERM}CountForTheCurrentQuarter2+otherCountValue`, [TERM]), TERM)
 	})
-	test('refuses the term in a query string under 80 characters that holds a digit and a plus', () => {
+	test('refuses the term in a short query string that holds a digit and a plus', () => {
 		assert.equal(findTerm(`https://x.io/r?next=${TERM}/2026/tree/main/src/components/header+nav`, [TERM]), TERM)
+	})
+	test('refuses the term in a 79-character run that holds a digit and a plus', () => {
+		assert.equal(findTerm(`${TERM}2+${'a'.repeat(79 - TERM.length - 2)}`, [TERM]), TERM)
+	})
+	test('passes the term in an 80-character run that holds a digit and a plus', () => {
+		assert.equal(findTerm(`${TERM}2+${'a'.repeat(80 - TERM.length - 2)}`, [TERM]), null)
+	})
+	test('refuses the term in capitals before an upper-case letter outside the BMP that starts a word', () => {
+		assert.equal(findTerm(` ${TERM.toUpperCase()}\u{10400}\u{10428}`, [TERM]), TERM)
 	})
 	test('passes the term joined to a letter outside the BMP', () => {
 		assert.equal(findTerm(`${TERM}\u{1D41A}`, [TERM]), null)
@@ -124,6 +182,14 @@ describe('findTerm', () => {
 	})
 	test('refuses an overlapping match that ends on a boundary', () => {
 		assert.equal(findTerm('aAa', ['aa']), 'aa')
+	})
+})
+
+describe('dropCommentLines', () => {
+	// Git cuts only where the scissors line ends in a bare LF, and keeps the lines below a CRLF one.
+	test('keeps the lines below a scissors line that ends in CRLF', () => {
+		const message = `fix\r\n# ------------------------ >8 ------------------------\r\nBuilt for ${TERM}.\r\n`
+		assert.equal(dropCommentLines(message, '#'), `fix\r\nBuilt for ${TERM}.\r\n`)
 	})
 })
 
@@ -145,7 +211,7 @@ const run = (cmd, args, cwd, env = {}, input) =>
 
 /**
  * A fresh repository with the git hooks of this checkout and one staged file.
- * @param {string} content
+ * @param {string | Buffer} content
  * @param {string} [prefix]
  * @param {boolean} [viaSymlink] install pre-commit as a symlink in `.git/hooks`, not `core.hooksPath`
  */
@@ -238,127 +304,1005 @@ describe('git hooks', () => {
 		assert.equal(status, 0, stderr)
 	})
 	test('the matcher refuses a term when reached through a symlinked directory', () => {
-		const link = join(scratch, `linked-hooks-${Date.now()}`)
+		const link = join(mkdtempSync(join(scratch, 'linked-hooks-')), 'hooks')
 		symlinkSync(HOOKS, link, 'junction')
-		assertRefused(run('node', [join(link, 'nda-match.mjs'), 'pre-commit'], scratch, {}, `Built for ${TERM}.\n`), 1)
+		assertRefused(run('node', [join(link, 'nda-match.mjs'), 'nda-match'], scratch, {}, `Built for ${TERM}.\n`), 1)
 	})
 	test('commit-msg refuses the term in the message', () => {
 		assertRefused(commit(createStagedRepo('clean\n'), `fix: ${TERM} typo`), 1)
 	})
+	test('pre-commit refuses a staged term in a binary file', () => {
+		assertRefused(commit(createStagedRepo(`\0Built for ${TERM}.\n`)), 1)
+	})
+	test('pre-commit refuses a staged term in a file with a -diff attribute', () => {
+		const dir = createStagedRepo(`Built for ${TERM}.\n`)
+		writeFileSync(join(dir, '.gitattributes'), 'file.txt -diff\n')
+		git(dir, 'add', '.gitattributes')
+		assertRefused(commit(dir), 1)
+	})
+	test('pre-commit refuses a staged term behind diff.external', () => {
+		const dir = createStagedRepo(`Built for ${TERM}.\n`)
+		git(dir, 'config', 'diff.external', 'true')
+		assertRefused(commit(dir), 1)
+	})
+	test('pre-commit passes a commit that only deletes a line holding the term', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'remove line').status, 0)
+	})
+	test('pre-commit refuses a commit that adds a line holding the term', () => {
+		const dir = createCommittedRepo('clean\n')
+		writeFileSync(join(dir, 'file.txt'), `clean\nBuilt for ${TERM}.\n`)
+		git(dir, 'add', 'file.txt')
+		assertRefused(commit(dir, 'add line'), 1)
+	})
+	test('pre-commit refuses a staged term joined to NUL bytes on both sides', () => {
+		assertRefused(commit(createStagedRepo(`aaa\0${TERM}\0bbb\n`)), 1)
+	})
+	test('pre-commit passes a deleted line under color.ui=always', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
+		git(dir, 'config', 'color.ui', 'always')
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'remove line').status, 0)
+	})
+	test('pre-commit passes the deletion of a content line that starts with two hyphens', () => {
+		const dir = createCommittedRepo(`-- ${TERM}\nclean\n`)
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'remove line').status, 0)
+	})
+	test('pre-commit passes the deletion of a file whose name carries the term', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		assert.equal(commit(dir, 'remove file').status, 0)
+	})
+	test('pre-commit passes the rename of a file whose name carries the term', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'mv', `${TERM}.txt`, 'clean.txt')
+		assert.equal(commit(dir, 'rename file').status, 0)
+	})
+	test('pre-commit refuses the rename of a file to a name that carries the term', () => {
+		const dir = createCommittedRepo('clean\n')
+		git(dir, 'mv', 'file.txt', `${TERM}.txt`)
+		assertRefused(commit(dir, 'rename file'), 1)
+	})
+	test('pre-commit passes an edit below a line that already holds the term', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\n a\n b\n`)
+		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n a\n c\n`)
+		git(dir, 'add', 'file.txt')
+		assert.equal(commit(dir, 'edit line').status, 0)
+	})
+	test('pre-commit refuses a staged term in a UTF-16LE file', () => {
+		assertRefused(commit(createStagedRepo(toUtf16le(`Built for ${TERM}.\n`))), 1)
+	})
+	test('pre-commit refuses a staged term in a UTF-16BE file', () => {
+		assertRefused(commit(createStagedRepo(toUtf16be(`Built for ${TERM}.\n`))), 1)
+	})
+	test('pre-commit refuses a staged term behind a textconv filter', () => {
+		const dir = createStagedRepo(`Built for ${TERM}.\n`)
+		hideBehindTextconv(dir)
+		assertRefused(commit(dir), 1)
+	})
+	test('pre-commit refuses an empty new file whose path holds the term before " b/"', () => {
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, `${TERM} b`))
+		writeFileSync(join(dir, `${TERM} b`, 'x'), '')
+		git(dir, 'add', '.')
+		assertRefused(commit(dir), 1)
+	})
 })
+
+describe('pre-commit, PNG files', () => {
+	/**
+	 * A fresh repository with the git hooks of this checkout and one staged PNG.
+	 * @param {Buffer} content
+	 * @param {string} [name]
+	 */
+	function createStagedPng(content, name = 'image.png') {
+		const dir = createStagedRepo('clean\n')
+		writeFileSync(join(dir, name), content)
+		git(dir, 'add', '.')
+		return dir
+	}
+
+	test('passes an added PNG whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT)).status, 0)
+	})
+	test('passes a modified PNG whose new IDAT data holds the term', () => {
+		const dir = createStagedPng(CLEAN_PNG)
+		assert.equal(commit(dir).status, 0)
+		writeFileSync(join(dir, 'image.png'), PNG_WITH_TERM_IN_IDAT)
+		git(dir, 'add', 'image.png')
+		assert.equal(commit(dir, 'change image').status, 0)
+	})
+	test('passes a PNG whose IDAT data holds the term under diff.noprefix=true', () => {
+		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
+		git(dir, 'config', 'diff.noprefix', 'true')
+		assert.equal(commit(dir).status, 0)
+	})
+	test('passes a PNG named in capitals whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'IMAGE.PNG')).status, 0)
+	})
+	test('passes a PNG with a space in its name whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my image.png')).status, 0)
+	})
+	test(
+		'passes a PNG with a quote in its name whose IDAT data holds the term',
+		{ skip: process.platform === 'win32' },
+		() => {
+			assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my "image".png')).status, 0)
+		}
+	)
+	test('refuses a PNG whose tEXt chunk after IDAT holds the term, and names the chunk and the path', () => {
+		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+		assertRefused(commit(createStagedPng(png)), 1, /carries the NDA term.*\n.*the tEXt chunk of the PNG image\.png\./)
+	})
+	test('refuses a PNG whose eXIf chunk holds the term', () => {
+		const png = createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND])
+		assertRefused(commit(createStagedPng(png)), 1)
+	})
+	test('refuses a modified PNG whose new tEXt chunk holds the term', () => {
+		const dir = createStagedPng(CLEAN_PNG)
+		assert.equal(commit(dir).status, 0)
+		writeFileSync(join(dir, 'image.png'), createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND]))
+		git(dir, 'add', 'image.png')
+		assertRefused(commit(dir, 'change image'), 1)
+	})
+	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
+		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`]]))), 1)
+	})
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term, and says it did not parse', () => {
+		assertRefused(
+			commit(createStagedPng(createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))),
+			1,
+			/the whole blob of the PNG image\.png\.\n.*did not parse, so the guard scanned its whole blob, IDAT included/
+		)
+	})
+	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
+		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`], IEND]))), 1)
+	})
+	test('refuses a file named .png that is not a PNG and holds the term', () => {
+		assertRefused(commit(createStagedPng(Buffer.from(`not a png, built for ${TERM}\n`))), 1)
+	})
+	test('refuses a PNG whose last chunk runs past the end and whose IDAT data holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', `\0${TERM}\0`]])
+		assertRefused(commit(createStagedPng(png.subarray(0, png.length - 2))), 1)
+	})
+	test('leaves the path out of the refusal when a PNG path the diff text scan misses holds the term', () => {
+		// With `b/` in front, the path starts a run of more than 80 characters, file name included, that
+		// holds a digit and a `+`. The base64 step removes that run from the diff text, so only the
+		// tEXt chunk matches.
+		const folder = `x1+${'a'.repeat(78)}`
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, folder))
+		writeFileSync(join(dir, folder, `${TERM}.png`), createPng([IHDR, ['tEXt', `Comment\0${TERM}`], IEND]))
+		git(dir, 'add', '.')
+		const { status, stderr } = commit(dir)
+		assert.deepEqual(
+			{ status, namesChunk: stderr.includes('the tEXt chunk of a PNG.'), namesTerm: stderr.includes(TERM) },
+			{ status: 1, namesChunk: true, namesTerm: false }
+		)
+	})
+	test('leaves the chunk type out of the refusal when the type is the term', () => {
+		const shortList = join(scratch, 'short-denylist.txt')
+		writeFileSync(shortList, 'zqrx\n')
+		const png = createPng([IHDR, ['zqrx', 'data'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('zqrx'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves the path out of the refusal for a PNG that does not parse, and keeps the note', () => {
+		// The same run of more than 80 characters as above keeps the path out of the diff text's match.
+		const folder = `x1+${'a'.repeat(78)}`
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, folder))
+		writeFileSync(join(dir, folder, `${TERM}.png`), createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))
+		git(dir, 'add', '.')
+		const { status, stderr } = commit(dir)
+		assert.deepEqual(
+			{
+				status,
+				namesBlob: stderr.includes('the whole blob of a PNG.'),
+				notes: stderr.includes('did not parse, so the guard scanned its whole blob'),
+				namesTerm: stderr.includes(TERM),
+			},
+			{ status: 1, namesBlob: true, notes: true, namesTerm: false }
+		)
+	})
+	test('names the first chunk that holds the term when two chunks hold it', () => {
+		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM}`], ['eXIf', `\0${TERM}\0`], IEND])
+		assertRefused(commit(createStagedPng(png)), 1, /The term is in the tEXt chunk of the PNG image\.png\./)
+	})
+	test('leaves out a chunk type with a NUL byte, which is not four letters, when the term is the type without it', () => {
+		const shortList = join(scratch, 'nul-denylist.txt')
+		writeFileSync(shortList, 'zqr\n')
+		const png = createPng([IHDR, ['zq\0r', 'data'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.replaceAll('\0', '').toLowerCase().includes('zqr'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves out a chunk type that is not four letters', () => {
+		const png = createPng([IHDR, ['\n\x1b[7', `Comment\0${TERM}`], IEND])
+		const { status, stderr } = commit(createStagedPng(png))
+		assert.deepEqual(
+			{ status, namesPng: stderr.includes('a chunk of the PNG image.png.'), printsEscape: stderr.includes('\x1b') },
+			{ status: 1, namesPng: true, printsEscape: false }
+		)
+	})
+	test('leaves out a four-letter chunk type that holds the term', () => {
+		const shortList = join(scratch, 'qrx-denylist.txt')
+		writeFileSync(shortList, 'qrx\n')
+		const png = createPng([IHDR, ['zqrx', ' qrx '], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('zqrx'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves out a chunk type that a term contains', () => {
+		const longList = join(scratch, 'long-denylist.txt')
+		writeFileSync(longList, 'vexmoral\n')
+		const png = createPng([IHDR, ['xmor', 'vexmoral'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: longList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('xmor'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('refuses a PNG whose name holds the term', () => {
+		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
+	})
+	/**
+	 * A repository in the middle of a merge. The side branch adds `image.png` with the content `png`
+	 * and changes `file.txt`, the current branch changes `file.txt` too, and the conflict is resolved
+	 * and staged.
+	 * @param {Buffer} png
+	 */
+	function createResolvedMerge(png) {
+		const dir = createStagedRepo('base\n')
+		assert.equal(commit(dir, 'base').status, 0)
+		git(dir, 'switch', '-q', '-c', 'side')
+		writeFileSync(join(dir, 'image.png'), png)
+		writeFileSync(join(dir, 'file.txt'), 'side\n')
+		git(dir, 'add', '.')
+		git(dir, '-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', 'side')
+		git(dir, 'switch', '-q', '-')
+		writeFileSync(join(dir, 'file.txt'), 'main\n')
+		git(dir, 'commit', '-q', '-am', 'main')
+		assert.notEqual(run('git', ['merge', '-q', 'side'], dir).status, 0)
+		writeFileSync(join(dir, 'file.txt'), 'resolved\n')
+		git(dir, 'add', 'file.txt')
+		return dir
+	}
+
+	test('passes a resolved merge that brings in a PNG whose IDAT data holds the term', () => {
+		assert.equal(commit(createResolvedMerge(PNG_WITH_TERM_IN_IDAT), 'merge side').status, 0)
+	})
+	test('refuses a resolved merge that brings in a PNG whose tEXt chunk holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+		assertRefused(commit(createResolvedMerge(png), 'merge side'), 1)
+	})
+	test('names the blob id and not the path when git cannot read a PNG blob', () => {
+		const dir = createStagedRepo('clean\n')
+		assert.equal(commit(dir).status, 0)
+		const id = run('git', ['rev-parse', 'HEAD'], dir).stdout.trim()
+		// A gitlink named `.png` has the id of a commit. So `git cat-file blob` fails on it.
+		git(dir, 'update-index', '--add', '--cacheinfo', `160000,${id},${TERM}.png`)
+		const { stderr } = commit(dir, 'add link')
+		assert.deepEqual(
+			{ namesId: stderr.includes(`cannot read the blob ${id}`), namesTerm: stderr.includes(TERM) },
+			{ namesId: true, namesTerm: false }
+		)
+	})
+	test('passes a PNG whose two tEXt chunks each hold half of the term', () => {
+		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM.slice(0, 4)}`], ['tEXt', TERM.slice(4)], IEND])
+		assert.equal(commit(createStagedPng(png)).status, 0)
+	})
+	test('refuses the term typed into a text file staged with a PNG', () => {
+		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
+		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n`)
+		git(dir, 'add', 'file.txt')
+		assertRefused(commit(dir), 1)
+	})
+})
+
+describe('readDiffTexts', () => {
+	test('scans the hunks of a PNG whose blob git cannot read', () => {
+		const diff = [
+			'diff --git a/image.png b/image.png',
+			'new file mode 100644',
+			`index ${'0'.repeat(40)}..${'1'.repeat(40)}`,
+			'--- /dev/null',
+			'+++ b/image.png',
+			'@@ -0,0 +1 @@',
+			`+\0${TERM}\0`,
+			'',
+		].join('\n')
+		const texts = readDiffTexts(diff, () => null).map(({ text }) => text)
+		assert.equal(findTerm(texts.join('\n'), [TERM]), TERM)
+	})
+})
+
+// A commit with -m or -F keeps git's comment lines and writes no template, so only a commit through
+// an editor tests what commit-msg must strip.
+const EDITOR = join(scratch, 'editor.mjs')
+writeFileSync(
+	EDITOR,
+	"import { readFileSync, writeFileSync } from 'node:fs'\n" +
+		'const file = process.argv[2]\n' +
+		"writeFileSync(file, (process.env.MESSAGE ?? '') + readFileSync(file, 'utf8') + (process.env.APPEND ?? ''))\n"
+)
+
+/**
+ * Commits through an editor that puts `message` above the template git wrote.
+ * @param {string} dir
+ * @param {string} message
+ * @param {string[]} args
+ */
+const commitInEditor = (dir, message, ...args) =>
+	run('git', ['commit', '-q', ...args], dir, { GIT_EDITOR: `node ${JSON.stringify(EDITOR)}`, MESSAGE: message })
+
+/**
+ * The status and the subject of the new commit, so a pass shows that the editor wrote the message.
+ * @param {string} dir
+ * @param {{ status: number | null, stderr: string }} result
+ */
+function getOutcome(dir, result) {
+	const subject = run('git', ['log', '-1', '--format=%s'], dir).stdout.trim()
+	return { status: result.status, subject, stderr: result.status === 0 ? '' : result.stderr }
+}
+
+describe('commit-msg through an editor', () => {
+	test('passes a deletion-only commit made with -v', () => {
+		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
+		writeFileSync(join(dir, 'file.txt'), 'clean\n')
+		git(dir, 'add', 'file.txt')
+		const result = commitInEditor(dir, 'remove line\n', '-v')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove line', stderr: '' })
+	})
+	test('passes the deletion of a file named with the term', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, 'remove file\n')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term in the message', () => {
+		assertRefused(commitInEditor(createStagedRepo('clean\n'), `fix: ${TERM} typo\n`, '-v'), 1)
+	})
+	test('passes the deletion of a file named with the term under core.commentChar=;', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', ';')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, 'remove file\n', '-v')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term on a # line under core.commentChar=;', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', ';')
+		assertRefused(commitInEditor(dir, `add file\n\n# ${TERM}\n`), 1)
+	})
+	test('takes core.commentString when it is read after core.commentChar', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', '%')
+		git(dir, 'config', 'core.commentString', ';')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, 'remove file\n')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term on a line that starts with core.commentString when core.commentChar is read last', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentString', ';')
+		git(dir, 'config', 'core.commentChar', '%')
+		assertRefused(commitInEditor(dir, `add file\n\n; ${TERM}\n`), 1)
+	})
+	test('keeps the trailing space of core.commentString', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentString', '; ')
+		assertRefused(commitInEditor(dir, `add file\n\n;${TERM}\n`), 1)
+	})
+	test('takes the comment character from the template under core.commentChar=auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'auto')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		// A message line that starts with # makes git pick another comment character.
+		const result = commitInEditor(dir, '', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
+	test('reads core.commentChar=AUTO as auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'AUTO')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, '', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
+	test('takes the comment character from the scissors line under core.commentChar=auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'auto')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		// Under --cleanup=scissors, git's template names no comment character, so the scissors line is
+		// the only source.
+		const result = commitInEditor(dir, '', '--cleanup=scissors', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
+	// The accepted gap: git keeps this line under -m, and pre-push refuses it. See AGENTS.md.
+	test('passes a term on a # line under -m', () => {
+		assert.equal(commit(createStagedRepo('clean\n'), `fix\n# ${TERM}`).status, 0)
+	})
+	test('removes no line under core.commentChar=auto when a message line quotes its own first letter', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		assertRefused(commit(dir, `add file\n\nI mean 'I' here\nI built ${TERM}`), 1)
+	})
+	test('removes no line under core.commentChar=auto when a line typed after the template names another character', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		const env = {
+			GIT_EDITOR: `node ${JSON.stringify(EDITOR)}`,
+			MESSAGE: 'add file\n',
+			APPEND: `; note ';'\n; Built for ${TERM}\n`,
+		}
+		assertRefused(run('git', ['commit', '-q'], dir, env), 1)
+	})
+	test('removes no line under core.commentChar=auto when the file holds no template', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		assertRefused(commit(dir, `add file\n\n# ${TERM}`), 1)
+	})
+})
+
+/**
+ * A repository whose first commit holds `content`, made before the hooks were set, as if it came
+ * from history that is already published. The hooks of this checkout run from then on.
+ * @param {string} content
+ * @param {string} [name]
+ */
+function createCommittedRepo(content, name = 'file.txt') {
+	const dir = createStagedRepo(content, 'seed-')
+	if (name !== 'file.txt') {
+		git(dir, 'mv', 'file.txt', name)
+	}
+	git(dir, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'no-hooks-')))
+	git(dir, 'commit', '-q', '-m', 'seed')
+	git(dir, 'config', 'core.hooksPath', HOOKS)
+	return dir
+}
 
 /**
  * @param {string} command
  * @param {string} cwd
  * @param {Record<string, string>} [env]
+ * @param {string} [hook]
  */
-const runClaudeHook = (command, cwd, env) =>
-	run('node', [CLAUDE_HOOK], cwd, env, JSON.stringify({ tool_name: 'Bash', cwd, tool_input: { command } }))
+const runClaudeHook = (command, cwd, env, hook = CLAUDE_HOOK) =>
+	run('node', [hook], cwd, env, JSON.stringify({ tool_name: 'Bash', cwd, tool_input: { command } }))
+
+/**
+ * A copy of this clone's guard files in a fresh repository whose `core.hooksPath` is its own
+ * `.githooks`, as `pnpm install` leaves a clone, with one commit so that a linked worktree can be
+ * added. Its own copy of the Claude hook proves a push from it, or from its worktrees, is guarded.
+ * @param {{ without?: string }} [options]
+ */
+function createGuardedRepo({ without = '' } = {}) {
+	const dir = mkdtempSync(join(scratch, 'guarded-'))
+	git(dir, 'init', '-q')
+	mkdirSync(join(dir, '.githooks'))
+	mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+	for (const file of ['pre-push', 'nda-push.mjs', 'nda-match.mjs', 'main-work-tree.mjs'].filter((f) => f !== without)) {
+		copyFileSync(join(HOOKS, file), join(dir, '.githooks', file))
+	}
+	copyFileSync(CLAUDE_HOOK, join(dir, '.claude', 'hooks', 'block-nda-terms.mjs'))
+	git(dir, 'config', 'core.hooksPath', join(dir, '.githooks'))
+	git(
+		dir,
+		'-c',
+		'user.name=Guard Test',
+		'-c',
+		'user.email=guard@example.com',
+		'commit',
+		'-q',
+		'--allow-empty',
+		'-m',
+		'init'
+	)
+	return { dir, hook: join(dir, '.claude', 'hooks', 'block-nda-terms.mjs') }
+}
+
+const PUSH_REFUSED = /pre-push would not scan this push\. Push from the clone or one of its worktrees.*run it with !/
 
 describe('Claude hook', () => {
-	// The session's cwd is a clean repository, as in a session that commits in a worktree elsewhere.
-	const clone = createStagedRepo('clean\n')
+	const guarded = createGuardedRepo()
+	const worktree = join(scratch, 'guarded-worktree')
+	git(guarded.dir, 'worktree', 'add', '-q', '-b', 'wt', worktree)
+	const unrelated = createGuardedRepo()
+	const withoutScan = createGuardedRepo({ without: 'nda-push.mjs' })
+	const other = createStagedRepo('clean\n', 'other-')
+	git(other, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'elsewhere-')))
+	const outside = mkdtempSync(join(scratch, 'outside-'))
 
-	test('refuses a staged term committed through git -C from another directory', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`git -C ${dir} commit -m "add file"`, clone), 2)
+	const clean = join(scratch, 'clean.md')
+	writeFileSync(clean, 'clean\n')
+	const dirty = join(scratch, 'dirty.md')
+	writeFileSync(dirty, `Built for ${TERM}.\n`)
+	const spaced = join(mkdtempSync(join(scratch, 'with space-')), 'body.md')
+	writeFileSync(spaced, `Built for ${TERM}.\n`)
+	const home = mkdtempSync(join(scratch, 'home-'))
+	writeFileSync(join(home, 'draft.md'), `Built for ${TERM}.\n`)
+	const mentionsNoVerify = join(scratch, 'mentions-no-verify.md')
+	writeFileSync(mentionsNoVerify, 'Never commit with --no-verify.\n')
+	const large = join(scratch, 'large.md')
+	writeFileSync(large, 'clean\n'.repeat(400_000))
+	// A gh executable larger than 2 MB, so the result does not depend on the machine's own gh.
+	const fakeGh = join(mkdtempSync(join(scratch, 'bin-')), 'gh')
+	writeFileSync(fakeGh, 'clean\n'.repeat(400_000))
+
+	test('passes a cat heredoc that writes a draft quoting git -C with a missing path', () => {
+		const command = `cat > ${join(scratch, 'draft.md')} <<'EOF'\nRun git -C /nonexistent/wt commit -m "x".\nEOF`
+		assert.equal(runClaudeHook(command, guarded.dir).status, 0)
 	})
-	test('refuses a staged term committed through cd from another directory', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`cd ${dir} && git commit -m "add file"`, clone), 2)
+	test('passes a commit over a staged term, which pre-commit guards instead', () => {
+		assert.equal(runClaudeHook('git commit -m "add file"', createStagedRepo(`Built for ${TERM}.\n`)).status, 0)
 	})
-	test('refuses a staged term committed through a quoted git -C path with a space', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`, 'my wt-')
-		assertRefused(runClaudeHook(`git -C "${dir}" commit -m "add file"`, clone), 2)
+
+	test('refuses --no-verify and names -F <file> and !', () => {
+		assertRefused(runClaudeHook('git commit --no-verify -m "add file"', outside), 2, /-F <file>.*run with !/)
 	})
-	test('refuses a staged term committed after cd on an earlier line', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`cd ${dir}\ngit commit -m "add file"`, clone), 2)
+	test('refuses --NO-VERIFY in upper case after any verb', () => {
+		assertRefused(runClaudeHook('echo --NO-VERIFY', outside), 2, /--no-verify, an abbreviation of it, or hooksPath/)
 	})
-	test('refuses a staged term committed through pushd', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`pushd ${dir} && git commit -m "add file"`, clone), 2)
+	test('refuses --no-verif, an abbreviation git accepts, on a push', () => {
+		assertRefused(runClaudeHook('git push --no-verif origin x', outside), 2, /an abbreviation of it/)
 	})
-	test('refuses a staged term committed through --work-tree', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`git --git-dir=${join(dir, '.git')} --work-tree=${dir} commit -m "add file"`, clone), 2)
+	test('refuses --no-veri, an abbreviation git accepts, on a commit', () => {
+		assertRefused(runClaudeHook('git commit --no-veri -m "x"', outside), 2, /an abbreviation of it/)
 	})
-	test('refuses a staged term committed through GIT_DIR', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`GIT_DIR=${join(dir, '.git')} git commit -m "add file"`, clone), 2)
+	test('refuses core.hooksPath set through -c', () => {
+		assertRefused(runClaudeHook('git -c core.hooksPath=/dev/null commit -m "x"', outside), 2, /or hooksPath/)
 	})
-	test('refuses a staged term committed with a partly quoted -c value', () => {
+	test('refuses core.hooksPath set through GIT_CONFIG_KEY_0', () => {
+		const command = 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit -m "x"'
+		assertRefused(runClaudeHook(command, outside), 2, /or hooksPath/)
+	})
+	test('passes a gh command whose body file mentions --no-verify', () => {
+		assert.equal(runClaudeHook(`gh issue create --body-file ${mentionsNoVerify}`, outside).status, 0)
+	})
+
+	test('passes a push from the clone whose hooks path is its own .githooks', () => {
+		assert.equal(runClaudeHook('git push -u origin feature/x', guarded.dir, {}, guarded.hook).status, 0)
+	})
+	test('passes a push from a linked worktree of that clone', () => {
+		assert.equal(runClaudeHook('git push -u origin wt', worktree, {}, guarded.hook).status, 0)
+	})
+	test('refuses a push from outside any repository, and offers the clone and !', () => {
+		assertRefused(runClaudeHook('git push origin x', outside, {}, guarded.hook), 2, PUSH_REFUSED)
+	})
+	test('refuses a push from a repository whose hooks path is elsewhere', () => {
+		assertRefused(runClaudeHook('git push origin x', other, {}, guarded.hook), 2, PUSH_REFUSED)
+	})
+	test('refuses a push from an unrelated repository with its own guarded .githooks', () => {
+		assertRefused(runClaudeHook('git push origin x', unrelated.dir, {}, guarded.hook), 2, PUSH_REFUSED)
+	})
+	test('refuses a push from the clone when its .githooks lacks nda-push.mjs', () => {
+		assertRefused(runClaudeHook('git push origin x', withoutScan.dir, {}, withoutScan.hook), 2, PUSH_REFUSED)
+	})
+
+	test('refuses the term in a gh command run through sh -c', () => {
+		assertRefused(runClaudeHook(`sh -c 'gh issue create --title "${TERM}"'`, outside), 2)
+	})
+	test('refuses the term in a gh command run by its absolute path', () => {
+		assertRefused(runClaudeHook(`${fakeGh} issue create --title "${TERM}"`, outside), 2)
+	})
+	test('passes a clean gh command run by the absolute path of an executable over 2 MB', () => {
+		assert.equal(runClaudeHook(`${fakeGh} issue list`, outside).status, 0)
+	})
+	test('refuses the term in a gh command run through a backslash', () => {
+		assertRefused(runClaudeHook(`\\gh issue create --title "${TERM}"`, outside), 2)
+	})
+	test('refuses the term in a git branch name', () => {
+		assertRefused(runClaudeHook(`git switch -c ${TERM}-fix`, outside), 2)
+	})
+	test('passes the term in a command that runs neither git, gh nor glab', () => {
+		assert.equal(runClaudeHook(`echo ${TERM}`, outside).status, 0)
+	})
+
+	test('refuses the term in a file named by --body-file=', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file=${dirty}`, outside), 2)
+	})
+	test('refuses the term in a file named by -F body=@', () => {
+		assertRefused(runClaudeHook(`gh api repos/o/r/issues -F body=@${dirty}`, outside), 2)
+	})
+	test('refuses the term in a file named by --file=', () => {
+		assertRefused(runClaudeHook(`glab snippet create --file=${dirty}`, outside), 2)
+	})
+	test('refuses the term in a file read through $(<file)', () => {
+		assertRefused(runClaudeHook(`gh issue comment 1 --body "$(<${dirty})"`, outside), 2)
+	})
+	test('refuses the term in a file redirected with no space after <', () => {
+		assertRefused(runClaudeHook(`gh api graphql -F query=- <${dirty}`, outside), 2)
+	})
+	test('refuses the term in a file named by a path relative to the session cwd', () => {
+		assertRefused(runClaudeHook('gh issue create --body-file dirty.md', scratch), 2)
+	})
+	test('refuses the term in a file named by a path under ~/', () => {
 		assertRefused(
-			runClaudeHook(`git -c core.editor='code -w' commit -m "add file"`, createStagedRepo(`Built for ${TERM}.\n`)),
+			runClaudeHook('gh issue create --body-file ~/draft.md', outside, { HOME: home, USERPROFILE: home }),
 			2
 		)
 	})
-	test('passes a clean commit that reuses a message through commit -C', () => {
-		assert.equal(runClaudeHook('git commit -C HEAD', createStagedRepo('clean\n')).status, 0)
+	test('refuses the term in a file named by a quoted path with a space', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file "${spaced}"`, outside), 2)
 	})
-	test('passes a clean commit whose message mentions -C', () => {
-		assert.equal(runClaudeHook('git commit -m "use ls -C for columns"', createStagedRepo('clean\n')).status, 0)
+	test('refuses the term in a file named before a semicolon', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirty}; echo done`, outside), 2)
 	})
-	test('passes a clean commit whose quoted message mentions cd in parentheses', () => {
-		assert.equal(runClaudeHook('git commit -m "docs: wrap it (cd docs first)"', createStagedRepo('clean\n')).status, 0)
+	test('refuses the term in a file named right before &&', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirty}&&echo done`, outside), 2)
 	})
-	test('passes a clean commit whose quoted message names GIT_DIR and --work-tree', () => {
-		assert.equal(
-			runClaudeHook(`git commit -m 'docs: set GIT_DIR=foo, pass --work-tree bar'`, createStagedRepo('clean\n')).status,
-			0
+	test('refuses the term in a file read through backticks', () => {
+		assertRefused(runClaudeHook(`gh issue create --body \`cat ${dirty}\``, outside), 2)
+	})
+	test('passes a clean file named by --body-file=', () => {
+		assert.equal(runClaudeHook(`gh issue create --body-file=${clean}`, outside).status, 0)
+	})
+	test('refuses a named file larger than 2 MB', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${large}`, outside), 2, /larger than 2 MB/)
+	})
+	test('refuses a gh command that also runs cd', () => {
+		assertRefused(runClaudeHook(`cd ${scratch} && gh issue create --body-file clean.md`, outside), 2, /absolute path/)
+	})
+	test('refuses a gh command that also runs pushd', () => {
+		assertRefused(
+			runClaudeHook(`pushd ${scratch} && gh issue create --body-file clean.md`, outside),
+			2,
+			/absolute path/
 		)
 	})
-	test('passes a clean commit whose heredoc message starts a line with cd', () => {
-		assert.equal(
-			runClaudeHook("git commit -F - <<'EOF'\ndocs: steps\n\ncd docs\nEOF", createStagedRepo('clean\n')).status,
-			0
-		)
+
+	test('passes a gh command whose title holds CD in upper case', () => {
+		assert.equal(runClaudeHook('gh pr create --title "CI/CD fix" --body x', outside).status, 0)
 	})
-	test('refuses a staged term committed after cd even when the message mentions cd', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		assertRefused(runClaudeHook(`cd ${dir} && git commit -m "docs: (cd docs first)"`, clone), 2)
+
+	test('refuses an empty payload', () => {
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, ''), 2, /empty payload/)
 	})
-	test('refuses a commit whose git -C path is a shell variable', () => {
-		assertRefused(runClaudeHook('git -C $WORKTREE commit -m "add file"', clone), 2, /cannot read the staged diff/)
+	test('refuses a payload that is not JSON', () => {
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, 'not json'), 2, /not JSON/)
 	})
-	test('refuses a staged term committed after cd that follows a tab-indented <<- heredoc', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		const command = `git commit -F - <<-EOF\n\tdocs: steps\n\tEOF\ncd ${dir}\ngit commit -F - <<EOF\nadd file\nEOF`
-		assertRefused(runClaudeHook(command, clone), 2)
+	test('refuses a JSON string payload', () => {
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, '"hello"'), 2, /not a JSON object/)
 	})
-	test('refuses a staged term committed after cd when a << heredoc holds a tab-indented closing word', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		const command = `git commit -F - <<EOF\n\tEOF\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
-		assertRefused(runClaudeHook(command, clone), 2)
+	test('refuses a JSON array payload', () => {
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, '[]'), 2, /not a JSON object/)
 	})
-	test('refuses a staged term committed after cd when a << heredoc holds a line that starts with its word', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		const command = `git commit -F - <<EOF\nEOFX\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
-		assertRefused(runClaudeHook(command, clone), 2)
+	test('passes a valid payload for another tool', () => {
+		const payload = JSON.stringify({
+			tool_name: 'Read',
+			cwd: outside,
+			tool_input: { file_path: dirty, command: 'git push origin x' },
+		})
+		assert.equal(run('node', [CLAUDE_HOOK], outside, {}, payload).status, 0)
 	})
-	test('refuses a staged term committed after cd when a <<- heredoc holds a space-indented closing word', () => {
-		const dir = createStagedRepo(`Built for ${TERM}.\n`)
-		const command = `git commit -F - <<-EOF\n  EOF\nx commit -F - <<X\nEOF\ncd ${dir}\ngit commit -m "add file"\nX`
-		assertRefused(runClaudeHook(command, clone), 2)
-	})
-	test('refuses a staged term in a long absolute path', () => {
-		assertRefused(runClaudeHook('git commit -m "add file"', createStagedRepo(`${LONG_PATH}\n`)), 2)
-	})
-	test('refuses a staged term in a short data URI', () => {
-		assertRefused(runClaudeHook('git commit -m "add file"', createStagedRepo(`${SHORT_DATA_URI}\n`)), 2)
-	})
-	test('passes a staged term inside a real font', () => {
-		const dir = createStagedRepo(`${FONT_WITH_TERM}\n`)
-		assert.equal(runClaudeHook('git commit -m "add file"', dir).status, 0)
-	})
-	test('refuses the term in the commit message', () => {
-		assertRefused(runClaudeHook(`git commit -m "fix: ${TERM} typo"`, createStagedRepo('clean\n')), 2)
+	test('refuses and names the exception when the hook throws', () => {
+		const payload = JSON.stringify({ tool_name: 'Bash', cwd: outside, tool_input: null })
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, payload), 2, /failed with TypeError/)
 	})
 	test('refuses when the term list is missing', () => {
 		assertRefused(
-			runClaudeHook('git commit -m "add file"', createStagedRepo('clean\n'), { UNIC_NDA_DENYLIST: missingList }),
+			runClaudeHook('gh issue list', outside, { UNIC_NDA_DENYLIST: missingList }),
 			2,
 			/cannot read the NDA term list/
 		)
 	})
+})
+
+describe('Claude hook, round 2', () => {
+	const outside = mkdtempSync(join(scratch, 'outside-r2-'))
+	const other = createStagedRepo('clean\n', 'other-r2-')
+	git(other, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'elsewhere-r2-')))
+	const emptyList = join(scratch, 'empty-list.txt')
+	writeFileSync(emptyList, '')
+	const clean = join(scratch, 'clean-r2.md')
+	writeFileSync(clean, 'clean\n')
+	const dirty = join(scratch, 'dirty-r2.md')
+	writeFileSync(dirty, `Built for ${TERM}.\n`)
+	const dirtyLe = join(scratch, 'dirty-le.md')
+	writeFileSync(dirtyLe, toUtf16le(`Built for ${TERM}.\n`))
+	const dirtyBe = join(scratch, 'dirty-be.md')
+	writeFileSync(dirtyBe, toUtf16be(`Built for ${TERM}.\n`))
+
+	test('refuses the term in a UTF-16LE file named by --body-file', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirtyLe}`, outside), 2)
+	})
+	test('refuses the term in a UTF-16BE file named by --body-file', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${dirtyBe}`, outside), 2)
+	})
+	test('refuses the term in a dirty file named after a clean one', () => {
+		assertRefused(runClaudeHook(`gh issue create --body-file ${clean} --template ${dirty}`, outside), 2)
+	})
+	test('resolves a relative file against the payload cwd, not the process cwd', () => {
+		const payload = JSON.stringify({
+			tool_name: 'Bash',
+			cwd: scratch,
+			tool_input: { command: 'gh issue create --body-file dirty-r2.md' },
+		})
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, payload), 2)
+	})
+
+	test('refuses git -C . push from a repository whose hooks path is elsewhere', () => {
+		assertRefused(runClaudeHook('git -C . push origin x', other), 2, PUSH_REFUSED)
+	})
+	test('refuses a push inside sh -c from a repository whose hooks path is elsewhere', () => {
+		assertRefused(runClaudeHook(`sh -c 'git push origin x'`, other), 2, PUSH_REFUSED)
+	})
+	test('refuses git send-pack even from a guarded clone', () => {
+		const guarded = createGuardedRepo()
+		assertRefused(
+			runClaudeHook('git send-pack ../remote main', guarded.dir, {}, guarded.hook),
+			2,
+			/send-pack runs no pre-push hook.*!/
+		)
+	})
+	test('refuses a push from a clone whose pre-push is not executable', { skip: process.platform === 'win32' }, () => {
+		const guarded = createGuardedRepo()
+		chmodSync(join(guarded.dir, '.githooks', 'pre-push'), 0o644)
+		assertRefused(
+			runClaudeHook('git push origin x', guarded.dir, {}, guarded.hook),
+			2,
+			/is not executable, so git skips it/
+		)
+	})
+	test('refuses a push from a clone whose hooks path points away from its .githooks, and says so', () => {
+		const guarded = createGuardedRepo()
+		git(guarded.dir, 'config', 'core.hooksPath', mkdtempSync(join(scratch, 'away-')))
+		assertRefused(
+			runClaudeHook('git push origin x', guarded.dir, {}, guarded.hook),
+			2,
+			/core\.hooksPath is .*so pre-push would not scan/
+		)
+	})
+	test('refuses a push from a clone whose .githooks lacks pre-push', () => {
+		const guarded = createGuardedRepo({ without: 'pre-push' })
+		assertRefused(runClaudeHook('git push origin x', guarded.dir, {}, guarded.hook), 2, /lacks pre-push/)
+	})
+
+	test('refuses --no-verify with an empty term list', () => {
+		assertRefused(
+			runClaudeHook('git commit --no-verify -m x', outside, { UNIC_NDA_DENYLIST: emptyList }),
+			2,
+			/--no-verify/
+		)
+	})
+	test('refuses hooksPath with an empty term list', () => {
+		assertRefused(
+			runClaudeHook('git config core.hooksPath /x', outside, { UNIC_NDA_DENYLIST: emptyList }),
+			2,
+			/hooksPath/
+		)
+	})
+	test('refuses an unguarded push with an empty term list', () => {
+		assertRefused(runClaudeHook('git push origin x', outside, { UNIC_NDA_DENYLIST: emptyList }), 2, PUSH_REFUSED)
+	})
+})
+
+describe('Claude hook entry in .claude/settings.json', () => {
+	const settings = JSON.parse(readFileSync(join(HOOKS, '..', '.claude', 'settings.json'), 'utf8'))
+	/** @type {string} */
+	const entry = settings.hooks.PreToolUse.flatMap(
+		(/** @type {{ hooks: Array<{ command: string }> }} */ group) => group.hooks
+	)
+		.map((/** @type {{ command: string }} */ hook) => hook.command)
+		.find((/** @type {string} */ command) => command.includes('block-nda-terms.mjs'))
+	const projectDir = join(HOOKS, '..')
+	const outside = mkdtempSync(join(scratch, 'subdir-'))
+
+	test('runs for the PowerShell tool as well as Bash', () => {
+		const group = settings.hooks.PreToolUse.find((/** @type {{ hooks: Array<{ command: string }> }} */ g) =>
+			g.hooks.some((hook) => hook.command.includes('block-nda-terms.mjs'))
+		)
+		assert.equal(group.matcher, 'Bash|PowerShell')
+	})
+
+	test('blocks from a directory other than the project root', () => {
+		const result = run('sh', ['-c', entry], outside, { CLAUDE_PROJECT_DIR: projectDir }, 'not json')
+		assertRefused(result, 2, /not JSON/)
+	})
+	test('blocks when node is not on PATH', { skip: process.platform === 'win32' }, () => {
+		const result = spawnSync('/bin/sh', ['-c', entry], {
+			cwd: outside,
+			input: '{}',
+			encoding: 'utf8',
+			env: { PATH: mkdtempSync(join(scratch, 'no-node-')), CLAUDE_PROJECT_DIR: projectDir },
+		})
+		assert.equal(result.status, 2, result.stderr)
+	})
+})
+
+describe('round 3', () => {
+	const outside = mkdtempSync(join(scratch, 'outside-r3-'))
+	const accentedList = join(scratch, 'accented-list.txt')
+	writeFileSync(accentedList, 'vörpleminx\n')
+
+	test('pre-commit refuses a non-ASCII term in a path under core.quotePath=true', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.quotePath', 'true')
+		writeFileSync(join(dir, 'vörpleminx.txt'), 'clean\n')
+		git(dir, 'add', '.')
+		assertRefused(commit(dir, 'add file', { UNIC_NDA_DENYLIST: accentedList }), 1)
+	})
+	test('pre-commit refuses readably when git cannot produce the staged diff', () => {
+		const result = run('node', [join(HOOKS, 'nda-match.mjs'), 'pre-commit'], outside)
+		assert.deepEqual(
+			{
+				status: result.status,
+				reason: /cannot read the staged diff/.test(result.stderr),
+				lines: result.stderr.trim().split('\n').length,
+			},
+			{ status: 1, reason: true, lines: 1 },
+			result.stderr
+		)
+	})
+
+	test('refuses the term in an unquoted gh file path that holds @', () => {
+		const file = join(mkdtempSync(join(scratch, 'notes-')), 'auto-format@0.5.5.md')
+		writeFileSync(file, `Built for ${TERM}.\n`)
+		assertRefused(runClaudeHook(`gh release edit auto-format@0.5.5 --notes-file ${file}`, outside), 2)
+	})
+	test('refuses the term in an unquoted gh file path that holds =', () => {
+		const file = join(mkdtempSync(join(scratch, 'eq-')), 'a=b.md')
+		writeFileSync(file, `Built for ${TERM}.\n`)
+		assertRefused(runClaudeHook(`gh issue create --body-file=${file}`, outside), 2)
+	})
+	test('refuses the term in a file named by -F body=@ with a later @ in its name', () => {
+		const file = join(mkdtempSync(join(scratch, 'at-')), 'a@b.md')
+		writeFileSync(file, `Built for ${TERM}.\n`)
+		assertRefused(runClaudeHook(`gh api repos/o/r/issues -F body=@${file}`, outside), 2)
+	})
+	test('passes a clean file named by -F body=@ with a later @ in its name', () => {
+		const file = join(mkdtempSync(join(scratch, 'at-clean-')), 'a@b.md')
+		writeFileSync(file, 'clean\n')
+		assert.equal(runClaudeHook(`gh api repos/o/r/issues -F body=@${file}`, outside).status, 0)
+	})
+	test('passes --no-verbose', () => {
+		assert.equal(runClaudeHook('git commit --no-verbose -m "x"', outside).status, 0)
+	})
+	test('refuses --no-veri', () => {
+		assertRefused(runClaudeHook('git push --no-veri origin x', outside), 2, /an abbreviation of it/)
+	})
+
+	test('passes a push from the main work tree with a relative core.hooksPath', () => {
+		const guarded = createGuardedRepo()
+		git(guarded.dir, 'config', 'core.hooksPath', '.githooks')
+		// The process runs elsewhere, so the path must resolve against the repository, not the process.
+		const payload = JSON.stringify({
+			tool_name: 'Bash',
+			cwd: guarded.dir,
+			tool_input: { command: 'git push origin x' },
+		})
+		assert.equal(run('node', [guarded.hook], outside, {}, payload).status, 0)
+	})
+	test('refuses a push from a linked worktree with a relative core.hooksPath', () => {
+		const guarded = createGuardedRepo()
+		git(guarded.dir, 'config', 'core.hooksPath', '.githooks')
+		const linked = join(mkdtempSync(join(scratch, 'relative-worktree-')), 'wt')
+		git(guarded.dir, 'worktree', 'add', '-q', '-b', 'rel', linked)
+		assertRefused(runClaudeHook('git push origin x', linked, {}, guarded.hook), 2, /core\.hooksPath is \.githooks/)
+	})
+})
+
+describe('Claude hook, PowerShell tool', () => {
+	const outside = mkdtempSync(join(scratch, 'powershell-'))
+	const clean = join(outside, 'clean.md')
+	writeFileSync(clean, 'clean\n')
+	const dirty = join(outside, 'dirty.md')
+	writeFileSync(dirty, `Built for ${TERM}.\n`)
+	mkdirSync(join(outside, 'sl'))
+	const underSl = join(outside, 'sl', 'x.md')
+	writeFileSync(underSl, 'clean\n')
+
+	/** @param {string} command */
+	const runPowerShell = (command) =>
+		run(
+			'node',
+			[CLAUDE_HOOK],
+			outside,
+			{},
+			JSON.stringify({ tool_name: 'PowerShell', cwd: outside, tool_input: { command } })
+		)
+
+	test('refuses the term in a file a gh command names', () => {
+		assertRefused(runPowerShell(`gh issue create --body-file ${dirty}`), 2)
+	})
+	test('refuses a payload with no command', () => {
+		const payload = JSON.stringify({ tool_name: 'PowerShell', cwd: outside, tool_input: {} })
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, payload), 2, /has no command/)
+	})
+	test('passes a gh command that names a clean file', () => {
+		assert.equal(runPowerShell(`gh issue create --body-file ${clean}`).status, 0)
+	})
+	test('refuses --no-verify', () => {
+		assertRefused(runPowerShell('git commit --no-verify -m "add file"'), 2, /-F <file>.*run with !/)
+	})
+	test('refuses a push that pre-push would not scan', () => {
+		assertRefused(runPowerShell('git push origin x'), 2, PUSH_REFUSED)
+	})
+	test('refuses a gh command after Set-Location', () => {
+		assertRefused(runPowerShell(`Set-Location ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after set-location in lower case', () => {
+		assertRefused(runPowerShell(`set-location ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after SL in upper case', () => {
+		assertRefused(runPowerShell(`SL ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after sl inside parentheses', () => {
+		assertRefused(runPowerShell(`(sl ${outside}); gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after Push-Location', () => {
+		assertRefused(runPowerShell(`Push-Location ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('passes a gh command whose path holds sl as a directory name', () => {
+		assert.equal(runPowerShell(`gh issue create --body-file ${underSl}`).status, 0)
+	})
+
+	mkdirSync(join(outside, 'sub'))
+	writeFileSync(join(outside, 'sub', 'body.md'), `Built for ${TERM}.\n`)
+	const GH_BODY = 'gh issue create --body-file body.md'
+	test('refuses the term in a file that GH in upper case names', () => {
+		assertRefused(runPowerShell('GH issue create --body-file sub/body.md'), 2)
+	})
+	test('refuses the term in a file that GlAb in mixed case names', () => {
+		assertRefused(runPowerShell('GlAb issue create --body-file sub/body.md'), 2)
+	})
+	test('refuses the term in the text of a Git command in mixed case', () => {
+		assertRefused(runPowerShell(`Git commit -m "Built for ${TERM}"`), 2)
+	})
+	test('refuses a Git push in mixed case that pre-push would not scan', () => {
+		assertRefused(runPowerShell('Git push origin x'), 2, PUSH_REFUSED)
+	})
+	test('passes a GH command in upper case that names a clean file', () => {
+		assert.equal(runPowerShell(`GH issue create --body-file ${clean}`).status, 0)
+	})
+
+	for (const [form, command] of [
+		['inside an if block', `if ($true) { Set-Location sub }; ${GH_BODY}`],
+		['inside a script block', `& { sl sub; ${GH_BODY} }`],
+		['inside a double-quoted pwsh -Command', `pwsh -Command "Set-Location sub; ${GH_BODY}"`],
+		['inside a single-quoted pwsh -Command', `pwsh -Command 'Set-Location sub; ${GH_BODY}'`],
+		['with a module-qualified name', `Microsoft.PowerShell.Management\\Set-Location sub; ${GH_BODY}`],
+		['after an assignment', `$null = Set-Location sub; ${GH_BODY}`],
+		['after a pipe', `'sub' | sl; ${GH_BODY}`],
+		['after the call operator', `& sl sub; ${GH_BODY}`],
+		['with CD in upper case', `CD sub; ${GH_BODY}`],
+		['with Cd in mixed case', `Cd sub; ${GH_BODY}`],
+		['with PUSHD in upper case', `PUSHD sub; ${GH_BODY}`],
+		['with Pushd in mixed case', `Pushd sub; ${GH_BODY}`],
+		['with chdir', `chdir sub; ${GH_BODY}`],
+		['after the dot-source operator', `. sl sub; ${GH_BODY}`],
+		['after a closing brace', `if ($true) { "x" } sl sub; ${GH_BODY}`],
+	]) {
+		test(`refuses a gh command that changes directory ${form}`, () => {
+			assertRefused(runPowerShell(command), 2, /absolute path/)
+		})
+	}
 })

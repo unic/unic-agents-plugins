@@ -50,6 +50,25 @@ and may not survive an upgrade.
   a failed typecheck was committed this way). The failure there was `tsc --checkJs` typing a
   `catch (err)` binding as `unknown`; read its fields through a JSDoc cast,
   `/** @type {{ status?: number }} */ (err).status`.
+- **Check which gate type-checks a file outside every package** (2026-09-26, PR #593; re-measured 2026-09-27, PR #608 and PR #614).
+  `pnpm ci:check` runs Biome and Prettier only. CI runs
+  `pnpm --filter <package> --if-present typecheck` for each changed package.
+  `.githooks/` belongs to no package. It has its own `.githooks/tsconfig.json`, which extends
+  `@unic/tsconfig/tsconfig.base.json` and includes every `.mjs` file under `.githooks/`. The root
+  `pnpm typecheck` runs each package's `typecheck` script. When they all pass, it runs
+  `tsc --noEmit --project .githooks/tsconfig.json`. The `NDA guards / <os> / Node <n>` CI job
+  runs that `tsc` command on every pull request, on all three OSes. `.claude/hooks/` belongs to no
+  package either. Its `.claude/hooks/tsconfig.json` extends the same base and includes every `.mjs`
+  file under `.claude/hooks/`. `tsc` also loads `.githooks/nda-match.mjs` and
+  `.githooks/main-work-tree.mjs` through the imports in `block-nda-terms.mjs`.
+  In the root `pnpm typecheck` and in the same CI job, the `.claude/hooks/` check runs after the
+  `.githooks/` check, and only when that check passes. The `.claude/hooks/` check is
+  `tsc --noEmit --project .claude/hooks/tsconfig.json`. So a run with type errors in both
+  directories reports only the `.githooks/` errors. Before a push that
+  changes a `.githooks/*.mjs` or a `.claude/hooks/*.mjs` file, run `pnpm typecheck`
+  from the repository root. Round 3 of the PR #593
+  review found a TS7034 error in a `.githooks/*.mjs` file. The entry "Keep a gate's output and exit code
+  visible" has the fix for a `catch (err)` binding.
 - **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
   path.** `rg <path> --glob '!test/**'` still searches `<path>/test/`. Write `--glob '!**/test/**'`.
   It fails towards more matches, so a criterion written as "this `rg` finds nothing except under X"
@@ -443,6 +462,11 @@ Re-check every bullet in the commit that upgrades Archify, and update or delete 
   directory. Pass `--path-format=absolute` whenever the output becomes part of a path (2026-09-22;
   re-measured 2026-09-24). The tell: identical sizes and timestamps from things that should differ
   mean you measured one thing N times.
+- **On git 2.54.0, whether a tag merge writes a `mergetag` header depends on the tag's
+  signature** (from #579; measured 2026-09-27 in the #601 triage). A merge of an SSH-signed tag
+  writes one `mergetag` header, and a merge of an unsigned annotated tag writes none. A test that
+  needs the header on an unsigned tag builds the commit by hand with `git hash-object --literally`.
+  Nobody measured another git version, including the one CI runs.
 
 ## Writing and reading claims
 
@@ -571,7 +595,7 @@ been wrong — and each was caught by a check that was one command away.
 - **Run `pnpm install --frozen-lockfile` in a new worktree before any gate.** A fresh worktree has
   no `node_modules`, and `npx biome` then falls back to another install that exited 0 on a file
   the pinned Biome fails (measured 2026-09-24). `pnpm ci:check` fails there with "biome: command
-  not found" (2026-09-25).
+  not found" (2026-09-25), and `pnpm typecheck` exits 2 (2026-09-27).
 - **Only a process in a new session outlives the session that starts it on macOS** (2026-08-28).
   `nohup … &`, `nohup … & disown` and `( nohup … & )` all keep the parent's process group and die on
   the `SIGINT` that reaches it; `setsid` does not exist on macOS. Node's

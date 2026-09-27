@@ -14,7 +14,7 @@
     "check": "biome check . && prettier --check \"**/*.md\"",
     "ci:check": "biome ci . && prettier --check \"**/*.md\"",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit --project .githooks/tsconfig.json && tsc --noEmit --project .claude/hooks/tsconfig.json"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
