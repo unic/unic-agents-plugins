@@ -21,10 +21,13 @@
 //      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
 //   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
-//   3. A command with `gh` or `glab` as a word is refused when it also changes directory: `cd` or
-//      `pushd` as a word, `Set-Location` or `Push-Location` as a word in any case, or `sl` in any
-//      case at the start of the text or of a line, or after `;`, `|`, `&`, `(`, `{`, `"`, `'` or `=`.
-//      A relative path after them would resolve somewhere this hook does not look.
+//   3. A command with `gh` or `glab` as a word is refused when it also changes directory. That is
+//      `cd` or `pushd` as a word, or `Set-Location` or `Push-Location` as a word in any case. It is
+//      also `sl`, `cd`, `pushd` or `chdir` in any case at the start of a command. That is the start
+//      of the text or of a line, or a point after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or
+//      `.`. Whitespace may sit between that point and the name. So `docs/sl/x.md` passes, but
+//      `--title "sl fix"` is refused. A relative path after a directory change would resolve
+//      somewhere this hook does not look.
 //   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
 //      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
 //      that is an existing file, resolved against the session's cwd with a leading `~/` expanded, is
@@ -58,10 +61,11 @@ const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
 const RUNS_GH = /\b(?:gh|glab)\b/
 const CHANGES_DIR = /\b(?:cd|pushd)\b/
 // PowerShell ignores case in command names, so this regex does too. `CHANGES_DIR` keeps case, so
-// a title such as `CI/CD fix` passes. `Set-Location` and `Push-Location` count as a word anywhere,
-// since no path segment carries them. `sl`, `cd`, `pushd` and `chdir` count only at the start of
-// the text or of a line, or after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or `.` and optional
-// whitespace, so a path such as `docs/sl/x.md` passes.
+// a title such as `CI/CD fix` passes. `Set-Location` and `Push-Location` count as a word anywhere.
+// A path segment with either name is unlikely, so the hook refuses one too. `sl`, `cd`, `pushd`
+// and `chdir` count only at the start of a command. That is the start of the text or of a line, or
+// a point after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or `.`. Whitespace may sit between
+// that point and the name. So `docs/sl/x.md` passes, but `--title "sl fix"` is refused.
 const CHANGES_DIR_POWERSHELL = /\b(?:set-location|push-location)\b|(?:^|[;|&({}"'=.])\s*(?:sl|cd|pushd|chdir)\b/im
 const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
 const QUOTED = /"([^"]*)"|'([^']*)'/g
@@ -238,7 +242,7 @@ async function main() {
 	if (RUNS_GH.test(command)) {
 		if (CHANGES_DIR.test(command) || CHANGES_DIR_POWERSHELL.test(command)) {
 			block(
-				'this gh or glab command also changes directory with cd, pushd, Set-Location, sl or Push-Location. Name every file by its absolute path, or have the maintainer run it with !.'
+				'this gh or glab command also changes directory with cd, pushd, chdir, Set-Location, sl or Push-Location. Name every file by its absolute path, or have the maintainer run it with !.'
 			)
 		}
 		surfaces.push(...readNamedFiles(command, cwd))
