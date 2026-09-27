@@ -148,13 +148,11 @@ function readCommentString() {
 			encoding: 'utf8',
 			stdio: ['ignore', 'pipe', 'pipe'],
 		})
-		const last = output.replace(/\r?\n$/, '').split(/\r?\n/).at(-1) ?? ''
+		const last = output.trimEnd().split(/\r?\n/).at(-1) ?? ''
 		// Git refuses an empty value, and an empty prefix would drop every line.
 		return last.includes(' ') ? last.slice(last.indexOf(' ') + 1) : '#'
 	} catch (error) {
-		const { status, stderr, message } = /** @type {{ status?: unknown, stderr?: unknown, message?: unknown }} */ (
-			error
-		)
+		const { status, stderr, message } = /** @type {{ status?: unknown, stderr?: unknown, message?: unknown }} */ (error)
 		// Exit 1 means neither key is set.
 		if (status === 1) return '#'
 		process.stderr.write(
