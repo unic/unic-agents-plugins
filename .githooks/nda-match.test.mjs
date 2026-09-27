@@ -703,6 +703,10 @@ describe('Claude hook', () => {
 		)
 	})
 
+	test('passes a gh command whose title holds CD in upper case', () => {
+		assert.equal(runClaudeHook('gh pr create --title "CI/CD fix" --body x', outside).status, 0)
+	})
+
 	test('refuses an empty payload', () => {
 		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, ''), 2, /empty payload/)
 	})
@@ -716,7 +720,11 @@ describe('Claude hook', () => {
 		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, '[]'), 2, /not a JSON object/)
 	})
 	test('passes a valid payload for another tool', () => {
-		const payload = JSON.stringify({ tool_name: 'Read', cwd: outside, tool_input: { file_path: dirty } })
+		const payload = JSON.stringify({
+			tool_name: 'Read',
+			cwd: outside,
+			tool_input: { file_path: dirty, command: 'git push origin x' },
+		})
 		assert.equal(run('node', [CLAUDE_HOOK], outside, {}, payload).status, 0)
 	})
 	test('refuses and names the exception when the hook throws', () => {
@@ -832,6 +840,13 @@ describe('Claude hook entry in .claude/settings.json', () => {
 	const projectDir = join(HOOKS, '..')
 	const outside = mkdtempSync(join(scratch, 'subdir-'))
 
+	test('runs for the PowerShell tool as well as Bash', () => {
+		const group = settings.hooks.PreToolUse.find((/** @type {{ hooks: Array<{ command: string }> }} */ g) =>
+			g.hooks.some((hook) => hook.command.includes('block-nda-terms.mjs'))
+		)
+		assert.equal(group.matcher, 'Bash|PowerShell')
+	})
+
 	test('blocks from a directory other than the project root', () => {
 		const result = run('sh', ['-c', entry], outside, { CLAUDE_PROJECT_DIR: projectDir }, 'not json')
 		assertRefused(result, 2, /not JSON/)
@@ -917,4 +932,101 @@ describe('round 3', () => {
 		git(guarded.dir, 'worktree', 'add', '-q', '-b', 'rel', linked)
 		assertRefused(runClaudeHook('git push origin x', linked, {}, guarded.hook), 2, /core\.hooksPath is \.githooks/)
 	})
+})
+
+describe('Claude hook, PowerShell tool', () => {
+	const outside = mkdtempSync(join(scratch, 'powershell-'))
+	const clean = join(outside, 'clean.md')
+	writeFileSync(clean, 'clean\n')
+	const dirty = join(outside, 'dirty.md')
+	writeFileSync(dirty, `Built for ${TERM}.\n`)
+	mkdirSync(join(outside, 'sl'))
+	const underSl = join(outside, 'sl', 'x.md')
+	writeFileSync(underSl, 'clean\n')
+
+	/** @param {string} command */
+	const runPowerShell = (command) =>
+		run(
+			'node',
+			[CLAUDE_HOOK],
+			outside,
+			{},
+			JSON.stringify({ tool_name: 'PowerShell', cwd: outside, tool_input: { command } })
+		)
+
+	test('refuses the term in a file a gh command names', () => {
+		assertRefused(runPowerShell(`gh issue create --body-file ${dirty}`), 2)
+	})
+	test('refuses a payload with no command', () => {
+		const payload = JSON.stringify({ tool_name: 'PowerShell', cwd: outside, tool_input: {} })
+		assertRefused(run('node', [CLAUDE_HOOK], outside, {}, payload), 2, /has no command/)
+	})
+	test('passes a gh command that names a clean file', () => {
+		assert.equal(runPowerShell(`gh issue create --body-file ${clean}`).status, 0)
+	})
+	test('refuses --no-verify', () => {
+		assertRefused(runPowerShell('git commit --no-verify -m "add file"'), 2, /-F <file>.*run with !/)
+	})
+	test('refuses a push that pre-push would not scan', () => {
+		assertRefused(runPowerShell('git push origin x'), 2, PUSH_REFUSED)
+	})
+	test('refuses a gh command after Set-Location', () => {
+		assertRefused(runPowerShell(`Set-Location ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after set-location in lower case', () => {
+		assertRefused(runPowerShell(`set-location ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after SL in upper case', () => {
+		assertRefused(runPowerShell(`SL ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after sl inside parentheses', () => {
+		assertRefused(runPowerShell(`(sl ${outside}); gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('refuses a gh command after Push-Location', () => {
+		assertRefused(runPowerShell(`Push-Location ${outside}; gh issue create --body-file clean.md`), 2, /absolute path/)
+	})
+	test('passes a gh command whose path holds sl as a directory name', () => {
+		assert.equal(runPowerShell(`gh issue create --body-file ${underSl}`).status, 0)
+	})
+
+	mkdirSync(join(outside, 'sub'))
+	writeFileSync(join(outside, 'sub', 'body.md'), `Built for ${TERM}.\n`)
+	const GH_BODY = 'gh issue create --body-file body.md'
+	test('refuses the term in a file that GH in upper case names', () => {
+		assertRefused(runPowerShell('GH issue create --body-file sub/body.md'), 2)
+	})
+	test('refuses the term in a file that GlAb in mixed case names', () => {
+		assertRefused(runPowerShell('GlAb issue create --body-file sub/body.md'), 2)
+	})
+	test('refuses the term in the text of a Git command in mixed case', () => {
+		assertRefused(runPowerShell(`Git commit -m "Built for ${TERM}"`), 2)
+	})
+	test('refuses a Git push in mixed case that pre-push would not scan', () => {
+		assertRefused(runPowerShell('Git push origin x'), 2, PUSH_REFUSED)
+	})
+	test('passes a GH command in upper case that names a clean file', () => {
+		assert.equal(runPowerShell(`GH issue create --body-file ${clean}`).status, 0)
+	})
+
+	for (const [form, command] of [
+		['inside an if block', `if ($true) { Set-Location sub }; ${GH_BODY}`],
+		['inside a script block', `& { sl sub; ${GH_BODY} }`],
+		['inside a double-quoted pwsh -Command', `pwsh -Command "Set-Location sub; ${GH_BODY}"`],
+		['inside a single-quoted pwsh -Command', `pwsh -Command 'Set-Location sub; ${GH_BODY}'`],
+		['with a module-qualified name', `Microsoft.PowerShell.Management\\Set-Location sub; ${GH_BODY}`],
+		['after an assignment', `$null = Set-Location sub; ${GH_BODY}`],
+		['after a pipe', `'sub' | sl; ${GH_BODY}`],
+		['after the call operator', `& sl sub; ${GH_BODY}`],
+		['with CD in upper case', `CD sub; ${GH_BODY}`],
+		['with Cd in mixed case', `Cd sub; ${GH_BODY}`],
+		['with PUSHD in upper case', `PUSHD sub; ${GH_BODY}`],
+		['with Pushd in mixed case', `Pushd sub; ${GH_BODY}`],
+		['with chdir', `chdir sub; ${GH_BODY}`],
+		['after the dot-source operator', `. sl sub; ${GH_BODY}`],
+		['after a closing brace', `if ($true) { "x" } sl sub; ${GH_BODY}`],
+	]) {
+		test(`refuses a gh command that changes directory ${form}`, () => {
+			assertRefused(runPowerShell(command), 2, /absolute path/)
+		})
+	}
 })

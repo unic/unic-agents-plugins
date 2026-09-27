@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
-// Refuses a Bash command that would publish an NDA-protected term to this public repository.
+// Refuses a command from the Bash or PowerShell tool that would publish an NDA-protected term to this
+// public repository. Both tools send the command in `tool_input.command`, and every check applies to both.
 //
 // It guards what git never sees: the text of `gh` and `glab` commands and the files they name. Git
 // guards what git writes and sends. `pre-commit` and `commit-msg` read the real staged content and
@@ -19,9 +20,16 @@
 //      `.githooks`, and that directory must hold `pre-push` and `nda-push.mjs`, with `pre-push`
 //      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
-//   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
-//   3. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd`, because
-//      a relative path after them would resolve somewhere this hook does not look.
+//   list holds a term. An empty list turns off the term checks, but not checks 1 and 2. In a
+//   PowerShell command, `git`, `gh` and `glab` count in any case, here and in checks 3 and 4.
+//   3. A command with `gh` or `glab` as a word is refused when it also changes directory. That is
+//      `cd` or `pushd` as a word, or `Set-Location` or `Push-Location` as a word in any case. It is
+//      also `sl`, `cd`, `pushd` or `chdir` in any case at the start of a command. That is the start
+//      of the text or of a line, or a point after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or
+//      `.`. Whitespace may sit between that point and the name. So `docs/sl/x.md` passes, but
+//      the hook refuses `--title "sl fix"`. It also refuses a sentence or a domain name that puts
+//      `cd` or `sl` after a `.`. A relative path after a directory change would resolve
+//      somewhere this hook does not look.
 //   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
 //      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
 //      that is an existing file, resolved against the session's cwd with a leading `~/` expanded, is
@@ -49,11 +57,22 @@ import { fileURLToPath } from 'node:url'
 
 const MAX_BYTES = 2_000_000
 const SWITCHES_HOOKS_OFF = /--no-veri|hookspath/i
+// git rejects `PUSH` and `SEND-PACK`, so the subcommand words keep case in both tools.
 const PUSHES = /\bpush\b/
 const SENDS_PACK = /\bsend-pack\b/
-const RUNS_GIT_OR_GH = /\b(?:git|gh|glab)\b/
-const RUNS_GH = /\b(?:gh|glab)\b/
+// Bash command names keep case. PowerShell and Windows ignore it, so `GH` runs `gh.exe` there. A
+// `.` bounds a word, so `gh.exe` counts as `gh`.
+const RUNS_GIT_OR_GH = { Bash: /\b(?:git|gh|glab)\b/, PowerShell: /\b(?:git|gh|glab)\b/i }
+const RUNS_GH = { Bash: /\b(?:gh|glab)\b/, PowerShell: /\b(?:gh|glab)\b/i }
 const CHANGES_DIR = /\b(?:cd|pushd)\b/
+// PowerShell ignores case in command names, so this regex does too. `CHANGES_DIR` keeps case, so
+// a title such as `CI/CD fix` passes. `Set-Location` and `Push-Location` count as a word anywhere.
+// A path segment with either name is unlikely, so the hook refuses one too. `sl`, `cd`, `pushd`
+// and `chdir` count only at the start of a command. That is the start of the text or of a line, or
+// a point after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or `.`. Whitespace may sit between
+// that point and the name. So `docs/sl/x.md` passes, but the hook refuses `--title "sl fix"`.
+// It also refuses a sentence or a domain name that puts `cd` or `sl` after a `.`.
+const CHANGES_DIR_POWERSHELL = /\b(?:set-location|push-location)\b|(?:^|[;|&({}"'=.])\s*(?:sl|cd|pushd|chdir)\b/im
 const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
 const QUOTED = /"([^"]*)"|'([^']*)'/g
 const GH_EXECUTABLES = new Set(['gh', 'glab', 'gh.exe', 'glab.exe'])
@@ -182,9 +201,14 @@ async function main() {
 		block('the hook received a payload that is not a JSON object, so it cannot check this command.')
 	}
 
-	if (event.tool_name !== 'Bash') return
-	/** @type {string} */
+	/** @type {unknown} */
+	const tool = event.tool_name
+	if (tool !== 'Bash' && tool !== 'PowerShell') return
+	/** @type {unknown} */
 	const command = event.tool_input.command
+	if (typeof command !== 'string') {
+		block('the hook received a payload that has no command, so it cannot check this call.')
+	}
 	const cwd = event.cwd || process.cwd()
 
 	if (SWITCHES_HOOKS_OFF.test(command)) {
@@ -206,7 +230,7 @@ async function main() {
 			)
 		}
 	}
-	if (!RUNS_GIT_OR_GH.test(command)) return
+	if (!RUNS_GIT_OR_GH[tool].test(command)) return
 
 	const { findTerm, getListPath, readTerms, redact } = await import('../../.githooks/nda-match.mjs')
 	let terms = []
@@ -223,10 +247,10 @@ async function main() {
 
 	/** @type {Array<[string, string]>} */
 	const surfaces = [['the command itself', command]]
-	if (RUNS_GH.test(command)) {
-		if (CHANGES_DIR.test(command)) {
+	if (RUNS_GH[tool].test(command)) {
+		if (CHANGES_DIR.test(command) || CHANGES_DIR_POWERSHELL.test(command)) {
 			block(
-				'this gh or glab command also holds cd or pushd. Name every file by its absolute path, or have the maintainer run it with !.'
+				'this gh or glab command also changes directory with cd, pushd, chdir, Set-Location, sl or Push-Location. Name every file by its absolute path, or have the maintainer run it with !.'
 			)
 		}
 		surfaces.push(...readNamedFiles(command, cwd))
