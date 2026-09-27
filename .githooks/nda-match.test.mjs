@@ -441,6 +441,13 @@ describe('commit-msg through an editor', () => {
 		const result = commitInEditor(dir, '', '-e', '-m', '#1 remove file')
 		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
 	})
+	test('reads core.commentChar=AUTO as auto', () => {
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
+		git(dir, 'config', 'core.commentChar', 'AUTO')
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		const result = commitInEditor(dir, '', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
+	})
 	test('takes the comment character from the scissors line under core.commentChar=auto', () => {
 		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
 		git(dir, 'config', 'core.commentChar', 'auto')

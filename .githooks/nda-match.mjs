@@ -118,11 +118,11 @@ const SCISSORS = '------------------------ >8 ------------------------'
  * it in quotes. With neither in the file, no comment line goes. Git keeps comment lines under `-m`,
  * `-F` and `--cleanup=verbatim`, which the hook cannot see, so `pre-push` catches a term there.
  * @param {string} message
- * @param {string} comment the comment string, or `auto`
+ * @param {string} comment the comment string, or `auto` in any case
  */
 export function dropCommentLines(message, comment) {
 	const lines = message.split('\n').map((line) => line.replace(/\r$/, ''))
-	const active = comment === 'auto' ? findAutoComment(lines) : comment
+	const active = comment.toLowerCase() === 'auto' ? findAutoComment(lines) : comment
 	if (active === null) return message
 	const end = lines.indexOf(`${active} ${SCISSORS}`)
 	return lines
