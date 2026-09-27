@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { dropCommentLines, findTerm, readTerms } from './nda-match.mjs'
+import { dropCommentLines, findTerm, readDiffTexts, readTerms } from './nda-match.mjs'
 
 const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
@@ -65,6 +65,7 @@ after(() => rmSync(scratch, { recursive: true, force: true }))
 const list = join(scratch, 'denylist.txt')
 writeFileSync(list, `# synthetic\r\n${TERM}\r\n`)
 const missingList = join(scratch, 'missing.txt')
+const noHooks = mkdtempSync(join(scratch, 'no-hooks-'))
 
 /** @param {string} text */
 const toUtf16le = (text) => Buffer.from(text, 'utf16le')
@@ -459,11 +460,61 @@ describe('pre-commit, PNG files', () => {
 	test('refuses a PNG whose name holds the term', () => {
 		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
 	})
+	/**
+	 * A repository in the middle of a merge. The side branch adds `png` and changes `file.txt`, the
+	 * current branch changes `file.txt` too, and the conflict is resolved and staged.
+	 * @param {Buffer} png
+	 */
+	function createResolvedMerge(png) {
+		const dir = createStagedRepo('base\n')
+		assert.equal(commit(dir, 'base').status, 0)
+		git(dir, 'switch', '-q', '-c', 'side')
+		writeFileSync(join(dir, 'image.png'), png)
+		writeFileSync(join(dir, 'file.txt'), 'side\n')
+		git(dir, 'add', '.')
+		git(dir, '-c', `core.hooksPath=${noHooks}`, 'commit', '-q', '-m', 'side')
+		git(dir, 'switch', '-q', '-')
+		writeFileSync(join(dir, 'file.txt'), 'main\n')
+		git(dir, 'commit', '-q', '-am', 'main')
+		assert.notEqual(run('git', ['merge', '-q', 'side'], dir).status, 0)
+		writeFileSync(join(dir, 'file.txt'), 'resolved\n')
+		git(dir, 'add', 'file.txt')
+		return dir
+	}
+
+	test('passes a resolved merge that brings in a PNG whose IDAT data holds the term', () => {
+		assert.equal(commit(createResolvedMerge(PNG_WITH_TERM_IN_IDAT), 'merge side').status, 0)
+	})
+	test('refuses a resolved merge that brings in a PNG whose tEXt chunk holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+		assertRefused(commit(createResolvedMerge(png), 'merge side'), 1)
+	})
+	test('passes a PNG whose two tEXt chunks each hold half of the term', () => {
+		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM.slice(0, 4)}`], ['tEXt', TERM.slice(4)], IEND])
+		assert.equal(commit(createStagedPng(png)).status, 0)
+	})
 	test('refuses the term typed into a text file staged with a PNG', () => {
 		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
 		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n`)
 		git(dir, 'add', 'file.txt')
 		assertRefused(commit(dir), 1)
+	})
+})
+
+describe('readDiffTexts', () => {
+	test('scans the hunks of a PNG whose blob git cannot read', () => {
+		const diff = [
+			'diff --git a/image.png b/image.png',
+			'new file mode 100644',
+			`index ${'0'.repeat(40)}..${'1'.repeat(40)}`,
+			'--- /dev/null',
+			'+++ b/image.png',
+			'@@ -0,0 +1 @@',
+			`+\0${TERM}\0`,
+			'',
+		].join('\n')
+		const texts = readDiffTexts(diff, () => null).map(([, text]) => text)
+		assert.equal(findTerm(texts.join('\n'), [TERM]), TERM)
 	})
 })
 

@@ -689,6 +689,31 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, Buffer.from(`not a png, built for ${TERM}\n`))
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
+	/**
+	 * A clone whose history ends in a merge. The side branch adds `png` and changes `file.txt`, the
+	 * main line changes `file.txt` too, and the merge resolves the conflict. Every commit skips the hooks.
+	 * @param {Buffer} png
+	 */
+	function createResolvedMerge(png) {
+		const { dir } = createClone()
+		commitUnchecked(dir, 'base\n', 'base')
+		git(dir, 'switch', '-q', '-c', 'side')
+		writeFileSync(join(dir, 'image.png'), png)
+		git(dir, 'add', 'image.png')
+		commitUnchecked(dir, 'side\n', 'side')
+		git(dir, 'switch', '-q', '-')
+		commitUnchecked(dir, 'main\n', 'main')
+		assert.notEqual(run('git', ['merge', '-q', 'side'], dir).status, 0)
+		commitUnchecked(dir, 'resolved\n', 'merge side')
+		return dir
+	}
+
+	test('pushes a resolved merge that brings in a PNG whose IDAT data holds the term', () => {
+		assertPushed(push(createResolvedMerge(PNG_WITH_TERM_IN_IDAT), 'HEAD:refs/heads/main'))
+	})
+	test('refuses a resolved merge that brings in a PNG whose tEXt chunk holds the term', () => {
+		assertRefused(push(createResolvedMerge(PNG_WITH_TERM_IN_TEXT), 'HEAD:refs/heads/main'))
+	})
 	test('refuses the term typed into a text file pushed with a PNG', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, PNG_WITH_TERM_IN_IDAT)
