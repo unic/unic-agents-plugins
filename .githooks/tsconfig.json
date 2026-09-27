@@ -1,4 +1,4 @@
 {
   "extends": "@unic/tsconfig/tsconfig.base.json",
-  "include": ["*.mjs"]
+  "include": ["**/*.mjs"]
 }
