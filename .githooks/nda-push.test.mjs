@@ -706,6 +706,16 @@ describe('pre-push, PNG files', () => {
 		commitPngUnchecked(dir, createPng([['IDAT', `\0${TERM}\0`]]))
 		assertRefused(push(dir, 'HEAD:refs/heads/main'))
 	})
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
+	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
+		const { dir } = createClone()
+		commitPngUnchecked(dir, createPng([['IDAT', `\0${TERM}\0`], IEND]))
+		assertRefused(push(dir, 'HEAD:refs/heads/main'))
+	})
 	test('refuses a file named .png that is not a PNG and holds the term', () => {
 		const { dir } = createClone()
 		commitPngUnchecked(dir, Buffer.from(`not a png, built for ${TERM}\n`))

@@ -453,6 +453,12 @@ describe('pre-commit, PNG files', () => {
 	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
 		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`]]))), 1)
 	})
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term', () => {
+		assertRefused(commit(createStagedPng(createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))), 1)
+	})
+	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
+		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`], IEND]))), 1)
+	})
 	test('refuses a file named .png that is not a PNG and holds the term', () => {
 		assertRefused(commit(createStagedPng(Buffer.from(`not a png, built for ${TERM}\n`))), 1)
 	})
