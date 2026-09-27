@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { findTerm, readTerms } from './nda-match.mjs'
+import { dropCommentLines, findTerm, readTerms } from './nda-match.mjs'
 
 const TERM = 'zorblax'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
@@ -157,6 +157,13 @@ describe('findTerm', () => {
 	})
 	test('refuses an overlapping match that ends on a boundary', () => {
 		assert.equal(findTerm('aAa', ['aa']), 'aa')
+	})
+})
+
+describe('dropCommentLines', () => {
+	test('cuts at a scissors line that ends in CRLF', () => {
+		const message = `fix\r\n# ------------------------ >8 ------------------------\r\nBuilt for ${TERM}.\r\n`
+		assert.equal(dropCommentLines(message, '#'), 'fix')
 	})
 })
 
