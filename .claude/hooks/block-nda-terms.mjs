@@ -27,8 +27,8 @@
 //      also `sl`, `cd`, `pushd` or `chdir` in any case at the start of a command. That is the start
 //      of the text or of a line, or a point after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or
 //      `.`. Whitespace may sit between that point and the name. So `docs/sl/x.md` passes, but
-//      `--title "sl fix"` is refused. A sentence or a domain name that puts `cd` or `sl` after a
-//      `.` is refused too. A relative path after a directory change would resolve
+//      the hook refuses `--title "sl fix"`. It also refuses a sentence or a domain name that puts
+//      `cd` or `sl` after a `.`. A relative path after a directory change would resolve
 //      somewhere this hook does not look.
 //   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
 //      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
@@ -70,8 +70,8 @@ const CHANGES_DIR = /\b(?:cd|pushd)\b/
 // A path segment with either name is unlikely, so the hook refuses one too. `sl`, `cd`, `pushd`
 // and `chdir` count only at the start of a command. That is the start of the text or of a line, or
 // a point after `;`, `|`, `&`, `(`, `{`, `}`, `"`, `'`, `=` or `.`. Whitespace may sit between
-// that point and the name. So `docs/sl/x.md` passes, but `--title "sl fix"` is refused. A
-// sentence or a domain name that puts `cd` or `sl` after a `.` is refused too.
+// that point and the name. So `docs/sl/x.md` passes, but the hook refuses `--title "sl fix"`.
+// It also refuses a sentence or a domain name that puts `cd` or `sl` after a `.`.
 const CHANGES_DIR_POWERSHELL = /\b(?:set-location|push-location)\b|(?:^|[;|&({}"'=.])\s*(?:sl|cd|pushd|chdir)\b/im
 const PATH_SEPARATORS = /[\s'"`=@<()$;&|]+/
 const QUOTED = /"([^"]*)"|'([^']*)'/g
