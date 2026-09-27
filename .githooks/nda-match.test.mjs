@@ -376,7 +376,7 @@ writeFileSync(
 	EDITOR,
 	"import { readFileSync, writeFileSync } from 'node:fs'\n" +
 		'const file = process.argv[2]\n' +
-		"writeFileSync(file, (process.env.MESSAGE ?? '') + readFileSync(file, 'utf8'))\n"
+		"writeFileSync(file, (process.env.MESSAGE ?? '') + readFileSync(file, 'utf8') + (process.env.APPEND ?? ''))\n"
 )
 
 /**
@@ -478,6 +478,16 @@ describe('commit-msg through an editor', () => {
 		const dir = createStagedRepo('clean\n')
 		git(dir, 'config', 'core.commentChar', 'auto')
 		assertRefused(commit(dir, `add file\n\nI mean 'I' here\nI built ${TERM}`), 1)
+	})
+	test('removes no line under core.commentChar=auto when a line typed after the template names another character', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		const env = {
+			GIT_EDITOR: `node ${JSON.stringify(EDITOR)}`,
+			MESSAGE: 'add file\n',
+			APPEND: `; note ';'\n; Built for ${TERM}\n`,
+		}
+		assertRefused(run('git', ['commit', '-q'], dir, env), 1)
 	})
 	test('removes no line under core.commentChar=auto when the file holds no template', () => {
 		const dir = createStagedRepo('clean\n')

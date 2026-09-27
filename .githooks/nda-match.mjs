@@ -114,8 +114,8 @@ const SCISSORS = '------------------------ >8 ------------------------'
 /**
  * Returns the commit message without every line from the scissors line down and every line that
  * starts with the comment string. Under `auto` git picks the character at commit time, so it comes
- * from the scissors line or from the template line that names it in quotes. With neither in the file,
- * it removes no comment line. Git keeps some of these lines, and the hook cannot see when.
+ * from the scissors line and from every template line that names it in quotes. When those name no
+ * character, or name more than one, it removes no comment line. Git keeps some of these lines, and the hook cannot see when.
  * `AGENTS.md`, "The NDA publish guard", lists those cases in its accepted gaps. `pre-push` refuses a
  * term there.
  * @param {string} message
@@ -137,12 +137,18 @@ const AUTO_COMMENT_CHARS = '#;@!$%^&|:'
 
 /** @param {string[]} lines */
 function findAutoComment(lines) {
-	const scissors = lines.find((line) => AUTO_COMMENT_CHARS.includes(line[0]) && line === `${line[0]} ${SCISSORS}`)
-	if (scissors) return scissors[0]
-	// A loose match on the last line that starts with one of those characters and names it in quotes,
-	// as git's template does in `# with '#' will be ignored`.
-	const template = lines.findLast((line) => /^([#;@!$%^&|:]) .*'\1'/u.test(line))
-	return template ? template[0] : null
+	// Candidates are the scissors line and every line that starts with one of those characters and
+	// names it in quotes, as git's template does in `# with '#' will be ignored`. The match is loose.
+	const found = new Set(
+		lines
+			.filter(
+				(line) =>
+					AUTO_COMMENT_CHARS.includes(line[0]) && (line === `${line[0]} ${SCISSORS}` || /^(.) .*'\1'/u.test(line))
+			)
+			.map((line) => line[0])
+	)
+	// Candidates that disagree mean the user typed one of them, so the hook removes no line and reads the whole file.
+	return found.size === 1 ? [...found][0] : null
 }
 
 // Git reads `core.commentString` and `core.commentChar` as one setting, and the value read last wins,
