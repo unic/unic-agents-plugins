@@ -449,6 +449,11 @@ describe('commit-msg through an editor', () => {
 		const result = commitInEditor(dir, '', '-v', '-e', '-m', '#1 remove line')
 		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove line', stderr: '' })
 	})
+	test('removes no line under core.commentChar=auto when a message line quotes its own first letter', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentChar', 'auto')
+		assertRefused(commit(dir, `add file\n\nI mean 'I' here\nI built ${TERM}`), 1)
+	})
 	test('removes no line under core.commentChar=auto when the file holds no template', () => {
 		const dir = createStagedRepo('clean\n')
 		git(dir, 'config', 'core.commentChar', 'auto')

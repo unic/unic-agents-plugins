@@ -131,12 +131,16 @@ export function dropCommentLines(message, comment) {
 		.join('\n')
 }
 
+// Under `auto`, git picks the comment character from this set only.
+const AUTO_COMMENT_CHARS = '#;@!$%^&|:'
+
 /** @param {string[]} lines */
 function findAutoComment(lines) {
-	const scissors = lines.find((line) => line.endsWith(` ${SCISSORS}`) && line.length === SCISSORS.length + 2)
+	const scissors = lines.find((line) => AUTO_COMMENT_CHARS.includes(line[0]) && line === `${line[0]} ${SCISSORS}`)
 	if (scissors) return scissors[0]
-	// Git's template says which character it ignores, as in `# with '#' will be ignored`.
-	const template = lines.findLast((line) => /^(\S) .*'\1'/u.test(line))
+	// A loose match on the last line that starts with one of those characters and names it in quotes,
+	// as git's template does in `# with '#' will be ignored`.
+	const template = lines.findLast((line) => /^([#;@!$%^&|:]) .*'\1'/u.test(line))
 	return template ? template[0] : null
 }
 
