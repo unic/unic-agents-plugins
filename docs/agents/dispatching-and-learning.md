@@ -132,6 +132,15 @@ Each is dated to the day it was adopted, and each came from a session that went 
 - **A grilling asks one question at a time while the answers still branch** (2026-09-26, #579).
   Once the remaining questions no longer depend on each other, ask them together. The maintainer
   confirmed that shape.
+- **A ticket that claims a regex bug gets a one-line probe before its opener asks for a fix**
+  (2026-09-26, #587: the regex finding in item 7 was not a bug, because `.` does not match `\r`
+  without the `s` flag). Run the pattern on the input the ticket names, and write the result into
+  the opener.
+- **A seat that writes a fix list outside `afk-loop` follows its rule on the oldest tool version a
+  fix must support, in
+  [`afk-loop` § One ticket](../../.claude/skills/afk-loop/SKILL.md#one-ticket), in the step that
+  sorts each round's findings**
+  (2026-09-27, #601).
 
 ### Before you post one: the four reads
 

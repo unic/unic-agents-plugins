@@ -50,6 +50,18 @@ and may not survive an upgrade.
   a failed typecheck was committed this way). The failure there was `tsc --checkJs` typing a
   `catch (err)` binding as `unknown`; read its fields through a JSDoc cast,
   `/** @type {{ status?: number }} */ (err).status`.
+- **Check which gate type-checks a file outside every package** (2026-09-26, PR #593).
+  `pnpm ci:check` runs Biome and Prettier only. CI runs
+  `pnpm --filter <package> --if-present typecheck` for each changed package.
+  `pnpm typecheck` runs each package's own `typecheck` script, and `.githooks/` belongs to no
+  package. Until [#602](https://github.com/unic/unic-agents-plugins/issues/602) lands, no gate
+  type-checks `.githooks/*.mjs`. Before a push that changes one of them, run
+  `pnpm exec tsc --noEmit --allowJs --checkJs --strict --skipLibCheck --module nodenext --target es2022 --types node <changed files>`
+  from the repository root. When the changed files include `.githooks/nda-match.mjs` or a file
+  that imports it, the command reports one TS2322 in `nda-match.mjs` (measured 2026-09-27, after
+  #603), which [#602](https://github.com/unic/unic-agents-plugins/issues/602) owns. Round 3 of the PR #593
+  review found a TS7034 error in one of these files. The entry "Keep a gate's output and exit code
+  visible" has the fix for a `catch (err)` binding.
 - **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
   path.** `rg <path> --glob '!test/**'` still searches `<path>/test/`. Write `--glob '!**/test/**'`.
   It fails towards more matches, so a criterion written as "this `rg` finds nothing except under X"
@@ -443,6 +455,11 @@ Re-check every bullet in the commit that upgrades Archify, and update or delete 
   directory. Pass `--path-format=absolute` whenever the output becomes part of a path (2026-09-22;
   re-measured 2026-09-24). The tell: identical sizes and timestamps from things that should differ
   mean you measured one thing N times.
+- **On git 2.54.0, whether a tag merge writes a `mergetag` header depends on the tag's
+  signature** (from #579; measured 2026-09-27 in the #601 triage). A merge of an SSH-signed tag
+  writes one `mergetag` header, and a merge of an unsigned annotated tag writes none. A test that
+  needs the header on an unsigned tag builds the commit by hand with `git hash-object --literally`.
+  Nobody measured another git version, including the one CI runs.
 
 ## Writing and reading claims
 
