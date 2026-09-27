@@ -87,7 +87,7 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 <a href="docs/architecture/20260925-unic-dlc-setup-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-setup-command.dark.png">
-    <img alt="/setup command: read the Archon version, the project and the tools, discover the stack, install the Methods and workflows, write the config and the tracker contract after the operator confirms each gap, then patch CLAUDE.md and print a summary" src="docs/architecture/20260925-unic-dlc-setup-command.light.png">
+    <img alt="/setup command: read the Archon version, the project and the tools, discover the stack, install the Methods and workflows, write the config and the tracker contract, then patch CLAUDE.md and print a summary, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-setup-command.light.png">
   </picture>
 </a>
 
@@ -129,7 +129,7 @@ OFF-LINE    /setup · /explore · /improve-architecture · /cleanup · /archon-u
 <a href="docs/architecture/20260925-unic-dlc-archon-upgrade-command.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-archon-upgrade-command.dark.png">
-    <img alt="/archon-upgrade command: compare the installed Archon with the floor, fetch the upstream release notes, classify each change, re-assert the traps, probe the config keys in a throwaway repo, then print the report" src="docs/architecture/20260925-unic-dlc-archon-upgrade-command.light.png">
+    <img alt="/archon-upgrade command: compare the installed Archon with the floor, discover the upstream repository and fetch its release notes, classify each change, re-assert the traps, probe the config keys in a throwaway repo, then print the report, with each point where it halts for a human" src="docs/architecture/20260925-unic-dlc-archon-upgrade-command.light.png">
   </picture>
 </a>
 
