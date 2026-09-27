@@ -997,6 +997,13 @@ describe('Claude hook, PowerShell tool', () => {
 		['after an assignment', `$null = Set-Location sub; ${GH_BODY}`],
 		['after a pipe', `'sub' | sl; ${GH_BODY}`],
 		['after the call operator', `& sl sub; ${GH_BODY}`],
+		['with CD in upper case', `CD sub; ${GH_BODY}`],
+		['with Cd in mixed case', `Cd sub; ${GH_BODY}`],
+		['with PUSHD in upper case', `PUSHD sub; ${GH_BODY}`],
+		['with Pushd in mixed case', `Pushd sub; ${GH_BODY}`],
+		['with chdir', `chdir sub; ${GH_BODY}`],
+		['after the dot-source operator', `. sl sub; ${GH_BODY}`],
+		['after a closing brace', `if ($true) { "x" } sl sub; ${GH_BODY}`],
 	]) {
 		test(`refuses a gh command that changes directory ${form}`, () => {
 			assertRefused(runPowerShell(command), 2, /absolute path/)
