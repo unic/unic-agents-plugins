@@ -39,7 +39,8 @@
 // on a match or when the term list cannot be read. With the label `pre-commit` and no file, it reads
 // the staged diff itself and exits 1 when git cannot produce it. That text is a diff,
 // and its deleted lines do not count: they are already in the published history, and refusing them
-// would block the commit that removes a term. The list lives outside every repository:
+// would block the commit that removes a term. An added or modified PNG is read from its blob, every
+// chunk but `IDAT`, as `readDiffTexts` says. The list lives outside every repository:
 // $UNIC_NDA_DENYLIST, else ~/.config/unic/nda-denylist.txt.
 
 import { execFileSync } from 'node:child_process'
@@ -67,7 +68,86 @@ export function readTerms(path) {
  * command, a `-diff` attribute or a textconv filter from replacing it, and `--no-color` keeps
  * `color.ui=always` from putting escape codes before the `-` and `+` of each line.
  */
-export const DIFF_FLAGS = ['-U0', '--text', '--no-ext-diff', '--no-textconv', '--no-color']
+export const DIFF_FLAGS = ['-U0', '--text', '--no-ext-diff', '--no-textconv', '--no-color', '--full-index']
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+// The path of a file section's new side, from `+++ b/<path>`, `rename to <path>` or `copy to <path>`.
+// Git quotes a path with special characters, and ends a `+++` line with a tab when the path holds a space.
+const PNG_PATH_LINE = /^(?:\+\+\+ "?b\/|rename to |copy to ).*\.png"?\t?$/i
+const POST_IMAGE_ID = /^index [0-9a-f]+\.\.([0-9a-f]+)/
+
+/**
+ * The texts a diff publishes: its added lines, as `dropDeletedLines` keeps them, and the chunks of
+ * every added or modified PNG. A `*.png` section loses its hunks, and the guard reads the file's
+ * post-image blob instead, by the id on its `index` line, which `--full-index` makes whole. That
+ * works in a `git log -p` stream too, which has no commit boundary to read the file at. A blob that
+ * parses as a PNG gives one text per chunk except `IDAT`, whose compressed bytes match a short term
+ * by chance and identify nobody. Each chunk is its own text, so no match spans two chunks. A blob that
+ * does not parse is one text, whole. A blob that git cannot read keeps its hunks. The `index` lines
+ * go, because they hold only object ids. The file header stays, so the path is still read.
+ * @param {string} diff
+ * @param {(id: string) => Buffer | null} readBlob
+ * @returns {string[]}
+ */
+export function readDiffTexts(diff, readBlob) {
+	/** @type {string[]} */
+	const kept = []
+	/** @type {string[]} */
+	const blobTexts = []
+	for (const section of diff.split(/^(?=diff --git )/m)) {
+		const lines = section.split('\n')
+		const hunkStart = lines.findIndex((line) => line.startsWith('@@'))
+		const header = hunkStart === -1 ? lines : lines.slice(0, hunkStart)
+		const postImageId = header.map((line) => POST_IMAGE_ID.exec(line)?.[1]).find(Boolean)
+		const isPng = header.some((line) => PNG_PATH_LINE.test(line))
+		const blob = isPng && postImageId && !/^0+$/.test(postImageId) ? readBlob(postImageId) : null
+		const headerOnly = header.filter((line) => !line.startsWith('index '))
+		if (blob === null) {
+			kept.push([...headerOnly, ...(hunkStart === -1 ? [] : lines.slice(hunkStart))].join('\n'))
+			continue
+		}
+		kept.push(`${headerOnly.join('\n')}\n`)
+		blobTexts.push(...(readPngChunkTexts(blob) ?? [blob.toString('utf8')]))
+	}
+	return [dropDeletedLines(kept.join('')), ...blobTexts]
+}
+
+/**
+ * The type and data of every chunk but `IDAT`, one text per chunk, or null when the blob is not a
+ * PNG: a wrong signature, or a chunk that runs past the end.
+ * @param {Buffer} blob
+ */
+export function readPngChunkTexts(blob) {
+	if (!blob.subarray(0, 8).equals(PNG_SIGNATURE)) return null
+	/** @type {string[]} */
+	const texts = []
+	for (let at = 8; at < blob.length; ) {
+		// Four bytes of length, four of type, the data, and four of CRC.
+		if (at + 12 > blob.length) return null
+		const end = at + 12 + blob.readUInt32BE(at)
+		if (end > blob.length) return null
+		const type = blob.toString('latin1', at + 4, at + 8)
+		if (type !== 'IDAT') texts.push(`${type}\n${blob.toString('utf8', at + 8, end - 4)}`)
+		at = end
+	}
+	return texts
+}
+
+/**
+ * A blob's content, or null when git cannot read it.
+ * @param {string} id
+ */
+export function readBlob(id) {
+	try {
+		return execFileSync('git', ['--no-replace-objects', 'cat-file', 'blob', id], {
+			encoding: 'buffer',
+			maxBuffer: 512 * 1024 * 1024,
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+	} catch {
+		return null
+	}
+}
 
 /**
  * A diff without its deleted text. Inside a hunk, a line that starts with `-` goes. In a file header,
@@ -301,7 +381,8 @@ async function main() {
 	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 
-	const term = findTerm(label === 'pre-commit' ? dropDeletedLines(text) : text, terms)
+	const texts = label === 'pre-commit' ? readDiffTexts(text, readBlob) : [text]
+	const term = texts.map((each) => findTerm(each, terms)).find((found) => found !== null) ?? null
 	if (term === null) return
 	// Redact the term: the transcript of a refusal must not republish it.
 	process.stderr.write(

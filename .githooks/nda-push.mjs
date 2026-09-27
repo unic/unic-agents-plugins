@@ -10,7 +10,8 @@
 //   - every annotated tag object on the way from the ref to what it points at, which holds each
 //     tag message, and a blob or a tree at the end of it;
 //   - every commit the push sends: the whole commit object, headers and message, and the added lines
-//     of its patch. A merge commit's patch is read against its first parent.
+//     of its patch. A merge commit's patch is read against its first parent. An added or modified PNG
+//     is read from its blob, every chunk but `IDAT`, as `readDiffTexts` in `./nda-match.mjs` says.
 //
 // The commits a push sends are those reachable from the local sha and from neither the remote sha nor
 // any `refs/remotes/<remote>/*` ref. A remote-tracking ref behind the remote makes it scan more. One
@@ -27,7 +28,7 @@
 
 import { execFileSync } from 'node:child_process'
 
-import { DIFF_FLAGS, dropDeletedLines, findTerm, getListPath, readTerms, redact } from './nda-match.mjs'
+import { DIFF_FLAGS, findTerm, getListPath, readBlob, readDiffTexts, readTerms, redact } from './nda-match.mjs'
 
 const ZERO = /^0+$/
 // ponytail: whole output in memory. A push past this size is refused, stream `git log` if one ever is.
@@ -116,10 +117,11 @@ function readPushedTexts(line, remote) {
 	// the message under `i18n.logOutputEncoding`.
 	const shas = git(['rev-list', ...range])
 	if (shas.trim()) texts.push([`a commit object pushed to ${remoteRef}`, git(['cat-file', '--batch'], shas)])
-	// One text for every patch.
+	// One text for every patch, and one for each chunk of a PNG it adds or modifies.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
-	texts.push([`the patch of a commit pushed to ${remoteRef}`, dropDeletedLines(patches)])
+	for (const text of readDiffTexts(patches, readBlob))
+		texts.push([`the patch of a commit pushed to ${remoteRef}`, text])
 	return texts
 }
 

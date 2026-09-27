@@ -35,6 +35,30 @@ const LONG_PATH = `/Users/someone/Sites/UNIC/${TERM}/apps/claudecode/plugins/src
 const SHORT_DATA_URI = `data:text/plain;base64,${TERM}`
 const REFUSED = /carries the NDA term/
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+/**
+ * A PNG made of these chunks. Each CRC is zero, because the guards never check it.
+ * @param {Array<[string, string | Buffer]>} chunks
+ */
+function createPng(chunks) {
+	const parts = [PNG_SIGNATURE]
+	for (const [type, data] of chunks) {
+		const body = Buffer.from(data)
+		const length = Buffer.alloc(4)
+		length.writeUInt32BE(body.length)
+		parts.push(length, Buffer.from(type, 'latin1'), body, Buffer.alloc(4))
+	}
+	return Buffer.concat(parts)
+}
+
+/** @type {[string, Buffer]} */
+const IHDR = ['IHDR', Buffer.alloc(13)]
+/** @type {[string, string]} */
+const IEND = ['IEND', '']
+const CLEAN_PNG = createPng([IHDR, ['IDAT', '\0clean\0'], IEND])
+const PNG_WITH_TERM_IN_IDAT = createPng([IHDR, ['IDAT', `\0${TERM}\0`], IEND])
+
 const scratch = mkdtempSync(join(tmpdir(), 'nda-guard-'))
 after(() => rmSync(scratch, { recursive: true, force: true }))
 
@@ -365,6 +389,75 @@ describe('git hooks', () => {
 		mkdirSync(join(dir, `${TERM} b`))
 		writeFileSync(join(dir, `${TERM} b`, 'x'), '')
 		git(dir, 'add', '.')
+		assertRefused(commit(dir), 1)
+	})
+})
+
+describe('pre-commit, PNG files', () => {
+	/**
+	 * A fresh repository with the git hooks of this checkout and one staged PNG.
+	 * @param {Buffer} content
+	 * @param {string} [name]
+	 */
+	function createStagedPng(content, name = 'image.png') {
+		const dir = createStagedRepo('clean\n')
+		writeFileSync(join(dir, name), content)
+		git(dir, 'add', '.')
+		return dir
+	}
+
+	test('passes an added PNG whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT)).status, 0)
+	})
+	test('passes a modified PNG whose new IDAT data holds the term', () => {
+		const dir = createStagedPng(CLEAN_PNG)
+		assert.equal(commit(dir).status, 0)
+		writeFileSync(join(dir, 'image.png'), PNG_WITH_TERM_IN_IDAT)
+		git(dir, 'add', 'image.png')
+		assert.equal(commit(dir, 'change image').status, 0)
+	})
+	test('passes a PNG named in capitals whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'IMAGE.PNG')).status, 0)
+	})
+	test('passes a PNG with a space in its name whose IDAT data holds the term', () => {
+		assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my image.png')).status, 0)
+	})
+	test(
+		'passes a PNG with a quote in its name whose IDAT data holds the term',
+		{ skip: process.platform === 'win32' },
+		() => {
+			assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my "image".png')).status, 0)
+		}
+	)
+	test('refuses a PNG whose tEXt chunk after IDAT holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
+		assertRefused(commit(createStagedPng(png)), 1)
+	})
+	test('refuses a PNG whose eXIf chunk holds the term', () => {
+		const png = createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND])
+		assertRefused(commit(createStagedPng(png)), 1)
+	})
+	test('refuses a modified PNG whose new tEXt chunk holds the term', () => {
+		const dir = createStagedPng(CLEAN_PNG)
+		assert.equal(commit(dir).status, 0)
+		writeFileSync(join(dir, 'image.png'), createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND]))
+		git(dir, 'add', 'image.png')
+		assertRefused(commit(dir, 'change image'), 1)
+	})
+	test('refuses a file named .png that is not a PNG and holds the term', () => {
+		assertRefused(commit(createStagedPng(Buffer.from(`not a png, built for ${TERM}\n`))), 1)
+	})
+	test('refuses a PNG whose last chunk runs past the end and whose IDAT data holds the term', () => {
+		const png = createPng([IHDR, ['IDAT', `\0${TERM}\0`]])
+		assertRefused(commit(createStagedPng(png.subarray(0, png.length - 2))), 1)
+	})
+	test('refuses a PNG whose name holds the term', () => {
+		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
+	})
+	test('refuses the term typed into a text file staged with a PNG', () => {
+		const dir = createStagedPng(PNG_WITH_TERM_IN_IDAT)
+		writeFileSync(join(dir, 'file.txt'), `Built for ${TERM}.\n`)
+		git(dir, 'add', 'file.txt')
 		assertRefused(commit(dir), 1)
 	})
 })
