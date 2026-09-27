@@ -109,6 +109,64 @@ export function dropDeletedLines(diff) {
 	return kept.join('\n')
 }
 
+const SCISSORS = '------------------------ >8 ------------------------'
+
+/**
+ * A commit message file without what git removes after `commit-msg` runs: everything from the
+ * scissors line down, and every line that starts with the comment string. Under `auto` git picks the
+ * character at commit time, so it comes from the scissors line or from the template line that names
+ * it in quotes. With neither in the file, no comment line goes. Git keeps comment lines under `-m`,
+ * `-F` and `--cleanup=verbatim`, which the hook cannot see, so `pre-push` catches a term there.
+ * @param {string} message
+ * @param {string} comment the comment string, or `auto`
+ */
+export function dropCommentLines(message, comment) {
+	const lines = message.split('\n').map((line) => line.replace(/\r$/, ''))
+	const active = comment === 'auto' ? findAutoComment(lines) : comment
+	if (active === null) return message
+	const end = lines.indexOf(`${active} ${SCISSORS}`)
+	return lines
+		.slice(0, end === -1 ? undefined : end)
+		.filter((line) => !line.startsWith(active))
+		.join('\n')
+}
+
+/** @param {string[]} lines */
+function findAutoComment(lines) {
+	const scissors = lines.find((line) => line.endsWith(` ${SCISSORS}`) && line.length === SCISSORS.length + 2)
+	if (scissors) return scissors[0]
+	// Git's template says which character it ignores, as in `# with '#' will be ignored`.
+	const template = lines.findLast((line) => /^(\S) .*'\1'/u.test(line))
+	return template ? template[0] : null
+}
+
+// `core.commentString` wins over `core.commentChar`, and git uses `#` when neither is set.
+function readCommentString() {
+	for (const key of ['core.commentString', 'core.commentChar']) {
+		try {
+			return execFileSync('git', ['config', '--get', key], {
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			}).replace(/\r?\n$/, '')
+		} catch (error) {
+			const { status, stderr, message } = /** @type {{ status?: unknown, stderr?: unknown, message?: unknown }} */ (
+				error
+			)
+			// Exit 1 means the key is unset.
+			if (status === 1) continue
+			process.stderr.write(
+				`commit-msg: cannot read ${key}, so this commit is refused (${
+					String(stderr || message)
+						.trim()
+						.split('\n')[0]
+				}).\n`
+			)
+			process.exit(1)
+		}
+	}
+	return '#'
+}
+
 /** @param {string} term */
 export const redact = (term) => term.slice(0, 2) + '*'.repeat(Math.max(1, term.length - 2))
 
@@ -225,7 +283,7 @@ async function main() {
 	}
 
 	let text = ''
-	if (file) text = readFileSync(file, 'utf8')
+	if (file) text = dropCommentLines(readFileSync(file, 'utf8'), readCommentString())
 	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 
