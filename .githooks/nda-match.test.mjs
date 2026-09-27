@@ -449,12 +449,13 @@ describe('commit-msg through an editor', () => {
 		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
 	})
 	test('takes the comment character from the scissors line under core.commentChar=auto', () => {
-		const dir = createCommittedRepo(`Built for ${TERM}.\nclean\n`)
+		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
 		git(dir, 'config', 'core.commentChar', 'auto')
-		writeFileSync(join(dir, 'file.txt'), 'clean\n')
-		git(dir, 'add', 'file.txt')
-		const result = commitInEditor(dir, '', '-v', '-e', '-m', '#1 remove line')
-		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove line', stderr: '' })
+		git(dir, 'rm', '-q', `${TERM}.txt`)
+		// Under --cleanup=scissors, git's template names no comment character, so the scissors line is
+		// the only source.
+		const result = commitInEditor(dir, '', '--cleanup=scissors', '-e', '-m', '#1 remove file')
+		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: '#1 remove file', stderr: '' })
 	})
 	test('removes no line under core.commentChar=auto when a message line quotes its own first letter', () => {
 		const dir = createStagedRepo('clean\n')
