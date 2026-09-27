@@ -21,9 +21,10 @@
 //      executable where the OS has an executable bit. The refusal names which of these failed.
 //   Only a command with `git`, `gh` or `glab` as a word anywhere goes on, and only when the term
 //   list holds a term. An empty list turns off the term checks, but not checks 1 and 2.
-//   3. A command with `gh` or `glab` as a word is refused when it also holds `cd` or `pushd` as a word,
-//      or `Set-Location`, `sl` or `Push-Location` in any case at the start of a command. A relative
-//      path after them would resolve somewhere this hook does not look.
+//   3. A command with `gh` or `glab` as a word is refused when it also changes directory: `cd` or
+//      `pushd` as a word, `Set-Location` or `Push-Location` as a word in any case, or `sl` in any
+//      case at the start of the text or of a line, or after `;`, `|`, `&`, `(`, `{`, `"`, `'` or `=`.
+//      A relative path after them would resolve somewhere this hook does not look.
 //   4. For a `gh` or `glab` command, the text is split on whitespace, quotes, backticks, `=`, `@`,
 //      `<`, `(`, `)`, `$`, `;`, `&` and `|`, and each quoted string is also tried whole. Every piece
 //      that is an existing file, resolved against the session's cwd with a leading `~/` expanded, is
