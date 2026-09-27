@@ -419,13 +419,19 @@ describe('commit-msg through an editor', () => {
 		git(dir, 'config', 'core.commentChar', ';')
 		assertRefused(commitInEditor(dir, `add file\n\n# ${TERM}\n`), 1)
 	})
-	test('takes core.commentString over core.commentChar', () => {
+	test('takes core.commentString when it is read after core.commentChar', () => {
 		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
 		git(dir, 'config', 'core.commentChar', '%')
 		git(dir, 'config', 'core.commentString', ';')
 		git(dir, 'rm', '-q', `${TERM}.txt`)
 		const result = commitInEditor(dir, 'remove file\n')
 		assert.deepEqual(getOutcome(dir, result), { status: 0, subject: 'remove file', stderr: '' })
+	})
+	test('refuses the term on a line that starts with core.commentString when core.commentChar is read last', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentString', ';')
+		git(dir, 'config', 'core.commentChar', '%')
+		assertRefused(commitInEditor(dir, `add file\n\n; ${TERM}\n`), 1)
 	})
 	test('takes the comment character from the template under core.commentChar=auto', () => {
 		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)

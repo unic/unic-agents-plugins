@@ -140,31 +140,32 @@ function findAutoComment(lines) {
 	return template ? template[0] : null
 }
 
-// `core.commentString` wins over `core.commentChar`, and git uses `#` when neither is set.
+// Git reads `core.commentString` and `core.commentChar` as one setting, and the value read last wins,
+// across scopes too. Git uses `#` when neither is set.
 function readCommentString() {
-	for (const key of ['core.commentString', 'core.commentChar']) {
-		try {
-			return execFileSync('git', ['config', '--get', key], {
-				encoding: 'utf8',
-				stdio: ['ignore', 'pipe', 'pipe'],
-			}).replace(/\r?\n$/, '')
-		} catch (error) {
-			const { status, stderr, message } = /** @type {{ status?: unknown, stderr?: unknown, message?: unknown }} */ (
-				error
-			)
-			// Exit 1 means the key is unset.
-			if (status === 1) continue
-			process.stderr.write(
-				`commit-msg: cannot read ${key}, so this commit is refused (${
-					String(stderr || message)
-						.trim()
-						.split('\n')[0]
-				}).\n`
-			)
-			process.exit(1)
-		}
+	try {
+		const output = execFileSync('git', ['config', '--get-regexp', '^core\\.comment(char|string)$'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+		const last = output.replace(/\r?\n$/, '').split(/\r?\n/).at(-1) ?? ''
+		// Git refuses an empty value, and an empty prefix would drop every line.
+		return last.includes(' ') ? last.slice(last.indexOf(' ') + 1) : '#'
+	} catch (error) {
+		const { status, stderr, message } = /** @type {{ status?: unknown, stderr?: unknown, message?: unknown }} */ (
+			error
+		)
+		// Exit 1 means neither key is set.
+		if (status === 1) return '#'
+		process.stderr.write(
+			`commit-msg: cannot read core.commentString or core.commentChar, so this commit is refused (${
+				String(stderr || message)
+					.trim()
+					.split('\n')[0]
+			}).\n`
+		)
+		process.exit(1)
 	}
-	return '#'
 }
 
 /** @param {string} term */
