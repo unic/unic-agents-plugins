@@ -61,8 +61,9 @@ and may not survive an upgrade.
   package either. Its `.claude/hooks/tsconfig.json` extends the same base and includes every `.mjs`
   file under `.claude/hooks/`. Through the imports in `block-nda-terms.mjs`, it also loads
   `.githooks/nda-match.mjs` and `.githooks/main-work-tree.mjs`.
-  The root `pnpm typecheck` runs `tsc --noEmit --project .claude/hooks/tsconfig.json` after the
-  `.githooks/` step, and the same CI job runs it after its first `tsc` step. Before a push that
+  The root `pnpm typecheck` and the same CI job run the `.githooks/` check first. When that passes,
+  each runs `tsc --noEmit --project .claude/hooks/tsconfig.json`. So a run with type errors in both
+  directories reports only the `.githooks/` errors. Before a push that
   changes a `.githooks/*.mjs` or a `.claude/hooks/*.mjs` file, run `pnpm typecheck`
   from the repository root. Round 3 of the PR #593
   review found a TS7034 error in a `.githooks/*.mjs` file. The entry "Keep a gate's output and exit code
