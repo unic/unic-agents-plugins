@@ -113,12 +113,10 @@ const SCISSORS = '------------------------ >8 ------------------------'
 
 /**
  * Returns the commit message without every line from the scissors line down and every line that
- * starts with the comment string. Git removes both from a message edited under the default cleanup, the
- * scissors part only with `-v`. Under `auto` git picks the character at commit time, so it comes
+ * starts with the comment string. Under `auto` git picks the character at commit time, so it comes
  * from the scissors line or from the template line that names it in quotes. With neither in the file,
- * it removes no comment line. Git keeps comment lines under `-m`, `-F`, `--cleanup=verbatim`,
- * `--cleanup=whitespace` and `--cleanup=scissors`. It keeps the scissors line and every line below
- * it under `-m` or `-F` without `-v`. The hook cannot see either case, so `pre-push` refuses a
+ * it removes no comment line. Git keeps some of these lines, and the hook cannot see when.
+ * `AGENTS.md`, "The NDA publish guard", lists those cases in its accepted gaps. `pre-push` refuses a
  * term there.
  * @param {string} message
  * @param {string} comment the comment string, or `auto` in any case
