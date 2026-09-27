@@ -435,9 +435,9 @@ describe('pre-commit, PNG files', () => {
 			assert.equal(commit(createStagedPng(PNG_WITH_TERM_IN_IDAT, 'my "image".png')).status, 0)
 		}
 	)
-	test('refuses a PNG whose tEXt chunk after IDAT holds the term', () => {
+	test('refuses a PNG whose tEXt chunk after IDAT holds the term, and names the chunk and the path', () => {
 		const png = createPng([IHDR, ['IDAT', '\0clean\0'], ['tEXt', `Comment\0${TERM}`], IEND])
-		assertRefused(commit(createStagedPng(png)), 1)
+		assertRefused(commit(createStagedPng(png)), 1, /carries the NDA term.*\n.*the tEXt chunk of the PNG image\.png\./)
 	})
 	test('refuses a PNG whose eXIf chunk holds the term', () => {
 		const png = createPng([IHDR, ['eXIf', `\0${TERM}\0`], ['IDAT', '\0clean\0'], IEND])
@@ -453,8 +453,12 @@ describe('pre-commit, PNG files', () => {
 	test('refuses a PNG signature and one IDAT chunk with the term, with no IHDR or IEND', () => {
 		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`]]))), 1)
 	})
-	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term', () => {
-		assertRefused(commit(createStagedPng(createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))), 1)
+	test('refuses a PNG with IHDR first but no IEND, whose IDAT data holds the term, and says it did not parse', () => {
+		assertRefused(
+			commit(createStagedPng(createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))),
+			1,
+			/the whole blob of the PNG image\.png\.\n.*did not parse, so the guard scanned its whole blob, IDAT included/
+		)
 	})
 	test('refuses a PNG with IEND last but no IHDR, whose IDAT data holds the term', () => {
 		assertRefused(commit(createStagedPng(createPng([['IDAT', `\0${TERM}\0`], IEND]))), 1)
@@ -465,6 +469,107 @@ describe('pre-commit, PNG files', () => {
 	test('refuses a PNG whose last chunk runs past the end and whose IDAT data holds the term', () => {
 		const png = createPng([IHDR, ['IDAT', `\0${TERM}\0`]])
 		assertRefused(commit(createStagedPng(png.subarray(0, png.length - 2))), 1)
+	})
+	test('leaves the path out of the refusal when a PNG path the diff text scan misses holds the term', () => {
+		// With `b/` in front, the path starts a run of more than 80 characters, file name included, that
+		// holds a digit and a `+`. The base64 step removes that run from the diff text, so only the
+		// tEXt chunk matches.
+		const folder = `x1+${'a'.repeat(78)}`
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, folder))
+		writeFileSync(join(dir, folder, `${TERM}.png`), createPng([IHDR, ['tEXt', `Comment\0${TERM}`], IEND]))
+		git(dir, 'add', '.')
+		const { status, stderr } = commit(dir)
+		assert.deepEqual(
+			{ status, namesChunk: stderr.includes('the tEXt chunk of a PNG.'), namesTerm: stderr.includes(TERM) },
+			{ status: 1, namesChunk: true, namesTerm: false }
+		)
+	})
+	test('leaves the chunk type out of the refusal when the type is the term', () => {
+		const shortList = join(scratch, 'short-denylist.txt')
+		writeFileSync(shortList, 'zqrx\n')
+		const png = createPng([IHDR, ['zqrx', 'data'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('zqrx'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves the path out of the refusal for a PNG that does not parse, and keeps the note', () => {
+		// The same run of more than 80 characters as above keeps the path out of the diff text's match.
+		const folder = `x1+${'a'.repeat(78)}`
+		const dir = createStagedRepo('clean\n')
+		mkdirSync(join(dir, folder))
+		writeFileSync(join(dir, folder, `${TERM}.png`), createPng([IHDR, ['IDAT', `\0${TERM}\0`]]))
+		git(dir, 'add', '.')
+		const { status, stderr } = commit(dir)
+		assert.deepEqual(
+			{
+				status,
+				namesBlob: stderr.includes('the whole blob of a PNG.'),
+				notes: stderr.includes('did not parse, so the guard scanned its whole blob'),
+				namesTerm: stderr.includes(TERM),
+			},
+			{ status: 1, namesBlob: true, notes: true, namesTerm: false }
+		)
+	})
+	test('names the first chunk that holds the term when two chunks hold it', () => {
+		const png = createPng([IHDR, ['tEXt', `Comment\0${TERM}`], ['eXIf', `\0${TERM}\0`], IEND])
+		assertRefused(commit(createStagedPng(png)), 1, /The term is in the tEXt chunk of the PNG image\.png\./)
+	})
+	test('leaves out a chunk type with a NUL byte, which is not four letters, when the term is the type without it', () => {
+		const shortList = join(scratch, 'nul-denylist.txt')
+		writeFileSync(shortList, 'zqr\n')
+		const png = createPng([IHDR, ['zq\0r', 'data'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.replaceAll('\0', '').toLowerCase().includes('zqr'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves out a chunk type that is not four letters', () => {
+		const png = createPng([IHDR, ['\n\x1b[7', `Comment\0${TERM}`], IEND])
+		const { status, stderr } = commit(createStagedPng(png))
+		assert.deepEqual(
+			{ status, namesPng: stderr.includes('a chunk of the PNG image.png.'), printsEscape: stderr.includes('\x1b') },
+			{ status: 1, namesPng: true, printsEscape: false }
+		)
+	})
+	test('leaves out a four-letter chunk type that holds the term', () => {
+		const shortList = join(scratch, 'qrx-denylist.txt')
+		writeFileSync(shortList, 'qrx\n')
+		const png = createPng([IHDR, ['zqrx', ' qrx '], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: shortList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('zqrx'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
+	})
+	test('leaves out a chunk type that a term contains', () => {
+		const longList = join(scratch, 'long-denylist.txt')
+		writeFileSync(longList, 'vexmoral\n')
+		const png = createPng([IHDR, ['xmor', 'vexmoral'], IEND])
+		const { status, stderr } = commit(createStagedPng(png), 'add file', { UNIC_NDA_DENYLIST: longList })
+		assert.deepEqual(
+			{
+				status,
+				namesPng: stderr.includes('a chunk of the PNG image.png.'),
+				namesType: stderr.toLowerCase().includes('xmor'),
+			},
+			{ status: 1, namesPng: true, namesType: false }
+		)
 	})
 	test('refuses a PNG whose name holds the term', () => {
 		assertRefused(commit(createStagedPng(CLEAN_PNG, `${TERM}.png`)), 1)
@@ -535,7 +640,7 @@ describe('readDiffTexts', () => {
 			`+\0${TERM}\0`,
 			'',
 		].join('\n')
-		const texts = readDiffTexts(diff, () => null).map(([, text]) => text)
+		const texts = readDiffTexts(diff, () => null).map(({ text }) => text)
 		assert.equal(findTerm(texts.join('\n'), [TERM]), TERM)
 	})
 })

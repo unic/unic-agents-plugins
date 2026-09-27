@@ -28,7 +28,17 @@
 
 import { execFileSync } from 'node:child_process'
 
-import { DIFF_FLAGS, findTerm, getListPath, readBlob, readDiffTexts, readTerms, redact } from './nda-match.mjs'
+import {
+	DIFF_FLAGS,
+	describePngText,
+	findTerm,
+	getListPath,
+	PNG_WHOLE_BLOB_NOTE,
+	readBlob,
+	readDiffTexts,
+	readTerms,
+	redact,
+} from './nda-match.mjs'
 
 const ZERO = /^0+$/
 // ponytail: whole output in memory. A push past this size is refused, stream `git log` if one ever is.
@@ -87,16 +97,17 @@ function getPushedRange(localSha, remoteSha, remote) {
 }
 
 /**
- * Each text one ref line publishes, with where it comes from.
+ * Each text one ref line publishes, with where it comes from and, for the whole blob of a PNG that
+ * did not parse, a note for the refusal.
  * @param {string} line
  * @param {string} remote
- * @param {string[]} terms to keep a PNG path that holds one out of the refusal message
- * @returns {Array<[string, string]>}
+ * @param {string[]} terms to keep a PNG path or chunk type that holds one out of the refusal message
+ * @returns {Array<[string, string, string?]>}
  */
 function readPushedTexts(line, remote, terms) {
 	const [localRef = '', localSha = '', remoteRef = '', remoteSha = ''] = line.trim().split(/\s+/)
 	if (!localSha || ZERO.test(localSha)) return []
-	/** @type {Array<[string, string]>} */
+	/** @type {Array<[string, string, string?]>} */
 	const texts = [['one of the ref names', `${localRef} ${remoteRef}`]]
 	// Peel one tag at a time: a tag can point at another tag, which the push also sends, and at a
 	// blob or a tree, which `git log` would list as nothing.
@@ -122,14 +133,14 @@ function readPushedTexts(line, remote, terms) {
 	// text for each chunk but `IDAT`. A PNG that does not parse gives its whole blob as one text.
 	// `--root` shows a root commit's patch even with `log.showRoot=false`.
 	const patches = git(['log', '--format=', '-p', '--root', '--diff-merges=first-parent', ...DIFF_FLAGS, ...range])
-	for (const [pngPath, text] of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {
-		// The refusal prints this label, so it names the path only when no term appears in it at all.
-		// `findTerm` is not enough here: its base64 step can remove a long run of the path.
-		const lowerPath = pngPath?.toLowerCase() ?? ''
-		const holdsTerm = terms.some((term) => lowerPath.includes(term.toLowerCase()))
-		const png = pngPath === null || holdsTerm ? 'a PNG' : `the PNG ${pngPath}`
-		const where = pngPath === null ? 'the patch of a commit' : `a chunk of ${png}, or its whole blob, in a commit`
-		texts.push([`${where} pushed to ${remoteRef}`, text])
+	for (const source of readDiffTexts(patches, (id) => readBlob(id, 'pre-push'))) {
+		const { pngPath, text } = source
+		if (pngPath === null) {
+			texts.push([`the patch of a commit pushed to ${remoteRef}`, text])
+			continue
+		}
+		const note = source.chunkType === null ? PNG_WHOLE_BLOB_NOTE : undefined
+		texts.push([`${describePngText({ ...source, pngPath }, terms)} in a commit pushed to ${remoteRef}`, text, note])
 	}
 	return texts
 }
@@ -168,13 +179,15 @@ async function main() {
 			const { stderr, message } = /** @type {{ stderr?: unknown, message?: unknown }} */ (error)
 			refuse(`cannot list the commits this push sends, so it is refused (${String(stderr || message).trim()}).`)
 		}
-		for (const [where, text] of texts) {
+		// The refusal names the first text that holds a term, in the order `readPushedTexts` returns them.
+		for (const [where, text, note] of texts) {
 			const term = findTerm(text, terms)
 			if (term === null) continue
 			// Redact the term: the transcript of a refusal must not republish it.
 			refuse(
 				`refusing this push to ${remote}.\n` +
 					`  ${where[0]?.toUpperCase()}${where.slice(1)} carries the NDA term ${redact(term)}, and this repository is public.\n` +
+					(note ? `  ${note}\n` : '') +
 					'  Rewrite the commit, the tag or the ref name, then push again.'
 			)
 		}

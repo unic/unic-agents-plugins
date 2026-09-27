@@ -90,24 +90,32 @@ const PNG_PATH_LINE = /^(?:\+\+\+ "?b\/|rename to "?|copy to "?)(.*\.png)"?\t?$/
 const POST_IMAGE_ID = /^index [0-9a-f]+\.\.([0-9a-f]+)/
 
 /**
- * The texts a diff publishes, each with the path of the PNG it comes from, or null. The first text
- * holds the added lines of every file, as `dropDeletedLines` keeps them. For an added or modified
- * `*.png`, the guard scans the file header but not the hunks, and reads the file's post-image blob
- * by the id on its `index` line, which `--full-index` makes whole. That works in a `git log -p`
- * stream too, which has no commit boundary to read the file at. When the blob parses as a PNG, the
- * guard adds one text per chunk except `IDAT`, whose compressed bytes match a short term by chance
- * and hold no text anyone wrote. Each chunk is its own text, so no match spans two chunks. When the
- * blob does not parse, the guard adds the whole blob as one text. When git cannot read the blob, the
- * guard scans the hunks as for any other file. For every file the guard drops the `index` lines,
- * because they hold only object ids. The file header stays, so the guard still reads the path.
+ * One text a diff publishes. `pngPath` is the path of the PNG the text comes from, or null for the
+ * added lines. `chunkType` is the chunk type, or null. It is null for the added lines and for the
+ * whole blob of a PNG that did not parse.
+ * @typedef {{ pngPath: string | null, chunkType: string | null, text: string }} DiffText
+ */
+
+/**
+ * The texts a diff publishes: the added lines first, then the texts of each PNG in file order. The
+ * first text holds the added lines of every file, as `dropDeletedLines` keeps them. For an added or
+ * modified `*.png`, the guard scans the file header but not the hunks, and reads the file's
+ * post-image blob by the id on its `index` line, which `--full-index` makes whole. That works in a
+ * `git log -p` stream too, which has no commit boundary to read the file at. When the blob parses
+ * as a PNG, the guard adds one text per chunk except `IDAT`, whose compressed bytes match a short
+ * term by chance and hold no text anyone wrote. Each chunk is its own text, so no match spans two
+ * chunks. When the blob does not parse, the guard adds the whole blob as one text. When git cannot
+ * read the blob, the guard scans the hunks as for any other file. For every file the guard drops
+ * the `index` lines, because they hold only object ids. The file header stays, so the guard still
+ * reads the path.
  * @param {string} diff
  * @param {(id: string) => Buffer | null} readBlob
- * @returns {Array<[string | null, string]>}
+ * @returns {DiffText[]}
  */
 export function readDiffTexts(diff, readBlob) {
 	/** @type {string[]} */
 	const kept = []
-	/** @type {Array<[string, string]>} */
+	/** @type {DiffText[]} */
 	const blobTexts = []
 	for (const section of diff.split(/^(?=diff --git )/m)) {
 		const lines = section.split('\n')
@@ -122,20 +130,57 @@ export function readDiffTexts(diff, readBlob) {
 			continue
 		}
 		kept.push(`${headerOnly.join('\n')}\n`)
-		for (const text of readPngChunkTexts(blob) ?? [blob.toString('utf8')]) blobTexts.push([pngPath, text])
+		const chunks = readPngChunkTexts(blob) ?? [{ type: null, text: blob.toString('utf8') }]
+		for (const { type, text } of chunks) blobTexts.push({ pngPath, chunkType: type, text })
 	}
-	return [[null, dropDeletedLines(kept.join(''))], ...blobTexts]
+	return [{ pngPath: null, chunkType: null, text: dropDeletedLines(kept.join('')) }, ...blobTexts]
+}
+
+/**
+ * Where a PNG text comes from, for a refusal to print: `the tEXt chunk of the PNG image.png`, or
+ * `the whole blob of the PNG image.png` when the PNG did not parse. The label names the path only
+ * when no term appears in it. `findTerm` is not enough there, because its base64 step can remove a
+ * long run of the path. The label names the chunk type only when the type is four ASCII letters, no
+ * term appears in it, and it appears in no term. `findTerm` misses a term joined to other letters of
+ * the type. The substring test misses a type such as `zq\0r`, which `findTerm` matches once the NUL
+ * is gone, so the four-letter test keeps it out. A type that is part of a term would print most of
+ * the term next to its redacted form. Otherwise the label says `a chunk`.
+ * @param {DiffText & { pngPath: string }} source
+ * @param {string[]} terms
+ */
+export function describePngText({ pngPath, chunkType }, terms) {
+	const png = holdsTerm(pngPath, terms) ? 'a PNG' : `the PNG ${pngPath}`
+	if (chunkType === null) return `the whole blob of ${png}`
+	const lowerType = chunkType.toLowerCase()
+	const isSafeType =
+		/^[A-Za-z]{4}$/.test(chunkType) &&
+		!holdsTerm(chunkType, terms) &&
+		!terms.some((term) => term.toLowerCase().includes(lowerType))
+	return isSafeType ? `the ${chunkType} chunk of ${png}` : `a chunk of ${png}`
+}
+
+// A refusal for the whole blob of a PNG prints this line, so the developer knows a match can be chance.
+export const PNG_WHOLE_BLOB_NOTE = 'The PNG did not parse, so the guard scanned its whole blob, IDAT included.'
+
+/**
+ * @param {string} label
+ * @param {string[]} terms
+ */
+function holdsTerm(label, terms) {
+	const lower = label.toLowerCase()
+	return terms.some((term) => lower.includes(term.toLowerCase()))
 }
 
 /**
  * The type and data of every chunk but `IDAT`, one text per chunk, or null when the blob is not a
  * PNG: a wrong signature, a chunk that runs past the end, 1 to 11 bytes after the last whole chunk, or
- * a first chunk that is not `IHDR` or a last chunk that is not `IEND`.
+ * a first chunk that is not `IHDR` or a last chunk that is not `IEND`. Each text starts with its type.
  * @param {Buffer} blob
+ * @returns {Array<{ type: string, text: string }> | null}
  */
 export function readPngChunkTexts(blob) {
 	if (!blob.subarray(0, 8).equals(PNG_SIGNATURE)) return null
-	/** @type {string[]} */
+	/** @type {Array<{ type: string, text: string }>} */
 	const texts = []
 	/** @type {string[]} */
 	const types = []
@@ -146,7 +191,7 @@ export function readPngChunkTexts(blob) {
 		if (end > blob.length) return null
 		const type = blob.toString('latin1', at + 4, at + 8)
 		types.push(type)
-		if (type !== 'IDAT') texts.push(`${type}\n${blob.toString('utf8', at + 8, end - 4)}`)
+		if (type !== 'IDAT') texts.push({ type, text: `${type}\n${blob.toString('utf8', at + 8, end - 4)}` })
 		at = end
 	}
 	return types[0] === 'IHDR' && types.at(-1) === 'IEND' ? texts : null
@@ -411,17 +456,30 @@ async function main() {
 	else if (label === 'pre-commit') text = readStagedDiff()
 	else for await (const chunk of process.stdin) text += chunk
 
+	// The refusal names the first text that holds a term, in the order `readDiffTexts` returns them.
+	/** @type {DiffText[]} */
 	const texts =
-		label === 'pre-commit' ? readDiffTexts(text, (id) => readBlob(id, label)).map(([, each]) => each) : [text]
-	const term = texts.map((each) => findTerm(each, terms)).find((found) => found !== null) ?? null
-	if (term === null) return
-	// Redact the term: the transcript of a refusal must not republish it.
-	process.stderr.write(
-		`${label}: refusing this commit.\n` +
-			`  It carries the NDA term ${redact(term)}, and this repository is public.\n` +
-			'  Remove it, or move the detail to a file the repository does not track.\n'
-	)
-	process.exit(1)
+		label === 'pre-commit'
+			? readDiffTexts(text, (id) => readBlob(id, label))
+			: [{ pngPath: null, chunkType: null, text }]
+	for (const source of texts) {
+		const term = findTerm(source.text, terms)
+		if (term === null) continue
+		const { pngPath } = source
+		const pngLines =
+			pngPath === null
+				? ''
+				: `  The term is in ${describePngText({ ...source, pngPath }, terms)}.\n` +
+					(source.chunkType === null ? `  ${PNG_WHOLE_BLOB_NOTE}\n` : '')
+		// Redact the term: the transcript of a refusal must not republish it.
+		process.stderr.write(
+			`${label}: refusing this commit.\n` +
+				`  It carries the NDA term ${redact(term)}, and this repository is public.\n` +
+				pngLines +
+				'  Remove it, or move the detail to a file the repository does not track.\n'
+		)
+		process.exit(1)
+	}
 }
 
 // Node resolves symlinks in `import.meta.url` but not in `argv[1]`, so compare the real paths. A
