@@ -155,7 +155,11 @@ function readCommentString() {
 			encoding: 'utf8',
 			stdio: ['ignore', 'pipe', 'pipe'],
 		})
-		const last = output.trimEnd().split(/\r?\n/).at(-1) ?? ''
+		const last =
+			output
+				.replace(/\r?\n$/, '')
+				.split(/\r?\n/)
+				.at(-1) ?? ''
 		// Git refuses an empty value, and an empty prefix would drop every line.
 		return last.includes(' ') ? last.slice(last.indexOf(' ') + 1) : '#'
 	} catch (error) {

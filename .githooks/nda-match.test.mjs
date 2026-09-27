@@ -441,6 +441,11 @@ describe('commit-msg through an editor', () => {
 		git(dir, 'config', 'core.commentChar', '%')
 		assertRefused(commitInEditor(dir, `add file\n\n; ${TERM}\n`), 1)
 	})
+	test('keeps the trailing space of core.commentString', () => {
+		const dir = createStagedRepo('clean\n')
+		git(dir, 'config', 'core.commentString', '; ')
+		assertRefused(commitInEditor(dir, `add file\n\n;${TERM}\n`), 1)
+	})
 	test('takes the comment character from the template under core.commentChar=auto', () => {
 		const dir = createCommittedRepo('clean\n', `${TERM}.txt`)
 		git(dir, 'config', 'core.commentChar', 'auto')
