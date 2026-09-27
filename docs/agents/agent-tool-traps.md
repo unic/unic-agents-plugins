@@ -50,7 +50,7 @@ and may not survive an upgrade.
   a failed typecheck was committed this way). The failure there was `tsc --checkJs` typing a
   `catch (err)` binding as `unknown`; read its fields through a JSDoc cast,
   `/** @type {{ status?: number }} */ (err).status`.
-- **Check which gate type-checks a file outside every package** (2026-09-26, PR #593; re-measured 2026-09-27, #602).
+- **Check which gate type-checks a file outside every package** (2026-09-26, PR #593; re-measured 2026-09-27, PR #608).
   `pnpm ci:check` runs Biome and Prettier only. CI runs
   `pnpm --filter <package> --if-present typecheck` for each changed package.
   `.githooks/` belongs to no package. It has its own `.githooks/tsconfig.json`, which extends
@@ -58,12 +58,13 @@ and may not survive an upgrade.
   `pnpm typecheck` runs each package's `typecheck` script. When they all pass, it runs
   `tsc --noEmit --project .githooks/tsconfig.json`. The `NDA guards / <os> / Node <n>` CI job
   runs that `tsc` command on every pull request, on all three OSes. Before a push that changes a
-  `.githooks/*.mjs` file, run `pnpm typecheck` from the repository root. The four
-  `.claude/hooks/*.mjs` files carry `// @ts-check`, but no gate type-checks them. Before a push
+  `.githooks/*.mjs` file, run `pnpm typecheck` from the repository root. The
+  `.claude/hooks/*.mjs` files carry `// @ts-check`, but no gate type-checks them.
+  [#609](https://github.com/unic/unic-agents-plugins/issues/609) tracks a gate for them. Before a push
   that changes one, run
-  `pnpm exec tsc --noEmit --allowJs --checkJs --strict --skipLibCheck --module nodenext --target es2022 --types node .claude/hooks/*.mjs`
+  `pnpm exec tsc --noEmit --allowJs --checkJs --strict --skipLibCheck --module nodenext --target es2022 --types node <changed files>`
   from the repository root. Round 3 of the PR #593
-  review found a TS7034 error in one of these files. The entry "Keep a gate's output and exit code
+  review found a TS7034 error in a `.githooks/*.mjs` file. The entry "Keep a gate's output and exit code
   visible" has the fix for a `catch (err)` binding.
 - **An `rg --glob` pattern with a slash is anchored to the working directory, not to the search
   path.** `rg <path> --glob '!test/**'` still searches `<path>/test/`. Write `--glob '!**/test/**'`.

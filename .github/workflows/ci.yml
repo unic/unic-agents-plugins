@@ -36,7 +36,6 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: node --test .githooks/nda-match.test.mjs .githooks/nda-push.test.mjs .githooks/set-hooks-path.test.mjs
       # The install puts tsc, @types/node and @unic/tsconfig on disk for the tsc step. The tests need none of them.
-      # No test reads the checkout's node_modules or its .git/config, so the install could also run first.
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit --project .githooks/tsconfig.json
 
