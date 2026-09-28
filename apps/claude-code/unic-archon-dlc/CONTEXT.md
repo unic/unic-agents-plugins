@@ -51,11 +51,12 @@ A unit meant to be installed in a Consumer. It carries one family's way of worki
 reference architecture and procedure. A Consumer can run the DLC without one. Acceptance criteria and
 the shape of criteria in the PRD come from the Consumer, as
 [Is an untestable acceptance criterion refused by context, or by a change to /specs and /tickets?](https://github.com/unic/unic-agents-plugins/issues/551)
-decides. The maintainer's working model is that a Practice Pack carries context artefacts only, never
-a Box or a Method. That model is open on
+decides. The maintainer's working model is that a Practice Pack carries context artefacts and config
+values only, never a Box or a Method. A Consumer can override a value that a Practice Pack sets. That
+model is open on
 [Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), together with
 whether a skill under `.claude/skills/` counts as a context artefact, how a Practice Pack is installed,
-and how several coexist in one Consumer.
+how it writes a config value, and how several coexist in one Consumer.
 _Avoid_: Pack, Method Bundle, plugin
 
 **System-skill**:
@@ -239,6 +240,14 @@ failing test — never RED's reasoning. Structurally prevents test/impl collusio
 runs. See `docs/adr/0012-fresh-context-red-green-separation.md` and
 `docs/adr/0023-build-generic-red-green-refactor-loop.md`.
 _Avoid_: TDD isolation, context reset
+
+**Acceptance Slice**:
+A slice whose test is a browser test of e2e-testable criteria, one test per criterion, with the
+criterion's ID in the test title. Its RED phase runs before the other slices of the feature and its
+GREEN phase after them, so the test exists before the code it checks. The other slices stay plain
+slices. Decided in
+[Does an e2e test become an outer loop around /build's unit TDD loop for a new feature?](https://github.com/unic/unic-agents-plugins/issues/541).
+_Avoid_: outer slice, inner slice, e2e slice
 
 **Slopcheck gate**:
 A pre-build verification that every new package in `package.json` exists on the npm registry.
