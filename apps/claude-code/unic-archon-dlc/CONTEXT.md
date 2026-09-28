@@ -52,8 +52,9 @@ reference architecture and procedure. A Consumer can run the DLC without one. Ac
 the shape of criteria in the PRD come from the Consumer, as
 [Is an untestable acceptance criterion refused by context, or by a change to /specs and /tickets?](https://github.com/unic/unic-agents-plugins/issues/551)
 decides. The maintainer's working model is that a Practice Pack carries context artefacts and config
-values only, never a Box or a Method. A Consumer can override a value that a Practice Pack sets. That
-model is open on
+values only, never a Box or a Method. A Consumer can override a value that a Practice Pack sets, as
+[Does an e2e test become an outer loop around /build's unit TDD loop for a new feature?](https://github.com/unic/unic-agents-plugins/issues/541)
+decides. That model is open on
 [Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), together with
 whether a skill under `.claude/skills/` counts as a context artefact, how a Practice Pack is installed,
 how it writes a config value, and how several coexist in one Consumer.
