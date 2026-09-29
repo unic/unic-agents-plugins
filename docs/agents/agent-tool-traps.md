@@ -301,10 +301,28 @@ every bullet added since carries the version and date it was measured on.
   to probe a config key has none, so the first run of every probe fails on the environment rather
   than on the thing being measured. Add a dummy remote, or pass `--no-worktree`, which a probe wants
   anyway. Measured on v0.10.1, 2026-09-22, by two seats independently.
-- **A node gets `CLAUDE.md` and nothing else by default.** `AGENTS.md` never reaches it, a project
-  skill reaches it only with `skills: [<name>]` on the node, and an MCP server only with `mcp:`.
-  `settingSources: [project]` changes none of this, and `skills: all` cannot be expressed. A
-  misspelt skill name loads nothing and the node continues. Measured on v0.10.1, 2026-09-22.
+- **A node gets `CLAUDE.md` and the agents of installed plugins by default, and no skill.**
+  `AGENTS.md` never reaches it, a project skill reaches it only with `skills: [<name>]` on the node,
+  and an MCP server only with `mcp:`. `settingSources: [project]` changes none of this, and
+  `skills: all` cannot be expressed. A misspelt skill name loads nothing and the node continues.
+  Measured on v0.10.1, 2026-09-22. A plugin follows the same rule, with four more results measured
+  on v0.10.1 with Claude Code 2.1.284, 2026-09-29
+  ([#628](https://github.com/unic/unic-agents-plugins/issues/628#issuecomment-5888693398)):
+
+  - A plugin agent reaches the node by `subagent_type` with no declaration. A plugin skill, or a
+    plugin command called with the `Skill` tool, reaches it only with `skills: [<plugin>:<name>]`.
+    A node prompt that is the whole slash command, such as `/<plugin>:<command> <args>`, expands
+    with no declaration.
+  - The committed `.claude/settings.json` alone reaches nothing. A headless node does not install a
+    plugin that `enabledPlugins` and `extraKnownMarketplaces` only declare, so a machine needs
+    `claude plugin install <plugin>@<marketplace> --scope project` run once in the repository first.
+  - By default a node loads project and user settings, so it also gets every plugin the machine
+    enables at user scope. `settingSources: [project]` on the node removes those plugins and keeps
+    the project's. This is the one thing on this list that the field changes.
+  - The `Skill` error tells the two cases apart.
+    `Skill <name> is not in this session's skills allowlist` means the skill is loaded and
+    undeclared. `Unknown skill: <name>` means it is not loaded.
+
 - **A node's `skills:` limits the node's own agent, not a subagent it spawns.** A `general-purpose`
   subagent sees every skill the host has, whether or not the node declared any: user, plugin and
   project skills, 58 on the machine measured. So a Box that delegates runs on whatever that machine
