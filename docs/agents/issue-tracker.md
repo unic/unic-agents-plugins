@@ -88,5 +88,14 @@ gh label create wayfinder:task      --description "Wayfinder ticket: do the thin
 
 - **Claim**: `gh issue edit <n> --add-assignee @me` — the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+- **Research branch**: a research subagent keeps its findings on `feature/<scope>/<issue#>-<slug>`. This name replaces the skill's throwaway `research/<name>` branch, because this repo's Gitflow has no `research/` prefix. `<scope>` is the research ticket's area label with its tier stripped, as root `AGENTS.md` § Git branching derives it, so `app:unic-archon-dlc` gives `unic-archon-dlc`. A ticket with no area label takes `repo`.
+
+  ```sh
+  git worktree add --no-track <dir> -b feature/<scope>/<issue#>-<slug> origin/develop
+  git push -u origin feature/<scope>/<issue#>-<slug>
+  gh pr create --draft --base develop
+  ```
+
+  `--no-track` keeps a bare `git push` from going to `develop`. The note reaches `develop` only through that pull request. Keep the branch until the pull request merges, and put its link in the ticket's context pointer.
 
 `wayfinder:*` labels sit outside the four-tier taxonomy — `/wayfinder` owns their lifecycle. See the [ADR-0032 amendment](../adr/0032-label-taxonomy.md#amendment-2026-08).
