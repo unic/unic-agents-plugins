@@ -91,7 +91,7 @@ git config core.symlinks true
 git checkout -- .claude/skills
 ```
 
-This is taken from the Git documentation and has not been tested on Windows in this repository yet.
+This has been tested on Windows: it works with an elevated shell.
 
 ## Starting new work
 
