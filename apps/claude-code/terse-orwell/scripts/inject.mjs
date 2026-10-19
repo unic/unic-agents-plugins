@@ -21,10 +21,10 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { CLAUDE_MD, CONFIG_DIR, findMarkers, START_MARKER } from './personal-layer.mjs'
+
 const PLUGIN_ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
-const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude')
-const START_MARKER = '<!-- >>> terse-orwell >>> -->'
-const END_MARKER = '<!-- <<< terse-orwell <<< -->'
+const CONTEXT_CAP = 10_000
 
 /** @param {string} path */
 function readOrEmpty(path) {
@@ -42,25 +42,36 @@ function stripFrontmatter(text) {
 
 /** @returns {string | null} the Personal layer, or null when `/setup` has not run */
 function readPersonalLayer() {
-	const text = readOrEmpty(join(CONFIG_DIR, 'CLAUDE.md'))
-	const start = text.indexOf(START_MARKER)
-	const end = text.indexOf(END_MARKER)
+	const text = readOrEmpty(CLAUDE_MD)
+	const { start, end } = findMarkers(text)
 	if (start === -1 || end < start) return null
 	return text.slice(start + START_MARKER.length, end)
 }
 
-const unslopPath = join(CONFIG_DIR, 'skills', 'unslop', 'SKILL.md')
+// `npx skills add -g` installs to `~/.claude` even when `CLAUDE_CONFIG_DIR` points elsewhere.
+const unslopPaths = [...new Set([CONFIG_DIR, join(homedir(), '.claude')])].map((dir) =>
+	join(dir, 'skills', 'unslop', 'SKILL.md')
+)
+const unslopPath = unslopPaths.find((path) => existsSync(path))
 
-function warnings() {
+function readUnslop() {
+	return unslopPath ? stripFrontmatter(readOrEmpty(unslopPath)) : ''
+}
+
+function buildSetupWarnings() {
 	const lines = []
 	if (readPersonalLayer() === null) lines.push('terse-orwell: no Personal layer yet. Run /terse-orwell:setup.')
-	if (!existsSync(unslopPath)) {
-		lines.push(`terse-orwell: unslop skill not found at ${unslopPath}. /terse-orwell:setup can install it.`)
+	if (!unslopPath) {
+		lines.push(`terse-orwell: unslop skill not found at ${unslopPaths[0]}. /terse-orwell:setup can install it.`)
+	} else if (readUnslop().length >= CONTEXT_CAP) {
+		lines.push(
+			`terse-orwell: ${unslopPath} is over ${CONTEXT_CAP} characters, so Claude Code sends only a preview of it.`
+		)
 	}
 	return lines.join('\n')
 }
 
-function language() {
+function buildLanguageReminder() {
 	const layer = readPersonalLayer() ?? ''
 	const chat = layer.match(/^- Chat language: *(.+?) *$/m)?.[1]
 	const artefact = layer.match(/^- Artefact language: *(.+?) *$/m)?.[1]
@@ -71,18 +82,18 @@ function language() {
 /** @type {Record<string, () => string>} */
 const PARTS = {
 	rules: () => readOrEmpty(join(PLUGIN_ROOT, 'context', 'shared-setup.md')).trim(),
-	unslop: () => stripFrontmatter(readOrEmpty(unslopPath)),
+	unslop: readUnslop,
 	style: () => {
 		const style = stripFrontmatter(readOrEmpty(join(PLUGIN_ROOT, 'output-styles', 'terse-orwell.md')))
 		return `Write every piece of prose you return in this style.\n\n${style}`
 	},
-	language,
+	language: buildLanguageReminder,
 }
 
 try {
 	const { hook_event_name: hookEventName } = JSON.parse(readFileSync(0, 'utf8') || '{}')
 	const context = PARTS[process.argv[2]]?.() ?? ''
-	const message = process.argv[2] === 'rules' && hookEventName === 'SessionStart' ? warnings() : ''
+	const message = process.argv[2] === 'rules' && hookEventName === 'SessionStart' ? buildSetupWarnings() : ''
 	/** @type {Record<string, unknown>} */
 	const output = { hookSpecificOutput: { hookEventName, additionalContext: context } }
 	if (message) output.systemMessage = message

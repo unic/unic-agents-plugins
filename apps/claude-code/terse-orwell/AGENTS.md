@@ -8,22 +8,23 @@ Guidance for any AI agent working inside this Plugin directory. `CLAUDE.md` in t
 
 ## Layout
 
-| Path                            | What it is                                                                                            |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `output-styles/terse-orwell.md` | The output style. It names no user: the Personal layer says who they are                              |
-| `context/shared-setup.md`       | The generic behaviour rules. A plugin cannot ship a `CLAUDE.md`, so a hook sends them                 |
-| `scripts/inject.mjs`            | The only hook. It answers `SessionStart`, `SubagentStart` and `UserPromptSubmit` by `hook_event_name` |
-| `scripts/write-layer.mjs`       | Writes the Personal layer between the markers. `/terse-orwell:setup` is its only caller               |
-| `skills/setup/SKILL.md`         | `/terse-orwell:setup`                                                                                 |
+| Path                            | What it is                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output-styles/terse-orwell.md` | The output style. It names no user: the Personal layer says who they are                                                                       |
+| `context/shared-setup.md`       | The generic behaviour rules. A plugin cannot ship a `CLAUDE.md`, so a hook sends them                                                          |
+| `scripts/inject.mjs`            | The only hook. Each entry in `hooks/hooks.json` runs it for one part, so each part stays under the 10,000-character cap on `additionalContext` |
+| `scripts/write-layer.mjs`       | Writes the Personal layer between the markers from a file path argument. `/terse-orwell:setup` is its only caller                              |
+| `scripts/personal-layer.mjs`    | The markers and the path of `CLAUDE.md`. Both scripts import it, so a marker cannot differ between them                                        |
+| `skills/setup/SKILL.md`         | `/terse-orwell:setup`                                                                                                                          |
 
 ## Rules
 
 - `inject.mjs` exits 0 on every path. A hook that fails must not block a session, a prompt or a subagent spawn.
-- Both scripts read `CLAUDE_CONFIG_DIR` before `~/.claude`, so a test profile never touches the user's own files.
-- `write-layer.mjs` never changes a byte outside the markers. With only one marker in the file it refuses and writes nothing.
+- Both scripts read `CLAUDE_CONFIG_DIR` before `~/.claude`, so a test profile never touches the user's own files. The unslop lookup also falls back to `~/.claude`, because `npx skills add -g` installs there.
+- `write-layer.mjs` never changes a byte outside the markers, including trailing whitespace. With only one marker in the file it refuses and writes nothing.
 - The language hook reads the lines `- Chat language: <x>` and `- Artefact language: <y>`. Keep that format in `skills/setup/SKILL.md` and in the hook together.
 - The unslop skill is not bundled: the licence of its upstream path is unverified, and an upstream install keeps it current.
-- Keep both scripts free of runtime dependencies and shell commands. Tests start them as processes and never import them.
+- Keep the scripts free of runtime dependencies. `/terse-orwell:setup` calls `write-layer.mjs` with a file path, never a heredoc or a pipe, so the call runs in Bash and in PowerShell. Tests start the two entry scripts as processes and never import them.
 
 ## Where to start
 

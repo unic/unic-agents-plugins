@@ -25,7 +25,8 @@ afterEach(() => {
 
 /**
  * Runs a script as Claude Code does, with stdin and `CLAUDE_CONFIG_DIR` set to
- * the temporary profile.
+ * the temporary profile. The home directory points there too, so the fallback
+ * to `~/.claude` never reads the developer's own files.
  *
  * @param {string} script
  * @param {string} stdin
@@ -35,7 +36,7 @@ function run(script, stdin, args = []) {
 	const result = spawnSync(process.execPath, [script, ...args], {
 		input: stdin,
 		encoding: 'utf8',
-		env: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
+		env: { ...process.env, CLAUDE_CONFIG_DIR: configDir, HOME: configDir, USERPROFILE: configDir },
 	})
 	return { exitCode: result.status, stdout: result.stdout }
 }
@@ -57,18 +58,28 @@ function context(hookEventName, part) {
 	return hook(hookEventName, part).hookSpecificOutput.additionalContext
 }
 
-/** @param {string} body */
+/**
+ * Saves the body to a file and passes its path, as `/terse-orwell:setup` does.
+ *
+ * @param {string} body
+ */
 function writeLayer(body) {
-	return run(WRITE_LAYER, body)
+	const source = join(configDir, 'layer.md')
+	writeFileSync(source, body)
+	return run(WRITE_LAYER, '', [source])
 }
 
 function claudeMd() {
 	return readFileSync(join(configDir, 'CLAUDE.md'), 'utf8')
 }
 
-function installUnslop() {
-	mkdirSync(join(configDir, 'skills', 'unslop'), { recursive: true })
-	writeFileSync(join(configDir, 'skills', 'unslop', 'SKILL.md'), '---\nname: unslop\n---\n\n# Unslop marker text\n')
+/**
+ * @param {string} [dir] the config directory to install into
+ * @param {string} [text] the skill text after its frontmatter
+ */
+function installUnslop(dir = configDir, text = '# Unslop marker text') {
+	mkdirSync(join(dir, 'skills', 'unslop'), { recursive: true })
+	writeFileSync(join(dir, 'skills', 'unslop', 'SKILL.md'), `---\nname: unslop\n---\n\n${text}\n`)
 }
 
 test('the rules part sends the Shared setup rules', () => {
@@ -109,10 +120,22 @@ test('the style part sends the output style without its frontmatter', () => {
 	)
 })
 
-test('every part stays under the 10,000-character context cap', () => {
-	installUnslop()
-	const longest = Math.max(...['rules', 'unslop', 'style'].map((part) => context('SubagentStart', part).length))
-	assert.ok(longest < 10_000, `longest part is ${longest} characters`)
+test('the rules part stays under the 10,000-character context cap', () => {
+	assert.ok(context('SessionStart', 'rules').length < 10_000)
+})
+
+test('the style part stays under the 10,000-character context cap', () => {
+	assert.ok(context('SubagentStart', 'style').length < 10_000)
+})
+
+test('SessionStart warns when the unslop text is over the context cap', () => {
+	installUnslop(configDir, 'x'.repeat(10_000))
+	assert.match(hook('SessionStart', 'rules').systemMessage, /over 10000 characters/)
+})
+
+test('the unslop part falls back to ~/.claude when the config directory has none', () => {
+	installUnslop(join(configDir, '.claude'))
+	assert.equal(context('SessionStart', 'unslop'), '# Unslop marker text')
 })
 
 test('the language part names both languages when they differ', () => {
@@ -137,6 +160,12 @@ test('write-layer appends a block after existing content', () => {
 	writeFileSync(join(configDir, 'CLAUDE.md'), '# Mine\n')
 	writeLayer(LAYER)
 	assert.equal(claudeMd(), `# Mine\n\n<!-- >>> terse-orwell >>> -->\n${LAYER}\n<!-- <<< terse-orwell <<< -->\n`)
+})
+
+test('write-layer keeps the trailing whitespace of the existing file', () => {
+	writeFileSync(join(configDir, 'CLAUDE.md'), '# Mine\n\n\n')
+	writeLayer(LAYER)
+	assert.ok(claudeMd().startsWith('# Mine\n\n\n\n<!-- >>> terse-orwell >>> -->'))
 })
 
 test('write-layer replaces the block and keeps the text around it', () => {

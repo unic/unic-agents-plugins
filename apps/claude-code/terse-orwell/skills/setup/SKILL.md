@@ -77,14 +77,16 @@ Use <package managers> unless the project's own conventions say otherwise.
 
 ## 3. Write it
 
-Pipe the filled block to the writer. It replaces an existing terse-orwell block and keeps the
-rest of the file, or appends the block when there is none:
+Save the filled block with the Write tool to a new file in the system's temporary directory,
+for example `terse-orwell-layer.md`. Then pass that file to the writer. It replaces an
+existing terse-orwell block and keeps the rest of the file, or appends the block when there is
+none:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/write-layer.mjs" <<'TERSE_ORWELL_LAYER'
-<the filled block>
-TERSE_ORWELL_LAYER
+node "${CLAUDE_PLUGIN_ROOT}/scripts/write-layer.mjs" "<absolute path of the saved file>"
 ```
+
+The command holds no shell syntax beyond quotes, so it runs the same in Bash and in PowerShell.
 
 If the writer exits non-zero, show its message and stop. Never edit `~/.claude/CLAUDE.md` by any
 other means.
