@@ -1,7 +1,7 @@
 ---
 name: setup
-description: Write or update the user's Personal layer for the Terse Orwell setup in ~/.claude/CLAUDE.md, then offer the optional unslop and ponytail installs.
-argument-hint: '[answers to the five questions, optional]'
+description: Write or update the user's Personal layer for the Terse Orwell setup in ~/.claude/CLAUDE.md, install the unslop skill on the user's yes, and show the ponytail install.
+argument-hint: '[answers to the six questions, optional]'
 disable-model-invocation: true
 ---
 
@@ -20,6 +20,8 @@ rest in one message, in plain prose, numbered:
 3. British or American spelling.
 4. Do your projects use Gitflow? If yes, the layer gets the Git flow rules below.
 5. Optional: your default package managers. One, several or none, as free text.
+6. Install the unslop skill now? It holds the prose rules the Shared setup applies to every
+   artefact. Skip this question when `~/.claude/skills/unslop/SKILL.md` already exists.
 
 ## 2. Build the block
 
@@ -87,15 +89,27 @@ TERSE_ORWELL_LAYER
 If the writer exits non-zero, show its message and stop. Never edit `~/.claude/CLAUDE.md` by any
 other means.
 
-## 4. Offer the optional installs
+## 4. Install unslop
 
-Show these commands and say what each one adds. Do not run them; the user decides.
+Run this step only when the answer to question 6 is yes. Run the command below. The `-y` flag
+keeps it from waiting on a prompt:
 
-- **unslop**, the prose rules the Shared setup applies to every artefact. The plugin sends its
-  text to every session and subagent once it is installed at `~/.claude/skills/unslop/`:
-  `npx skills add cursor/plugins -g -a claude-code -s unslop`
-- **ponytail**, which pushes Claude toward the smallest code change that works:
-  `/plugin marketplace add DietrichGebert/ponytail`, then `/plugin install ponytail@ponytail`
+```sh
+npx -y skills@latest add cursor/plugins -g -y -a claude-code -s unslop
+```
+
+Expect `~/.claude/skills/unslop/SKILL.md` to exist afterwards. The plugin sends its text to
+every session and subagent from the next session on. If the command fails or the file is
+missing, show the output and give the user the command to run later. Continue with step 5
+either way.
+
+When the answer is no, give the user the command to run later.
+
+## 5. Offer ponytail
+
+Show these commands and say that ponytail pushes Claude toward the smallest code change that
+works. They are slash commands, so only the user can run them:
+`/plugin marketplace add DietrichGebert/ponytail`, then `/plugin install ponytail@ponytail`
 
 Finish by telling the user to select the style with `/output-style` and pick
 `terse-orwell:Terse Orwell`, and that the changes apply from the next session.

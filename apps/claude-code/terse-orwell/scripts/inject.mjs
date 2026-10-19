@@ -72,7 +72,7 @@ function warnings(hookEventName) {
 	const lines = []
 	if (readPersonalLayer() === null) lines.push('terse-orwell: no Personal layer yet. Run /terse-orwell:setup.')
 	if (!existsSync(unslopPath)) {
-		lines.push(`terse-orwell: unslop skill not found at ${unslopPath}. /terse-orwell:setup shows how to install it.`)
+		lines.push(`terse-orwell: unslop skill not found at ${unslopPath}. /terse-orwell:setup can install it.`)
 	}
 	return lines.join('\n')
 }

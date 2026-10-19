@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `SessionStart` hook that sends the Shared setup rules to every session. The rules cover the blast radius of a choice, showing branches, PRs and worktrees, opinions without hedging, unslop, subagents, source accuracy, the verification loop, plan steps, parallel work, `git stash`, and self-improvement. The hook appends the unslop skill's text when `~/.claude/skills/unslop/SKILL.md` exists. It warns on every session until `/terse-orwell:setup` has run, and when unslop is missing.
 - A `SubagentStart` hook that sends the output style and the same rules to every subagent.
 - A `UserPromptSubmit` hook that names the chat language and the artefact language on every turn when the Personal layer sets two different languages.
-- The command `/terse-orwell:setup`. It asks five questions and writes the answers between the terse-orwell markers in `~/.claude/CLAUDE.md`. A rerun replaces that block and keeps the rest of the file. It shows the install commands for unslop and ponytail and runs neither.
+- The command `/terse-orwell:setup`. It asks six questions and writes the first five answers between the terse-orwell markers in `~/.claude/CLAUDE.md`. A rerun replaces that block and keeps the rest of the file. When the user says yes, it installs the unslop skill with `npx skills add`. It shows the ponytail install commands and does not run them.
 
 ### Fixed
 
