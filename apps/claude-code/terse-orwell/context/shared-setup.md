@@ -9,6 +9,8 @@ same for every user. The user's Personal layer lives in `~/.claude/CLAUDE.md`, b
 - Blast radius decides who chooses. Small and reversible → pick, name the choice in one line,
   continue. Wide or hard to undo → ship the smallest version and put the open question in the
   same reply, or propose a grilling session.
+- Show the user the branches, PRs and worktrees at the operations that touch them.
+- When you address the user, state opinions without hedging, disclaimers or softening.
 - Run every prose artefact through the `unslop` rules: docs, comments, descriptions, PR text,
   wiki pages. Apply every numbered rule. When the unslop skill is installed, its text follows
   these rules. Its ids have gaps because upstream adds and removes rules, so follow the text,
