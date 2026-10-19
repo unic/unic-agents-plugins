@@ -1,0 +1,14 @@
+## Learned Repository Facts
+
+- `git worktree add <dir> -b <branch> origin/develop` sets the new branch to track `origin/develop`, so a bare `git push` goes to `develop`, and the Archon pre-push guard does not refuse it. Add `--no-track`, or run `git branch --unset-upstream`, then push with `-u origin <branch>`. (2026-09-28)
+- Subagent frontmatter takes `tools` and `disallowedTools`. `allowed-tools` is not a subagent field, so an agent that declares only `allowed-tools` inherits every tool. (2026-09-28)
+- A skill that runs through `/loop` or the Skill tool must not set `disable-model-invocation: true`. The Skill tool refuses such a skill, which is how `afk-loop` broke under `/loop`. (2026-09-28)
+- A new plugin must be added to the `tag_if_changed` list in `.github/workflows/release.yml` as well as to `ci.yml`. Without that line, the release workflow on `main` never creates the plugin's tag. (2026-09-28)
+- When a repo skill depends on a plugin, such as `afk-loop` on `pr-review-toolkit`, enable that plugin under `enabledPlugins` in the committed `.claude/settings.json`, so every developer who clones the repo has it. (2026-09-28)
+- Session opener comments on issues start with `**Opener`, in bold. A filter for comments that start with `Opener` finds nothing, so match the bold prefix. (2026-09-28)
+- In Archify diagrams, a node's `tag` renders with `data-detail="fine"`, so it is hidden at default zoom and in exports. `mainPath` refuses any step to a lower column, and `col` is capped at 0 to 5, so a chain of more than six nodes cannot keep `mainPath`. (2026-09-28)
+- `.claude/scheduled_tasks.lock` is Claude Code runtime state and is untracked on purpose, so never commit it. (2026-09-28)
+- Before Archon 0.11.0, a `loop:` node ignores `allowed_tools` and `denied_tools` without a warning. From 0.11.0 it honours both, but `hooks`, `mcp`, `skills` and `sandbox` stay ignored on `loop:`, so check the installed Archon version before you rely on a tool rule inside a loop. `.claude/skills/archon/` is repo-authored, not vendored, so fix its stale `references/parameter-matrix.md` by hand. (2026-10-01)
+- An Archon node does not get a plugin that only the committed `.claude/settings.json` declares. The plugin reaches a node after someone installs it, and a node whose Skill or agent call fails still finishes green. By default a node also loads user-scope plugins, and `settingSources: [project]` on the node removes them. (2026-10-01)
+- `/pr-review-toolkit:review-pr` takes its scope from `git diff --name-only`, which reads the working tree, not a merge-base. It finds the PR with `gh pr view`, so it works on GitHub only, and a caller must pass the scope explicitly. (2026-10-01)
+- The `evidence` node in `apps/claude-code/unic-archon-dlc/.archon/workflows/unic-dlc-build.yaml` sets `verdictState` to `pass`, `fail` or `unresolved`. Never write `green` or `red` in a criterion, even where an issue says "red verdict" in prose. (2026-10-01)
