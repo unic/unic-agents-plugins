@@ -128,9 +128,31 @@ test('the style part stays under the 10,000-character context cap', () => {
 	assert.ok(context('SubagentStart', 'style').length < 10_000)
 })
 
-test('SessionStart warns when the unslop text is over the context cap', () => {
-	installUnslop(configDir, 'x'.repeat(10_000))
-	assert.match(hook('SessionStart', 'rules').systemMessage, /over 10000 characters/)
+const LONG_UNSLOP = Array.from({ length: 15 }, (_, n) => `${n} ${'x'.repeat(998)}`).join('\n\n')
+
+test('the first unslop part of a text over the cap stays under the cap', () => {
+	installUnslop(configDir, LONG_UNSLOP)
+	assert.ok(context('SessionStart', 'unslop').length < 10_000)
+})
+
+test('the second unslop part of a text over the cap stays under the cap', () => {
+	installUnslop(configDir, LONG_UNSLOP)
+	assert.ok(context('SessionStart', 'unslop-2').length < 10_000)
+})
+
+test('the two unslop parts together hold the whole text', () => {
+	installUnslop(configDir, LONG_UNSLOP)
+	assert.equal(`${context('SubagentStart', 'unslop')}\n\n${context('SubagentStart', 'unslop-2')}`, LONG_UNSLOP)
+})
+
+test('the second unslop part sends nothing for a text under the cap', () => {
+	installUnslop()
+	assert.equal(hook('SessionStart', 'unslop-2'), null)
+})
+
+test('SessionStart warns when the unslop text needs more than two parts', () => {
+	installUnslop(configDir, 'x'.repeat(25_000))
+	assert.match(hook('SessionStart', 'rules').systemMessage, /more than 2 parts/)
 })
 
 test('the unslop part falls back to ~/.claude when the config directory has none', () => {
@@ -180,6 +202,11 @@ test('write-layer replaces the block and keeps the text around it', () => {
 test('write-layer deletes the source file after writing', () => {
 	writeLayer(LAYER)
 	assert.equal(existsSync(join(configDir, 'layer.md')), false)
+})
+
+test('write-layer refuses a CLAUDE.md it cannot read', () => {
+	mkdirSync(join(configDir, 'CLAUDE.md'))
+	assert.notEqual(writeLayer(LAYER).exitCode, 0)
 })
 
 test('write-layer refuses a file with one marker and leaves it unchanged', () => {

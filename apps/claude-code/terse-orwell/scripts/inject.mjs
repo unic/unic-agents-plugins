@@ -6,7 +6,8 @@
 //
 // - `rules`: the Shared setup rules. On SessionStart it also warns until
 //   `/terse-orwell:setup` has run, and when the unslop skill is missing.
-// - `unslop`: the unslop skill's text, when installed.
+// - `unslop`, `unslop-2`: the unslop skill's text, when installed, split at
+//   paragraph breaks into parts under the cap.
 // - `style`: the output style, for SubagentStart, because a subagent never sees
 //   the output style or a plugin's SessionStart context.
 // - `language`: one line naming the chat and artefact languages from the
@@ -54,8 +55,35 @@ const unslopPaths = [...new Set([CONFIG_DIR, join(homedir(), '.claude')])].map((
 )
 const unslopPath = unslopPaths.find((path) => existsSync(path))
 
-function readUnslop() {
-	return unslopPath ? stripFrontmatter(readOrEmpty(unslopPath)) : ''
+const UNSLOP_PARTS = 2
+
+/**
+ * Splits the unslop text at paragraph breaks into chunks under the context
+ * cap. `hooks/hooks.json` sends the first UNSLOP_PARTS chunks, one per entry.
+ *
+ * @returns {string[]}
+ */
+function splitUnslop() {
+	const text = unslopPath ? stripFrontmatter(readOrEmpty(unslopPath)) : ''
+	/** @type {string[]} */
+	const chunks = []
+	let chunk = ''
+	for (const paragraph of text.split('\n\n')) {
+		const joined = chunk ? `${chunk}\n\n${paragraph}` : paragraph
+		if (joined.length < CONTEXT_CAP) {
+			chunk = joined
+			continue
+		}
+		if (chunk) chunks.push(chunk)
+		chunk = paragraph
+		// A single paragraph over the cap is cut hard rather than sent as a preview.
+		while (chunk.length >= CONTEXT_CAP) {
+			chunks.push(chunk.slice(0, CONTEXT_CAP - 1))
+			chunk = chunk.slice(CONTEXT_CAP - 1)
+		}
+	}
+	if (chunk) chunks.push(chunk)
+	return chunks
 }
 
 function buildSetupWarnings() {
@@ -63,9 +91,9 @@ function buildSetupWarnings() {
 	if (readPersonalLayer() === null) lines.push('terse-orwell: no Personal layer yet. Run /terse-orwell:setup.')
 	if (!unslopPath) {
 		lines.push(`terse-orwell: unslop skill not found at ${unslopPaths[0]}. /terse-orwell:setup can install it.`)
-	} else if (readUnslop().length >= CONTEXT_CAP) {
+	} else if (splitUnslop().length > UNSLOP_PARTS) {
 		lines.push(
-			`terse-orwell: ${unslopPath} is over ${CONTEXT_CAP} characters, so Claude Code sends only a preview of it.`
+			`terse-orwell: ${unslopPath} needs more than ${UNSLOP_PARTS} parts of ${CONTEXT_CAP} characters, so its end is not sent.`
 		)
 	}
 	return lines.join('\n')
@@ -82,7 +110,8 @@ function buildLanguageReminder() {
 /** @type {Record<string, () => string>} */
 const PARTS = {
 	rules: () => readOrEmpty(join(PLUGIN_ROOT, 'context', 'shared-setup.md')).trim(),
-	unslop: readUnslop,
+	unslop: () => splitUnslop()[0] ?? '',
+	'unslop-2': () => splitUnslop()[1] ?? '',
 	style: () => {
 		const style = stripFrontmatter(readOrEmpty(join(PLUGIN_ROOT, 'output-styles', 'terse-orwell.md')))
 		return `Write every piece of prose you return in this style.\n\n${style}`

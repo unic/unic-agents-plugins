@@ -16,6 +16,14 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/inject.mjs\" unslop"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/inject.mjs\" unslop-2"
+          }
+        ]
       }
     ],
     "SubagentStart": [
@@ -40,6 +48,14 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/inject.mjs\" unslop"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/inject.mjs\" unslop-2"
           }
         ]
       }

@@ -26,8 +26,10 @@ if (!body) {
 let text = ''
 try {
 	text = readFileSync(CLAUDE_MD, 'utf8')
-} catch {
-	// No CLAUDE.md yet: the block becomes the whole file.
+} catch (error) {
+	// Only a missing CLAUDE.md starts empty. Any other read error would make the
+	// write below replace the user's whole file.
+	if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error
 }
 
 const block = `${START_MARKER}\n${body}\n${END_MARKER}`
