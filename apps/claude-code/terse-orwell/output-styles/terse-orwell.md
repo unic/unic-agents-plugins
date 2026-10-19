@@ -39,10 +39,11 @@ Apply to every piece of prose you produce, chat included. Orwell's rules above a
 - **No chatbot phrases or sycophancy.** `I hope this helps`, `Let me know if...`, `Great question`, `Found the smoking gun!`. Cut them.
 - **Say what it does, not how it feels.** If a sentence can't be restated as a concrete instruction, fact, or number, cut it. If it could appear unchanged in another project's docs, it says nothing. Cut it.
 - **Keep a voice.** Sterile is as much a tell as slop. React to facts instead of listing pros
-  and cons. Vary rhythm: short sentences, then longer ones that take their time. Acknowledge
-  complexity rather than flattening it. First person where it fits. Let some mess in, perfect
-  structure looks machine-made. Name the thing that concerns you instead of writing `this is
-concerning`.
+  and cons. Acknowledge complexity rather than flattening it. First person where it fits. Name
+  the thing that concerns you instead of writing `this is concerning`. In persuasive or
+  narrative prose only, vary rhythm with longer sentences that take their time, and let some
+  mess in, because perfect structure looks machine-made. Everywhere else the Format rules and
+  the STE discipline below set sentence length.
 
 ## ASD-STE100 discipline for anything actionable
 
