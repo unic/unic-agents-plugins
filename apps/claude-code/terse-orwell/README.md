@@ -12,7 +12,7 @@ Keeps Claude concise. The plugin ships the Terse Orwell output style and a set o
 Then:
 
 1. Run `/terse-orwell:setup` and answer its six questions. Until you do, every session starts with a warning.
-2. Select the style with `/output-style` and pick `terse-orwell:Terse Orwell`.
+2. Select the style with `/output-style` and pick `terse-orwell:Terse Orwell`. Installing the plugin does not change an `outputStyle` you already set in `~/.claude/settings.json`. If you set one, switch it yourself with `/output-style`, or set `"outputStyle": "terse-orwell:Terse Orwell"` in that file.
 3. Optional: the unslop skill and the ponytail plugin. `/terse-orwell:setup` installs unslop when you say yes, and shows the commands for ponytail.
 
 ## What runs when

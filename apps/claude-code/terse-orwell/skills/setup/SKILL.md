@@ -66,7 +66,7 @@ differs.
 
 - I use Gitflow. Read the repo's branches and follow what it does.
 - Commit only after the tests run.
-- Pushing a feature branch is small and reversible: do it when I ask for a PR, or when I say
+- Pushing a feature branch is small and reversible. Do it when I ask for a PR, or when I say
   to push. Pushing to `develop` or `main` and force-pushing are neither. Ask first.
 
 ### Package managers

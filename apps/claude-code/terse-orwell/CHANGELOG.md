@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (none)
 
+## [0.1.1] — 2026-10-19
+
+### Breaking
+- (none)
+
+### Added
+- The README says that installing the plugin keeps an `outputStyle` you already set, and how to switch it to `terse-orwell:Terse Orwell`.
+
+### Fixed
+- The Git flow rules that `/terse-orwell:setup` writes no longer join two sentences with a colon, which broke unslop rule 14. Rerun `/terse-orwell:setup` to update an existing Personal layer.
+
 ## [0.1.0] — 2026-10-19
 
 ### Breaking
