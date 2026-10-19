@@ -10,7 +10,7 @@
   "plugins": [
     {
       "author": {
-        "name": "Unic AG"
+        "name": "Oriol Torrent Florensa"
       },
       "category": "productivity",
       "description": "Keeps Claude concise. Ships the Terse Orwell output style, generic behaviour rules for every session and subagent, a per-turn language reminder, and /setup to write your Personal layer.",

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Keeps Claude concise. Ships the Terse Orwell output style, generic behaviour rules for every session and subagent, a per-turn language reminder, and /setup to write your Personal layer.",
   "author": {
-    "name": "Unic AG",
+    "name": "Oriol Torrent Florensa",
     "url": "https://www.unic.com"
   },
   "homepage": "https://github.com/unic/unic-agents-plugins",
