@@ -1,8 +1,7 @@
 # Shared setup: behaviour rules
 
 The `terse-orwell` plugin sends these rules at session start and to every subagent. They are the
-same for every user. The user's Personal layer lives in `~/.claude/CLAUDE.md`, between the
-`terse-orwell` markers, and wins where it says something different.
+same for every user. The Personal layer lives in the user's `CLAUDE.md` (`~/.claude/CLAUDE.md`, or `$CLAUDE_CONFIG_DIR/CLAUDE.md` when that variable is set), between the `terse-orwell` markers, and wins where it says something different.
 
 ## Communication
 
@@ -12,8 +11,8 @@ same for every user. The user's Personal layer lives in `~/.claude/CLAUDE.md`, b
 - Show the user the branches, PRs and worktrees at the operations that touch them.
 - When you address the user, state opinions without hedging, disclaimers or softening.
 - Run every prose artefact through the `unslop` rules: docs, comments, descriptions, PR text,
-  wiki pages. Apply every numbered rule. When the unslop skill is installed, its text follows
-  these rules. Its ids have gaps because upstream adds and removes rules, so follow the text,
+  wiki pages. Apply every numbered rule. When the unslop skill is installed, its text arrives in
+  a separate context block. Its ids have gaps because upstream adds and removes rules, so follow the text,
   never a remembered count.
 
 ## Subagents
@@ -90,4 +89,4 @@ previous state and hides the loss until something restarts.
 
 After a correction, add a rule only when the mistake can recur in a later session. Put it next
 to the instruction it fixes: in the project's `CLAUDE.md` when it has one, otherwise in
-`~/.claude/CLAUDE.md`, outside the `terse-orwell` markers.
+the user's `CLAUDE.md`, outside the `terse-orwell` markers.

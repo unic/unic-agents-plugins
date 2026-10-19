@@ -1,12 +1,12 @@
 ---
 name: setup
-description: Write or update the user's Personal layer for the Terse Orwell setup in ~/.claude/CLAUDE.md, install the unslop skill on the user's yes, and show the ponytail install.
+description: Write or update the user's Personal layer for the Terse Orwell setup in the user's CLAUDE.md, install the unslop skill on the user's yes, and show the ponytail install.
 argument-hint: '[answers to the six questions, optional]'
 disable-model-invocation: true
 ---
 
 Write the user's Personal layer: what they want on top of the Shared setup that the
-`terse-orwell` plugin ships. The layer lives in `~/.claude/CLAUDE.md` between two markers, and
+`terse-orwell` plugin ships. The layer lives in the user's `CLAUDE.md` (`~/.claude/CLAUDE.md`, or `$CLAUDE_CONFIG_DIR/CLAUDE.md` when that variable is set), between two markers, and
 `scripts/write-layer.mjs` is the only thing that writes it.
 
 ## 1. Collect the answers
@@ -89,7 +89,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/write-layer.mjs" "<absolute path of the save
 
 The command holds no shell syntax beyond quotes, so it runs the same in Bash and in PowerShell.
 
-If the writer exits non-zero, show its message and stop. Never edit `~/.claude/CLAUDE.md` by any
+If the writer exits non-zero, show its message and stop. Never edit the user's `CLAUDE.md` by any
 other means.
 
 ## 4. Install unslop
