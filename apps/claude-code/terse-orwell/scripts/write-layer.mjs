@@ -2,11 +2,13 @@
 
 // Writes the Personal layer into `~/.claude/CLAUDE.md` (or `$CLAUDE_CONFIG_DIR/CLAUDE.md`).
 // The block body comes from the file named by the first argument, so the caller
-// needs no shell syntax. A run replaces the block between the terse-orwell
-// markers and keeps every byte outside them. With no block yet, it appends one.
+// needs no shell syntax. The writer deletes that file once it has written the
+// block, so no copy is left in the user's project. A run replaces the block
+// between the terse-orwell markers and keeps every byte outside them. With no
+// block yet, it appends one.
 // `/terse-orwell:setup` is the only caller.
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 import { CLAUDE_MD, END_MARKER, findMarkers, START_MARKER } from './personal-layer.mjs'
 
@@ -45,4 +47,5 @@ if (start !== -1 && end > start) {
 }
 
 writeFileSync(CLAUDE_MD, next)
+rmSync(source)
 process.stdout.write(`terse-orwell: wrote the Personal layer to ${CLAUDE_MD}\n`)

@@ -77,8 +77,9 @@ Use <package managers> unless the project's own conventions say otherwise.
 
 ## 3. Write it
 
-Save the filled block with the Write tool to a new file in the system's temporary directory,
-for example `terse-orwell-layer.md`. Then pass that file to the writer. It replaces an
+Save the filled block with the Write tool to `terse-orwell-layer.md` in the system's temporary
+directory: `$TMPDIR` or `/tmp` on macOS and Linux, `%TEMP%` on Windows. Never save it in the
+project. The writer deletes the file after it writes the block. Then pass that file to the writer. It replaces an
 existing terse-orwell block and keeps the rest of the file, or appends the block when there is
 none:
 

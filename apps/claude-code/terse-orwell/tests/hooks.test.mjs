@@ -2,7 +2,7 @@
 
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, test } from 'node:test'
@@ -175,6 +175,11 @@ test('write-layer replaces the block and keeps the text around it', () => {
 	)
 	writeLayer('new')
 	assert.equal(claudeMd(), 'before\n<!-- >>> terse-orwell >>> -->\nnew\n<!-- <<< terse-orwell <<< -->\nafter\n')
+})
+
+test('write-layer deletes the source file after writing', () => {
+	writeLayer(LAYER)
+	assert.equal(existsSync(join(configDir, 'layer.md')), false)
 })
 
 test('write-layer refuses a file with one marker and leaves it unchanged', () => {
