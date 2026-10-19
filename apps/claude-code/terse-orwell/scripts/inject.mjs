@@ -51,24 +51,7 @@ function readPersonalLayer() {
 
 const unslopPath = join(CONFIG_DIR, 'skills', 'unslop', 'SKILL.md')
 
-/**
- * @param {string} hookEventName
- * @param {string} additionalContext
- * @param {string} [systemMessage]
- */
-function respond(hookEventName, additionalContext, systemMessage) {
-	/** @type {Record<string, unknown>} */
-	const output = { hookSpecificOutput: { hookEventName, additionalContext } }
-	if (systemMessage) output.systemMessage = systemMessage
-	process.stdout.write(JSON.stringify(output))
-}
-
-/**
- * @param {string} hookEventName
- * @returns {string | null}
- */
-function warnings(hookEventName) {
-	if (hookEventName !== 'SessionStart') return null
+function warnings() {
 	const lines = []
 	if (readPersonalLayer() === null) lines.push('terse-orwell: no Personal layer yet. Run /terse-orwell:setup.')
 	if (!existsSync(unslopPath)) {
@@ -87,7 +70,7 @@ function language() {
 
 /** @type {Record<string, () => string>} */
 const PARTS = {
-	rules: () => stripFrontmatter(readOrEmpty(join(PLUGIN_ROOT, 'context', 'shared-setup.md'))),
+	rules: () => readOrEmpty(join(PLUGIN_ROOT, 'context', 'shared-setup.md')).trim(),
 	unslop: () => stripFrontmatter(readOrEmpty(unslopPath)),
 	style: () => {
 		const style = stripFrontmatter(readOrEmpty(join(PLUGIN_ROOT, 'output-styles', 'terse-orwell.md')))
@@ -99,8 +82,11 @@ const PARTS = {
 try {
 	const { hook_event_name: hookEventName } = JSON.parse(readFileSync(0, 'utf8') || '{}')
 	const context = PARTS[process.argv[2]]?.() ?? ''
-	const message = process.argv[2] === 'rules' ? warnings(hookEventName) : null
-	if (context || message) respond(hookEventName, context, message ?? undefined)
+	const message = process.argv[2] === 'rules' && hookEventName === 'SessionStart' ? warnings() : ''
+	/** @type {Record<string, unknown>} */
+	const output = { hookSpecificOutput: { hookEventName, additionalContext: context } }
+	if (message) output.systemMessage = message
+	if (context || message) process.stdout.write(JSON.stringify(output))
 } catch {
 	// A bad payload gets no context, never a blocked session.
 }

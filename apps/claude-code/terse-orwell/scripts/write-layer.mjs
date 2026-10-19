@@ -5,9 +5,9 @@
 // terse-orwell markers and keeps every byte outside them. With no block yet, it
 // appends one. `/terse-orwell:setup` is the only caller.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 const START_MARKER = '<!-- >>> terse-orwell >>> -->'
 const END_MARKER = '<!-- <<< terse-orwell <<< -->'
@@ -41,6 +41,5 @@ if (start !== -1 && end > start) {
 	next = text ? `${text.replace(/\s*$/, '')}\n\n${block}\n` : `${block}\n`
 }
 
-mkdirSync(dirname(path), { recursive: true })
 writeFileSync(path, next)
 process.stdout.write(`terse-orwell: wrote the Personal layer to ${path}\n`)
