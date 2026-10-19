@@ -56,3 +56,4 @@ jobs:
           tag_if_changed "apps/claude-code/unic-pr-review"
           tag_if_changed "apps/claude-code/unic-spec-review"
           tag_if_changed "apps/claude-code/unic-learning-loop"
+          tag_if_changed "apps/claude-code/terse-orwell"

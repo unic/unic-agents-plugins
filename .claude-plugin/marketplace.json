@@ -32,6 +32,10 @@
     {
       "name": "unic-learning-loop",
       "source": "./apps/claude-code/unic-learning-loop"
+    },
+    {
+      "name": "terse-orwell",
+      "source": "./apps/claude-code/terse-orwell"
     }
   ]
 }

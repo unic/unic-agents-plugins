@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "description": "Keep Claude concise with the Terse Orwell output style and shared behaviour rules",
+    "homepage": "https://github.com/unic/unic-agents-plugins"
+  },
+  "name": "terse-orwell",
+  "owner": {
+    "name": "Unic AG"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "Oriol Torrent Florensa"
+      },
+      "category": "productivity",
+      "description": "Keeps Claude concise. Ships the Terse Orwell output style, generic behaviour rules for every session and subagent, a per-turn language reminder, and /setup to write your Personal layer.",
+      "displayName": "Terse Orwell",
+      "homepage": "https://github.com/unic/unic-agents-plugins",
+      "keywords": ["output-style", "concise", "writing", "hook", "unic"],
+      "license": "LGPL-3.0-or-later",
+      "name": "terse-orwell",
+      "source": "./",
+      "tags": ["productivity", "writing"],
+      "version": "0.1.0"
+    }
+  ]
+}
