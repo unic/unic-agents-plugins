@@ -29,9 +29,10 @@ afterEach(() => {
  *
  * @param {string} script
  * @param {string} stdin
+ * @param {string[]} [args]
  */
-function run(script, stdin) {
-	const result = spawnSync(process.execPath, [script], {
+function run(script, stdin, args = []) {
+	const result = spawnSync(process.execPath, [script, ...args], {
 		input: stdin,
 		encoding: 'utf8',
 		env: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
@@ -39,10 +40,21 @@ function run(script, stdin) {
 	return { exitCode: result.status, stdout: result.stdout }
 }
 
-/** @param {string} hookEventName */
-function hook(hookEventName) {
-	const { stdout } = run(INJECT, JSON.stringify({ hook_event_name: hookEventName }))
+/**
+ * @param {string} hookEventName
+ * @param {string} part
+ */
+function hook(hookEventName, part) {
+	const { stdout } = run(INJECT, JSON.stringify({ hook_event_name: hookEventName }), [part])
 	return stdout ? JSON.parse(stdout) : null
+}
+
+/**
+ * @param {string} hookEventName
+ * @param {string} part
+ */
+function context(hookEventName, part) {
+	return hook(hookEventName, part).hookSpecificOutput.additionalContext
 }
 
 /** @param {string} body */
@@ -59,62 +71,66 @@ function installUnslop() {
 	writeFileSync(join(configDir, 'skills', 'unslop', 'SKILL.md'), '---\nname: unslop\n---\n\n# Unslop marker text\n')
 }
 
-test('SessionStart sends the Shared setup rules', () => {
-	assert.match(hook('SessionStart').hookSpecificOutput.additionalContext, /## Source accuracy and drafting/)
+test('the rules part sends the Shared setup rules', () => {
+	assert.match(context('SessionStart', 'rules'), /## Source accuracy and drafting/)
 })
 
 test('SessionStart warns until /setup has written the Personal layer', () => {
-	assert.match(hook('SessionStart').systemMessage, /Run \/terse-orwell:setup/)
+	assert.match(hook('SessionStart', 'rules').systemMessage, /Run \/terse-orwell:setup/)
 })
 
-test('SessionStart stops the setup warning once the Personal layer exists', () => {
+test('SessionStart stops warning once the Personal layer and unslop exist', () => {
 	writeLayer(LAYER)
 	installUnslop()
-	assert.equal(hook('SessionStart').systemMessage, undefined)
+	assert.equal(hook('SessionStart', 'rules').systemMessage, undefined)
 })
 
 test('SessionStart names the missing unslop skill', () => {
-	assert.match(hook('SessionStart').systemMessage, /unslop skill not found/)
+	assert.match(hook('SessionStart', 'rules').systemMessage, /unslop skill not found/)
 })
 
-test('SessionStart appends the unslop text without its frontmatter', () => {
+test('SubagentStart sends no setup warning', () => {
+	assert.equal(hook('SubagentStart', 'rules').systemMessage, undefined)
+})
+
+test('the unslop part sends the skill text without its frontmatter', () => {
 	installUnslop()
-	assert.match(hook('SessionStart').hookSpecificOutput.additionalContext, /\n\n# Unslop marker text$/)
+	assert.equal(context('SessionStart', 'unslop'), '# Unslop marker text')
 })
 
-test('SubagentStart sends the output style without its frontmatter', () => {
+test('the unslop part sends nothing when unslop is missing', () => {
+	assert.equal(hook('SessionStart', 'unslop'), null)
+})
+
+test('the style part sends the output style without its frontmatter', () => {
 	assert.match(
-		hook('SubagentStart').hookSpecificOutput.additionalContext,
+		context('SubagentStart', 'style'),
 		/^Write every piece of prose you return in this style\.\n\nYou are pairing/
 	)
 })
 
-test('SubagentStart sends the Shared setup rules after the style', () => {
-	assert.match(
-		hook('SubagentStart').hookSpecificOutput.additionalContext,
-		/## Orwell's six rules[\s\S]*## Source accuracy and drafting/
-	)
+test('every part stays under the 10,000-character context cap', () => {
+	installUnslop()
+	const longest = Math.max(...['rules', 'unslop', 'style'].map((part) => context('SubagentStart', part).length))
+	assert.ok(longest < 10_000, `longest part is ${longest} characters`)
 })
 
-test('UserPromptSubmit names both languages when they differ', () => {
+test('the language part names both languages when they differ', () => {
 	writeLayer(LAYER)
-	assert.equal(
-		hook('UserPromptSubmit').hookSpecificOutput.additionalContext,
-		'Reply to the user in Spanish; artefacts stay English.'
-	)
+	assert.equal(context('UserPromptSubmit', 'language'), 'Reply to the user in Spanish; artefacts stay English.')
 })
 
-test('UserPromptSubmit injects nothing when both languages match', () => {
+test('the language part injects nothing when both languages match', () => {
 	writeLayer('- Chat language: English\n- Artefact language: english')
-	assert.equal(hook('UserPromptSubmit'), null)
+	assert.equal(hook('UserPromptSubmit', 'language'), null)
 })
 
-test('UserPromptSubmit injects nothing without a Personal layer', () => {
-	assert.equal(hook('UserPromptSubmit'), null)
+test('the language part injects nothing without a Personal layer', () => {
+	assert.equal(hook('UserPromptSubmit', 'language'), null)
 })
 
 test('the hook exits 0 on a payload that is not JSON', () => {
-	assert.equal(run(INJECT, 'not json').exitCode, 0)
+	assert.equal(run(INJECT, 'not json', ['rules']).exitCode, 0)
 })
 
 test('write-layer appends a block after existing content', () => {
