@@ -22,7 +22,7 @@
 
 ### Fixed
 - `/qa`'s `verify-pr-base` now sets `base_ok` to `false` when the tracker query fails, or when the tracker contract is missing or cannot address the repository, so `merge` refuses. Before, it treated those cases as an unverifiable base and let the merge through. It still passes when a query succeeds and confirms that no PR exists (#505).
-- `/build`'s stub scan diffs against `origin/$BASE_BRANCH` first and falls back to the local branch, so a base this clone has never checked out no longer fails the scan. Its code-review pre-check fetches the base before it takes the merge-base (#505).
+- `/build`'s stub scan diffs against `origin/$BASE_BRANCH` first and falls back to the local branch, so a base this clone has never checked out no longer fails the scan. Its code-review pre-check, like `/pr-review`'s `prep`, fetches the base into `origin/<branch>` with an explicit refspec before it takes the merge-base, so the ref resolves in a single-branch clone too (#505).
 
 ## [0.30.0] — 2026-10-21
 

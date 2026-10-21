@@ -195,8 +195,9 @@ nodes:
       the tracker exposes none, it is `$BASE_BRANCH`. When both exist and differ, set `base_warning` to "the PR targets <PR target>
       but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>.", print it
       as "prep: WARNING: <base_warning>", and carry on. Otherwise set `base_warning` to "".
-      DIFF_BASE may be a branch this clone has never fetched, so run `git fetch origin <DIFF_BASE>`
-      first. If the fetch fails, print "prep: fetch of origin/<DIFF_BASE> failed: <error>" and go on.
+      DIFF_BASE may be a branch this clone has never fetched, so run
+      `git fetch origin +refs/heads/<DIFF_BASE>:refs/remotes/origin/<DIFF_BASE>` first. The explicit
+      destination creates `origin/<DIFF_BASE>` even in a single-branch clone, whose refspec omits it. If the fetch fails, print "prep: fetch of origin/<DIFF_BASE> failed: <error>" and go on.
       A failed fetch is not fatal on its own. Then set BASE_REF to
       `git merge-base origin/<DIFF_BASE> HEAD`, falling back to `git merge-base <DIFF_BASE> HEAD` when
       `origin/<DIFF_BASE>` does not resolve. Print "prep: diff base is <DIFF_BASE> (<source>, via
