@@ -9,7 +9,7 @@ description: >
   NOT in the loop — `tdd` puts it in the review stage, so it lives in /pr-review's `code-review`
   Fowler smells (#281, amending ADR-0023). Then a local non-posting code-review pre-check, verify,
   goals-check, report, and gate a PR to the run's base branch, Archon's $BASE_BRANCH
-  (ADR-0011/0022/0023/0030/0031/0038).
+  (ADR-0011/0022/0023/0030/0031/0039).
 
 # Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
 interactive: true

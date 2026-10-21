@@ -1,4 +1,4 @@
-# 0038. A run's base branch is Archon's `$BASE_BRANCH`
+# 0039. A run's base branch is Archon's `$BASE_BRANCH`
 
 **Status:** Accepted (2026-10-21)
 

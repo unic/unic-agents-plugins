@@ -7,13 +7,12 @@ vocabulary (#381); amended 2026-08-18 — see the notes below.
 > or names the tracker through `tracker.access` / `tracker.coords`, read
 > `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` instead. Those two repo-local files
 > are the tracker contract now, and each role carries its own axis. See
-> [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18 amendment (#389).
+> [ADR-0024](0024-triage-intake-on-ramp.md) (#389).
 
 > **Amended (2026-08-20) — `Local Method` is retired.** The term named the middle tier of Method
 > resolution, `.archon/methods.local/<name>/SKILL.md`. #381 deleted the Plugin's code, and with it both
 > override tiers: every Box and every command now reads a Method at the one literal path
-> `.archon/methods/<name>/SKILL.md` ([ADR-0031](0031-methods-bundled-three-tier-resolution.md),
-> amended). So the definition below describes a path nothing reads, and the term is gone from
+> `.archon/methods/<name>/SKILL.md` ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)). So the definition below describes a path nothing reads, and the term is gone from
 > [`CONTEXT.md`](../../CONTEXT.md) rather than kept as a word with no referent. The title keeps it: an
 > ADR filename is a stable address, and four documents link to this one by name. To change a Method a
 > team edits the installed file and expects the next `/setup` run to overwrite it — the fork that

@@ -6,8 +6,8 @@
 > mechanism that no longer exists. This Harness derives no repository from a remote: each Box reads the
 > one `docs/agents/issue-tracker.md` § Addressing names, so there is nothing left to diverge from
 > Archon's own `worktree.remote` resolution. `/archon-upgrade` still classifies that algorithm
-> VERIFY-ONLY, on the new reason. See [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18
-> amendment (#389).
+> VERIFY-ONLY, on the new reason. See [ADR-0024](0024-triage-intake-on-ramp.md)
+> (#389).
 
 > **Amended (2026-08-24):** § "Where Archon's own remote resolution differs from this Harness's
 > derivation" described `worktree.remote` as present in 0.7.0 without anyone having measured it. It is

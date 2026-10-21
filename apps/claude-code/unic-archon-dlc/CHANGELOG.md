@@ -3,18 +3,7 @@
 ## [Unreleased]
 
 ### Breaking
-- (none)
-
-### Added
-- (none)
-
-### Fixed
-- (none)
-
-## [0.30.0] — 2026-10-21
-
-### Breaking
-- `/build`, `/pr-review` and `/qa` now read the run's base branch from Archon's `$BASE_BRANCH`, not from `project.branching`. Archon resolves it from `archon workflow run --base <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default branch. If your Archon base differs from the branch that `branching` implied, the Boxes now target the Archon base. `/build` opens its PR there, and `/qa` refuses to merge a PR that targets another branch. Run `/unic-archon-dlc:setup` and read its base line before your next run. `project.branching` now decides only whether `/qa` deletes the merged `feature/*` branch (ADR-0038, #505).
+- `/build`, `/pr-review` and `/qa` now read the run's base branch from Archon's `$BASE_BRANCH`, not from `project.branching`. Archon resolves it from `archon workflow run --base <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default branch. If your Archon base differs from the branch that `branching` implied, the Boxes now target the Archon base. `/build` opens its PR there, and `/qa` refuses to merge a PR that targets another branch. Run `/unic-archon-dlc:setup` and read its base line before your next run. `project.branching` now decides only whether `/qa` deletes the merged `feature/*` branch (ADR-0039, #505).
 - `/pr-review` takes its review diff from the merge-base with the PR's own target branch when the tracker returns a PR, and from `$BASE_BRANCH` when it does not. When the two differ, its summary carries a warning that names both. When the tracker query for the PR fails, or the diff base does not resolve after a fetch, the run cancels instead of reviewing a guessed diff (#505).
 
 ### Added
@@ -23,6 +12,18 @@
 ### Fixed
 - `/qa`'s `verify-pr-base` now sets `base_ok` to `false` when the tracker query fails, or when the tracker contract is missing or cannot address the repository, so `merge` refuses. Before, it treated those cases as an unverifiable base and let the merge through. It still passes when a query succeeds and confirms that no PR exists (#505).
 - `/build`'s stub scan diffs against `origin/$BASE_BRANCH` first and falls back to the local branch, so a base this clone has never checked out no longer fails the scan. Its code-review pre-check fetches the base before it takes the merge-base (#505).
+
+## [0.30.0] — 2026-10-21
+
+### Breaking
+- `/setup` now writes its managed blocks, in the Consumer's `CLAUDE.md` and in each formatter ignore file, between `unic-dlc:begin` and `unic-dlc:end`. The old markers were `unic-archon-dlc:begin` and `unic-archon-dlc:end`. On its next run, `/setup` finds a block under the old markers, rewrites it in place under the new ones and reports the file as migrated, so a Consumer holds one block, never two. A tool or script outside this Plugin that searches for the old markers must change to the new ones (#520).
+
+### Added
+- ADR-0038 records how Practice Packs stack in one Consumer beside the DLC. Each installer owns only the names that carry its prefix, and `unic-dlc` is the DLC's prefix. A pack ships context artefacts and config values, never a Box or a Method. The DLC alone writes `.archon/methods/`. Config is layered, with the Consumer's file last. An `include:` slot is the decided, unbuilt route for a pack that must replace a Box step. ADR-0031, ADR-0024 and ADR-0013 point at it, and `CONTEXT.md` states the Practice Pack model as decided (#520).
+- `/setup` states that it touches no name carrying another prefix, in `.claude/skills/`, `.archon/packs/`, `CLAUDE.md` or a formatter ignore file. When it reports a retired Method override path, it also names ADR-0038 as where the route to replace a Box step is recorded (#520).
+
+### Fixed
+- (none)
 
 ## [0.29.0] — 2026-09-27
 

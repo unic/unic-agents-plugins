@@ -400,7 +400,7 @@ A shape that satisfies the contract:
 | `needs-triage`    | —              | —     | Not written.             |
 ```
 
-See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended 2026-08-18.
+See [ADR-0024](docs/adr/0024-triage-intake-on-ramp.md).
 
 ### The Method bundle
 
@@ -419,7 +419,7 @@ reads it there and nowhere else, so there is no resolution order to report and n
 The two override tiers this plugin used to offer — `methods.<name>.source` in config, and
 `.archon/methods.local/<name>/SKILL.md` — are retired: to change a Method, edit the installed file and
 expect the next `/setup` run to overwrite it. See
-[ADR-0031](docs/adr/0031-methods-bundled-three-tier-resolution.md), amended.
+[ADR-0031](docs/adr/0031-methods-bundled-three-tier-resolution.md).
 
 **Methods are read by path and never registered as skills.** `/setup` writes them to
 `.archon/methods/`, not to `.claude/skills/` or `.agents/skills/`, and no box invokes one as a skill.

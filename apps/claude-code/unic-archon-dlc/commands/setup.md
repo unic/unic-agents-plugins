@@ -32,6 +32,27 @@ every action below names which one it takes:
 **report** has one override: the `reconfigure` argument (Step 3). Outside a marked block, nothing else
 rewrites a tenant file.
 
+**This Plugin's prefix is `unic-dlc`, and `/setup` touches no name that carries another prefix.** A
+Consumer may hold Practice Packs beside this Plugin, each with its own prefix and its own installer
+([ADR-0038](../docs/adr/0038-practice-packs-stack-by-prefix.md)). In `.claude/skills/`, in `.archon/packs/`,
+in `CLAUDE.md` and in every formatter ignore file, `/setup` writes, overwrites or removes only these names:
+
+- a `.claude/skills/unic-dlc-*/` directory. Today `/setup` writes, overwrites or removes nothing in
+  `.claude/skills/`.
+- `.archon/packs/unic-dlc.config.yaml`. `/setup` writes nothing in `.archon/packs/` until
+  [Build the layered Practice Pack config](https://github.com/unic/unic-agents-plugins/issues/647) lands. The
+  Consumer's config stays at `.archon/unic-dlc.config.yaml`, as Step 6 says.
+- the block between the `unic-dlc:begin` and `unic-dlc:end` markers in `CLAUDE.md` and in each ignore
+  file.
+
+Leave every other skill directory, config file and marked block as you found it, whatever it contains. The
+one exception is the legacy `unic-archon-dlc:begin` and `unic-archon-dlc:end` markers. They are reserved to
+this Plugin (ADR-0038 §5), and Step 7 migrates a block under them.
+
+Whether one prefix may begin another is still open, and this rule does not settle it. A pack prefixed
+`unic-dlc-e2e` would own `unic-dlc-e2e-*` skill directories, which also match `unic-dlc-*`. That overlap is
+an open risk until ADR-0038 decides the boundary.
+
 ## Step 1 — Preflight
 
 Two checks, in this order. Each one stops the run when it fails, before any question is asked and before
@@ -108,7 +129,7 @@ file, so it never stops the run; the rule two reads above stops the run because 
 destroy it.
 
 **The base branch Archon will use, verify-only.** Every Box reads a run's base branch from Archon's
-`$BASE_BRANCH` and from nothing else (ADR-0038). Archon resolves it from `archon workflow run --base
+`$BASE_BRANCH` and from nothing else (ADR-0039). Archon resolves it from `archon workflow run --base
 <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase's stored default branch.
 Each dispatch passes its own `--base`, so this command cannot see it. From the same file, keep
 `worktree.baseBranch` as `ARCHON_BASE_CONFIGURED`. It is empty when the key is unset or the file is
@@ -193,6 +214,10 @@ Methods bullet below says why.
 **The Methods.** Verify the bundle at `vendor/mattpocock-skills/`, then copy it into `.archon/methods/` —
 the one path every Box and command reads a Method from.
 
+This Plugin alone owns `.archon/methods/`. A Practice Pack never ships a Method, and a skill a pack installs
+under `.claude/skills/` is not a Method ([ADR-0038](../docs/adr/0038-practice-packs-stack-by-prefix.md)
+§1 to §3). So the wholesale replace below removes nothing another installer wrote.
+
 **The copy flattens.** The bundle groups Methods by category, so a Method sits at
 `vendor/mattpocock-skills/skills/<category>/<name>/`; a Box reads `.archon/methods/<name>/SKILL.md`, one
 level deep. Copy each Method directory to `.archon/methods/<name>/`, dropping the category, and copy the
@@ -225,7 +250,10 @@ installed.
   version on the Boxes carry the provenance for this tree.
 - Two override paths an earlier version offered now resolve nothing, because `.archon/methods/` is the only
   path anything reads. Report each one you find, once, as retired, and change neither — both are the team's
-  own work: a `.archon/methods.local/` directory, and any `methods.<name>.source` key in the config.
+  own work: a `.archon/methods.local/` directory, and any `methods.<name>.source` key in the config. When
+  you report one, say that the route to replace a Box step is now an `include:` slot, decided and not yet
+  built, and name [ADR-0038](../docs/adr/0038-practice-packs-stack-by-prefix.md) §7 as where it is
+  recorded.
 
 **The Boxes.** Install every `unic-dlc-*.yaml` this Plugin ships into `.archon/workflows/`, discovered by
 reading the Plugin's own `.archon/workflows/` — no Box name is a literal in this file.
@@ -364,23 +392,50 @@ rules hold whatever they answer:
 ## Step 7 — Patch the managed blocks (**patch**)
 
 One block in the Consumer's `CLAUDE.md`, and one more in each line-based ignore file Step 4 found. Each is
-delimited by markers written in that file's own comment syntax, `unic-archon-dlc:begin` and
-`unic-archon-dlc:end`. Rewrite the whole block between the markers, markers included, and leave everything
-outside them verbatim. Absent block in a file that exists → append it. Absent file → create it, but only
-where this step has a block to put in it: a tool whose exclusions live in a structured config gets no file
-of its own invented for it. A
-re-run replaces the block in place and never appends a second one. The block carries no
-`AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run rewrites it — two different
-things, and the second is what makes an overwrite legible. What it never claims is to be maintained: nothing
-here detects a hand edit
-between the markers.
+delimited by markers written in that file's own comment syntax, `unic-dlc:begin` and `unic-dlc:end`.
+Rewrite the whole block between the markers, markers included, and leave everything outside them verbatim.
+A marker is a line whose whole comment text is `unic-dlc:begin` or `unic-dlc:end`. Never match it as part
+of a longer word, because a marker that carries another prefix belongs to another installer.
+
+**A block under the old markers is migrated in place.** Before version 0.30.0 this Plugin wrote its blocks
+between `unic-archon-dlc:begin` and `unic-archon-dlc:end`. Before you write to a file, look in it for both
+marker pairs, matched as whole comment lines in the same way.
+
+Check the malformed cases first. In each of them, write nothing to that file and report it in Step 8 as
+`ACTION REQUIRED`, because a rewrite could remove the Consumer's text or leave a stray marker:
+
+- A begin marker with no end marker of the same name after it. A begin of one name followed by an end of
+  the other name counts as this case.
+- An end marker with no begin marker of the same name before it, under either name.
+- Two blocks under the same marker name.
+- More than one begin marker, or more than one end marker, under the same name.
+
+Then, for a well-formed file:
+
+- A block under the new markers only → rewrite it in place.
+- A block under the old markers only → replace it, from the old begin line to the old end line, with the
+  block under the new markers, at the same position in the file. Report the file as migrated in Step 8.
+- Both → rewrite the new block in place and remove the old block, markers included.
+  Report the file in Step 8 as `patched` and `old block removed`.
+
+Then search the repository, skipping `.git/` and `node_modules/`, for any other file that holds
+`unic-archon-dlc:begin` or `unic-archon-dlc:end` as a whole comment line. Write nothing to such a file.
+Report each one in Step 8 as `ACTION REQUIRED`, as a file that holds an old marker outside the files this
+step patches. The operator decides what to do with it.
+
+Absent block in a file that exists → append it. Absent file → create it, but only where this step has a
+block to put in it: a tool whose exclusions live in a structured config gets no file of its own invented for
+it. A re-run replaces the block in place and leaves one block per file, never two, under the new markers.
+The block carries no `AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run
+rewrites it — two different things, and the second is what makes an overwrite legible. What it never claims
+is to be maintained: nothing here detects a hand edit between the markers.
 
 ### `CLAUDE.md`
 
 Write exactly this, markers included, as the whole block. Every line is static:
 
 ```markdown
-<!-- unic-archon-dlc:begin -->
+<!-- unic-dlc:begin -->
 
 ## unic-archon-dlc
 
@@ -400,7 +455,7 @@ anything between the markers is replaced on the next run.
 - **What each box does** —
   <https://github.com/unic/unic-agents-plugins/blob/main/apps/claude-code/unic-archon-dlc/README.md>
 
-<!-- unic-archon-dlc:end -->
+<!-- unic-dlc:end -->
 ```
 
 The block names one command, `/unic-archon-dlc:setup`, and no pipeline stage: a Plugin release renames and
@@ -447,6 +502,7 @@ unic-archon-dlc installed.
   workflows removed: {path} · … | none
   workflows added:   {path} · … | none
   formatters: {tool} → {ignore file patched} | {tool} → ACTION REQUIRED: {entry to add}
+  blocks:   {file} → patched | migrated from unic-archon-dlc markers | old block removed | ACTION REQUIRED: {malformed markers, or an old marker outside the patched files}
 ```
 
 Name **paths**, never a count alone: the point is a reviewable diff.
@@ -504,8 +560,8 @@ Build the version line in one of three forms, and compute it nowhere else:
 The line is informational and gates nothing. Step 5 runs unattended on the upgrade path, so it never
 becomes a prompt.
 
-Close with three things. Every `ACTION REQUIRED` formatter entry, which is the one open item that outlives
-a successful run. Then: **commit what this run wrote.** The installed trees are committed generated files
+Close with three things. Every `ACTION REQUIRED` entry, from the formatters or the blocks. These are the
+open items that outlive a successful run. Then: **commit what this run wrote.** The installed trees are committed generated files
 ([ADR-0036](../docs/adr/0036-setup-owns-a-named-install-set.md) D4) — that is what gives a Plugin upgrade a
 diff and a reviewer, and what makes an operator's edit to a Box legible as a `git diff` after the next run.
 This command stages nothing itself. And: **re-run `/unic-archon-dlc:setup` after updating the plugin.** It

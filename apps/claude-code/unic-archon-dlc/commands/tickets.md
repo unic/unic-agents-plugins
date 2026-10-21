@@ -130,7 +130,7 @@ Three things the Harness adds or overrides on top of it:
   to `/unic-archon-dlc:build`. And its "run `/setup-matt-pocock-skills` if not" fallback never
   applies — Step 1 read the vocabulary from `docs/agents/triage-labels.md`, which is the file that
   skill would overwrite, with a five-role `wontfix` vocabulary that drops every mapping
-  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended).
+  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
 
 Draft each slice with these fields (Step 8 checks them):
 
