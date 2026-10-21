@@ -46,8 +46,8 @@ nodes:
 
       This run's base branch is `$BASE_BRANCH`. Archon resolves it before this node starts, from
       `--base`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default. It is
-      the branch the worktree was cut from, the code-review fixed point, and the PR target. Read no
-      base branch from the config. In EVERY branch, start `message` with
+      the code-review fixed point and the PR target. Archon cuts the worktree from it unless `--from`
+      names another branch. Read no base branch from the config. In EVERY branch, start `message` with
       "Base branch: $BASE_BRANCH." and follow it with the reason for any status other than "ready".
 
       ## The `sdlc_needs` block — a key names a need, never a tool
@@ -469,8 +469,10 @@ nodes:
          `e2e` is null this node wants no e2e run at all and reports nothing about it — silence here
          means "not wanted", which is not the same fact as "could not run".
       2. Stub scan — inspect the diff against the base branch
-         (`git diff --name-only $BASE_BRANCH...HEAD`, source files only:
-         .mjs/.js/.ts/.py/.rb/.go/.rs). Flag any of these left in changed source:
+         (`git diff --name-only origin/$BASE_BRANCH...HEAD`, falling back to
+         `git diff --name-only $BASE_BRANCH...HEAD` if `origin/$BASE_BRANCH` doesn't resolve; source
+         files only: .mjs/.js/.ts/.py/.rb/.go/.rs). If neither ref resolves, put the stub scan in
+         `unresolved_needs` and name the ref that failed. Flag any of these left in changed source:
            - `TODO` / `FIXME` comments
            - Python `pass` as a whole statement
            - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
@@ -826,12 +828,12 @@ nodes:
     depends_on: [open-pr]
     when: "$bootstrap.output.gate == 'hitl'"
     # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
-    # on #505), so this message points at the bootstrap message, which names the base.
+    # on #505), so this message names the base through bootstrap's message, which starts with it.
     approval:
       message: >
-        Build implementation, goals-check matrix, and report are ready. Review the PR opened against
-        the base branch that the bootstrap message names. Approve to finish, or reject with feedback
-        to trigger a verify-and-fix pass.
+        Build implementation, goals-check matrix, and report are ready. $bootstrap.output.message
+        Review the PR opened against that base branch. Approve to finish, or reject with feedback to
+        trigger a verify-and-fix pass.
       on_reject:
         prompt: |
           The reviewer rejected the build PR with this feedback:

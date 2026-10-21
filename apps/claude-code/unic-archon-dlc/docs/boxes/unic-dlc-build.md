@@ -71,7 +71,7 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    `issues.json`, `report.md`, `build-state.json`, `evidence.json` when the gate wrote it, and any
    drafted ADR), confirms with `git status --porcelain` that nothing else is staged, opens a PR
    against the derived repository with
-   the run's base branch, Archon's `$BASE_BRANCH`, as its target (`/unic-archon-dlc:setup` reports which branch that is), then gates it. `build-state.json` is committed here and **only** here — never during
+   the run's base branch, Archon's `$BASE_BRANCH`, as its target, then gates it. `/unic-archon-dlc:setup` reports which branch that is. `build-state.json` is committed here and **only** here — never during
    a loop iteration — so the loop's anti-cheat record survives `/cleanup`. The gate is **HITL by default**
    and honours `gates.build`: skipped when `afk` (the PR is still opened). On **reject**, a
    verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses — it does **not** rebuild

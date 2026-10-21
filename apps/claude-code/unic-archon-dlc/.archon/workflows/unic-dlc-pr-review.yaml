@@ -183,12 +183,18 @@ nodes:
       ## 2. Compute the diff + categorise changed files
       DIFF_BASE = the branch this PR will merge into. When step 1 found a PR, it is the PR's target
       branch, because that is the diff that will merge. When the tracker has no queryable PR, it is
-      `$BASE_BRANCH`. When both exist and differ, print "prep: WARNING: the PR targets <PR target>
-      but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>." and carry
-      on. Print "prep: diff base is <DIFF_BASE> (<source>)", where <source> is "PR target" or
-      "run base, no PR".
-      BASE_REF = `git merge-base origin/<DIFF_BASE> HEAD`, falling back to
-      `git merge-base <DIFF_BASE> HEAD` when `origin/<DIFF_BASE>` does not resolve, then to `HEAD~1`.
+      `$BASE_BRANCH`. When both exist and differ, set `base_warning` to "the PR targets <PR target>
+      but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>.", print it
+      as "prep: WARNING: <base_warning>", and carry on. Otherwise set `base_warning` to "". Print
+      "prep: diff base is <DIFF_BASE> (<source>)", where <source> is "PR target" or "run base, no PR".
+      DIFF_BASE may be a branch this clone has never fetched, so run `git fetch origin <DIFF_BASE>`
+      first. A failed fetch is not fatal on its own. Then set BASE_REF to
+      `git merge-base origin/<DIFF_BASE> HEAD`, falling back to `git merge-base <DIFF_BASE> HEAD` when
+      `origin/<DIFF_BASE>` does not resolve. If NEITHER resolves, do NOT fall back to `HEAD~1` or to
+      any other commit: a one-commit diff reviews the wrong change and reports it clean. Instead print
+      "prep: BLOCKED: cannot resolve diff base '<DIFF_BASE>' via origin or local", set `base_ref` to
+      "", write no diff, and stop. Emit the object with the fields you have, as the rule at the end of
+      this node says.
       Write the unified diff to `SESSION/diff.patch` (`git diff <BASE_REF>...HEAD`) and the changed-file
       list to `SESSION/changed-files.txt` (`git diff --name-only <BASE_REF>...HEAD`).
       Categorise the changed files into these STRING booleans ("true"/"false"):
@@ -241,7 +247,9 @@ nodes:
       Write `SESSION/prep.json` mirroring the emitted object for durability.
 
       ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
-      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". `contradictions` and
+      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". When step 2 stopped as
+      BLOCKED, use `base_ref` "", the STRING "false" for every category, `intent_available` "false",
+      iteration 1, and `[]` for both arrays. `contradictions` and
       `prior_findings` are ALWAYS arrays — `[]` when there is nothing to report. Emit the structured object.
     output_format:
       type: object
@@ -249,6 +257,7 @@ nodes:
         pr_id: { type: string }
         pr_title: { type: string }
         base_ref: { type: string }
+        base_warning: { type: string }
         has_source: { type: string, enum: ['true', 'false'] }
         has_tests: { type: string, enum: ['true', 'false'] }
         has_types: { type: string, enum: ['true', 'false'] }
@@ -269,7 +278,7 @@ nodes:
               anchored: { type: string, enum: ['true', 'false'] }
               prior_verdict: { type: string, enum: ['open', 'fixed'] }
             required: [hash, aspect, file, title, anchored, prior_verdict]
-      required: [pr_id, pr_title, base_ref, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_findings]
+      required: [pr_id, pr_title, base_ref, base_warning, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_findings]
 
   # =============================================================================================
   # review — ONE node hosting the `code-review` Method's OWN two-axis fan-out (Standards · Spec).
@@ -287,6 +296,17 @@ nodes:
   # comment is not part of a prompt, so a rule stated only here is invisible at run time. Every rule
   # this Box must honour is written in the prompt that honours it, for that reason.
   # =============================================================================================
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-diff-base — prep emits an empty base_ref when it cannot resolve the branch the PR merges
+  # into. Reviewing a guessed base reads the wrong diff and reports it clean, so the run cancels.
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-diff-base
+    depends_on: [prep]
+    when: "$prep.output.base_ref == ''"
+    cancel: >
+      /pr-review cannot resolve the branch this PR merges into, so it reviews nothing. See prep's
+      "prep: BLOCKED" line for the branch. Fetch it, or dispatch with --base <branch>, and re-run.
 
   - id: review
     depends_on: [prep]
@@ -308,8 +328,10 @@ nodes:
       so both are supplied here and you must NOT ask:
 
       - **Step 1, the fixed point:** `$prep.output.base_ref` — prep already computed it as the
-        merge-base of HEAD and the PR's target branch, or `$BASE_BRANCH` when there is no PR. Confirm it resolves and the diff is non-empty before
-        spawning anything, as the Method requires. prep also wrote the diff to SESSION/diff.patch and
+        merge-base of HEAD and the PR's target branch, or `$BASE_BRANCH` when there is no PR. If it is
+        empty, prep could not resolve that branch: print "review: BLOCKED: prep resolved no diff base",
+        and stop. Otherwise confirm it resolves and the diff is non-empty before spawning anything, as
+        the Method requires. prep also wrote the diff to SESSION/diff.patch and
         the changed-file list to SESSION/changed-files.txt; use them rather than recomputing.
       - **Step 2, the spec source:** `SESSION/intent-brief.md` — prep already distilled it from the
         linked work items, the referenced docs, the PR description and PRD.md, with a numbered
@@ -523,6 +545,7 @@ nodes:
            <!-- unic-dlc-pr-review:iteration=<ITERATION> -->
            ## unic-dlc /pr-review — $prep.output.pr_title · Iteration <ITERATION>
 
+           <base warning callout, when `$prep.output.base_warning` is not empty: quote it verbatim>
            <contradictions callout, if any>
            ### Checks this review did not run
            <the block — see step 5b>

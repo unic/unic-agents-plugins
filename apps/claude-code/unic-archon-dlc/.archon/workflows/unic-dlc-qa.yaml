@@ -113,7 +113,7 @@ nodes:
         install_report: { type: string }
         branching: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, message]
+      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, branching, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
@@ -421,16 +421,19 @@ nodes:
       own current tool list and build the call from it, writing no command, subcommand or flag here
       and naming no provider (ADR-0016). Its § Addressing names the repository to query; name that
       repository explicitly, and derive nothing from a remote URL. If the file is absent, or the
-      tracker cannot target a repository explicitly, treat the base as unverifiable (below) and say
-      which was the reason.
+      tracker cannot target a repository explicitly, the base cannot be checked. Set `base_ok` to the
+      STRING "false" and say which was the reason.
 
       Query the open PR for the current feature branch on that repository and read its target base
       branch.
 
       Set `base_ok` to the STRING "true" when the actual base equals $BASE_BRANCH; the STRING "false"
       on a genuine mismatch. (It is a string, not a boolean, so the downstream `when` gates compare it
-      reliably as `== 'true'`.) When the tracker has no queryable PR at all, set `base_ok` "true" and
-      note that the base is unverifiable here — a warning, non-blocking. Print
+      reliably as `== 'true'`.) When the query fails or errors, set `base_ok` "false" and print the
+      error. A base nobody checked is not a verified base. Set `base_ok` "true" without a match only
+      when a query succeeds and confirms that no PR exists for this branch, and note that the base is
+      unverifiable here. That is a warning, non-blocking. Set `actual_base` to the PR's target branch,
+      or to "" when there is no PR. Print
       "verify-pr-base: base is <actual> ✓" or "verify-pr-base: PR targets <actual> but expected
       <expected> ✗ — retarget first."
     output_format:
@@ -440,7 +443,7 @@ nodes:
           type: string
           enum: ['true', 'false']
         actual_base: { type: string }
-      required: [base_ok]
+      required: [base_ok, actual_base]
 
   # ---------------------------------------------------------------------------------------------
   # merge-gate — HITL by default; skipped in AFK. Only pauses when the base is verified good, so an
@@ -450,10 +453,10 @@ nodes:
     depends_on: [verify-pr-base]
     when: "$bootstrap.output.gate == 'hitl' && $verify-pr-base.output.base_ok == 'true'"
     # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
-    # on #505), so this message points at the bootstrap message, which names the base.
+    # on #505), so this message names the base through verify-pr-base's actual_base.
     approval:
       message: >
-        UAT approved and PR base verified as the base branch that the bootstrap message names, for
+        UAT approved and PR base verified as "$verify-pr-base.output.actual_base" for
         "$bootstrap.output.slug". The test result is "$test.output.result". A merge needs "pass": this
         gate is not what enforces that — the merge node downstream is — so if the result above is not
         "pass", approving here will not produce a merge. Which checks could not run is written in
