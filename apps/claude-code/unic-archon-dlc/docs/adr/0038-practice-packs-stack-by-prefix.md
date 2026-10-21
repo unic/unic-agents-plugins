@@ -91,6 +91,9 @@ this. Once it lands, a Box reads three layers, and a later layer wins key by key
 2. Each `.archon/packs/<prefix>.config.yaml`, one pack's defaults.
 3. `.archon/unic-dlc.config.yaml`, the Consumer's choices.
 
+The DLC's defaults come first and the Consumer's file comes last. The order between two packs' defaults
+files is not decided. #647 decides it before a second pack sets a default.
+
 Each installer replaces its own defaults file on every run. No installer writes a default into the
 Consumer's file. So the Consumer's value wins, and it survives a re-run of `/setup` and a pack upgrade.
 The reader sees a Consumer override in the Consumer's own file, because that file holds nothing else. On a
@@ -127,12 +130,13 @@ but they use different mechanisms, so neither one blocks the other.
 
 ## Which file wins on a collision
 
-| Collision                                | Who wins                                        | Where the reader sees it                                                       |
-| ---------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
-| One key set in several config layers     | The later layer of §6; the Consumer's file last | `.archon/unic-dlc.config.yaml`, and the `/setup` report of default-valued keys |
-| Two packs claim one prefix               | Nobody. The second installer stops and asks     | That installer's run                                                           |
-| Two packs claim one `include:` slot      | The pack the Consumer chooses                   | `.archon/unic-dlc.config.yaml`, as a Consumer override                         |
-| A Consumer edit inside a pack's own name | The pack. Its next run overwrites the edit      | The `git diff` after that run                                                  |
+| Collision                                         | Who wins                                        | Where the reader sees it                                                       |
+| ------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| One key set in several config layers              | The later layer of §6; the Consumer's file last | `.archon/unic-dlc.config.yaml`, and the `/setup` report of default-valued keys |
+| One key set by two packs, and not by the Consumer | Not decided (#647)                              | Not decided                                                                    |
+| Two packs claim one prefix                        | Nobody. The second installer stops and asks     | That installer's run                                                           |
+| Two packs claim one `include:` slot               | The pack the Consumer chooses                   | `.archon/unic-dlc.config.yaml`, as a Consumer override                         |
+| A Consumer edit inside a pack's own name          | The pack. Its next run overwrites the edit      | The `git diff` after that run                                                  |
 
 ## Not decided here
 
@@ -145,6 +149,9 @@ but they use different mechanisms, so neither one blocks the other.
   carries no pack prefix.
 - **How a slot records its occupant**, so that the DLC's next `/setup` leaves it alone.
 - **Whether the DLC's `/setup` runs each installed pack's installer.**
+- **The order between two packs' defaults files.** When two packs set the same key differently and the
+  Consumer's file omits it, no winner is defined. [#647](https://github.com/unic/unic-agents-plugins/issues/647)
+  decides the order before a second pack sets a default.
 - **Whether Archon 0.12.x treats include slots as measured on 0.10.1.** Source at v0.12.1 shows the same
   logic, and nobody has measured it.
 - **Whether a `SessionStart` hook or `.claude/rules/*.md` reach a node.** Both are unmeasured on every
