@@ -40,12 +40,14 @@ nodes:
              `pr-review.confidence_threshold` (default 60)
              `pr-review.inline_comments`      (default true)
              `docs.type` / `docs.access`      (for intent composition from docs)
-             `project.branching`              (default "gitflow")
              the whole `sdlc_needs` block
       3. If slug and config are both present → status "ready".
          (There is no PRD precondition: intent is composed from whatever sources resolve — see prep.)
 
-      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
+      This run's base branch is `$BASE_BRANCH`. Archon resolves it before this node starts, from
+      `--base`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default. Read no
+      base branch from the config. prep diffs against the PR's own target branch when there is a PR,
+      and against `$BASE_BRANCH` only when there is none.
 
       ## The `sdlc_needs` block — a key names a need, never a tool
       Every key in it names a NEED of this project's development process. `test` names the need;
@@ -85,9 +87,9 @@ nodes:
       ALWAYS emit EVERY required field, including in the no-slug and no-config branches, so the object
       validates before a guard can cancel. When a value cannot be read, fall back to: slug "" (if
       no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
-      "true", branching "gitflow", expected_base "develop". `inline_comments` is emitted as the STRING
-      "true"/"false" (enum) so downstream `when` comparisons are reliable. Set `message` to a
-      human-readable reason for any non-ready status.
+      "true". `inline_comments` is emitted as the STRING "true"/"false" (enum) so downstream `when`
+      comparisons are reliable. In EVERY branch, start `message` with "Base branch: $BASE_BRANCH."
+      and follow it with a human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -103,7 +105,6 @@ nodes:
         inline_comments:
           type: string
           enum: ['true', 'false']
-        branching: { type: string }
         sdlc_needs:
           type: object
           properties:
@@ -118,9 +119,8 @@ nodes:
             coverage: { type: [string, 'null'] }
           required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
         install_report: { type: string }
-        expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, branching, sdlc_needs, install_report, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, sdlc_needs, install_report, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
@@ -181,8 +181,14 @@ nodes:
       Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an intent source).
 
       ## 2. Compute the diff + categorise changed files
-      BASE_REF = the upstream base (merge-base of the PR base branch and HEAD). Try
-      `git merge-base origin/$bootstrap.output.expected_base HEAD`; fall back to `HEAD~1`.
+      DIFF_BASE = the branch this PR will merge into. When step 1 found a PR, it is the PR's target
+      branch, because that is the diff that will merge. When the tracker has no queryable PR, it is
+      `$BASE_BRANCH`. When both exist and differ, print "prep: WARNING: the PR targets <PR target>
+      but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>." and carry
+      on. Print "prep: diff base is <DIFF_BASE> (<source>)", where <source> is "PR target" or
+      "run base, no PR".
+      BASE_REF = `git merge-base origin/<DIFF_BASE> HEAD`, falling back to
+      `git merge-base <DIFF_BASE> HEAD` when `origin/<DIFF_BASE>` does not resolve, then to `HEAD~1`.
       Write the unified diff to `SESSION/diff.patch` (`git diff <BASE_REF>...HEAD`) and the changed-file
       list to `SESSION/changed-files.txt` (`git diff --name-only <BASE_REF>...HEAD`).
       Categorise the changed files into these STRING booleans ("true"/"false"):
@@ -302,7 +308,7 @@ nodes:
       so both are supplied here and you must NOT ask:
 
       - **Step 1, the fixed point:** `$prep.output.base_ref` — prep already computed it as the
-        merge-base of the PR base branch and HEAD. Confirm it resolves and the diff is non-empty before
+        merge-base of HEAD and the PR's target branch, or `$BASE_BRANCH` when there is no PR. Confirm it resolves and the diff is non-empty before
         spawning anything, as the Method requires. prep also wrote the diff to SESSION/diff.patch and
         the changed-file list to SESSION/changed-files.txt; use them rather than recomputing.
       - **Step 2, the spec source:** `SESSION/intent-brief.md` — prep already distilled it from the
