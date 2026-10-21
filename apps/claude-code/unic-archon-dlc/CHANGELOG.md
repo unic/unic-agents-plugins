@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.30.0] — 2026-10-21
+
+### Breaking
 - `/setup` now writes its managed blocks, in the Consumer's `CLAUDE.md` and in each formatter ignore file, between `unic-dlc:begin` and `unic-dlc:end`. The old markers were `unic-archon-dlc:begin` and `unic-archon-dlc:end`. On its next run, `/setup` finds a block under the old markers, rewrites it in place under the new ones and reports the file as migrated, so a Consumer holds one block, never two. A tool or script outside this Plugin that searches for the old markers must change to the new ones (#520).
 
 ### Added
