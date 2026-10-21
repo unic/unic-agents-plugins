@@ -35,11 +35,22 @@ rewrites a tenant file.
 **This Plugin's prefix is `unic-dlc`, and `/setup` touches no name that carries another prefix.** A
 Consumer may hold Practice Packs beside this Plugin, each with its own prefix and its own installer
 ([ADR-0038](../docs/adr/0038-practice-packs-stack-by-prefix.md)). In `.claude/skills/`, in `.archon/packs/`,
-in `CLAUDE.md` and in every formatter ignore file, `/setup` reads, writes, overwrites or removes only a name
-that carries `unic-dlc`: a `unic-dlc-*` skill directory, `unic-dlc.config.yaml`, and the block between the
-`unic-dlc:begin` and `unic-dlc:end` markers. Leave every other skill directory, config file and marked
-block as you found it, whatever it contains. Whether one prefix may begin another is still open, and this
-rule holds whatever the answer is.
+in `CLAUDE.md` and in every formatter ignore file, `/setup` writes, overwrites or removes only these names:
+
+- a `.claude/skills/unic-dlc-*/` directory. This Plugin installs none today.
+- `.archon/packs/unic-dlc.config.yaml`. `/setup` writes nothing in `.archon/packs/` until
+  [Build the layered Practice Pack config](https://github.com/unic/unic-agents-plugins/issues/647) lands. The
+  Consumer's config stays at `.archon/unic-dlc.config.yaml`, as Step 6 says.
+- the block between the `unic-dlc:begin` and `unic-dlc:end` markers in `CLAUDE.md` and in each ignore
+  file.
+
+Leave every other skill directory, config file and marked block as you found it, whatever it contains. The
+one exception is the legacy `unic-archon-dlc:begin` and `unic-archon-dlc:end` markers. They are reserved to
+this Plugin (ADR-0038 §5), and Step 7 migrates a block under them.
+
+Whether one prefix may begin another is still open, and this rule does not settle it. A pack prefixed
+`unic-dlc-e2e` would own `unic-dlc-e2e-*` skill directories, which also match `unic-dlc-*`. That overlap is
+an open risk until ADR-0038 decides the boundary.
 
 ## Step 1 — Preflight
 
@@ -376,18 +387,29 @@ of a longer word, because a marker that carries another prefix belongs to anothe
 between `unic-archon-dlc:begin` and `unic-archon-dlc:end`. In each file, look for both marker pairs, matched
 as whole comment lines in the same way, before you write:
 
+Check the malformed cases first. In each of them, write nothing to that file and report it in Step 8 as
+`ACTION REQUIRED`, because a rewrite could remove the Consumer's text or leave a stray marker:
+
+- A begin marker with no end marker of the same name after it. A begin of one name followed by an end of
+  the other name counts as this case.
+- An end marker with no begin marker of the same name before it, under either name.
+- Two blocks under the same marker name.
+
+Then, for a well-formed file:
+
 - A block under the new markers only → rewrite it in place.
 - A block under the old markers only → replace it, from the old begin line to the old end line, with the
   block under the new markers, at the same position in the file. Report the file as migrated in Step 8.
 - Both → rewrite the new block in place and remove the old block, markers included. Report both in Step 8.
-- A begin marker with no end marker after it, under either name → write nothing to that file. Report it in
-  Step 8 as an open item, because a rewrite would remove everything after the marker.
 
-So a re-run leaves one block per file, never two, under the new markers. Absent block in a file that
-exists → append it. Absent file → create it, but only
+Then search the repository for any other file that holds `unic-archon-dlc:begin` as a whole comment line. Such a file is an
+ignore file whose formatter Step 4 no longer finds. Change nothing in it, and report it in Step 8 as
+`ACTION REQUIRED`, so the operator removes the block or restores the formatter.
+
+Absent block in a file that exists → append it. Absent file → create it, but only
 where this step has a block to put in it: a tool whose exclusions live in a structured config gets no file
-of its own invented for it. A
-re-run replaces the block in place and never appends a second one. The block carries no
+of its own invented for it. A re-run replaces the block in place and leaves one block per file, never two,
+under the new markers. The block carries no
 `AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run rewrites it — two different
 things, and the second is what makes an overwrite legible. What it never claims is to be maintained: nothing
 here detects a hand edit
@@ -464,7 +486,7 @@ unic-archon-dlc installed.
   workflows removed: {path} · … | none
   workflows added:   {path} · … | none
   formatters: {tool} → {ignore file patched} | {tool} → ACTION REQUIRED: {entry to add}
-  blocks:   {file} → patched | migrated from unic-archon-dlc markers | old block removed | ACTION REQUIRED: begin marker without end
+  blocks:   {file} → patched | migrated from unic-archon-dlc markers | old block removed | ACTION REQUIRED: {malformed markers, or an old block in a file no formatter uses}
 ```
 
 Name **paths**, never a count alone: the point is a reviewable diff.
