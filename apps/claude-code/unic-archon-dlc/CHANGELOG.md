@@ -11,6 +11,18 @@
 ### Fixed
 - (none)
 
+## [0.30.0] — 2026-10-21
+
+### Breaking
+- `/setup` now writes its managed blocks, in the Consumer's `CLAUDE.md` and in each formatter ignore file, between `unic-dlc:begin` and `unic-dlc:end`. The old markers were `unic-archon-dlc:begin` and `unic-archon-dlc:end`. On its next run, `/setup` finds a block under the old markers, rewrites it in place under the new ones and reports the file as migrated, so a Consumer holds one block, never two. A tool or script outside this Plugin that searches for the old markers must change to the new ones (#520).
+
+### Added
+- ADR-0038 records how Practice Packs stack in one Consumer beside the DLC. Each installer owns only the names that carry its prefix, and `unic-dlc` is the DLC's prefix. A pack ships context artefacts and config values, never a Box or a Method. The DLC alone writes `.archon/methods/`. Config is layered, with the Consumer's file last. An `include:` slot is the decided, unbuilt route for a pack that must replace a Box step. ADR-0031, ADR-0024 and ADR-0013 point at it, and `CONTEXT.md` states the Practice Pack model as decided (#520).
+- `/setup` states that it touches no name carrying another prefix, in `.claude/skills/`, `.archon/packs/`, `CLAUDE.md` or a formatter ignore file. When it reports a retired Method override path, it also names ADR-0038 as where the route to replace a Box step is recorded (#520).
+
+### Fixed
+- (none)
+
 ## [0.29.0] — 2026-09-27
 
 ### Breaking

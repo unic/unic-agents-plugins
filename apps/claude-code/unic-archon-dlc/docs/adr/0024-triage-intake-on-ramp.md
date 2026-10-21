@@ -1,129 +1,109 @@
-# 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to DLC config as the single source of truth
+# 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to the tracker contract in `docs/agents/`
 
-**Status:** Accepted (2026-07-02); amended 2026-08-11, 2026-08-13, and 2026-08-18. The 2026-08-18
-amendment is the one to read first: it kills two rules the rest of this ADR still states.
-
-> **Amended (2026-08-18) — two rules in this ADR are dead.** The tracker contract moved out of
-> `.archon/unic-dlc.config.yaml` and into two repo-local prose files, `docs/agents/issue-tracker.md`
-> and `docs/agents/triage-labels.md`. A Box now names a role and a file, and never a host word. The
-> whole `tracker` block, `classification.labels` and `project.pr_strategy` left the config with it, and
-> `MANDATORY_PATHS` is `project.branching` alone. Two things stated below no longer hold:
->
-> - **The compose rule is reversed.** This ADR says _"DLC commands feed Matt's methods DLC config;
->   Matt's own setup artifacts are never consulted in DLC flows"_, and `/triage` enforced it by
->   instructing the Method **not** to read `docs/agents/triage-labels.md` or
->   `docs/agents/issue-tracker.md`. Those two files are now the contract, and every Box and command
->   reads them. The rule solved a real two-writer problem by forbidding the read; this decision solves
->   the same problem by removing one writer — `/unic-archon-dlc:setup` owns both files, and
->   `setup-matt-pocock-skills` must never be run over them.
-> - **"The tier carries the axis" is disproved.** The 2026-08-11 amendment claimed a Box hands the
->   composed skill the tier alongside the string, so the skill knows whether to write a state, a status
->   or a label. Measured against a live tenant, five of the eight state roles cannot be states at all:
->   writing a state while the work is still open moves an already-active item backwards on the board, so
->   only the three terminal roles are states there and the rest are tags. **The axis belongs to the
->   role, not to the tier**, which is why `triage-labels.md` names an axis per row.
->
-> What survives unchanged: `/triage` is a thin binding wrapper, the container decision, the
-> label-taxonomy mapping between Matt's five roles and the DLC's seventeen, best-effort verification,
-> and the on-ramp contract. What the wrapper _binds_ changed; that it binds did not.
->
-> The amendments below are kept as the record of how the config-shaped answer was reached. Read them
-> as history, not as instructions.
-
-> **Amended (2026-08-11, extended 2026-08-13):** this ADR ended its label section with "Teams override `classification.labels` in YAML" and never said who fills the mapping. So `defaultConfig()` seeded one and `/setup` never raised the subject, shipping a guess that is correct only for a tracker already using the Plugin's own vocabulary (#329). Seven decisions complete the sentence — the first five recorded on 2026-08-11, the last two on 2026-08-13 when #329 was implemented and an audit found them recorded on the issue alone.
->
-> - **The team names the Label strings, and `/setup` asks.** One question, the seventeen roles grouped by tier — `state`, `type`, `priority` — with a one-line gloss per tier, offering the names the Plugin ships. The gloss is conversation copy in `commands/setup.md`, never data in `lib/`. This is the shape `setup-matt-pocock-skills` uses for its own five roles: one question, ships no code.
-> - **`/setup` never inspects the tracker and never creates a label.** It does not probe for existing labels, does not report which are absent, and does not offer to add one. A tracker with a different vocabulary is answered by mapping the role onto a string that tracker already carries, not by adding a seventeenth label to someone else's board.
-> - **The tier carries the axis.** A Box hands the composed tracker skill the tier alongside the string, so the skill knows whether to write an Azure DevOps `System.State`, a Jira status or a GitHub label. No Box ever learns how the tracker stores a role. This is what keeps the mapping tracker-agnostic while it stays a plain `Record<role, string>`, and it is why the label-shaped model needs no generalisation.
-> - **No default is seeded.** `defaultConfig()` emits no `classification.labels`, and `classification.labels` joins `MANDATORY_PATHS`. A mapping is therefore present because a human accepted it, or absent and collected on the next run. The names the Plugin ships are what `/setup` offers, never what it writes on the team's behalf.
-> - **The key set is closed downward.** A `classification.labels` missing a shipped Canonical role is a fault: `validateConfig` reports it, so the config reads `partial` and `/setup` collects it, and `toYaml` refuses to write it. An extra key is allowed and ignored — nothing reads it, and `migrateLegacy` preserves a hand-added type such as `release` on purpose. The team owns the right-hand column and never the left.
-> - **No drift mechanism, and no migration for an already-seeded config** _(2026-08-13)_. `classification.labels` gets no `sha256` entry in `.archon/unic-dlc.install.json`: #295 draws the line at generated files, and the config is hand-editable by design, so hashing a file the operator is invited to edit inverts that. A config an older `/setup` wrote therefore keeps the seeded map on disk, present and indistinguishable from an accepted answer. That boundary is accepted rather than migrated — treating an identity map as unanswered would misfire on every team that genuinely accepted identity, and stripping it would discard a mapping a team may have hand-edited. New installs are clean, existing ones keep their map, and the CHANGELOG names `/unic-archon-dlc:setup reconfigure` as the way to review it.
-> - **The written YAML carries no comments** _(2026-08-13)_. `toYaml` stays a single `stringifyYaml(config)` call. Per-tier comments would need a `yaml` `Document`, because `mergeConfig` works on plain objects and drops comments on a re-run — so they would have to be re-stamped on every write, which fights an operator who adds their own and churns the diff. The config is meant to be hand-edited; a generator that rewrites its comments is friction. The explanation lives in the `CLAUDE.md` marker block instead, which is the one surface `/setup` installs into a Consumer.
->
-> Recorded because it surprised the session that produced this amendment: **no Box reads a state Label string today.** `/triage`, `/tickets` and `/qa` write states; nothing selects work by label, and the handoff between Boxes is the Slug a human passes. Key-closure still earns its place, because a missing key breaks the **writer** — `/triage` resolving `needs-specs` through `LABELS` either fails mid-run or invents a string, which is #329's failure mode. Whether the reads should exist is #332.
-
-> **Amended (2026-08-13):** the known item under § Consequences — "the block-ownership overlap remains for a later `/setup`/finalize step" — is settled. #296 is that step: `/setup` renames the block it writes in a Consumer's `CLAUDE.md` from `## Agent skills` to `## unic-archon-dlc`, so the two installers no longer manage a heading of the same name and nothing in the block is a registered skill (the Methods this Plugin ships are read by path — [ADR-0031](0031-methods-bundled-three-tier-resolution.md)). The `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->` markers are unchanged, so the rename costs an existing Consumer nothing. The same issue drops the "auto-managed" framing (nothing detects a hand-edit between the markers, and nothing will) and rewrites the block to name no Box and no pipeline stage: it carries paths on the Consumer's own disk, `archon workflow list` to enumerate what is installed there, and a link to this Plugin's README. The § Consequences bullet below stands as written on 2026-07-02.
+**Status:** Accepted (2026-07-02, revised 2026-10-21)
 
 ## Context
 
 The shipped `triage` workflow produced a `HANDOFF.md` state snapshot and updated a `ROADMAP.md`.
-[ADR-0013](0013-tracker-single-source-of-truth.md) retired that role — the tracker is the single
-source of truth for "where are we", and no workflow writes durable repo-state snapshots. The box set
+[ADR-0013](0013-tracker-single-source-of-truth.md) retired that role. The tracker is the single source of
+truth for "where are we", and no workflow writes durable repo-state snapshots. The box set
 ([ADR-0014](0014-workflow-per-box-decomposition.md)) then gave `/triage` a **new** meaning: an
 **intake on-ramp** that turns raw incoming work (bug reports, feature requests, QA findings, external
 PRs) into agent-ready issues feeding the `/tickets` convergence point.
 
 Two questions surfaced when implementing the box:
 
-1. **Container + earns-its-place.** Triage is a live conversation (categorise, verify, grill), so per
+1. **Container and earns-its-place.** Triage is a live conversation (categorise, verify, grill), so per
    [ADR-0017](0017-container-follows-structural-need.md) it is a command/skill, not an Archon
    workflow, and it is inherently HITL. But Matt Pocock's `triage` skill already carries the full
-   method (gather → recommend → verify → grill → apply, with agent briefs and the `.out-of-scope/`
-   KB). Per [ADR-0021](0021-earns-its-place-compose-verbatim.md) a box ships only if it adds value
-   over the raw composed skill — so what does a DLC `/triage` add?
+   method (gather, recommend, verify, grill, apply, with agent briefs and the `.out-of-scope/` KB). Per
+   [ADR-0021](0021-earns-its-place-compose-verbatim.md) a box ships only if it adds value over the raw
+   composed skill. So what does a DLC `/triage` add?
 
 2. **Label drift between two setups.** Matt's skills assume `setup-matt-pocock-skills` ran and wrote
-   `docs/agents/triage-labels.md` (five canonical roles) and `docs/agents/issue-tracker.md`. The
-   DLC's `/setup` writes `classification.labels` (the plugin's eight-state taxonomy) in
-   `.archon/unic-dlc.config.yaml`, which `/tickets` and `/build` already read. If both setups exist,
-   the two label sources diverge and a triaged issue can carry a label the downstream boxes don't
-   recognise.
+   `docs/agents/triage-labels.md` (five canonical roles) and `docs/agents/issue-tracker.md`. If a second
+   writer keeps its own label map, the two label sources diverge and a triaged issue can carry a label
+   the downstream boxes don't recognise.
+
+The first answer, on 2026-07-02, put the label map in `.archon/unic-dlc.config.yaml` as
+`classification.labels` and told Matt's method **not** to read the two `docs/agents/` files. That solved
+the two-writer problem by forbidding the read. A measurement against a live tenant showed that it
+failed. The tier alone could not describe a role's value, because five of the eight state roles there cannot
+be states.
+Writing a state while the work is still open moves an already-active item backwards on the board, so only
+the three terminal roles are states there and the rest are tags. On 2026-08-18 (#389) the tracker contract
+moved out of the config and into the two `docs/agents/` files. The whole `tracker` block,
+`classification.labels` and `project.pr_strategy` left the config with it, and `project.branching` is the
+only key a config needs.
 
 ## Decision
 
-`/triage` ships as a **thin binding wrapper** ([ADR-0016](0016-dlc-thin-process-layer.md)): it **owns
-the _what_** (the DLC config binding + the on-ramp contract) and **delegates the _method_** to Matt's
-`triage` skill verbatim (composing `/grilling` + `/domain-modeling` for the grill step). It does not
-re-narrate Matt's steps.
+`/triage` ships as a **thin binding wrapper** ([ADR-0016](0016-dlc-thin-process-layer.md)). It **owns
+the _what_**, the tracker contract binding and the on-ramp contract, and **delegates the _method_** to
+Matt's `triage` skill verbatim, composing `/grilling` and `/domain-modeling` for the grill step. It does not
+re-narrate Matt's steps. What the wrapper binds changed on 2026-08-18; that it binds did not.
 
-**Single source of truth, injected at compose time.** Matt's `triage` states the label mapping
-_"should have been provided to you"_ — it need not come from Matt's file. So the wrapper loads
-`classification.labels` (+ `tracker`, `triage.out_of_scope_dir`, `triage.external_prs`) from
-`.archon/unic-dlc.config.yaml` and **hands the mapping to Matt's method inline, instructing it NOT to
-read `docs/agents/triage-labels.md` / `docs/agents/issue-tracker.md`**. This is the general
-**compose rule**: DLC commands feed Matt's methods DLC config; Matt's own setup artifacts are never
-consulted in DLC flows. Consequences:
+**The tracker contract is two repo-local files, and one writer owns them.** `docs/agents/issue-tracker.md`
+and `docs/agents/triage-labels.md` carry every tracker fact. Every Box and command, `/triage` included,
+reads them, and a Box names a role and a file, never a host word. The two-writer problem is solved by
+removing one writer: `/unic-archon-dlc:setup` writes both files, and `setup-matt-pocock-skills` must never
+be run over them. **`setup-matt-pocock-skills` is not a dependency of this plugin**, only Matt's skill
+_methods_ are.
 
-- `.archon/unic-dlc.config.yaml` is the **single source of truth** for labels; there is no second
-  file to keep in sync, and `/triage` speaks the same vocabulary `/tickets` + `/build` read.
-- **`setup-matt-pocock-skills` is not a dependency of this plugin** — only Matt's skill _methods_
-  are. `/setup` already only _verifies the suite is present_ ([ADR-0019](0019-conversational-setup.md),
-  verify-only); it never needs Matt's config. The binding is exactly what `/triage` adds over the raw
-  skill — the same category of value that justifies shipping `/specs` and `/tickets`.
+**The axis belongs to the role, not to the tier.** `triage-labels.md` names, per row, the role's value and
+the axis that carries it. A tier does not decide whether a role is a state, a tag or a label.
 
-**Label taxonomy binding.** The DLC eight-state taxonomy is a superset of Matt's five roles. The
-wrapper maps: category `bug`→type `bug`, `enhancement`→type `feature`; states `needs-triage`,
-`needs-info`, `ready-for-agent`, `ready-for-human` map through unchanged; Matt's `wontfix` splits
-into `rejected` (a rejected enhancement → also writes the `.out-of-scope/` record) and `closed` (an
-already-implemented request → point to the code, no KB write); and the DLC adds `needs-specs` — a
-raw-but-valid idea that routes to `/specs`. Teams override `classification.labels` in YAML.
+**The team names the values, and `/setup` creates nothing on the tracker.** `/setup` proposes a value for
+each canonical role from what the board already uses, and writes what the operator confirms. A role the
+board has no name for is mapped onto a name it already carries, or left unmapped. It is never answered by
+adding a label to someone else's board. The role names in the left column are this plugin's; the team owns
+every other column and never the role set. On 2026-08-13 no Box read a state label string: `/triage`,
+`/tickets` and `/qa` wrote states, and nothing selected work by label.
+
+**Label taxonomy binding.** The DLC taxonomy is a superset of Matt's five roles. The wrapper maps: category
+`bug` to type `bug`, `enhancement` to type `feature`; states `needs-triage`, `needs-info`,
+`ready-for-agent` and `ready-for-human` map through unchanged; Matt's `wontfix` splits into `rejected` (a
+rejected enhancement, which also writes the `.out-of-scope/` record) and `closed` (an already-implemented
+request, which points to the code and writes no KB entry); and the DLC adds `needs-specs`, a raw but valid
+idea that routes to `/specs`. Teams set each role's value in `triage-labels.md`.
 
 **Verification is best-effort, always; no config knob** ([ADR-0021](0021-earns-its-place-compose-verbatim.md)).
-Triage is inherently HITL, so there is no true AFK case — a human is present at every transition.
-The method reproduces a bug / checks out a PR when it can; when it cannot reproduce or no runner
-exists, it downgrades to `needs-info` with specific questions rather than guessing.
+Triage is inherently HITL, so there is no true AFK case: a human is present at every transition. The method
+reproduces a bug or checks out a PR when it can. When it cannot reproduce, or no runner exists, it
+downgrades to `needs-info` with specific questions rather than guessing.
 
-**On-ramp contract.** `/triage` writes only to the tracker (labels + comments) and, on a rejected
-enhancement, to `triage.out_of_scope_dir`. Writes go **directly** (human present → no PR gate). It
-produces **no** `issues.json` / PRD. A `ready-for-agent` item enters the `/tickets` backlog (the
-convergence point — sliced there) or `/build` directly if already atomic. Where the pre-two-axis step
-body said triage output is "consumed by `/build` exactly like `/tickets` output", **PLAN.md wins**:
-on-ramps feed `/tickets` (decision #8).
+**On-ramp contract.** `/triage` writes only to the tracker (labels and comments) and, on a rejected
+enhancement, to `triage.out_of_scope_dir`. Writes go **directly** (human present, so no PR gate). It
+produces **no** `issues.json` or PRD. A `ready-for-agent` item enters the `/tickets` backlog (the
+convergence point, sliced there) or `/build` directly if already atomic. Where the pre-two-axis step body
+said triage output is "consumed by `/build` exactly like `/tickets` output", **PLAN.md wins**: on-ramps
+feed `/tickets` (decision #8).
+
+**The `CLAUDE.md` block is this plugin's alone.** `/setup` writes its block in a Consumer's `CLAUDE.md`
+under the heading `## unic-archon-dlc`, not `## Agent skills`, so `/setup` and `setup-matt-pocock-skills`
+no longer manage a heading of the same name (#296). Nothing in the block is a registered skill: the Methods
+this plugin ships are read by path ([ADR-0031](0031-methods-bundled-three-tier-resolution.md)). The block
+lies between `<!-- unic-dlc:begin -->` and `<!-- unic-dlc:end -->`, because every installer that writes into
+a Consumer owns only the names that carry its own prefix, and `unic-dlc` is the DLC's
+([ADR-0038](0038-practice-packs-stack-by-prefix.md) §5). Before 0.30.0 the markers were
+`<!-- unic-archon-dlc:begin -->` and `<!-- unic-archon-dlc:end -->`. `/setup` finds a block under the old
+markers and rewrites it in place under the new ones, so a re-run leaves one block, never two. The block
+names no Box and no pipeline stage. It carries paths on the Consumer's own disk, `archon workflow list` to
+enumerate what is installed there, and a link to this plugin's README. It never presents itself as
+auto-managed, because nothing detects a hand edit between the markers.
 
 ## Consequences
 
-- **New `commands/triage.md`** — the thin wrapper (config load → injected context → delegate to
-  Matt's method with the single-source override → enforce the on-ramp contract).
-- **New `triage` config block** — `{ out_of_scope_dir: '.out-of-scope', external_prs: 'auto' }` in
-  `defaultConfig()`. This is the DLC-config home for the two knobs Matt's setup would otherwise write
-  to `docs/agents/*` (the out-of-scope location; whether external PRs are a request surface).
-  `mergeConfig` auto-fills them for existing configs — no `/setup` change this step.
-- **The old `unic-dlc-triage` Archon workflow + command stub are deleted** — the state-snapshot role
-  is retired ([ADR-0013](0013-tracker-single-source-of-truth.md)) and it used the inert `type:`-style
+- **New `commands/triage.md`**: the thin wrapper. It loads the config and the tracker contract, delegates
+  to Matt's method, and enforces the on-ramp contract.
+- **New `triage` config block**: `out_of_scope_dir` (default `.out-of-scope`) and `external_prs` (default
+  `auto`). The § Configuration reference in the README holds the defaults. This is the DLC-config home for
+  the two knobs Matt's setup would otherwise write to `docs/agents/*`.
+- **The old `unic-dlc-triage` Archon workflow and command stub are deleted.** The state-snapshot role
+  is retired ([ADR-0013](0013-tracker-single-source-of-truth.md)), and it used the inert `type:`-style
   schema ([ADR-0011](0011-archon-schema-target.md)).
-- **`unic-dlc-cleanup` is de-referenced** — its dangling terminal `run-triage` node (which invoked
-  `archon workflow run unic-dlc-triage` to refresh HANDOFF/ROADMAP) is removed. This is a surgical
+- **`unic-dlc-cleanup` is de-referenced.** Its dangling terminal `run-triage` node, which invoked
+  `archon workflow run unic-dlc-triage` to refresh HANDOFF and ROADMAP, is removed. This is a surgical
   reference cleanup only; the full `/cleanup` redesign is step 11.
-- **Known item, not fixed here:** both `/setup` and `setup-matt-pocock-skills` manage an
-  `## Agent skills` block in the consumer's `CLAUDE.md`/`AGENTS.md`. The single-source rule removes
-  the _label_ collision, but the block-ownership overlap remains for a later `/setup`/finalize step.
+- **The block-ownership overlap is settled** (#296): the two installers no longer share the
+  `## Agent skills` heading.

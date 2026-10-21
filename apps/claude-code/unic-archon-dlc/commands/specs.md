@@ -246,7 +246,7 @@ Two things in `to-spec` are **overridden** here, because the Harness owns them:
   `/setup-matt-pocock-skills` if not" fallback never applies. `docs/agents/issue-tracker.md` and
   `docs/agents/triage-labels.md` are that vocabulary, and `setup-matt-pocock-skills` must not be run
   over them: it writes another host's template over the first and reverts the second to a five-role
-  `wontfix` vocabulary ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended).
+  `wontfix` vocabulary ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
 
 Check the rendered PRD against the active template before you write anything: every `##` heading in
 `PRD_TEMPLATE` must appear in the content. When `PRD_TEMPLATE` is unset, these seven are the required
