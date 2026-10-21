@@ -37,8 +37,10 @@ One step of the lifecycle. See `docs/adr/0030-harness-hosts-methods.md`.
 _Avoid_: step, stage, phase
 
 **Method**:
-The skill text a Box reads for procedure. See
-`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+The skill text a Box reads for procedure, by path from `.archon/methods/`. Only this plugin writes that
+tree. A skill under `.claude/skills/` is not a Method, also when a node names it in `skills:`. It is a
+context artefact. See `docs/adr/0031-methods-bundled-three-tier-resolution.md` and
+`docs/adr/0038-practice-packs-stack-by-prefix.md`.
 _Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
 
 **Bundle**:
@@ -51,13 +53,14 @@ A unit meant to be installed in a Consumer. It carries one family's way of worki
 reference architecture and procedure. A Consumer can run the DLC without one. Acceptance criteria and
 the shape of criteria in the PRD come from the Consumer, as
 [Is an untestable acceptance criterion refused by context, or by a change to /specs and /tickets?](https://github.com/unic/unic-agents-plugins/issues/551)
-decides. The maintainer's working model is that a Practice Pack carries context artefacts and config
-values only, never a Box or a Method. A Consumer can override a value that a Practice Pack sets, as
+decides. A Practice Pack carries context artefacts and config values only, never a Box or a Method. A
+skill it installs under `.claude/skills/` is a context artefact. It reaches a Box run through its own
+block in the Consumer's `CLAUDE.md`. Each Practice Pack has a unique prefix and brings its own installer,
+which touches only the names that carry that prefix, so several coexist in one Consumer. A Practice Pack
+writes its config defaults to its own file, and a Consumer can override a value that a Practice Pack sets,
+as
 [Does an e2e test become an outer loop around /build's unit TDD loop for a new feature?](https://github.com/unic/unic-agents-plugins/issues/541)
-decides. That model is open on
-[Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), together with
-whether a skill under `.claude/skills/` counts as a context artefact, how a Practice Pack is installed,
-how it writes a config value, and how several coexist in one Consumer.
+decides. See `docs/adr/0038-practice-packs-stack-by-prefix.md`.
 _Avoid_: Pack, Method Bundle, plugin
 
 **System-skill**:

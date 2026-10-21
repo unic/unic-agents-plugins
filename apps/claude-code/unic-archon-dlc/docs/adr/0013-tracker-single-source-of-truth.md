@@ -1,6 +1,6 @@
 # 0013. Issue tracker is the single source of truth; HANDOFF.md/ROADMAP.md dropped
 
-**Status:** Accepted (2026-06-30)
+**Status:** Accepted (2026-06-30, revised 2026-10-21)
 
 ## Context
 
@@ -25,3 +25,4 @@ This duplicates state that the **issue tracker already holds authoritatively**. 
 - The `HANDOFF.md` and `ROADMAP.md` vocabulary terms are removed from [`CONTEXT.md`](../../CONTEXT.md); the plugin's `AGENTS.md` doctrine and "Do not add" entries that referenced them are removed/replaced.
 - Per-thread continuity that `HANDOFF.md` partly served is now covered by the dedicated `/handoff` workflow (Matt's session-bridge; redesign step 02), which writes a **throwaway** per-thread file, not a durable repo snapshot.
 - "Where are we" queries go to the tracker, not a checked-in file — consistent with the fresh-context principle that all state lives external (tracker + disk), never in conversation memory.
+- The DLC's managed-block markers are `unic-dlc:begin` and `unic-dlc:end` since 2026-10-21. The `unic-archon-dlc:begin/end` markers in the Context above are the name they had when this ADR was written. [ADR-0038](0038-practice-packs-stack-by-prefix.md) §5 records why they moved, and `/setup` rewrites a block under the old markers in place.

@@ -54,7 +54,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0010 | Retire the `/implement-feature` skill; Feature Runner backed solely by `unic-dlc-build`    | Accepted                                                  |
 | 0011 | Archon version target (≥ 0.5.0) and key-discriminated node-schema conventions              | Accepted; floor amended by ADR-0033                       |
 | 0012 | Fresh-context red/green separation for anti-cheating                                       | Accepted                                                  |
-| 0013 | Issue tracker is the single source of truth; HANDOFF.md/ROADMAP.md dropped                 | Accepted                                                  |
+| 0013 | Issue tracker is the single source of truth; HANDOFF.md/ROADMAP.md dropped                 | Accepted (2026-06-30, revised 2026-10-21)                 |
 | 0014 | Workflow-per-box decomposition                                                             | Accepted; revised by ADR-0017                             |
 | 0015 | `workflows/<slug>/` is the artifact home                                                   | Accepted                                                  |
 | 0016 | DLC is a thin process layer; compose team system-skills for the _how_                      | Accepted; amended by ADR-0030, #381                       |
@@ -65,17 +65,18 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030                             |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                                                  |
 | 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281, #381)                             |
-| 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296, #389)                             |
+| 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to DLC config            | Accepted (amended #296, #389, #520)                       |
 | 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (2026-07-02, revised 2026-09-04; #389 folded in) |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281, 2026-08-24)                       |
 | 0027 | `/improve-architecture` is a skill composing Matt's method + owns ADR superseding          | Accepted                                                  |
 | 0028 | `/cleanup` is the repo-global operational janitor; retires the legacy cleanup workflow     | Accepted (amended #389)                                   |
 | 0029 | `/explore` is an off-line research + AFK-spike on-ramp; findings.md is the /specs baton    | Accepted (amended #281, #389)                             |
 | 0030 | The DLC is a Harness hosting Methods; a Box survives only for what no Method can supply    | Accepted (amended #381)                                   |
-| 0031 | Methods are bundled, the plugin version is the pin, resolution is one path                 | Accepted (amended #381)                                   |
+| 0031 | Methods are bundled, the plugin version is the pin, resolution is one path                 | Accepted (amended #381, #520)                             |
 | 0032 | Vocabulary: Box, Method, Bundle; config is parameters, a Method is procedure               | Accepted (amended #389, #381)                             |
 | 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted (amended #389, #396)                             |
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted (2026-08-10, revised 2026-09-04)                 |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted (amended #381, #396)                             |
 | 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295, #381)                             |
 | 0037 | The config declares the SDLC's needs; the Plugin names no tool                             | Accepted                                                  |
+| 0038 | Practice Packs stack by prefix; the DLC alone owns `.archon/methods/`                      | Accepted                                                  |

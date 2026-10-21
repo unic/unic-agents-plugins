@@ -2,7 +2,26 @@
 
 **Status:** Accepted (2026-08-03); amended 2026-08-20 — two of the three tiers are retired and §5's
 integrity mechanism is gone, so §2, §3 and §5 record what was rather than what is (#381). The title
-keeps the word three-tier because an ADR filename is a stable address, not a description.
+keeps the word three-tier because an ADR filename is a stable address, not a description. Amended again
+2026-10-21: the DLC alone writes `.archon/methods/`, and a Practice Pack never ships a Method (#520).
+
+> **Amended (2026-10-21): the DLC alone writes `.archon/methods/`.**
+>
+> Practice Packs now stack in one Consumer beside the DLC, and
+> [ADR-0038](0038-practice-packs-stack-by-prefix.md) records how. Three things follow for this ADR.
+>
+> **Both retired tiers stay retired.** The `config` tier (`methods.<name>.source`) and the `local` tier
+> (`.archon/methods.local/`) do not come back as a way for a pack to change a Method. `/setup` still
+> reports either one it finds as retired and changes neither.
+>
+> **The DLC alone writes `.archon/methods/`, and a pack never ships a Method.** A pack ships context
+> artefacts and config values only. So `/setup`'s wholesale replace of that tree removes nothing a pack
+> wrote. A skill a pack installs under `.claude/skills/` is a context artefact, not a Method, also when a
+> node names it in `skills:`.
+>
+> **The route for a pack that must replace a Box step is an `include:` slot**, decided and not built.
+> [ADR-0038](0038-practice-packs-stack-by-prefix.md) §7 records it, with the rule that one slot holds one
+> occupant and that a collision never resolves silently.
 
 > **Amended (2026-08-20) — one tier, and integrity is checked by reading.**
 >

@@ -1,7 +1,16 @@
 # 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to DLC config as the single source of truth
 
-**Status:** Accepted (2026-07-02); amended 2026-08-11, 2026-08-13, and 2026-08-18. The 2026-08-18
-amendment is the one to read first: it kills two rules the rest of this ADR still states.
+**Status:** Accepted (2026-07-02); amended 2026-08-11, 2026-08-13, 2026-08-18 and 2026-10-21. The
+2026-08-18 amendment is the one to read first: it kills two rules the rest of this ADR still states.
+
+> **Amended (2026-10-21): the block's markers moved.** The 2026-08-13 amendment below says the
+> `<!-- unic-archon-dlc:begin -->` / `<!-- unic-archon-dlc:end -->` markers are unchanged. That no
+> longer holds. `/setup` now writes the block between `<!-- unic-dlc:begin -->` and
+> `<!-- unic-dlc:end -->`, because every installer that writes into a Consumer owns only the names that
+> carry its own prefix, and `unic-dlc` is the DLC's
+> ([ADR-0038](0038-practice-packs-stack-by-prefix.md) §5). `/setup` finds a block under the old markers
+> and rewrites it in place under the new ones, so a re-run leaves one block, never two. The heading
+> `## unic-archon-dlc` and the block's content are unchanged.
 
 > **Amended (2026-08-18) — two rules in this ADR are dead.** The tracker contract moved out of
 > `.archon/unic-dlc.config.yaml` and into two repo-local prose files, `docs/agents/issue-tracker.md`
