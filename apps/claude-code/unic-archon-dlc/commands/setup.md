@@ -37,7 +37,8 @@ Consumer may hold Practice Packs beside this Plugin, each with its own prefix an
 ([ADR-0038](../docs/adr/0038-practice-packs-stack-by-prefix.md)). In `.claude/skills/`, in `.archon/packs/`,
 in `CLAUDE.md` and in every formatter ignore file, `/setup` writes, overwrites or removes only these names:
 
-- a `.claude/skills/unic-dlc-*/` directory. This Plugin installs none today.
+- a `.claude/skills/unic-dlc-*/` directory. Today `/setup` writes, overwrites or removes nothing in
+  `.claude/skills/`.
 - `.archon/packs/unic-dlc.config.yaml`. `/setup` writes nothing in `.archon/packs/` until
   [Build the layered Practice Pack config](https://github.com/unic/unic-agents-plugins/issues/647) lands. The
   Consumer's config stays at `.archon/unic-dlc.config.yaml`, as Step 6 says.
@@ -384,8 +385,8 @@ A marker is a line whose whole comment text is `unic-dlc:begin` or `unic-dlc:end
 of a longer word, because a marker that carries another prefix belongs to another installer.
 
 **A block under the old markers is migrated in place.** Before version 0.30.0 this Plugin wrote its blocks
-between `unic-archon-dlc:begin` and `unic-archon-dlc:end`. In each file, look for both marker pairs, matched
-as whole comment lines in the same way, before you write:
+between `unic-archon-dlc:begin` and `unic-archon-dlc:end`. Before you write to a file, look in it for both
+marker pairs, matched as whole comment lines in the same way.
 
 Check the malformed cases first. In each of them, write nothing to that file and report it in Step 8 as
 `ACTION REQUIRED`, because a rewrite could remove the Consumer's text or leave a stray marker:
@@ -394,26 +395,27 @@ Check the malformed cases first. In each of them, write nothing to that file and
   the other name counts as this case.
 - An end marker with no begin marker of the same name before it, under either name.
 - Two blocks under the same marker name.
+- More than one begin marker, or more than one end marker, under the same name.
 
 Then, for a well-formed file:
 
 - A block under the new markers only → rewrite it in place.
 - A block under the old markers only → replace it, from the old begin line to the old end line, with the
   block under the new markers, at the same position in the file. Report the file as migrated in Step 8.
-- Both → rewrite the new block in place and remove the old block, markers included. Report both in Step 8.
+- Both → rewrite the new block in place and remove the old block, markers included.
+  Report the file in Step 8 as `patched` and `old block removed`.
 
-Then search the repository for any other file that holds `unic-archon-dlc:begin` as a whole comment line. Such a file is an
-ignore file whose formatter Step 4 no longer finds. Change nothing in it, and report it in Step 8 as
-`ACTION REQUIRED`, so the operator removes the block or restores the formatter.
+Then search the repository, skipping `.git/` and `node_modules/`, for any other file that holds
+`unic-archon-dlc:begin` or `unic-archon-dlc:end` as a whole comment line. Write nothing to such a file.
+Report each one in Step 8 as `ACTION REQUIRED`, as a file that holds an old marker outside the files this
+step patches. The operator decides what to do with it.
 
-Absent block in a file that exists → append it. Absent file → create it, but only
-where this step has a block to put in it: a tool whose exclusions live in a structured config gets no file
-of its own invented for it. A re-run replaces the block in place and leaves one block per file, never two,
-under the new markers. The block carries no
-`AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run rewrites it — two different
-things, and the second is what makes an overwrite legible. What it never claims is to be maintained: nothing
-here detects a hand edit
-between the markers.
+Absent block in a file that exists → append it. Absent file → create it, but only where this step has a
+block to put in it: a tool whose exclusions live in a structured config gets no file of its own invented for
+it. A re-run replaces the block in place and leaves one block per file, never two, under the new markers.
+The block carries no `AUTO-GENERATED — DO NOT EDIT` banner, and it does say plainly that the next run
+rewrites it — two different things, and the second is what makes an overwrite legible. What it never claims
+is to be maintained: nothing here detects a hand edit between the markers.
 
 ### `CLAUDE.md`
 
@@ -486,7 +488,7 @@ unic-archon-dlc installed.
   workflows removed: {path} · … | none
   workflows added:   {path} · … | none
   formatters: {tool} → {ignore file patched} | {tool} → ACTION REQUIRED: {entry to add}
-  blocks:   {file} → patched | migrated from unic-archon-dlc markers | old block removed | ACTION REQUIRED: {malformed markers, or an old block in a file no formatter uses}
+  blocks:   {file} → patched | migrated from unic-archon-dlc markers | old block removed | ACTION REQUIRED: {malformed markers, or an old marker outside the patched files}
 ```
 
 Name **paths**, never a count alone: the point is a reviewable diff.

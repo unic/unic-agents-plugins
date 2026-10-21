@@ -10,26 +10,27 @@ share the Consumer's files. `/setup` replaces `.archon/methods/` wholesale, and
 otherwise have used. So the question was how several installers write into one repository without one of them
 removing, or silently overriding, what another one wrote.
 
-Grilled with the maintainer on 2026-10-20 and 2026-10-21, on
+The maintainer settled these decisions in a grilling on 2026-10-20 and 2026-10-21, on
 [Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520). The Archon facts below
 come from the
 [research note of 2026-10-21](../../../../../docs/research/2026-10-21-archon-workflow-extensibility.md), and
 from one measurement made for this ADR. Each fact names the Archon version it was read or measured on.
 
-- **A Claude node loads the project's `CLAUDE.md` without declaring it.** Documented at v0.12.1. The
-  `settingSources` default is `project` and `user`, and it still applies after 0.12.0.
-- **A node follows a pointer in `CLAUDE.md`.** Measured on the v0.12.1 release binary with Claude Code
-  2.1.306. A node whose prompt named no file read the file that `CLAUDE.md` pointed at, in three runs of
+- **A Claude node loads the project's `CLAUDE.md` without declaring it.** The Archon docs at v0.12.1
+  state it. The `settingSources` default is `project` and `user`, and it still applies after 0.12.0.
+- **A node follows a pointer in `CLAUDE.md`.** A measurement for #520 ran on the v0.12.1 release
+  binary with Claude Code 2.1.306. A node whose prompt named no file read the file that `CLAUDE.md` pointed at, in three runs of
   three. A control repository without the pointer gave zero of three.
   [The measurement](https://github.com/unic/unic-agents-plugins/issues/520#issuecomment-6313878448) states
   the probe, the control and what it does not show.
-- **A node reaches a project skill only when it names it in `skills:`.** Documented and read in source at
-  v0.12.1. Omitting `skills:` selects no skill, and no workflow-level or config-level default exists.
-- **A node reaches a Claude Code plugin only when it names it in `plugins:`.** Since 0.12.0, documented at
-  v0.12.1. The node fails before its first turn when a named plugin is missing, or when one it did not name
+- **A node reaches a project skill only when it names it in `skills:`.** The docs and the source at v0.12.1
+  both state it. Omitting `skills:` selects no skill, and no workflow-level or config-level default exists.
+- **A node reaches a Claude Code plugin only when it names it in `plugins:`.** This holds since 0.12.0, and the
+  docs at v0.12.1 state it. The node fails before its first turn when a named plugin is missing, or when one it did not name
   loads.
-- **An `include:` target is overridden by filename, never shared.** Measured on 0.10.1. Across scopes, the
-  bundled, `~/.archon` and repository files of one filename resolve to the highest scope. Two files in reach
+- **An `include:` target resolves by `name:`, is overridden by filename, and is never shared.** The research
+  measured this on 0.10.1. A Box names its include target by the target's `name:`. Across the bundled,
+  `~/.archon` and repository scopes, a file in a higher scope overrides one with the same filename. Two files in reach
   that declare the same `name:` under different filenames are both dropped, and the workflow that includes
   them then fails to load. Source at v0.12.1 shows the same logic. Nobody has measured it on 0.12.
 
@@ -54,9 +55,11 @@ a pack skill reaches a Box run only through `CLAUDE.md`.
 ### 4. A pack reaches a Box run through its own block in the Consumer's `CLAUDE.md`
 
 The block points at the pack's conventions. A node receives `CLAUDE.md` without declaring it, and it
-follows the pointer, as measured on 0.12.1 above.
+follows the pointer, as measured on 0.12.1 above. That probe used a short prompt. It does not show that a node
+follows the pointer reliably inside a long Box prompt, which
+[#648](https://github.com/unic/unic-agents-plugins/issues/648) depends on.
 
-### 5. Ownership is decided by prefix, with no manifest
+### 5. Each installer owns what carries its prefix, with no manifest
 
 Each pack has a unique prefix. The DLC's prefix is `unic-dlc`. An installer writes, overwrites or removes
 only these names that carry its prefix:
@@ -68,13 +71,14 @@ only these names that carry its prefix:
 | Each line-based formatter ignore file | one block between `<prefix>:begin` and `<prefix>:end` |
 | `.archon/packs/`                      | `<prefix>.config.yaml`                                |
 
-These are the only files a pack writes. An installer assumes nothing about any other name. If its prefix is
+In v1 these are the only files a pack writes. An installer assumes nothing about any other name. If its prefix is
 already held by another pack, it stops and asks the operator. Each pack brings its own installer, and the
 DLC's `/setup` installs no pack in v1.
 
 The DLC follows the same rule in these four places. It also writes `.archon/methods/`, `.archon/workflows/`,
-`.archon/unic-dlc.config.yaml` and `docs/agents/*.md`, which no pack writes. Its markers move from `unic-archon-dlc:begin` and `unic-archon-dlc:end` to
-`unic-dlc:begin` and `unic-dlc:end`. `/setup` finds a block under the old markers and rewrites it in place
+`.archon/unic-dlc.config.yaml`, `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`, which no
+pack writes in v1. The Consumer owns the two `docs/agents/` files after the first run. The DLC's markers
+move from `unic-archon-dlc:begin` and `unic-archon-dlc:end` to `unic-dlc:begin` and `unic-dlc:end`. `/setup` finds a block under the old markers and rewrites it in place
 under the new ones, so a Consumer never holds both. No pack may take `unic-dlc` or `unic-archon-dlc` as its
 prefix.
 
@@ -98,22 +102,28 @@ Until #647 lands, the Consumer's file is the only layer, and `/setup` writes no 
 ### 7. Replacing a Box step is a future route, decided and not built
 
 A Box may declare an `include:` slot that ships with a DLC default block, and a pack may replace that block.
-Archon resolves an include target by filename across bundled, `~/.archon` and repository scope (measured on
-0.10.1, the same logic in source at v0.12.1). It gives no precedence inside one scope. The DLC and every pack
+Archon resolves an include target by its `name:`. Across the bundled, `~/.archon` and repository scopes, a
+file in a higher scope overrides one with the same filename. Inside one scope it gives no precedence: two
+files that declare the same `name:` are both dropped. The research measured this on 0.10.1, and the source at
+v0.12.1 shows the same logic. The DLC and every pack
 install into repository scope, so the installer has to decide who wins.
 
 One slot holds one occupant. When a second pack claims an occupied slot, its installer detects the
 collision, names both packs and offers a resolution. The installer writes the Consumer's choice into
 `.archon/unic-dlc.config.yaml` as a Consumer override, which is where the reader sees who won. That entry
 is a choice the Consumer made, not a default, so §6 allows it in the Consumer's file. Nothing resolves
-silently. This is the route for a pack that must replace `implement`. Its own ticket builds it
-when the first pack needs it, so no step of `/setup` implements it today.
+silently. This is the route for a pack that must replace `implement`. Its own ticket builds it when the first
+pack needs it, so no step of `/setup` implements it today.
+
+This route is a future exception to the table in §5. The block a pack writes lives under
+`.archon/workflows/` and carries no pack prefix. The ticket that builds this route must resolve how that
+fits §5.
 
 ### 8. This does not wait for #425
 
 [#425](https://github.com/unic/unic-agents-plugins/issues/425) substitutes a value inside a file the DLC
-owns, such as a node's `mcp:`. §7 replaces a whole file that another owner occupies. The two share the
-moment, install time, but not the mechanism, so neither one blocks the other.
+owns, such as a node's `mcp:`. §7 replaces a whole file that another owner occupies. Both run at install time,
+but they use different mechanisms, so neither one blocks the other.
 
 ## Which file wins on a collision
 
@@ -127,9 +137,12 @@ moment, install time, but not the mechanism, so neither one blocks the other.
 ## Not decided here
 
 - **The prefix boundary.** Whether one prefix may begin another is open. A pack prefixed `unic` would claim
-  every `unic-dlc-*` name, so the prefix rule needs a boundary. The rule does not settle it today. A pack prefixed
-  `unic-dlc-e2e` would own `unic-dlc-e2e-*` skill directories, which also match the DLC's `unic-dlc-*`. That
-  overlap is an open risk until the boundary is decided.
+  every `unic-dlc-*` name, so the prefix rule needs a boundary. The rule does not settle it today. A pack
+  prefixed `unic-dlc-e2e` would own `unic-dlc-e2e-*` skill directories, which also match the DLC's
+  `unic-dlc-*`. Today `/setup` writes, overwrites or removes nothing in `.claude/skills/`. The overlap is
+  an open risk until the maintainer decides the boundary.
+- **How the include slot of §7 fits the table of §5.** A pack's block lives under `.archon/workflows/` and
+  carries no pack prefix.
 - **How a slot records its occupant**, so that the DLC's next `/setup` leaves it alone.
 - **Whether the DLC's `/setup` runs each installed pack's installer.**
 - **Whether Archon 0.12.x treats include slots as measured on 0.10.1.** Source at v0.12.1 shows the same

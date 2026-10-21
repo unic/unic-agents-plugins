@@ -58,8 +58,8 @@ skill it installs under `.claude/skills/` is a context artefact. It reaches a Bo
 block in the Consumer's `CLAUDE.md`. Each Practice Pack has a unique prefix and brings its own installer,
 which touches only the names that carry that prefix, so several coexist in one Consumer. Once
 [Build the layered Practice Pack config](https://github.com/unic/unic-agents-plugins/issues/647) lands, a
-Practice Pack writes its config defaults to its own file. A Consumer can override a value that a Practice Pack sets,
-as
+Practice Pack writes its config defaults to its own file. A Consumer can override a value that a
+Practice Pack sets, as
 [Does an e2e test become an outer loop around /build's unit TDD loop for a new feature?](https://github.com/unic/unic-agents-plugins/issues/541)
 decides. See `docs/adr/0038-practice-packs-stack-by-prefix.md`.
 _Avoid_: Pack, Method Bundle, plugin
