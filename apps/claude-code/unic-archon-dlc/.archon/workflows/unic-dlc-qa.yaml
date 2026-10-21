@@ -453,11 +453,13 @@ nodes:
     depends_on: [verify-pr-base]
     when: "$bootstrap.output.gate == 'hitl' && $verify-pr-base.output.base_ok == 'true'"
     # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
-    # on #505), so this message names the base through verify-pr-base's actual_base.
+    # on #505), so this message names the PR target through verify-pr-base's actual_base and points
+    # at the bootstrap message for the run base.
     approval:
       message: >
-        UAT approved and PR base verified as "$verify-pr-base.output.actual_base" for
-        "$bootstrap.output.slug". The test result is "$test.output.result". A merge needs "pass": this
+        UAT approved for "$bootstrap.output.slug", and verify-pr-base passed. PR target:
+        "$verify-pr-base.output.actual_base" (empty when no PR exists). Run base: see the bootstrap
+        message. The test result is "$test.output.result". A merge needs "pass": this
         gate is not what enforces that — the merge node downstream is — so if the result above is not
         "pass", approving here will not produce a merge. Which checks could not run is written in
         <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker (and delete

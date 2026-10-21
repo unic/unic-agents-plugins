@@ -310,6 +310,7 @@ nodes:
 
   - id: review
     depends_on: [prep]
+    when: "$prep.output.base_ref != ''"
     context: fresh
     allowed_tools: [Read, Write, Bash, Glob, Grep, Agent]
     prompt: |
@@ -328,11 +329,10 @@ nodes:
       so both are supplied here and you must NOT ask:
 
       - **Step 1, the fixed point:** `$prep.output.base_ref` — prep already computed it as the
-        merge-base of HEAD and the PR's target branch, or `$BASE_BRANCH` when there is no PR. If it is
-        empty, prep could not resolve that branch: print "review: BLOCKED: prep resolved no diff base",
-        and stop. Otherwise confirm it resolves and the diff is non-empty before spawning anything, as
-        the Method requires. prep also wrote the diff to SESSION/diff.patch and
-        the changed-file list to SESSION/changed-files.txt; use them rather than recomputing.
+        merge-base of HEAD and the PR's target branch, or `$BASE_BRANCH` when there is no PR. Confirm it
+        resolves and the diff is non-empty before spawning anything, as the Method requires. prep also
+        wrote the diff to SESSION/diff.patch and the changed-file list to SESSION/changed-files.txt; use
+        them rather than recomputing.
       - **Step 2, the spec source:** `SESSION/intent-brief.md` — prep already distilled it from the
         linked work items, the referenced docs, the PR description and PRD.md, with a numbered
         Acceptance Criteria list. Never ask where the spec is. If
