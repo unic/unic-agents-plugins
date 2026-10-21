@@ -31,7 +31,7 @@ modules, `verifyLicence` and `verifyBundle`, checked the bundle against a pinned
 of every file. The plugin went to zero code in #381, and those modules went with it. The tiers had only ever
 worked in the command half: an Archon node cannot import plugin `lib/`, so `resolveMethod` never reached
 inside a Box, and the Archon Boxes read the single literal path from the day they shipped. Measured against
-a live Consumer on 0.22.0, the command half could not run at all: `$CLAUDE_PLUGIN_ROOT` is unset inside the
+a live Consumer on 0.22.0, the command half could not run at all. `$CLAUDE_PLUGIN_ROOT` is unset inside the
 Bash tool and an installed plugin ships no `node_modules`, so every Step 1 halted before resolving anything.
 
 Practice Packs now stack in one Consumer beside the DLC

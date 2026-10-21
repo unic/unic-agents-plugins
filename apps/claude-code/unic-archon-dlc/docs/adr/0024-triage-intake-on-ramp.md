@@ -1,10 +1,6 @@
-# 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to DLC config as the single source of truth
+# 0024. `/triage` is the intake on-ramp; a thin wrapper that binds Matt's method to the tracker contract in `docs/agents/`
 
 **Status:** Accepted (2026-07-02, revised 2026-10-21)
-
-The title names the DLC config as the single source of truth. That was the first answer. The tracker
-contract files in `docs/agents/` replaced it on 2026-08-18 (#389), and the filename keeps the old words
-because an ADR filename is a stable address.
 
 ## Context
 
@@ -31,8 +27,9 @@ Two questions surfaced when implementing the box:
 
 The first answer, on 2026-07-02, put the label map in `.archon/unic-dlc.config.yaml` as
 `classification.labels` and told Matt's method **not** to read the two `docs/agents/` files. That solved
-the two-writer problem by forbidding the read. Measured against a live tenant, it failed: a role's value
-could not be described by its tier alone, because five of the eight state roles there cannot be states.
+the two-writer problem by forbidding the read. A measurement against a live tenant showed that it
+failed. The tier alone could not describe a role's value, because five of the eight state roles there cannot
+be states.
 Writing a state while the work is still open moves an already-active item backwards on the board, so only
 the three terminal roles are states there and the rest are tags. On 2026-08-18 (#389) the tracker contract
 moved out of the config and into the two `docs/agents/` files. The whole `tracker` block,

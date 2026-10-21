@@ -106,8 +106,9 @@ Until #647 lands, the Consumer's file is the only layer, and `/setup` writes no 
 
 A Box may declare an `include:` slot that ships with a DLC default block, and a pack may replace that block.
 Archon resolves an include target by its `name:`. Across the bundled, `~/.archon` and repository scopes, a
-file in a higher scope overrides one with the same filename. Inside one scope it gives no precedence: two
-files that declare the same `name:` are both dropped. The research measured this on 0.10.1, and the source at
+file in a higher scope overrides one with the same filename. Two files that declare the same `name:` under
+different filenames are both dropped. The research measured that across scopes on 0.10.1. So inside one scope
+Archon gives no precedence either. That result follows from the cross-scope measurement, and the source at
 v0.12.1 shows the same logic. The DLC and every pack
 install into repository scope, so the installer has to decide who wins.
 
