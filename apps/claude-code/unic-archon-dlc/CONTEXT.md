@@ -106,7 +106,7 @@ row naming the axis that carries it). A Box names a role and a file; it never na
 field or a provider. `/unic-archon-dlc:setup` owns both, and `setup-matt-pocock-skills` must never run
 over them. A section earns its place there only when it states a fact about this tenant — an MCP server
 discovers its own API, so writing operations down freezes a flag table in Markdown. See
-`docs/adr/0024-triage-intake-on-ramp.md` (amended 2026-08-18).
+`docs/adr/0024-triage-intake-on-ramp.md`.
 _Avoid_: repository derivation (deleted — nothing is derived from a remote), repo pinning, label
 mapping (`classification.labels` is gone), tracker config
 
@@ -404,13 +404,13 @@ _Avoid_: review aspect, reviewer, agent, check
 ## Relationships
 
 - The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
-- A **Method** is read at `.archon/methods/<name>/SKILL.md`, the one path **Setup** installs the **Bundle** into (ADR-0031, amended)
+- A **Method** is read at `.archon/methods/<name>/SKILL.md`, the one path **Setup** installs the **Bundle** into (ADR-0031)
 - **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
 - `/build` runs a generic **red → green** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
 - Refactoring is **not** in that loop: the `tdd` Method puts it in the review stage, so it reaches the code as `/pr-review`'s Standards **Review axis** and its Fowler smell baseline (ADR-0023 §7 / ADR-0026 §8)
-- A **Method** is read at one path, `.archon/methods/<name>/SKILL.md`, by every Box and every command alike — the team-source and Local-Method tiers are retired (#381), so there is no resolution order and no tier to report (ADR-0023 §5 / ADR-0031, amended)
+- A **Method** is read at one path, `.archon/methods/<name>/SKILL.md`, by every Box and every command alike — the team-source and Local-Method tiers are retired (#381), so there is no resolution order and no tier to report (ADR-0023 §5 / ADR-0031)
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`

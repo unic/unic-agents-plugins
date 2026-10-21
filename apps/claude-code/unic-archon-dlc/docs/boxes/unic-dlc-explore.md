@@ -54,7 +54,7 @@ a prior baton.
    findings.md and the verdicts, with the AI disclaimer. It reads the tracker contract in
    `docs/agents/` for the server, the repository, the work-item scope its idempotency search filters
    on, and the value and axis of every role
-   ([ADR-0024](../adr/0024-triage-intake-on-ramp.md), amended).
+   ([ADR-0024](../adr/0024-triage-intake-on-ramp.md)).
    Runs **before** the gate so the durable output survives a "discard".
 
 6. **spike-branch-gate** — **HITL by default** (`gates.explore`); skipped in AFK. APPROVE → preserve the

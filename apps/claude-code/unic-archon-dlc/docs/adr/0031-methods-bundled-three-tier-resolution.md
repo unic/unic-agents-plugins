@@ -1,60 +1,9 @@
-# 0031. Methods are bundled in the plugin; the plugin version is the pin; resolution is three-tier
+# 0031. Methods are bundled in the plugin; the plugin version is the pin; resolution is one path
 
-**Status:** Accepted (2026-08-03); amended 2026-08-20 — two of the three tiers are retired and §5's
-integrity mechanism is gone, so §2, §3 and §5 record what was rather than what is (#381). The title
-keeps the word three-tier because an ADR filename is a stable address, not a description. Amended again
-2026-10-21. The DLC alone writes `.archon/methods/`, and a Practice Pack never ships a Method (#520).
+**Status:** Accepted (2026-08-03, revised 2026-10-21)
 
-> **Amended (2026-10-21): the DLC alone writes `.archon/methods/`.**
->
-> Practice Packs now stack in one Consumer beside the DLC, and
-> [ADR-0038](0038-practice-packs-stack-by-prefix.md) records how. Three things follow for this ADR.
->
-> **Both retired tiers stay retired.** The `config` tier (`methods.<name>.source`) and the `local` tier
-> (`.archon/methods.local/`) do not come back as a way for a pack to change a Method. `/setup` still
-> reports either one it finds as retired and changes neither.
->
-> **The DLC alone writes `.archon/methods/`, and a pack never ships a Method.** A pack ships context
-> artefacts and config values only. So `/setup`'s wholesale replace of that tree removes nothing a pack
-> wrote. A skill a pack installs under `.claude/skills/` is a context artefact, not a Method, even when a
-> node names it in `skills:`.
->
-> **The route for a pack that must replace a Box step is an `include:` slot**, decided and not built.
-> [ADR-0038](0038-practice-packs-stack-by-prefix.md) §7 records it, with the rule that one slot holds one
-> occupant and that a collision never resolves silently.
-
-> **Amended (2026-08-20) — one tier, and integrity is checked by reading.**
->
-> The plugin went to zero code, so the two mechanisms this ADR named as modules went with it.
->
-> **Resolution is one tier.** Every Box and every command reads a Method at the literal path
-> `.archon/methods/<name>/SKILL.md`. The `config` tier (`methods.<name>.source`) and the `local` tier
-> (`.archon/methods.local/<name>/SKILL.md`) are retired, with them the resolution order, the tier line a
-> command printed, and the `forked_from` frontmatter convention. §2 and §3 record what was, not what is.
->
-> The reason is the one §2 gave for having tiers at all, read back: an Archon node cannot import plugin
-> `lib/`, so `resolveMethod` never reached inside a Box, and the Archon Boxes had been reading the single
-> literal path since they shipped. The tiers therefore existed only in the command half — a resolution
-> order two of the seven surfaces could not honour. Measured against a live Consumer on 0.22.0, the
-> command half could not run at all: `$CLAUDE_PLUGIN_ROOT` is unset inside the Bash tool and an installed
-> plugin ships no `node_modules`, so every Step 1 halted before resolving anything. Deleting the tiers
-> made the two halves agree, which is what §2's own constraint had been asking for.
->
-> A team that wants different Method text edits `.archon/methods/<name>/SKILL.md` in its own repository
-> and expects the next `/setup` run to overwrite it. That is a real loss of an override that survived
-> upgrades; it is accepted because nothing ever declared one.
->
-> **Integrity is checked by reading, not by hashing.** §5's `verifyLicence` and `verifyBundle` are gone
-> with `lib/methods-bundle.mjs`, and so is the manifest they compared against. `/setup`'s install step now reads
-> the bundle: every Method directory must carry its `SKILL.md` and the companion files that Method reads,
-> and `LICENSE` must be present. Either failure still stops setup.
->
-> What this trades away is worth naming plainly. The pinned licence hash and the `upstreamPath` closure
-> check were the only automated tripwire for an upstream rename wave — the failure this ADR's §1 exists
-> to prevent. Nothing replaces it inside this repository, because nothing here can see upstream. A rename
-> wave is now found by running a Box against a live Consumer, which is where every command defect of the
-> 0.22.0 line was found. The upstream repository, tag and commit stay recorded in
-> `vendor/mattpocock-skills/README.md`.
+The filename keeps the word three-tier because an ADR filename is a stable address. Resolution had three
+tiers until #381 retired two of them on 2026-08-20.
 
 ## Context
 
@@ -75,51 +24,55 @@ version-pinning scheme that routes through that CLI is unpinned in practice.
 Grilled with the maintainer on 2026-07-31 (see #279); the mechanism was pinned before implementation
 in #284.
 
+The first version of this ADR resolved a Method through three tiers, in a module, `resolveMethod`: a
+`config` tier (`methods.<name>.source` in the config), a `local` tier (`.archon/methods.local/<name>/SKILL.md`)
+and the bundle. A Local Method declared the bundle version it forked from in `forked_from` frontmatter. Two
+modules, `verifyLicence` and `verifyBundle`, checked the bundle against a pinned licence hash and a manifest
+of every file. The plugin went to zero code in #381, and those modules went with it. The tiers had only ever
+worked in the command half: an Archon node cannot import plugin `lib/`, so `resolveMethod` never reached
+inside a Box, and the Archon Boxes read the single literal path from the day they shipped. Measured against
+a live Consumer on 0.22.0, the command half could not run at all: `$CLAUDE_PLUGIN_ROOT` is unset inside the
+Bash tool and an installed plugin ships no `node_modules`, so every Step 1 halted before resolving anything.
+
+Practice Packs now stack in one Consumer beside the DLC
+([ADR-0038](0038-practice-packs-stack-by-prefix.md)). That raised again whether anything other than the DLC
+may write a Method.
+
 ## Decision
 
 ### 1. The Methods are vendored in the plugin, and the plugin version is the pin
 
-`vendor/mattpocock-skills/` holds the upstream files at a pinned tag, mirroring upstream's
-`skills/<category>/<name>/` layout so each manifest entry's `upstreamPath` is load-bearing — an
-upstream relocation fails a test instead of silently resolving nothing. Only the manifest's transitive
-closure is vendored, sub-files included.
-
-Provenance is the frozen `METHODS_BUNDLE` constant in `lib/methods-manifest.mjs` (repo, tag, commit,
-licence, licence sha256), not a file inside the bundle: `/setup` needs the tag and hash
-programmatically, a constant typechecks and has no parse-failure branch, and keeping it beside the
-manifest forces a re-vendor to touch the file that defines the closure. `vendor/mattpocock-skills/README.md`
-is its human mirror and a test asserts the two agree.
+`vendor/mattpocock-skills/` holds the upstream files at a pinned tag, in upstream's
+`skills/<category>/<name>/` layout. `vendor/mattpocock-skills/README.md` records the upstream repository, tag
+and commit.
 
 **There is no `skills.pin` config key.** The plugin version _is_ the pin: upgrading Methods means
 upgrading the plugin and re-running `/setup`. A separate pin would let a Consumer's config and the
 shipped bundle disagree, with no way to detect it.
 
-Fetch with `git clone --depth 1 --branch <tag>`, never `npx skills` — see the Context above.
+Fetch with `git clone --depth 1 --branch <tag>`, never `npx skills`. See the Context above.
 
-### 2. Three-tier resolution, first hit wins
+### 2. A Method resolves at one path
 
-`resolveMethod(name, …)` in `lib/methods-resolver.mjs` answers with the `SKILL.md` to read and the
-tier that answered:
+Every Box and every command reads a Method at the literal path `.archon/methods/<name>/SKILL.md`. There is
+no resolution order and no tier line to print. The `config` tier, the `local` tier and the `forked_from`
+convention are retired. `/setup` reports a `.archon/methods.local/` directory or a `methods.<name>.source`
+key it finds as retired, and changes neither.
 
-1. **`config`** — `methods.<name>.source` in `.archon/unic-dlc.config.yaml`: the team's own fork.
-2. **`local`** — `.archon/methods.local/<name>/SKILL.md`: an uncommitted working override.
-3. **`bundle`** — `.archon/methods/<name>/SKILL.md`: the vendored default, written by `/setup`.
+A team that wants different Method text edits `.archon/methods/<name>/SKILL.md` in its own repository and
+expects the next `/setup` run to overwrite it. That loses an override that used to survive upgrades. It is
+accepted because no Consumer ever declared one.
 
-The config tier is authoritative **on declaration alone**. If an operator names a path and the file is
-missing, resolution fails rather than falling through to the bundle — silently ignoring a declared
-override is the failure class this whole design exists to remove.
+### 3. The DLC alone writes `.archon/methods/`, and a Practice Pack never ships a Method
 
-A Local Method declares which Bundle version it forked from in its own frontmatter
-(`forked_from: v1.1.0`), not in config: committed metadata describing an uncommitted file drifts the
-moment someone edits the override. A missing `forked_from` is flagged, not skipped.
+A Practice Pack ships context artefacts and config values only
+([ADR-0038](0038-practice-packs-stack-by-prefix.md) §1 and §2). So `/setup`'s wholesale replace of the tree
+removes nothing a pack wrote. A skill a pack installs under `.claude/skills/` is a context artefact, not a
+Method, even when a node names it in `skills:` (ADR-0038 §3). The retired tiers do not come back as a way
+for a pack to change a Method.
 
-### 3. Repo-relative paths only
-
-Every resolved path must sit inside the Consumer repository. Absolute paths, Windows drive letters,
-UNC prefixes, `~` home references, and `../` or `..\` escapes are all rejected — the last two after
-normalising backslashes, so a Windows-style escape is caught on POSIX too. A Method is content the
-repository vouches for; reading procedure from outside it would make a Box's behaviour depend on the
-operator's home directory.
+A pack that must replace a Box step uses an `include:` slot, decided and not built. ADR-0038 §7 records it,
+with the rule that one slot holds one occupant and that a collision never resolves silently.
 
 ### 4. Methods are read by path and never registered as skills
 
@@ -128,45 +81,47 @@ A Box reads a Method as a file. The plugin never installs Methods into `.claude/
 
 Two reasons. A Consumer running Matt's own Claude Code plugin would otherwise end up with **every
 skill twice**, with no way to tell which copy answered. And 7 of the 10 Methods carried
-`disable-model-invocation: true` at v1.0 while `prototype` flipped back at v1.1 — invocation is a
-churning coupling surface, path-reading is not.
+`disable-model-invocation: true` at v1.0 while `prototype` flipped back at v1.1, so invocation is a
+coupling that keeps changing, and reading a path is not.
 
-### 5. Integrity is checked, not assumed
+### 5. Integrity is checked by reading
 
-`/setup` runs `verifyLicence` (the vendored `LICENSE` hashed against the pinned tag's) and
-`verifyBundle` (every file each manifest entry declares — its `SKILL.md` **and** its `subFiles`)
-before installing anything, and stops on either failure: both mean the shipped plugin is incomplete or
-altered, which no Consumer action fixes. A missing `LICENSE` asks the maintainer to restore it and is
-never auto-created, per the repository's LICENSE policy.
+`/setup`'s install step reads the bundle before it installs anything. Every Method directory must carry its
+`SKILL.md` and the companion files that Method reads, and `LICENSE` must be present. Either failure stops
+setup: both mean the shipped plugin is incomplete, which no Consumer action fixes. A missing `LICENSE` asks
+the maintainer to restore it and is never created automatically, per the repository's LICENSE policy.
 
-`installMethods` clean-replaces `.archon/methods/` rather than merging, so a Method dropped from a
-later manifest cannot linger on disk where the bundle tier would keep resolving it. It never reads or
-writes `.archon/methods.local/`.
+`/setup` replaces `.archon/methods/` wholesale rather than merging, so a Method dropped from a later bundle
+cannot linger on disk.
+
+The pinned licence hash and the manifest closure check were the only automated check for an upstream rename
+wave, the failure §1 exists to prevent. Nothing replaces them inside this repository, because nothing here
+can see upstream. A rename wave is now found by running a Box against a live Consumer, which is where every
+command defect of the 0.22.0 line was found.
 
 ## Considered options
 
-**Per-box mapping — rejected.** Each Box names its own Method path in its own prose or its own config
+**Per-box mapping, rejected.** Each Box names its own Method path in its own prose or its own config
 block. This is the pre-#279 status quo: the same name in three files with nothing tying them together,
-which is precisely what let the v1.1.0 rename wave break `/specs` and `/tickets` with CI green
-([ADR-0030](0030-harness-hosts-methods.md) Context). It also makes the dependency list unanswerable —
+which is what let the v1.1.0 rename wave break `/specs` and `/tickets` with CI green
+([ADR-0030](0030-harness-hosts-methods.md) Context). It also makes the dependency list unanswerable:
 you would have to read every Box to learn what the plugin depends on. Recorded here because it is the
 obvious-looking design and will otherwise be proposed again.
 
-**Fetching Methods at run time — rejected.** A Box could clone or download the skill at the pinned tag
+**Fetching Methods at run time, rejected.** A Box could clone or download the skill at the pinned tag
 on demand. That adds a network dependency to every AFK run, breaks reproducibility for a Consumer
 behind a proxy, and reintroduces the CLI's silent-`main` trap if it routes through `npx skills`.
 
-**A `skills.pin` config key — rejected.** See §1: it lets config and the shipped bundle disagree
+**A `skills.pin` config key, rejected.** See §1: it lets config and the shipped bundle disagree
 undetectably.
+
+**Three-tier resolution, retired on 2026-08-20 (#381).** See the Context. It existed only in the command
+half, so deleting it made the commands and the Boxes agree.
 
 ## Consequences
 
-- Upgrading Methods is a plugin upgrade plus a `/setup` re-run. `/setup`'s install step is idempotent and runs
-  even for an already-configured project, so an upgrade lands the new bundle without a reconfigure.
-- A team fork costs one config line (`methods.<name>.source`) or one uncommitted directory. Neither
-  requires a plugin change.
-- `.archon/methods/` is generated. It is committed because Archon nodes need it (see Context), but it
-  must never be hand-edited — `/setup` clean-replaces it.
-- The closure test reads the real bundle rather than a pinned test copy. Two copies of the same
-  upstream text would let a bumped bundle keep passing against stale fixtures, which is the drift the
-  test exists to catch.
+- Upgrading Methods is a plugin upgrade plus a `/setup` re-run. `/setup`'s install step runs even for an
+  already-configured project, so an upgrade lands the new bundle without a reconfigure.
+- `.archon/methods/` is generated. It is committed because Archon nodes need it (see Context), and `/setup`
+  replaces it wholesale, so a hand edit lasts until the next run.
+- A team fork of a Method costs an edit that the next `/setup` overwrites. No override survives an upgrade.

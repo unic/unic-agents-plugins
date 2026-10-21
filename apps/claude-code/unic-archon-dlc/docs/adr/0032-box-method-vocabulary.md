@@ -7,7 +7,7 @@ vocabulary (#381); amended 2026-08-18 — see the notes below.
 > or names the tracker through `tracker.access` / `tracker.coords`, read
 > `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` instead. Those two repo-local files
 > are the tracker contract now, and each role carries its own axis. See
-> [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18 amendment (#389).
+> [ADR-0024](0024-triage-intake-on-ramp.md) (#389).
 
 > **Amended (2026-08-20) — `Local Method` is retired.** The term named the middle tier of Method
 > resolution, `.archon/methods.local/<name>/SKILL.md`. #381 deleted the Plugin's code, and with it both

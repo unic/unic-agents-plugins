@@ -8,12 +8,12 @@ idempotency is three treatments rather than one merge, and it asks no label ques
 
 > **Amended (2026-08-25) — three things this ADR says about `/setup` are now false (#383).**
 >
-> - **It asks no label question.** The Consequence below points at [ADR-0024](0024-triage-intake-on-ramp.md)'s
->   2026-08-11 amendment for what `/setup` asks about labels. #389 moved that mapping out of the config
+> - **It asks no label question.** The Consequence below points at [ADR-0024](0024-triage-intake-on-ramp.md)
+>   for what `/setup` asks about labels. #389 moved that mapping out of the config
 >   and into `docs/agents/triage-labels.md`, and #383 made `/setup` write that file — by reading what the
 >   tracker already uses and proposing a value per role, never by offering a default. So the tier-grouped
 >   question, the seeded-default rule and the closed key set describe a config key that no longer exists.
->   ADR-0024's own 2026-08-18 amendment already says the key is gone; this one says which Consequence
+>   ADR-0024 already says the key is gone; this one says which Consequence
 >   here goes with it.
 > - **Idempotency is three treatments, not one merge.** "A re-run merges, never clobbers" held while the
 >   config was the only thing `/setup` wrote. It now lands four kinds of artefact: a Plugin-owned tree is
@@ -61,4 +61,4 @@ The runtime Archon version check moves to a **behavioural min-floor check (`≥ 
 - New config keys (`gates.<box>: hitl|afk`, `build.fresh_context_red_green`, `templates`, `tracker.access`, `docs.type`) are written by the conversational flow, validated by the thin lib.
 - Idempotency and mandatory-field invariants are preserved by the thin lib, not lost to prose.
 - Implementation (dissolving the libs, JSON→YAML migration, the version-check fix) is owned by the `/setup` redesign step, not this foundations PR.
-- **What `/setup` asks about labels** — the one tier-grouped question, the refusal to inspect a tracker or create a label, the absence of a seeded default, and the closed key set — is recorded in [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-11 amendment, which owns the `classification.labels` contract.
+- **What `/setup` asks about labels** — the one tier-grouped question, the refusal to inspect a tracker or create a label, the absence of a seeded default, and the closed key set — is recorded in [ADR-0024](0024-triage-intake-on-ramp.md), which owns the `classification.labels` contract.

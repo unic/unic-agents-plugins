@@ -27,7 +27,7 @@ and a file, and never an organisation, a field or a provider.
 `/unic-archon-dlc:setup` owns both files. `setup-matt-pocock-skills` is **not** a dependency of this
 plugin and must not be run over them: it writes another host's template over the first and reverts the
 second to a five-role `wontfix` vocabulary. See
-[ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended.
+[ADR-0024](docs/adr/0024-triage-intake-on-ramp.md).
 
 `/triage` writes **only** to the tracker (labels + comments) and, on a rejected enhancement, to the
 out-of-scope knowledge base. It produces **no** `issues.json` / PRD — a triaged `ready-for-agent`
@@ -122,7 +122,7 @@ calls for grilling, follow the `grilling` and `domain-modeling` Methods.
 Bind that procedure to the DLC with the Step 2 context, and enforce these overrides:
 
 - **Roles** resolve through `docs/agents/triage-labels.md`, each row naming the axis that carries it
-  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), amended). Write the value and the axis that file
+  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)). Write the value and the axis that file
   gives; invent neither.
 - **`AGENT-BRIEF.md` is written for GitHub** and names `ready-for-agent` and `wontfix` as literal
   labels. Read those as canonical roles too, resolve them through `triage-labels.md`, and apply the
