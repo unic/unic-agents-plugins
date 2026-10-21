@@ -176,25 +176,33 @@ nodes:
 
       ## 1. Identify the open PR + read its description
       Ask the tracker for the open PR whose source branch is the current branch on that repository, and
-      read its number, title, description body, source branch and target branch. If the tracker has no
-      queryable PR at all, note that and continue — the review still runs off the diff.
-      Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an intent source).
+      read its number, title, description body, source branch and target branch. Three outcomes:
+        - The query succeeds and returns a PR. Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an
+          intent source).
+        - The query succeeds and confirms that no open PR exists for this branch. Note that and
+          continue. The review still runs off the diff.
+        - The query fails or errors, for example on auth, a rate limit or a timeout. Print
+          "prep: BLOCKED: the tracker query for this branch's PR failed: <error>". Set `base_ref` to "",
+          write no diff, and skip to the emit rule at the end of this node. A failed query does not
+          prove that no PR exists, and the fallback to `$BASE_BRANCH` below is only for that proof.
 
       ## 2. Compute the diff + categorise changed files
       DIFF_BASE = the branch this PR will merge into. When step 1 found a PR, it is the PR's target
-      branch, because that is the diff that will merge. When the tracker has no queryable PR, it is
+      branch, because that is the diff that will merge. When step 1 confirmed that no PR exists, it is
       `$BASE_BRANCH`. When both exist and differ, set `base_warning` to "the PR targets <PR target>
       but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>.", print it
-      as "prep: WARNING: <base_warning>", and carry on. Otherwise set `base_warning` to "". Print
-      "prep: diff base is <DIFF_BASE> (<source>)", where <source> is "PR target" or "run base, no PR".
+      as "prep: WARNING: <base_warning>", and carry on. Otherwise set `base_warning` to "".
       DIFF_BASE may be a branch this clone has never fetched, so run `git fetch origin <DIFF_BASE>`
-      first. A failed fetch is not fatal on its own. Then set BASE_REF to
+      first. If the fetch fails, print "prep: fetch of origin/<DIFF_BASE> failed: <error>" and go on.
+      A failed fetch is not fatal on its own. Then set BASE_REF to
       `git merge-base origin/<DIFF_BASE> HEAD`, falling back to `git merge-base <DIFF_BASE> HEAD` when
-      `origin/<DIFF_BASE>` does not resolve. If NEITHER resolves, do NOT fall back to `HEAD~1` or to
-      any other commit: a one-commit diff reviews the wrong change and reports it clean. Instead print
+      `origin/<DIFF_BASE>` does not resolve. Print "prep: diff base is <DIFF_BASE> (<source>, via
+      <ref>)", where <source> is "PR target" or "run base, no PR" and <ref> is "origin/<DIFF_BASE>" or
+      "local <DIFF_BASE>", whichever resolved.
+      If NEITHER resolves, do NOT fall back to `HEAD~1` or to any other commit. A one-commit diff holds
+      only the last commit, so the review would judge that commit instead of the whole change. Print
       "prep: BLOCKED: cannot resolve diff base '<DIFF_BASE>' via origin or local", set `base_ref` to
-      "", write no diff, and stop. Emit the object with the fields you have, as the rule at the end of
-      this node says.
+      "", write no diff, and skip to the emit rule at the end of this node.
       Write the unified diff to `SESSION/diff.patch` (`git diff <BASE_REF>...HEAD`) and the changed-file
       list to `SESSION/changed-files.txt` (`git diff --name-only <BASE_REF>...HEAD`).
       Categorise the changed files into these STRING booleans ("true"/"false"):
@@ -247,9 +255,10 @@ nodes:
       Write `SESSION/prep.json` mirroring the emitted object for durability.
 
       ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
-      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". When step 2 stopped as
-      BLOCKED, use `base_ref` "", the STRING "false" for every category, `intent_available` "false",
-      iteration 1, and `[]` for both arrays. `contradictions` and
+      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". When step 1 or step 2
+      stopped as BLOCKED, use `base_ref` "", the STRING "false" for every category, `intent_available`
+      "false", iteration 1, and `[]` for both arrays, and still write `SESSION/prep.json` mirroring that
+      object, so the cancelled run leaves a record of why. `contradictions` and
       `prior_findings` are ALWAYS arrays — `[]` when there is nothing to report. Emit the structured object.
     output_format:
       type: object
@@ -298,15 +307,18 @@ nodes:
   # =============================================================================================
 
   # ---------------------------------------------------------------------------------------------
-  # guard-no-diff-base — prep emits an empty base_ref when it cannot resolve the branch the PR merges
-  # into. Reviewing a guessed base reads the wrong diff and reports it clean, so the run cancels.
+  # guard-no-diff-base. prep emits an empty base_ref when the tracker query failed or prep cannot
+  # resolve the branch the PR merges into. A guessed base gives review a diff of other changes than
+  # the PR's, so the guard cancels the run.
   # ---------------------------------------------------------------------------------------------
   - id: guard-no-diff-base
     depends_on: [prep]
     when: "$prep.output.base_ref == ''"
     cancel: >
-      /pr-review cannot resolve the branch this PR merges into, so it reviews nothing. See prep's
-      "prep: BLOCKED" line for the branch. Fetch it, or dispatch with --base <branch>, and re-run.
+      /pr-review cannot resolve the branch this PR merges into, so it reviews nothing. prep's
+      "prep: BLOCKED" line says why. When the tracker query failed, fix the tracker access and re-run.
+      When a PR exists, its target branch must exist on the remote, so retarget the PR or push that
+      branch, then re-run. With no PR, dispatch with --base <branch>.
 
   - id: review
     depends_on: [prep]

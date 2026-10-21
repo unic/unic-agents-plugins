@@ -375,7 +375,9 @@ nodes:
       It is a LOCAL PRE-CHECK. Follow the Method's Process steps 1–5 with these answers supplied — the
       Method asks a live human for two of them and there is no human here, so do NOT ask:
 
-      - **Step 1, the fixed point:** the branch point of this build branch —
+      - **Step 1, the fixed point:** the branch point of this build branch. A worktree cut with
+        `--from <feature>` may never have fetched the base, so run `git fetch origin $BASE_BRANCH`
+        first. A failed fetch is not fatal on its own. Then take
         `git merge-base origin/$BASE_BRANCH HEAD`, falling back to
         `git merge-base $BASE_BRANCH HEAD` if `origin/<ref>` doesn't resolve. If
         NEITHER resolves, do NOT fall back to the branch's first commit — that guarantees a

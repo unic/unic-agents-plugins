@@ -430,12 +430,14 @@ nodes:
       Set `base_ok` to the STRING "true" when the actual base equals $BASE_BRANCH; the STRING "false"
       on a genuine mismatch. (It is a string, not a boolean, so the downstream `when` gates compare it
       reliably as `== 'true'`.) When the query fails or errors, set `base_ok` "false" and print the
-      error. A base nobody checked is not a verified base. Set `base_ok` "true" without a match only
+      error. A failed query has not read the PR's target, so it cannot confirm the base. Set `base_ok` "true" without a match only
       when a query succeeds and confirms that no PR exists for this branch, and note that the base is
       unverifiable here. That is a warning, non-blocking. Set `actual_base` to the PR's target branch,
-      or to "" when there is no PR. Print
-      "verify-pr-base: base is <actual> ✓" or "verify-pr-base: PR targets <actual> but expected
-      <expected> ✗ — retarget first."
+      or to "" when there is no PR. Print exactly one of these lines:
+        - match → "verify-pr-base: base is <actual> ✓"
+        - mismatch → "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget first."
+        - confirmed no PR → "verify-pr-base: no open PR, base unverifiable here"
+        - failed query or unusable contract → "verify-pr-base: cannot check the base: <reason> ✗"
     output_format:
       type: object
       properties:
@@ -453,13 +455,13 @@ nodes:
     depends_on: [verify-pr-base]
     when: "$bootstrap.output.gate == 'hitl' && $verify-pr-base.output.base_ok == 'true'"
     # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
-    # on #505), so this message names the PR target through verify-pr-base's actual_base and points
-    # at the bootstrap message for the run base.
+    # on #505), so this message names the PR target through verify-pr-base's actual_base and the run
+    # base through bootstrap's message, which starts with it.
     approval:
       message: >
         UAT approved for "$bootstrap.output.slug", and verify-pr-base passed. PR target:
-        "$verify-pr-base.output.actual_base" (empty when no PR exists). Run base: see the bootstrap
-        message. The test result is "$test.output.result". A merge needs "pass": this
+        "$verify-pr-base.output.actual_base" (empty when no PR exists). $bootstrap.output.message
+        The test result is "$test.output.result". A merge needs "pass": this
         gate is not what enforces that — the merge node downstream is — so if the result above is not
         "pass", approving here will not produce a merge. Which checks could not run is written in
         <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker (and delete
