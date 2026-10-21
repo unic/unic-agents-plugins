@@ -33,7 +33,7 @@
         "id": "no-diff-base",
         "label": "No diff base",
         "focus": ["prep", "guard-no-diff-base"],
-        "note": "When prep cannot resolve the branch the PR merges into, even after a fetch, the run is cancelled before review."
+        "note": "When the tracker query fails or the diff base does not resolve after a fetch, guard-no-diff-base cancels the run before review."
       },
       {
         "id": "happy-path",

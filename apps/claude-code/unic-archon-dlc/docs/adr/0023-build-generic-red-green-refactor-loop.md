@@ -101,7 +101,7 @@ command: `$CLAUDE_PLUGIN_ROOT` is not set inside the Bash tool either, and an in
 workspace protocol. Measured on 0.22.0 in a Consumer that installed the plugin through the marketplace,
 all seven commands loaded and none ran past Step 1 while they still imported `lib/`. So an Archon
 `script:` node inlines its logic, a command reads config, the tracker contract and its Methods with its
-own tools, in prose, and the plugin's `lib/` and `test/` are deleted (#381).
+own tools, in prose. #381 deleted the plugin's `lib/` and `test/`.
 
 One command keeps a bounded need for the plugin's own directory. `/setup`'s install step copies the Method
 Bundle and the Box YAMLs out of it, so it locates that directory and confirms the path with the operator

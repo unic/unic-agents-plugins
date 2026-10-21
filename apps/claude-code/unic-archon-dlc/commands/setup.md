@@ -114,8 +114,8 @@ Each dispatch passes its own `--base`, so this command cannot see it. From the s
 `worktree.baseBranch` as `ARCHON_BASE_CONFIGURED`. It is empty when the key is unset or the file is
 unreadable. This command cannot read the codebase default itself, and what Archon stores depends on its
 version. Archon 0.7 to 0.11 store the branch that was checked out when the repository was first
-registered. From 0.12.0 Archon reads the branch the remote advertises. So the remote's default is an
-approximate stand-in, and `worktree.baseBranch` is the value to rely on. Run
+registered. From 0.12.0, new projects follow the remote's default branch unless a base is chosen
+([v0.12.0 release notes](https://github.com/coleam00/Archon/releases/tag/v0.12.0)). So the remote's default is an approximate stand-in, and `worktree.baseBranch` is the value to rely on. Run
 `git symbolic-ref --short refs/remotes/<ARCHON_REMOTE_RESOLVED>/HEAD`, strip the remote prefix, and keep
 the result as `REMOTE_DEFAULT_BRANCH`. It is empty when the ref does not resolve. Set `ARCHON_BASE_RESOLVED`
 to `ARCHON_BASE_CONFIGURED` when it is set, else to `REMOTE_DEFAULT_BRANCH`. Write nothing to the file.
@@ -438,7 +438,7 @@ unic-archon-dlc installed.
   config:   {CONFIG_PATH}
   contract: {issue-tracker.md and triage-labels.md — written, or reported unchanged}
   archon remote: {ARCHON_REMOTE_RESOLVED} (Archon's own worktree.remote — verified, never written here)
-  archon base:   {ARCHON_BASE_RESOLVED} ({source}), the $BASE_BRANCH of a dispatch without --base. Verified, never written here
+  archon base:   {ARCHON_BASE_RESOLVED} ({source}), the $BASE_BRANCH of a dispatch without --base. {verified}never written here
   docs:     {docs.type} (publish: {docs.publish})
   design:   {design.type}
   gates:    {box}={mode} …
@@ -454,10 +454,12 @@ Name **paths**, never a count alone: the point is a reviewable diff.
 `ARCHON_REMOTE_RESOLVED` null → print `none resolved — Archon Boxes may need worktree.remote set manually`.
 
 Print `{source}` as `worktree.baseBranch` when `ARCHON_BASE_CONFIGURED` is set, else as
-`remote default; Archon's stored default may differ`. Wherever `{ARCHON_BASE_RESOLVED}` is printed, in this
-line or in a warning below, print `none resolved` when it is empty.
+`remote default; Archon's stored default may differ`. Print `{verified}` as `Verified, ` when the source is
+`worktree.baseBranch`, and as nothing otherwise, because the remote default is only a stand-in. Wherever
+this line or a warning below prints `{ARCHON_BASE_RESOLVED}`, print `none resolved` when it is empty.
 
-This is the one place in the Plugin that states which base a branching model implies. Set
+This is the one place in the Plugin that maps a branching model to a run's base. `/cleanup` keeps its own
+main-line hint. Set
 `BRANCHING_BASE` to `develop` when `project.branching` is `gitflow`, else to `main`. Only the warnings
 below read it. No Box reads it. Print each warning that applies, after the summary block. The first
 warning is the main signal, because without the key the base depends on the Archon version.

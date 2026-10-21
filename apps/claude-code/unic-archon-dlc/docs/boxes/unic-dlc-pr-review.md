@@ -40,14 +40,15 @@ precondition** — intent is composed from whatever sources resolve.
    § Addressing names it, and `prep` and `post` read that file themselves. Missing slug or config
    cancels cleanly.
 
-2. **prep** — identify the open PR + its description; compute the diff from the merge-base with the
-   PR's own target branch, or with Archon's `$BASE_BRANCH` when there is no PR, and warn in the
-   summary when the two differ. `/unic-archon-dlc:setup` reports which branch `$BASE_BRANCH` is. prep
-   fetches the diff base first, and when it still cannot resolve it, the run cancels rather than review
-   a guessed diff. prep also **categorises** the changed
-   files (reported for context; the categories gate nothing), composes **one Intent Brief** from the linked work items, the referenced
-   docs pages, the PR body, and `PRD.md` (recording any **contradictions across sources**); and detects the
-   **prior review iteration** by its hidden marker. Writes everything to `<artifacts_dir>/<slug>/pr-review/`.
+2. **prep** — identify the open PR + its description. Compute the diff from the merge-base with the
+   PR's own target branch. When a query confirms there is no PR, or the tracker exposes none, use
+   Archon's `$BASE_BRANCH` instead. `/unic-archon-dlc:setup` reports which branch that is. When the two
+   differ, the summary carries a warning. prep fetches the diff base first. When the tracker query fails,
+   or the diff base still does not resolve, `guard-no-diff-base` cancels the run. prep also
+   **categorises** the changed files. The categories are reported for context and gate nothing. It
+   composes **one Intent Brief** from the linked work items, the referenced docs pages, the PR body and
+   `PRD.md`, and records any **contradictions across sources**. It detects the **prior review
+   iteration** by its hidden marker. It writes everything to `<artifacts_dir>/<slug>/pr-review/`.
 
 3. **review** (one node, fresh) — hosts the `code-review` Method's own two-axis fan-out. The Method
    spawns its two sub-agents itself: **Standards** (repo standards + the twelve-item Fowler smell
