@@ -176,11 +176,14 @@ nodes:
 
       ## 1. Identify the open PR + read its description
       Ask the tracker for the open PR whose source branch is the current branch on that repository, and
-      read its number, title, description body, source branch and target branch. Three outcomes:
+      read its number, title, description body, source branch and target branch. Four outcomes:
         - The query succeeds and returns a PR. Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an
           intent source).
         - The query succeeds and confirms that no open PR exists for this branch. Note that and
           continue. The review still runs off the diff.
+        - The tracker contract's § Access names no server or skill that can list pull requests, so
+          this tracker has no PRs to query. Print "prep: this tracker exposes no pull requests" and
+          continue as for a confirmed no-PR. This is a fact the contract states, not an error.
         - The query fails or errors, for example on auth, a rate limit or a timeout. Print
           "prep: BLOCKED: the tracker query for this branch's PR failed: <error>". Set `base_ref` to "",
           write no diff, and skip to the emit rule at the end of this node. A failed query does not
@@ -188,8 +191,8 @@ nodes:
 
       ## 2. Compute the diff + categorise changed files
       DIFF_BASE = the branch this PR will merge into. When step 1 found a PR, it is the PR's target
-      branch, because that is the diff that will merge. When step 1 confirmed that no PR exists, it is
-      `$BASE_BRANCH`. When both exist and differ, set `base_warning` to "the PR targets <PR target>
+      branch, because that is the diff that will merge. When step 1 confirmed that no PR exists, or that
+      the tracker exposes none, it is `$BASE_BRANCH`. When both exist and differ, set `base_warning` to "the PR targets <PR target>
       but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>.", print it
       as "prep: WARNING: <base_warning>", and carry on. Otherwise set `base_warning` to "".
       DIFF_BASE may be a branch this clone has never fetched, so run `git fetch origin <DIFF_BASE>`
