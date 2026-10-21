@@ -38,7 +38,7 @@ _Avoid_: step, stage, phase
 
 **Method**:
 The skill text a Box reads for procedure, by path from `.archon/methods/`. Only this plugin writes that
-tree. A skill under `.claude/skills/` is not a Method, also when a node names it in `skills:`. It is a
+tree. A skill under `.claude/skills/` is not a Method, even when a node names it in `skills:`. It is a
 context artefact. See `docs/adr/0031-methods-bundled-three-tier-resolution.md` and
 `docs/adr/0038-practice-packs-stack-by-prefix.md`.
 _Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
@@ -56,8 +56,9 @@ the shape of criteria in the PRD come from the Consumer, as
 decides. A Practice Pack carries context artefacts and config values only, never a Box or a Method. A
 skill it installs under `.claude/skills/` is a context artefact. It reaches a Box run through its own
 block in the Consumer's `CLAUDE.md`. Each Practice Pack has a unique prefix and brings its own installer,
-which touches only the names that carry that prefix, so several coexist in one Consumer. A Practice Pack
-writes its config defaults to its own file, and a Consumer can override a value that a Practice Pack sets,
+which touches only the names that carry that prefix, so several coexist in one Consumer. Once
+[Build the layered Practice Pack config](https://github.com/unic/unic-agents-plugins/issues/647) lands, a
+Practice Pack writes its config defaults to its own file. A Consumer can override a value that a Practice Pack sets,
 as
 [Does an e2e test become an outer loop around /build's unit TDD loop for a new feature?](https://github.com/unic/unic-agents-plugins/issues/541)
 decides. See `docs/adr/0038-practice-packs-stack-by-prefix.md`.

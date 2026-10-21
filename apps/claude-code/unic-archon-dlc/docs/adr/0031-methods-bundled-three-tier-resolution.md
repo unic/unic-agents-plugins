@@ -3,7 +3,7 @@
 **Status:** Accepted (2026-08-03); amended 2026-08-20 — two of the three tiers are retired and §5's
 integrity mechanism is gone, so §2, §3 and §5 record what was rather than what is (#381). The title
 keeps the word three-tier because an ADR filename is a stable address, not a description. Amended again
-2026-10-21: the DLC alone writes `.archon/methods/`, and a Practice Pack never ships a Method (#520).
+2026-10-21. The DLC alone writes `.archon/methods/`, and a Practice Pack never ships a Method (#520).
 
 > **Amended (2026-10-21): the DLC alone writes `.archon/methods/`.**
 >
@@ -16,7 +16,7 @@ keeps the word three-tier because an ADR filename is a stable address, not a des
 >
 > **The DLC alone writes `.archon/methods/`, and a pack never ships a Method.** A pack ships context
 > artefacts and config values only. So `/setup`'s wholesale replace of that tree removes nothing a pack
-> wrote. A skill a pack installs under `.claude/skills/` is a context artefact, not a Method, also when a
+> wrote. A skill a pack installs under `.claude/skills/` is a context artefact, not a Method, even when a
 > node names it in `skills:`.
 >
 > **The route for a pack that must replace a Box step is an `include:` slot**, decided and not built.
