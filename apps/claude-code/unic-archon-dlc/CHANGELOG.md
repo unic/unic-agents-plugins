@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.30.0] — 2026-10-21
+
+### Breaking
 - `/build`, `/pr-review` and `/qa` now read the run's base branch from Archon's `$BASE_BRANCH`, not from `project.branching`. Archon resolves it from `archon workflow run --base <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default branch. If your Archon base differs from the branch that `branching` implied, the Boxes now target the Archon base: `/build` opens its PR there, and `/qa` refuses to merge a PR that targets another branch. Run `/unic-archon-dlc:setup` and read its base line before your next run. `project.branching` now decides only whether `/qa` deletes the merged `feature/*` branch (ADR-0038, #505).
 - `/pr-review` takes its review diff from the merge-base with the PR's own target branch when the tracker returns a PR, and from `$BASE_BRANCH` when it does not. When the two differ, it prints a warning that names both (#505).
 
