@@ -11,6 +11,19 @@
 ### Fixed
 - (none)
 
+## [0.31.0] — 2026-10-21
+
+### Breaking
+- `/build`, `/pr-review` and `/qa` now read the run's base branch from Archon's `$BASE_BRANCH`, not from `project.branching`. Archon resolves it from `archon workflow run --base <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default branch. If your Archon base differs from the branch that `branching` implied, the Boxes now target the Archon base. `/build` opens its PR there, and `/qa` refuses to merge a PR that targets another branch. Run `/unic-archon-dlc:setup` and read its base line before your next run. `project.branching` now decides only whether `/qa` deletes the merged `feature/*` branch (ADR-0039, #505).
+- `/pr-review` takes its review diff from the merge-base with the PR's own target branch when the tracker returns a PR, and from `$BASE_BRANCH` when it does not. When the two differ, its summary carries a warning that names both. When the tracker query for the PR fails, or the diff base does not resolve after a fetch, the run cancels instead of reviewing a guessed diff (#505).
+
+### Added
+- (none)
+
+### Fixed
+- `/qa`'s `verify-pr-base` now sets `base_ok` to `false` when the tracker query fails, or when the tracker contract is missing or cannot address the repository, so `merge` refuses. Before, it treated those cases as an unverifiable base and let the merge through. It still passes when a query succeeds and confirms that no PR exists (#505).
+- `/build`'s stub scan diffs against `origin/$BASE_BRANCH` first and falls back to the local branch, so a base this clone has never checked out no longer fails the scan. Its code-review pre-check, like `/pr-review`'s `prep`, fetches the base into `origin/<branch>` with an explicit refspec before it takes the merge-base, so the ref resolves in a single-branch clone too (#505).
+
 ## [0.30.0] — 2026-10-21
 
 ### Breaking

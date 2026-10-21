@@ -64,7 +64,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0020 | `/specs` reaches an aligned PRD by branch-on-input                                         | Accepted (2026-07-02, revised 2026-09-02)                 |
 | 0021 | A box ships only if it adds value; reference verbatim skills                               | Accepted; amended by ADR-0030                             |
 | 0022 | `/tickets` slices a PRD into build-ready issues; `/build` consumes them via a generic loop | Accepted                                                  |
-| 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (amended #281, #381)                             |
+| 0023 | `/build` is one generic red/green loop; dag-builder dissolved                              | Accepted (2026-07-02, revised 2026-10-21)                 |
 | 0024 | `/triage` is the intake on-ramp; thin wrapper binds Matt's method to the tracker contract  | Accepted (2026-07-02, revised 2026-10-21)                 |
 | 0025 | `/qa` is an Archon pipeline with two config-gated approvals + an issue-producing on-ramp   | Accepted (2026-07-02, revised 2026-09-04; #389 folded in) |
 | 0026 | `/pr-review` is a generic fan-out Archon workflow harvesting unic-pr-review's learnings    | Accepted (amended #281, 2026-08-24)                       |
@@ -80,3 +80,4 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295, #381)                             |
 | 0037 | The config declares the SDLC's needs; the Plugin names no tool                             | Accepted                                                  |
 | 0038 | Practice Packs stack by prefix; the DLC alone owns `.archon/methods/`                      | Accepted                                                  |
+| 0039 | A run's base branch is Archon's `$BASE_BRANCH`                                             | Accepted                                                  |

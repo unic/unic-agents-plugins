@@ -8,7 +8,8 @@ description: >
   `tdd` and `implement` Methods, read by path from `.archon/methods/`; refactoring is deliberately
   NOT in the loop — `tdd` puts it in the review stage, so it lives in /pr-review's `code-review`
   Fowler smells (#281, amending ADR-0023). Then a local non-posting code-review pre-check, verify,
-  goals-check, report, and gate a PR to develop (ADR-0011/0022/0023/0030/0031).
+  goals-check, report, and gate a PR to the run's base branch, Archon's $BASE_BRANCH
+  (ADR-0011/0022/0023/0030/0031/0039).
 
 # Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
 interactive: true
@@ -38,15 +39,16 @@ nodes:
       2. Read `.archon/unic-dlc.config.yaml` at the repo root.
          - If it is absent or unreadable → status "no-config".
          - Otherwise read: `artifacts_dir` (default "workflows"), `gates.build` (default "hitl"),
-           `build.coverage_threshold` (may be null), `project.branching` (default "gitflow"), and the
-           whole `sdlc_needs` block.
+           `build.coverage_threshold` (may be null), and the whole `sdlc_needs` block.
       3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
          - If it is absent → status "no-issues".
       4. If slug, config, and issues.json are all present → status "ready".
 
-      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
-      Emit it in EVERY branch (fall back to "develop" when config cannot be read) — the
-      implement-review-precheck node pins its code-review fixed point to it.
+      This run's base branch is `$BASE_BRANCH`. Archon resolves it before this node starts, from
+      `--base`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default. It is
+      the code-review fixed point and the PR target. Archon cuts the worktree from it unless `--from`
+      names another branch. Read no base branch from the config. In EVERY branch, start `message` with
+      "Base branch: $BASE_BRANCH." and follow it with the reason for any status other than "ready".
 
       ## The `sdlc_needs` block — a key names a need, never a tool
       Every key in it names a NEED of this project's development process. `test` names the need;
@@ -105,9 +107,8 @@ nodes:
             coverage: { type: [string, 'null'] }
           required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
         install_report: { type: string }
-        expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). One
@@ -374,12 +375,15 @@ nodes:
       It is a LOCAL PRE-CHECK. Follow the Method's Process steps 1–5 with these answers supplied — the
       Method asks a live human for two of them and there is no human here, so do NOT ask:
 
-      - **Step 1, the fixed point:** the branch point of this build branch —
-        `git merge-base origin/$bootstrap.output.expected_base HEAD`, falling back to
-        `git merge-base $bootstrap.output.expected_base HEAD` if `origin/<ref>` doesn't resolve. If
+      - **Step 1, the fixed point:** the branch point of this build branch. A worktree cut with
+        `--from <feature>` may never have fetched the base, so run
+        `git fetch origin +refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH` first. The
+        explicit destination creates `origin/$BASE_BRANCH` even in a single-branch clone. A failed fetch is not fatal on its own. Then take
+        `git merge-base origin/$BASE_BRANCH HEAD`, falling back to
+        `git merge-base $BASE_BRANCH HEAD` if `origin/<ref>` doesn't resolve. If
         NEITHER resolves, do NOT fall back to the branch's first commit — that guarantees a
         "non-empty" diff that is not the Method's fixed point. Instead print "PRECHECK BLOCKED:
-        cannot resolve expected_base '$bootstrap.output.expected_base' via origin or local — no
+        cannot resolve base branch '$BASE_BRANCH' via origin or local — no
         merge-base found", emit that sentence as `findings`, and stop. Otherwise confirm the diff is
         non-empty before spawning anything, as the Method requires.
       - **Step 2, the spec source:** already on disk for this slug — read
@@ -468,8 +472,10 @@ nodes:
          `e2e` is null this node wants no e2e run at all and reports nothing about it — silence here
          means "not wanted", which is not the same fact as "could not run".
       2. Stub scan — inspect the diff against the base branch
-         (`git diff --name-only $BASE_BRANCH...HEAD`, source files only:
-         .mjs/.js/.ts/.py/.rb/.go/.rs). Flag any of these left in changed source:
+         (`git diff --name-only origin/$BASE_BRANCH...HEAD`, falling back to
+         `git diff --name-only $BASE_BRANCH...HEAD` if `origin/$BASE_BRANCH` doesn't resolve; source
+         files only: .mjs/.js/.ts/.py/.rb/.go/.rs). If neither ref resolves, put the stub scan in
+         `unresolved_needs` and name the ref that failed. Flag any of these left in changed source:
            - `TODO` / `FIXME` comments
            - Python `pass` as a whole statement
            - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
@@ -797,7 +803,7 @@ nodes:
       2. Commit the staged set: `build($bootstrap.output.slug): session artefacts`.
 
       3. Open a PR against the repository the tracker contract above names, targeting
-         `$bootstrap.output.expected_base`:
+         `$BASE_BRANCH`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
                   ## Review Checklist
@@ -824,11 +830,13 @@ nodes:
   - id: build-pr-gate
     depends_on: [open-pr]
     when: "$bootstrap.output.gate == 'hitl'"
+    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
+    # on #505), so this message names the base through bootstrap's message, which starts with it.
     approval:
       message: >
-        Build implementation, goals-check matrix, and report are ready. Review the PR opened against
-        $bootstrap.output.expected_base. Approve to finish, or reject with feedback to trigger a
-        verify-and-fix pass.
+        Build implementation, goals-check matrix, and report are ready. $bootstrap.output.message
+        Review the PR opened against that base branch. Approve to finish, or reject with feedback to
+        trigger a verify-and-fix pass.
       on_reject:
         prompt: |
           The reviewer rejected the build PR with this feedback:

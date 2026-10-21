@@ -35,14 +35,18 @@ nodes:
              `artifacts_dir`          (default "workflows")
              `gates.qa`               (default "hitl")
              `qa.coverage_threshold`  (may be null) — else fall back to `build.coverage_threshold`
-             `project.branching`      (default "gitflow")
+             `project.branching`      (default "gitflow"), which decides only whether `merge`
+                                      deletes the merged `feature/*` branch
              the whole `sdlc_needs` block
       3. Confirm the QA baton exists: `<artifacts_dir>/<slug>/PRD.md`. This is what /specs wrote and
          /build implemented — the acceptance criteria the UAT checklist is derived from.
          - If it is absent → status "no-prd".
       4. If slug, config, and PRD.md are all present → status "ready".
 
-      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
+      This run's base branch is `$BASE_BRANCH`. Archon resolves it before this node starts, from
+      `--base`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default. It is
+      the base the PR must target. Read no base branch from the config, and never derive one from
+      `project.branching`.
       `coverage_threshold` is the resolved (qa.* ?? build.*) value — null when neither is set.
 
       ## The `sdlc_needs` block — a key names a need, never a tool
@@ -79,8 +83,8 @@ nodes:
       ALWAYS emit EVERY required field, including in the no-slug / no-config / no-prd branches, so the
       object validates before a guard can cancel. When a value cannot be read (e.g. config is
       missing), fall back to: slug "" (if no-slug), artifacts_dir "workflows", gate "hitl", branching
-      "gitflow", expected_base "develop". Set `message` to a human-readable reason for any non-ready
-      status.
+      "gitflow". In EVERY branch, start `message` with "Base branch: $BASE_BRANCH." and follow it with
+      a human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -108,9 +112,8 @@ nodes:
           required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
         install_report: { type: string }
         branching: { type: string }
-        expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, branching, message]
 
   # ---------------------------------------------------------------------------------------------
   # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
@@ -410,7 +413,7 @@ nodes:
     prompt: |
       You are the verify-pr-base node of /qa for slug "$bootstrap.output.slug".
 
-      Expected base branch: $bootstrap.output.expected_base
+      Expected base branch: $BASE_BRANCH
 
       ## The tracker contract
       `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
@@ -418,18 +421,23 @@ nodes:
       own current tool list and build the call from it, writing no command, subcommand or flag here
       and naming no provider (ADR-0016). Its § Addressing names the repository to query; name that
       repository explicitly, and derive nothing from a remote URL. If the file is absent, or the
-      tracker cannot target a repository explicitly, treat the base as unverifiable (below) and say
-      which was the reason.
+      tracker cannot target a repository explicitly, the base cannot be checked. Set `base_ok` to the
+      STRING "false" and say which was the reason.
 
       Query the open PR for the current feature branch on that repository and read its target base
       branch.
 
-      Set `base_ok` to the STRING "true" when the actual base equals expected_base; the STRING "false"
+      Set `base_ok` to the STRING "true" when the actual base equals $BASE_BRANCH; the STRING "false"
       on a genuine mismatch. (It is a string, not a boolean, so the downstream `when` gates compare it
-      reliably as `== 'true'`.) When the tracker has no queryable PR at all, set `base_ok` "true" and
-      note that the base is unverifiable here — a warning, non-blocking. Print
-      "verify-pr-base: base is <actual> ✓" or "verify-pr-base: PR targets <actual> but expected
-      <expected> ✗ — retarget first."
+      reliably as `== 'true'`.) When the query fails or errors, set `base_ok` "false" and print the
+      error. A failed query has not read the PR's target, so it cannot confirm the base. Set `base_ok` "true" without a match only
+      when a query succeeds and confirms that no PR exists for this branch, and note that the base is
+      unverifiable here. That is a warning, non-blocking. Set `actual_base` to the PR's target branch,
+      or to "" when there is no PR. Print exactly one of these lines:
+        - match → "verify-pr-base: base is <actual> ✓"
+        - mismatch → "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget first."
+        - confirmed no PR → "verify-pr-base: no open PR, base unverifiable here"
+        - failed query or unusable contract → "verify-pr-base: cannot check the base: <reason> ✗"
     output_format:
       type: object
       properties:
@@ -437,7 +445,7 @@ nodes:
           type: string
           enum: ['true', 'false']
         actual_base: { type: string }
-      required: [base_ok]
+      required: [base_ok, actual_base]
 
   # ---------------------------------------------------------------------------------------------
   # merge-gate — HITL by default; skipped in AFK. Only pauses when the base is verified good, so an
@@ -446,10 +454,14 @@ nodes:
   - id: merge-gate
     depends_on: [verify-pr-base]
     when: "$bootstrap.output.gate == 'hitl' && $verify-pr-base.output.base_ok == 'true'"
+    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
+    # on #505), so this message names the PR target through verify-pr-base's actual_base and the run
+    # base through bootstrap's message, which starts with it.
     approval:
       message: >
-        UAT approved and PR base verified as "$bootstrap.output.expected_base" for
-        "$bootstrap.output.slug". The test result is "$test.output.result". A merge needs "pass": this
+        UAT approved for "$bootstrap.output.slug", and verify-pr-base passed. PR target:
+        "$verify-pr-base.output.actual_base" (empty when no PR exists). $bootstrap.output.message
+        The test result is "$test.output.result". A merge needs "pass": this
         gate is not what enforces that — the merge node downstream is — so if the result above is not
         "pass", approving here will not produce a merge. Which checks could not run is written in
         <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker (and delete
@@ -513,8 +525,8 @@ nodes:
          The PR is already merged when this runs, so a failure here is reported and never retried into
          a second merge: print which items took the role, which were retracted, and which failed.
 
-      3. On Gitflow ($bootstrap.output.branching == "gitflow"), after a successful merge: check out the base
-      branch and delete the merged `feature/*` branch. Under any other branching model, leave branch
+      3. On Gitflow ($bootstrap.output.branching == "gitflow"), after a successful merge: check out
+      `$BASE_BRANCH` and delete the merged `feature/*` branch. Under any other branching model, leave branch
       cleanup to whatever auto-delete the host provides.
 
       Finally print: "merge: QA for \"$bootstrap.output.slug\" complete — <n> item(s) resolved. ✓"

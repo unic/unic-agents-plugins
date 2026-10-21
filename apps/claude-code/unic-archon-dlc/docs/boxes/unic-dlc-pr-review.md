@@ -33,17 +33,22 @@ precondition** — intent is composed from whatever sources resolve.
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
    (`artifacts_dir`, `gates.pr-review`, `pr-review.confidence_threshold`, `pr-review.inline_comments`,
-   `docs.*`, `project.branching`, and the whole `sdlc_needs` block). It runs `sdlc_needs.install` once
+   `docs.*`, and the whole `sdlc_needs` block). It runs `sdlc_needs.install` once
    for the whole run and reports whether it did — this Box runs no check by instruction, and it
    installs anyway, so that a sub-agent deciding it needs to run something fails on that decision
    rather than on which worktree the run drew. It resolves **no** repository: `docs/agents/issue-tracker.md`
    § Addressing names it, and `prep` and `post` read that file themselves. Missing slug or config
    cancels cleanly.
 
-2. **prep** — identify the open PR + its description; compute the diff and **categorise** the changed
-   files (reported for context; the categories gate nothing); compose **one Intent Brief** from the linked work items, the referenced
-   docs pages, the PR body, and `PRD.md` (recording any **contradictions across sources**); and detect the
-   **prior review iteration** by its hidden marker. Writes everything to `<artifacts_dir>/<slug>/pr-review/`.
+2. **prep** — identify the open PR + its description. Compute the diff from the merge-base with the
+   PR's own target branch. When a query confirms there is no PR, or the tracker exposes none, use
+   Archon's `$BASE_BRANCH` instead. `/unic-archon-dlc:setup` reports which branch that is. When the two
+   differ, the summary carries a warning. prep fetches the diff base first. When the tracker query fails,
+   or the diff base still does not resolve, `guard-no-diff-base` cancels the run. prep also
+   **categorises** the changed files. The categories are reported for context and gate nothing. It
+   composes **one Intent Brief** from the linked work items, the referenced docs pages, the PR body and
+   `PRD.md`, and records any **contradictions across sources**. It detects the **prior review
+   iteration** by its hidden marker. It writes everything to `<artifacts_dir>/<slug>/pr-review/`.
 
 3. **review** (one node, fresh) — hosts the `code-review` Method's own two-axis fan-out. The Method
    spawns its two sub-agents itself: **Standards** (repo standards + the twelve-item Fowler smell
@@ -98,7 +103,6 @@ Read from `.archon/unic-dlc.config.yaml`:
 | `pr-review.inline_comments`      | boolean      | `true`      | Post inline per-finding comments in addition to the summary (where supported) |
 | `artifacts_dir`                  | string       | `workflows` | Session artefact home (`<artifacts_dir>/<slug>/pr-review/`)                   |
 | `docs.*`                         | object       | —           | Composed to fetch the docs pages an intent source cites                       |
-| `project.branching`              | string       | `gitflow`   | `gitflow` → base `develop`; else `main` (for the merge-base diff)             |
 
 The tracker itself is **not** configured here. `docs/agents/issue-tracker.md` and
 `docs/agents/triage-labels.md` carry the server, the repository, the work-item scope and the roles.
