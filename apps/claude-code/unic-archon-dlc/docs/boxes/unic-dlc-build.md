@@ -17,7 +17,7 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 ## What this workflow does
 
 1. **bootstrap** — parse the slug from `$ARGUMENTS`, read `.archon/unic-dlc.config.yaml`
-   (`artifacts_dir`, `gates.build`, `build.*`, `project.branching`, and the whole `sdlc_needs` block)
+   (`artifacts_dir`, `gates.build`, `build.*`, and the whole `sdlc_needs` block)
    and confirm `issues.json` exists. It also runs `sdlc_needs.install` once for the whole run and
    reports whether it did.
    It resolves **no** repository: `docs/agents/issue-tracker.md` § Addressing names it, and the nodes
@@ -71,7 +71,7 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    `issues.json`, `report.md`, `build-state.json`, `evidence.json` when the gate wrote it, and any
    drafted ADR), confirms with `git status --porcelain` that nothing else is staged, opens a PR
    against the derived repository with
-   base `develop`, then gates it. `build-state.json` is committed here and **only** here — never during
+   the run's base branch, Archon's `$BASE_BRANCH`, as its target (`/unic-archon-dlc:setup` reports which branch that is), then gates it. `build-state.json` is committed here and **only** here — never during
    a loop iteration — so the loop's anti-cheat record survives `/cleanup`. The gate is **HITL by default**
    and honours `gates.build`: skipped when `afk` (the PR is still opened). On **reject**, a
    verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses — it does **not** rebuild
