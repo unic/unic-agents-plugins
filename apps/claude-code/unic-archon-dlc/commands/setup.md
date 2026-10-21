@@ -110,10 +110,12 @@ destroy it.
 **The base branch Archon will use, verify-only.** Every Box reads a run's base branch from Archon's
 `$BASE_BRANCH` and from nothing else (ADR-0038). Archon resolves it from `archon workflow run --base
 <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase's stored default branch.
-`--base` is set per dispatch, so this command cannot see it. From the same file, keep `worktree.baseBranch`
-as `ARCHON_BASE_CONFIGURED`. It is empty when the key is unset or the file is unreadable. Archon stores the
-codebase default when it registers the repository, and it follows the remote's default branch unless that
-registration named another. Read the remote's default as the stand-in: run
+Each dispatch passes its own `--base`, so this command cannot see it. From the same file, keep
+`worktree.baseBranch` as `ARCHON_BASE_CONFIGURED`. It is empty when the key is unset or the file is
+unreadable. This command cannot read the codebase default itself, and what Archon stores depends on its
+version. Archon 0.7 to 0.11 store the branch that was checked out when the repository was first
+registered. From 0.12.0 Archon reads the branch the remote advertises. So the remote's default is an
+approximate stand-in, and `worktree.baseBranch` is the value to rely on. Run
 `git symbolic-ref --short refs/remotes/<ARCHON_REMOTE_RESOLVED>/HEAD`, strip the remote prefix, and keep
 the result as `REMOTE_DEFAULT_BRANCH`. It is empty when the ref does not resolve. Set `ARCHON_BASE_RESOLVED`
 to `ARCHON_BASE_CONFIGURED` when it is set, else to `REMOTE_DEFAULT_BRANCH`. Write nothing to the file.
@@ -451,27 +453,30 @@ Name **paths**, never a count alone: the point is a reviewable diff.
 
 `ARCHON_REMOTE_RESOLVED` null → print `none resolved — Archon Boxes may need worktree.remote set manually`.
 
-Print `{source}` as `worktree.baseBranch` when `ARCHON_BASE_CONFIGURED` is set, else as `remote default`.
-When `ARCHON_BASE_RESOLVED` is empty, print `none resolved` in its place.
+Print `{source}` as `worktree.baseBranch` when `ARCHON_BASE_CONFIGURED` is set, else as
+`remote default; Archon's stored default may differ`. Wherever `{ARCHON_BASE_RESOLVED}` is printed, in this
+line or in a warning below, print `none resolved` when it is empty.
 
 This is the one place in the Plugin that states which base a branching model implies. Set
-`BRANCHING_BASE` to `develop` when `project.branching` is `gitflow`, else to `main`. It feeds the two
-warnings below and nothing else: no Box reads it. Print each warning that applies, after the summary block:
+`BRANCHING_BASE` to `develop` when `project.branching` is `gitflow`, else to `main`. Only the warnings
+below read it. No Box reads it. Print each warning that applies, after the summary block. The first
+warning is the main signal, because without the key the base depends on the Archon version.
 
-- `ARCHON_BASE_CONFIGURED` is empty → print `WARNING: worktree.baseBranch is unset in .archon/config.yaml, so
-every run without --base uses the codebase default ({ARCHON_BASE_RESOLVED}). To pin the base that
-project.branching implies, add this to .archon/config.yaml:` followed by the block below.
+- `ARCHON_BASE_CONFIGURED` is empty → print `WARNING: worktree.baseBranch is unset in .archon/config.yaml,
+so every run without --base uses Archon's codebase default. The remote default is
+{ARCHON_BASE_RESOLVED}, and Archon's stored default may differ. Pin the base that project.branching
+implies in .archon/config.yaml.`
 - `ARCHON_BASE_RESOLVED` is set and differs from `BRANCHING_BASE` → print `WARNING: Archon will use
 {ARCHON_BASE_RESOLVED} as the base branch, but project.branching {branching} implies {BRANCHING_BASE}.
-The Boxes follow Archon. If {BRANCHING_BASE} is the right base, set this in .archon/config.yaml:`
-  followed by the block below.
+The Boxes follow Archon. If {BRANCHING_BASE} is the right base, set it in .archon/config.yaml.`
+
+When at least one warning printed, print this block once after them, with the value of `BRANCHING_BASE`
+in place of `<BRANCHING_BASE>`:
 
 ```text
 worktree:
   baseBranch: <BRANCHING_BASE>
 ```
-
-Print the value of `BRANCHING_BASE` in place of `<BRANCHING_BASE>`.
 
 The key must sit under `worktree:`. A top-level `baseBranch:` has no reader in Archon. A run that must
 target another branch for one dispatch passes `--base <branch>` and needs no change to this file.

@@ -30,21 +30,15 @@ and that `--from <feature-branch>` with `--base` cuts the worktree from the feat
    for it. A DLC key would be a third answer next to `branching` and Archon's own, with nothing to keep the
    three in step. Archon already reads `--base` per dispatch, so a run can target another branch without a
    committed change in the Consumer. Every line in the three Boxes that names the base reads
-   `$BASE_BRANCH`, except the review diff in decision 3. On Archon 0.12.1 an approval `message`
-   substitutes node outputs but not `$BASE_BRANCH`, so the approval messages point at the `bootstrap`
-   message, which names the base.
-2. **`project.branching` stops naming the base.** It keeps one job in the Boxes: whether `/qa` deletes the
-   merged `feature/*` branch after the merge. `/cleanup` and `/explore` keep their own reads of it as
+   `$BASE_BRANCH`, except the review diff in decision 3. On Archon 0.12.1 an approval `message` substitutes node outputs but not `$BASE_BRANCH`. So `/build`'s gate embeds the `bootstrap` message, which starts with the base, and `/qa`'s `merge-gate` names the PR's verified target.
+2. **`project.branching` stops naming the base.** Its one job left in the Boxes is to decide whether `/qa` deletes the merged `feature/*` branch after the merge. `/cleanup` and `/explore` keep their own reads of it as
    hints, and neither names a run's base.
 3. **The review diff reads the PR's own target branch** when the tracker returns a PR, because that is
    the diff that will merge. With no queryable PR it reads `$BASE_BRANCH`. When both exist and differ,
-   `/pr-review` prints a warning that names both and carries on. `/qa`'s `verify-pr-base` compares the
+   `/pr-review` puts a warning that names both in its summary and carries on. `prep` fetches the diff base first. When it still cannot resolve it, the run cancels, because a guessed base reads the wrong diff and reports it clean. `/qa`'s `verify-pr-base` compares the
    PR's target with `$BASE_BRANCH`, and `merge-gate` and `merge` still fail closed on
-   `base_ok != 'true'`. So a `/qa` dispatched without `--base` against a PR that targets another branch
-   refuses to merge.
-4. **`/setup` stays verify-only on `.archon/config.yaml`.** It reports the base Archon will resolve from
-   `worktree.baseBranch` or the remote's default branch, and warns, with the line to add, when the key is
-   unset or disagrees with the base that `branching` implies. It writes nothing to that file.
+   `base_ok != 'true'`. So a `/qa` whose `$BASE_BRANCH` differs from the PR's target refuses to merge.
+4. **`/setup` stays verify-only on `.archon/config.yaml`.** It reports `worktree.baseBranch` when it is set. Otherwise it reports the remote's default branch, labelled as an approximate stand-in, because Archon 0.7 to 0.11 store the branch checked out at the first registration and Archon 0.12 reads what the remote advertises. Its main signal is the warning that `worktree.baseBranch` is unset. It also warns when the resolved base disagrees with the base that `branching` implies, and prints the block to add once. It writes nothing to that file.
    `commands/setup.md` is the one place in the Plugin that states which base a branching model implies,
    and only to warn.
 
@@ -57,4 +51,4 @@ and that `--from <feature-branch>` with `--base` cuts the worktree from the feat
 - `--base` refuses a branch missing on the remote, so no Box creates an integration branch. A person cuts
   it before the dispatch.
 - The PR-target path of decision 3 needs a tracker that returns a PR, so the spike could not measure it.
-  It is proven in the Consumer before the first run that depends on it (#502).
+  #502 proves it in the Consumer before the first run that depends on it.
