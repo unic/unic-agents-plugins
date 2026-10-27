@@ -132,7 +132,7 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # pr-check — read the PR state before any test runs (#652). A /qa on a branch with no open PR can
   # merge nothing, so it must not spend the test, e2e and coverage runs, and it must not end completed.
-  # `test` depends on this node, so the cancel below stops the run before `test` starts.
+  # `test` runs only on `pr_state == 'open'`, and the cancel below ends the run on every other state.
   # verify-pr-base reads the state again, because a PR can be merged or closed during UAT.
   # ---------------------------------------------------------------------------------------------
   - id: pr-check
@@ -184,15 +184,15 @@ nodes:
       required: [pr_state, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard-no-open-pr — its `when` is the exact negation of the `when` on `test`, so one of the two
-  # always holds and the run never goes on with nothing to merge.
+  # guard-no-open-pr — its `when` is the exact negation of the `when` on `test`. When pr-check
+  # succeeds, one of the two always holds and the run never goes on with nothing to merge.
   # ---------------------------------------------------------------------------------------------
   - id: guard-no-open-pr
     depends_on: [pr-check]
     when: "$pr-check.output.pr_state != 'open'"
     cancel: >
-      /qa did not run the checks, because there is no open PR to merge. PR state:
-      "$pr-check.output.pr_state". $pr-check.output.message
+      /qa did not run the checks, because the PR for this branch is not open or could not be read.
+      PR state: "$pr-check.output.pr_state". $pr-check.output.message
 
   # ---------------------------------------------------------------------------------------------
   # test — the floor. This Box ran no test suite at all before #430 and merged on an e2e result that
@@ -465,7 +465,7 @@ nodes:
   # verify-pr-base — read the PR state again, confirm the open PR targets the expected base, and name
   # every reason the merge cannot run. trigger_rule: all_done so it still runs when uat-gate is
   # SKIPPED in AFK mode (skipped counts as terminal); a rejected uat-gate cancels the whole run, so
-  # this never runs on a rejected build. It never fails on a red result: guard-not-mergeable below
+  # this never runs on a rejected build. It never fails on a red result. guard-not-mergeable below
   # cancels the run instead.
   # ---------------------------------------------------------------------------------------------
   - id: verify-pr-base
@@ -623,6 +623,10 @@ nodes:
           item)
         · the branch policy refuses the merge → the refusal as received
         · the merge call errors → the error as received
+        · the merge call returned success, but the PR state could not be read again → say so, give
+          the error as received, and tell the operator to check the PR. If it merged, the operator
+          writes the role `resolved` and the value its row gives on every linked item by hand,
+          because a re-run of /qa reads the PR as merged and does nothing
       A "false" ends the run cancelled with `reason` as its message. When `merged` is "true", set
       `reason` to "".
 
@@ -661,8 +665,8 @@ nodes:
       Only when `merged` is "true", finally print:
       "merge: QA for \"$bootstrap.output.slug\" complete — <n> item(s) resolved. ✓"
       `<n>` counts only the items that took `resolved`. If writing `resolved` failed on some items,
-      add " Not resolved: <their ids>." before the ✓. A merge that landed is never undone, so the run
-      still ends completed. When `merged` is "false", never print this line.
+      add " Not resolved: <their ids>." before the ✓. `/qa` never reverts a merge that landed, so the
+      run still ends completed. When `merged` is "false", never print this line.
     output_format:
       type: object
       properties:
@@ -673,13 +677,12 @@ nodes:
       required: [merged, reason]
 
   # ---------------------------------------------------------------------------------------------
-  # guard-not-merged — `merge` can run and still not merge (no tracker contract, no merge capability,
-  # a branch policy that refuses, an error). Its `when` is the exact negation of "merged", so a run
-  # whose merge did not land ends cancelled instead of completed (#652).
+  # guard-not-merged — `merge` can run and still not confirm a merge (no tracker contract, no merge
+  # capability, a branch policy that refuses, an error, or a PR state it could not read again). Its
+  # `when` is the exact negation of "merged", so such a run ends cancelled instead of completed (#652).
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-merged
     depends_on: [merge]
     when: "$merge.output.merged != 'true'"
     cancel: >
-      /qa did not merge "$bootstrap.output.slug": the merge node ran but the merge did not land.
-      $merge.output.reason
+      /qa could not confirm a merge for "$bootstrap.output.slug". $merge.output.reason

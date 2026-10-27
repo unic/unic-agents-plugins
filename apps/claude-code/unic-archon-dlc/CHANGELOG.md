@@ -14,7 +14,13 @@
 ## [0.33.0] — 2026-10-27
 
 ### Breaking
-- `/qa` runs that merged nothing used to end `completed`. They now end `cancelled`, with a message that names every cause. A new `pr-check` node reads the PR state before any test runs, and a branch whose PR is not open (`none`, `merged`, `closed` or `unknown`) cancels before `test`. `verify-pr-base` now reports `pr_state`, and `base_ok` is no longer `"true"` when no PR exists. A failed test, a red e2e or coverage gate, a PR that is not open, a wrong base or a failed base query cancels the run after `verify-pr-base`, and the message joins every cause that held. `merge-gate` asks for approval only when `merge` would run. `merge` reports whether it merged, and a merge that did not land cancels the run with the reason. The `complete` line appears only after a merge that landed, and it names any item that did not take `resolved`. A tool that watches `/qa` runs must now read `cancelled` as "nothing merged" (#652).
+- `/qa` runs that merged nothing used to end `completed`. They now end `cancelled`, with a message that names every cause. A tool that watches `/qa` runs must now read `cancelled` as "nothing merged" (#652).
+- A new `pr-check` node reads the PR state before any test runs. A branch whose PR is not open (`none`, `merged`, `closed` or `unknown`) cancels before `test` (#652).
+- `verify-pr-base` now reports `pr_state`. `base_ok` is no longer `"true"` when no PR exists (#652).
+- A failed test, a red e2e or coverage gate, a PR that is not open, a wrong base or a failed base query cancels the run after `verify-pr-base`. The message joins every cause that held (#652).
+- `merge-gate` asks for approval only when `merge` would run (#652).
+- `merge` reports whether it merged. When it cannot confirm a merge, the run cancels with the reason (#652).
+- The `complete` line appears only after a merge that landed, and it names any item that did not take `resolved` (#652).
 
 ### Added
 - (none)

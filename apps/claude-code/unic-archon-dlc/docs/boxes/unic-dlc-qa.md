@@ -1,5 +1,5 @@
 ---
-description: Run the unic-archon-dlc QA workflow — test suite, e2e, coverage gate, UAT sign-off, PR-base check, and merge. UAT findings become agent-ready tracker issues.
+description: Run the unic-archon-dlc QA workflow — PR check, test suite, e2e, coverage gate, UAT sign-off, PR-base check, and merge. UAT findings become agent-ready tracker issues.
 ---
 
 # /unic-dlc-qa
@@ -83,25 +83,28 @@ from), which `/build` implemented against.
    results. An `unresolved` e2e or coverage result is not a cause and does not block the merge.
 
 9. **merge-gate → merge** — **HITL by default** (`gates.qa`); skipped in AFK. `merge-gate` asks for
-   approval only when `merge` would run: its `when` is the HITL check plus every condition of the
+   approval only when `merge` would run. Its `when` is the HITL check plus every condition of the
    `when` on `merge`. On approval (or in AFK) the PR is merged via the configured tracker and the
    feature branch is cleaned up on Gitflow. The merge **fail-closes**: it never runs on a failed test,
    e2e or coverage, on a PR that is not open, on a wrong base, or on a `test` need that could not run.
    `test` is the floor and its clause requires a `pass`, while e2e and coverage only have to avoid a
    `fail`.
 
-   `merge` reports `merged`. When it runs and the merge does not land, because the tracker contract
-   is missing, the tracker cannot merge, the branch policy refuses or the merge call errors,
-   `guard-not-merged` cancels the run with the reason, and with the manual steps when the tracker
+   `merge` reports `merged`. When it runs and cannot confirm a merge, because the tracker contract
+   is missing, the tracker cannot merge, the branch policy refuses, the merge call errors, or the
+   call returned success but the PR state could not be read again, `guard-not-merged` cancels the
+   run with the reason. In the last case the reason tells the operator to check the PR and, if it
+   merged, to write `resolved` by hand, because a re-run of `/qa` reads the PR as merged and does
+   nothing. The reason gives the manual steps when the tracker
    cannot merge. The line `merge: QA for "<slug>" complete … ✓` appears only after a merge that
    landed. If writing `resolved` failed on some items, the line names them and does not count them.
-   Such a run still ends `completed`, because the merge is never undone.
+   Such a run still ends `completed`, because `/qa` never reverts a merge that landed.
 
 ## Gates & AFK
 
 `gates.qa` (default `hitl`) governs **both** the UAT gate and the merge gate. Set it to `afk` to run the
-whole pipeline unattended — the gates are skipped and a clean build auto-merges. An unresolved or red test, a red e2e or coverage, or a
-mismatched PR base blocks the merge even in AFK (fail-closed `when`), and the run ends `cancelled`.
+whole pipeline unattended — the gates are skipped and a clean build auto-merges. An unresolved or red test, a red e2e or coverage, a PR
+that is not open, or a mismatched PR base blocks the merge even in AFK (fail-closed `when`), and the run ends `cancelled`.
 
 ## Prerequisites
 
