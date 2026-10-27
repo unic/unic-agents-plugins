@@ -9,8 +9,8 @@ docs pages, the PR description, and `PRD.md`), runs **one review node** that hos
 Method's own **two-axis fan-out** — **Standards** (repo standards plus the twelve-item Fowler smell
 baseline) and **Spec** (the diff against the originating intent) — synthesises the findings,
 **reconciles them against the prior iteration**
-(new / still-present / fixed / unverified / regressed), and — after a config-gated human confirm — posts or updates a
-single structured **summary comment** plus **inline comments** on the current PR.
+(new / still-present / fixed / unverified / regressed). After a config-gated human confirm, it posts or
+updates a single structured **summary comment** plus **inline comments** on the current PR.
 
 Generic and **self-contained**: it harvests `unic-pr-review`'s review learnings (confidence rubric,
 structured summary, hidden-marker idempotency, conditional spawn table, two-surface posting) **without
@@ -72,10 +72,12 @@ precondition** — intent is composed from whatever sources resolve.
    finalise the summary comment (with the `Iteration N` marker, the head marker and the footer) and the
    inline-comment plan. A prior finding that this run's review omits is `fixed` only when its file
    changed between the prior iteration's recorded head and this one, by `git diff --name-only` between
-   the two heads. Otherwise it is `unverified`: its file did not change, it is scoped to the pull
-   request, a work item or the repository, or there is no prior head. The PR's diff against its base is
-   never evidence for a `fixed`. When there is no prior head, the summary says why and asks the
-   developer to check each `unverified` finding by hand.
+   the two heads. Otherwise it is `unverified`. Its file did not change, it is scoped to the pull
+   request, a work item or the repository, or there is no usable prior head. The PR's diff against its
+   base is never evidence for a `fixed`. When there is no usable prior head, the summary says why and
+   asks the developer to check each `unverified` finding by hand. A finding this Box retired stays
+   retired on later iterations, because `prep` reads its thread's `fixed` reply marker back as its
+   prior verdict.
 
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,
    the finding counts, and any contradiction warnings; APPROVE to post, REJECT to halt without posting.
@@ -84,11 +86,24 @@ precondition** — intent is composed from whatever sources resolve.
    marker, never author identity) and, when `inline_comments` and the tracker supports inline threads,
    reconcile **inline comments** per finding (still-present → update, fixed → resolve, unverified →
    one reply asking the author to check it by hand, with the status left as it is, regressed → reopen,
-   new → create). It reads each thread's status first: a resolved thread whose finding is reported
-   again is reopened, whoever resolved it. Every reply carries a hidden marker with the thread's finding
-   hash and the verdict, and `post` skips a reply when the thread's latest marker already holds both.
-   So a rerun after a `post` that failed halfway, or another iteration on the same commit, repeats no
-   reply. A tracker whose registered skill cannot comment on a file and line degrades to summary-only.
+   new → create). It reads each thread's status first. When a thread is resolved and its finding is
+   reported again, `post` reopens it with a reply, whoever resolved it. Every reply carries a hidden
+   marker with the thread's finding hash and the verdict. `post` skips a reply when the thread's latest
+   marker already holds both. So a rerun after a `post` that failed halfway, or another iteration on the
+   same commit, repeats no reply. A tracker whose registered skill cannot comment on a file and line
+   degrades to summary-only.
+
+   Three limits apply to threads that an older Box or a killed run left behind:
+
+   - On the first iteration after an upgrade, the prior summary carries no head marker. `post` then
+     posts nothing on a thread whose finding retires, because the older Box's resolved reply carries no
+     marker and a second reply could resolve a thread a person reopened on purpose.
+   - A thread that an older Box resolved more than one iteration ago carries no `reply=` marker and is
+     in neither list of the summary. `prep` reads it as open. If the review does not report it again,
+     it is `unverified`. Its thread gets one reply asking for a check by hand and stays resolved.
+   - A killed run can post the fixed reply and die before it resolves the thread. The rerun cannot tell
+     that thread from one a person reopened on purpose, so it leaves the thread open. A false open is
+     the safe direction, because it costs the author one click.
 
 ## Gates & AFK
 
