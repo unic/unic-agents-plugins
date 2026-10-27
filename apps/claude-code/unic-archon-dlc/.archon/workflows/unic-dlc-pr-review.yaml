@@ -5,7 +5,7 @@ description: >
   is where refactoring lives now that /build's loop has no REFACTOR phase) and Spec (does the diff match
   what was asked for) — as parallel sub-agents, grounded in the Intent Brief composed once in prep from
   the linked work items, the referenced docs pages, the PR description, and PRD.md. Synthesises this run's
-  findings, reconciles them against the prior iteration (new / still-present / fixed / regressed), then —
+  findings, reconciles them against the prior iteration (new / still-present / fixed / unverified / regressed), then —
   after a config-gated human confirm — posts/updates one structured summary discussion plus per-line
   discussions on the current PR, through the tracker its contract at `docs/agents/issue-tracker.md`
   names. Harvests unic-pr-review's review
@@ -251,15 +251,19 @@ nodes:
       never a finding of its own. Set `anchored` to "true" when you found the hash on a discussion
       anchored to a file and a line, and "false" when you found it only in the summary body — reconcile needs to know which
       prior findings own a live thread. Set `prior_verdict` by the first rule that holds:
-        1. The marker is in the summary's fixed list → "fixed".
-        2. The marker is in the summary's list headed "Not reported this iteration, not verified" →
-           "unverified".
-        3. The finding is anchored, and its thread's latest reply marker is
-           `<!-- unic-dlc-pr-review:reply=<hash>:fixed -->` → "fixed". A finding retired in an
-           earlier iteration is in neither list, so its thread is the only record that this Box
-           resolved it. Without this rule, its next iteration reads it as "open" and rules it
-           `unverified` on a thread this Box resolved.
-        4. Otherwise → "open".
+        1. If the marker is in the summary's fixed list, set "fixed".
+        2. If the marker is in the summary's list headed "Not reported this iteration, not verified",
+           set "unverified".
+        3. If the finding is anchored, its hash appears nowhere in the prior summary, and its thread
+           is resolved or its latest reply marker is `<!-- unic-dlc-pr-review:reply=<hash>:fixed -->`,
+           set "fixed". A finding retired in an earlier iteration is in no part of the summary, so its
+           thread is the only record that it was resolved. That covers a thread an older Box resolved,
+           which carries no `reply=` marker. Without this rule, the next iteration reads such a
+           finding as "open" and rules it `unverified` on a resolved thread. The rule never applies to
+           a hash the prior summary shows anywhere, for example in a severity section. Such a finding
+           was open at the prior iteration, even when a killed run left its thread's latest reply
+           marker at `fixed`.
+        4. Otherwise, set "open".
       Without `prior_verdict`, a finding the prior iteration RESOLVED
       reads exactly like one it reported, so it would be re-reported as fixed on every later iteration
       and `regressed` could never fire. A scoped `unverified` finding has no thread, so the summary's
@@ -274,19 +278,19 @@ nodes:
       ## 5. Record this head and read the prior one
       Run `git rev-parse HEAD > SESSION/head.txt` in the reviewed tree. reconcile writes the summary's
       head marker from that file, so the next iteration reads back the commit this run reviewed, never
-      a commit id a model typed. Check that SESSION/head.txt holds exactly 40 hexadecimal characters
-      and nothing else but a line end. If it does not, print "prep: BLOCKED: SESSION/head.txt does not
+      a commit id a model typed. Check that SESSION/head.txt holds exactly 40 or 64 hexadecimal
+      characters and nothing else but a line end. A SHA-256 repository has 64. If it does not, print "prep: BLOCKED: SESSION/head.txt does not
       hold a commit id", set `base_ref` to "", and skip to the emit rule at the end of this node, so
       `guard-no-diff-base` cancels the run.
       Then read the prior head. The prior summary, the discussion with the highest iteration marker,
       carries `<!-- unic-dlc-pr-review:head=<commit id> -->` beside its iteration marker. Set
       `prior_head` and `prior_head_status` as follows:
-        - No such marker, or iteration is 1 → `prior_head` "", `prior_head_status` "absent". A summary
-          that an older Box posted carries no head marker.
-        - A marker whose commit resolves: `git cat-file -e <commit id>^{commit}` succeeds, first as it
-          is and again after `git fetch origin <commit id>` → `prior_head` the commit id,
-          `prior_head_status` "recorded".
-        - A marker whose commit still does not resolve after that fetch → `prior_head` "",
+        - If there is no such marker, or iteration is 1, set `prior_head` "" and `prior_head_status`
+          "absent". A summary that an older Box posted carries no head marker.
+        - If the marker's commit resolves, set `prior_head` to the commit id and `prior_head_status`
+          "recorded". It resolves when `git cat-file -e <commit id>^{commit}` succeeds, first as it is
+          and again after `git fetch origin <commit id>`.
+        - If the marker's commit still does not resolve after that fetch, set `prior_head` "" and
           `prior_head_status` "unreachable". When the fetch failed, print "prep: fetch of prior head
           <commit id> failed: <error>". The cause may be a rebase or a force push, or a host that
           refuses a fetch by commit id. This node cannot tell which.
@@ -294,7 +298,7 @@ nodes:
       Write `SESSION/prep.json` mirroring the emitted object for durability.
 
       ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
-      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". When step 1 or step 2
+      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". When step 1, 2 or 5
       stopped as BLOCKED, use `base_ref` "", the STRING "false" for every category, `intent_available`
       "false", iteration 1, `prior_head` "", `prior_head_status` "absent", and `[]` for both arrays, and still write `SESSION/prep.json` mirroring that
       object, so the cancelled run leaves a record of why. `contradictions` and
@@ -348,16 +352,17 @@ nodes:
   # =============================================================================================
 
   # ---------------------------------------------------------------------------------------------
-  # guard-no-diff-base. prep emits an empty base_ref when the tracker query failed or prep cannot
-  # resolve the branch the PR merges into. A guessed base gives review a diff of other changes than
+  # guard-no-diff-base. prep emits an empty base_ref when the tracker query failed, when prep cannot
+  # resolve the branch the PR merges into, or when SESSION/head.txt holds no commit id. A guessed base gives review a diff of other changes than
   # the PR's, so the guard cancels the run.
   # ---------------------------------------------------------------------------------------------
   - id: guard-no-diff-base
     depends_on: [prep]
     when: "$prep.output.base_ref == ''"
     cancel: >
-      /pr-review cannot resolve the branch this PR merges into, so it reviews nothing. prep's
-      "prep: BLOCKED" line says why. When the tracker query failed, fix the tracker access and re-run.
+      /pr-review cannot resolve the branch this PR merges into, or cannot record the commit it
+      reviews, so it reviews nothing. prep's "prep: BLOCKED" line says which. When SESSION/head.txt
+      holds no commit id, check that the worktree is a git checkout with a HEAD, and re-run. When the tracker query failed, fix the tracker access and re-run.
       When a PR exists, its target branch must exist on the remote, so retarget the PR or push that
       branch, then re-run. With no PR, dispatch with --base <branch>.
 
@@ -524,11 +529,17 @@ nodes:
       You are the reconcile node of /pr-review for slug "$bootstrap.output.slug" — the re-review
       coordinator. SESSION = <artifacts_dir>/<slug>/pr-review/. ITERATION = $prep.output.iteration.
 
-      1. Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration),
+      1. First delete SESSION/comment.md, SESSION/threads.json and SESSION/changed-between-heads.txt
+         if they exist. SESSION persists between runs, so a file an earlier run left there would let
+         `post` publish that run's verdicts when this node stops early.
+         Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration),
          `prior_head` and `prior_head_status`.
          Before you classify anything, write the change between the two heads to
          SESSION/changed-between-heads.txt. When `prior_head_status` is "recorded", run
-         `git diff --name-only <prior_head> "$(cat SESSION/head.txt)" > SESSION/changed-between-heads.txt`.
+         `git -c core.quotePath=false diff --name-only <prior_head> "$(cat SESSION/head.txt)" > SESSION/changed-between-heads.txt`.
+         `core.quotePath=false` makes git print a non-ASCII path as it is, not quoted, so it can match a
+         finding's `file`. A rename lists only the new path, so a finding on the old path is
+         `unverified`.
          Otherwise create the file empty, because there is no prior head to compare against.
          Check the exit status of that `git diff`. A failed diff leaves the file empty, and an empty
          file would make every reply say that the file did not change. If it exits non-zero, print
@@ -581,14 +592,14 @@ nodes:
            - regressed     — a prior finding whose `prior_verdict` is "fixed" and which matches a
                              finding this run: the previous iteration resolved it and it is back
            - retired       — a prior finding whose `prior_verdict` is "fixed" and which STILL has no
-                             match. It was reported fixed and stayed fixed, so it leaves the ledger:
-                             step 5 does not re-list it and it carries no marker forward. Without
-                             this, an already-fixed finding is ruled `fixed` again every run, the
-                             fixed list grows without bound, and the "since iteration N−1" delta
-                             counts findings fixed several iterations ago as though they were fixed
-                             this one. The ceiling: a retired finding that reappears two iterations
-                             later reads as `new`, because nothing carries its hash any more. The
-                             ledger has to end somewhere and this is where it ends. Only a prior
+                             match. It was reported fixed and stayed fixed, so step 5 does not
+                             re-list it. Without this, an already-fixed finding is ruled `fixed`
+                             again every run, the fixed list grows without bound, and the "since
+                             iteration N−1" delta counts findings fixed several iterations ago as
+                             though they were fixed this one. An anchored retired finding keeps its
+                             thread, and prep reads it back as "fixed", so it stays `retired` and
+                             returns as `regressed`. Only a retired finding with no thread leaves the
+                             ledger. If it comes back, it reads as `new`. Only a prior
                              `fixed` can retire. A prior `unverified` with no match is `fixed` or
                              `unverified` by the rules above, never `retired`.
          **The prior hash is the identity. Carry it forward.** The moment a finding matches a prior
@@ -638,8 +649,8 @@ nodes:
 
          **Write the head marker from SESSION/head.txt with a command, never by typing the commit id**,
          for example `printf '<!-- unic-dlc-pr-review:head=%s -->\n' "$(cat SESSION/head.txt)"`, and
-         check afterwards that the commit id in SESSION/comment.md is 40 hexadecimal characters and
-         equals the content of SESSION/head.txt. If it does not, print "reconcile: BLOCKED: the head
+         check afterwards that the commit id in SESSION/comment.md is 40 or 64 hexadecimal characters
+         and equals the content of SESSION/head.txt. If it does not, print "reconcile: BLOCKED: the head
          marker does not match SESSION/head.txt", write no SESSION/comment.md, and stop. The next
          iteration's prep reads this marker back as its prior head. `post`
          rewrites the summary in place on every run, so the marker always names the head of the latest
@@ -708,20 +719,20 @@ nodes:
              and the hash its thread's marker already holds. `post` finds the thread by that marker
              alone, so a reply entry sets `file: null` and `line: null` — the thread already sits where
              it sits. Fill `body` and `reply` per classification:
-               - still-present → `body` the updated finding. `reply` says the finding was reported
-                 again in iteration <ITERATION>; `post` uses it only when the thread is resolved.
-               - fixed, and retired → `reply` "✅ resolved in iteration <ITERATION>". Its marker
+               - still-present. `body` is the updated finding. `reply` says the finding was reported
+                 again in iteration <ITERATION>, and `post` uses it only when the thread is resolved.
+               - fixed, and retired. `reply` is "✅ resolved in iteration <ITERATION>". Its marker
                  carries the verdict `fixed` for both, `<!-- unic-dlc-pr-review:reply=<hash>:fixed -->`,
                  because prep reads that verdict back. `post` posts a retired entry's reply only when
-                 the thread carries no fixed reply yet. So a rerun posts the fixed reply that a killed
+                 the thread is not resolved and carries no fixed reply yet. So a rerun posts the fixed reply that a killed
                  run never posted. It does not resolve a thread whose fixed reply is already there,
                  because a killed run that replied but changed no status looks the same as a person who
                  reopened the thread on purpose.
-               - unverified → `reply` says that the review did not report the finding this iteration,
+               - unverified. `reply` says that the review did not report the finding this iteration,
                  why it is not ruled fixed (its file did not change since the prior iteration, or the
                  finding is scoped, or there is no prior head), and that the author should check it by
                  hand and resolve the thread if the finding is gone.
-               - regressed → `reply` says the finding is back in iteration <ITERATION>.
+               - regressed. `reply` says the finding is back in iteration <ITERATION>.
            - **anchor** — one entry for every finding this run that is anchorable AND owns no thread
              yet: classification `new`, or a match against a prior finding whose `anchored` is "false".
              It carries the real changed-file path in `file` and the real diff line in `line`.
@@ -814,6 +825,13 @@ nodes:
       If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
       docs/agents/issue-tracker.md", and post nothing.
 
+      ## Before anything is posted
+      Check SESSION/comment.md first. If it is missing, or its `head=` marker differs from the content
+      of SESSION/head.txt, or its `iteration=` marker differs from ITERATION, print "post: BLOCKED:
+      SESSION/comment.md is missing or belongs to another run", post nothing, and stop. This node runs
+      even when reconcile stopped early, and SESSION persists between runs, so a stale file would
+      publish an earlier run's verdicts.
+
       ## The summary discussion (always)
       Read SESSION/comment.md. **A discussion on the pull request itself** is what carries it — the
       review addresses the whole PR, not one line of it. Hosts carry that differently: one opens a
@@ -857,11 +875,13 @@ nodes:
           the same commit from repeating one. A finding that went fixed, then regressed, then fixed
           again still gets each reply once. Read what is posted from the PR's threads and their
           markers only, never from an earlier run's session directory.
-          **A reopen always posts its reply**, whatever the repeat rule says. A rerun finds the thread
-          already open and does not reopen it, so this repeats nothing on a rerun.
+          **A reopen always posts its reply**, whatever the repeat rule says. Reopen first, then post
+          the reply. A rerun finds the thread already open and does not reopen it, so this repeats
+          nothing on a rerun. A run killed after the reopen and before the reply leaves the thread open
+          with no new reply.
           Then act on `classification`:
             - still-present → update that discussion's body in place with `body`. When the thread is
-                              resolved, reopen it, whoever resolved it, and post `reply`. Where the
+                              resolved, reopen it, whoever resolved it, then post `reply`. Where the
                               tracker offers no reopen, post `reply` under the repeat rule.
             - fixed         → post `reply` under the repeat rule. Mark the thread resolved where the
                               tracker carries a resolved status and the thread is not resolved yet.
@@ -871,12 +891,13 @@ nodes:
             - retired       → do nothing when `$prep.output.prior_head_status` is "absent". An older
                               Box posted the prior iteration, and its resolved reply carries no
                               `reply=` marker, so a reply now would be a second "resolved" and could
-                              resolve a thread a person reopened on purpose. Otherwise, when the thread
-                              carries no `reply=<hash>:fixed` marker, act as for fixed. When it carries
-                              one, do nothing, even when the thread is open.
+                              resolve a thread a person reopened on purpose. Do nothing when the thread
+                              is already resolved. Otherwise, when the thread carries no
+                              `reply=<hash>:fixed` marker, act as for fixed. When it carries one, do
+                              nothing, even when the thread is open.
             - unverified    → post `reply` under the repeat rule, and leave the thread's status as it
                               is. A person resolves it once they have checked it by hand.
-            - regressed     → reopen it when it is resolved, and post `reply`. Where the tracker
+            - regressed     → reopen it when it is resolved, then post `reply`. Where the tracker
                               offers no reopen, or the thread is open, post `reply` under the repeat
                               rule on that same thread. A reply entry
                               carries no file and no line, so it has nothing to anchor a new thread to.
@@ -923,3 +944,7 @@ nodes:
       $reconcile.output.prior_count prior findings, $reconcile.output.verdicts verdicts,
       $reconcile.output.retired retired, $reconcile.output.unverified unverified,
       $reconcile.output.unmatched_priors unaccounted. ✓"
+      The inline counts are what this node did. `<new>` counts anchor entries opened. `<upd>` counts
+      still-present bodies updated. `<fixed>` counts threads this node marked resolved, a retired entry
+      it acted on as fixed included. `<reopened>` counts threads it reopened. `<unv>` counts unverified
+      replies it posted. `<skipped>` counts replies the repeat rule held back.
