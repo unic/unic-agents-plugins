@@ -1,8 +1,9 @@
 name: unic-dlc-qa
 description: >
-  QA box + issue-producing on-ramp. Runs after /build's PR is approved: test → e2e → coverage-gate →
-  UAT sign-off → verify-pr-base → merge, config-driven and generic. `test` is the floor the merge gate
-  cannot advance without. Two human gates (UAT + merge)
+  QA box + issue-producing on-ramp. Runs after /build's PR is approved: pr-check → test → e2e →
+  coverage-gate → UAT sign-off → verify-pr-base → merge, config-driven and generic. `test` is the floor
+  the merge gate cannot advance without. Every path that does not merge ends cancelled, never completed
+  (#652). Two human gates (UAT + merge)
   honour gates.qa — HITL by default, AFK opt-in. When UAT surfaces a defect, it is filed directly as
   an agent-ready tracker item, through the contract at `docs/agents/issue-tracker.md` and
   `docs/agents/triage-labels.md` (ADR-0016/0024), so the finding feeds /tickets rather than only
@@ -129,14 +130,79 @@ nodes:
       needs /specs + /tickets), so the acceptance criteria the UAT checklist reads from exist.
 
   # ---------------------------------------------------------------------------------------------
+  # pr-check — read the PR state before any test runs (#652). A /qa on a branch with no open PR can
+  # merge nothing, so it must not spend the test, e2e and coverage runs, and it must not end completed.
+  # `test` depends on this node, so the cancel below stops the run before `test` starts.
+  # verify-pr-base reads the state again, because a PR can be merged or closed during UAT.
+  # ---------------------------------------------------------------------------------------------
+  - id: pr-check
+    depends_on: [bootstrap]
+    when: "$bootstrap.output.status == 'ready'"
+    # always_run: true — the PR state is a fact about the remote, not about this node's exit code. A
+    # resume must query it again (ADR-0033).
+    always_run: true
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the pr-check node of /qa for slug "$bootstrap.output.slug".
+
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` in this repository is the tracker contract. Read it before the
+      query. Its § Access names the MCP server or skill that serves this tracker. Read that server's own
+      current tool list and build the call from it. Write no command, subcommand or flag here, and name
+      no provider (ADR-0016). Its § Addressing names the repository to query. Name that repository
+      explicitly, and derive nothing from a remote URL.
+
+      Query the PRs whose head is the current feature branch on that repository, in every state. Set
+      `pr_state`:
+        · a PR is open → "open"
+        · no PR is open, and one is merged → "merged"
+        · no PR is open or merged, and one is closed → "closed"
+        · the query succeeds and finds no PR → "none"
+        · the query fails, or the contract is missing or cannot target a repository explicitly →
+          "unknown"
+      Never guess a state. A query that did not answer is "unknown".
+
+      Set `message` to the text for the state, word for word, with the placeholders filled:
+        · open    → "The PR for this branch is open."
+        · none    → "No PR was ever opened for this branch. Fix the build and re-run /build."
+        · merged  → "The PR for this branch is already merged. Nothing to do."
+        · closed  → "The PR for this branch was closed without merging. Reopen it, or abandon the work."
+        · unknown, failed query → "The PR state could not be read: <the error as received>. Check
+          access to the tracker and re-run /qa."
+        · unknown, missing or unusable contract → "The PR state could not be read:
+          docs/agents/issue-tracker.md <is missing | cannot target a repository explicitly>. Add it
+          with /unic-archon-dlc:setup."
+      Print `message` as one line.
+    output_format:
+      type: object
+      properties:
+        pr_state:
+          type: string
+          enum: [open, merged, closed, none, unknown]
+        message: { type: string }
+      required: [pr_state, message]
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-open-pr — its `when` is the exact negation of the `when` on `test`, so one of the two
+  # always holds and the run never goes on with nothing to merge.
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-open-pr
+    depends_on: [pr-check]
+    when: "$pr-check.output.pr_state != 'open'"
+    cancel: >
+      /qa did not run the checks, because there is no open PR to merge. PR state:
+      "$pr-check.output.pr_state". $pr-check.output.message
+
+  # ---------------------------------------------------------------------------------------------
   # test — the floor. This Box ran no test suite at all before #430 and merged on an e2e result that
   # was almost always a skip. A prompt node (ADR-0023 §5): it reads the declared command from
   # bootstrap and runs it with its own tools. It REPORTS a verdict rather than hard-failing, and the
   # merge `when` below requires that verdict to be `pass` — the one clause there that is not `!= fail`.
   # ---------------------------------------------------------------------------------------------
   - id: test
-    depends_on: [bootstrap]
-    when: "$bootstrap.output.status == 'ready'"
+    depends_on: [pr-check]
+    when: "$pr-check.output.pr_state == 'open'"
     # always_run: true — the result is a fact about the CURRENT branch; a resume must re-run it
     # rather than replay a cached pass from before the code changed underneath it (ADR-0033).
     always_run: true
@@ -396,17 +462,19 @@ nodes:
         max_attempts: 1
 
   # ---------------------------------------------------------------------------------------------
-  # verify-pr-base — confirm the open PR targets the expected base before merge. trigger_rule:
-  # all_done so it still runs when uat-gate is SKIPPED in AFK mode (skipped counts as terminal); a
-  # rejected uat-gate cancels the whole run, so this never runs on a rejected build. Reports base_ok;
-  # the merge `when` fail-closes on a wrong base rather than this node failing.
+  # verify-pr-base — read the PR state again, confirm the open PR targets the expected base, and name
+  # every reason the merge cannot run. trigger_rule: all_done so it still runs when uat-gate is
+  # SKIPPED in AFK mode (skipped counts as terminal); a rejected uat-gate cancels the whole run, so
+  # this never runs on a rejected build. It never fails on a red result: guard-not-mergeable below
+  # cancels the run instead.
   # ---------------------------------------------------------------------------------------------
   - id: verify-pr-base
     depends_on: [uat-gate]
     trigger_rule: all_done
-    # always_run: true — base_ok is a fact about the remote PR, not about this node's own exit
-    # code; a resume must re-query it, never reuse a cached verdict for a PR retargeted since
-    # (the exact hole ADR-0033 closes). Independent of trigger_rule above; both apply.
+    # always_run: true — pr_state and base_ok are facts about the remote PR, not about this node's
+    # own exit code; a resume must re-query them, never reuse a cached verdict for a PR retargeted,
+    # merged or closed since (the exact hole ADR-0033 closes). Independent of trigger_rule above; both
+    # apply.
     always_run: true
     context: fresh
     allowed_tools: [Read, Bash]
@@ -416,61 +484,109 @@ nodes:
       Expected base branch: $BASE_BRANCH
 
       ## The tracker contract
-      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
-      tracker contract. This node needs the first. Read it before the query. Its § Access names the MCP server or skill that serves this tracker — read that server's
-      own current tool list and build the call from it, writing no command, subcommand or flag here
-      and naming no provider (ADR-0016). Its § Addressing names the repository to query; name that
-      repository explicitly, and derive nothing from a remote URL. If the file is absent, or the
-      tracker cannot target a repository explicitly, the base cannot be checked. Set `base_ok` to the
-      STRING "false" and say which was the reason.
+      `docs/agents/issue-tracker.md` in this repository is the tracker contract. Read it before the
+      query. Its § Access names the MCP server or skill that serves this tracker. Read that server's own
+      current tool list and build the call from it. Write no command, subcommand or flag here, and name
+      no provider (ADR-0016). Its § Addressing names the repository to query. Name that repository
+      explicitly, and derive nothing from a remote URL.
 
-      Query the open PR for the current feature branch on that repository and read its target base
-      branch.
+      ## 1. The PR state
+      A PR can be merged or closed during UAT, so read its state again. Query the PRs whose head is the
+      current feature branch on that repository, in every state. Set `pr_state`:
+        · a PR is open → "open"
+        · no PR is open, and one is merged → "merged"
+        · no PR is open or merged, and one is closed → "closed"
+        · the query succeeds and finds no PR → "none"
+        · the query fails, or the contract is missing or cannot target a repository explicitly →
+          "unknown"
+      Never guess a state. A query that did not answer is "unknown".
 
-      Set `base_ok` to the STRING "true" when the actual base equals $BASE_BRANCH; the STRING "false"
-      on a genuine mismatch. (It is a string, not a boolean, so the downstream `when` gates compare it
-      reliably as `== 'true'`.) When the query fails or errors, set `base_ok` "false" and print the
-      error. A failed query has not read the PR's target, so it cannot confirm the base. Set `base_ok` "true" without a match only
-      when a query succeeds and confirms that no PR exists for this branch, and note that the base is
-      unverifiable here. That is a warning, non-blocking. Set `actual_base` to the PR's target branch,
-      or to "" when there is no PR. Print exactly one of these lines:
-        - match → "verify-pr-base: base is <actual> ✓"
-        - mismatch → "verify-pr-base: PR targets <actual> but expected <expected> ✗ — retarget first."
-        - confirmed no PR → "verify-pr-base: no open PR, base unverifiable here"
-        - failed query or unusable contract → "verify-pr-base: cannot check the base: <reason> ✗"
+      ## 2. The base
+      `base_ok` has one meaning: the open PR targets $BASE_BRANCH. Set it to the STRING "true" only when
+      `pr_state` is "open" and the PR's target base equals $BASE_BRANCH. Set it to the STRING "false"
+      in every other case, including when no PR is open and when the query failed. (It is a string, not
+      a boolean, so the downstream `when` gates compare it reliably as `== 'true'`.) Set `actual_base`
+      to the open PR's target branch, or to "" when no PR is open.
+
+      ## 3. Every reason the merge cannot run
+      The merge runs only when all of these hold: the test result "$test.output.result" is "pass", the
+      e2e result "$e2e.output.result" is not "fail", the coverage-gate result
+      "$coverage-gate.output.result" is not "fail", `pr_state` is "open", and `base_ok` is "true". An
+      "unresolved" e2e or coverage-gate result does not block the merge.
+
+      Set `blockers` to one sentence for EVERY condition that does not hold, in this order, joined with
+      a space. Write all of them. One cause never replaces another.
+        · test is not "pass" → "The test result is <result>, and a merge needs pass."
+        · e2e is "fail" → "The e2e suite failed."
+        · coverage-gate is "fail" → "The coverage gate failed."
+        · `pr_state` is not "open" → the text for that state, word for word, with the placeholders
+          filled:
+            · none    → "No PR was ever opened for this branch. Fix the build and re-run /build."
+            · merged  → "The PR for this branch is already merged. Nothing to do."
+            · closed  → "The PR for this branch was closed without merging. Reopen it, or abandon the
+              work."
+            · unknown, failed query → "The PR state could not be read: <the error as received>.
+              Check access to the tracker and re-run /qa."
+            · unknown, missing or unusable contract → "The PR state could not be read:
+              docs/agents/issue-tracker.md <is missing | cannot target a repository explicitly>. Add
+              it with /unic-archon-dlc:setup."
+        · `pr_state` is "open" and the base does not match → "The PR targets <actual> but <expected>
+          was expected. Retarget it, then re-run /qa." Never say the PR is missing in this case.
+      When every condition holds, set `blockers` to "".
+
+      Print exactly one of these lines:
+        - nothing blocks → "verify-pr-base: base is <actual> ✓"
+        - otherwise → "verify-pr-base: the merge cannot run. <blockers> ✗"
     output_format:
       type: object
       properties:
+        pr_state:
+          type: string
+          enum: [open, merged, closed, none, unknown]
         base_ok:
           type: string
           enum: ['true', 'false']
         actual_base: { type: string }
-      required: [base_ok, actual_base]
+        blockers: { type: string }
+      required: [pr_state, base_ok, actual_base, blockers]
 
   # ---------------------------------------------------------------------------------------------
-  # merge-gate — HITL by default; skipped in AFK. Only pauses when the base is verified good, so an
-  # approval is never solicited for a merge that would be blocked anyway.
+  # guard-not-mergeable — its `when` is the exact negation of the `when` on `merge`, written against
+  # the same outputs, so one of the two always holds. A run that cannot merge ends cancelled here
+  # instead of skipping `merge` and ending completed (#652). The message carries the results as well
+  # as verify-pr-base's sentences, so the causes stay readable even if `blockers` came back short.
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-mergeable
+    depends_on: [verify-pr-base]
+    when: "$test.output.result != 'pass' || $e2e.output.result == 'fail' || $coverage-gate.output.result == 'fail' || $verify-pr-base.output.pr_state != 'open' || $verify-pr-base.output.base_ok != 'true'"
+    cancel: >
+      /qa did not merge "$bootstrap.output.slug". $verify-pr-base.output.blockers Results: test
+      "$test.output.result", e2e "$e2e.output.result", coverage-gate "$coverage-gate.output.result",
+      PR state "$verify-pr-base.output.pr_state", base_ok "$verify-pr-base.output.base_ok".
+
+  # ---------------------------------------------------------------------------------------------
+  # merge-gate — HITL by default; skipped in AFK. Its `when` is the gate check plus the conditions of
+  # the `when` on `merge`, so it asks for approval only when `merge` would run.
   # ---------------------------------------------------------------------------------------------
   - id: merge-gate
     depends_on: [verify-pr-base]
-    when: "$bootstrap.output.gate == 'hitl' && $verify-pr-base.output.base_ok == 'true'"
+    when: "$bootstrap.output.gate == 'hitl' && $test.output.result == 'pass' && $e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.pr_state == 'open' && $verify-pr-base.output.base_ok == 'true'"
     # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured
     # on #505), so this message names the PR target through verify-pr-base's actual_base and the run
     # base through bootstrap's message, which starts with it.
     approval:
       message: >
         UAT approved for "$bootstrap.output.slug", and verify-pr-base passed. PR target:
-        "$verify-pr-base.output.actual_base" (empty when no PR exists). $bootstrap.output.message
-        The test result is "$test.output.result". A merge needs "pass": this
-        gate is not what enforces that — the merge node downstream is — so if the result above is not
-        "pass", approving here will not produce a merge. Which checks could not run is written in
+        "$verify-pr-base.output.actual_base". $bootstrap.output.message
+        The test result is "$test.output.result". Which checks could not run is written in
         <artifacts_dir>/<slug>/qa-checks.md. Approve to merge the PR through the tracker (and delete
         the feature branch on Gitflow). Reject to halt without merging.
 
   # ---------------------------------------------------------------------------------------------
   # merge — merge the PR through the tracker. trigger_rule: all_done so it runs when merge-gate
-  # is SKIPPED in AFK; the `when` fail-closes so it NEVER runs on a red test/e2e/coverage or a wrong
-  # base, in either mode. A rejected merge-gate cancels the run before this node (max_attempts).
+  # is SKIPPED in AFK; the `when` fail-closes so it NEVER runs on a red test/e2e/coverage, a PR that
+  # is not open or a wrong base, in either mode. A rejected merge-gate cancels the run before this
+  # node (max_attempts).
   #
   # The `test` clause reads `== 'pass'` while e2e and coverage read `!= 'fail'`, and that asymmetry is
   # the floor (#430): `test` is the one need this gate cannot advance without, so an `unresolved` test
@@ -481,7 +597,7 @@ nodes:
   - id: merge
     depends_on: [merge-gate]
     trigger_rule: all_done
-    when: "$test.output.result == 'pass' && $e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.base_ok == 'true'"
+    when: "$test.output.result == 'pass' && $e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.pr_state == 'open' && $verify-pr-base.output.base_ok == 'true'"
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |
@@ -494,15 +610,28 @@ nodes:
       that serves this tracker — read that server's own current tool list and build the call from it,
       writing no command, subcommand or flag here and naming no provider (ADR-0016). Its § Addressing
       names the repository to merge in; name that repository explicitly, and derive nothing from a
-      remote URL. If the file is absent, STOP and print "BLOCKED: this repository has no tracker
-      contract at docs/agents/issue-tracker.md" and merge nothing.
+      remote URL. If the file is absent, merge nothing, set `merged` to "false", and set `reason` to
+      "BLOCKED: this repository has no tracker contract at docs/agents/issue-tracker.md. Add it with
+      /unic-archon-dlc:setup, then re-run /qa."
+
+      ## What this node reports
+      Set `merged` to the STRING "true" only when the merge call returned success and the PR now reads
+      as merged. Set it to the STRING "false" in every other case, and set `reason` to why:
+        · the tracker contract is missing (the text above)
+        · the tracker has no merge capability → say so, then give the manual steps for a human
+          (merge the PR, then write the role `resolved` and the value its row gives on every linked
+          item)
+        · the branch policy refuses the merge → the refusal as received
+        · the merge call errors → the error as received
+      A "false" ends the run cancelled with `reason` as its message. When `merged` is "true", set
+      `reason` to "".
 
       1. Merge the open PR for the current feature branch on that repository. **The merge style is the
          host's to enforce, not this Box's to choose.** Use whatever the repository's own branch policy
          allows; where it allows more than one, the team's `CLAUDE.md` states the rule — read it. Pick
          nothing yourself, and do not override a policy that refuses a style.
-         If the tracker has no merge capability at all, merge nothing, skip step 2, and print the manual
-         steps for a human instead — including the role `resolved` and the value its row gives.
+         If the tracker has no merge capability at all, merge nothing and skip steps 2 and 3.
+         If the merge did not land, skip steps 2 and 3.
 
       2. **After the merge lands, write the `resolved` role on every item the PR links.** Read the PR's
          links collection for them; nothing else is authoritative, and this is why `open-pr` created
@@ -529,4 +658,28 @@ nodes:
       `$BASE_BRANCH` and delete the merged `feature/*` branch. Under any other branching model, leave branch
       cleanup to whatever auto-delete the host provides.
 
-      Finally print: "merge: QA for \"$bootstrap.output.slug\" complete — <n> item(s) resolved. ✓"
+      Only when `merged` is "true", finally print:
+      "merge: QA for \"$bootstrap.output.slug\" complete — <n> item(s) resolved. ✓"
+      `<n>` counts only the items that took `resolved`. If writing `resolved` failed on some items,
+      add " Not resolved: <their ids>." before the ✓. A merge that landed is never undone, so the run
+      still ends completed. When `merged` is "false", never print this line.
+    output_format:
+      type: object
+      properties:
+        merged:
+          type: string
+          enum: ['true', 'false']
+        reason: { type: string }
+      required: [merged, reason]
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-not-merged — `merge` can run and still not merge (no tracker contract, no merge capability,
+  # a branch policy that refuses, an error). Its `when` is the exact negation of "merged", so a run
+  # whose merge did not land ends cancelled instead of completed (#652).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-merged
+    depends_on: [merge]
+    when: "$merge.output.merged != 'true'"
+    cancel: >
+      /qa did not merge "$bootstrap.output.slug": the merge node ran but the merge did not land.
+      $merge.output.reason
