@@ -828,7 +828,8 @@ nodes:
       ## Before anything is posted
       Check SESSION/comment.md first. If it is missing, or its `head=` marker differs from the content
       of SESSION/head.txt, or its `iteration=` marker differs from ITERATION, print "post: BLOCKED:
-      SESSION/comment.md is missing or belongs to another run", post nothing, and stop. This node runs
+      SESSION/comment.md is missing or belongs to another run", post nothing, and stop. Print that
+      BLOCKED line only, and no closing line. This node runs
       even when reconcile stopped early, and SESSION persists between runs, so a stale file would
       publish an earlier run's verdicts.
 
@@ -945,6 +946,6 @@ nodes:
       $reconcile.output.retired retired, $reconcile.output.unverified unverified,
       $reconcile.output.unmatched_priors unaccounted. ✓"
       The inline counts are what this node did. `<new>` counts anchor entries opened. `<upd>` counts
-      still-present bodies updated. `<fixed>` counts threads this node marked resolved, a retired entry
-      it acted on as fixed included. `<reopened>` counts threads it reopened. `<unv>` counts unverified
+      still-present bodies updated. `<fixed>` counts threads this node marked resolved, including
+      retired entries it handled as fixed. `<reopened>` counts threads it reopened. `<unv>` counts unverified
       replies it posted. `<skipped>` counts replies the repeat rule held back.
