@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.32.0] — 2026-10-27
+
+### Breaking
 - `/pr-review`'s `reconcile` no longer emits `unverified_fixed`. It emits `unverified` instead, and the review gate and `post`'s closing line read the new count. A tool that reads `unverified_fixed` from a run must read `unverified` (#482).
 
 ### Added
