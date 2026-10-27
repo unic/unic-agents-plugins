@@ -9,8 +9,8 @@ docs pages, the PR description, and `PRD.md`), runs **one review node** that hos
 Method's own **two-axis fan-out** — **Standards** (repo standards plus the twelve-item Fowler smell
 baseline) and **Spec** (the diff against the originating intent) — synthesises the findings,
 **reconciles them against the prior iteration**
-(new / still-present / fixed / regressed), and — after a config-gated human confirm — posts or updates a
-single structured **summary comment** plus **inline comments** on the current PR.
+(new / still-present / fixed / unverified / regressed). After a config-gated human confirm, it posts or
+updates a single structured **summary comment** plus **inline comments** on the current PR.
 
 Generic and **self-contained**: it harvests `unic-pr-review`'s review learnings (confidence rubric,
 structured summary, hidden-marker idempotency, conditional spawn table, two-surface posting) **without
@@ -48,7 +48,11 @@ precondition** — intent is composed from whatever sources resolve.
    **categorises** the changed files. The categories are reported for context and gate nothing. It
    composes **one Intent Brief** from the linked work items, the referenced docs pages, the PR body and
    `PRD.md`, and records any **contradictions across sources**. It detects the **prior review
-   iteration** by its hidden marker. It writes everything to `<artifacts_dir>/<slug>/pr-review/`.
+   iteration** by its hidden marker. It records the commit this run reviews, from `git rev-parse HEAD`,
+   and reads back the head the prior iteration recorded in its summary. It reports no prior head when
+   the prior summary carries none, which is the case for one an older Box posted, or when the clone
+   cannot reach that commit after a fetch, as after a rebase or a force push. It writes everything to
+   `<artifacts_dir>/<slug>/pr-review/`.
 
 3. **review** (one node, fresh) — hosts the `code-review` Method's own two-axis fan-out. The Method
    spawns its two sub-agents itself: **Standards** (repo standards + the twelve-item Fowler smell
@@ -64,17 +68,48 @@ precondition** — intent is composed from whatever sources resolve.
    sections + Intent Check + "What's good".
 
 5. **reconcile** — the re-review coordinator: classify each finding against the prior iteration
-   (new / still-present / fixed / regressed), compute the "since iteration N−1" delta, and finalise the
-   summary comment (with the `Iteration N` marker + footer) and the inline-comment plan.
+   (new / still-present / fixed / unverified / regressed), compute the "since iteration N−1" delta, and
+   finalise the summary comment (with the `Iteration N` marker, the head marker and the footer) and the
+   inline-comment plan. A prior finding that this run's review omits is `fixed` only when its file
+   changed between the prior iteration's recorded head and this one, by `git diff --name-only` between
+   the two heads. Otherwise it is `unverified`. That happens when its file did not change, when it is
+   scoped to the pull request, a work item or the repository, or when there is no usable prior head.
+   The PR's diff against its base is never evidence for a `fixed`. When there is no usable prior head,
+   the summary says why and asks the developer to check each `unverified` finding by hand. An anchored
+   finding that has retired stays retired on later iterations. `prep` reads it as fixed when the prior
+   summary does not show its hash and its thread is resolved or carries a `fixed` reply marker.
 
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,
    the finding counts, and any contradiction warnings; APPROVE to post, REJECT to halt without posting.
 
 7. **post** — post/update the **summary comment** (matched by the `<!-- unic-dlc-pr-review:iteration= -->`
    marker, never author identity) and, when `inline_comments` and the tracker supports inline threads,
-   reconcile **inline comments** per finding (still-present → update, fixed → resolve, regressed →
-   reopen, new → create). A tracker whose registered skill cannot comment on a file and line degrades
-   to summary-only.
+   reconcile **inline comments** per finding. It updates a still-present thread, resolves a fixed one,
+   reopens a regressed one and opens a thread for a new finding. On an unverified thread it posts one
+   reply asking the author to check the finding by hand, and leaves the status as it is. It reads each
+   thread's status first. When a thread is resolved and its finding is reported again, `post` reopens
+   it first and then replies, whoever resolved it. Every reply carries a hidden
+   marker with the thread's finding hash and the verdict. `post` skips a reply when the thread's latest
+   marker already holds both. So a rerun after a `post` that failed halfway, or another iteration on the
+   same commit, repeats no reply. `post` posts nothing when `SESSION/comment.md` is missing or belongs
+   to another run. A tracker whose registered skill cannot comment on a file and line
+   degrades to summary-only.
+
+   These limits apply:
+
+   - On the first iteration after an upgrade, the prior summary carries no head marker. `post` then
+     posts nothing on a thread whose finding retires, because the older Box's resolved reply carries no
+     marker and a second reply could resolve a thread a person reopened on purpose.
+   - A thread that an older Box resolved, and whose hash the prior summary no longer shows, reads as
+     fixed, because it is resolved. It stays retired and gets no further reply. If a person reopened such a
+     thread, it carries no `reply=` marker, and `prep` reads it as open.
+   - A killed run can post the fixed reply and die before it resolves the thread. The rerun cannot tell
+     that thread from one a person reopened on purpose, so it leaves the thread open. A false open is
+     the safe direction, because it costs the author one click.
+   - A killed run can reopen a thread and die before it replies. The thread is then open with no new
+     reply.
+   - A renamed file appears in the change between the two heads under its new path only. A finding on
+     the old path is `unverified`.
 
 ## Gates & AFK
 
