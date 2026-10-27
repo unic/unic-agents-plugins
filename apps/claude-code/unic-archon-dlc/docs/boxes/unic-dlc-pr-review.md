@@ -9,7 +9,7 @@ docs pages, the PR description, and `PRD.md`), runs **one review node** that hos
 Method's own **two-axis fan-out** — **Standards** (repo standards plus the twelve-item Fowler smell
 baseline) and **Spec** (the diff against the originating intent) — synthesises the findings,
 **reconciles them against the prior iteration**
-(new / still-present / fixed / regressed), and — after a config-gated human confirm — posts or updates a
+(new / still-present / fixed / unverified / regressed), and — after a config-gated human confirm — posts or updates a
 single structured **summary comment** plus **inline comments** on the current PR.
 
 Generic and **self-contained**: it harvests `unic-pr-review`'s review learnings (confidence rubric,
@@ -48,7 +48,11 @@ precondition** — intent is composed from whatever sources resolve.
    **categorises** the changed files. The categories are reported for context and gate nothing. It
    composes **one Intent Brief** from the linked work items, the referenced docs pages, the PR body and
    `PRD.md`, and records any **contradictions across sources**. It detects the **prior review
-   iteration** by its hidden marker. It writes everything to `<artifacts_dir>/<slug>/pr-review/`.
+   iteration** by its hidden marker. It records the commit this run reviews, from `git rev-parse HEAD`,
+   and reads back the head the prior iteration recorded in its summary. It reports no prior head when
+   the prior summary carries none, which is the case for one an older Box posted, or when the clone
+   cannot reach that commit after a fetch, as after a rebase or a force push. It writes everything to
+   `<artifacts_dir>/<slug>/pr-review/`.
 
 3. **review** (one node, fresh) — hosts the `code-review` Method's own two-axis fan-out. The Method
    spawns its two sub-agents itself: **Standards** (repo standards + the twelve-item Fowler smell
@@ -64,17 +68,27 @@ precondition** — intent is composed from whatever sources resolve.
    sections + Intent Check + "What's good".
 
 5. **reconcile** — the re-review coordinator: classify each finding against the prior iteration
-   (new / still-present / fixed / regressed), compute the "since iteration N−1" delta, and finalise the
-   summary comment (with the `Iteration N` marker + footer) and the inline-comment plan.
+   (new / still-present / fixed / unverified / regressed), compute the "since iteration N−1" delta, and
+   finalise the summary comment (with the `Iteration N` marker, the head marker and the footer) and the
+   inline-comment plan. A prior finding that this run's review omits is `fixed` only when its file
+   changed between the prior iteration's recorded head and this one, by `git diff --name-only` between
+   the two heads. Otherwise it is `unverified`: its file did not change, it is scoped to the pull
+   request, a work item or the repository, or there is no prior head. The PR's diff against its base is
+   never evidence for a `fixed`. When there is no prior head, the summary says why and asks the
+   developer to check each `unverified` finding by hand.
 
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,
    the finding counts, and any contradiction warnings; APPROVE to post, REJECT to halt without posting.
 
 7. **post** — post/update the **summary comment** (matched by the `<!-- unic-dlc-pr-review:iteration= -->`
    marker, never author identity) and, when `inline_comments` and the tracker supports inline threads,
-   reconcile **inline comments** per finding (still-present → update, fixed → resolve, regressed →
-   reopen, new → create). A tracker whose registered skill cannot comment on a file and line degrades
-   to summary-only.
+   reconcile **inline comments** per finding (still-present → update, fixed → resolve, unverified →
+   one reply asking the author to check it by hand, with the status left as it is, regressed → reopen,
+   new → create). It reads each thread's status first: a resolved thread whose finding is reported
+   again is reopened, whoever resolved it. Every reply carries a hidden marker with the thread's finding
+   hash and the verdict, and `post` skips a reply when the thread's latest marker already holds both.
+   So a rerun after a `post` that failed halfway, or another iteration on the same commit, repeats no
+   reply. A tracker whose registered skill cannot comment on a file and line degrades to summary-only.
 
 ## Gates & AFK
 

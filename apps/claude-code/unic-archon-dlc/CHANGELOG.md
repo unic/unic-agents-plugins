@@ -3,13 +3,13 @@
 ## [Unreleased]
 
 ### Breaking
-- (none)
+- `/pr-review`'s `reconcile` no longer emits `unverified_fixed`. It emits `unverified` instead, and the review gate and `post`'s closing line read the new count. A tool that reads `unverified_fixed` from a run must read `unverified` (#482).
 
 ### Added
 - (none)
 
 ### Fixed
-- (none)
+- `/pr-review` no longer marks a prior finding `fixed`, and resolves its thread, only because the next review did not report it. Every iteration now records the commit it reviewed in a hidden marker in its summary. A prior finding that the review omits is `fixed` only when its file changed between the prior iteration's head and this one. Otherwise it is `unverified`: `post` replies once on its thread, asks the author to check it by hand, and leaves the thread's status as it is. When there is no prior head, because an older Box posted the prior iteration or the history was rewritten, every omitted finding is `unverified` and the summary says why. `post` now reads each thread's status first and reopens a resolved thread whose finding is reported again. Every reply carries a hidden marker with the finding's hash and its verdict, so a rerun after a `post` that failed halfway repeats no reply (#482).
 
 ## [0.31.0] — 2026-10-21
 
