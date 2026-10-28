@@ -303,7 +303,8 @@ nodes:
         above is a different thing; see the next rule for what happens to it.)
         NEVER stage or commit build-state.json in a loop iteration. You rewrite it on every one of up
         to 60 iterations; committing it here would put 60 revisions of a scratch-looking file in the
-        PR. The `open-pr` node commits it ONCE, at the end — that single commit is the durable proof
+        PR. The node that commits the Session artefacts after `report` commits it ONCE — that single
+        commit is the durable proof
         of this loop's anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase
         order), which otherwise dies when `/cleanup` prunes this worktree (ADR-0012).
         After each `git add`, run `git status --porcelain` and confirm the staged set is exactly the
@@ -681,9 +682,10 @@ nodes:
       // to STDOUT is its whole output. That makes stdout the machine channel and nothing else may go
       // there — every human line below uses console.error, which the run log still shows. Mixing one
       // progress line into stdout leaves a reader a string that is not JSON, and the reader is a
-      // `when:` expression with nowhere to put a parse failure. Two readers: the `when:` of
-      // guard-not-pass and the `when:` of open-pr. Both compare the `verdict` field with 'pass' and
-      // nothing else, so `fail` and `unresolved` take the same branch (ADR-0040).
+      // `when:` expression with nowhere to put a parse failure. Three readers: the `when:` of
+      // guard-not-pass, the `when:` of open-pr, and the cancel message of guard-not-pass, which names
+      // the verdict. Both `when:` expressions compare the `verdict` field with 'pass' and nothing
+      // else, so `fail` and `unresolved` take the same branch (ADR-0040).
       console.log(JSON.stringify({ verdict: verdictState, test_outcome: testOutcome, unresolved_needs: unresolvedNeeds }))
 
       console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
@@ -703,9 +705,9 @@ nodes:
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
       console.error(`evidence: wrote ${evidencePath} ✓`)
 
-      // Mirror into the repo-relative Session dir so a reviewer (and commit-session, which stages it)
-      // can see it —
-      // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
+      // Mirror into the repo-relative Session dir so a reviewer, and commit-session, which stages it,
+      // can see it. $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes
+      // the worktree.
       mkdirSync(sessionDir, { recursive: true })
       copyFileSync(evidencePath, mirrorPath)
       console.error(`evidence: mirrored to ${mirrorPath} ✓`)
@@ -770,7 +772,7 @@ nodes:
            - SESSION/issues.json
            - SESSION/report.md
            - SESSION/build-state.json
-           - SESSION/evidence.json — the `evidence` node writes it on every verdict, so it is
+           - SESSION/evidence.json. The `evidence` node writes it on every verdict, so it is
              always there. If it is absent, STOP and print "BLOCKED: SESSION/evidence.json is
              missing", and commit nothing.
            - each new `docs/adr/NNNN-*.md` the report node drafted, by name
@@ -798,11 +800,15 @@ nodes:
       3. Print the commit hash and the list of paths it holds.
 
   # ---------------------------------------------------------------------------------------------
-  # push-branch — runs on EVERY verdict, and pushes the branch commit-session committed on. A bash
-  # node, so a failed push exits non-zero: the node fails, guard-not-pass and open-pr are both
-  # skipped, and the run ends `failed`. That is a different fact from a red verdict, because no work
-  # reached the remote. Its stdout is JSON only, read field by field by guard-not-pass and open-pr;
-  # git's own lines go to stderr (ADR-0040).
+  # push-branch — runs on EVERY verdict, and pushes the branch commit-session committed on, to
+  # `origin`. A bash node, so a refusal or a failed push exits non-zero. The node fails,
+  # guard-not-pass and open-pr are both skipped, and the run ends `failed`. That is a different fact
+  # from a red verdict, because no work reached the remote. Before the push it refuses three cases:
+  # HEAD detached or on the run's base branch, a branch name that cannot go into the JSON below, and
+  # a Session artefact that is missing at HEAD or differs from the working tree. The last case means
+  # commit-session did not commit, which a prompt node cannot report by failing. Archon 0.12.1
+  # substitutes $BASE_BRANCH in a bash body (measured for #439). Its stdout is JSON only, read field
+  # by field by guard-not-pass and open-pr. git's own lines go to stderr (ADR-0040).
   # ---------------------------------------------------------------------------------------------
   - id: push-branch
     depends_on: [commit-session]
@@ -813,6 +819,24 @@ nodes:
         echo "push-branch: HEAD is detached, so there is no branch to push" >&2
         exit 1
       fi
+      if [ "$branch" = "$BASE_BRANCH" ]; then
+        echo "push-branch: HEAD is on the base branch $branch, so a push would put the work on it directly" >&2
+        exit 1
+      fi
+      case "$branch" in
+        *'"'* | *'\'*)
+          echo "push-branch: the branch name holds a double quote or a backslash, so it cannot be reported as JSON" >&2
+          exit 1
+          ;;
+      esac
+      session=$bootstrap.output.artifacts_dir/$bootstrap.output.slug
+      for name in evidence.json report.md build-state.json; do
+        file="$session/$name"
+        if ! git cat-file -e "HEAD:$file" 2>/dev/null || ! git diff --quiet HEAD -- "$file"; then
+          echo "push-branch: $file at HEAD is missing or differs from the working tree, so commit-session did not commit it" >&2
+          exit 1
+        fi
+      done
       git push -u origin "$branch" >&2
       printf '{"branch":"%s","commit":"%s"}\n' "$branch" "$(git rev-parse HEAD)"
 
@@ -826,14 +850,14 @@ nodes:
     depends_on: [push-branch]
     when: "$evidence.output.verdict != 'pass'"
     cancel: >
-      /build verdict is $evidence.output.verdict, so no pull request was opened. The work is on
+      /build verdict is $evidence.output.verdict, so /build opened no pull request. The work is on
       branch $push-branch.output.branch at commit $push-branch.output.commit. On that branch, read
       $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md for what failed and which
       checks could not run, and $bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json
       for the failures the verdict rests on.
 
   # ---------------------------------------------------------------------------------------------
-  # open-pr — the sibling of guard-not-pass, and runs only on a "pass" verdict. It sets no trigger rule: on
+  # open-pr — the sibling of guard-not-pass, and runs only on a "pass" verdict. It sets no trigger rule. On
   # any other verdict it is skipped, and so is build-pr-gate below. It stages and commits nothing;
   # it opens the pull request from the pushed branch and links it (ADR-0040).
   # ---------------------------------------------------------------------------------------------
@@ -883,6 +907,10 @@ nodes:
          picks one host's convention and freezes it. If the skill exposes no link capability, list
          the ids in the PR body under `## Work items` and say the links were not created. A slice
          with no `tracker_id` is reported, never invented.
+
+      If the tracker tool cannot open the PR, STOP and print "BLOCKED: the pull request could not be
+      opened" followed by the tool's error, verbatim. push-branch pushed BRANCH to `origin`, so a
+      contract repository that is not `origin`, such as a fork setup, is one cause. Open nothing else.
 
       3. Print the PR URL and the repository it was opened against.
 

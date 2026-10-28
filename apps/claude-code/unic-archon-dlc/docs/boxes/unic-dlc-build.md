@@ -67,25 +67,28 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    back `unresolved` and whether an install ran, then what was built, the matrix, test outcomes,
    decisions/ADRs and tech debt. It runs on every verdict.
 
-8. **commit-session → push-branch** — run on **every** verdict. `commit-session` stages an explicit
+8. **commit-session → push-branch** run on **every** verdict. `commit-session` stages an explicit
    list of **named paths** (source, tests, `PRD.md`, `issues.json`, `report.md`, `build-state.json`,
    `evidence.json`, and any drafted ADR), confirms with `git status --porcelain` that nothing else is
    staged, and commits. `build-state.json` is committed in `commit-session` and **only** there, never
    during a loop iteration, so the loop's anti-cheat record survives `/cleanup`. `push-branch` pushes
-   the branch and reports the branch and the commit. If the push fails, the run ends `failed`: no work
+   the branch to `origin` and reports the branch and the commit. It refuses to push from a detached
+   HEAD or from the run's base branch, and when `evidence.json`, `report.md` or `build-state.json` is
+   not committed at HEAD. If it refuses or the push fails, the run ends `failed`, because no work
    reached the remote.
 
-9. **guard-not-pass** or **open-pr → build-pr-gate** — two siblings after `push-branch`, and the
+9. **guard-not-pass** or **open-pr → build-pr-gate** are two siblings after `push-branch`, and the
    verdict picks one:
    - A verdict other than `pass` (`fail` or `unresolved`): `guard-not-pass` ends the run
-     `cancelled` and no pull request is opened. Its message names the verdict, the pushed branch and
+     `cancelled`, and /build opens no pull request. Its message names the verdict, the pushed branch and
      commit, and the path of `report.md` and `evidence.json` on that branch. Read those to see what
      failed.
    - A `pass` verdict: `open-pr` opens a PR from the pushed branch against the repository the tracker
      contract names, with the run's base branch, Archon's `$BASE_BRANCH`, as its target, and links it
-     to the slices' work items. `/unic-archon-dlc:setup` reports which branch that is. The gate is
+     to the slices' work items. If the contract's repository is not `origin`, the pushed branch is not
+     there, and `open-pr` prints `BLOCKED:` with the tool's error. `/unic-archon-dlc:setup` reports which branch that is. The gate is
      **HITL by default** and honours `gates.build`: skipped when `afk`, and the PR stays open. On
-     **reject**, a verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses — it
+     **reject**, a verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses. It
      does **not** rebuild from scratch.
 
 ## Prerequisites

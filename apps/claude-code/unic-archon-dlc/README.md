@@ -191,7 +191,7 @@ scheme; export both again whenever the JSON changes.
 <a href="docs/architecture/20260925-unic-dlc-build-pipeline.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-build-pipeline.dark.png">
-    <img alt="unic-dlc-build pipeline: bootstrap and slopcheck, the run-build loop, the review precheck, verification, goals-check and evidence, then report, open-pr and build-pr-gate" src="docs/architecture/20260925-unic-dlc-build-pipeline.light.png">
+    <img alt="unic-dlc-build pipeline: bootstrap and slopcheck, the run-build loop, the review precheck, verification, goals-check and evidence, then report, commit-session and push-branch on every verdict, then guard-not-pass on a verdict other than pass, or open-pr and build-pr-gate on pass" src="docs/architecture/20260925-unic-dlc-build-pipeline.light.png">
   </picture>
 </a>
 
