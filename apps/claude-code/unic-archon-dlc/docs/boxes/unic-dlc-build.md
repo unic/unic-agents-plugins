@@ -73,9 +73,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    `precheck_status`, `precheck_blocked_reason`, `hard_findings`, `precheck_notes` and
    `precheck_read_error`, which names why the node could not read the pre-check, or is empty. The
    node reads the pre-check's four fields through `with:` bindings, never through its source. A
-   quote, a backslash, a backtick, a newline and `${` in the pre-check's text were measured, and
-   none of them stopped the node. ADR-0034 records the size limit of a binding.
-   The node mirrors `evidence.json` to
+   measurement in ADR-0034 on Archon 0.12.1 put a quote, a backslash, a backtick, a newline and
+   `${` in the pre-check's text, and none of them stopped the node. ADR-0034 records the size limit
+   of a binding. The node mirrors `evidence.json` to
    `<artifacts_dir>/<slug>/evidence.json`. A script node, never a prompt
    ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The workflow-level
    `evidence_policy: { required: true }` still refuses terminal `completed` without the file. That is

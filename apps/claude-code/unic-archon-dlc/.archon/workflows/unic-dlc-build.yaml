@@ -460,11 +460,16 @@ nodes:
       ## Blocked
       Report `blocked` in each of the three cases this prompt names where the review cannot run: no
       merge-base resolves, the `Agent` tool is unavailable, and the diff against the base is empty.
-      Report `blocked` too when one of the two sub-agents returns no result, and name that axis,
-      `Standards` or `Spec`, in `blocked_reason`. A review of one axis is not a review. Emit every
-      field: `status: blocked`, `blocked_reason` set to the sentence you printed, `findings` set to
-      the same sentence, and `hard_findings` and `notes` as empty arrays. Every field is required,
-      so omitting one aborts the run instead of reporting the block.
+      In those three cases emit every field: `status: blocked`, `blocked_reason` set to the sentence
+      you printed, `findings` set to the same sentence, and `hard_findings` and `notes` as empty
+      arrays. Every field is required, so omitting one aborts the run instead of reporting the block.
+
+      Report `blocked` too when one of the two sub-agents returns no result, because `evidence` must
+      not certify a build that one axis never read. Print "PRECHECK BLOCKED: the <axis> sub-agent
+      returned no result, so only one axis was reviewed", with <axis> set to `Standards` or `Spec`,
+      and set `blocked_reason` to that sentence. Keep everything the other axis reported: its
+      findings in `findings` under its heading, its hard findings in `hard_findings` and its notes
+      in `notes`. A hard finding from that axis still makes the verdict `fail`.
 
       Two other stops also review nothing, and they stay as they are. A missing Method prints the
       FATAL message above and stops, and a missing tracker contract prints the BLOCKED message above
@@ -868,7 +873,7 @@ nodes:
              - when `precheck_status` in
                `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json` is not `ran`,
                or `precheck_read_error` there is not empty, one line for the code-review pre-check.
-               Name the status evidence read, or write "no status" when it is null. Then add
+               Name the status that `evidence` read, or write "no status" when it is null. Then add
                `precheck_blocked_reason` when it is not empty, and `precheck_read_error` when it is
                not empty.
            Write "every declared check ran" only when `unresolved_needs` is empty, `precheck_status`
