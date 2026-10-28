@@ -98,8 +98,9 @@ Bind that procedure to the DLC:
   **capture-only**. Do **not** accept, number, or write any ADR during Step 3, and do not let the
   delegated procedure write one — instead record each proposed decision (the "accept as ADR" candidates
   and load-bearing rejections) as a candidate and hand it to Step 6. Step 6 is the **single place**
-  ADRs are written, so the A/R/E gate, MADR-lite format, per-home numbering, and superseding/index
-  mechanics always apply and ADRs can never drift into an inconsistent format or bypass the gate.
+  ADRs are written, so the A/R/E gate, the chosen home's format and numbering, and the
+  superseding/index mechanics always apply. No ADR bypasses the gate or departs from its home's
+  format.
 
 ## Step 4 — Intent drift (DLC value-add — per-slug mode only)
 
