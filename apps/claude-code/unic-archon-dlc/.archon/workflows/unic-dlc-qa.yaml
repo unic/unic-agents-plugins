@@ -486,8 +486,8 @@ nodes:
       UAT checklist from uat-prep, for reference only: $uat-prep.output
       <!-- This reference is deliberate (#652). When uat-prep fails, Archon skips uat-gate, and this
       node still runs on all_done. Archon 0.12.1 fails a node whose prompt references a failed
-      node's output, so a failed uat-prep fails this node and the run, and no merge is asked for
-      without a UAT. Keep it. -->
+      node's output, so a failed uat-prep fails this node and the run, and merge-gate never asks
+      for a merge without a UAT. Keep it. -->
 
       ## The tracker contract
       `docs/agents/issue-tracker.md` in this repository is the tracker contract. Read it before the
@@ -688,7 +688,8 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # guard-not-merged — `merge` can run and still not confirm a merge (no tracker contract, no merge
-  # capability, a branch policy that refuses, an error, or a PR state it could not read again). Its
+  # capability, a branch policy that refuses, an error, a PR state it could not read again, or a
+  # call that succeeded while the PR is not merged yet, as under a merge queue or auto-merge). Its
   # `when` is the exact negation of "merged", so such a run ends cancelled instead of completed (#652).
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-merged

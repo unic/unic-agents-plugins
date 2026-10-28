@@ -74,12 +74,12 @@ from), which `/build` implemented against.
    branch that is. It reports `pr_state` and `base_ok`. `base_ok` means only "the open PR targets
    `$BASE_BRANCH`", so it is `false` whenever no PR is open, on a mismatch, and on a failed query.
    It also reports `blockers`, with one sentence for every reason the merge cannot run. Its prompt
-   references the output of `uat-prep`, so a failed `uat-prep` fails this node and the run. No merge
-   is asked for without a UAT.
+   references the output of `uat-prep`, so a failed `uat-prep` fails this node and the run. `merge-gate`
+   never asks for a merge without a UAT.
 
    `guard-not-mergeable` then cancels the run when any of these holds: `test` is not `pass`, `e2e` or
    `coverage-gate` is `fail`, the PR is not open, or `base_ok` is not `true`. Its message joins the
-   sentence for every cause that held, so the message lists every cause. A PR that is not open gets
+   sentence for every cause that held. A PR that is not open gets
    the message for its case from the table in step 2. A wrong base reads "The PR targets `<actual>`
    but `<expected>` was expected", never that the PR is missing. The message ends with the raw
    results. An `unresolved` e2e or coverage result is not a cause and does not block the merge.
