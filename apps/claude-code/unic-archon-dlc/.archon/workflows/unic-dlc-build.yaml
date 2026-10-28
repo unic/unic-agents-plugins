@@ -438,7 +438,7 @@ nodes:
       This node is a gate input. The `evidence` node reads `status`, `hard_findings` and `notes`.
       A non-empty `hard_findings` makes the build verdict `fail`, so the run opens no pull request.
       A `status` other than `ran` makes the verdict `unresolved` when nothing else failed. `notes`
-      change no verdict: they reach evidence.json and the pull request description. Your prose
+      change no verdict. They reach evidence.json and the pull request description. Your prose
       `findings` decides nothing; the report folds it in for the human.
 
       ## Classify every finding as hard or a note
@@ -452,9 +452,10 @@ nodes:
         kind (c) with `category: spec-wrong`. Its `citation` quotes the spec line it breaks.
       - A baseline smell, any other judgement call, and a Spec finding of kind (b) go in `notes`,
         one string each, and never in `hard_findings`.
-      Each `hard_findings` entry is `{ axis, category, citation, summary }`: `axis` is `standards`
-      or `spec`, and `summary` says in one sentence what is wrong and where. A finding you cannot
-      cite is a note. Set `status` to `ran` and `blocked_reason` to "" when the review ran.
+      Each `hard_findings` entry is `{ axis, category, citation, summary }`. `axis` is `standards`
+      or `spec`, and `summary` says in one sentence what is wrong and where. A hard finding you
+      cannot cite still goes in `hard_findings`, with an empty `citation`; never move it to `notes`.
+      Set `status` to `ran` and `blocked_reason` to "" when the review ran.
 
       ## Blocked
       Report `blocked` whenever you reviewed nothing. That is each of the three cases this prompt
@@ -648,24 +649,30 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # evidence — writes $ARTIFACTS_DIR/evidence.json on EVERY verdict, with the verdict and the
   # failures that produced it, and prints the verdict as JSON on stdout. It reads verification,
-  # goals-check and implement-review-precheck: a pre-check hard finding is a `fail`, and a pre-check
-  # that did not run is `unresolved`. guard-not-pass and open-pr branch on that printed verdict;
-  # workflow-level evidence_policy checks only that the file exists (ADR-0034, ADR-0040). A SCRIPT,
-  # never a prompt: a prompt that both judges and certifies grades its own homework.
+  # goals-check and implement-review-precheck. A pre-check hard finding is a `fail`. A pre-check
+  # that did not run is `unresolved` when nothing else failed. guard-not-pass and open-pr branch on
+  # that printed verdict; workflow-level evidence_policy checks only that the file exists (ADR-0034,
+  # ADR-0040). A SCRIPT, never a prompt: a prompt that both judges and certifies grades its own
+  # homework.
   # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive the
-  # verdict from the CURRENT verification/goals-check output, never trust a stale file (also why it
-  # deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # verdict from the CURRENT verification, goals-check and pre-check output, never trust a stale
+  # file (also why it deletes any existing evidence.json first, below) (ADR-0033/0034).
   # The pre-check arrives through `with:`, never through the script source. A node-output reference
   # in the source substitutes raw, so a pre-check string holding a quote would end this script with
-  # a syntax error. A `with:` binding reaches the script as the environment variable
-  # INPUTS_PRECHECK, so no pre-check text is ever parsed as code (ADR-0034, measured on 0.12.1).
+  # a syntax error. Each `with:` binding reaches the script as an INPUTS_<NAME> environment
+  # variable, so no pre-check text is ever parsed as code. Only the four fields read here are bound,
+  # never the prose `findings`, so the size of the review does not reach the environment (ADR-0034,
+  # measured on 0.12.1). `with:` on a script node needs Archon >= 0.10.0.
   # ---------------------------------------------------------------------------------------------
   - id: evidence
     depends_on: [implement-review-precheck, verification, goals-check]
     always_run: true
     runtime: bun
     with:
-      precheck: $implement-review-precheck.output
+      precheck_status: $implement-review-precheck.output.status
+      precheck_blocked_reason: $implement-review-precheck.output.blocked_reason
+      precheck_hard_findings: $implement-review-precheck.output.hard_findings
+      precheck_notes: $implement-review-precheck.output.notes
     script: |
       import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
       import { join } from 'node:path'
@@ -726,38 +733,50 @@ nodes:
       const testOutcome = '$verification.output.test_outcome'
       const unresolvedNeeds = $verification.output.unresolved_needs
 
-      // The pre-check's whole output, as JSON text in the environment (see the header comment). Read
-      // it defensively: what this node cannot read is never a pass. Text that does not parse, or
-      // parses to something other than an object, leaves `precheck` null, so the status is null
-      // and the verdict is `unresolved` at best. `status` and `hard_findings` are self-reported by a
-      // prompt, exactly as `passed` is above.
-      let precheck = null
-      try {
-        const parsed = JSON.parse(process.env.INPUTS_PRECHECK ?? '')
-        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) precheck = parsed
-      } catch {}
-      const precheckStatus = typeof precheck?.status === 'string' ? precheck.status : null
-      const precheckBlockedReason = typeof precheck?.blocked_reason === 'string' ? precheck.blocked_reason : ''
+      // The pre-check's four fields, from the environment (see the header comment). A string field
+      // arrives as its raw text and an array field as JSON text (measured on 0.12.1). Read them
+      // defensively, because what this node cannot read is never a pass. Each read that fails adds
+      // its cause to `readErrors`, which goes to stderr and to `precheck_read_error`. `status` and
+      // `hard_findings` are self-reported by a prompt, exactly as `passed` is above.
+      const readErrors = []
+      const readJson = (name, text) => {
+        if (text === undefined) {
+          readErrors.push(`${name} unset`)
+          return undefined
+        }
+        try {
+          return JSON.parse(text)
+        } catch (err) {
+          readErrors.push(`${name} is not JSON (${err.message})`)
+          return undefined
+        }
+      }
+      const statusText = process.env.INPUTS_PRECHECK_STATUS
+      if (statusText === undefined) readErrors.push('INPUTS_PRECHECK_STATUS unset')
+      else if (statusText === '') readErrors.push('INPUTS_PRECHECK_STATUS empty')
+      const precheckStatus = statusText ? statusText : null
+      const precheckBlockedReason = process.env.INPUTS_PRECHECK_BLOCKED_REASON ?? ''
+      const hardFindingsField = readJson('INPUTS_PRECHECK_HARD_FINDINGS', process.env.INPUTS_PRECHECK_HARD_FINDINGS)
+      const notesField = readJson('INPUTS_PRECHECK_NOTES', process.env.INPUTS_PRECHECK_NOTES)
+      const precheckReadError = readErrors.join('; ')
       // Every entry counts. An entry with an empty `citation` or a `category` outside the enum is
-      // still a hard finding, never dropped: when in doubt the verdict stays red. A value that is not
-      // an array, but is present, counts as one entry for the same reason.
-      const hardFindingsField = precheck?.hard_findings
+      // still a hard finding, never dropped, because when in doubt the verdict stays red. A value
+      // that is not an array, but is present, counts as one entry for the same reason.
       const hardFindings = Array.isArray(hardFindingsField)
         ? hardFindingsField
         : hardFindingsField === undefined || hardFindingsField === null
           ? []
           : [hardFindingsField]
-      const precheckNotes = Array.isArray(precheck?.notes) ? precheck.notes : []
+      const precheckNotes = Array.isArray(notesField) ? notesField : []
       // The pre-check reviewed the code only when it says `ran` and both arrays it must emit are
       // arrays. Anything else, `blocked` included, is a review that did not happen.
-      const precheckRan =
-        precheckStatus === 'ran' && Array.isArray(hardFindingsField) && Array.isArray(precheck?.notes)
+      const precheckRan = precheckStatus === 'ran' && Array.isArray(hardFindingsField) && Array.isArray(notesField)
 
       // Three states in precedence order: a real failure is `fail`; a check that could not run is
       // `unresolved`; only two green verdicts with a passing test and a pre-check that ran clean are
       // `pass`. A pre-check hard finding is a real failure, so it is tested first. The unresolved
       // test branch comes before the green one because `verificationGreen` is already false whenever
-      // the test is unresolved — verification sets `passed` false for it — so testing green first
+      // the test is unresolved. Verification sets `passed` false for it, so testing green first
       // would report an absent result as a failure.
       let verdictState
       if (hardFindings.length > 0) {
@@ -782,6 +801,7 @@ nodes:
 
       console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length}) precheck(status=${precheckStatus}, hard=${hardFindings.length}, notes=${precheckNotes.length})`)
       if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
+      if (precheckReadError) console.error(`evidence: could not read the pre-check. ${precheckReadError}`)
 
       // Written on EVERY verdict, so the file the engine demands says what failed. The two failure
       // arrays and `hard_findings` are the reason for a `fail`. `test_outcome` with
@@ -799,6 +819,7 @@ nodes:
         precheck_blocked_reason: precheckBlockedReason,
         hard_findings: hardFindings,
         precheck_notes: precheckNotes,
+        precheck_read_error: precheckReadError,
       }
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
       console.error(`evidence: wrote ${evidencePath} ✓`)
@@ -824,7 +845,13 @@ nodes:
            list, never as prose in another section:
              - one line per need in `$verification.output.unresolved_needs`, naming the need;
              - `$bootstrap.output.install_report`, verbatim.
-           Write "every declared check ran" when `unresolved_needs` is empty. A check that could not
+             - when `precheck_status` in
+               `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json` is not `ran`,
+               one line naming the code-review pre-check and its status, followed by
+               `precheck_blocked_reason`, or by `precheck_read_error` when the status is null. If
+               both are empty, write that evidence could not read the pre-check.
+           Write "every declared check ran" only when `unresolved_needs` is empty and
+           `precheck_status` is `ran`. A check that could not
            run is the fact a reader skims past when it is a sentence inside a paragraph, which is why
            it is a block of its own and why it goes above what was built.
         2. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
@@ -832,11 +859,11 @@ nodes:
            `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json`. If it holds any
            entry, lead with "⚠ the code-review pre-check found N hard findings, so the verdict
            is fail", then list each entry's `category`, `citation` and `summary`. If goals-check
-           reported MISSING criteria, lead with "⚠ goals-check found N uncovered criteria — see
-           matrix below."
-        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim. Then add one
-           sentence: COVERED means a test and an implementation exist, not that either is correct;
-           the pre-check's hard findings in section 2 say where they are wrong.
+           reported MISSING criteria, write "⚠ goals-check found N uncovered criteria — see
+           matrix below." after the pre-check warning, or first when there is none.
+        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim. Then add this
+           sentence. "COVERED means a test and an implementation exist, not that either is correct.
+           Any hard findings from the code-review pre-check are listed in section 2."
         4. Test Outcomes — open with `test: $verification.output.test_outcome`, then the counts, the
            coverage figure and any e2e result from $verification.output.verdict; note skipped/flaky. A
            need reported "unresolved" is named in section 1; this section carries what ran.
@@ -1013,7 +1040,7 @@ nodes:
                   ## Pre-check notes
                   One bullet per entry of `precheck_notes` in SESSION/evidence.json, or "none"
                   when the array is empty. Read the file, not the pre-check's prose. List no
-                  hard finding here: a run with one has the verdict `fail` and never reaches
+                  hard finding here. A run with one has the verdict `fail` and never reaches
                   this node.
          Write the PR body inline rather than to a file, so there is no body file to leak.
 

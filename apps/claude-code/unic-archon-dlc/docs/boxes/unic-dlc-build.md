@@ -46,7 +46,8 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    diff and posts nothing. Beside its prose `findings`, it reports `status` (`ran` or `blocked`),
    `blocked_reason`, `hard_findings` and `notes`. A hard finding is a breached documented standard,
    or an acceptance criterion that is missing or implemented wrong, and it quotes the standard or the
-   spec line. A baseline smell, scope creep and any other judgement call is a note. The pre-check
+   spec line, or carries an empty citation when it has none. A baseline smell, scope creep and any
+   other judgement call are notes. The pre-check
    reports `blocked` when it reviewed nothing: no merge-base resolves, the `Agent` tool is
    unavailable, or the diff is empty. `evidence` reads these fields, so the pre-check is a gate
    input.
@@ -69,9 +70,11 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    its citation is empty or its category is unknown. A pre-check that is `blocked`, reports any other
    status, or cannot be read makes it `unresolved` when nothing else failed. The file names the
    verdict and lists the failures behind it, so it tells you what failed. It also carries
-   `precheck_status`, `precheck_blocked_reason`, `hard_findings` and `precheck_notes`. The node reads
-   the pre-check through a `with:` binding, so no text the pre-check writes can stop the node from
-   running. The node mirrors it to
+   `precheck_status`, `precheck_blocked_reason`, `hard_findings`, `precheck_notes` and
+   `precheck_read_error`, which names why the node could not read the pre-check, or is empty. The
+   node reads the pre-check's four fields through `with:` bindings, so no character in the
+   pre-check's text can stop the node from running. ADR-0034 records the size limit of a binding.
+   The node mirrors `evidence.json` to
    `<artifacts_dir>/<slug>/evidence.json`. A script node, never a prompt
    ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The workflow-level
    `evidence_policy: { required: true }` still refuses terminal `completed` without the file. That is
@@ -118,7 +121,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
 - `.archon/unic-dlc.config.yaml` is present (from `/unic-archon-dlc:setup`).
 - `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` are present — this repository's
   tracker contract, which names the server, the repository, the work-item scope and every role.
-- Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)).
+- Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)). `/build` needs Archon ≥ 0.10.0,
+  because `evidence` reads the pre-check through a script node's `with:` bindings
+  ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). On an older engine that loads the Box, the binding does not arrive, so every build ends `unresolved`.
 
 ## Runs
 

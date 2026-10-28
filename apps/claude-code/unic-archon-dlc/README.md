@@ -175,7 +175,8 @@ The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/
 > in the DAG (ADR-0026 §8).
 >
 > `evidence` writes `$ARTIFACTS_DIR/evidence.json` on every verdict. The verdict is `pass` only when
-> `verification` and `goals-check` both report `passed: true` and the test outcome is `pass`. Only then
+> `verification` and `goals-check` both report `passed: true` with an empty `failures` list, the test
+> outcome is `pass`, and the code-review pre-check reports `ran` with no hard finding. Only then
 > does `open-pr` run; any other verdict reaches `guard-not-pass`, which cancels the run with the work on
 > the pushed branch (ADR-0034, ADR-0040). `{guard-not-pass · open-pr}` are siblings, and the verdict picks
 > one.
@@ -485,7 +486,7 @@ stale `<slug>/` dir only once its PR/branch is merged or closed (report-first, n
 
 ## Dependency map
 
-- **Archon**: version ≥ 0.7.0 required — the key-discriminated node schema plus `evidence_policy`/`always_run` is the stable contract, not the release number ([ADR-0011](docs/adr/0011-archon-schema-target.md), [ADR-0033](docs/adr/0033-archon-070-schema-target.md))
+- **Archon**: version ≥ 0.7.0 required — the key-discriminated node schema plus `evidence_policy`/`always_run` is the stable contract, not the release number ([ADR-0011](docs/adr/0011-archon-schema-target.md), [ADR-0033](docs/adr/0033-archon-070-schema-target.md)). `/build` needs Archon ≥ 0.10.0, because `evidence` reads the pre-check through a script node's `with:` bindings ([ADR-0034](docs/adr/0034-evidence-gate-deterministic-writer.md)). On an older engine that loads the Box, the binding does not arrive, so every build ends `unresolved`.
 - **Required peer plugins**: none
 - **Optional tool**: Python `slopcheck` CLI (GSD's slopsquatting gate) — if on `PATH`, the
   slopcheck node defers to it; otherwise falls back to npm registry HEAD checks
