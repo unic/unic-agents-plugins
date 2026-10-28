@@ -74,7 +74,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0030 | The DLC is a Harness hosting Methods; a Box survives only for what no Method can supply    | Accepted (amended #381)                                   |
 | 0031 | Methods are bundled, the plugin version is the pin, resolution is one path                 | Accepted (2026-08-03, revised 2026-10-21)                 |
 | 0032 | Vocabulary: Box, Method, Bundle; config is parameters, a Method is procedure               | Accepted (amended #389, #381)                             |
-| 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted (amended #389, #396)                             |
+| 0033 | Archon 0.7.0 schema target — floor bump, always_run, sub-runs deferred                     | Accepted (2026-08-10, revised 2026-10-28)                 |
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted (2026-08-10, revised 2026-10-28)                 |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted (amended #381, #396)                             |
 | 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295, #381)                             |

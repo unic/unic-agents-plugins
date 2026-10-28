@@ -18,8 +18,10 @@ interactive: true
 
 # The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists. The
 # `evidence` node below is the only writer, and it writes the file on every verdict, so this
-# policy no longer refuses a red run. It is a backstop for `evidence` ending without writing the
-# file. The verdict decides how the run ends, at guard-not-pass and open-pr (ADR-0034, ADR-0040).
+# policy no longer refuses a red run. Two guards cover `evidence` ending without writing.
+# push-branch refuses a Session mirror that is missing at HEAD, so the run ends `failed`. This
+# policy catches the one case left: the mirror is committed but the $ARTIFACTS_DIR copy is absent.
+# The verdict decides how the run ends, at guard-not-pass and open-pr (ADR-0034, ADR-0040).
 evidence_policy:
   required: true
 
@@ -303,10 +305,10 @@ nodes:
         above is a different thing; see the next rule for what happens to it.)
         NEVER stage or commit build-state.json in a loop iteration. You rewrite it on every one of up
         to 60 iterations; committing it here would put 60 revisions of a scratch-looking file in the
-        PR. The node that commits the Session artefacts after `report` commits it ONCE — that single
-        commit is the durable proof
-        of this loop's anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase
-        order), which otherwise dies when `/cleanup` prunes this worktree (ADR-0012).
+        PR. The node that commits the Session artefacts after `report` commits it ONCE. That single
+        commit is the durable proof of this loop's anti-cheat record (`red_exit`,
+        `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
+        prunes this worktree (ADR-0012).
         After each `git add`, run `git status --porcelain` and confirm the staged set is exactly the
         file(s) you named. Unstage anything else with `git restore --staged <path>` before committing.
 
@@ -803,10 +805,13 @@ nodes:
   # push-branch — runs on EVERY verdict, and pushes the branch commit-session committed on, to
   # `origin`. A bash node, so a refusal or a failed push exits non-zero. The node fails,
   # guard-not-pass and open-pr are both skipped, and the run ends `failed`. That is a different fact
-  # from a red verdict, because no work reached the remote. Before the push it refuses three cases:
-  # HEAD detached or on the run's base branch, a branch name that cannot go into the JSON below, and
-  # a Session artefact that is missing at HEAD or differs from the working tree. The last case means
-  # commit-session did not commit, which a prompt node cannot report by failing. Archon 0.12.1
+  # from a red verdict, because no work reached the remote. Before the push it refuses four cases:
+  # an empty $BASE_BRANCH, HEAD detached or on the run's base branch, a branch name that cannot go
+  # into the JSON below, and a Session artefact that is missing at HEAD or differs from the working
+  # tree. It checks the five Session paths commit-session stages: PRD.md, issues.json, report.md,
+  # build-state.json and evidence.json. A miss means commit-session did not commit, which a prompt
+  # node cannot report by failing, or a resumed run re-ran `evidence` after the commit, which needs
+  # a new run. It prints `git status --porcelain` to stderr before the push. Archon 0.12.1
   # substitutes $BASE_BRANCH in a bash body (measured for #439). Its stdout is JSON only, read field
   # by field by guard-not-pass and open-pr. git's own lines go to stderr (ADR-0040).
   # ---------------------------------------------------------------------------------------------
@@ -814,6 +819,10 @@ nodes:
     depends_on: [commit-session]
     bash: |
       set -e
+      if [ -z "$BASE_BRANCH" ]; then
+        echo "push-branch: the run's base branch is empty, so this node cannot tell whether HEAD is on it" >&2
+        exit 1
+      fi
       branch=$(git rev-parse --abbrev-ref HEAD)
       if [ "$branch" = "HEAD" ]; then
         echo "push-branch: HEAD is detached, so there is no branch to push" >&2
@@ -830,13 +839,14 @@ nodes:
           ;;
       esac
       session=$bootstrap.output.artifacts_dir/$bootstrap.output.slug
-      for name in evidence.json report.md build-state.json; do
-        file="$session/$name"
+      for name in PRD.md issues.json report.md build-state.json evidence.json; do
+        file=$(printf '%s' "$session/$name" | tr -s /)
         if ! git cat-file -e "HEAD:$file" 2>/dev/null || ! git diff --quiet HEAD -- "$file"; then
-          echo "push-branch: $file at HEAD is missing or differs from the working tree, so commit-session did not commit it" >&2
+          echo "push-branch: $file at HEAD is missing or differs from the working tree. Either commit-session did not commit it, or this is a resumed run that re-ran evidence after the commit, which needs a new run" >&2
           exit 1
         fi
       done
+      git status --porcelain >&2
       git push -u origin "$branch" >&2
       printf '{"branch":"%s","commit":"%s"}\n' "$branch" "$(git rev-parse HEAD)"
 
@@ -857,9 +867,9 @@ nodes:
       for the failures the verdict rests on.
 
   # ---------------------------------------------------------------------------------------------
-  # open-pr — the sibling of guard-not-pass, and runs only on a "pass" verdict. It sets no trigger rule. On
-  # any other verdict it is skipped, and so is build-pr-gate below. It stages and commits nothing;
-  # it opens the pull request from the pushed branch and links it (ADR-0040).
+  # open-pr — the sibling of guard-not-pass. It runs only on a "pass" verdict. It sets no trigger
+  # rule. On any other verdict it is skipped, and so is build-pr-gate below. It stages and commits
+  # nothing. It opens the pull request from the pushed branch and links it (ADR-0040).
   # ---------------------------------------------------------------------------------------------
   - id: open-pr
     depends_on: [push-branch]

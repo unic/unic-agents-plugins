@@ -73,9 +73,10 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    staged, and commits. `build-state.json` is committed in `commit-session` and **only** there, never
    during a loop iteration, so the loop's anti-cheat record survives `/cleanup`. `push-branch` pushes
    the branch to `origin` and reports the branch and the commit. It refuses to push from a detached
-   HEAD or from the run's base branch, and when `evidence.json`, `report.md` or `build-state.json` is
+   HEAD or from the run's base branch, and when a Session file it staged (`PRD.md`, `issues.json`, `report.md`, `build-state.json`, `evidence.json`) is
    not committed at HEAD. If it refuses or the push fails, the run ends `failed`, because no work
-   reached the remote.
+   reached the remote. A resumed run re-runs `evidence` but not `commit-session`, so `push-branch`
+   refuses it; start a new run instead.
 
 9. **guard-not-pass** or **open-pr → build-pr-gate** are two siblings after `push-branch`, and the
    verdict picks one:
@@ -84,9 +85,10 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
      commit, and the path of `report.md` and `evidence.json` on that branch. Read those to see what
      failed.
    - A `pass` verdict: `open-pr` opens a PR from the pushed branch against the repository the tracker
-     contract names, with the run's base branch, Archon's `$BASE_BRANCH`, as its target, and links it
-     to the slices' work items. If the contract's repository is not `origin`, the pushed branch is not
-     there, and `open-pr` prints `BLOCKED:` with the tool's error. `/unic-archon-dlc:setup` reports which branch that is. The gate is
+     contract names, with the run's base branch, Archon's `$BASE_BRANCH`, as its target.
+     `/unic-archon-dlc:setup` reports which branch that is. It links the PR to the slices' work items.
+     If the contract's repository is not `origin`, the pushed branch is not there, and `open-pr`
+     prints `BLOCKED:` with the tool's error. The gate is
      **HITL by default** and honours `gates.build`: skipped when `afk`, and the PR stays open. On
      **reject**, a verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses. It
      does **not** rebuild from scratch.
