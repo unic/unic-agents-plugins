@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.35.0] — 2026-10-28
+
+### Breaking
 - A `/build` run whose code-review pre-check reports a hard finding, or cannot run, used to end `pass` with a pull request open. It now ends `cancelled` with none. `evidence` reads the pre-check: a hard finding makes the verdict `fail`, and a pre-check that is `blocked`, reports another status, or cannot be read makes it `unresolved` (#483).
 - `implement-review-precheck` emits `status`, `blocked_reason`, `hard_findings` and `notes` beside `findings`, and all five fields are required. `evidence.json` carries them as `precheck_status`, `precheck_blocked_reason`, `hard_findings` and `precheck_notes` on every verdict. `report.md` leads with the number of hard findings, and the pull request description lists the notes under `## Pre-check notes` (#483).
 
