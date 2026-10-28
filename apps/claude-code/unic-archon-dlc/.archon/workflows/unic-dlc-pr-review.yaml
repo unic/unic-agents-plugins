@@ -379,18 +379,19 @@ nodes:
       First delete SESSION/findings/review.json if it exists. SESSION persists between runs, so a file
       an earlier iteration left there would let `synthesize` publish that iteration's findings, and
       `reconcile` its reported checks, as this one's.
-      **Every stop after this point writes SESSION/findings/review.json first**, the way the
-      `Agent`-unavailable path below does: the sentence you print as `standards_report`, empty
-      `findings`, `positives` and `reported_checks` arrays, and `subagents_ran: false`. This holds for
-      the missing-Method stop, for a fixed point that does not resolve or an empty diff, and for any
-      other stop.
+      **Every stop after this point writes SESSION/findings/review.json first.** Write the sentence you
+      print as both `blocked` and `standards_report`, empty `findings`, `positives` and
+      `reported_checks` arrays, and `subagents_ran` as the rule below sets it. This holds for the
+      missing-Method stop, the `Agent`-unavailable stop, a fixed point that does not resolve, an empty
+      diff, and any other stop. A stopped review is not a clean review: `blocked` is how `synthesize`
+      and `reconcile` tell the two apart.
 
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
       one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
       and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
       is FATAL for this node: print "code-review Method not found at
       .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup", write
-      SESSION/findings/review.json as the rule above says, and stop. Do not review from
+      SESSION/findings/review.json as the stop rule above says, and stop. Do not review from
       memory of what the Method says.
 
       Follow its Process steps 1–5. It asks a live human for two inputs; there is no human in this node,
@@ -490,20 +491,24 @@ nodes:
 
       Write SESSION/findings/review.json as:
         {"findings": [...], "positives": [...], "reported_checks": [...], "subagents_ran": <true|false>,
-         "standards_report": "<the ## Standards text>", "spec_report": "<the ## Spec text>"}
+         "blocked": "", "standards_report": "<the ## Standards text>",
+         "spec_report": "<the ## Spec text>"}
       Keep `standards_report` and `spec_report` as the Method's own prose, less the `Commands I ran`
       section. synthesize renders `spec_report` as the Intent Check section, which is how AC-coverage
       survives the collapse of the old intent-check node.
-      Set `subagents_ran` to true when at least one review sub-agent ran, and to false otherwise.
-      `reconcile` reads it to decide whether the checks block says that a review sub-agent may still
-      have run a check on its own.
+      Set `subagents_ran` to true when at least one review sub-agent started, and to false otherwise,
+      on every path, a stop included. `reconcile` reads it to decide whether the checks block says
+      that a review sub-agent may still have run a check on its own.
+      `blocked` is "" for a review that ran to the end, and the printed sentence for a stop. A reader
+      of this file treats the review as **blocked** when `blocked` is not empty, or when `blocked` is
+      missing and `subagents_ran` is not true.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else (not one axis, not seven aspects): print
       "REVIEW BLOCKED: Agent tool unavailable in an Archon prompt node — code-review step 4 cannot run
-      as written", write SESSION/findings/review.json with that sentence as `standards_report`, empty
-      `findings`, `positives` and `reported_checks` arrays, and `subagents_ran: false`, and stop. That is
-      a real finding about the container, not a detail to route around.
+      as written", write SESSION/findings/review.json as the stop rule above says, with
+      `subagents_ran: false`, and stop. That is a real finding about the container, not a detail to
+      route around.
 
   # ---------------------------------------------------------------------------------------------
   # synthesize — THIS RUN ONLY. Reads the review node's single SESSION/findings/review.json, dedupes
@@ -522,9 +527,15 @@ nodes:
 
       1. First delete SESSION/findings.json and SESSION/summary-sections.md if they exist, because
          SESSION persists between runs. Then read SESSION/findings/review.json, the review node's
-         Standards + Spec output. If it is missing, print "synthesize: BLOCKED: no review.json", write
+         Standards and Spec output. If it is missing, print "synthesize: BLOCKED: no review.json", write
          no SESSION/findings.json and no SESSION/summary-sections.md, emit 0 for every count, and stop.
-         A findings file with no findings would let `reconcile` rule every prior finding fixed.
+         An empty findings file would let `reconcile` rule fixed every prior finding whose file
+         changed between the two heads.
+         If the review is **blocked**, as the review node defines it, write `[]` to
+         SESSION/findings.json, and write to SESSION/summary-sections.md only a callout,
+         `> ⚠ This review stopped before it finished: <blocked>`, with the `blocked` sentence, or "no reason
+         recorded" when the field is missing. Write no Intent Check, no severity section and no
+         "What's good". Emit 0 for every count and skip steps 2 to 5.
       2. Merge its `findings`, DEDUPE overlaps (same file + near-identical title across the two axes →
          keep the highest-confidence one, note the other axis). Ensure each finding has its stable
          `hash`. Do NOT rerank one axis against the other; deduping identical findings is not reranking.
@@ -596,7 +607,9 @@ nodes:
          If SESSION/findings.json is missing, print "reconcile: BLOCKED: no findings.json", write no
          SESSION/comment.md, and stop, because `synthesize` stopped and no prior finding can be ruled.
          Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration),
-         `prior_head` and `prior_head_status`.
+         `prior_head` and `prior_head_status`. Read SESSION/findings/review.json too, and note whether
+         the review is **blocked**, as the review node defines it. Treat a file you cannot read or
+         parse as blocked as well.
          Before you classify anything, write the change between the two heads to
          SESSION/changed-between-heads.txt. When `prior_head_status` is "recorded", run
          `git -c core.quotePath=false diff --name-only <prior_head> "$(cat SESSION/head.txt)" > SESSION/changed-between-heads.txt`.
@@ -648,8 +661,9 @@ nodes:
            - unverified    — a prior finding whose `prior_verdict` is "open" or "unverified", with NO
                              match this run, and which is not `fixed` by the rule above. Its file did
                              not change between the two heads, its `file` is a scope token, or there is
-                             no prior head. When `prior_head_status` is not "recorded", every unmatched
-                             prior of this kind is `unverified` and none is `fixed`. The review omitting
+                             no prior head. When `prior_head_status` is not "recorded", or the review
+                             is blocked, every unmatched prior of this kind is `unverified` and none
+                             is `fixed`. The review omitting
                              a finding is not evidence that the finding is gone, because the reviewer
                              varies between runs on the same commit.
            - regressed     — a prior finding whose `prior_verdict` is "fixed" and which matches a
@@ -746,8 +760,9 @@ nodes:
       5b. Fill the "Checks this review was not asked to run" block. It is a block of its own, in the
          frame above every finding, and it is present in EVERY iteration, so a reader skimming for
          severity cannot pass over it. Read `reported_checks` and `subagents_ran` from
-         SESSION/findings/review.json. When the file is missing or cannot be parsed, or lacks
-         `subagents_ran` or `reported_checks`, the report is **unreadable**. Then treat
+         SESSION/findings/review.json. When the file cannot be parsed, or lacks `subagents_ran` or
+         `reported_checks`, the report is **unreadable**. A missing file counts as unreadable too, as a
+         defence only, because `synthesize` and this node stop first when it is missing. Then treat
          `reported_checks` as empty and keep the sentence on sub-agents below. An unreadable report is
          never a sub-agent's claim. Then write these parts, in this order:
            - **This Box instructed none of the project's declared checks**, so nothing in this review

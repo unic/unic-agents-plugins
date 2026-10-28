@@ -67,19 +67,24 @@ precondition** — intent is composed from whatever sources resolve.
    writes a new one. Each sub-agent ends its report with every command it ran other than reading files
    and git, and the outcome it observed. A check is a command that runs the project's toolchain to
    verify the code or starts a dev server. `review` records only the checks and drops every other
-   command. Each check goes into the
-   `reported_checks` array of `review.json` as one entry per need it serves, with the axis, the need
-   and the reported outcome, which names no command or tool. `review` judges the need from what the
+   command. Each check goes into the `reported_checks` array of `review.json` as one entry per need
+   it serves, with the axis, the need and the reported outcome, which names no command or tool. `review` judges the need from what the
    command does, never by matching the command's text against a value in `sdlc_needs`, and records a
    check that serves no declared need as `undeclared`. It never records `install`. It then removes
    the commands section from both reports, so no command or result reaches the Intent Check. The
    array is empty when no sub-agent reported a check. `review.json` also carries `subagents_ran`,
-   which is false when the `Agent` tool was unavailable.
+   which is true when at least one review sub-agent started, on every path, a stop included. It also
+   carries `blocked`, which is empty for a review that ran to the end and holds the printed sentence
+   for a stop. A review is blocked when `blocked` is not empty, or when `blocked` is missing and
+   `subagents_ran` is not true.
 
 4. **synthesize** — merge + dedupe this run's findings, bucket by severity, assemble the summary
    sections + Intent Check + "What's good". It states no check result as a fact in any section, except
    in the body of a finding raised from a failed check. When `review.json` is missing, it stops and
-   writes no findings, and `reconcile` then stops without a summary.
+   writes no findings, and `reconcile` then stops without a summary. When the review is blocked, it
+   writes an empty findings list and a callout that names the `blocked` sentence, with no severity
+   section, so the reader sees that the review stopped. `reconcile` then rules no prior finding
+   `fixed`: every unmatched open or unverified prior is `unverified`.
 
 5. **reconcile** — the re-review coordinator: classify each finding against the prior iteration
    (new / still-present / fixed / unverified / regressed), compute the "since iteration N−1" delta, and
