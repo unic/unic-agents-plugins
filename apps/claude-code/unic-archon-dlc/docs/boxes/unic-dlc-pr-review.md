@@ -63,10 +63,11 @@ precondition** — intent is composed from whatever sources resolve.
    merged or reranked. This replaced seven hand-written aspect nodes and their spawn gates: re-implementing
    the Method's own step 4 as Archon nodes is what [ADR-0030](../adr/0030-harness-hosts-methods.md)'s
    structural bar forbids.
-   `review` first deletes the `review.json` an earlier iteration left. Each sub-agent ends its report
-   with every command it ran other than reading files and git, and the outcome it observed. `review`
-   records only the checks among them, the commands that run the project's toolchain to verify the
-   code or start a dev server, and drops every other command. Each check goes into the
+   `review` first deletes the `review.json` an earlier iteration left, and every stop after that
+   writes a new one. Each sub-agent ends its report with every command it ran other than reading files
+   and git, and the outcome it observed. A check is a command that runs the project's toolchain to
+   verify the code or starts a dev server. `review` records only the checks and drops every other
+   command. Each check goes into the
    `reported_checks` array of `review.json` as one entry per need it serves, with the axis, the need
    and the reported outcome, which names no command or tool. `review` judges the need from what the
    command does, never by matching the command's text against a value in `sdlc_needs`, and records a
@@ -76,7 +77,9 @@ precondition** — intent is composed from whatever sources resolve.
    which is false when the `Agent` tool was unavailable.
 
 4. **synthesize** — merge + dedupe this run's findings, bucket by severity, assemble the summary
-   sections + Intent Check + "What's good". It states no check result as a fact in any section.
+   sections + Intent Check + "What's good". It states no check result as a fact in any section, except
+   in the body of a finding raised from a failed check. When `review.json` is missing, it stops and
+   writes no findings, and `reconcile` then stops without a summary.
 
 5. **reconcile** — the re-review coordinator: classify each finding against the prior iteration
    (new / still-present / fixed / unverified / regressed), compute the "since iteration N−1" delta, and

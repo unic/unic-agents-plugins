@@ -377,14 +377,20 @@ nodes:
       threshold = $bootstrap.output.confidence_threshold.
 
       First delete SESSION/findings/review.json if it exists. SESSION persists between runs, so a file
-      an earlier iteration left there would let `reconcile` render that iteration's reported checks as
-      this one's when this node stops before it writes the file.
+      an earlier iteration left there would let `synthesize` publish that iteration's findings, and
+      `reconcile` its reported checks, as this one's.
+      **Every stop after this point writes SESSION/findings/review.json first**, the way the
+      `Agent`-unavailable path below does: the sentence you print as `standards_report`, empty
+      `findings`, `positives` and `reported_checks` arrays, and `subagents_ran: false`. This holds for
+      the missing-Method stop, for a fixed point that does not resolve or an empty diff, and for any
+      other stop.
 
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
       one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
       and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
       is FATAL for this node: print "code-review Method not found at
-      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop. Do not review from
+      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup", write
+      SESSION/findings/review.json as the rule above says, and stop. Do not review from
       memory of what the Method says.
 
       Follow its Process steps 1–5. It asks a live human for two inputs; there is no human in this node,
@@ -513,7 +519,11 @@ nodes:
       You are the synthesize node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/  (artifacts_dir=$bootstrap.output.artifacts_dir).
 
-      1. Read SESSION/findings/review.json — the review node's Standards + Spec output.
+      1. First delete SESSION/findings.json and SESSION/summary-sections.md if they exist, because
+         SESSION persists between runs. Then read SESSION/findings/review.json — the review node's
+         Standards + Spec output. If it is missing, print "synthesize: BLOCKED: no review.json", write
+         no SESSION/findings.json and no SESSION/summary-sections.md, emit 0 for every count, and stop.
+         A findings file with no findings would let `reconcile` rule every prior finding fixed.
       2. Merge its `findings`, DEDUPE overlaps (same file + near-identical title across the two axes →
          keep the highest-confidence one, note the other axis). Ensure each finding has its stable
          `hash`. Do NOT rerank one axis against the other; deduping identical findings is not reranking.
@@ -525,8 +535,10 @@ nodes:
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
            - `### Intent Check` — render the review node's `spec_report` verbatim, with one exception.
-             The render carries no check result and no command. Drop any line that names a command or
-             reports that a build, lint, format, type-check, test or other check passed or failed. The Spec axis IS the
+             The render states no check result as a fact. Drop any line that reports a command the
+             sub-agent ran, or that a build, lint, format, type-check, test or other check passed or
+             failed. Keep a line that cites a command only to judge an acceptance criterion. The Spec
+             axis IS the
              AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
              when `$prep.output.intent_available == "false"`.
@@ -545,8 +557,9 @@ nodes:
          **State no check result as a fact, in "What's good" or in any other section.** A positive
          that says a build, lint, type-check or test passes is a sub-agent's report of a check this
          Box did not run, so drop it from the sections. `reconcile` renders `reported_checks` in the
-         checks block, attributed to the sub-agent. A finding raised from a failed check stays in its
-         severity section like any other finding.
+         checks block, attributed to the sub-agent. The one exception is a finding raised from a failed
+         check. It stays in its severity section like any other finding, and its own body may cite the
+         failure it was raised from.
       Write the deduped this-run set to SESSION/findings.json (each finding incl. its hash) and the body
       sections to SESSION/summary-sections.md.
       **Every finding in findings.json is rendered in the sections — count them and check.** The
@@ -579,6 +592,8 @@ nodes:
       1. First delete SESSION/comment.md, SESSION/threads.json and SESSION/changed-between-heads.txt
          if they exist. SESSION persists between runs, so a file an earlier run left there would let
          `post` publish that run's verdicts when this node stops early.
+         If SESSION/findings.json is missing, print "reconcile: BLOCKED: no findings.json", write no
+         SESSION/comment.md, and stop, because `synthesize` stopped and no prior finding can be ruled.
          Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration),
          `prior_head` and `prior_head_status`.
          Before you classify anything, write the change between the two heads to
