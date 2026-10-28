@@ -575,7 +575,7 @@ nodes:
   - id: merge-gate
     depends_on: [verify-pr-base]
     when: "$bootstrap.output.gate == 'hitl' && $test.output.result == 'pass' && $e2e.output.result != 'fail' && $coverage-gate.output.result != 'fail' && $verify-pr-base.output.pr_state == 'open' && $verify-pr-base.output.base_ok == 'true'"
-    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured), so
+    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH, so
     # this message names the PR target through verify-pr-base's actual_base and the run
     # base through bootstrap's message, which starts with it.
     approval:

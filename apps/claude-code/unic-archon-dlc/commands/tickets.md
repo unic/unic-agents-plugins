@@ -17,7 +17,7 @@ Step 1 — and the configured **tracker system-skill** (MCP-first, CLI-fallback)
 
 `/tickets` **stops at a build-ready `issues.json`** (dependency-ordered, each slice carrying its
 acceptance criteria + test command) plus the published tracker issues. It does **not** generate a
-build workflow: `/build` consumes `issues.json` directly via a generic loop. Intent lives on the tracker issue (contract C)
+build workflow: `/build` consumes `issues.json` directly via a generic loop. Intent lives on the tracker issue
 **and** in `issues.json` (the durable baton `/build` reads).
 
 Follow these steps in order. Do not skip any step. The only files you write are `issues.json`
@@ -112,7 +112,7 @@ Three things the Harness adds or overrides on top of it:
 
 - **Granularity litmus (the DLC's "thin enough" test):** one slice = **one demoable behaviour** — thin
   enough that a single failing test can capture it and a minimal implementation can satisfy it, so
-  strict red/green (contract B) is safe. If a slice needs more than one failing test to express its
+  strict red/green, with the failing test and the implementation written in separate fresh sessions, is safe. If a slice needs more than one failing test to express its
   behaviour, or bundles two independently-demoable behaviours, split it. If a slice can't be
   demonstrated without another, wire the dependency instead of merging. The litmus does **not** apply
   to the Method's **wide-refactor** exception: an expand–contract sequence is not a tracer bullet by
@@ -226,7 +226,7 @@ each item can reference the real tracker ids of its blockers.
 
 For each slice, build the body from `ISSUE_TEMPLATE` (use `BUG_TEMPLATE` for `type: bug`; fall back to
 the `to-tickets` Method's issue template if the config template is null). The body MUST carry
-the slice's **acceptance criteria** (contract C — intent lives on the tracker item) and its
+the slice's **acceptance criteria** (intent lives on the tracker item) and its
 **Blocked by** references (real tracker ids, or "None — can start immediately"). Write the
 `ready-for-agent` state role unless the user says otherwise. Do NOT close or modify any parent item.
 

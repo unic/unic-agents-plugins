@@ -141,7 +141,7 @@ Bind that procedure to the DLC with the Step 2 context, and enforce these overri
 Apply the agreed outcome (a human is present — write directly, no PR gate):
 
 - **`ready-for-agent`** — post the agent brief comment and write the `ready-for-agent` state role.
-  The brief is the durable intent baton (contract C — intent lives on the tracker item).
+  The brief is the durable intent baton (intent lives on the tracker item).
 - **`ready-for-human`** — agent-brief structure, plus a note on why it can't be delegated.
 - **`needs-info`** — post the Triage Notes (established / still-needed), write `needs-info`.
 - **`needs-specs`** — write `needs-specs`; the item needs a PRD before slicing. Point the user to

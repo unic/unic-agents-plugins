@@ -730,7 +730,7 @@ nodes:
       // `passed: true` with a non-empty `failures` array write a certificate whose own body listed
       // the failures. Both prompts define `failures` as blockers only, so a non-empty list is a
       // red verdict whatever the boolean says. This does not make the gate independent of the
-      // judge. Only re-running the suite would, and this gate reads results; it does not produce them.
+      // judge. Only re-running the suite would do that.
       const verificationGreen = verificationPassed === true && verificationFailures.length === 0
       const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
 
@@ -962,7 +962,7 @@ nodes:
   # build-state.json and evidence.json. A miss has two causes. commit-session did not commit, which a
   # prompt node cannot report by failing. Or a resumed run re-ran `evidence` after the commit and the
   # rewritten evidence.json differs, which needs a new run. It prints `git status --porcelain` to stderr before the push. Archon 0.12.1
-  # substitutes $BASE_BRANCH in a bash body (measured). Its stdout is JSON only, read field
+  # substitutes $BASE_BRANCH in a bash body. Its stdout is JSON only, read field
   # by field by guard-not-pass and open-pr. git's own lines go to stderr.
   # ---------------------------------------------------------------------------------------------
   - id: push-branch
@@ -1087,7 +1087,7 @@ nodes:
   - id: build-pr-gate
     depends_on: [open-pr]
     when: "$bootstrap.output.gate == 'hitl'"
-    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH (measured), so
+    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH, so
     # this message names the base through bootstrap's message, which starts with it.
     approval:
       message: >

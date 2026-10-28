@@ -342,7 +342,7 @@ nodes:
   # and upstream now maintains. The Method implements its own parallelism — its step 4 spawns two
   # sub-agents — so the Harness delegating to it is the whole point: nothing about running two
   # sub-agents needs the Harness, and re-implementing step 4 as two Archon nodes is the exact defect
-  # to avoid. The Harness keeps only what no Method supplies: the Intent Brief,
+  # to avoid, because the Harness never reimplements a Method's procedure. The Harness keeps only what no Method supplies: the Intent Brief,
   # the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces.
   #
   # The finding contract lives in the node's own prompt below, under "## The finding contract". A YAML
@@ -644,7 +644,7 @@ nodes:
            - A prior iteration posted by an earlier version of this Box carries the retired seven aspect names (code-quality,
              tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where this run
              carries "standards" / "spec". Match those on semantic title alone, ignoring the aspect, so
-             the first re-review after the rewiring does not report every finding as new.
+             the first re-review after the switch to two axes does not report every finding as new.
            - A prior iteration posted by a Box older than the anchorable/scoped rule gave a scoped
              finding an invented `file` — a path that merely sat near the problem. Its prior `file` is
              a path and this run's is `pull request`, `work item` or `repository`, so they differ by
