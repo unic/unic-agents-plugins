@@ -160,12 +160,12 @@ slices. A new conversation starts `/tickets` with only the PRD.
 The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
 ([ADR-0011](docs/adr/0011-archon-schema-target.md)):
 
-| Workflow                                                                                      | Node pipeline                                                                                                                                                                               |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unic-dlc-build` ([diagram](docs/architecture/20260925-unic-dlc-build-pipeline.html))         | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                              |
-| `unic-dlc-pr-review` ([diagram](docs/architecture/20260925-unic-dlc-pr-review-pipeline.html)) | `bootstrap → guard-not-ready → prep → guard-no-diff-base → review → synthesize → reconcile → review-gate ✓ → post`                                                                          |
-| `unic-dlc-qa` ([diagram](docs/architecture/20260925-unic-dlc-qa-pipeline.html))               | `bootstrap → guard-not-ready → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → merge-gate ✓ → merge`                                                                  |
-| `unic-dlc-explore` ([diagram](docs/architecture/20260925-unic-dlc-explore-pipeline.html))     | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike` |
+| Workflow                                                                                      | Node pipeline                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unic-dlc-build` ([diagram](docs/architecture/20260925-unic-dlc-build-pipeline.html))         | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                                    |
+| `unic-dlc-pr-review` ([diagram](docs/architecture/20260925-unic-dlc-pr-review-pipeline.html)) | `bootstrap → guard-not-ready → prep → guard-no-diff-base → review → synthesize → reconcile → review-gate ✓ → post`                                                                                |
+| `unic-dlc-qa` ([diagram](docs/architecture/20260925-unic-dlc-qa-pipeline.html))               | `bootstrap → guard-not-ready → pr-check → guard-no-open-pr → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → guard-not-mergeable → merge-gate ✓ → merge → guard-not-merged` |
+| `unic-dlc-explore` ([diagram](docs/architecture/20260925-unic-dlc-explore-pipeline.html))     | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike`       |
 
 > **✓** = config-gated `approval:` node — it pauses for a human when the box's gate is `hitl` and
 > auto-proceeds when `afk` (ADR-0017). Parallel nodes are shown in `{…}`.
@@ -207,7 +207,7 @@ scheme; export both again whenever the JSON changes.
 <a href="docs/architecture/20260925-unic-dlc-qa-pipeline.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/20260925-unic-dlc-qa-pipeline.dark.png">
-    <img alt="unic-dlc-qa pipeline: bootstrap, test, e2e, coverage-gate, uat-prep and uat-gate, then verify-pr-base, merge-gate and merge" src="docs/architecture/20260925-unic-dlc-qa-pipeline.light.png">
+    <img alt="unic-dlc-qa pipeline: bootstrap, pr-check, test, e2e, coverage-gate, uat-prep and uat-gate, then verify-pr-base, merge-gate and merge, with the cancel leaves guard-not-ready, guard-no-open-pr, guard-not-mergeable and guard-not-merged" src="docs/architecture/20260925-unic-dlc-qa-pipeline.light.png">
   </picture>
 </a>
 

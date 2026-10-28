@@ -6,8 +6,8 @@ description: Run the unic-archon-dlc QA workflow — PR check, test suite, e2e, 
 
 Runs the `qa` box: PR check → test suite → end-to-end tests → coverage gate → UAT sign-off → PR-base
 verification → merge. The test suite is the floor: the merge gate cannot advance without a pass.
-Every run that does not merge ends `cancelled`, with a message that names why. Only a merge that
-landed ends `completed`.
+Every run that does not merge on a result ends `cancelled`, with a message that names why. Only a
+merge that landed ends `completed`. A node that fails ends the run `failed`.
 It is also an **issue-producing on-ramp** — when UAT surfaces a defect, the workflow files it directly
 as an **agent-ready tracker issue** (feeding `/tickets`) instead of only halting. Ported to the
 key-discriminated Archon node schema ([ADR-0011](../adr/0011-archon-schema-target.md)); design in
@@ -73,11 +73,13 @@ from), which `/build` implemented against.
    contract and naming the repository it gives explicitly. `/unic-archon-dlc:setup` reports which
    branch that is. It reports `pr_state` and `base_ok`. `base_ok` means only "the open PR targets
    `$BASE_BRANCH`", so it is `false` whenever no PR is open, on a mismatch, and on a failed query.
-   It also reports `blockers`: one sentence for every reason the merge cannot run.
+   It also reports `blockers`, with one sentence for every reason the merge cannot run. Its prompt
+   references the output of `uat-prep`, so a failed `uat-prep` fails this node and the run. No merge
+   is asked for without a UAT.
 
    `guard-not-mergeable` then cancels the run when any of these holds: `test` is not `pass`, `e2e` or
    `coverage-gate` is `fail`, the PR is not open, or `base_ok` is not `true`. Its message joins the
-   sentence for every cause that held, so one cause never hides another. A PR that is not open gets
+   sentence for every cause that held, so the message lists every cause. A PR that is not open gets
    the message for its case from the table in step 2. A wrong base reads "The PR targets `<actual>`
    but `<expected>` was expected", never that the PR is missing. The message ends with the raw
    results. An `unresolved` e2e or coverage result is not a cause and does not block the merge.
@@ -90,13 +92,21 @@ from), which `/build` implemented against.
    `test` is the floor and its clause requires a `pass`, while e2e and coverage only have to avoid a
    `fail`.
 
-   `merge` reports `merged`. When it runs and cannot confirm a merge, because the tracker contract
-   is missing, the tracker cannot merge, the branch policy refuses, the merge call errors, or the
-   call returned success but the PR state could not be read again, `guard-not-merged` cancels the
-   run with the reason. In the last case the reason tells the operator to check the PR and, if it
-   merged, to write `resolved` by hand, because a re-run of `/qa` reads the PR as merged and does
-   nothing. The reason gives the manual steps when the tracker
-   cannot merge. The line `merge: QA for "<slug>" complete … ✓` appears only after a merge that
+   `merge` reports `merged`. When `merge` cannot confirm a merge, `guard-not-merged` cancels the run
+   with the reason. The reasons are:
+
+   - The tracker contract is missing.
+   - The tracker cannot merge. The reason gives the manual steps.
+   - The branch policy refuses the merge.
+   - The merge call errors.
+   - The merge call returned success, but the PR state could not be read again. The reason tells
+     the operator to check the PR and, if it merged, to write `resolved` by hand. A re-run of `/qa`
+     reads the PR as merged and does nothing.
+   - The merge call returned success, but the PR is not merged yet, as under a merge queue or
+     auto-merge. The reason tells the operator to watch the PR and to write `resolved` by hand once
+     it merges.
+
+   In every one of these cases no item takes `resolved`. The line `merge: QA for "<slug>" complete … ✓` appears only after a merge that
    landed. If writing `resolved` failed on some items, the line names them and does not count them.
    Such a run still ends `completed`, because `/qa` never reverts a merge that landed.
 

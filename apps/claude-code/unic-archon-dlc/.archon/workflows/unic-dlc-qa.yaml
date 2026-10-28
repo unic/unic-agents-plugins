@@ -2,8 +2,8 @@ name: unic-dlc-qa
 description: >
   QA box + issue-producing on-ramp. Runs after /build's PR is approved: pr-check → test → e2e →
   coverage-gate → UAT sign-off → verify-pr-base → merge, config-driven and generic. `test` is the floor
-  the merge gate cannot advance without. Every path that does not merge ends cancelled, never completed
-  (#652). Two human gates (UAT + merge)
+  the merge gate cannot advance without. Every path that does not merge on a result ends cancelled,
+  never completed (#652). A node that fails ends the run failed. Two human gates (UAT + merge)
   honour gates.qa — HITL by default, AFK opt-in. When UAT surfaces a defect, it is filed directly as
   an agent-ready tracker item, through the contract at `docs/agents/issue-tracker.md` and
   `docs/agents/triage-labels.md` (ADR-0016/0024), so the finding feeds /tickets rather than only
@@ -138,7 +138,7 @@ nodes:
   - id: pr-check
     depends_on: [bootstrap]
     when: "$bootstrap.output.status == 'ready'"
-    # always_run: true — the PR state is a fact about the remote, not about this node's exit code. A
+    # always_run: true. The PR state is a fact about the remote, not about this node's exit code. A
     # resume must query it again (ADR-0033).
     always_run: true
     context: fresh
@@ -483,6 +483,12 @@ nodes:
 
       Expected base branch: $BASE_BRANCH
 
+      UAT checklist from uat-prep, for reference only: $uat-prep.output
+      <!-- This reference is deliberate (#652). When uat-prep fails, Archon skips uat-gate, and this
+      node still runs on all_done. Archon 0.12.1 fails a node whose prompt references a failed
+      node's output, so a failed uat-prep fails this node and the run, and no merge is asked for
+      without a UAT. Keep it. -->
+
       ## The tracker contract
       `docs/agents/issue-tracker.md` in this repository is the tracker contract. Read it before the
       query. Its § Access names the MCP server or skill that serves this tracker. Read that server's own
@@ -502,8 +508,8 @@ nodes:
       Never guess a state. A query that did not answer is "unknown".
 
       ## 2. The base
-      `base_ok` has one meaning: the open PR targets $BASE_BRANCH. Set it to the STRING "true" only when
-      `pr_state` is "open" and the PR's target base equals $BASE_BRANCH. Set it to the STRING "false"
+      `base_ok` is "true" only when the open PR targets $BASE_BRANCH. Set it to the STRING "true" only
+      when `pr_state` is "open" and the PR's target base equals $BASE_BRANCH. Set it to the STRING "false"
       in every other case, including when no PR is open and when the query failed. (It is a string, not
       a boolean, so the downstream `when` gates compare it reliably as `== 'true'`.) Set `actual_base`
       to the open PR's target branch, or to "" when no PR is open.
@@ -627,15 +633,19 @@ nodes:
           the error as received, and tell the operator to check the PR. If it merged, the operator
           writes the role `resolved` and the value its row gives on every linked item by hand,
           because a re-run of /qa reads the PR as merged and does nothing
-      A "false" ends the run cancelled with `reason` as its message. When `merged` is "true", set
-      `reason` to "".
+        · the merge call returned success, but the PR is not merged yet, as under a merge queue or
+          auto-merge → say so, and tell the operator to watch the PR. When it merges, the operator
+          writes the role `resolved` and the value its row gives on every linked item by hand
+      A "false" ends the run cancelled with `reason` as its message. Whenever `merged` is "false",
+      the unconfirmed cases included, skip steps 2 and 3, so no item takes `resolved`. Say that in
+      `reason`. When `merged` is "true", set `reason` to "".
 
       1. Merge the open PR for the current feature branch on that repository. **The merge style is the
          host's to enforce, not this Box's to choose.** Use whatever the repository's own branch policy
          allows; where it allows more than one, the team's `CLAUDE.md` states the rule — read it. Pick
          nothing yourself, and do not override a policy that refuses a style.
-         If the tracker has no merge capability at all, merge nothing and skip steps 2 and 3.
-         If the merge did not land, skip steps 2 and 3.
+         If the tracker has no merge capability at all, merge nothing.
+         Whenever `merged` is "false", skip steps 2 and 3.
 
       2. **After the merge lands, write the `resolved` role on every item the PR links.** Read the PR's
          links collection for them; nothing else is authoritative, and this is why `open-pr` created

@@ -42,7 +42,7 @@
           "merge",
           "guard-not-merged"
         ],
-        "note": "Every path that does not merge ends cancelled. No path without an open PR reaches merge."
+        "note": "A path that does not merge on a result ends cancelled. A failed node ends the run failed. No path without an open PR reaches merge."
       },
       {
         "id": "happy-path",
