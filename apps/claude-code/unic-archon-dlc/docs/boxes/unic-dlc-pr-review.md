@@ -67,12 +67,13 @@ precondition** — intent is composed from whatever sources resolve.
    writes a new one. Each sub-agent ends its report with every command it ran other than reading files
    and git, and the outcome it observed. A check is a command that runs the project's toolchain to
    verify the code or starts a dev server. `review` records only the checks and drops every other
-   command. Each check goes into the `reported_checks` array of `review.json` as one entry per need
-   it serves, with the axis, the need and the reported outcome, which names no command or tool. `review` judges the need from what the
-   command does, never by matching the command's text against a value in `sdlc_needs`, and records a
-   check that serves no declared need as `undeclared`. It never records `install`. It then removes
-   the commands section from both reports, so no command or result reaches the Intent Check. The
-   array is empty when no sub-agent reported a check. `review.json` also carries `subagents_ran`,
+   command. Each check goes into the `reported_checks` array of `review.json` as one entry per need it
+   serves, with the axis, the need and the reported outcome, which names no command or tool. `review`
+   judges the need from what the command does, never by matching the command's text against a value in
+   `sdlc_needs`, and records a check that serves no declared need as `undeclared`. It never records
+   `install`. It then removes the commands section from both reports. The Intent Check keeps an
+   acceptance-criterion verdict but drops a check result, or renders it as the Spec sub-agent's claim.
+   The array is empty when no sub-agent reported a check. `review.json` also carries `subagents_ran`,
    which is true when at least one review sub-agent started, on every path, a stop included. It also
    carries `blocked`, which is empty for a review that ran to the end and holds the printed sentence
    for a stop. A review is blocked when `blocked` is not empty, or when `blocked` is missing and
@@ -84,7 +85,7 @@ precondition** — intent is composed from whatever sources resolve.
    writes no findings, and `reconcile` then stops without a summary. When the review is blocked, it
    writes an empty findings list and a callout that names the `blocked` sentence, with no severity
    section, so the reader sees that the review stopped. `reconcile` then rules no prior finding
-   `fixed`: every unmatched open or unverified prior is `unverified`.
+   `fixed`, and every unmatched open or unverified prior is `unverified`.
 
 5. **reconcile** — the re-review coordinator: classify each finding against the prior iteration
    (new / still-present / fixed / unverified / regressed), compute the "since iteration N−1" delta, and

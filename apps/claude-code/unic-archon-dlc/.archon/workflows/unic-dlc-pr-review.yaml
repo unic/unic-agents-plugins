@@ -546,12 +546,16 @@ nodes:
       4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
-           - `### Intent Check`. Render the review node's `spec_report` verbatim, with one exception.
-             The render states no check result as a fact. Drop any line that reports a command the
-             sub-agent ran, or that a build, lint, format, type-check, test or other check passed or
-             failed. Keep a line that cites a command only to judge an acceptance criterion. The Spec
-             axis IS the
-             AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
+           - `### Intent Check`. Render the review node's `spec_report` verbatim, except that the
+             render states no check result as a fact. Two rules apply to each line:
+               - Drop a line that only reports a command the sub-agent ran, or that a build, lint,
+                 format, type-check, test or other check passed or failed.
+               - When a line gives an acceptance-criterion verdict and also a check result, as in
+                 "AC 2 met: `<cmd>` passes", keep the verdict. Drop the check result, or rewrite it as
+                 the Spec sub-agent's claim: "the Spec sub-agent reported that …". The verdict stays
+                 and the result never reads as a fact.
+             A line that cites a command only to judge an acceptance criterion stays. The Spec axis IS
+             the AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
              when `$prep.output.intent_available == "false"`.
            - `### 🔴 Critical (N)` / `### 🟠 Important (N)` / `### 🟡 Minor / Suggestions` — each finding a
