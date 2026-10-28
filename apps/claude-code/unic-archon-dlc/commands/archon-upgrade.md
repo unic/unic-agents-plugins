@@ -1,16 +1,14 @@
 ---
 allowed-tools: ['Bash', 'Read', 'Glob']
-description: 'Report what a new Archon release means for this Plugin: compare the installed version against the 0.7.0 floor, classify each upstream change as ADOPT / DEFER / VERIFY-ONLY / BREAKS-US against the four installed Box YAMLs, check for changed upstream defaults, re-assert ADR-0011 trap conformance, and probe that the Archon config keys this Plugin depends on are still read. Read-only in this repository — the key probe writes a throwaway repository outside every clone.'
+description: 'Report what a new Archon release means for this Plugin: compare the installed version against the 0.7.0 floor, classify each upstream change as ADOPT / DEFER / VERIFY-ONLY / BREAKS-US against the four installed Box YAMLs, check for changed upstream defaults, re-assert the four node-schema traps, and probe that the Archon config keys this Plugin depends on are still read. Read-only in this repository — the key probe writes a throwaway repository outside every clone.'
 ---
 
 # unic-archon-dlc:archon-upgrade
 
-> Design rationale: [ADR-0035 — `/archon-upgrade` reports what a new Archon release means for this Plugin](docs/adr/0035-archon-upgrade-report.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); floor, node-schema conventions and the four silent-failure traps per [ADR-0011](docs/adr/0011-archon-schema-target.md); the two locked classification precedents per [ADR-0033](docs/adr/0033-archon-070-schema-target.md); the evidence-gate shape a future release may touch per [ADR-0034](docs/adr/0034-evidence-gate-deterministic-writer.md)).
-
 `/archon-upgrade` answers one question: **Archon shipped a new release — what does it mean for this
 Plugin?** It compares the installed `archon` against this Plugin's floor, reads the release notes for
 everything in between, classifies each notable change against the four installed Box YAMLs, and
-re-asserts [ADR-0011](docs/adr/0011-archon-schema-target.md)'s silent-failure traps. The output is one
+re-asserts the four node-schema silent-failure traps of Step 5. The output is one
 decision table.
 
 **It is read-only here, absolutely.** There is no apply mode — this is a stronger claim than
@@ -27,8 +25,7 @@ Follow these steps in order. Do not skip any step.
 ## Step 1 — Compare installed against the floor
 
 This Plugin's floor is **Archon `0.7.0`** — the version the key-discriminated schema needs: gates,
-loops, `context: fresh`, `evidence_policy` and `always_run`
-([ADR-0033](docs/adr/0033-archon-070-schema-target.md)). Run:
+loops, `context: fresh`, `evidence_policy` and `always_run`. Run:
 
 ```bash
 archon --version
@@ -63,7 +60,7 @@ GitHub URL.
 If this fails for any reason — no `brew` on `PATH` (expected on Windows), Archon installed another way,
 a non-zero exit, or a changed JSON shape — **do not guess**. Print one line explaining what failed and
 **ask the user, in this conversation, for the `owner/repo` to read release notes from.** This command
-runs with a human present ([ADR-0017](docs/adr/0017-container-follows-structural-need.md)); asking costs
+runs with a human present; asking costs
 one turn, guessing costs a wrong report. If the user declines or does not know, skip to Steps 5 and 6
 and say in the final report that the classification table could not be produced.
 
@@ -98,29 +95,27 @@ Walk every kept release's notes. Emit one row per notable change:
 The four classifications:
 
 - **ADOPT** — a new capability this Plugin should take on. Name the file and node that would change.
-- **DEFER** — recognised as valuable, blocked on a condition already recorded in an ADR. Cite the
-  recorded condition; never invent one.
+- **DEFER** — recognised as valuable, blocked on a condition one of the locked precedents below
+  records. Cite that precedent; never invent one.
 - **VERIFY-ONLY** — a deliberate, already-documented divergence or an area we track but do not follow.
   Confirm it still holds. Do not re-litigate it.
 - **BREAKS-US** — something this Plugin currently relies on has changed behaviour or been removed.
 
 Every row names an **affected file and node** (for example `.archon/workflows/unic-dlc-build.yaml:evidence`)
-and one suggested next step: **file an issue**, **amend an ADR**, or **nothing**.
+and one suggested next step: **file an issue** or **nothing**.
 
-### Two locked precedents — cite them, never re-derive them
+### Two locked precedents — apply them, never re-derive them
 
 - **`workflow:` sub-runs (dynamic fan-out, `with:` parameter mapping over a dynamic list) →
-  classify DEFER.** The rationale in that row is a citation and nothing else: _see ADR-0033 § Sub-runs
-  (`workflow:` nodes): deferred, with the trigger to revisit_. Do not restate the trigger, do not
-  paraphrase it, and do not invent a second one. Reclassify the row as ADOPT **only** when the release
-  notes show upstream has shipped what that section already records as the trigger — nothing else
-  moves it.
+  classify DEFER.** The rationale in that row is this sentence and nothing else: _sub-runs stay
+  deferred until upstream ships fan-out and `with:` parameter mapping over a dynamic list_. Do not
+  invent a second trigger. Reclassify the row as ADOPT **only** when the release notes show upstream
+  has shipped both.
 - **Archon's own repository / remote-resolution algorithm (the remote key in Step 6's table, an
   `origin`-then-sole-remote fallback, or similar) → classify VERIFY-ONLY, never BREAKS-US.** This Harness resolves no repository
   from a remote at all: `docs/agents/issue-tracker.md` § Addressing names it, so Archon's algorithm and
-  this Harness answer different questions and cannot disagree
-  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md), which retired the derivation
-  ADR-0033 § "Repository derivation" recorded as a deliberate divergence). Cite that. Classifying it as
+  this Harness answer different questions and cannot disagree. The Harness once derived the
+  repository from a remote and has retired that derivation. Say so in the row. Classifying it as
   BREAKS-US makes every run re-raise a decision that has already been superseded once.
 
 ### Mandatory sub-pass — changed upstream defaults, not just new fields
@@ -136,12 +131,12 @@ only asks "is there a new field?" is blind to a removed default a Box still assu
 
 Report each hit as its own row, marked `default-change`, in the same table.
 
-## Step 5 — Re-assert ADR-0011's traps against the installed Boxes
+## Step 5 — Re-assert the node-schema traps against the installed Boxes
 
 This step runs **unconditionally**, even when Steps 2–4 failed. Read every
 `.archon/workflows/unic-dlc-*.yaml` in this repository — the Boxes actually installed here, which is
 what a run would use — and check each one against
-[ADR-0011](docs/adr/0011-archon-schema-target.md)'s node-schema conventions 1–4:
+these four node-schema conventions:
 
 1. No node carries a `type:` discriminator.
 2. Every node with an `approval:` key sits in a workflow whose top level declares `interactive: true`.
@@ -153,7 +148,7 @@ wrong`. If you cannot read a file, that file is a FAIL naming the read error —
 run is never a silent PASS.
 
 A FAIL here is not caused by the new Archon release: it means an installed Box has drifted from
-ADR-0011. Nothing else guards these four conventions, so this read is the only place they are
+these conventions. Nothing else guards these four conventions, so this read is the only place they are
 re-asserted — say which file drifted and stop short of fixing it, because this command changes nothing in
 this repository.
 
@@ -249,7 +244,7 @@ One block, in this order:
     | ------- | ------ | -------------- | ------------------ | ------------------- |
     ...one row per notable change, default-change rows included...
 
-  ADR-0011 traps (installed Boxes)
+  Node-schema traps (installed Boxes)
     unic-dlc-build.yaml      PASS
     unic-dlc-explore.yaml    PASS
     unic-dlc-pr-review.yaml  PASS
@@ -267,4 +262,4 @@ One block, in this order:
 Close with this line, verbatim:
 
 > This command wrote nothing in this repository — only the throwaway repository Step 6 built, now
-> deleted. Adoption is a human decision — file an issue or amend an ADR by hand.
+> deleted. Adoption is a human decision. File an issue.
