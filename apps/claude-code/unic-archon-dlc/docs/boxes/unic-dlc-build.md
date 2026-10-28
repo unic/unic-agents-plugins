@@ -59,8 +59,8 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    verdict and lists the failures behind it, so it tells you what failed. The node mirrors it to
    `<artifacts_dir>/<slug>/evidence.json`. A script node, never a prompt
    ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The workflow-level
-   `evidence_policy: { required: true }` still refuses terminal `completed` without the file, which
-   now happens only when `evidence` itself fails before it writes
+   `evidence_policy: { required: true }` still refuses terminal `completed` without the file. That is
+   now a backstop for `evidence` ending without writing it
    ([ADR-0040](../adr/0040-build-verdict-decides-the-pull-request.md)).
 
 7. **report** — writes `<artifacts_dir>/<slug>/report.md`, led by a block naming every check that came
