@@ -6,6 +6,17 @@
 - (none)
 
 ### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.36.0] — 2026-10-28
+
+### Breaking
+- (none)
+
+### Added
 - `/pr-review`'s `review` node writes a `reported_checks` array into `review.json`. Each entry is a check a review sub-agent reports having run, with its axis, the need it serves and the reported outcome. `review` judges the need from what the command does, never from the command's text, and never records `install`. The array is empty when no sub-agent reported a check (#660).
 
 ### Fixed
