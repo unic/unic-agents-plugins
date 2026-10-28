@@ -270,14 +270,18 @@ _Avoid_: progress file, checkpoint
 **Evidence gate**:
 The workflow-level `evidence_policy: { required: true }` on `/build` that refuses terminal
 `completed` unless `$ARTIFACTS_DIR/evidence.json` exists. The engine checks file presence only;
-producing valid evidence is the `evidence` node's contract, never a prompt's. See
-`docs/adr/0034-evidence-gate-deterministic-writer.md`.
+producing valid evidence is the `evidence` node's contract, never a prompt's. `evidence` writes the
+file on every verdict. For `evidence` ending without writing, `push-branch` refuses a missing Session
+mirror, and this gate catches a committed mirror with no `$ARTIFACTS_DIR` copy. The verdict, not the
+file, decides whether a pull request opens. See
+`docs/adr/0034-evidence-gate-deterministic-writer.md` and
+`docs/adr/0040-build-verdict-decides-the-pull-request.md`.
 _Avoid_: verification gate, quality gate
 
 **Evidence set**:
 The Session-artifact mirror of the evidence gate's content, at `<artifacts_dir>/<slug>/evidence.json`
 — written by the same `evidence` node that satisfies the engine's presence check at
-`$ARTIFACTS_DIR/evidence.json`, so a reviewer (and `open-pr`, which stages it) can see what the gate
+`$ARTIFACTS_DIR/evidence.json`, so a reviewer (and `commit-session`, which stages it) can see what the gate
 saw after `/cleanup` prunes the worktree.
 _Avoid_: evidence.json (ambiguous — two files share the name at two different paths), evidence file
 

@@ -8,15 +8,20 @@ description: >
   `tdd` and `implement` Methods, read by path from `.archon/methods/`; refactoring is deliberately
   NOT in the loop — `tdd` puts it in the review stage, so it lives in /pr-review's `code-review`
   Fowler smells (#281, amending ADR-0023). Then a local non-posting code-review pre-check, verify,
-  goals-check, report, and gate a PR to the run's base branch, Archon's $BASE_BRANCH
-  (ADR-0011/0022/0023/0030/0031/0039).
+  goals-check, evidence, report, and a commit and push of the work on every verdict. Only a "pass"
+  verdict opens a PR to the run's base branch, Archon's $BASE_BRANCH, and gates it; any other
+  verdict cancels the run with the work on the pushed branch
+  (ADR-0011/0022/0023/0030/0031/0039/0040).
 
 # Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
 interactive: true
 
-# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists — the
-# `evidence` node below is the only writer; the engine gates on presence only, the content
-# contract is this workflow's own (ADR-0034).
+# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists. The
+# `evidence` node below is the only writer, and it writes the file on every verdict, so this
+# policy no longer refuses a red run. Two guards cover `evidence` ending without writing.
+# push-branch refuses a Session mirror that is missing at HEAD, so the run ends `failed`. This
+# policy catches the one case left: the mirror is committed but the $ARTIFACTS_DIR copy is absent.
+# The verdict decides how the run ends, at guard-not-pass and open-pr (ADR-0034, ADR-0040).
 evidence_policy:
   required: true
 
@@ -300,9 +305,10 @@ nodes:
         above is a different thing; see the next rule for what happens to it.)
         NEVER stage or commit build-state.json in a loop iteration. You rewrite it on every one of up
         to 60 iterations; committing it here would put 60 revisions of a scratch-looking file in the
-        PR. The `open-pr` node commits it ONCE, at the end — that single commit is the durable proof
-        of this loop's anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase
-        order), which otherwise dies when `/cleanup` prunes this worktree (ADR-0012).
+        PR. The node that commits the Session artefacts after `report` commits it ONCE. That single
+        commit is the durable proof of this loop's anti-cheat record (`red_exit`,
+        `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
+        prunes this worktree (ADR-0012).
         After each `git add`, run `git status --porcelain` and confirm the staged set is exactly the
         file(s) you named. Unstage anything else with `git restore --staged <path>` before committing.
 
@@ -525,10 +531,10 @@ nodes:
          `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
          requires the field, so omitting it aborts the run instead of reporting a clean result. The
          prose is for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
-         of us, plus `verification`'s three-state `test_outcome`, and withholds unless both verdicts
-         are green AND that test outcome is "pass"; its own verdict keeps `unresolved` and `fail`
-         apart rather than calling both red, and
-         `evidence_policy` then gates on the file that node writes.
+         of us, plus `verification`'s three-state `test_outcome`, and records the verdict "pass"
+         only when both verdicts are green AND that test outcome is "pass"; its verdict keeps
+         `unresolved` and `fail` apart rather than calling both red. It writes evidence.json on
+         every verdict, and only a "pass" verdict opens a pull request.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
     output_format:
       type: object
@@ -572,10 +578,10 @@ nodes:
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
          short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
          for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
-         of us, plus `verification`'s three-state `test_outcome`, and withholds unless both verdicts
-         are green AND that test outcome is "pass"; its own verdict keeps `unresolved` and `fail`
-         apart rather than calling both red, and
-         `evidence_policy` then gates on the file that node writes.
+         of us, plus `verification`'s three-state `test_outcome`, and records the verdict "pass"
+         only when both verdicts are green AND that test outcome is "pass"; its verdict keeps
+         `unresolved` and `fail` apart rather than calling both red. It writes evidence.json on
+         every verdict, and only a "pass" verdict opens a pull request.
     output_format:
       type: object
       properties:
@@ -587,13 +593,14 @@ nodes:
       required: [verdict, passed, failures]
 
   # ---------------------------------------------------------------------------------------------
-  # evidence — writes $ARTIFACTS_DIR/evidence.json ONLY when both verdicts are green; its mere
-  # PRESENCE is what workflow-level evidence_policy checks before allowing terminal `completed`
-  # (the engine gates on presence only — the content contract is this node's, ADR-0034). A SCRIPT,
-  # never a prompt: a prompt that both judges and certifies grades its own homework.
-  # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive
-  # presence from the CURRENT verification/goals-check output, never trust a stale file (also why
-  # it deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # evidence — writes $ARTIFACTS_DIR/evidence.json on EVERY verdict, with the verdict and the
+  # failures that produced it, and prints the verdict as JSON on stdout. guard-not-pass and open-pr
+  # branch on that printed verdict; workflow-level evidence_policy checks only that the file exists
+  # (ADR-0034, ADR-0040). A SCRIPT, never a prompt: a prompt that both judges and certifies grades
+  # its own homework.
+  # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive the
+  # verdict from the CURRENT verification/goals-check output, never trust a stale file (also why it
+  # deletes any existing evidence.json first, below) (ADR-0033/0034).
   # ---------------------------------------------------------------------------------------------
   - id: evidence
     depends_on: [verification, goals-check]
@@ -626,8 +633,8 @@ nodes:
       // Delete BOTH copies first: a resumed run reuses the same $ARTIFACTS_DIR and the same
       // Session dir, so a prior attempt's file would certify a red tree if this attempt fails
       // before writing a fresh one. The mirror needs this most — the engine's presence gate reads
-      // only the $ARTIFACTS_DIR copy, so a stale mirror survives an engine refusal and is what
-      // open-pr stages and a reviewer reads.
+      // only the $ARTIFACTS_DIR copy, so a stale mirror would survive a failed attempt and be what
+      // commit-session stages and a reviewer reads.
       if (existsSync(evidencePath)) rmSync(evidencePath)
       if (existsSync(mirrorPath)) rmSync(mirrorPath)
 
@@ -677,20 +684,18 @@ nodes:
       // to STDOUT is its whole output. That makes stdout the machine channel and nothing else may go
       // there — every human line below uses console.error, which the run log still shows. Mixing one
       // progress line into stdout leaves a reader a string that is not JSON, and the reader is a
-      // `when:` expression with nowhere to put a parse failure. Nothing reads it yet: the `when:` that
-      // will consume it belongs to the ticket that makes this file unconditional, and a field with no
-      // reader here is that hand-off, not an oversight (#430 criterion 8).
+      // `when:` expression with nowhere to put a parse failure. Three readers: the `when:` of
+      // guard-not-pass, the `when:` of open-pr, and the cancel message of guard-not-pass, which names
+      // the verdict. Both `when:` expressions compare the `verdict` field with 'pass' and nothing
+      // else, so `fail` and `unresolved` take the same branch (ADR-0040).
       console.log(JSON.stringify({ verdict: verdictState, test_outcome: testOutcome, unresolved_needs: unresolvedNeeds }))
 
-      if (verdictState !== 'pass') {
-        console.error(`evidence: withholding — verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
-        if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
-        process.exit(0)
-      }
+      console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+      if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
 
-      // Both arrays are empty by construction here — the guard above returns on either being
-      // non-empty. They stay in the artefact so a reviewer reading evidence.json sees the two
-      // fields the gate checked rather than having to know which fields it consulted.
+      // Written on EVERY verdict, so the file the engine demands says what failed. The two failure
+      // arrays are the reason for a `fail`, and `test_outcome` with `unresolved_needs` is the reason
+      // for an `unresolved`. Never return before this write (ADR-0040).
       const evidence = {
         slug: '$bootstrap.output.slug',
         verdict: verdictState,
@@ -702,8 +707,9 @@ nodes:
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
       console.error(`evidence: wrote ${evidencePath} ✓`)
 
-      // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
-      // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
+      // Mirror into the repo-relative Session dir so a reviewer, and commit-session, which stages it,
+      // can see it. $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes
+      // the worktree.
       mkdirSync(sessionDir, { recursive: true })
       copyFileSync(evidencePath, mirrorPath)
       console.error(`evidence: mirrored to ${mirrorPath} ✓`)
@@ -744,29 +750,21 @@ nodes:
       Print: "report written to $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md".
 
   # ---------------------------------------------------------------------------------------------
-  # open-pr — always runs (even in AFK mode); the gate below only PAUSES in hitl mode.
+  # commit-session — runs on EVERY verdict. Stages the named paths and commits them, so the work and
+  # the Session artefacts are committed before the verdict decides anything (ADR-0040). A prompt,
+  # because telling the loop's uncommitted source and test files from scratch files is a judgement.
   # ---------------------------------------------------------------------------------------------
-  - id: open-pr
+  - id: commit-session
     depends_on: [report]
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |
-      You are the open-pr node of /build for slug "$bootstrap.output.slug".
+      You are the commit-session node of /build for slug "$bootstrap.output.slug". You stage and
+      commit. You do not push and you do not open a pull request. push-branch pushes, and open-pr
+      opens the pull request only on a "pass" verdict.
 
       Constants:
         SESSION = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
-
-      ## The tracker contract
-      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
-      tracker contract. This node needs the first. Read it before the first tracker call.
-      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
-        server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
-        flag table frozen in this file is stale the moment the tool changes.
-      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
-        explicitly in every call, and derive nothing from a remote URL.
-      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
-      docs/agents/issue-tracker.md", and act on nothing.
 
       1. Build the stage list. It is EXACTLY these named paths — an explicit list, never "everything
          changed by the build":
@@ -776,9 +774,9 @@ nodes:
            - SESSION/issues.json
            - SESSION/report.md
            - SESSION/build-state.json
-           - SESSION/evidence.json — ONLY if that file exists. The `evidence` node withholds it on
-             a red verdict, and `git add` on a path that does not exist fails with exit 128 and
-             takes the whole staging step with it. Check first; if it is absent, skip it and say so.
+           - SESSION/evidence.json. The `evidence` node writes it on every verdict, so it is
+             always there. If it is absent, STOP and print "BLOCKED: SESSION/evidence.json is
+             missing", and commit nothing.
            - each new `docs/adr/NNNN-*.md` the report node drafted, by name
          Derive the source/test entries by reading `git status --porcelain` and picking out the
          source and test files — then add them one at a time by name. A path already committed by a
@@ -795,14 +793,112 @@ nodes:
       sweeps in scratch files it cannot see the origin of.
       NEVER stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under `$ARTIFACTS_DIR` —
       Archon's per-run directory, which resolves OUTSIDE the repo tree under
-      `~/.archon/workspaces/<name>/artifacts/`. (SESSION above is repo-relative and IS staged; write
-      the PR body inline rather than to a file, so there is no body file to leak.)
+      `~/.archon/workspaces/<name>/artifacts/`. (SESSION above is repo-relative and IS staged.)
       Then run `git status --porcelain` and confirm every staged entry is one of the named paths.
       Unstage anything else with `git restore --staged <path>` and say what you unstaged.
 
       2. Commit the staged set: `build($bootstrap.output.slug): session artefacts`.
 
-      3. Open a PR against the repository the tracker contract above names, targeting
+      3. Print the commit hash and the list of paths it holds.
+
+  # ---------------------------------------------------------------------------------------------
+  # push-branch — runs on EVERY verdict, and pushes the branch commit-session committed on, to
+  # `origin`. A bash node, so a refusal or a failed push exits non-zero. The node fails,
+  # guard-not-pass and open-pr are both skipped, and the run ends `failed`. That is a different fact
+  # from a red verdict, because no work reached the remote. Before the push it refuses four cases:
+  # an empty $BASE_BRANCH, HEAD detached or on the run's base branch, a branch name that cannot go
+  # into the JSON below, and a Session artefact that is missing at HEAD or differs from the working
+  # tree. It checks the five Session paths commit-session stages: PRD.md, issues.json, report.md,
+  # build-state.json and evidence.json. A miss has two causes. commit-session did not commit, which a
+  # prompt node cannot report by failing. Or a resumed run re-ran `evidence` after the commit and the
+  # rewritten evidence.json differs, which needs a new run. It prints `git status --porcelain` to stderr before the push. Archon 0.12.1
+  # substitutes $BASE_BRANCH in a bash body (measured for #439). Its stdout is JSON only, read field
+  # by field by guard-not-pass and open-pr. git's own lines go to stderr (ADR-0040).
+  # ---------------------------------------------------------------------------------------------
+  - id: push-branch
+    depends_on: [commit-session]
+    bash: |
+      set -e
+      if [ -z "$BASE_BRANCH" ]; then
+        echo "push-branch: the run's base branch is empty, so this node cannot tell whether HEAD is on it" >&2
+        exit 1
+      fi
+      branch=$(git rev-parse --abbrev-ref HEAD)
+      if [ "$branch" = "HEAD" ]; then
+        echo "push-branch: HEAD is detached, so there is no branch to push" >&2
+        exit 1
+      fi
+      if [ "$branch" = "$BASE_BRANCH" ]; then
+        echo "push-branch: HEAD is on the base branch $branch, so a push would put the work on it directly" >&2
+        exit 1
+      fi
+      case "$branch" in
+        *'"'* | *'\'*)
+          echo "push-branch: the branch name holds a double quote or a backslash, so it cannot be reported as JSON" >&2
+          exit 1
+          ;;
+      esac
+      session=$bootstrap.output.artifacts_dir/$bootstrap.output.slug
+      for name in PRD.md issues.json report.md build-state.json evidence.json; do
+        file=$(printf '%s' "$session/$name" | tr -s /)
+        if ! git cat-file -e "HEAD:$file" 2>/dev/null || ! git diff --quiet HEAD -- "$file"; then
+          echo "push-branch: $file at HEAD is missing or differs from the working tree. Either commit-session did not commit it, or this is a resumed run that re-ran evidence after the commit, which needs a new run" >&2
+          exit 1
+        fi
+      done
+      git status --porcelain >&2
+      git push -u origin "$branch" >&2
+      printf '{"branch":"%s","commit":"%s"}\n' "$branch" "$(git rev-parse HEAD)"
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-not-pass — the sibling of open-pr. Its `when` is the exact negation of open-pr's, and both
+  # compare the verdict with 'pass' only, so `fail` and `unresolved` both end here and no third
+  # branch exists. It opens no pull request and writes nothing to the tracker. It ends the run
+  # `cancelled`, with the work already on the branch push-branch pushed (ADR-0040).
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-pass
+    depends_on: [push-branch]
+    when: "$evidence.output.verdict != 'pass'"
+    cancel: >
+      /build verdict is $evidence.output.verdict, so /build opened no pull request. The work is on
+      branch $push-branch.output.branch at commit $push-branch.output.commit. On that branch, read
+      $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md for what failed and which
+      checks could not run, and $bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json
+      for the failures the verdict rests on.
+
+  # ---------------------------------------------------------------------------------------------
+  # open-pr — the sibling of guard-not-pass. It runs only on a "pass" verdict. It sets no trigger
+  # rule. On any other verdict it is skipped, and so is build-pr-gate below. It stages and commits
+  # nothing. It opens the pull request from the pushed branch and links it (ADR-0040).
+  # ---------------------------------------------------------------------------------------------
+  - id: open-pr
+    depends_on: [push-branch]
+    when: "$evidence.output.verdict == 'pass'"
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the open-pr node of /build for slug "$bootstrap.output.slug".
+
+      Constants:
+        SESSION = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
+        BRANCH  = $push-branch.output.branch
+
+      commit-session committed the work and push-branch pushed BRANCH. Stage nothing, commit nothing
+      and push nothing here.
+
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first. Read it before the first tracker call.
+      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
+        server's own current tool list and build every call from it. Write no command, subcommand or
+        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag table frozen in this file is stale the moment the tool changes.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/issue-tracker.md", and act on nothing.
+
+      1. Open a PR against the repository the tracker contract above names, from BRANCH, targeting
          `$BASE_BRANCH`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
@@ -812,8 +908,9 @@ nodes:
                   - [ ] Coverage meets the configured threshold
                   - [ ] Tech-debt section in report.md is accurate
                   - [ ] Drafted ADRs (if any) are ready to record
+         Write the PR body inline rather than to a file, so there is no body file to leak.
 
-      4. Link the PR to its work. SESSION/issues.json carries a `tracker_id` for each slice
+      2. Link the PR to its work. SESSION/issues.json carries a `tracker_id` for each slice
          `/tickets` published. Link every one of those items to this PR through the registered
          skill's own link capability — a pull request and a tracker item each carry a links
          collection, and that collection is discoverable. Name no text token: a token written here
@@ -821,10 +918,15 @@ nodes:
          the ids in the PR body under `## Work items` and say the links were not created. A slice
          with no `tracker_id` is reported, never invented.
 
-      5. Print the PR URL and the repository it was opened against.
+      If the tracker tool cannot open the PR, STOP and print "BLOCKED: the pull request could not be
+      opened" followed by the tool's error, verbatim. push-branch pushed BRANCH to `origin`, so a
+      contract repository that is not `origin`, such as a fork setup, is one cause. Open nothing else.
+
+      3. Print the PR URL and the repository it was opened against.
 
   # ---------------------------------------------------------------------------------------------
-  # build-pr-gate — HITL by default; skipped when gates.build == afk (PR already open above).
+  # build-pr-gate — runs only after open-pr, so only on a "pass" verdict. HITL by default; skipped
+  # when gates.build == afk, and the pull request open-pr opened stays open.
   # On reject: re-verify-and-fix from the reviewer's feedback, then re-pause (not a full rebuild).
   # ---------------------------------------------------------------------------------------------
   - id: build-pr-gate

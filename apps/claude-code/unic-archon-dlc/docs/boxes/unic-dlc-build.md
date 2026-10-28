@@ -53,29 +53,46 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    implementation evidence.
 
 6. **evidence** — prints a three-state verdict (`pass` / `fail` / `unresolved`) as JSON, and writes
-   `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check` both report
-   `passed: true` with an empty `failures` list **and** the test outcome is `pass`. An unresolved test
-   is not an absence of failures. It mirrors the file to
-   `<artifacts_dir>/<slug>/evidence.json`. The workflow-level `evidence_policy: { required: true }`
-   refuses terminal `completed` when that file is absent, so a red suite or an uncovered acceptance
-   criterion fails the run closed. A script node, never a prompt
-   ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The run still continues
-   to `report` and `open-pr` on a withheld verdict, so you get the report and the PR — it is the run
-   _status_ the engine refuses.
+   `$ARTIFACTS_DIR/evidence.json` on **every** verdict. The verdict is `pass` only when
+   `verification` and `goals-check` both report `passed: true` with an empty `failures` list **and**
+   the test outcome is `pass`. An unresolved test is not an absence of failures. The file names the
+   verdict and lists the failures behind it, so it tells you what failed. The node mirrors it to
+   `<artifacts_dir>/<slug>/evidence.json`. A script node, never a prompt
+   ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The workflow-level
+   `evidence_policy: { required: true }` still refuses terminal `completed` without the file. That is
+   now a backstop for `evidence` ending without writing it
+   ([ADR-0040](../adr/0040-build-verdict-decides-the-pull-request.md)).
 
 7. **report** — writes `<artifacts_dir>/<slug>/report.md`, led by a block naming every check that came
    back `unresolved` and whether an install ran, then what was built, the matrix, test outcomes,
-   decisions/ADRs and tech debt.
+   decisions/ADRs and tech debt. It runs on every verdict.
 
-8. **open-pr → build-pr-gate** — stages an explicit list of **named paths** (source, tests, `PRD.md`,
-   `issues.json`, `report.md`, `build-state.json`, `evidence.json` when the gate wrote it, and any
-   drafted ADR), confirms with `git status --porcelain` that nothing else is staged, opens a PR
-   against the derived repository with
-   the run's base branch, Archon's `$BASE_BRANCH`, as its target, then gates it. `/unic-archon-dlc:setup` reports which branch that is. `build-state.json` is committed here and **only** here — never during
-   a loop iteration — so the loop's anti-cheat record survives `/cleanup`. The gate is **HITL by default**
-   and honours `gates.build`: skipped when `afk` (the PR is still opened). On **reject**, a
-   verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses — it does **not** rebuild
-   from scratch.
+8. **commit-session → push-branch** run on **every** verdict. `commit-session` stages an explicit
+   list of **named paths** (source, tests, `PRD.md`, `issues.json`, `report.md`, `build-state.json`,
+   `evidence.json`, and any drafted ADR), confirms with `git status --porcelain` that nothing else is
+   staged, and commits. `build-state.json` is committed in `commit-session` and **only** there, never
+   during a loop iteration, so the loop's anti-cheat record survives `/cleanup`. `push-branch` pushes
+   the branch to `origin` and reports the branch and the commit. It refuses to push from a detached
+   HEAD or from the run's base branch, and when a Session file `commit-session` staged (`PRD.md`, `issues.json`, `report.md`, `build-state.json`, `evidence.json`) is
+   not committed at HEAD. If it refuses or the push fails, the run ends `failed`, because no work
+   reached the remote. `evidence` declares `always_run` and `commit-session` does not, so a resumed
+   run re-runs `evidence` after the commit. `push-branch` refuses that run when the rewritten
+   `evidence.json` differs from the committed one. Start a new run instead.
+
+9. **guard-not-pass** or **open-pr → build-pr-gate** are two siblings after `push-branch`, and the
+   verdict picks one:
+   - A verdict other than `pass` (`fail` or `unresolved`): `guard-not-pass` ends the run
+     `cancelled`, and /build opens no pull request. Its message names the verdict, the pushed branch and
+     commit, and the path of `report.md` and `evidence.json` on that branch. Read those to see what
+     failed.
+   - A `pass` verdict: `open-pr` opens a PR from the pushed branch against the repository the tracker
+     contract names, with the run's base branch, Archon's `$BASE_BRANCH`, as its target.
+     `/unic-archon-dlc:setup` reports which branch that is. It links the PR to the slices' work items.
+     If the contract's repository is not `origin`, the pushed branch is not there, and `open-pr`
+     prints `BLOCKED:` with the tool's error. The gate is
+     **HITL by default** and honours `gates.build`: skipped when `afk`, and the PR stays open. On
+     **reject**, a verify-and-fix pass runs from the reviewer's feedback and the gate re-pauses. It
+     does **not** rebuild from scratch.
 
 ## Prerequisites
 

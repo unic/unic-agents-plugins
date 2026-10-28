@@ -11,6 +11,20 @@
 ### Fixed
 - (none)
 
+## [0.34.0] — 2026-10-28
+
+### Breaking
+- A `/build` run whose verdict is not `pass` used to end `failed` with a pull request open. It now ends `cancelled` and opens no pull request. An operator or a script that waited for a red pull request sees a different outcome (#439).
+- `evidence` writes `evidence.json` on every verdict. The file names the verdict and lists the failures that produced it (#439).
+- A new `commit-session` node stages and commits the work, and a new `push-branch` node pushes the branch, on every verdict. `push-branch` pushes to `origin`, and refuses an empty base branch, a detached HEAD, the run's base branch, and Session artefacts that are not committed, which includes a resumed run whose rewritten `evidence.json` differs from the committed one. A refusal or a failed push ends the run `failed` (#439).
+- `open-pr` runs only on a `pass` verdict and no longer stages or commits. On any other verdict, `guard-not-pass` cancels the run, and its message names the verdict, the pushed branch and the path of `report.md` on that branch (#439).
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
 ## [0.33.0] — 2026-10-27
 
 ### Breaking

@@ -1,6 +1,6 @@
 # 0023. `/build` is one generic red/green loop over `issues.json`
 
-**Status:** Accepted (2026-07-02, revised 2026-10-21)
+**Status:** Accepted (2026-07-02, revised 2026-10-28)
 
 The filename keeps its original slug, although refactoring has left the loop (§7). Five sibling documents
 link to it by name, and renaming it would change no behaviour.
@@ -111,7 +111,9 @@ rather than reading a variable. #383 settles how `/setup` learns its own locatio
 
 The `build-pr-gate` is an `approval:` node with `interactive: true` at the workflow level
 ([ADR-0011](0011-archon-schema-target.md)). It honours `gates.build` from config: it runs `when` the
-gate is `hitl` and is skipped when `afk` (the PR is still opened by the preceding `open-pr` node). On
+gate is `hitl` and is skipped when `afk`. The gate depends on `open-pr`, which runs only on a `pass`
+verdict, so in `afk` a green build's PR stays open and a build with any other verdict opens none
+([ADR-0040](0040-build-verdict-decides-the-pull-request.md)). On
 **reject**, `approval.on_reject.prompt` re-runs verification-and-fix from the reviewer's feedback and
 re-pauses at the same gate (`max_attempts: 3`) — it does **not** restart the whole build.
 
