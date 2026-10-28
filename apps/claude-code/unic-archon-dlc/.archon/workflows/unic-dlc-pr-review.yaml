@@ -62,10 +62,10 @@ nodes:
       arrives null stays null. What happens next depends on the node: one that wants that need reports
       an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
       a command — a guessed command reports a result that means nothing.
-      **This Box runs no build, lint, type-check or test command by instruction** (ADR-0037 §8): it
+      **This Box runs no build, lint, type-check or test command by instruction** (ADR-0037 §8). It
       carries the block so that `reconcile` can tell the reader which checks the project declares and
-      that this Box was not asked to run any of them. `install` is the exception and is not a check — you run it below, once,
-      because a sub-agent that decides on its own that it needs to run something should fail on that
+      that this Box instructed none of them. `install` is the exception and is not a check. You run it
+      below, once, because a sub-agent that decides on its own that it needs to run something should fail on that
       decision rather than on which worktree the run drew (ADR-0037 §6).
 
       ## Install once, and say what you did
@@ -524,7 +524,7 @@ nodes:
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
            - `### Intent Check` — render the review node's `spec_report` verbatim, with one exception.
-             The render carries no check result and no command: drop any line that names a command or
+             The render carries no check result and no command. Drop any line that names a command or
              reports that a build, lint, format, type-check, test or other check passed or failed. The Spec axis IS the
              AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
@@ -543,7 +543,7 @@ nodes:
            - `### ✅ What's good` — always present, from `positives`.
          **State no check result as a fact, in "What's good" or in any other section.** A positive
          that says a build, lint, type-check or test passes is a sub-agent's report of a check this
-         Box did not run: drop it from the sections. `reconcile` renders `reported_checks` in the
+         Box did not run, so drop it from the sections. `reconcile` renders `reported_checks` in the
          checks block, attributed to the sub-agent. A finding raised from a failed check stays in its
          severity section like any other finding.
       Write the deduped this-run set to SESSION/findings.json (each finding incl. its hash) and the body

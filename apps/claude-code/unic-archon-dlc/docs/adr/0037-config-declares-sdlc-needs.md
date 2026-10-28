@@ -83,14 +83,13 @@ whatever their stack uses, and a node decides at run time which of those needs i
    tool and files `qa-checks.md`. Every field added to a node's output in this decision has a named
    reader in the same change.
 
-8. **`/pr-review` says out loud that it was not asked to run any check.** It gains no procedure that
+8. **`/pr-review` states that it was not asked to run any check.** It gains no procedure that
    checks a claim against an author's assertion — that belongs to a Method, not to this Harness
    ([ADR-0030](0030-harness-hosts-methods.md)) — so its summary block names which needs the project
    declares and states that this Box instructed none of them. The block states what the Box
-   instructed, not what ran: a review sub-agent can run a check on its own, so a sentence saying that
+   instructed, not what ran. A review sub-agent can run a check on its own, so a sentence saying that
    nothing ran can be false. When the review sub-agents ran, the block says that one of them may have
-   run a check on its own. `review` records
-   each check a sub-agent reports in `reported_checks`, named by the need it serves and never by its
+   run a check on its own. `review` records each check a sub-agent reports in `reported_checks`, named by the need it serves and never by its
    command, and the block renders each as that sub-agent's claim, unverified by this Box. No other
    section states a check result as a fact. Without the block the warning lives only in the Plugin's
    own issue tracker, where the developer reading a review never sees it.
