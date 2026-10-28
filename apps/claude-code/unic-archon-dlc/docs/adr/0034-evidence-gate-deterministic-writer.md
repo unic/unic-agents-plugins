@@ -31,7 +31,7 @@ Measured on 2026-10-28 with the Archon v0.12.1 release binary `archon-darwin-arm
 - `evidence` itself, taken from the Box and fed by stub nodes, ended exit 0 and wrote `evidence.json` in each case: one hard finding gave `fail`; a hard finding with an empty `citation` and the category `vibes` gave `fail`; a blocked pre-check with the no-merge-base sentence gave `unresolved` with the sentence intact, also with that sentence followed by a quote, a backslash, a backtick, `${` and a newline; a `status` of `maybe` gave `unresolved`; prose in place of JSON gave `unresolved` with a null `precheck_status`; notes only gave `pass` with the notes in the file; a failing `verification` beside a blocked pre-check gave `fail`. One more run used a `haiku` prompt node with the pre-check's `output_format` as the producer, and it gave `unresolved` with the sentence intact.
 - The machine's Archon v0.10.1, run the same way, also delivered the binding.
 
-Limits, not measured: a `with:` value is an environment variable, so a pre-check output larger than the platform allows for one, 128 KiB per string on Linux, would stop the node from starting, and the run would end `failed`. A pre-check that ends without the structured output its schema requires fails as a node, so `evidence` does not run and the run ends `failed`, as before this revision.
+Two limits are not measured. A `with:` value is an environment variable, so a pre-check output larger than the platform allows for one, 128 KiB per string on Linux, would stop the node from starting, and the run would end `failed`. A pre-check that ends without the structured output its schema requires fails as a node, so `evidence` does not run and the run ends `failed`, as before this revision.
 
 ## Consequences
 
