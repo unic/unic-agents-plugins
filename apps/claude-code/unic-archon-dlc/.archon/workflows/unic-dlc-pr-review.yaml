@@ -840,7 +840,9 @@ nodes:
          it owns no prior thread the summary carries it alone, tagged by step 5. A prior finding whose
          `anchored` is "false" is likewise carried by the summary: its verdict is the tag, and there is
          no thread to reply to.
-      Emit iteration, the delta counts, and the two counts from step 3.
+      Emit iteration, the delta counts, and the two counts from step 3. Emit `stopped` as "" when you
+      wrote SESSION/comment.md. When you stop without it, emit the BLOCKED sentence you printed as
+      `stopped`, ITERATION as `iteration`, and 0 for every count, so the gate shows the stop.
     output_format:
       type: object
       properties:
@@ -854,8 +856,21 @@ nodes:
         retired: { type: number }
         unverified: { type: number }
         unmatched_priors: { type: number }
+        stopped: { type: string }
       required:
-        [iteration, fixed, unverified, still_present, regressed, new, retired, prior_count, verdicts, unmatched_priors]
+        [
+          iteration,
+          fixed,
+          unverified,
+          still_present,
+          regressed,
+          new,
+          retired,
+          prior_count,
+          verdicts,
+          unmatched_priors,
+          stopped,
+        ]
 
   # ---------------------------------------------------------------------------------------------
   # review-gate — HITL by default; skipped when gates.pr-review == afk. Shows the finalised summary +
@@ -866,7 +881,9 @@ nodes:
     when: "$bootstrap.output.gate == 'hitl'"
     approval:
       message: >
-        /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Findings:
+        /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Stopped:
+        "$reconcile.output.stopped". When that is not empty, reconcile wrote no SESSION/comment.md, the
+        counts below are zeros, and APPROVE posts nothing. Findings:
         $synthesize.output.critical critical · $synthesize.output.important important ·
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
         $reconcile.output.unverified unverified ·

@@ -112,6 +112,8 @@ precondition** — intent is composed from whatever sources resolve.
 
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,
    the finding counts, and any contradiction warnings; APPROVE to post, REJECT to halt without posting.
+   When `reconcile` stopped without a summary, the gate message names the sentence it printed, from
+   its `stopped` output, and says that the counts are zeros and that APPROVE posts nothing.
 
 7. **post** — post/update the **summary comment** (matched by the `<!-- unic-dlc-pr-review:iteration= -->`
    marker, never author identity) and, when `inline_comments` and the tracker supports inline threads,
