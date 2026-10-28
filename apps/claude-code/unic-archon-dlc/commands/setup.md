@@ -464,9 +464,8 @@ anything between the markers is replaced on the next run.
 
 The block names one command, `/unic-archon-dlc:setup`, and one hand-kept line per Box. `/setup` rewrites
 the block on every run, so a Box renamed or dropped in a Plugin release reaches this repository on its
-next run. A Plugin change that adds, renames or drops a Box changes that list in the same pull request.
-Everything it carries is a path the reader can open, a
-command they can run, or a line that says what a Box does.
+next run. Everything it carries is a path the reader can open, a command they can run, or a line that
+says what a Box does.
 
 ### The formatter exclusions
 

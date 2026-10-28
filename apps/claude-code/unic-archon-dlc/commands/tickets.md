@@ -112,8 +112,9 @@ Three things the Harness adds or overrides on top of it:
 
 - **Granularity litmus (the DLC's "thin enough" test):** one slice = **one demoable behaviour** — thin
   enough that a single failing test can capture it and a minimal implementation can satisfy it, so
-  strict red/green, with the failing test and the implementation written in separate fresh sessions, is safe. If a slice needs more than one failing test to express its
-  behaviour, or bundles two independently-demoable behaviours, split it. If a slice can't be
+  strict red/green is safe. In strict red/green, separate fresh sessions write the failing test and
+  the implementation. If a slice needs more than one failing test to express its behaviour, or
+  bundles two independently-demoable behaviours, split it. If a slice can't be
   demonstrated without another, wire the dependency instead of merging. The litmus does **not** apply
   to the Method's **wide-refactor** exception: an expand–contract sequence is not a tracer bullet by
   design, and green is promised where the Method says it is.

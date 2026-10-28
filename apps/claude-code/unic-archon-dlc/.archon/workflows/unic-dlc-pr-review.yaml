@@ -342,8 +342,8 @@ nodes:
   # and upstream now maintains. The Method implements its own parallelism — its step 4 spawns two
   # sub-agents — so the Harness delegating to it is the whole point: nothing about running two
   # sub-agents needs the Harness, and re-implementing step 4 as two Archon nodes is the exact defect
-  # to avoid, because the Harness never reimplements a Method's procedure. The Harness keeps only what no Method supplies: the Intent Brief,
-  # the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces.
+  # to avoid, because upstream maintains the Method's procedure and a copy here drifts. The Harness
+  # keeps only what no Method supplies: the Intent Brief, the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces.
   #
   # The finding contract lives in the node's own prompt below, under "## The finding contract". A YAML
   # comment is not part of a prompt, so a rule stated only here is invisible at run time. Every rule

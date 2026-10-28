@@ -262,4 +262,4 @@ One block, in this order:
 Close with this line, verbatim:
 
 > This command wrote nothing in this repository — only the throwaway repository Step 6 built, now
-> deleted. Adoption is a human decision — file an issue.
+> deleted. Adoption is a human decision. File an issue.
