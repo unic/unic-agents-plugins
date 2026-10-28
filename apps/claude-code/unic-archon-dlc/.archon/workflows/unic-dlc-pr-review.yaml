@@ -466,13 +466,17 @@ nodes:
       - `outcome` is what the sub-agent said it observed, in a few words, such as "passed" or "failed:
         2 type errors". It is a self-report, and nothing in this Box verifies it.
       The array is empty when no sub-agent reported a check. A finding a sub-agent raised from a
-      failed check stays a finding like any other: record the check here as well, and leave the
+      failed check stays a finding like any other. Record the check here as well, and leave the
       finding where the contract above puts it.
+      **After you have recorded `reported_checks`, remove the `Commands I ran` section from both
+      reports** before you store them below. That section names commands and states their results as
+      reported, and `synthesize` renders `spec_report` in the summary.
 
       Write SESSION/findings/review.json as:
         {"findings": [...], "positives": [...], "reported_checks": [...],
          "standards_report": "<the ## Standards text>", "spec_report": "<the ## Spec text>"}
-      Keep `standards_report` and `spec_report` as the Method's own prose — synthesize renders
+      Keep `standards_report` and `spec_report` as the Method's own prose, less the `Commands I ran`
+      section. synthesize renders
       `spec_report` as the Intent Check section, which is how AC-coverage survives the collapse of the
       old intent-check node.
 
@@ -508,7 +512,9 @@ nodes:
       4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
-           - `### Intent Check` — render the review node's `spec_report` verbatim. The Spec axis IS the
+           - `### Intent Check` — render the review node's `spec_report` verbatim, with one exception.
+             The render carries no check result and no command: drop any line that names a command or
+             reports that a build, lint, format, type-check, test or other check passed or failed. The Spec axis IS the
              AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
              when `$prep.output.intent_available == "false"`.
