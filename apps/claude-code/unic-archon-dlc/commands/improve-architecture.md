@@ -5,15 +5,12 @@ description: 'Off-line architecture health: surface technical + intent drift and
 
 # unic-archon-dlc:improve-architecture
 
-> Design rationale: [ADR-0027 — `/improve-architecture` is a skill that composes Matt's method and owns ADR superseding](docs/adr/0027-improve-architecture-skill-superseding.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); compose-don't-reimplement per [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md); earns-its-place per [ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md); artifact home per [ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md); tracker/ADRs are the source of truth per [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md)).
-
 **Arguments:** "$ARGUMENTS"
 
 `/improve-architecture` is an **off-line, on-demand** box: it surfaces architectural drift +
 deepening opportunities and **consolidates ADRs (including superseding older ones)**. It runs off the
 main line — periodically or when you sense drift, **not** per-feature and **not** as an end-of-cycle
-auto-hook. It is an **in-session command/skill** because design grilling needs the live conversation
-(inherently HITL — [ADR-0017](docs/adr/0017-container-follows-structural-need.md)).
+auto-hook. It is an **in-session command/skill** because design grilling needs the live conversation.
 
 It is a **thin composing wrapper**: it **owns the _what_** — the DLC config binding, the durable
 `arch-review.md` artifact, the intent-drift pass against the PRD, and the ADR-superseding gate — and
@@ -22,7 +19,7 @@ Method **verbatim**, with `codebase-design` for the architecture vocabulary, `gr
 walk, and `domain-modeling` to keep `CONTEXT.md` current. All four are read by path, per
 Step 1.
 
-**What the DLC adds over the raw Method (why this box earns its place — [ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md)):**
+**What the DLC adds over the raw Method:**
 The Method produces an ephemeral HTML deepening report + a design grill for **technical** drift. On
 top of that this box adds (a) an **intent-drift** pass comparing the PRD's stories/acceptance
 criteria against what shipped, (b) a **durable `arch-review.md`** committed under the artifacts dir,
@@ -34,8 +31,7 @@ Follow these steps in order. Do not skip any step.
 
 `/improve-architecture` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own
 tools. Do not shell out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`:
-an installed Plugin ships no `node_modules`, and that variable is not set inside the Bash tool
-([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+an installed Plugin ships no `node_modules`, and that variable is not set inside the Bash tool. The four Archon Boxes read
 their config this way already; this is the same shape.
 
 Unlike the tracker-bound boxes this one is **off-line and touches no tracker**, so an absent or
@@ -64,7 +60,7 @@ _parameters_ (which, where, whether) and this Box can sensibly default those; a 
 _procedure_, and there is no default for that. When all four are present, print nothing and continue.
 
 That text **is** the procedure — the steps below add only the DLC layers named above, and never
-restate, summarise or improve a Method ([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). A Method's
+restate, summarise or improve a Method. A Method's
 sub-files sit beside its `SKILL.md`, in the same directory: `HTML-REPORT.md` for
 `improve-codebase-architecture`; `DEEPENING.md` and `DESIGN-IT-TWICE.md` for `codebase-design`.
 
@@ -126,7 +122,7 @@ available for <slug>` and continue.
 ## Step 5 — Write the durable arch-review report
 
 Complement the Method's ephemeral HTML (which lands in the OS temp dir) with a durable markdown artifact
-committed to the repo ([ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md)). All file IO via
+committed to the repo. All file IO via
 Node `node:fs`/`node:path`.
 
 - **Per-slug mode** → `<ARTIFACTS_DIR>/<slug>/arch-review.md`
@@ -177,7 +173,7 @@ Present each candidate and wait for **A / R / E**:
 ```
 ---
 ADR Candidate N of M
-Proposed file: <home>/docs/adr/NNNN-<slug>.md      (home = plugin-local | repo-root)
+Proposed file: <home>/NNNN-<slug>.md      (home = a docs/adr/ directory of this repository)
 Status: Proposed
 Supersedes: ADR-NNNN  (omit if it supersedes nothing)
 Context: <one paragraph — what situation prompted this decision>
@@ -187,14 +183,16 @@ Consequences: <bullet list — trade-offs accepted>
 Accept (A) / Reject (R) / Edit (E)?
 ```
 
-- **Choose the ADR home.** Infer from what the decision concerns and **confirm with the user**: a
-  decision about one plugin → that plugin's `docs/adr/` (e.g.
-  `apps/claude-code/<plugin>/docs/adr/`); a cross-cutting / monorepo-wide decision → the repo-root
-  `docs/adr/`. Both homes use MADR-lite (`# NNNN. Title` · `**Status:** Accepted (YYYY-MM)` ·
-  `## Context` / `## Decision` / `## Consequences`) and per-directory zero-padded numbering — see the
-  root `docs/adr/README.md`.
+- **Choose the ADR home** from the `docs/adr/` directories this repository already has. Find them
+  with your own tools, skipping `node_modules/` and other dependency trees. If there are several,
+  offer each one, propose the one closest to what the decision concerns, and **confirm with the
+  user**. If there is one, propose it and confirm. If there is none, propose the root `docs/adr/`,
+  which `/specs` already reads, and confirm. Follow the format and numbering the chosen home's
+  existing ADRs use. In an empty home, use MADR-lite
+  (`# NNNN. Title` · `**Status:** Accepted (YYYY-MM)` · `## Context` / `## Decision` /
+  `## Consequences`) and zero-padded numbering from `0001`.
 - **A (Accept):** compute the next `NNNN` = highest existing number in the **chosen home** + 1 (scan
-  that dir's files). Write the ADR. Print `ADR written: <home>/docs/adr/NNNN-<slug>.md`.
+  that dir's files). Write the ADR. Print `ADR written: <home>/NNNN-<slug>.md`.
 - **R (Reject):** skip. Print `ADR skipped: <title>`.
 - **E (Edit):** re-show the draft, let the user revise Context / Decision / Consequences / home /
   Supersedes, then re-present for A/R.
@@ -205,9 +203,8 @@ When an accepted ADR supersedes an existing one:
 
 1. In the **old** ADR file, change its status line to `**Status:** Superseded by ADR-NNNN`.
 2. In the **new** ADR, add a `Supersedes ADR-NNNN` reference (in the status area or Context).
-3. Update the **matching home's** `README.md` index: set the **old** row's Status cell to
-   `Superseded by ADR-NNNN`, and add a **new** row for `NNNN`. (Each home has its own index —
-   plugin-local `docs/adr/README.md` and repo-root `docs/adr/README.md`.)
+3. If the **matching home** has a `README.md` index, update it: set the **old** row's Status cell to
+   `Superseded by ADR-NNNN`, and add a **new** row for `NNNN`. Each home keeps its own index.
 
 An ADR in one home may supersede an ADR in the other; amend whichever home(s) the two files live in.
 

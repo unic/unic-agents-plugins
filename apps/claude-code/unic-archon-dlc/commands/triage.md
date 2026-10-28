@@ -5,14 +5,12 @@ description: "Intake on-ramp: turn a raw bug/request/QA-finding/external-PR into
 
 # unic-archon-dlc:triage
 
-> Design rationale: [ADR-0024 — `/triage` is the intake on-ramp](docs/adr/0024-triage-intake-on-ramp.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); compose-don't-reimplement per [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md); generic-core + config per [ADR-0018](docs/adr/0018-generic-core-config-compose.md); tracker is the single source of truth per [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md); earns-its-place per [ADR-0021](docs/adr/0021-earns-its-place-compose-verbatim.md)).
-
 **Arguments:** "$ARGUMENTS"
 
 `/triage` is an **intake on-ramp**: it turns RAW incoming work (bug reports, feature requests, QA
 findings, external PRs) into **agent-ready issues on the team's tracker**, feeding the `/tickets`
 convergence point. It is an **in-session command/skill** (triage is a live conversation, inherently
-HITL — [ADR-0017](docs/adr/0017-container-follows-structural-need.md)).
+HITL).
 
 It is a **thin binding wrapper**: it **owns the _what_** — the DLC config binding and the on-ramp
 contract — and **delegates the procedure** to the `triage` Method verbatim, with `grilling` and
@@ -26,8 +24,7 @@ and a file, and never an organisation, a field or a provider.
 
 `/unic-archon-dlc:setup` owns both files. `setup-matt-pocock-skills` is **not** a dependency of this
 plugin and must not be run over them: it writes another host's template over the first and reverts the
-second to a five-role `wontfix` vocabulary. See
-[ADR-0024](docs/adr/0024-triage-intake-on-ramp.md).
+second to a five-role `wontfix` vocabulary.
 
 `/triage` writes **only** to the tracker (labels + comments) and, on a rejected enhancement, to the
 out-of-scope knowledge base. It produces **no** `issues.json` / PRD — a triaged `ready-for-agent`
@@ -40,8 +37,7 @@ Follow these steps in order. Do not skip any step.
 
 `/triage` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own tools. Do not shell
 out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed Plugin
-ships no `node_modules`, and that variable is not set inside the Bash tool
-([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+ships no `node_modules`, and that variable is not set inside the Bash tool. The four Archon Boxes read
 their config this way already; this is the same shape.
 
 If the file is absent or unreadable, print
@@ -69,7 +65,7 @@ three is absent, print that exact path followed by `Run /unic-archon-dlc:setup.`
 cannot run a procedure it cannot read. When all three are present, print nothing and continue.
 
 That text **is** the procedure — this wrapper adds only the config binding, and never restates,
-summarises or improves a Method ([ADR-0030](docs/adr/0030-harness-hosts-methods.md)). The `triage`
+summarises or improves a Method. The `triage`
 Method's `AGENT-BRIEF.md` and `OUT-OF-SCOPE.md` sit beside its `SKILL.md`, in the same directory.
 
 ## Step 2 — Read the tracker contract and build the injected context
@@ -81,8 +77,7 @@ do not guess a role value and do not run `setup-matt-pocock-skills`.
 
 - **Access** — `issue-tracker.md` § Access names the MCP server or skill that serves this tracker.
   Read that server's own current tool list and build every call from it. Name no provider and write no
-  command, subcommand or flag: a flag table written down here is stale the moment the tool changes
-  ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)).
+  command, subcommand or flag: a flag table written down here is stale the moment the tool changes.
 - **Addressing** — its § Addressing names the repository to act on. Name it explicitly in every call,
   and derive nothing from a remote URL.
 - **Work-item scope** — its § Work-item scope names the one filter every search applies. A search that
@@ -121,8 +116,7 @@ calls for grilling, follow the `grilling` and `domain-modeling` Methods.
 
 Bind that procedure to the DLC with the Step 2 context, and enforce these overrides:
 
-- **Roles** resolve through `docs/agents/triage-labels.md`, each row naming the axis that carries it
-  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)). Write the value and the axis that file
+- **Roles** resolve through `docs/agents/triage-labels.md`, each row naming the axis that carries it. Write the value and the axis that file
   gives; invent neither.
 - **`AGENT-BRIEF.md` is written for GitHub** and names `ready-for-agent` and `wontfix` as literal
   labels. Read those as canonical roles too, resolve them through `triage-labels.md`, and apply the

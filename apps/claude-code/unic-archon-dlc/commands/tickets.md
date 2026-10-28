@@ -5,22 +5,19 @@ description: 'Decompose an approved PRD into independently-grabbable vertical-sl
 
 # unic-archon-dlc:tickets
 
-> Design rationale: [ADR-0022 — `/tickets` slices a PRD into build-ready issues](docs/adr/0022-tickets-slice-to-build.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); compose-don't-reimplement per [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md); generic-core + config per [ADR-0018](docs/adr/0018-generic-core-config-compose.md); red/green contract per [ADR-0012](docs/adr/0012-fresh-context-red-green-separation.md)).
-
 **Arguments:** "$ARGUMENTS"
 
 `/tickets` is the **second main-line box**: it turns one approved PRD into a set of
 **independently-grabbable vertical tracer-bullet slices**, makes each slice build-ready (a test seam
 per slice), validates the whole set, publishes the issues to the team's tracker, and stops at the
-tickets gate. It is an **in-session command/skill** (slicing is a live conversation — ADR-0017), and
+tickets gate. It is an **in-session command/skill** (slicing is a live conversation), and
 it **owns the _what_** (the slicing flow, the build-ready checks, the DAG of `blocked_by` edges)
 while **composing the _how_**: the `to-tickets` Method for slicing — read by path, per
 Step 1 — and the configured **tracker system-skill** (MCP-first, CLI-fallback) for publishing.
 
 `/tickets` **stops at a build-ready `issues.json`** (dependency-ordered, each slice carrying its
 acceptance criteria + test command) plus the published tracker issues. It does **not** generate a
-build workflow: `/build` (step 06) consumes `issues.json` directly via a generic loop
-([ADR-0022](docs/adr/0022-tickets-slice-to-build.md)). Intent lives on the tracker issue (contract C)
+build workflow: `/build` (step 06) consumes `issues.json` directly via a generic loop. Intent lives on the tracker issue (contract C)
 **and** in `issues.json` (the durable baton `/build` reads).
 
 Follow these steps in order. Do not skip any step. The only files you write are `issues.json`
@@ -31,8 +28,7 @@ the gate in Step 10.
 
 `/tickets` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own tools. Do not
 shell out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed
-Plugin ships no `node_modules`, and that variable is not set inside the Bash tool
-([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+Plugin ships no `node_modules`, and that variable is not set inside the Bash tool. The four Archon Boxes read
 their config this way already; this is the same shape.
 
 If the file is absent or unreadable, print
@@ -57,7 +53,7 @@ print `This repository has no tracker contract at docs/agents/. Run /unic-archon
 
 - **Access** — `issue-tracker.md` § Access names the MCP server or skill that serves this tracker.
   Read that server's own current tool list and build every call from it. Name no provider and write no
-  command, subcommand or flag ([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)).
+  command, subcommand or flag.
 - **Addressing** — its § Addressing names the repository this run publishes to and opens its PR
   against. Name it explicitly in every call, and derive nothing from a remote URL.
 - **Work-item scope** — its § Work-item scope names the one filter every search applies, and the scope
@@ -84,7 +80,7 @@ absent, print that exact path followed by `Run /unic-archon-dlc:setup.` and **st
 a procedure it cannot read. When it is present, print nothing and continue.
 
 That text **is** the slicing procedure — the steps below add only what the Harness owns, and never
-restate, summarise or improve a Method ([ADR-0030](docs/adr/0030-harness-hosts-methods.md)).
+restate, summarise or improve a Method.
 
 ## Step 2 — Slug + re-entry
 
@@ -129,8 +125,7 @@ Three things the Harness adds or overrides on top of it:
   tracker items (Step 9). Its closing "work the frontier one ticket at a time with `/implement`" maps
   to `/unic-archon-dlc:build`. And its "run `/setup-matt-pocock-skills` if not" fallback never
   applies — Step 1 read the vocabulary from `docs/agents/triage-labels.md`, which is the file that
-  skill would overwrite, with a five-role `wontfix` vocabulary that drops every mapping
-  ([ADR-0024](docs/adr/0024-triage-intake-on-ramp.md)).
+  skill would overwrite, with a five-role `wontfix` vocabulary that drops every mapping.
 
 Draft each slice with these fields (Step 8 checks them):
 
@@ -189,7 +184,7 @@ fails, propose fixes and re-present; iterate until the user approves (or explici
 
 ## Step 7 — Definitive estimation (config-gated)
 
-If `ESTIMATIONS` is `definitive` or `both`, **compose** an estimator (never build one — ADR-0021) to
+If `ESTIMATIONS` is `definitive` or `both`, **compose** an estimator (never build one) to
 attach a **definitive** per-slice estimate, refining any provisional estimate from `/specs`. If
 `ESTIMATIONS` is `off` or `provisional`, skip this step.
 
