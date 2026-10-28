@@ -360,9 +360,11 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # implement-review-precheck — realises `implement`'s closing "once done, use /code-review" step,
-  # once, after the whole loop. A LOCAL PRE-CHECK THAT POSTS NOTHING: its findings go into report.md
-  # and nowhere else, so /pr-review keeps sole posting authority (#281 AC 4). Runs `code-review`'s own
-  # two-axis parallelism internally rather than the Harness re-implementing it (ADR-0030).
+  # once, after the whole loop. A LOCAL PRE-CHECK THAT POSTS NOTHING, so /pr-review keeps sole posting
+  # authority (#281 AC 4). Its prose `findings` go into report.md. Its `status` and `hard_findings`
+  # are gate inputs that `evidence` reads, and its `notes` reach evidence.json and the pull request
+  # description (ADR-0034). Runs `code-review`'s own two-axis parallelism internally rather than the
+  # Harness re-implementing it (ADR-0030).
   # ---------------------------------------------------------------------------------------------
   - id: implement-review-precheck
     depends_on: [run-build]
@@ -390,8 +392,10 @@ nodes:
         NEITHER resolves, do NOT fall back to the branch's first commit — that guarantees a
         "non-empty" diff that is not the Method's fixed point. Instead print "PRECHECK BLOCKED:
         cannot resolve base branch '$BASE_BRANCH' via origin or local — no
-        merge-base found", emit that sentence as `findings`, and stop. Otherwise confirm the diff is
-        non-empty before spawning anything, as the Method requires.
+        merge-base found", emit it as a blocked result (§ Blocked, below), and stop. Otherwise
+        confirm the diff is non-empty before spawning anything, as the Method requires. If the diff
+        is empty, print "PRECHECK BLOCKED: the diff against $BASE_BRANCH is empty, so there is
+        nothing to review", emit it as a blocked result, and stop.
       - **Step 2, the spec source:** already on disk for this slug — read
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` and
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker item
@@ -427,20 +431,67 @@ nodes:
       Run no tracker or PR mutation of any kind: no discussion on a PR, no edit to one, no write call
       against the tracker's API by any route, no item creation, no role change, no discussion. The
       read-only issue queries in step 2 are the only tracker traffic allowed here. /pr-review is the
-      only Box with posting authority; this axis pair is here to inform the build report and the human
-      at build-pr-gate. Emit the aggregated `## Standards` / `## Spec` text as `findings` for the
-      report node to fold in.
+      only Box with posting authority. Emit the aggregated `## Standards` / `## Spec` text as
+      `findings` for the report node to fold in.
+
+      ## What your fields decide
+      This node is a gate input. The `evidence` node reads `status`, `hard_findings` and `notes`.
+      A non-empty `hard_findings` makes the build verdict `fail`, so the run opens no pull request.
+      A `status` other than `ran` makes the verdict `unresolved` when nothing else failed. `notes`
+      change no verdict: they reach evidence.json and the pull request description. Your prose
+      `findings` decides nothing; the report folds it in for the human.
+
+      ## Classify every finding as hard or a note
+      The Method already separates the classes. Step 4 asks the Standards sub-agent to tell hard
+      violations from judgement calls, and the Spec sub-agent reports (a) missing or partial
+      requirements, (b) scope creep and (c) requirements implemented wrong. Put each finding in
+      exactly one place:
+      - A Standards finding that breaches a documented standard goes in `hard_findings` with
+        `category: documented-standard`. Its `citation` quotes the standard's file and the rule.
+      - A Spec finding of kind (a) goes in `hard_findings` with `category: spec-missing`, and one of
+        kind (c) with `category: spec-wrong`. Its `citation` quotes the spec line it breaks.
+      - A baseline smell, any other judgement call, and a Spec finding of kind (b) go in `notes`,
+        one string each, and never in `hard_findings`.
+      Each `hard_findings` entry is `{ axis, category, citation, summary }`: `axis` is `standards`
+      or `spec`, and `summary` says in one sentence what is wrong and where. A finding you cannot
+      cite is a note. Set `status` to `ran` and `blocked_reason` to "" when the review ran.
+
+      ## Blocked
+      Report `blocked` whenever you reviewed nothing. That is each of the three cases this prompt
+      names: no merge-base resolves, the `Agent` tool is unavailable, and the diff against the base
+      is empty. Emit every field: `status: blocked`, `blocked_reason` set to the sentence you
+      printed, `findings` set to the same sentence, and `hard_findings` and `notes` as empty arrays.
+      Every field is required, so omitting one aborts the run instead of reporting the block.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else: print "PRECHECK BLOCKED: Agent tool
-      unavailable in an Archon prompt node — code-review step 4 cannot run as written" and emit that
-      same sentence as `findings`. That is a real finding about the container, not a detail to route
+      unavailable in an Archon prompt node — code-review step 4 cannot run as written" and emit it
+      as a blocked result. That is a real finding about the container, not a detail to route
       around.
     output_format:
       type: object
       properties:
         findings: { type: string }
-      required: [findings]
+        status:
+          type: string
+          enum: [ran, blocked]
+        blocked_reason: { type: string }
+        hard_findings:
+          type: array
+          items:
+            type: object
+            properties:
+              axis: { type: string }
+              category:
+                type: string
+                enum: [documented-standard, spec-missing, spec-wrong]
+              citation: { type: string }
+              summary: { type: string }
+            required: [axis, category, citation, summary]
+        notes:
+          type: array
+          items: { type: string }
+      required: [findings, status, blocked_reason, hard_findings, notes]
 
   # ---------------------------------------------------------------------------------------------
   # verification — full suite + stub scan on the diff. Self-contained prompt (ADR-0023 §5).
@@ -531,8 +582,9 @@ nodes:
          `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
          requires the field, so omitting it aborts the run instead of reporting a clean result. The
          prose is for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
-         of us, plus `verification`'s three-state `test_outcome`, and records the verdict "pass"
-         only when both verdicts are green AND that test outcome is "pass"; its verdict keeps
+         of us, plus `verification`'s three-state `test_outcome` and the pre-check's `status` and
+         `hard_findings`. It records the verdict "pass" only when both verdicts are green, that test
+         outcome is "pass", and the pre-check ran with no hard finding; its verdict keeps
          `unresolved` and `fail` apart rather than calling both red. It writes evidence.json on
          every verdict, and only a "pass" verdict opens a pull request.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
@@ -578,8 +630,9 @@ nodes:
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
          short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
          for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
-         of us, plus `verification`'s three-state `test_outcome`, and records the verdict "pass"
-         only when both verdicts are green AND that test outcome is "pass"; its verdict keeps
+         of us, plus `verification`'s three-state `test_outcome` and the pre-check's `status` and
+         `hard_findings`. It records the verdict "pass" only when both verdicts are green, that test
+         outcome is "pass", and the pre-check ran with no hard finding; its verdict keeps
          `unresolved` and `fail` apart rather than calling both red. It writes evidence.json on
          every verdict, and only a "pass" verdict opens a pull request.
     output_format:
@@ -594,18 +647,25 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # evidence — writes $ARTIFACTS_DIR/evidence.json on EVERY verdict, with the verdict and the
-  # failures that produced it, and prints the verdict as JSON on stdout. guard-not-pass and open-pr
-  # branch on that printed verdict; workflow-level evidence_policy checks only that the file exists
-  # (ADR-0034, ADR-0040). A SCRIPT, never a prompt: a prompt that both judges and certifies grades
-  # its own homework.
+  # failures that produced it, and prints the verdict as JSON on stdout. It reads verification,
+  # goals-check and implement-review-precheck: a pre-check hard finding is a `fail`, and a pre-check
+  # that did not run is `unresolved`. guard-not-pass and open-pr branch on that printed verdict;
+  # workflow-level evidence_policy checks only that the file exists (ADR-0034, ADR-0040). A SCRIPT,
+  # never a prompt: a prompt that both judges and certifies grades its own homework.
   # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive the
   # verdict from the CURRENT verification/goals-check output, never trust a stale file (also why it
   # deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # The pre-check arrives through `with:`, never through the script source. A node-output reference
+  # in the source substitutes raw, so a pre-check string holding a quote would end this script with
+  # a syntax error. A `with:` binding reaches the script as the environment variable
+  # INPUTS_PRECHECK, so no pre-check text is ever parsed as code (ADR-0034, measured on 0.12.1).
   # ---------------------------------------------------------------------------------------------
   - id: evidence
-    depends_on: [verification, goals-check]
+    depends_on: [implement-review-precheck, verification, goals-check]
     always_run: true
     runtime: bun
+    with:
+      precheck: $implement-review-precheck.output
     script: |
       import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
       import { join } from 'node:path'
@@ -666,16 +726,46 @@ nodes:
       const testOutcome = '$verification.output.test_outcome'
       const unresolvedNeeds = $verification.output.unresolved_needs
 
-      // Three states in precedence order: a real failure is `fail`; a floor check that could not run
-      // is `unresolved`; only two green verdicts with a passing test are `pass`. The unresolved branch
-      // is tested FIRST because `verificationGreen` is already false whenever the test is unresolved —
-      // verification sets `passed` false for it — so testing green first would report an absent result
-      // as a failure.
+      // The pre-check's whole output, as JSON text in the environment (see the header comment). Read
+      // it defensively: what this node cannot read is never a pass. Text that does not parse, or
+      // parses to something other than an object, leaves `precheck` null, so the status is null
+      // and the verdict is `unresolved` at best. `status` and `hard_findings` are self-reported by a
+      // prompt, exactly as `passed` is above.
+      let precheck = null
+      try {
+        const parsed = JSON.parse(process.env.INPUTS_PRECHECK ?? '')
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) precheck = parsed
+      } catch {}
+      const precheckStatus = typeof precheck?.status === 'string' ? precheck.status : null
+      const precheckBlockedReason = typeof precheck?.blocked_reason === 'string' ? precheck.blocked_reason : ''
+      // Every entry counts. An entry with an empty `citation` or a `category` outside the enum is
+      // still a hard finding, never dropped: when in doubt the verdict stays red. A value that is not
+      // an array, but is present, counts as one entry for the same reason.
+      const hardFindingsField = precheck?.hard_findings
+      const hardFindings = Array.isArray(hardFindingsField)
+        ? hardFindingsField
+        : hardFindingsField === undefined || hardFindingsField === null
+          ? []
+          : [hardFindingsField]
+      const precheckNotes = Array.isArray(precheck?.notes) ? precheck.notes : []
+      // The pre-check reviewed the code only when it says `ran` and both arrays it must emit are
+      // arrays. Anything else, `blocked` included, is a review that did not happen.
+      const precheckRan =
+        precheckStatus === 'ran' && Array.isArray(hardFindingsField) && Array.isArray(precheck?.notes)
+
+      // Three states in precedence order: a real failure is `fail`; a check that could not run is
+      // `unresolved`; only two green verdicts with a passing test and a pre-check that ran clean are
+      // `pass`. A pre-check hard finding is a real failure, so it is tested first. The unresolved
+      // test branch comes before the green one because `verificationGreen` is already false whenever
+      // the test is unresolved — verification sets `passed` false for it — so testing green first
+      // would report an absent result as a failure.
       let verdictState
-      if (testOutcome === 'unresolved' && verificationFailures.length === 0 && goalsCheckGreen) {
+      if (hardFindings.length > 0) {
+        verdictState = 'fail'
+      } else if (testOutcome === 'unresolved' && verificationFailures.length === 0 && goalsCheckGreen) {
         verdictState = 'unresolved'
       } else if (verificationGreen && goalsCheckGreen && testOutcome === 'pass') {
-        verdictState = 'pass'
+        verdictState = precheckRan ? 'pass' : 'unresolved'
       } else {
         verdictState = 'fail'
       }
@@ -690,12 +780,14 @@ nodes:
       // else, so `fail` and `unresolved` take the same branch (ADR-0040).
       console.log(JSON.stringify({ verdict: verdictState, test_outcome: testOutcome, unresolved_needs: unresolvedNeeds }))
 
-      console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
+      console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length}) precheck(status=${precheckStatus}, hard=${hardFindings.length}, notes=${precheckNotes.length})`)
       if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
 
       // Written on EVERY verdict, so the file the engine demands says what failed. The two failure
-      // arrays are the reason for a `fail`, and `test_outcome` with `unresolved_needs` is the reason
-      // for an `unresolved`. Never return before this write (ADR-0040).
+      // arrays and `hard_findings` are the reason for a `fail`. `test_outcome` with
+      // `unresolved_needs`, and `precheck_status` with `precheck_blocked_reason`, are the reason for
+      // an `unresolved`; a null `precheck_status` means this node could not read the pre-check.
+      // Never return before this write (ADR-0040).
       const evidence = {
         slug: '$bootstrap.output.slug',
         verdict: verdictState,
@@ -703,6 +795,10 @@ nodes:
         unresolved_needs: unresolvedNeeds,
         verification_failures: verificationFailures,
         goals_check_failures: goalsCheckFailures,
+        precheck_status: precheckStatus,
+        precheck_blocked_reason: precheckBlockedReason,
+        hard_findings: hardFindings,
+        precheck_notes: precheckNotes,
       }
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
       console.error(`evidence: wrote ${evidencePath} ✓`)
@@ -732,9 +828,15 @@ nodes:
            run is the fact a reader skims past when it is a sentence inside a paragraph, which is why
            it is a block of its own and why it goes above what was built.
         2. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
-           If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
-           criteria — see matrix below."
-        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
+           Read `hard_findings` from
+           `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json`. If it holds any
+           entry, lead with "⚠ the code-review pre-check found N hard findings, so the verdict
+           is fail", then list each entry's `category`, `citation` and `summary`. If goals-check
+           reported MISSING criteria, lead with "⚠ goals-check found N uncovered criteria — see
+           matrix below."
+        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim. Then add one
+           sentence: COVERED means a test and an implementation exist, not that either is correct;
+           the pre-check's hard findings in section 2 say where they are wrong.
         4. Test Outcomes — open with `test: $verification.output.test_outcome`, then the counts, the
            coverage figure and any e2e result from $verification.output.verdict; note skipped/flaky. A
            need reported "unresolved" is named in section 1; this section carries what ran.
@@ -908,6 +1010,11 @@ nodes:
                   - [ ] Coverage meets the configured threshold
                   - [ ] Tech-debt section in report.md is accurate
                   - [ ] Drafted ADRs (if any) are ready to record
+                  ## Pre-check notes
+                  One bullet per entry of `precheck_notes` in SESSION/evidence.json, or "none"
+                  when the array is empty. Read the file, not the pre-check's prose. List no
+                  hard finding here: a run with one has the verdict `fail` and never reaches
+                  this node.
          Write the PR body inline rather than to a file, so there is no body file to leak.
 
       2. Link the PR to its work. SESSION/issues.json carries a `tracker_id` for each slice
