@@ -9,7 +9,10 @@
 - (none)
 
 ### Fixed
-- (none)
+- The commands and the Boxes no longer refer back to this repository. A Consumer session could follow none of those references, and a copied Box read a Plugin ADR number as the Consumer's own ADR. Every link to a Plugin ADR, every citation of a Plugin ADR or issue by number, and every path in this repository is gone from `commands/` and `.archon/workflows/`. Where a command or a Box needed the rule behind a citation, it now states the rule. The steps that read the Consumer's own `docs/adr/` stay (#556).
+- `/setup` reads § Dependencies, § Configuration reference and § The tracker contract from `<installPath>/README.md`, and checks that the file is present. The block it writes into the Consumer's `CLAUDE.md` replaces the URL to this repository with one line per Box that says what the Box does (#556).
+- `/improve-architecture` picks the ADR home from the `docs/adr/` directories the Consumer already has and confirms it with the user. With none, it proposes the root `docs/adr/`. It no longer names this repository's layout (#556).
+- The Plugin `README.md` turns every bare ADR citation into a link into its own `docs/adr/`, which resolves inside the installed Plugin (#556).
 
 ## [0.36.0] — 2026-10-28
 
