@@ -246,12 +246,12 @@
       "id": "precheck-evidence",
       "from": "implement-review-precheck",
       "to": "evidence",
-      "label": "pre-check verdict",
+      "label": "status, hard findings",
       "variant": "dashed",
       "fromSide": "right",
       "toSide": "top",
       "via": [[1290, 64], [1290, 158], [895, 158]],
-      "labelAt": [1230, 158]
+      "labelAt": [1215, 158]
     },
     {
       "id": "to-report",
