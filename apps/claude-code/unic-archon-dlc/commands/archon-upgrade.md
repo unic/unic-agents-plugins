@@ -95,14 +95,14 @@ Walk every kept release's notes. Emit one row per notable change:
 The four classifications:
 
 - **ADOPT** — a new capability this Plugin should take on. Name the file and node that would change.
-- **DEFER** — recognised as valuable, blocked on a condition already recorded in an ADR. Cite the
-  recorded condition; never invent one.
+- **DEFER** — recognised as valuable, blocked on a condition one of the locked precedents below
+  records. Cite that precedent; never invent one.
 - **VERIFY-ONLY** — a deliberate, already-documented divergence or an area we track but do not follow.
   Confirm it still holds. Do not re-litigate it.
 - **BREAKS-US** — something this Plugin currently relies on has changed behaviour or been removed.
 
 Every row names an **affected file and node** (for example `.archon/workflows/unic-dlc-build.yaml:evidence`)
-and one suggested next step: **file an issue**, **amend an ADR**, or **nothing**.
+and one suggested next step: **file an issue** or **nothing**.
 
 ### Two locked precedents — apply them, never re-derive them
 

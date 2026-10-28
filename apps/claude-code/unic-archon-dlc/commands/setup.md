@@ -78,8 +78,9 @@ Then verify it before trusting it, and keep `PLUGIN_VERSION` from the manifest y
 1. `.claude-plugin/plugin.json` there names `unic-archon-dlc`, at the same version as the registry entry.
 2. `vendor/mattpocock-skills/` is present.
 3. `.archon/workflows/` holds at least one `unic-dlc-*.yaml`.
-4. `README.md` is present. Later steps read three of its sections from `<installPath>/README.md`:
-   § Dependencies, § Configuration reference and § The tracker contract.
+4. `README.md` is present and holds all three sections later steps read from `<installPath>/README.md`:
+   § Dependencies, § Configuration reference and § The tracker contract. A missing section fails the
+   check. Name it in the stop.
 
 Print what you found and stop on any of: no entry for this Plugin, a registry whose top-level `version` is
 not `2`, or a failed check above. The registry entry and the manifest agreeing is the whole of the version
@@ -449,9 +450,10 @@ anything between the markers is replaced on the next run.
   - `unic-dlc-build` implements each slice in `issues.json` test-first, then verifies, pushes, and
     opens a PR when the verdict is `pass`.
   - `unic-dlc-pr-review` reviews a PR against the repository's standards and the linked work items,
-    and posts the findings after a human confirms.
-  - `unic-dlc-qa` runs the tests, e2e and coverage checks, asks for UAT sign-off and merges the PR.
-    It files a UAT defect as an agent-ready tracker item.
+    and posts the findings. It asks a human to confirm first only when `gates.pr-review` is `hitl`.
+  - `unic-dlc-qa` runs the tests, e2e and coverage checks and merges the PR. It asks for UAT sign-off
+    and a merge confirmation only when `gates.qa` is `hitl`. It files a UAT defect as an agent-ready
+    tracker item.
 
 <!-- unic-dlc:end -->
 ```

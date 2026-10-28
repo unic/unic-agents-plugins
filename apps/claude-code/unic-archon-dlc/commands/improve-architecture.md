@@ -23,7 +23,7 @@ Step 1.
 The Method produces an ephemeral HTML deepening report + a design grill for **technical** drift. On
 top of that this box adds (a) an **intent-drift** pass comparing the PRD's stories/acceptance
 criteria against what shipped, (b) a **durable `arch-review.md`** committed under the artifacts dir,
-and (c) an **ADR-consolidation gate with superseding** across both ADR homes.
+and (c) an **ADR-consolidation gate with superseding** across every ADR home the repository has.
 
 Follow these steps in order. Do not skip any step.
 
@@ -98,7 +98,7 @@ Bind that procedure to the DLC:
   **capture-only**. Do **not** accept, number, or write any ADR during Step 3, and do not let the
   delegated procedure write one — instead record each proposed decision (the "accept as ADR" candidates
   and load-bearing rejections) as a candidate and hand it to Step 6. Step 6 is the **single place**
-  ADRs are written, so the A/R/E gate, MADR-lite format, both-homes numbering, and superseding/index
+  ADRs are written, so the A/R/E gate, MADR-lite format, per-home numbering, and superseding/index
   mechanics always apply and ADRs can never drift into an inconsistent format or bypass the gate.
 
 ## Step 4 — Intent drift (DLC value-add — per-slug mode only)
@@ -206,7 +206,7 @@ When an accepted ADR supersedes an existing one:
 3. If the **matching home** has a `README.md` index, update it: set the **old** row's Status cell to
    `Superseded by ADR-NNNN`, and add a **new** row for `NNNN`. Each home keeps its own index.
 
-An ADR in one home may supersede an ADR in the other; amend whichever home(s) the two files live in.
+An ADR in one home may supersede an ADR in another home. Amend each home the two files live in.
 
 ## Step 7 — Summary
 
