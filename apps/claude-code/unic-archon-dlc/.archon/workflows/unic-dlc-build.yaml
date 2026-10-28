@@ -730,7 +730,7 @@ nodes:
       // `passed: true` with a non-empty `failures` array write a certificate whose own body listed
       // the failures. Both prompts define `failures` as blockers only, so a non-empty list is a
       // red verdict whatever the boolean says. This does not make the gate independent of the
-      // judge — only re-running the suite would, and this script node must stay self-contained, so it cannot.
+      // judge. Only re-running the suite would, and this gate reads results; it does not produce them.
       const verificationGreen = verificationPassed === true && verificationFailures.length === 0
       const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
 

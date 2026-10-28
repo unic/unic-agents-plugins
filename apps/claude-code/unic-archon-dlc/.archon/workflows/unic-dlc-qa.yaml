@@ -16,8 +16,8 @@ interactive: true
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm the QA baton exists.
-  # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
-  # because the agent reads .archon/unic-dlc.config.yaml with its own tools. Every command
+  # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT.
+  # The agent reads .archon/unic-dlc.config.yaml with its own tools. Every command
   # comes from the one `sdlc_needs` block; only the coverage threshold still falls back
   # qa.* → build.*, so a team can hold a heavier QA bar than the build's.
   # ---------------------------------------------------------------------------------------------
