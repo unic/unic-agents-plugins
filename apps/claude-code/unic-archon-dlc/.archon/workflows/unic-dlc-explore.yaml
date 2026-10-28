@@ -4,8 +4,8 @@ description: >
   / pitfalls) → synthesize into <artifacts_dir>/<slug>/findings.md → one AFK spike (verdicts) → file a
   spike ticket → optionally preserve the spike code on a branch. findings.md is the /specs baton: its
   Integrated Brief carries three named lenses (Domain Model / Established Decisions / Prior Research)
-  that /specs' load-context reads verbatim. Never required; a precursor to /specs, off the main line
-  (PLAN decision #3/#8). Ported to the key-discriminated node schema; self-contained prompt
+  that /specs' load-context reads verbatim. Never required; a precursor to /specs, off the main line.
+  Ported to the key-discriminated node schema; self-contained prompt
   nodes, no plugin-lib import; artefacts at <artifacts_dir>/<slug>/. Interactive
   prototyping stays Matt's /prototype skill (referenced, never invoked — nodes have no live
   conversation).

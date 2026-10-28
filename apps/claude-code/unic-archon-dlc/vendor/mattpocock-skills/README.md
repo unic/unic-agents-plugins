@@ -16,7 +16,7 @@ the one path every Box and every command reads a Method from.
 | Licence | MIT — see [`LICENSE`](LICENSE)             |
 
 **This table is the provenance.** It used to mirror a `METHODS_BUNDLE` constant in
-`lib/methods-manifest.mjs`, with a test holding the two together; #381 deleted the plugin's code, so
+`lib/methods-manifest.mjs`, with a test holding the two together. The plugin's code is gone, so
 the mirror and the test are gone and these four values live here alone. Update them in the same commit
 that replaces the vendored files — nothing else records the tag, and nothing checks that this file
 still describes what sits beside it.
@@ -25,7 +25,7 @@ still describes what sits beside it.
 
 `skills/` mirrors the upstream directory layout (`skills/<category>/<name>/`). Mirroring rather than
 flattening is what makes a re-vendoring diffable against upstream by eye — which is now the only check
-there is. The closure test that caught an upstream relocation went with the manifest (#381), so
+there is. The closure test that caught an upstream relocation went with the manifest, so
 **upgrading this bundle means diffing this tree against the new upstream tag by hand**, in the commit
 that moves the pin above. The root `AGENTS.md` § "The quality bar for a prose Box" names that as the
 moment the check happens.

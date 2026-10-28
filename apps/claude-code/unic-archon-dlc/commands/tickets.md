@@ -17,7 +17,7 @@ Step 1 — and the configured **tracker system-skill** (MCP-first, CLI-fallback)
 
 `/tickets` **stops at a build-ready `issues.json`** (dependency-ordered, each slice carrying its
 acceptance criteria + test command) plus the published tracker issues. It does **not** generate a
-build workflow: `/build` (step 06) consumes `issues.json` directly via a generic loop. Intent lives on the tracker issue (contract C)
+build workflow: `/build` consumes `issues.json` directly via a generic loop. Intent lives on the tracker issue (contract C)
 **and** in `issues.json` (the durable baton `/build` reads).
 
 Follow these steps in order. Do not skip any step. The only files you write are `issues.json`
