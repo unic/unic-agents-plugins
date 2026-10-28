@@ -383,7 +383,7 @@ nodes:
       print as both `blocked` and `standards_report`, empty `findings`, `positives` and
       `reported_checks` arrays, and `subagents_ran` as the rule below sets it. This holds for the
       missing-Method stop, the `Agent`-unavailable stop, a fixed point that does not resolve, an empty
-      diff, and any other stop. A stopped review is not a clean review: `blocked` is how `synthesize`
+      diff, and any other stop. A stopped review is not a clean review, and `blocked` is how `synthesize`
       and `reconcile` tell the two apart.
 
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
