@@ -81,4 +81,4 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0037 | The config declares the SDLC's needs; the Plugin names no tool                             | Accepted                                                  |
 | 0038 | Practice Packs stack by prefix; the DLC alone owns `.archon/methods/`                      | Accepted                                                  |
 | 0039 | A run's base branch is Archon's `$BASE_BRANCH`                                             | Accepted                                                  |
-| 0040 | `/build`'s verdict decides whether a pull request opens                                    | Accepted                                                  |
+| 0040 | `/build`'s verdict decides whether a pull request opens                                    | Accepted (2026-10-28, revised 2026-10-28)                 |

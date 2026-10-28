@@ -1,6 +1,6 @@
 # 0040. `/build`'s verdict decides whether a pull request opens
 
-**Status:** Accepted (2026-10-28)
+**Status:** Accepted (2026-10-28, revised 2026-10-28)
 
 ## Context
 
@@ -10,7 +10,7 @@ A second defect came with it. The one file the engine demands carried no informa
 
 ## Decision
 
-1. **`evidence` writes `evidence.json` on every verdict.** The file names the verdict and lists the failures that produced it: the failure arrays from `verification` and `goals-check`, `test_outcome` and `unresolved_needs`. `evidence` writes the Session-dir mirror on every verdict too.
+1. **`evidence` writes `evidence.json` on every verdict.** The file names the verdict and lists the failures that produced it: the failure arrays from `verification` and `goals-check`, `test_outcome` and `unresolved_needs`, and the pre-check's `precheck_status`, `precheck_blocked_reason`, `hard_findings`, `precheck_notes` and `precheck_read_error` ([ADR-0034](0034-evidence-gate-deterministic-writer.md)). `evidence` writes the Session-dir mirror on every verdict too.
 2. **The verdict on stdout is the branch signal.** `evidence` prints `{ verdict, test_outcome, unresolved_needs }` as JSON on stdout and every human line on stderr. Two `when` expressions read the `verdict` field, and both compare it with `'pass'` only, so `fail` and `unresolved` take the same branch.
 3. **The work is committed and pushed on every verdict, before the verdict decides anything.** `commit-session` stages the named-path list `open-pr` used to stage, now with `evidence.json` always on it, and commits. `push-branch` pushes the branch and prints `{ branch, commit }` as JSON. So a red build leaves its commits, `report.md` and `evidence.json` on the remote branch.
 4. **Two siblings follow `push-branch`, and the verdict picks one.** `guard-not-pass` is a `cancel:` leaf with `when` on a verdict other than `pass`. It ends the run `cancelled` and its message names the verdict, the pushed branch and commit, and the path of `report.md` on that branch. It writes nothing to the tracker. `open-pr` has `when` on a verdict equal to `pass`, opens the pull request against `$BASE_BRANCH` ([ADR-0039](0039-base-branch-is-archons-base-branch.md)) and links it to the slices' work items. `build-pr-gate` still depends on `open-pr`, so a green build in `hitl` still pauses there. No node in `/build` sets a trigger rule.
