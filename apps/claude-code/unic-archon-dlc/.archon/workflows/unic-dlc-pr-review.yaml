@@ -500,8 +500,8 @@ nodes:
       on every path, a stop included. `reconcile` reads it to decide whether the checks block says
       that a review sub-agent may still have run a check on its own.
       `blocked` is "" for a review that ran to the end, and the printed sentence for a stop. A reader
-      of this file treats the review as **blocked** when `blocked` is not empty, or when `blocked` is
-      missing and `subagents_ran` is not true.
+      of this file treats the review as **blocked** when `blocked` is not empty or `subagents_ran` is
+      not true. A review that ran to the end always started a sub-agent.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else (not one axis, not seven aspects): print
@@ -551,9 +551,8 @@ nodes:
                - Drop a line that only reports a command the sub-agent ran, or that a build, lint,
                  format, type-check, test or other check passed or failed.
                - When a line gives an acceptance-criterion verdict and also a check result, as in
-                 "AC 2 met: `<cmd>` passes", keep the verdict. Drop the check result, or rewrite it as
-                 the Spec sub-agent's claim: "the Spec sub-agent reported that …". The verdict stays
-                 and the result never reads as a fact.
+                 "AC 2 met: `<cmd>` passes", keep the verdict and remove the check result from the
+                 line. A check result appears in the summary only in the checks block.
              A line that cites a command only to judge an acceptance criterion stays. The Spec axis IS
              the AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
@@ -829,8 +828,10 @@ nodes:
                  reopened the thread on purpose.
                - unverified. `reply` says that the review did not report the finding this iteration,
                  why it is not ruled fixed (its file did not change since the prior iteration, or the
-                 finding is scoped, or there is no prior head), and that the author should check it by
-                 hand and resolve the thread if the finding is gone.
+                 finding is scoped, or there is no prior head, or the review is blocked), and that the
+                 author should check it by hand and resolve the thread if the finding is gone. For a
+                 blocked review, the reason reads "the review stopped before it finished, so this
+                 finding could not be checked", followed by the `blocked` sentence.
                - regressed. `reply` says the finding is back in iteration <ITERATION>.
            - **anchor** — one entry for every finding this run that is anchorable AND owns no thread
              yet: classification `new`, or a match against a prior finding whose `anchored` is "false".
@@ -845,8 +846,11 @@ nodes:
          `anchored` is "false" is likewise carried by the summary: its verdict is the tag, and there is
          no thread to reply to.
       Emit iteration, the delta counts, and the two counts from step 3. Emit `stopped` as "" when you
-      wrote SESSION/comment.md. When you stop without it, emit the BLOCKED sentence you printed as
-      `stopped`, ITERATION as `iteration`, and 0 for every count, so the gate shows the stop.
+      wrote SESSION/comment.md and the review is not blocked. When the review is blocked and you wrote
+      SESSION/comment.md, emit the `blocked` sentence as `stopped`, or "review stopped, no reason
+      recorded" when the field is missing. When you stop without SESSION/comment.md, emit the BLOCKED
+      sentence you printed as `stopped`, ITERATION as `iteration`, and 0 for every count, so the gate
+      shows the stop.
     output_format:
       type: object
       properties:
@@ -886,8 +890,10 @@ nodes:
     approval:
       message: >
         /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Stopped:
-        "$reconcile.output.stopped". When that is not empty, reconcile wrote no SESSION/comment.md, the
-        counts below are zeros, and APPROVE posts nothing. Findings:
+        "$reconcile.output.stopped". When that starts with "reconcile: BLOCKED", reconcile wrote no
+        SESSION/comment.md, its counts below are zeros, and APPROVE posts nothing. Any other non-empty
+        value is the review node's stop. Then the summary carries a stop callout in place of this
+        iteration's findings, and no prior finding is ruled fixed. Findings:
         $synthesize.output.critical critical · $synthesize.output.important important ·
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
         $reconcile.output.unverified unverified ·

@@ -72,12 +72,12 @@ precondition** — intent is composed from whatever sources resolve.
    judges the need from what the command does, never by matching the command's text against a value in
    `sdlc_needs`, and records a check that serves no declared need as `undeclared`. It never records
    `install`. It then removes the commands section from both reports. The Intent Check keeps an
-   acceptance-criterion verdict but drops a check result, or renders it as the Spec sub-agent's claim.
-   The array is empty when no sub-agent reported a check. `review.json` also carries `subagents_ran`,
-   which is true when at least one review sub-agent started, on every path, a stop included. It also
-   carries `blocked`, which is empty for a review that ran to the end and holds the printed sentence
-   for a stop. A review is blocked when `blocked` is not empty, or when `blocked` is missing and
-   `subagents_ran` is not true.
+   acceptance-criterion verdict but removes a check result from it, because a check result appears in
+   the summary only in the checks block. The array is empty when no sub-agent reported a check.
+   `review.json` also carries `subagents_ran`, which is true when at least one review sub-agent
+   started, on every path, a stop included. It also carries `blocked`, which is empty for a review
+   that ran to the end and holds the printed sentence for a stop. A review is blocked when `blocked`
+   is not empty or `subagents_ran` is not true.
 
 4. **synthesize** — merge + dedupe this run's findings, bucket by severity, assemble the summary
    sections + Intent Check + "What's good". It states no check result as a fact in any section, except
@@ -85,7 +85,8 @@ precondition** — intent is composed from whatever sources resolve.
    writes no findings, and `reconcile` then stops without a summary. When the review is blocked, it
    writes an empty findings list and a callout that names the `blocked` sentence, with no severity
    section, so the reader sees that the review stopped. `reconcile` then rules no prior finding
-   `fixed`, and every unmatched open or unverified prior is `unverified`.
+   `fixed`, and every unmatched open or unverified prior is `unverified`. Its reply on such a thread
+   says that the review stopped before it finished, so the finding could not be checked.
 
 5. **reconcile** — the re-review coordinator: classify each finding against the prior iteration
    (new / still-present / fixed / unverified / regressed), compute the "since iteration N−1" delta, and
@@ -114,7 +115,9 @@ precondition** — intent is composed from whatever sources resolve.
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,
    the finding counts, and any contradiction warnings; APPROVE to post, REJECT to halt without posting.
    When `reconcile` stopped without a summary, the gate message names the sentence it printed, from
-   its `stopped` output, and says that the counts are zeros and that APPROVE posts nothing.
+   its `stopped` output, and says that its counts are zeros and that APPROVE posts nothing. When the
+   review is blocked and `reconcile` wrote a summary, `stopped` holds the `blocked` sentence, and the
+   gate message says that the summary carries a stop callout and rules no prior finding fixed.
 
 7. **post** — post/update the **summary comment** (matched by the `<!-- unic-dlc-pr-review:iteration= -->`
    marker, never author identity) and, when `inline_comments` and the tracker supports inline threads,
