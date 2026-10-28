@@ -84,15 +84,16 @@ whatever their stack uses, and a node decides at run time which of those needs i
    reader in the same change.
 
 8. **`/pr-review` states that it was not asked to run any check.** It gains no procedure that
-   checks a claim against an author's assertion — that belongs to a Method, not to this Harness
-   ([ADR-0030](0030-harness-hosts-methods.md)) — so its summary block names which needs the project
+   checks a claim against an author's assertion. That belongs to a Method, not to this Harness
+   ([ADR-0030](0030-harness-hosts-methods.md)). So its summary block names which needs the project
    declares and states that this Box instructed none of them. The block states what the Box
    instructed, not what ran. A review sub-agent can run a check on its own, so a sentence saying that
-   nothing ran can be false. When the review sub-agents ran, the block says that one of them may have
-   run a check on its own. `review` records each check a sub-agent reports in `reported_checks`, named by the need it serves and never by its
-   command, and the block renders each as that sub-agent's claim, unverified by this Box. No other
-   section states a check result as a fact. Without the block the warning lives only in the Plugin's
-   own issue tracker, where the developer reading a review never sees it.
+   nothing ran can be false. The block says that a review sub-agent may still have run one, unless
+   `review` records that no sub-agent ran. `review` records each check a sub-agent reports in
+   `reported_checks`, named by the need it serves and never by its command. The block renders each as
+   that sub-agent's claim, unverified by this Box. No other section states a check result as a fact.
+   Without the block the warning lives only in the Plugin's own issue tracker, where the developer
+   reading a review never sees it.
 
 9. **The two `e2e_command` keys are retired, and the retirement is deliberate.** The
    `qa.e2e_command ?? build.e2e_command` pair becomes the single `sdlc_needs.e2e`. The per-Box override goes on purpose: all

@@ -65,8 +65,8 @@ nodes:
       **This Box runs no build, lint, type-check or test command by instruction** (ADR-0037 §8). It
       carries the block so that `reconcile` can tell the reader which checks the project declares and
       that this Box instructed none of them. `install` is the exception and is not a check. You run it
-      below, once, because a sub-agent that decides on its own that it needs to run something should fail on that
-      decision rather than on which worktree the run drew (ADR-0037 §6).
+      below, once, because a sub-agent that decides on its own that it needs to run something should
+      fail on that decision rather than on which worktree the run drew (ADR-0037 §6).
 
       ## Install once, and say what you did
       One Archon worktree serves this whole run and may or may not already carry this project's
@@ -502,7 +502,8 @@ nodes:
       silently restructure the review into something else (not one axis, not seven aspects): print
       "REVIEW BLOCKED: Agent tool unavailable in an Archon prompt node — code-review step 4 cannot run
       as written", write SESSION/findings/review.json with that sentence as `standards_report`, empty
-      `findings`, `positives` and `reported_checks` arrays, and `subagents_ran: false`, and stop. That is a real finding about the container, not a detail to route around.
+      `findings`, `positives` and `reported_checks` arrays, and `subagents_ran: false`, and stop. That is
+      a real finding about the container, not a detail to route around.
 
   # ---------------------------------------------------------------------------------------------
   # synthesize — THIS RUN ONLY. Reads the review node's single SESSION/findings/review.json, dedupes
@@ -520,7 +521,7 @@ nodes:
       SESSION = <artifacts_dir>/<slug>/pr-review/  (artifacts_dir=$bootstrap.output.artifacts_dir).
 
       1. First delete SESSION/findings.json and SESSION/summary-sections.md if they exist, because
-         SESSION persists between runs. Then read SESSION/findings/review.json — the review node's
+         SESSION persists between runs. Then read SESSION/findings/review.json, the review node's
          Standards + Spec output. If it is missing, print "synthesize: BLOCKED: no review.json", write
          no SESSION/findings.json and no SESSION/summary-sections.md, emit 0 for every count, and stop.
          A findings file with no findings would let `reconcile` rule every prior finding fixed.
@@ -534,7 +535,7 @@ nodes:
       4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
-           - `### Intent Check` — render the review node's `spec_report` verbatim, with one exception.
+           - `### Intent Check`. Render the review node's `spec_report` verbatim, with one exception.
              The render states no check result as a fact. Drop any line that reports a command the
              sub-agent ran, or that a build, lint, format, type-check, test or other check passed or
              failed. Keep a line that cites a command only to judge an acceptance criterion. The Spec
