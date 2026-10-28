@@ -73,10 +73,11 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    staged, and commits. `build-state.json` is committed in `commit-session` and **only** there, never
    during a loop iteration, so the loop's anti-cheat record survives `/cleanup`. `push-branch` pushes
    the branch to `origin` and reports the branch and the commit. It refuses to push from a detached
-   HEAD or from the run's base branch, and when a Session file it staged (`PRD.md`, `issues.json`, `report.md`, `build-state.json`, `evidence.json`) is
+   HEAD or from the run's base branch, and when a Session file `commit-session` staged (`PRD.md`, `issues.json`, `report.md`, `build-state.json`, `evidence.json`) is
    not committed at HEAD. If it refuses or the push fails, the run ends `failed`, because no work
-   reached the remote. A resumed run re-runs `evidence` but not `commit-session`, so `push-branch`
-   refuses it; start a new run instead.
+   reached the remote. `evidence` declares `always_run` and `commit-session` does not, so a resumed
+   run re-runs `evidence` after the commit. `push-branch` refuses that run when the rewritten
+   `evidence.json` differs from the committed one. Start a new run instead.
 
 9. **guard-not-pass** or **open-pr → build-pr-gate** are two siblings after `push-branch`, and the
    verdict picks one:

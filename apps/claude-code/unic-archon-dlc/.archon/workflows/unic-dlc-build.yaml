@@ -809,9 +809,9 @@ nodes:
   # an empty $BASE_BRANCH, HEAD detached or on the run's base branch, a branch name that cannot go
   # into the JSON below, and a Session artefact that is missing at HEAD or differs from the working
   # tree. It checks the five Session paths commit-session stages: PRD.md, issues.json, report.md,
-  # build-state.json and evidence.json. A miss means commit-session did not commit, which a prompt
-  # node cannot report by failing, or a resumed run re-ran `evidence` after the commit, which needs
-  # a new run. It prints `git status --porcelain` to stderr before the push. Archon 0.12.1
+  # build-state.json and evidence.json. A miss has two causes. commit-session did not commit, which a
+  # prompt node cannot report by failing. Or a resumed run re-ran `evidence` after the commit and the
+  # rewritten evidence.json differs, which needs a new run. It prints `git status --porcelain` to stderr before the push. Archon 0.12.1
   # substitutes $BASE_BRANCH in a bash body (measured for #439). Its stdout is JSON only, read field
   # by field by guard-not-pass and open-pr. git's own lines go to stderr (ADR-0040).
   # ---------------------------------------------------------------------------------------------
