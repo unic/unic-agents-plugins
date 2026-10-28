@@ -63,12 +63,17 @@ precondition** — intent is composed from whatever sources resolve.
    merged or reranked. This replaced seven hand-written aspect nodes and their spawn gates: re-implementing
    the Method's own step 4 as Archon nodes is what [ADR-0030](../adr/0030-harness-hosts-methods.md)'s
    structural bar forbids.
-   Each sub-agent ends its report with every command it ran other than reading files and git, and the
-   outcome it observed. `review` records each check reported there in the `reported_checks` array of
-   `review.json`, with the axis, the need the check serves and the reported outcome. It judges the need
-   from what the command does, never by matching the command's text against a value in `sdlc_needs`,
-   and records a check that serves no declared need as `undeclared`. It never records `install`. The
-   array is empty when no sub-agent reported a check, and when the `Agent` tool was unavailable.
+   `review` first deletes the `review.json` an earlier iteration left. Each sub-agent ends its report
+   with every command it ran other than reading files and git, and the outcome it observed. `review`
+   records only the checks among them, the commands that run the project's toolchain to verify the
+   code or start a dev server, and drops every other command. Each check goes into the
+   `reported_checks` array of `review.json` as one entry per need it serves, with the axis, the need
+   and the reported outcome, which names no command or tool. `review` judges the need from what the
+   command does, never by matching the command's text against a value in `sdlc_needs`, and records a
+   check that serves no declared need as `undeclared`. It never records `install`. It then removes
+   the commands section from both reports, so no command or result reaches the Intent Check. The
+   array is empty when no sub-agent reported a check. `review.json` also carries `subagents_ran`,
+   which is false when the `Agent` tool was unavailable.
 
 4. **synthesize** — merge + dedupe this run's findings, bucket by severity, assemble the summary
    sections + Intent Check + "What's good". It states no check result as a fact in any section.
@@ -87,10 +92,10 @@ precondition** — intent is composed from whatever sources resolve.
    Above every finding, in every iteration, the summary carries the block "Checks this review was not
    asked to run". It states that this Box instructed none of the project's declared checks, so nothing
    in the review verifies a claim that a build, lint, type-check or test passes. It names the declared
-   `sdlc_needs` keys, `install` excluded, by key and never by value. When the review sub-agents ran, it
+   `sdlc_needs` keys, `install` excluded, by key and never by value. When `subagents_ran` is true, it
    says that one of them may still have run a check on its own. It renders each `reported_checks` entry
    as that sub-agent's claim, naming the need and the outcome and never the command, and it ends with
-   `bootstrap`'s install report, verbatim. It states what the Box instructed, not what ran
+   `bootstrap`'s install report, verbatim. A missing `review.json` reads as no report. It states what the Box instructed, not what ran
    ([ADR-0037](../adr/0037-config-declares-sdlc-needs.md) §8).
 
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,

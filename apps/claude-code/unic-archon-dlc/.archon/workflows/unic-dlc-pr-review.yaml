@@ -376,6 +376,10 @@ nodes:
       SESSION = <artifacts_dir>/<slug>/pr-review/ (artifacts_dir=$bootstrap.output.artifacts_dir).
       threshold = $bootstrap.output.confidence_threshold.
 
+      First delete SESSION/findings/review.json if it exists. SESSION persists between runs, so a file
+      an earlier iteration left there would let `reconcile` render that iteration's reported checks as
+      this one's when this node stops before it writes the file.
+
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
       one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
       and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
@@ -450,21 +454,27 @@ nodes:
 
       ## Reported checks
       This Box instructs no check, but a sub-agent may run one on its own. Read the `Commands I ran`
-      section of each sub-agent's report and record each check it reports in `reported_checks`, one
-      entry per command:
-        { "axis": "standards" | "spec", "need": "<need>", "outcome": "<the outcome as reported>" }
-      - `need` is one of these key names: `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`,
-        `coverage`. Judge which need the command serves from what it does: a command that type-checks
-        the code serves `typecheck`, whatever its text. Never decide it by comparing the command's text
-        with a value in `$bootstrap.output.sdlc_needs`. A Consumer's value can take a shape the
-        reported command does not share, and a text match then reports a declared need as undeclared.
-      - When the need the command serves has no value set in `$bootstrap.output.sdlc_needs`, or the
-        command serves none of those needs, set `need` to "undeclared".
-      - A command that installs dependencies serves `install`. Never record it: `bootstrap`'s install
-        report covers it.
+      section of each sub-agent's report. A **check** is a command that runs the project's toolchain to
+      verify the code, as a build, test, lint, format, type-check, coverage or e2e run does, or a
+      command that starts a dev server. Record only checks. Drop every other command, such as one that
+      lists files, reads JSON, evaluates a snippet or queries the package manager. Record each check
+      in `reported_checks` as one entry per need it serves:
+        { "axis": "standards" | "spec", "need": "<need>", "outcome": "<outcome>" }
+      - `need` is exactly one of `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`,
+        `coverage` or `undeclared`. A check that serves two needs, such as one command that lints and
+        type-checks, takes one entry per need.
+      - Judge which need a check serves from what it does. A check that type-checks the code serves
+        `typecheck`, whatever its text. Never decide it by comparing the command's text with a value
+        in `$bootstrap.output.sdlc_needs`. A Consumer's value can take a shape the reported command
+        does not share, and a text match then reports a declared need as undeclared.
+      - Set `need` to "undeclared" when the need the check serves has no value set in
+        `$bootstrap.output.sdlc_needs`, or when the check serves none of the eight needs above.
+      - A command that installs dependencies serves `install`. Never record it, because `bootstrap`'s
+        install report covers it.
       - Never record the command text. The summary names the need only.
-      - `outcome` is what the sub-agent said it observed, in a few words, such as "passed" or "failed:
-        2 type errors". It is a self-report, and nothing in this Box verifies it.
+      - `outcome` is "passed", "failed" or a short outcome such as "failed with 2 type errors", as the
+        sub-agent reported it. It names no command and no tool. It is a self-report, and nothing in
+        this Box verifies it.
       The array is empty when no sub-agent reported a check. A finding a sub-agent raised from a
       failed check stays a finding like any other. Record the check here as well, and leave the
       finding where the contract above puts it.
@@ -473,18 +483,19 @@ nodes:
       reported, and `synthesize` renders `spec_report` in the summary.
 
       Write SESSION/findings/review.json as:
-        {"findings": [...], "positives": [...], "reported_checks": [...],
+        {"findings": [...], "positives": [...], "reported_checks": [...], "subagents_ran": <true|false>,
          "standards_report": "<the ## Standards text>", "spec_report": "<the ## Spec text>"}
       Keep `standards_report` and `spec_report` as the Method's own prose, less the `Commands I ran`
-      section. synthesize renders
-      `spec_report` as the Intent Check section, which is how AC-coverage survives the collapse of the
-      old intent-check node.
+      section. synthesize renders `spec_report` as the Intent Check section, which is how AC-coverage
+      survives the collapse of the old intent-check node.
+      Set `subagents_ran` to true when at least one review sub-agent ran, and to false otherwise.
+      `reconcile` reads it to decide whether the summary may say that a sub-agent ran a check.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else (not one axis, not seven aspects): print
       "REVIEW BLOCKED: Agent tool unavailable in an Archon prompt node — code-review step 4 cannot run
-      as written", write SESSION/findings/review.json with that sentence as `standards_report` and
-      empty `findings`, `positives` and `reported_checks` arrays, and stop. That is a real finding about the container, not a detail to route around.
+      as written", write SESSION/findings/review.json with that sentence as `standards_report`, empty
+      `findings`, `positives` and `reported_checks` arrays, and `subagents_ran: false`, and stop. That is a real finding about the container, not a detail to route around.
 
   # ---------------------------------------------------------------------------------------------
   # synthesize — THIS RUN ONLY. Reads the review node's single SESSION/findings/review.json, dedupes
@@ -716,29 +727,30 @@ nodes:
          scope token alone. The next iteration's prep reads `file` from it, so a scoped finding keeps
          its scope token and can never be ruled `fixed` against a guessed path.
       5b. Fill the "Checks this review was not asked to run" block. It is a block of its own, in the
-         frame above every finding, and it is present in EVERY iteration — a reader skimming for
-         severity must not be able to pass over it. Read `reported_checks` and `standards_report` from
-         SESSION/findings/review.json. Then write these parts, in this order:
+         frame above every finding, and it is present in EVERY iteration, so a reader skimming for
+         severity cannot pass over it. Read `reported_checks` and `subagents_ran` from
+         SESSION/findings/review.json. When the file is missing or cannot be parsed, treat
+         `reported_checks` as empty and `subagents_ran` as false. Treat a missing field the same way.
+         A missing report is never a sub-agent's claim. Then write these parts, in this order:
            - **This Box instructed none of the project's declared checks**, so nothing in this review
-             verifies a claim that a build, lint, type-check or test passes. That is deliberate:
-             running a check against a claim is a Method's procedure, not this Harness's (ADR-0030).
-           - Which **checks** the project declares: name the keys of `$bootstrap.output.sdlc_needs`
-             whose value is set, `install` excluded. Leave `install` out of that sentence — this Box
-             does run it, and the last line reports what happened. Name the keys, never their values:
-             the command is the project's business and this Box names no tool.
-           - When `standards_report` does not start with "REVIEW BLOCKED", say that a review sub-agent
-             may still have run one of them on its own. When it does start with "REVIEW BLOCKED", no
-             sub-agent ran, so leave this sentence out.
+             verifies a claim that a build, lint, type-check or test passes. That is deliberate,
+             because running a check against a claim is a Method's procedure, not this Harness's
+             (ADR-0030).
+           - Which **checks** the project declares. Name the keys of `$bootstrap.output.sdlc_needs`
+             whose value is set, `install` excluded. Leave `install` out of that sentence. This Box
+             does run it, and the last line reports what happened. Name the keys, never their values,
+             because the command is the project's business and this Box names no tool.
+           - When `subagents_ran` is true, say that a review sub-agent may still have run one of them
+             on its own. When it is false, no sub-agent ran, so leave this sentence out.
            - One line per entry of `reported_checks`, as a claim of the sub-agent that names the need
-             and the outcome, never the command. For example: "The Standards review sub-agent
+             and the outcome, never the command. For example, "The Standards review sub-agent
              reported that it ran `typecheck` and that it passed. This Box did not run or verify it."
              For an entry whose `need` is "undeclared", write "a check that matches none of the
              project's declared needs" in place of the need. Write no line when the array is empty.
            - `$bootstrap.output.install_report`, verbatim.
          Never write that no check ran in this review, or that the review ran none of the declared
-         checks.
-         The Box's instruction does not bind a sub-agent, so neither sentence is known to be true.
-         Without this block the warning lives only in the plugin's own issue tracker, where the
+         checks. The Box's instruction does not bind a sub-agent, so neither sentence is known to be
+         true. Without this block the warning lives only in the plugin's own issue tracker, where the
          developer reading a review never sees it.
       5c. When ITERATION > 1 and there is no usable prior head, add a section above the delta line.
          There is no usable prior head when `$prep.output.prior_head_status` is not "recorded", or
