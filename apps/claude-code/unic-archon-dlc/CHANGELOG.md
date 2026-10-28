@@ -6,10 +6,10 @@
 - (none)
 
 ### Added
-- (none)
+- `/pr-review`'s `review` node writes a `reported_checks` array into `review.json`. Each entry is a check a review sub-agent reports having run, with its axis, the need it serves and the reported outcome. `review` judges the need from what the command does, never from the command's text, and never records `install`. The array is empty when no sub-agent reported a check (#660).
 
 ### Fixed
-- (none)
+- `/pr-review`'s summary block said the review executed none of the declared checks, while a review sub-agent could run one on its own. The block is now headed "Checks this review was not asked to run". It states that the Box instructed none of the declared checks, says that a sub-agent may still have run one, and renders each reported check as that sub-agent's claim, by need and never by command. `synthesize` states no check result as a fact, in "What's good" or elsewhere. ADR-0037 §8 is revised to match (#660).
 
 ## [0.35.0] — 2026-10-28
 

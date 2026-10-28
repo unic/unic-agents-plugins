@@ -78,7 +78,7 @@ Legacy forms that existing files and rows still carry, and new work does not use
 | 0034 | The evidence gate is a deterministic script writer, never a self-judging prompt            | Accepted (2026-08-10, revised 2026-10-28)                 |
 | 0035 | `/archon-upgrade` reports Archon-release impact; read-only, cites 0011/0033 by reference   | Accepted (amended #381, #396)                             |
 | 0036 | `/setup` owns a named install set; a Box workflow retires by name, never by header         | Accepted (amended #295, #381)                             |
-| 0037 | The config declares the SDLC's needs; the Plugin names no tool                             | Accepted                                                  |
+| 0037 | The config declares the SDLC's needs; the Plugin names no tool                             | Accepted (2026-09-04, revised 2026-10-28)                 |
 | 0038 | Practice Packs stack by prefix; the DLC alone owns `.archon/methods/`                      | Accepted                                                  |
 | 0039 | A run's base branch is Archon's `$BASE_BRANCH`                                             | Accepted                                                  |
 | 0040 | `/build`'s verdict decides whether a pull request opens                                    | Accepted (2026-10-28, revised 2026-10-28)                 |
