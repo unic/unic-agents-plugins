@@ -62,11 +62,11 @@ nodes:
       arrives null stays null. What happens next depends on the node: one that wants that need reports
       an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
       a command — a guessed command reports a result that means nothing.
-      **This Box runs no build, lint, type-check or test command by instruction** (ADR-0026): it
-      carries the block so that `reconcile` can tell the reader which checks the project has and this
-      review did not run. `install` is the exception and is not a check — you run it below, once,
-      because a sub-agent that decides on its own that it needs to run something should fail on that
-      decision rather than on which worktree the run drew (ADR-0037 §6).
+      **This Box runs no build, lint, type-check or test command by instruction** (ADR-0037 §8). It
+      carries the block so that `reconcile` can tell the reader which checks the project declares and
+      that this Box instructed none of them. `install` is the exception and is not a check. You run it
+      below, once, because a sub-agent that decides on its own that it needs to run something should
+      fail on that decision rather than on which worktree the run drew (ADR-0037 §6).
 
       ## Install once, and say what you did
       One Archon worktree serves this whole run and may or may not already carry this project's
@@ -376,11 +376,22 @@ nodes:
       SESSION = <artifacts_dir>/<slug>/pr-review/ (artifacts_dir=$bootstrap.output.artifacts_dir).
       threshold = $bootstrap.output.confidence_threshold.
 
+      First delete SESSION/findings/review.json if it exists. SESSION persists between runs, so a file
+      an earlier iteration left there would let `synthesize` publish that iteration's findings, and
+      `reconcile` its reported checks, as this one's.
+      **Every stop after this point writes SESSION/findings/review.json first.** Write the sentence you
+      print as both `blocked` and `standards_report`, empty `findings`, `positives` and
+      `reported_checks` arrays, and `subagents_ran` as the rule below sets it. This holds for the
+      missing-Method stop, the `Agent`-unavailable stop, a fixed point that does not resolve, an empty
+      diff, and any other stop. A stopped review is not a clean review, and `blocked` is how `synthesize`
+      and `reconcile` tell the two apart.
+
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
       one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
       and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
       is FATAL for this node: print "code-review Method not found at
-      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop. Do not review from
+      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup", write
+      SESSION/findings/review.json as the stop rule above says, and stop. Do not review from
       memory of what the Method says.
 
       Follow its Process steps 1–5. It asks a live human for two inputs; there is no human in this node,
@@ -411,6 +422,9 @@ nodes:
         is explicit that the sub-agent has no other access to it, and an abridged paste silently
         narrows the review. Add SESSION/intent-brief.md to BOTH sub-agent prompts: intent-grounding is
         this Box's quality lever, so neither axis judges the diff without knowing what it was for.
+        **End BOTH sub-agent prompts with this request, word for word:** "End your report with a
+        section headed `Commands I ran`. List every command you ran other than reading files and git,
+        one per line, each with the outcome you observed. If you ran none, write `none`."
       - Step 5: aggregate under `## Standards` and `## Spec`. Never merge or rerank the two axes.
 
       ## The finding contract
@@ -445,18 +459,56 @@ nodes:
         documented requirement the diff misses.
       - Also collect `positives` (things done well) across both axes, for the "What's good" section.
 
+      ## Reported checks
+      This Box instructs no check, but a sub-agent may run one on its own. Read the `Commands I ran`
+      section of each sub-agent's report. A **check** is a command that runs the project's toolchain to
+      verify the code, as a build, test, lint, format, type-check, coverage or e2e run does, or a
+      command that starts a dev server. Record only checks. Drop every other command, such as one that
+      lists files, reads JSON, evaluates a snippet or queries the package manager. Record each check
+      in `reported_checks` as one entry per need it serves:
+        { "axis": "standards" | "spec", "need": "<need>", "outcome": "<outcome>" }
+      - `need` is exactly one of `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`,
+        `coverage` or `undeclared`. A check that serves two needs, such as one command that lints and
+        type-checks, takes one entry per need.
+      - Judge which need a check serves from what it does. A check that type-checks the code serves
+        `typecheck`, whatever its text. Never decide it by comparing the command's text with a value
+        in `$bootstrap.output.sdlc_needs`. A Consumer's value can take a shape the reported command
+        does not share, and a text match then reports a declared need as undeclared.
+      - Set `need` to "undeclared" when the need the check serves has no value set in
+        `$bootstrap.output.sdlc_needs`, or when the check serves none of the eight needs above.
+      - A command that installs dependencies serves `install`. Never record it, because `bootstrap`'s
+        install report covers it.
+      - Never record the command text. The summary names the need only.
+      - `outcome` is "passed", "failed" or a short outcome such as "failed with 2 type errors", as the
+        sub-agent reported it. It names no command and no tool. It is a self-report, and nothing in
+        this Box verifies it.
+      The array is empty when no sub-agent reported a check. A finding a sub-agent raised from a
+      failed check stays a finding like any other. Record the check here as well, and leave the
+      finding where the contract above puts it.
+      **After you have recorded `reported_checks`, remove the `Commands I ran` section from both
+      reports** before you store them below. That section names commands and states their results as
+      reported, and `synthesize` renders `spec_report` in the summary.
+
       Write SESSION/findings/review.json as:
-        {"findings": [...], "positives": [...],
-         "standards_report": "<the ## Standards text>", "spec_report": "<the ## Spec text>"}
-      Keep `standards_report` and `spec_report` as the Method's own prose — synthesize renders
-      `spec_report` as the Intent Check section, which is how AC-coverage survives the collapse of the
-      old intent-check node.
+        {"findings": [...], "positives": [...], "reported_checks": [...], "subagents_ran": <true|false>,
+         "blocked": "", "standards_report": "<the ## Standards text>",
+         "spec_report": "<the ## Spec text>"}
+      Keep `standards_report` and `spec_report` as the Method's own prose, less the `Commands I ran`
+      section. synthesize renders `spec_report` as the Intent Check section, which is how AC-coverage
+      survives the collapse of the old intent-check node.
+      Set `subagents_ran` to true when at least one review sub-agent started, and to false otherwise,
+      on every path, a stop included. `reconcile` reads it to decide whether the checks block says
+      that a review sub-agent may still have run a check on its own.
+      `blocked` is "" for a review that ran to the end, and the printed sentence for a stop. A reader
+      of this file treats the review as **blocked** when `blocked` is not empty or `subagents_ran` is
+      not true. A review that ran to the end always started a sub-agent.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else (not one axis, not seven aspects): print
       "REVIEW BLOCKED: Agent tool unavailable in an Archon prompt node — code-review step 4 cannot run
-      as written", write SESSION/findings/review.json with that sentence as `standards_report` and
-      empty arrays, and stop. That is a real finding about the container, not a detail to route around.
+      as written", write SESSION/findings/review.json as the stop rule above says, with
+      `subagents_ran: false`, and stop. That is a real finding about the container, not a detail to
+      route around.
 
   # ---------------------------------------------------------------------------------------------
   # synthesize — THIS RUN ONLY. Reads the review node's single SESSION/findings/review.json, dedupes
@@ -473,7 +525,17 @@ nodes:
       You are the synthesize node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/  (artifacts_dir=$bootstrap.output.artifacts_dir).
 
-      1. Read SESSION/findings/review.json — the review node's Standards + Spec output.
+      1. First delete SESSION/findings.json and SESSION/summary-sections.md if they exist, because
+         SESSION persists between runs. Then read SESSION/findings/review.json, the review node's
+         Standards and Spec output. If it is missing, print "synthesize: BLOCKED: no review.json", write
+         no SESSION/findings.json and no SESSION/summary-sections.md, emit 0 for every count, and stop.
+         An empty findings file would let `reconcile` rule fixed every prior finding whose file
+         changed between the two heads.
+         If the review is **blocked**, as the review node defines it, write `[]` to
+         SESSION/findings.json, and write to SESSION/summary-sections.md only a callout,
+         `> ⚠ This review stopped before it finished: <blocked>`, with the `blocked` sentence, or "no reason
+         recorded" when the field is missing. Write no Intent Check, no severity section and no
+         "What's good". Emit 0 for every count and skip steps 2 to 5.
       2. Merge its `findings`, DEDUPE overlaps (same file + near-identical title across the two axes →
          keep the highest-confidence one, note the other axis). Ensure each finding has its stable
          `hash`. Do NOT rerank one axis against the other; deduping identical findings is not reranking.
@@ -484,8 +546,15 @@ nodes:
       4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
-           - `### Intent Check` — render the review node's `spec_report` verbatim. The Spec axis IS the
-             AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
+           - `### Intent Check`. Render the review node's `spec_report` verbatim, except that the
+             render states no check result as a fact. Two rules apply to each line:
+               - Drop a line that only reports a command the sub-agent ran, or that a build, lint,
+                 format, type-check, test or other check passed or failed.
+               - When a line gives an acceptance-criterion verdict and also a check result, as in
+                 "AC 2 met: `<cmd>` passes", keep the verdict and remove the check result from the
+                 line. A check result appears in the summary only in the checks block.
+             A line that cites a command only to judge an acceptance criterion stays. The Spec axis IS
+             the AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
              when `$prep.output.intent_available == "false"`.
            - `### 🔴 Critical (N)` / `### 🟠 Important (N)` / `### 🟡 Minor / Suggestions` — each finding a
@@ -500,6 +569,12 @@ nodes:
              iteration reads its hash back; a finding rendered without one is invisible to the run
              after this and starts again as new. Markdown hides the comment from the reader.
            - `### ✅ What's good` — always present, from `positives`.
+         **State no check result as a fact, in "What's good" or in any other section.** A positive
+         that says a build, lint, type-check or test passes is a sub-agent's report of a check this
+         Box did not run, so drop it from the sections. `reconcile` renders `reported_checks` in the
+         checks block, attributed to the sub-agent. The one exception is a finding raised from a failed
+         check. It stays in its severity section like any other finding, and its own body may cite the
+         failure it was raised from.
       Write the deduped this-run set to SESSION/findings.json (each finding incl. its hash) and the body
       sections to SESSION/summary-sections.md.
       **Every finding in findings.json is rendered in the sections — count them and check.** The
@@ -532,8 +607,12 @@ nodes:
       1. First delete SESSION/comment.md, SESSION/threads.json and SESSION/changed-between-heads.txt
          if they exist. SESSION persists between runs, so a file an earlier run left there would let
          `post` publish that run's verdicts when this node stops early.
+         If SESSION/findings.json is missing, print "reconcile: BLOCKED: no findings.json", write no
+         SESSION/comment.md, and stop, because `synthesize` stopped and no prior finding can be ruled.
          Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration),
-         `prior_head` and `prior_head_status`.
+         `prior_head` and `prior_head_status`. Read SESSION/findings/review.json too, and note whether
+         the review is **blocked**, as the review node defines it. Treat a file you cannot read or
+         parse as blocked as well.
          Before you classify anything, write the change between the two heads to
          SESSION/changed-between-heads.txt. When `prior_head_status` is "recorded", run
          `git -c core.quotePath=false diff --name-only <prior_head> "$(cat SESSION/head.txt)" > SESSION/changed-between-heads.txt`.
@@ -585,8 +664,9 @@ nodes:
            - unverified    — a prior finding whose `prior_verdict` is "open" or "unverified", with NO
                              match this run, and which is not `fixed` by the rule above. Its file did
                              not change between the two heads, its `file` is a scope token, or there is
-                             no prior head. When `prior_head_status` is not "recorded", every unmatched
-                             prior of this kind is `unverified` and none is `fixed`. The review omitting
+                             no prior head. When `prior_head_status` is not "recorded", or the review
+                             is blocked, every unmatched prior of this kind is `unverified` and none
+                             is `fixed`. The review omitting
                              a finding is not evidence that the finding is gone, because the reviewer
                              varies between runs on the same commit.
            - regressed     — a prior finding whose `prior_verdict` is "fixed" and which matches a
@@ -637,7 +717,7 @@ nodes:
 
            <base warning callout, when `$prep.output.base_warning` is not empty: quote it verbatim>
            <contradictions callout, if any>
-           ### Checks this review did not run
+           ### Checks this review was not asked to run
            <the block — see step 5b>
            ### Since iteration <ITERATION-1>        (only when ITERATION > 1)
            <no-prior-head section, see step 5c>
@@ -680,20 +760,38 @@ nodes:
          In both lists the locator is the one the severity sections use, `` `file:line` `` or the
          scope token alone. The next iteration's prep reads `file` from it, so a scoped finding keeps
          its scope token and can never be ruled `fixed` against a guessed path.
-      5b. Fill the "Checks this review did not run" block. It is a block of its own, in the frame
-         above every finding, and it is present in EVERY iteration — a reader skimming for severity
-         must not be able to pass over it. Three sentences, in this order:
-           - **This Box runs no build, lint, type-check or test command by instruction**, so nothing
-             below checks a claim the author made about one. That is deliberate: running a check
-             against a claim is a Method's procedure, not this Harness's (ADR-0030).
-           - Which **checks** the project declares: name the keys of `$bootstrap.output.sdlc_needs`
-             whose value is set, `install` excluded, and say that this review executed none of them.
-             Leave `install` out of that sentence — this Box does run it, and the line below reports
-             what happened, so naming it here would deny something the next line proves. Name the
-             keys, never their values: the command is the project's business and this Box names no
-             tool.
+      5b. Fill the "Checks this review was not asked to run" block. It is a block of its own, in the
+         frame above every finding, and it is present in EVERY iteration, so a reader skimming for
+         severity cannot pass over it. Read `reported_checks` and `subagents_ran` from
+         SESSION/findings/review.json. When the file cannot be parsed, or lacks `subagents_ran` or
+         `reported_checks`, the report is **unreadable**. A missing file counts as unreadable too, as a
+         defence only, because `synthesize` and this node stop first when it is missing. Then treat
+         `reported_checks` as empty and keep the sentence on sub-agents below. An unreadable report is
+         never a sub-agent's claim. Then write these parts, in this order:
+           - **This Box instructed none of the project's declared checks**, so nothing in this review
+             verifies a claim that a build, lint, type-check or test passes. That is deliberate,
+             because running a check against a claim is a Method's procedure, not this Harness's
+             (ADR-0030).
+           - Which **checks** the project declares. Name the keys of `$bootstrap.output.sdlc_needs`
+             whose value is set, `install` excluded. Leave `install` out of that sentence. This Box
+             does run it, and the last line reports what happened. Name the keys, never their values,
+             because the command is the project's business and this Box names no tool. When no key
+             other than `install` is set, write that the project declares no check.
+           - Say that a review sub-agent may still have run one of them on its own, or, when the
+             project declares no check, that a review sub-agent may still have run a check on its
+             own. Leave this sentence out only when the file says `subagents_ran: false`, because
+             then no sub-agent ran.
+           - When the report is unreadable, say in one line that `review` left no readable report of
+             what its sub-agents ran.
+           - One line per entry of `reported_checks`, as a claim of the sub-agent that names the need
+             and the outcome, never the command. For example, "The Standards review sub-agent
+             reported that it ran `typecheck` and that it passed. This Box did not run or verify it."
+             For an entry whose `need` is "undeclared", write "a check that matches none of the
+             project's declared needs" in place of the need. Write no line when the array is empty.
            - `$bootstrap.output.install_report`, verbatim.
-         Without this block that admission lives only in the plugin's own issue tracker, where the
+         Never write that no check ran in this review, or that the review ran none of the declared
+         checks. The Box's instruction does not bind a sub-agent, so neither sentence is known to be
+         true. Without this block the warning lives only in the plugin's own issue tracker, where the
          developer reading a review never sees it.
       5c. When ITERATION > 1 and there is no usable prior head, add a section above the delta line.
          There is no usable prior head when `$prep.output.prior_head_status` is not "recorded", or
@@ -730,8 +828,10 @@ nodes:
                  reopened the thread on purpose.
                - unverified. `reply` says that the review did not report the finding this iteration,
                  why it is not ruled fixed (its file did not change since the prior iteration, or the
-                 finding is scoped, or there is no prior head), and that the author should check it by
-                 hand and resolve the thread if the finding is gone.
+                 finding is scoped, or there is no prior head, or the review is blocked), and that the
+                 author should check it by hand and resolve the thread if the finding is gone. For a
+                 blocked review, the reason reads "the review stopped before it finished, so this
+                 finding could not be checked", followed by the `blocked` sentence.
                - regressed. `reply` says the finding is back in iteration <ITERATION>.
            - **anchor** — one entry for every finding this run that is anchorable AND owns no thread
              yet: classification `new`, or a match against a prior finding whose `anchored` is "false".
@@ -745,7 +845,12 @@ nodes:
          it owns no prior thread the summary carries it alone, tagged by step 5. A prior finding whose
          `anchored` is "false" is likewise carried by the summary: its verdict is the tag, and there is
          no thread to reply to.
-      Emit iteration, the delta counts, and the two counts from step 3.
+      Emit iteration, the delta counts, and the two counts from step 3. Emit `stopped` as "" when you
+      wrote SESSION/comment.md and the review is not blocked. When the review is blocked and you wrote
+      SESSION/comment.md, emit the `blocked` sentence as `stopped`, or "review stopped, no reason
+      recorded" when the field is missing. When you stop without SESSION/comment.md, emit the BLOCKED
+      sentence you printed as `stopped`, ITERATION as `iteration`, and 0 for every count, so the gate
+      shows the stop.
     output_format:
       type: object
       properties:
@@ -759,8 +864,21 @@ nodes:
         retired: { type: number }
         unverified: { type: number }
         unmatched_priors: { type: number }
+        stopped: { type: string }
       required:
-        [iteration, fixed, unverified, still_present, regressed, new, retired, prior_count, verdicts, unmatched_priors]
+        [
+          iteration,
+          fixed,
+          unverified,
+          still_present,
+          regressed,
+          new,
+          retired,
+          prior_count,
+          verdicts,
+          unmatched_priors,
+          stopped,
+        ]
 
   # ---------------------------------------------------------------------------------------------
   # review-gate — HITL by default; skipped when gates.pr-review == afk. Shows the finalised summary +
@@ -771,7 +889,11 @@ nodes:
     when: "$bootstrap.output.gate == 'hitl'"
     approval:
       message: >
-        /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Findings:
+        /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Stopped:
+        "$reconcile.output.stopped". When that starts with "reconcile: BLOCKED", reconcile wrote no
+        SESSION/comment.md, its counts below are zeros, and APPROVE posts nothing. Any other non-empty
+        value is the review node's stop. Then the summary carries a stop callout in place of this
+        iteration's findings, and no prior finding is ruled fixed. Findings:
         $synthesize.output.critical critical · $synthesize.output.important important ·
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
         $reconcile.output.unverified unverified ·
