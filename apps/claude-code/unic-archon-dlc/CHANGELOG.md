@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.34.0] — 2026-10-28
+
+### Breaking
 - A `/build` run whose verdict is not `pass` used to end `failed` with a pull request open. It now ends `cancelled` and opens no pull request. An operator or a script that waited for a red pull request sees a different outcome (#439).
 - `evidence` writes `evidence.json` on every verdict. The file names the verdict and lists the failures that produced it (#439).
 - A new `commit-session` node stages and commits the work, and a new `push-branch` node pushes the branch, on every verdict. A failed push ends the run `failed` (#439).
