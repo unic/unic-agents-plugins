@@ -13,7 +13,7 @@ set, and `docs/adr/0030`–`0032` for the Harness/Method division.
 
 Requires the Archon workflow engine (version ≥ 0.7.0) in the target project. `/build` needs version
 ≥ 0.10.0, because `evidence` reads the pre-check through a script node's `with:` bindings (ADR-0034).
-On an older engine that loads the Box, the binding does not arrive, so every build ends `unresolved`.
+On an older engine the binding does not arrive, so no build ends `pass`. Whether such an engine loads the Box at all is not measured.
 
 ## Language
 

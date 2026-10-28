@@ -47,9 +47,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    `blocked_reason`, `hard_findings` and `notes`. A hard finding is a breached documented standard,
    or an acceptance criterion that is missing or implemented wrong, and it quotes the standard or the
    spec line, or carries an empty citation when it has none. A baseline smell, scope creep and any
-   other judgement call are notes. The pre-check
-   reports `blocked` when it reviewed nothing: no merge-base resolves, the `Agent` tool is
-   unavailable, or the diff is empty. `evidence` reads these fields, so the pre-check is a gate
+   other judgement call are notes. The pre-check reports `blocked` when the review could not run:
+   no merge-base resolves, the `Agent` tool is unavailable, the diff is empty, or one of the two
+   axes returned no result. `evidence` reads these fields, so the pre-check is a gate
    input.
 
 4. **verification** — the `sdlc_needs.test` suite, the `sdlc_needs.e2e` suite when that key is
@@ -72,8 +72,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    verdict and lists the failures behind it, so it tells you what failed. It also carries
    `precheck_status`, `precheck_blocked_reason`, `hard_findings`, `precheck_notes` and
    `precheck_read_error`, which names why the node could not read the pre-check, or is empty. The
-   node reads the pre-check's four fields through `with:` bindings, so no character in the
-   pre-check's text can stop the node from running. ADR-0034 records the size limit of a binding.
+   node reads the pre-check's four fields through `with:` bindings, never through its source. A
+   quote, a backslash, a backtick, a newline and `${` in the pre-check's text were measured, and
+   none of them stopped the node. ADR-0034 records the size limit of a binding.
    The node mirrors `evidence.json` to
    `<artifacts_dir>/<slug>/evidence.json`. A script node, never a prompt
    ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). The workflow-level
@@ -82,9 +83,9 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
    ([ADR-0040](../adr/0040-build-verdict-decides-the-pull-request.md)).
 
 7. **report** — writes `<artifacts_dir>/<slug>/report.md`, led by a block naming every check that came
-   back `unresolved` and whether an install ran, then what was built, led by a warning when the
-   pre-check reported hard findings, the matrix, test outcomes,
-   decisions/ADRs and tech debt. It runs on every verdict.
+   back `unresolved`, whether an install ran, and a pre-check that did not run. What was built
+   follows, led by a warning when the pre-check reported hard findings. Then come the matrix, test
+   outcomes, decisions/ADRs and tech debt. It runs on every verdict.
 
 8. **commit-session → push-branch** run on **every** verdict. `commit-session` stages an explicit
    list of **named paths** (source, tests, `PRD.md`, `issues.json`, `report.md`, `build-state.json`,
@@ -123,7 +124,7 @@ each slice carrying its `acceptance_criteria` + `test_command`). There is **no g
   tracker contract, which names the server, the repository, the work-item scope and every role.
 - Archon ≥ 0.7.0 ([ADR-0033](../adr/0033-archon-070-schema-target.md)). `/build` needs Archon ≥ 0.10.0,
   because `evidence` reads the pre-check through a script node's `with:` bindings
-  ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). On an older engine that loads the Box, the binding does not arrive, so every build ends `unresolved`.
+  ([ADR-0034](../adr/0034-evidence-gate-deterministic-writer.md)). On an older engine the binding does not arrive, so no build ends `pass`. Whether such an engine loads the Box at all is not measured.
 
 ## Runs
 
