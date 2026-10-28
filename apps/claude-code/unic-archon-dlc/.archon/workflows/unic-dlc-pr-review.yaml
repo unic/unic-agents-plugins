@@ -489,7 +489,8 @@ nodes:
       section. synthesize renders `spec_report` as the Intent Check section, which is how AC-coverage
       survives the collapse of the old intent-check node.
       Set `subagents_ran` to true when at least one review sub-agent ran, and to false otherwise.
-      `reconcile` reads it to decide whether the summary may say that a sub-agent ran a check.
+      `reconcile` reads it to decide whether the checks block says that a review sub-agent may still
+      have run a check on its own.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else (not one axis, not seven aspects): print
@@ -729,9 +730,10 @@ nodes:
       5b. Fill the "Checks this review was not asked to run" block. It is a block of its own, in the
          frame above every finding, and it is present in EVERY iteration, so a reader skimming for
          severity cannot pass over it. Read `reported_checks` and `subagents_ran` from
-         SESSION/findings/review.json. When the file is missing or cannot be parsed, treat
-         `reported_checks` as empty and `subagents_ran` as false. Treat a missing field the same way.
-         A missing report is never a sub-agent's claim. Then write these parts, in this order:
+         SESSION/findings/review.json. When the file is missing or cannot be parsed, or lacks
+         `subagents_ran` or `reported_checks`, the report is **unreadable**. Then treat
+         `reported_checks` as empty and keep the sentence on sub-agents below. An unreadable report is
+         never a sub-agent's claim. Then write these parts, in this order:
            - **This Box instructed none of the project's declared checks**, so nothing in this review
              verifies a claim that a build, lint, type-check or test passes. That is deliberate,
              because running a check against a claim is a Method's procedure, not this Harness's
@@ -739,9 +741,14 @@ nodes:
            - Which **checks** the project declares. Name the keys of `$bootstrap.output.sdlc_needs`
              whose value is set, `install` excluded. Leave `install` out of that sentence. This Box
              does run it, and the last line reports what happened. Name the keys, never their values,
-             because the command is the project's business and this Box names no tool.
-           - When `subagents_ran` is true, say that a review sub-agent may still have run one of them
-             on its own. When it is false, no sub-agent ran, so leave this sentence out.
+             because the command is the project's business and this Box names no tool. When no key
+             other than `install` is set, write that the project declares no check.
+           - Say that a review sub-agent may still have run one of them on its own, or, when the
+             project declares no check, that a review sub-agent may still have run a check on its
+             own. Leave this sentence out only when the file says `subagents_ran: false`, because
+             then no sub-agent ran.
+           - When the report is unreadable, say in one line that `review` left no readable report of
+             what its sub-agents ran.
            - One line per entry of `reported_checks`, as a claim of the sub-agent that names the need
              and the outcome, never the command. For example, "The Standards review sub-agent
              reported that it ran `typecheck` and that it passed. This Box did not run or verify it."

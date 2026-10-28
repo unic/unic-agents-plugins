@@ -90,12 +90,16 @@ precondition** — intent is composed from whatever sources resolve.
    finding that has retired stays retired on later iterations. `prep` reads it as fixed when the prior
    summary does not show its hash and its thread is resolved or carries a `fixed` reply marker.
    Above every finding, in every iteration, the summary carries the block "Checks this review was not
-   asked to run". It states that this Box instructed none of the project's declared checks, so nothing
-   in the review verifies a claim that a build, lint, type-check or test passes. It names the declared
-   `sdlc_needs` keys, `install` excluded, by key and never by value. When `subagents_ran` is true, it
-   says that one of them may still have run a check on its own. It renders each `reported_checks` entry
-   as that sub-agent's claim, naming the need and the outcome and never the command, and it ends with
-   `bootstrap`'s install report, verbatim. A missing `review.json` reads as no report. It states what the Box instructed, not what ran
+   asked to run". The block states that this Box instructed none of the project's declared checks, so
+   nothing in the review verifies a claim that a build, lint, type-check or test passes. It names the
+   declared `sdlc_needs` keys, `install` excluded, by key and never by value, or says that the project
+   declares no check. It says that a review sub-agent may still have run one of them on its own, and
+   leaves that sentence out only when `review.json` says `subagents_ran: false`. It renders each
+   `reported_checks` entry as that sub-agent's claim, naming the need and the outcome and never the
+   command, and it ends with `bootstrap`'s install report, verbatim. When `reconcile` cannot read
+   `review.json`, or the file lacks `subagents_ran` or `reported_checks`, the block keeps the sentence
+   on sub-agents, renders no reported check, and says that `review` left no readable report of what its
+   sub-agents ran. The block states what the Box instructed, not what ran
    ([ADR-0037](../adr/0037-config-declares-sdlc-needs.md) §8).
 
 6. **review-gate** — **HITL by default** (`gates.pr-review`); skipped in AFK. Shows the composed summary,
