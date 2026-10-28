@@ -160,12 +160,12 @@ slices. A new conversation starts `/tickets` with only the PRD.
 The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/`
 ([ADR-0011](docs/adr/0011-archon-schema-target.md)):
 
-| Workflow                                                                                      | Node pipeline                                                                                                                                                                                     |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unic-dlc-build` ([diagram](docs/architecture/20260925-unic-dlc-build-pipeline.html))         | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → open-pr → build-pr-gate ✓`                                    |
-| `unic-dlc-pr-review` ([diagram](docs/architecture/20260925-unic-dlc-pr-review-pipeline.html)) | `bootstrap → guard-not-ready → prep → guard-no-diff-base → review → synthesize → reconcile → review-gate ✓ → post`                                                                                |
-| `unic-dlc-qa` ([diagram](docs/architecture/20260925-unic-dlc-qa-pipeline.html))               | `bootstrap → guard-not-ready → pr-check → guard-no-open-pr → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → guard-not-mergeable → merge-gate ✓ → merge → guard-not-merged` |
-| `unic-dlc-explore` ([diagram](docs/architecture/20260925-unic-dlc-explore-pipeline.html))     | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike`       |
+| Workflow                                                                                      | Node pipeline                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unic-dlc-build` ([diagram](docs/architecture/20260925-unic-dlc-build-pipeline.html))         | `bootstrap → guard-not-ready → slopcheck → run-build → implement-review-precheck → verification → goals-check → evidence → report → commit-session → push-branch → {guard-not-pass · open-pr → build-pr-gate ✓}` |
+| `unic-dlc-pr-review` ([diagram](docs/architecture/20260925-unic-dlc-pr-review-pipeline.html)) | `bootstrap → guard-not-ready → prep → guard-no-diff-base → review → synthesize → reconcile → review-gate ✓ → post`                                                                                               |
+| `unic-dlc-qa` ([diagram](docs/architecture/20260925-unic-dlc-qa-pipeline.html))               | `bootstrap → guard-not-ready → pr-check → guard-no-open-pr → test → e2e → coverage-gate → uat-prep → uat-gate ✓ → verify-pr-base → guard-not-mergeable → merge-gate ✓ → merge → guard-not-merged`                |
+| `unic-dlc-explore` ([diagram](docs/architecture/20260925-unic-dlc-explore-pipeline.html))     | `bootstrap → guard-not-ready → {research-stack · research-features · research-architecture · research-pitfalls} → synthesize → spike → spike-ticket → spike-branch-gate ✓ → preserve-spike`                      |
 
 > **✓** = config-gated `approval:` node — it pauses for a human when the box's gate is `hitl` and
 > auto-proceeds when `afk` (ADR-0017). Parallel nodes are shown in `{…}`.
@@ -174,9 +174,11 @@ The Archon boxes ship as key-discriminated workflow YAMLs in `.archon/workflows/
 > own two parallel sub-agents (Standards · Spec) **inside one node**, so their parallelism does not appear
 > in the DAG (ADR-0026 §8).
 >
-> `evidence` writes `$ARTIFACTS_DIR/evidence.json` only when `verification` and `goals-check` both report
-> `passed: true` — the workflow-level `evidence_policy: { required: true }` fails the run closed otherwise
-> (ADR-0034).
+> `evidence` writes `$ARTIFACTS_DIR/evidence.json` on every verdict. The verdict is `pass` only when
+> `verification` and `goals-check` both report `passed: true` and the test outcome is `pass`. Only then
+> does `open-pr` run; any other verdict reaches `guard-not-pass`, which cancels the run with the work on
+> the pushed branch (ADR-0034, ADR-0040). `{guard-not-pass · open-pr}` are siblings, and the verdict picks
+> one.
 
 Each workflow name links its pipeline diagram, made with Archify from the workflow YAML. Its source
 JSON sits alongside. Each diagram shows the nodes in run order, the nodes that run in parallel, each
@@ -468,7 +470,7 @@ workflows/
     ├── PRD.md           # /specs   — product requirements
     ├── issues.json      # /tickets — build-ready vertical slices + test commands
     ├── build-state.json # /build   — per-slice red/green progress
-    ├── evidence.json    # /build   — evidence set; present only when the build gate passed
+    ├── evidence.json    # /build   — evidence set; the verdict and its failures, on every verdict
     ├── report.md        # /build   — build outcomes
     └── arch-review.md   # /improve-architecture — drift analysis
 ```

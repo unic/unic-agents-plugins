@@ -18,8 +18,8 @@ interactive: true
 
 # The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists. The
 # `evidence` node below is the only writer, and it writes the file on every verdict, so this
-# policy no longer refuses a red run. It is a backstop for one case: `evidence` failing before it
-# writes. The verdict decides how the run ends, at guard-not-pass and open-pr (ADR-0034, ADR-0040).
+# policy no longer refuses a red run. It is a backstop for `evidence` ending without writing the
+# file. The verdict decides how the run ends, at guard-not-pass and open-pr (ADR-0034, ADR-0040).
 evidence_policy:
   required: true
 
@@ -689,7 +689,7 @@ nodes:
       console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
       if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
 
-      // Written on EVERY verdict, so the file the engine demands says what failed: the two failure
+      // Written on EVERY verdict, so the file the engine demands says what failed. The two failure
       // arrays are the reason for a `fail`, and `test_outcome` with `unresolved_needs` is the reason
       // for an `unresolved`. Never return before this write (ADR-0040).
       const evidence = {
@@ -756,7 +756,7 @@ nodes:
     allowed_tools: [Read, Bash]
     prompt: |
       You are the commit-session node of /build for slug "$bootstrap.output.slug". You stage and
-      commit. You do not push and you do not open a pull request: push-branch pushes, and open-pr
+      commit. You do not push and you do not open a pull request. push-branch pushes, and open-pr
       opens the pull request only on a "pass" verdict.
 
       Constants:
@@ -819,7 +819,7 @@ nodes:
   # ---------------------------------------------------------------------------------------------
   # guard-not-pass — the sibling of open-pr. Its `when` is the exact negation of open-pr's, and both
   # compare the verdict with 'pass' only, so `fail` and `unresolved` both end here and no third
-  # branch exists. It opens no pull request and writes nothing to the tracker: it ends the run
+  # branch exists. It opens no pull request and writes nothing to the tracker. It ends the run
   # `cancelled`, with the work already on the branch push-branch pushed (ADR-0040).
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-pass
