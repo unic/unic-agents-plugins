@@ -5,18 +5,18 @@ description: >
   spike ticket → optionally preserve the spike code on a branch. findings.md is the /specs baton: its
   Integrated Brief carries three named lenses (Domain Model / Established Decisions / Prior Research)
   that /specs' load-context reads verbatim. Never required; a precursor to /specs, off the main line
-  (PLAN decision #3/#8). Ported to the key-discriminated node schema (ADR-0011); self-contained prompt
-  nodes, no plugin-lib import (ADR-0023 §5); artefacts at <artifacts_dir>/<slug>/ (ADR-0015). Interactive
+  (PLAN decision #3/#8). Ported to the key-discriminated node schema; self-contained prompt
+  nodes, no plugin-lib import; artefacts at <artifacts_dir>/<slug>/. Interactive
   prototyping stays Matt's /prototype skill (referenced, never invoked — nodes have no live
-  conversation). See ADR-0029.
+  conversation).
 
-# Required at the workflow level so the spike-branch approval message reaches the user (ADR-0011).
+# Required at the workflow level so the spike-branch approval message reaches the user.
 interactive: true
 
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config. A prompt node (NOT a script) so it needs
-  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT (ADR-0023 §5): the agent reads
+  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT: the agent reads
   # .archon/unic-dlc.config.yaml with its own tools. No PRD precondition — /explore WRITES findings.md,
   # it is not a consumer of a prior baton.
   # ---------------------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ nodes:
       required: [status, slug, artifacts_dir, gate, branching, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
+  # guard — expected precondition failures cancel cleanly. One guard,
   # because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
@@ -89,8 +89,8 @@ nodes:
       Goal: understand the technology stack of this project.
 
       Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -126,8 +126,8 @@ nodes:
       Goal: identify the key features and capabilities of this project.
 
       Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -166,8 +166,8 @@ nodes:
       Goal: understand the structural and architectural decisions of this project.
 
       Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -192,7 +192,7 @@ nodes:
       required: [findings]
 
   # ---------------------------------------------------------------------------------------------
-  # research-pitfalls — parallel research dimension 4 of 4. (HANDOFF.md is retired — ADR-0013 — so it
+  # research-pitfalls — parallel research dimension 4 of 4. (HANDOFF.md is retired, so it
   # is no longer a source here.)
   # ---------------------------------------------------------------------------------------------
   - id: research-pitfalls
@@ -206,8 +206,8 @@ nodes:
       Goal: surface known pitfalls, edge cases, and areas of technical debt.
 
       Read `.archon/methods/research/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If it is missing that is FATAL for this node:
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If it is missing that is FATAL for this node:
       print "research Method not found at .archon/methods/research/SKILL.md — run
       /unic-archon-dlc:setup" and stop. The Method opens by spinning up a background agent to do the
       reading; this node's own fresh-context execution IS that agent, so do not spawn another. Apply its
@@ -231,9 +231,9 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # synthesize — depends on all four research nodes; writes <artifacts_dir>/<slug>/findings.md directly
-  # with the Write tool (ADR-0023 §5 — no findings-writer lib). The Integrated Brief is written as THREE
+  # with the Write tool (no findings-writer lib). The Integrated Brief is written as THREE
   # explicitly-named lenses (Domain Model / Established Decisions / Prior Research) that /specs'
-  # load-context reads verbatim (ADR-0029) — this is the /explore → /specs contract.
+  # load-context reads verbatim — this is the /explore → /specs contract.
   # ---------------------------------------------------------------------------------------------
   - id: synthesize
     depends_on: [research-stack, research-features, research-architecture, research-pitfalls]
@@ -296,8 +296,8 @@ nodes:
   # spike — one AFK experiment pass. Build/measure a throwaway experiment where AFK-feasible, else
   # reason it through; assign exactly one verdict per unknown and APPEND a "## Spike verdicts" section
   # to findings.md (Edit/Write — no spike-verdicts lib). Interactive prototyping is NOT done here — it
-  # is Matt's /prototype skill, which needs a live conversation and so cannot run in an Archon node
-  # (ADR-0017/0029). This node only references it.
+  # is Matt's /prototype skill, which needs a live conversation and so cannot run in an Archon node.
+  # This node only references it.
   # ---------------------------------------------------------------------------------------------
   - id: spike
     depends_on: [synthesize]
@@ -351,7 +351,7 @@ nodes:
   # durable output survives a "discard" (the approval schema only supports on_reject, which
   # cancels/reworks — it never proceeds past a reject). Reads the tracker contract at
   # docs/agents/issue-tracker.md and docs/agents/triage-labels.md, which is where every host word
-  # lives (ADR-0024, amended).
+  # lives.
   # ---------------------------------------------------------------------------------------------
   - id: spike-ticket
     depends_on: [spike]
@@ -371,7 +371,7 @@ nodes:
       - **Access** — `issue-tracker.md` § Access names the MCP server or skill that serves this
         tracker. Read that server's own current tool list and build every call from it. Write no
         command, subcommand or flag here and name no provider: the DLC owns the what and none of the
-        how (ADR-0016), and a flag table frozen in this file is stale the moment the tool changes.
+        how, and a flag table frozen in this file is stale the moment the tool changes.
       - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
         explicitly in every call, and derive nothing from a remote URL.
       - **Work-item scope** — its § Work-item scope names the one filter every search applies. Apply

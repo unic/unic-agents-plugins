@@ -9,17 +9,17 @@ description: >
   after a config-gated human confirm — posts/updates one structured summary discussion plus per-line
   discussions on the current PR, through the tracker its contract at `docs/agents/issue-tracker.md`
   names. Harvests unic-pr-review's review
-  learnings without its host-specific code or any dependency (ADR-0016/0017). Ported to the key-discriminated node
-  schema (ADR-0011); inherits /build's self-contained-node conventions (ADR-0023 §5). This Box holds the
-  only posting authority in the lifecycle. See ADR-0026, ADR-0030, ADR-0031.
+  learnings without its host-specific code or any dependency. Ported to the key-discriminated node
+  schema; inherits /build's self-contained-node conventions. This Box holds the
+  only posting authority in the lifecycle.
 
-# Required at the workflow level so the review-gate approval message reaches the user (ADR-0011).
+# Required at the workflow level so the review-gate approval message reaches the user.
 interactive: true
 
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config. A prompt node (NOT a script) so it needs
-  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT (ADR-0023 §5): it reads .archon/unic-dlc.config.yaml
+  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT. It reads .archon/unic-dlc.config.yaml
   # with its own tools. Posting is AFK-safe; the human checkpoint here is the review-gate, and the real
   # merge gate lives in /qa.
   # ---------------------------------------------------------------------------------------------
@@ -62,11 +62,11 @@ nodes:
       arrives null stays null. What happens next depends on the node: one that wants that need reports
       an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
       a command — a guessed command reports a result that means nothing.
-      **This Box runs no build, lint, type-check or test command by instruction** (ADR-0037 §8). It
+      **This Box runs no build, lint, type-check or test command by instruction**. It
       carries the block so that `reconcile` can tell the reader which checks the project declares and
       that this Box instructed none of them. `install` is the exception and is not a check. You run it
       below, once, because a sub-agent that decides on its own that it needs to run something should
-      fail on that decision rather than on which worktree the run drew (ADR-0037 §6).
+      fail on that decision rather than on which worktree the run drew.
 
       ## Install once, and say what you did
       One Archon worktree serves this whole run and may or may not already carry this project's
@@ -123,7 +123,7 @@ nodes:
       required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, sdlc_needs, install_report, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
+  # guard — expected precondition failures cancel cleanly. One guard,
   # because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
@@ -138,12 +138,12 @@ nodes:
   # prep — the shared context builder. Identifies the open PR, computes the diff, categorises the
   # changed files, composes ONE Intent Brief from every available source, detects the prior review
   # iteration, and writes everything to <artifacts_dir>/<slug>/pr-review/ so the review node reads it
-  # off disk (fresh nodes share no memory — ADR-0012/0015). Composing intent once and injecting it into
-  # both review axes is the primary quality lever (ADR-0026): each axis judges the diff against what the
+  # off disk (fresh nodes share no memory). Composing intent once and injecting it into
+  # both review axes is the primary quality lever, because each axis judges the diff against what the
   # PR is SUPPOSED to do.
   #
   # The five changed-file category booleans no longer gate node spawning — the seven conditionally
-  # spawned aspect nodes collapsed into one always-running `review` node (#281). They stay because they
+  # spawned aspect nodes collapsed into one always-running `review` node. They stay because they
   # are durable diff metadata in prep.json that a reader (and a future spawn decision) can use; nothing
   # reads them today. Retire them or find them a consumer in a follow-up, not in a rewiring slice.
   # ---------------------------------------------------------------------------------------------
@@ -166,7 +166,7 @@ nodes:
       tracker contract. This node needs the first. Read it before the first tracker call.
       - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
         server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag here and name no provider: the DLC owns the what and none of the how, and a
         flag table frozen in this file is stale the moment the tool changes.
       - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
         explicitly in every call, and derive nothing from a remote URL.
@@ -342,9 +342,9 @@ nodes:
   # and upstream now maintains. The Method implements its own parallelism — its step 4 spawns two
   # sub-agents — so the Harness delegating to it is the whole point: nothing about running two
   # sub-agents needs the Harness, and re-implementing step 4 as two Archon nodes is the exact defect
-  # ADR-0030's structural bar forbids. The Harness keeps what no Method supplies: the Intent Brief,
-  # the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces
-  # (#281, amending ADR-0026).
+  # to avoid, because a Harness node exists only for what no Method can supply. The Harness keeps
+  # what no Method supplies: the Intent Brief,
+  # the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces.
   #
   # The finding contract lives in the node's own prompt below, under "## The finding contract". A YAML
   # comment is not part of a prompt, so a rule stated only here is invisible at run time. Every rule
@@ -387,8 +387,8 @@ nodes:
       and `reconcile` tell the two apart.
 
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If the file is missing that
       is FATAL for this node: print "code-review Method not found at
       .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup", write
       SESSION/findings/review.json as the stop rule above says, and stop. Do not review from
@@ -410,13 +410,13 @@ nodes:
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
         applies.** `/unic-archon-dlc:setup` owns that file and `docs/agents/triage-labels.md`, and
         `setup-matt-pocock-skills` is not a Plugin dependency — a run writes another host's template over
-        the first and reverts the second to a five-role vocabulary (ADR-0024). Never run it.
+        the first and reverts the second to a five-role vocabulary. Never run it.
 
       Then steps 3–5 verbatim:
       - Step 3: gather this repo's standards sources (CLAUDE.md / AGENTS.md / CONTRIBUTING.md /
         CODING_STANDARDS.md — whatever exists) and take the Method's twelve-item Fowler smell baseline
         as written. This baseline is where refactoring now lives: /build's loop has no REFACTOR phase,
-        because `tdd` puts refactoring in the review stage (#281).
+        because `tdd` puts refactoring in the review stage.
       - Step 4: send ONE message with two `Agent` tool calls, `general-purpose` subagent for both.
         **Paste the twelve-item smell baseline IN FULL into the Standards sub-agent's prompt** — step 4
         is explicit that the sub-agent has no other access to it, and an abridged paste silently
@@ -642,7 +642,7 @@ nodes:
          then the one whose `anchored` is "true", then the lexically smallest hash. A prior finding you
          did not pick stays unmatched, and the rule for an unmatched prior below gives its verdict.
          Two one-off notes cover the prior iterations already live on real pull requests:
-           - A prior iteration posted before #281 carries the retired seven aspect names (code-quality,
+           - A prior iteration posted by an earlier version of this Box carries the retired seven aspect names (code-quality,
              tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where this run
              carries "standards" / "spec". Match those on semantic title alone, ignoring the aspect, so
              the first re-review after the rewiring does not report every finding as new.
@@ -770,8 +770,7 @@ nodes:
          never a sub-agent's claim. Then write these parts, in this order:
            - **This Box instructed none of the project's declared checks**, so nothing in this review
              verifies a claim that a build, lint, type-check or test passes. That is deliberate,
-             because running a check against a claim is a Method's procedure, not this Harness's
-             (ADR-0030).
+             because running a check against a claim is a Method's procedure, not this Harness's.
            - Which **checks** the project declares. Name the keys of `$bootstrap.output.sdlc_needs`
              whose value is set, `install` excluded. Leave `install` out of that sentence. This Box
              does run it, and the last line reports what happened. Name the keys, never their values,
@@ -931,7 +930,7 @@ nodes:
       writes a review — so read it before the first call.
       - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
         server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), a flag
+        flag here and name no provider: the DLC owns the what and none of the how, a flag
         table frozen in this file is stale the moment the tool changes, and inventing a subcommand is
         the one defect no test without a live tenant can catch. Ask what the tracker supports; do not
         assume.
