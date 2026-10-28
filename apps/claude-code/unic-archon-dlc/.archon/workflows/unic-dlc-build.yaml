@@ -755,7 +755,7 @@ nodes:
         try {
           return JSON.parse(text)
         } catch (err) {
-          readErrors.push(`${name} is not JSON (${err.message})`)
+          readErrors.push(`${name} is not JSON (${err.message}). Its text is ${text}`)
           return undefined
         }
       }
