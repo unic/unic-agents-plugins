@@ -249,7 +249,8 @@ installed.
   built.
 
 **The Boxes.** Install every `unic-dlc-*.yaml` this Plugin ships into `.archon/workflows/`, discovered by
-reading the Plugin's own `.archon/workflows/` — no Box name is a literal in this file.
+reading the Plugin's own `.archon/workflows/`. The install takes no Box name from this file. Only the
+`CLAUDE.md` block below lists the Boxes by name.
 
 Install is **name-scoped, never a whole-directory replace**: `.archon/workflows/` is shared with the
 Consumer's own workflows, so only names matching `unic-dlc-*.yaml` are read, written, overwritten or swept.
@@ -446,20 +447,25 @@ anything between the markers is replaced on the next run.
   a Method, edit the file there and expect the next run to overwrite it.
 - **What each box does**:
   - `unic-dlc-explore` researches a topic in parallel, writes `findings.md` for `/specs` and runs one
-    spike. It is optional.
+    spike. It is optional. It offers to keep the spike code on a branch only when `gates.explore` is
+    `hitl`.
   - `unic-dlc-build` implements each slice in `issues.json` test-first, then verifies, pushes, and
-    opens a PR when the verdict is `pass`.
+    opens a PR when the verdict is `pass`. It pauses for a human to review that PR only when
+    `gates.build` is `hitl`.
   - `unic-dlc-pr-review` reviews a PR against the repository's standards and the linked work items,
     and posts the findings. It asks a human to confirm first only when `gates.pr-review` is `hitl`.
-  - `unic-dlc-qa` runs the tests, e2e and coverage checks and merges the PR. It asks for UAT sign-off
-    and a merge confirmation only when `gates.qa` is `hitl`. It files a UAT defect as an agent-ready
+  - `unic-dlc-qa` runs the tests, e2e and coverage checks, and merges the PR only when the tests pass,
+    no other check fails, and the PR is open against the right base. It asks for UAT sign-off and a
+    merge confirmation only when `gates.qa` is `hitl`. It files a UAT defect as an agent-ready
     tracker item.
 
 <!-- unic-dlc:end -->
 ```
 
-The block names one command, `/unic-archon-dlc:setup`, and no pipeline stage: a Plugin release renames and
-reorders both without touching this repository. Everything it carries is a path the reader can open, a
+The block names one command, `/unic-archon-dlc:setup`, and one hand-kept line per Box. `/setup` rewrites
+the block on every run, so a Box renamed or dropped in a Plugin release reaches this repository on its
+next run. A Plugin change that adds, renames or drops a Box changes that list in the same pull request.
+Everything it carries is a path the reader can open, a
 command they can run, or a line that says what a Box does.
 
 ### The formatter exclusions
