@@ -246,7 +246,7 @@
       "id": "precheck-evidence",
       "from": "implement-review-precheck",
       "to": "evidence",
-      "label": "hard findings",
+      "label": "pre-check verdict",
       "variant": "dashed",
       "fromSide": "right",
       "toSide": "top",
@@ -302,7 +302,7 @@
       "title": "Evidence gate",
       "items": [
         "evidence writes evidence.json on every verdict",
-        "evidence reads the pre-check: a hard finding is fail, and a pre-check that did not run is unresolved",
+        "evidence reads the pre-check. A hard finding is fail, and a pre-check that did not run is unresolved when nothing else failed",
         "report, commit-session and push-branch run on every verdict, so a red build still reaches its branch",
         "open-pr runs only on a pass, and guard-not-pass cancels the run on any other verdict",
         "A failed push ends the run failed, and evidence_policy is only a backstop"

@@ -5171,7 +5171,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <path data-edge-from="verification" data-edge-to="goals-check" data-edge-key="5" data-edge-id="to-goals" data-composition-points="450,214;530,214" d="M 450 214 L 530 214" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="goals-check" data-edge-to="evidence" data-edge-key="6" data-edge-id="to-evidence" data-composition-points="720,214;800,214" d="M 720 214 L 800 214" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="verification" data-edge-to="evidence" data-edge-key="7" data-edge-id="verification-evidence" data-composition-points="355,190;355,178;895,178;895,190" d="M 355 190 L 355 184 Q 355 178 361 178 L 889 178 Q 895 178 895 184 L 895 190" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="implement-review-precheck" data-edge-to="evidence" data-edge-label="hard findings" data-edge-key="8" data-edge-id="precheck-evidence" data-composition-points="1260,64;1290,64;1290,158;895,158;895,190" d="M 1260 64 L 1282 64 Q 1290 64 1290 72 L 1290 150 Q 1290 158 1282 158 L 903 158 Q 895 158 895 166 L 895 190" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="implement-review-precheck" data-edge-to="evidence" data-edge-label="pre-check verdict" data-edge-key="8" data-edge-id="precheck-evidence" data-composition-points="1260,64;1290,64;1290,158;895,158;895,190" d="M 1260 64 L 1282 64 Q 1290 64 1290 72 L 1290 150 Q 1290 158 1282 158 L 903 158 Q 895 158 895 166 L 895 190" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="evidence" data-edge-to="report" data-edge-label="any verdict" data-edge-key="9" data-edge-id="to-report" data-composition-points="990,214;1070,214" d="M 990 214 L 1070 214" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="report" data-edge-to="commit-session" data-edge-key="10" data-edge-id="to-commit" data-composition-points="1165,238;1165,288;355,288;355,340" d="M 1165 238 L 1165 280 Q 1165 288 1157 288 L 363 288 Q 355 288 355 296 L 355 340" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="commit-session" data-edge-to="push-branch" data-edge-key="11" data-edge-id="to-push" data-composition-points="450,364;530,364" d="M 450 364 L 530 364" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
@@ -5364,9 +5364,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 
 
-        <g data-detail="context" data-edge-from="implement-review-precheck" data-edge-to="evidence" data-edge-label="hard findings" data-edge-key="8" data-edge-id="precheck-evidence">
-          <rect x="1193.8" y="148" width="72.4" height="14" rx="3" class="c-mask"/>
-          <text x="1230" y="158" class="t-messagebus" font-size="8" text-anchor="middle">hard findings</text>
+        <g data-detail="context" data-edge-from="implement-review-precheck" data-edge-to="evidence" data-edge-label="pre-check verdict" data-edge-key="8" data-edge-id="precheck-evidence">
+          <rect x="1184.2" y="148" width="91.6" height="14" rx="3" class="c-mask"/>
+          <text x="1230" y="158" class="t-messagebus" font-size="8" text-anchor="middle">pre-check verdict</text>
         </g>
         <g data-detail="context" data-edge-from="evidence" data-edge-to="report" data-edge-label="any verdict" data-edge-key="9" data-edge-id="to-report">
           <rect x="998.6" y="194" width="62.8" height="14" rx="3" class="c-mask"/>
@@ -5616,7 +5616,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>&bull; evidence writes evidence.json on every verdict</li>
-          <li>&bull; evidence reads the pre-check: a hard finding is fail, and a pre-check that did not run is unresolved</li>
+          <li>&bull; evidence reads the pre-check. A hard finding is fail, and a pre-check that did not run is unresolved when nothing else failed</li>
           <li>&bull; report, commit-session and push-branch run on every verdict, so a red build still reaches its branch</li>
           <li>&bull; open-pr runs only on a pass, and guard-not-pass cancels the run on any other verdict</li>
           <li>&bull; A failed push ends the run failed, and evidence_policy is only a backstop</li>
