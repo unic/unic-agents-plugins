@@ -9,7 +9,8 @@
   },
   "enabledPlugins": {
     "ponytail@ponytail": true,
-    "pr-review-toolkit@claude-plugins-official": true
+    "pr-review-toolkit@claude-plugins-official": true,
+    "unic-learning-loop@unic-agent-plugins": true
   },
   "permissions": {
     "allow": [
