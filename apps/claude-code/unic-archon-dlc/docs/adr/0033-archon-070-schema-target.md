@@ -1,27 +1,6 @@
 # 0033. Archon 0.7.0 schema target — floor bump, `always_run`, sub-runs deferred
 
-**Status:** Accepted (2026-08-10); amended 2026-08-18 — see the note below; amended 2026-08-24 — `worktree.remote` measured on 0.7.0: read, and base-branch resolution only (#396). Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only — its key-discriminated schema conventions stand unchanged.
-
-> **Amended (2026-08-18):** § "Repository derivation: settled by #289, not reopened here" describes a
-> mechanism that no longer exists. This Harness derives no repository from a remote: each Box reads the
-> one `docs/agents/issue-tracker.md` § Addressing names, so there is nothing left to diverge from
-> Archon's own `worktree.remote` resolution. `/archon-upgrade` still classifies that algorithm
-> VERIFY-ONLY, on the new reason. See [ADR-0024](0024-triage-intake-on-ramp.md)'s 2026-08-18
-> amendment (#389).
-
-> **Amended (2026-08-24):** § "Where Archon's own remote resolution differs from this Harness's
-> derivation" described `worktree.remote` as present in 0.7.0 without anyone having measured it. It is
-> measured now, by the behavioural probe `/archon-upgrade` Step 6 carries
-> ([#396](https://github.com/unic/unic-agents-plugins/issues/396)): on Archon 0.7.0 the key is **read**
-> — set to a second remote's name, the binary's own startup error names that remote as the one it
-> resolved the base branch against, where the control run naming no key says `origin`. Two limits on
-> that result. It belongs to 0.7.0 and to no other release, which is why the key is a claim Step 6
-> re-probes rather than a fact this ADR asserts. And it governs base-branch resolution only: in the
-> same run the workspace path still came out of `origin`, so `worktree.remote` does not steer the
-> `owner/repo` derivation — the shared `~/.archon/workspaces/_git/` directory every `dxp` repository
-> lands in is Archon reading the second-to-last URL segment as the organisation, an Archon defect
-> recorded on [#373](https://github.com/unic/unic-agents-plugins/issues/373), and this key is not its
-> fix.
+**Status:** Accepted (2026-08-10, revised 2026-10-28). Amends [ADR-0011](0011-archon-schema-target.md) on the version floor only. Its key-discriminated schema conventions stand unchanged.
 
 ## Context
 
@@ -43,17 +22,17 @@ Raise the floor to Archon ≥ 0.7.0 (`MIN_ARCHON_VERSION` in `lib/archon-check.m
 
 `always_run: true` is set on every node in `/build` and `/qa` whose exit code reports a verdict about EXTERNAL or MUTABLE state rather than about itself: `slopcheck`, `verification`, `goals-check`, `evidence` (build); `verify-pr-base`, `e2e`, `coverage-gate` (qa). Each carries an inline one-line comment naming the specific fact its exit code fails to validate — the same discipline [ADR-0023](0023-build-generic-red-green-refactor-loop.md) §5 already applies to provider knowledge: a Box node is self-contained, so a rule that lives only in this ADR is invisible at run time.
 
-Not every node gets it. `bootstrap`, `open-pr`, `report`, the `run-build` loop, and the various `guard-*`/`approval:` nodes are excluded: their exit code either IS the fact being asserted (a guard's `cancel`), or their output is durable committed state that a resume should not redundantly regenerate (`report.md`, the PR itself).
+Not every node gets it. `bootstrap`, `report`, `commit-session`, `push-branch`, `open-pr`, the `run-build` loop, and the various `guard-*`/`approval:` nodes are excluded: their exit code either IS the fact being asserted (a guard's `cancel`), or their output is durable committed state that a resume should not redundantly regenerate (`report.md`, the Session commit, the pushed branch, the PR itself). Since [ADR-0040](0040-build-verdict-decides-the-pull-request.md), `commit-session` and `push-branch` hold the commit `open-pr` used to make. `evidence` declares `always_run` and `commit-session` does not, so a resumed run re-runs `evidence` after the commit. `push-branch` refuses that run when the rewritten `evidence.json` differs from the committed one. Start a new run instead.
 
 ### Evidence gate: a script writes it, a prompt never does
 
-[ADR-0034](0034-evidence-gate-deterministic-writer.md) (companion, authored alongside this one) records the evidence gate's own shape: `unic-dlc-build.yaml` declares `evidence_policy: { required: true }`; `verification` and `goals-check` gain a boolean `output_format`; a new `evidence` script node deletes any stale `evidence.json` from a prior resumed attempt, writes `$ARTIFACTS_DIR/evidence.json` only when both verdicts are green, and mirrors it to `<artifacts_dir>/<slug>/evidence.json` (the Session-artifact home, [ADR-0015](0015-workflows-slug-artifact-home.md)) so it survives the worktree `/cleanup` prunes.
+[ADR-0034](0034-evidence-gate-deterministic-writer.md) (companion, authored alongside this one) records the evidence gate's own shape: `unic-dlc-build.yaml` declares `evidence_policy: { required: true }`; `verification` and `goals-check` gain a boolean `output_format`; a new `evidence` script node deletes any stale `evidence.json` from a prior resumed attempt, writes `$ARTIFACTS_DIR/evidence.json` (on every verdict since [ADR-0040](0040-build-verdict-decides-the-pull-request.md)), and mirrors it to `<artifacts_dir>/<slug>/evidence.json` (the Session-artifact home, [ADR-0015](0015-workflows-slug-artifact-home.md)) so it survives the worktree `/cleanup` prunes.
 
-### Repository derivation: settled by #289, not reopened here
+### Repository derivation: not this ADR's subject
 
-This bump does not touch repository derivation. Each Box derives its target repository from the worktree's `origin` remote in its `bootstrap` node ([ADR-0011](0011-archon-schema-target.md)'s cancel-vs-fail distinction governs the ambiguity guard); `project.repo_ref` is an optional override, absent from `MANDATORY_PATHS` and from `defaultConfig()`, and `/setup` does not ask for it or write it. A regression test asserts that absence so a later bump cannot quietly promote it. This ADR also does not change [ADR-0016](0016-dlc-thin-process-layer.md)'s explicit-staging rule.
+This bump does not touch repository derivation, and the Harness now derives no repository from a remote. Each Box reads the one `docs/agents/issue-tracker.md` § Addressing names, so nothing is left to diverge from Archon's own `worktree.remote` resolution ([ADR-0024](0024-triage-intake-on-ramp.md), #389). `/archon-upgrade` still classifies that algorithm VERIFY-ONLY. This ADR also does not change [ADR-0016](0016-dlc-thin-process-layer.md)'s explicit-staging rule.
 
-**Where Archon's own remote resolution differs from this Harness's derivation** (recorded deliberately, NOT re-aligned): Archon 0.7.0 carries a `worktree.remote` key in **its own** `.archon/config.yaml` — a different file from this plugin's `.archon/unic-dlc.config.yaml`, the exact naming trap [ADR-0015](0015-workflows-slug-artifact-home.md) already documents for `workflows/<slug>/` vs `.archon/workflows/` — plus auto-detection: `origin` if present → **the sole remote if only one is configured** → an actionable error only when neither resolves. This Harness's own `bootstrap` derivation has no "sole remote" fallback tier: it reads `origin` only, and treats a checkout with **no `origin` at all** as `ambiguous-repo` — cancelling — even when exactly one other remote exists and would have resolved unambiguously under Archon's own algorithm. This is deliberate, not a bug to fix here: widening the derivation to match Archon's fallback is a separate decision with its own blast radius, not a byproduct of the floor bump. `/setup` reports what Archon's config resolves and **never writes that file**.
+**What `worktree.remote` does on 0.7.0.** Archon 0.7.0 carries a `worktree.remote` key in **its own** `.archon/config.yaml`. That is a different file from this plugin's `.archon/unic-dlc.config.yaml`, the naming trap [ADR-0015](0015-workflows-slug-artifact-home.md) documents for `workflows/<slug>/` and `.archon/workflows/`. The behavioural probe that `/archon-upgrade` Step 6 carries measured the key ([#396](https://github.com/unic/unic-agents-plugins/issues/396)). On 0.7.0 the key is **read**, and it governs base-branch resolution only. Set to a second remote's name, the binary's startup error named that remote as the one it resolved the base branch against, where the control run said `origin`. In the same run the workspace path still came from `origin`, so the key does not steer the `owner/repo` derivation. The shared `~/.archon/workspaces/_git/` directory is an Archon defect recorded on [#373](https://github.com/unic/unic-agents-plugins/issues/373), and this key is not its fix. The result belongs to 0.7.0 only, so Step 6 re-probes it on each release. `/setup` reports what Archon's config resolves and **never writes that file**.
 
 ### Sub-runs (`workflow:` nodes): deferred, with the trigger to revisit
 

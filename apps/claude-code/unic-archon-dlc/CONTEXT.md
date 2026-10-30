@@ -11,7 +11,9 @@ Claude Code commands/skills for the interactive ones. Configured via the `/unic-
 slash command. See `docs/adr/0016`–`0018` for the two-axis architecture, `docs/adr/0014` for the box
 set, and `docs/adr/0030`–`0032` for the Harness/Method division.
 
-Requires the Archon workflow engine (version ≥ 0.7.0) in the target project.
+Requires the Archon workflow engine (version ≥ 0.7.0) in the target project. `/build` needs version
+≥ 0.10.0, because `evidence` reads the pre-check through a script node's `with:` bindings (ADR-0034).
+On an older engine the binding does not arrive, so no build ends `pass`. Whether such an engine loads the Box at all is not measured.
 
 ## Language
 
@@ -37,8 +39,10 @@ One step of the lifecycle. See `docs/adr/0030-harness-hosts-methods.md`.
 _Avoid_: step, stage, phase
 
 **Method**:
-The skill text a Box reads for procedure. See
-`docs/adr/0031-methods-bundled-three-tier-resolution.md`.
+The skill text a Box reads for procedure, by path from `.archon/methods/`. Only this plugin writes that
+tree. A skill under `.claude/skills/` is not a Method, even when a node names it in `skills:`. It is a
+context artefact. See `docs/adr/0031-methods-bundled-three-tier-resolution.md` and
+`docs/adr/0038-practice-packs-stack-by-prefix.md`.
 _Avoid_: skill (a Method is text the repository holds, not an installed skill), prompt, playbook
 
 **Bundle**:
@@ -51,13 +55,15 @@ A unit meant to be installed in a Consumer. It carries one family's way of worki
 reference architecture and procedure. A Consumer can run the DLC without one. Acceptance criteria and
 the shape of criteria in the PRD come from the Consumer, as
 [Is an untestable acceptance criterion refused by context, or by a change to /specs and /tickets?](https://github.com/unic/unic-agents-plugins/issues/551)
-decides. The maintainer's working model is that a Practice Pack carries context artefacts and config
-values only, never a Box or a Method. A Consumer can override a value that a Practice Pack sets, as
+decides. A Practice Pack carries context artefacts and config values only, never a Box or a Method. A
+skill it installs under `.claude/skills/` is a context artefact. It reaches a Box run through its own
+block in the Consumer's `CLAUDE.md`. Each Practice Pack has a unique prefix and brings its own installer,
+which touches only the names that carry that prefix, so several coexist in one Consumer. Once
+[Build the layered Practice Pack config](https://github.com/unic/unic-agents-plugins/issues/647) lands, a
+Practice Pack writes its config defaults to its own file. A Consumer can override a value that a
+Practice Pack sets, as
 [Does an e2e test become an outer loop around /build's unit TDD loop for a new feature?](https://github.com/unic/unic-agents-plugins/issues/541)
-decides. That model is open on
-[Practice Packs must stack](https://github.com/unic/unic-agents-plugins/issues/520), together with
-whether a skill under `.claude/skills/` counts as a context artefact, how a Practice Pack is installed,
-how it writes a config value, and how several coexist in one Consumer.
+decides. See `docs/adr/0038-practice-packs-stack-by-prefix.md`.
 _Avoid_: Pack, Method Bundle, plugin
 
 **System-skill**:
@@ -102,7 +108,7 @@ row naming the axis that carries it). A Box names a role and a file; it never na
 field or a provider. `/unic-archon-dlc:setup` owns both, and `setup-matt-pocock-skills` must never run
 over them. A section earns its place there only when it states a fact about this tenant — an MCP server
 discovers its own API, so writing operations down freezes a flag table in Markdown. See
-`docs/adr/0024-triage-intake-on-ramp.md` (amended 2026-08-18).
+`docs/adr/0024-triage-intake-on-ramp.md`.
 _Avoid_: repository derivation (deleted — nothing is derived from a remote), repo pinning, label
 mapping (`classification.labels` is gone), tracker config
 
@@ -266,14 +272,18 @@ _Avoid_: progress file, checkpoint
 **Evidence gate**:
 The workflow-level `evidence_policy: { required: true }` on `/build` that refuses terminal
 `completed` unless `$ARTIFACTS_DIR/evidence.json` exists. The engine checks file presence only;
-producing valid evidence is the `evidence` node's contract, never a prompt's. See
-`docs/adr/0034-evidence-gate-deterministic-writer.md`.
+producing valid evidence is the `evidence` node's contract, never a prompt's. `evidence` writes the
+file on every verdict. For `evidence` ending without writing, `push-branch` refuses a missing Session
+mirror, and this gate catches a committed mirror with no `$ARTIFACTS_DIR` copy. The verdict, not the
+file, decides whether a pull request opens. See
+`docs/adr/0034-evidence-gate-deterministic-writer.md` and
+`docs/adr/0040-build-verdict-decides-the-pull-request.md`.
 _Avoid_: verification gate, quality gate
 
 **Evidence set**:
 The Session-artifact mirror of the evidence gate's content, at `<artifacts_dir>/<slug>/evidence.json`
 — written by the same `evidence` node that satisfies the engine's presence check at
-`$ARTIFACTS_DIR/evidence.json`, so a reviewer (and `open-pr`, which stages it) can see what the gate
+`$ARTIFACTS_DIR/evidence.json`, so a reviewer (and `commit-session`, which stages it) can see what the gate
 saw after `/cleanup` prunes the worktree.
 _Avoid_: evidence.json (ambiguous — two files share the name at two different paths), evidence file
 
@@ -400,13 +410,13 @@ _Avoid_: review aspect, reviewer, agent, check
 ## Relationships
 
 - The **Harness** hosts **Methods**: a **Box** reads a Method for procedure, and a Box exists only for what no Method can supply (ADR-0030)
-- A **Method** is read at `.archon/methods/<name>/SKILL.md`, the one path **Setup** installs the **Bundle** into (ADR-0031, amended)
+- A **Method** is read at `.archon/methods/<name>/SKILL.md`, the one path **Setup** installs the **Bundle** into (ADR-0031)
 - **Configuration** carries parameters and a **Method** carries procedure, so wanting different method text means forking the Method rather than adding a config key (ADR-0032)
 - A **Session** is scoped by a **Slug** and produces **Findings**, a **PRD**, **Issues JSON**, `build-state.json`, and a build **report**, all under `<artifacts_dir>/<slug>/` (default `workflows/<slug>/`)
 - The **Nyquist map** gate — every issue carrying a `test_command` — runs in `/tickets` before `/build` consumes the build-ready `issues.json` (ADR-0022)
 - `/build` runs a generic **red → green** loop over each issue in `issues.json`; RED and GREEN run in **fresh-context** isolation so GREEN never sees RED's reasoning (ADR-0012 / ADR-0023 — no per-slice DAG codegen; `dag-builder` / `yaml-gen` are dissolved)
 - Refactoring is **not** in that loop: the `tdd` Method puts it in the review stage, so it reaches the code as `/pr-review`'s Standards **Review axis** and its Fowler smell baseline (ADR-0023 §7 / ADR-0026 §8)
-- A **Method** is read at one path, `.archon/methods/<name>/SKILL.md`, by every Box and every command alike — the team-source and Local-Method tiers are retired (#381), so there is no resolution order and no tier to report (ADR-0023 §5 / ADR-0031, amended)
+- A **Method** is read at one path, `.archon/methods/<name>/SKILL.md`, by every Box and every command alike — the team-source and Local-Method tiers are retired (#381), so there is no resolution order and no tier to report (ADR-0023 §5 / ADR-0031)
 - Within an issue, **green** depends on **red**; the loop processes issues in order on the current linear path
 - **adr-consolidation** (in `/improve-architecture`) sources candidates from the "Decisions Made" section of `report.md` and "Accept as ADR" items from **arch-review**
 - The **issue tracker** is the single source of truth for project state; there is no `HANDOFF.md`/`ROADMAP.md`

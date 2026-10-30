@@ -11,6 +11,113 @@
 ### Fixed
 - (none)
 
+## [0.36.1] — 2026-10-28
+
+### Breaking
+- (none)
+
+### Added
+- (none)
+
+### Fixed
+- The commands and the Boxes no longer refer back to this repository. A Consumer session could follow none of those references, and a copied Box read a Plugin ADR number as the Consumer's own ADR. Every link to a Plugin ADR, every citation of a Plugin ADR or issue by number, and every path in this repository is gone from `commands/` and `.archon/workflows/`. Where a command or a Box needed the rule behind a citation, it now states the rule. The steps that read the Consumer's own `docs/adr/` stay (#556).
+- `/setup` reads § Dependencies, § Configuration reference and § The tracker contract from `<installPath>/README.md`, and checks that the file is present. The block it writes into the Consumer's `CLAUDE.md` replaces the URL to this repository with one line per Box that says what the Box does (#556).
+- `/improve-architecture` picks the ADR home from the `docs/adr/` directories the Consumer already has and confirms it with the user. With none, it proposes the root `docs/adr/`. It no longer names this repository's layout (#556).
+- `/setup` stops when `<installPath>/README.md` lacks § Dependencies, § Configuration reference or § The tracker contract, and names the missing section. Without § Dependencies, the check for a missing Method passed with nothing to compare (#556).
+- The `CLAUDE.md` block says that `unic-dlc-pr-review` asks for a confirmation only when `gates.pr-review` is `hitl`, and that `unic-dlc-qa` asks for UAT sign-off and a merge confirmation only when `gates.qa` is `hitl`. It also says that `unic-dlc-build` pauses for PR review only when `gates.build` is `hitl`, that `unic-dlc-explore` offers to keep the spike code only when `gates.explore` is `hitl`, and that `unic-dlc-qa` merges only when the checks pass and the PR is open against the right base. `/setup` and `AGENTS.md` now say that the block lists the Boxes and that a pull request that adds, renames or drops a Box updates that list (#556).
+- `/archon-upgrade` ties DEFER to the locked precedents it states, and offers **file an issue** or **nothing** as the next step. It no longer asks the reader to cite or amend a Plugin ADR (#556).
+- The Plugin `README.md` turns every bare ADR citation into a link into its own `docs/adr/`, which resolves inside the installed Plugin (#556).
+
+## [0.36.0] — 2026-10-28
+
+### Breaking
+- (none)
+
+### Added
+- `/pr-review`'s `review` node writes a `reported_checks` array into `review.json`. Each entry is a check a review sub-agent reports having run, with its axis, the need it serves and the reported outcome. `review` records only commands that run the project's toolchain. It judges the need from what the command does, never from the command's text. It never records `install`. The array is empty when no sub-agent reported a check. `review.json` also carries `subagents_ran` and `blocked`. `reconcile` emits a `stopped` string, and the `review-gate` message shows it, so a stop no longer reads as a review with zero findings. `review` deletes the file an earlier iteration left before it starts, and every stop writes a new one (#660).
+
+### Fixed
+- `/pr-review`'s summary block said the review executed none of the declared checks, while a review sub-agent could run one on its own. `reconcile` now heads the block "Checks this review was not asked to run". The block states that the Box instructed none of the declared checks, says that a sub-agent may still have run one, and renders each reported check as that sub-agent's claim, by need and never by command. When `review.json` is missing or unreadable, the block keeps that warning and says that `review` left no readable report. `synthesize` states no check result as a fact, in "What's good" or elsewhere. A stopped review no longer reads as a clean one. `synthesize` renders a callout with the reason in place of the severity sections, and `reconcile` rules no prior finding `fixed`, so `post` resolves no thread from it. This release revises ADR-0037 §8 to match (#660).
+
+## [0.35.0] — 2026-10-28
+
+### Breaking
+- A `/build` run whose code-review pre-check reports a hard finding, or cannot run, used to end `pass` with a pull request open. It now ends `cancelled` with none. `evidence` reads the pre-check. A hard finding makes the verdict `fail`. A pre-check that is `blocked`, reports another status, or cannot be read makes it `unresolved` when nothing else failed (#483).
+- `implement-review-precheck` emits `status`, `blocked_reason`, `hard_findings` and `notes` beside `findings`, and all five fields are required. `evidence.json` carries them as `precheck_status`, `precheck_blocked_reason`, `hard_findings` and `precheck_notes` on every verdict, with `precheck_read_error` naming any field `evidence` could not read. Section 2 of `report.md` leads with the number of hard findings, and the pull request description lists the notes under `## Pre-check notes` (#483).
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.34.0] — 2026-10-28
+
+### Breaking
+- A `/build` run whose verdict is not `pass` used to end `failed` with a pull request open. It now ends `cancelled` and opens no pull request. An operator or a script that waited for a red pull request sees a different outcome (#439).
+- `evidence` writes `evidence.json` on every verdict. The file names the verdict and lists the failures that produced it (#439).
+- A new `commit-session` node stages and commits the work, and a new `push-branch` node pushes the branch, on every verdict. `push-branch` pushes to `origin`, and refuses an empty base branch, a detached HEAD, the run's base branch, and Session artefacts that are not committed, which includes a resumed run whose rewritten `evidence.json` differs from the committed one. A refusal or a failed push ends the run `failed` (#439).
+- `open-pr` runs only on a `pass` verdict and no longer stages or commits. On any other verdict, `guard-not-pass` cancels the run, and its message names the verdict, the pushed branch and the path of `report.md` on that branch (#439).
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.33.0] — 2026-10-27
+
+### Breaking
+- `/qa` runs that merged nothing used to end `completed`. They now end `cancelled`, with a message that names why. A `/qa` run now ends `completed` only after a merge it confirmed. A `cancelled` run either merged nothing or could not confirm the merge, and its message says which (#652).
+- A new `pr-check` node reads the PR state before any test runs. A branch whose PR is not open (`none`, `merged`, `closed` or `unknown`) cancels before `test` (#652).
+- `verify-pr-base` now reports `pr_state`. `base_ok` is no longer `"true"` when no PR exists (#652).
+- A test result other than `pass`, a red e2e or coverage gate, a PR that is not open, a wrong base or a failed base query cancels the run after `verify-pr-base`. The message joins every cause that held (#652).
+- `merge-gate` asks for approval only when `merge` would run (#652).
+- `merge` reports whether it merged. When it cannot confirm a merge, the run cancels with the reason (#652).
+- The `complete` line appears only after a merge that landed, and it names any item that did not take `resolved` (#652).
+
+### Added
+- (none)
+
+### Fixed
+- (none)
+
+## [0.32.0] — 2026-10-27
+
+### Breaking
+- `/pr-review`'s `reconcile` no longer emits `unverified_fixed`. It emits `unverified` instead, and the review gate and `post`'s closing line read the new count. A tool that reads `unverified_fixed` from a run must read `unverified` (#482).
+
+### Added
+- (none)
+
+### Fixed
+- `/pr-review` no longer marks a prior finding `fixed`, and resolves its thread, only because the next review did not report it. Every iteration now records the commit it reviewed in a hidden marker in its summary. A prior finding that the review omits is `fixed` only when its file changed between the prior iteration's head and this one. Otherwise it is `unverified`. `post` then replies once on its thread, asks the author to check it by hand, and leaves the thread's status as it is. When there is no usable prior head, every omitted finding is `unverified` and the summary says why. That happens when an older Box posted the prior iteration, or when the recorded head cannot be reached. `post` now reads each thread's status first and reopens a resolved thread whose finding is reported again, with a reply. Every reply carries a hidden marker with the finding's hash and its verdict, so a rerun after a `post` that failed halfway repeats no reply. A thread that this Box or an older Box resolved stays retired and gets no second "resolved" reply. `post` posts nothing when the session holds no summary for this run (#482).
+
+## [0.31.0] — 2026-10-21
+
+### Breaking
+- `/build`, `/pr-review` and `/qa` now read the run's base branch from Archon's `$BASE_BRANCH`, not from `project.branching`. Archon resolves it from `archon workflow run --base <branch>`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default branch. If your Archon base differs from the branch that `branching` implied, the Boxes now target the Archon base. `/build` opens its PR there, and `/qa` refuses to merge a PR that targets another branch. Run `/unic-archon-dlc:setup` and read its base line before your next run. `project.branching` now decides only whether `/qa` deletes the merged `feature/*` branch (ADR-0039, #505).
+- `/pr-review` takes its review diff from the merge-base with the PR's own target branch when the tracker returns a PR, and from `$BASE_BRANCH` when it does not. When the two differ, its summary carries a warning that names both. When the tracker query for the PR fails, or the diff base does not resolve after a fetch, the run cancels instead of reviewing a guessed diff (#505).
+
+### Added
+- (none)
+
+### Fixed
+- `/qa`'s `verify-pr-base` now sets `base_ok` to `false` when the tracker query fails, or when the tracker contract is missing or cannot address the repository, so `merge` refuses. Before, it treated those cases as an unverifiable base and let the merge through. It still passes when a query succeeds and confirms that no PR exists (#505).
+- `/build`'s stub scan diffs against `origin/$BASE_BRANCH` first and falls back to the local branch, so a base this clone has never checked out no longer fails the scan. Its code-review pre-check, like `/pr-review`'s `prep`, fetches the base into `origin/<branch>` with an explicit refspec before it takes the merge-base, so the ref resolves in a single-branch clone too (#505).
+
+## [0.30.0] — 2026-10-21
+
+### Breaking
+- `/setup` now writes its managed blocks, in the Consumer's `CLAUDE.md` and in each formatter ignore file, between `unic-dlc:begin` and `unic-dlc:end`. The old markers were `unic-archon-dlc:begin` and `unic-archon-dlc:end`. On its next run, `/setup` finds a block under the old markers, rewrites it in place under the new ones and reports the file as migrated, so a Consumer holds one block, never two. A tool or script outside this Plugin that searches for the old markers must change to the new ones (#520).
+
+### Added
+- ADR-0038 records how Practice Packs stack in one Consumer beside the DLC. Each installer owns only the names that carry its prefix, and `unic-dlc` is the DLC's prefix. A pack ships context artefacts and config values, never a Box or a Method. The DLC alone writes `.archon/methods/`. Config is layered, with the Consumer's file last. An `include:` slot is the decided, unbuilt route for a pack that must replace a Box step. ADR-0031, ADR-0024 and ADR-0013 point at it, and `CONTEXT.md` states the Practice Pack model as decided (#520).
+- `/setup` states that it touches no name carrying another prefix, in `.claude/skills/`, `.archon/packs/`, `CLAUDE.md` or a formatter ignore file. When it reports a retired Method override path, it also names ADR-0038 as where the route to replace a Box step is recorded (#520).
+
+### Fixed
+- (none)
+
 ## [0.29.0] — 2026-09-27
 
 ### Breaking

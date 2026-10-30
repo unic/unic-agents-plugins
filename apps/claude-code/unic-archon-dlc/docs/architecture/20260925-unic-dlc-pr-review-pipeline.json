@@ -30,6 +30,12 @@
         "note": "A run whose preconditions fail is cancelled before any review work."
       },
       {
+        "id": "no-diff-base",
+        "label": "No diff base",
+        "focus": ["prep", "guard-no-diff-base"],
+        "note": "When the tracker query fails or the diff base does not resolve after a fetch, guard-no-diff-base cancels the run before review."
+      },
+      {
         "id": "happy-path",
         "label": "Happy path",
         "focus": ["bootstrap", "prep", "review", "synthesize", "reconcile", "review-gate", "post"],
@@ -67,6 +73,14 @@
       "sublabel": "writes intent-brief.md",
       "pos": [600, 40],
       "size": [220, 48]
+    },
+    {
+      "id": "guard-no-diff-base",
+      "type": "external",
+      "label": "guard-no-diff-base",
+      "sublabel": "cancels the run",
+      "pos": [910, 40],
+      "size": [160, 48]
     },
     {
       "id": "review",
@@ -147,6 +161,13 @@
       "from": "bootstrap",
       "to": "guard-not-ready",
       "label": "not ready",
+      "variant": "security"
+    },
+    {
+      "id": "no-diff-base",
+      "from": "prep",
+      "to": "guard-no-diff-base",
+      "label": "no diff base",
       "variant": "security"
     },
     {

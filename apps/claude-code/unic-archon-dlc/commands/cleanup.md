@@ -5,25 +5,22 @@ description: 'Repo-global operational janitor: report (and, on explicit opt-in, 
 
 # unic-archon-dlc:cleanup
 
-> Design rationale: [ADR-0028 — `/cleanup` is the repo-global operational janitor](docs/adr/0028-cleanup-operational-janitor.md) (container per [ADR-0017](docs/adr/0017-container-follows-structural-need.md); compose-don't-reimplement per [ADR-0016](docs/adr/0016-dlc-thin-process-layer.md); tracker is the single source of truth per [ADR-0013](docs/adr/0013-tracker-single-source-of-truth.md); artifact home per [ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md)).
-
 **Arguments:** "$ARGUMENTS"
 
 `/cleanup` is the **off-line operational janitor**: it prunes the debris an Archon-driven lifecycle
 accumulates — **merged/stale worktrees**, **stale branches/PRs**, and **stale `workflows/<slug>/`
 artifact dirs**. It is a **repo-global** box: it inspects and mutates sibling worktrees, branches,
 and PRs, so it **cannot** run inside an isolated worktree — that is exactly why it is a **Claude
-Code command, not an Archon workflow** ([ADR-0017](docs/adr/0017-container-follows-structural-need.md)).
+Code command, not an Archon workflow**.
 
 It is a **thin composing wrapper**: it **owns the _what_** — deciding what is prunable and enforcing
 the report-first / per-category-confirm posture — and **composes the _how_**: Archon's own
 `archon isolation` / `archon complete` commands for worktree/branch lifecycle, and the tracker that
 `docs/agents/issue-tracker.md` § Access names, for PR and branch state.
-Compose those tools — never reimplement them, and never introduce a `tracker-adapter` lib
-([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md) / [ADR-0018](docs/adr/0018-generic-core-config-compose.md)).
+Compose those tools — never reimplement them, and never introduce a `tracker-adapter` lib.
 
 > **This is not `/improve-architecture`.** The name `cleanup` was repointed: the old arch-review +
-> ADR-consolidation content moved to `/improve-architecture` ([ADR-0027](docs/adr/0027-improve-architecture-skill-superseding.md)).
+> ADR-consolidation content moved to `/improve-architecture`.
 > `/cleanup` is git/Archon hygiene only — it touches no code, no ADRs, and no `arch-review.md`.
 
 **Destructive-action posture (load-bearing).** `/cleanup` **defaults to a report-only dry-run** and
@@ -37,8 +34,7 @@ Follow these steps in order. Do not skip any step.
 
 `/cleanup` reads (never writes) `.archon/unic-dlc.config.yaml`. Read it with your own tools. Do not
 shell out to Node, do not import a Plugin module, and do not read `$CLAUDE_PLUGIN_ROOT`: an installed
-Plugin ships no `node_modules`, and that variable is not set inside the Bash tool
-([ADR-0023](docs/adr/0023-build-generic-red-green-refactor-loop.md) §5). The four Archon Boxes read
+Plugin ships no `node_modules`, and that variable is not set inside the Bash tool. The four Archon Boxes read
 their config this way already; this is the same shape.
 
 Like `/improve-architecture` this is an **off-line** box, so an absent or unreadable config is
@@ -63,8 +59,7 @@ this is non-blocking.
 
 Read `docs/agents/issue-tracker.md`. Its § Access names the MCP server or skill that serves this
 tracker and its § Addressing names the repository — read that server's own current tool list and build
-each call from it, naming no provider and writing no command, subcommand or flag
-([ADR-0016](docs/adr/0016-dlc-thin-process-layer.md)). Keep `TRACKER_READY` = whether the file
+each call from it, naming no provider and writing no command, subcommand or flag. Keep `TRACKER_READY` = whether the file
 resolved. If it did not, warn that PR/branch-state detection and slug-dir pruning will be skipped
 (they need the tracker), then continue — this box never halts on it.
 
@@ -115,7 +110,7 @@ the merge itself — surface only genuine leftovers.
 
 Only if `TRACKER_READY` (a slug dir's disposition depends on its PR/branch state). Using
 `node:fs`, list the immediate child directories of `<ARTIFACTS_DIR>/` (default `workflows/`). Each
-child dir name is a Slug ([ADR-0015](docs/adr/0015-workflows-slug-artifact-home.md)). For each:
+child dir name is a Slug. For each:
 
 - Resolve its PR/branch via the tracker + the isolation list from Step 3.
 - A slug dir is **prunable only if** its PR/branch is **merged or closed**. A slug with an **open

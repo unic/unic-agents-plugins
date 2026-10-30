@@ -147,7 +147,7 @@
       "id": "pack",
       "type": "external",
       "label": "Practice Pack",
-      "sublabel": "optional · design open",
+      "sublabel": "optional · own prefix",
       "pos": [1110, 540],
       "size": [150, 64]
     },
@@ -320,7 +320,7 @@
       "items": [
         "CONTEXT.md and ADRs tell the Boxes about this project",
         "Tracker, docs and design through the team's own system-skills",
-        "A Practice Pack could package this context for reuse (design open)"
+        "A Practice Pack packages this context for reuse, under its own prefix"
       ]
     }
   ]

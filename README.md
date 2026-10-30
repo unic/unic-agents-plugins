@@ -18,8 +18,12 @@ The `unic-archon-dlc` plugin was withdrawn from the catalogue on 2026-10-30. See
 Add the Unic marketplace once (run inside `claude`):
 
 ```
-/plugin marketplace add https://github.com/unic/unic-agents-plugins
+/plugin marketplace add unic/unic-agents-plugins#main
 ```
+
+`main` holds the released versions, and `develop` is the development branch, which an add without a ref installs.
+
+If you added the marketplace without a ref, run `/plugin marketplace remove unic-agent-plugins` and add it again with the command above.
 
 Then install individual plugins:
 
