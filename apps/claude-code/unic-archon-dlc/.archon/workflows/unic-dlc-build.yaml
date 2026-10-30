@@ -4,27 +4,32 @@ description: >
   implements every slice test-first with structural anti-cheating: a single generic loop advances
   each slice through two FRESH-context phases — RED (write a provably-failing test) and GREEN
   (minimum implementation) — serially in dependency order. The baton between phases is artefacts on
-  disk (committed test, committed impl), never session memory (ADR-0012). Procedure comes from the
+  disk (committed test, committed impl), never session memory. Procedure comes from the
   `tdd` and `implement` Methods, read by path from `.archon/methods/`; refactoring is deliberately
   NOT in the loop — `tdd` puts it in the review stage, so it lives in /pr-review's `code-review`
-  Fowler smells (#281, amending ADR-0023). Then a local non-posting code-review pre-check, verify,
-  goals-check, report, and gate a PR to develop (ADR-0011/0022/0023/0030/0031).
+  Fowler smells. Then a local non-posting code-review pre-check, verify,
+  goals-check, evidence, report, and a commit and push of the work on every verdict. Only a "pass"
+  verdict opens a PR to the run's base branch, Archon's $BASE_BRANCH, and gates it; any other
+  verdict cancels the run with the work on the pushed branch.
 
-# Required at the workflow level so the build-pr-gate approval message reaches the user (ADR-0011).
+# Required at the workflow level so the build-pr-gate approval message reaches the user.
 interactive: true
 
-# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists — the
-# `evidence` node below is the only writer; the engine gates on presence only, the content
-# contract is this workflow's own (ADR-0034).
+# The engine refuses terminal `completed` unless $ARTIFACTS_DIR/evidence.json exists. The
+# `evidence` node below is the only writer, and it writes the file on every verdict, so this
+# policy no longer refuses a red run. Two guards cover `evidence` ending without writing.
+# push-branch refuses a Session mirror that is missing at HEAD, so the run ends `failed`. This
+# policy catches the one case left: the mirror is committed but the $ARTIFACTS_DIR copy is absent.
+# The verdict decides how the run ends, at guard-not-pass and open-pr.
 evidence_policy:
   required: true
 
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config, confirm issues.json exists.
-  # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT
-  # (ADR-0023 §5): the agent reads .archon/unic-dlc.config.yaml with its own tools. It also passes the
-  # whole `sdlc_needs` block downstream and runs the declared install once for the run (#430).
+  # A prompt node (NOT a script) so it needs no plugin-lib import and no $CLAUDE_PLUGIN_ROOT:
+  # the agent reads .archon/unic-dlc.config.yaml with its own tools. It also passes the
+  # whole `sdlc_needs` block downstream and runs the declared install once for the run.
   # ---------------------------------------------------------------------------------------------
   - id: bootstrap
     depends_on: []
@@ -38,15 +43,16 @@ nodes:
       2. Read `.archon/unic-dlc.config.yaml` at the repo root.
          - If it is absent or unreadable → status "no-config".
          - Otherwise read: `artifacts_dir` (default "workflows"), `gates.build` (default "hitl"),
-           `build.coverage_threshold` (may be null), `project.branching` (default "gitflow"), and the
-           whole `sdlc_needs` block.
+           `build.coverage_threshold` (may be null), and the whole `sdlc_needs` block.
       3. Confirm the build baton exists: `<artifacts_dir>/<slug>/issues.json`.
          - If it is absent → status "no-issues".
       4. If slug, config, and issues.json are all present → status "ready".
 
-      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
-      Emit it in EVERY branch (fall back to "develop" when config cannot be read) — the
-      implement-review-precheck node pins its code-review fixed point to it.
+      This run's base branch is `$BASE_BRANCH`. Archon resolves it before this node starts, from
+      `--base`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default. It is
+      the code-review fixed point and the PR target. Archon cuts the worktree from it unless `--from`
+      names another branch. Read no base branch from the config. In EVERY branch, start `message` with
+      "Base branch: $BASE_BRANCH." and follow it with the reason for any status other than "ready".
 
       ## The `sdlc_needs` block — a key names a need, never a tool
       Every key in it names a NEED of this project's development process. `test` names the need;
@@ -105,12 +111,11 @@ nodes:
             coverage: { type: [string, 'null'] }
           required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
         install_report: { type: string }
-        expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, sdlc_needs, install_report, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011 / schema: cancel vs fail). One
+  # guard — expected precondition failures cancel cleanly. One
   # guard, because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
@@ -123,15 +128,13 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # slopcheck — verify every NEW package against the npm registry before any code runs.
-  # Self-contained (ADR-0023 §5): imports nothing from the plugin. It once mirrored a tested
-  # lib/slopcheck.mjs in the unic-archon-dlc Plugin's own tree; #381 deleted that module, so the path
-  # is history and resolves nowhere in either repository, and this node is the only copy of the gate.
+  # Self-contained: imports nothing from the plugin. This node is the only copy of the gate.
   # ---------------------------------------------------------------------------------------------
   - id: slopcheck
     depends_on: [bootstrap]
     when: "$bootstrap.output.status == 'ready'"
     # always_run: true — a resume must re-verify package.json's CURRENT contents; exit 0 says
-    # nothing about packages added since the last completed attempt (ADR-0033).
+    # nothing about packages added since the last completed attempt.
     always_run: true
     runtime: bun
     timeout: 120000
@@ -207,11 +210,11 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # run-build — THE keystone. One fresh session per iteration advances ONE slice by ONE phase.
-  # Red and green never share a session; the baton is committed artefacts + build-state.json
-  # (ADR-0012 / ADR-0023). Serial in the dependency order already baked into issues.json.
+  # Red and green never share a session; the baton is committed artefacts + build-state.json.
+  # Serial in the dependency order already baked into issues.json.
   #
   # The loop's PROCEDURE is not written here: `tdd` and `implement` own it, read by path from
-  # `.archon/methods/` (ADR-0030/0031). What stays below is Harness-only — the exit-code anti-cheat
+  # `.archon/methods/`. What stays below is Harness-only — the exit-code anti-cheat
   # proof, the per-phase commit convention and build-state.json, none of which a Method can supply.
   # ---------------------------------------------------------------------------------------------
   - id: run-build
@@ -238,8 +241,8 @@ nodes:
             `.archon/methods/tdd/mocking.md`
           - `.archon/methods/implement/SKILL.md`
         Read them at those literal paths and import nothing: an Archon node cannot import anything
-        from the Plugin (ADR-0023 §5), and the config / `.local` override tiers are retired
-        (ADR-0031, amended). If a file is missing, that is FATAL for this
+        from the Plugin, and the config / `.local` override tiers are retired.
+        If a file is missing, that is FATAL for this
         node — print "tdd/implement Method not found under .archon/methods/ — run
         /unic-archon-dlc:setup" and stop. Do not proceed from memory of what these Methods say.
 
@@ -261,11 +264,11 @@ nodes:
            `docs/agents/issue-tracker.md` is absent. `/unic-archon-dlc:setup` owns that file and
            `docs/agents/triage-labels.md`, and `setup-matt-pocock-skills` is not a Plugin dependency —
            a run writes another host's template over the first and reverts the second to a five-role
-           vocabulary (ADR-0024). Never run it. If either file is missing, say so and stop.
+           vocabulary. Never run it. If either file is missing, say so and stop.
 
         Note what `tdd` says about refactoring: it is NOT part of the red → green loop, it belongs to
         the review stage. This loop therefore has no REFACTOR phase — /pr-review's `code-review` axis
-        carries the Fowler smell baseline instead (#281).
+        carries the Fowler smell baseline instead.
 
         ## Step 1 — Load state
         Read issues.json (an ordered array; blockers come first — honour that order).
@@ -299,9 +302,10 @@ nodes:
         above is a different thing; see the next rule for what happens to it.)
         NEVER stage or commit build-state.json in a loop iteration. You rewrite it on every one of up
         to 60 iterations; committing it here would put 60 revisions of a scratch-looking file in the
-        PR. The `open-pr` node commits it ONCE, at the end — that single commit is the durable proof
-        of this loop's anti-cheat record (`red_exit`, `red_unexpected_pass`, the per-slice phase
-        order), which otherwise dies when `/cleanup` prunes this worktree (ADR-0012).
+        PR. The node that commits the Session artefacts after `report` commits it ONCE. That single
+        commit is the durable proof of this loop's anti-cheat record (`red_exit`,
+        `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
+        prunes this worktree.
         After each `git add`, run `git status --porcelain` and confirm the staged set is exactly the
         file(s) you named. Unstage anything else with `git restore --staged <path>` before committing.
 
@@ -353,9 +357,11 @@ nodes:
 
   # ---------------------------------------------------------------------------------------------
   # implement-review-precheck — realises `implement`'s closing "once done, use /code-review" step,
-  # once, after the whole loop. A LOCAL PRE-CHECK THAT POSTS NOTHING: its findings go into report.md
-  # and nowhere else, so /pr-review keeps sole posting authority (#281 AC 4). Runs `code-review`'s own
-  # two-axis parallelism internally rather than the Harness re-implementing it (ADR-0030).
+  # once, after the whole loop. A LOCAL PRE-CHECK THAT POSTS NOTHING, so /pr-review keeps sole posting
+  # authority. Its prose `findings` go into report.md. Its `status` and `hard_findings`
+  # are gate inputs that `evidence` reads, and its `notes` reach evidence.json and the pull request
+  # description. Runs `code-review`'s own two-axis parallelism internally rather than the
+  # Harness re-implementing it.
   # ---------------------------------------------------------------------------------------------
   - id: implement-review-precheck
     depends_on: [run-build]
@@ -365,8 +371,8 @@ nodes:
       You are the implement-review-precheck node of /build for slug "$bootstrap.output.slug".
 
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If the file is missing that
       is FATAL for this node: print "code-review Method not found at
       .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop.
 
@@ -374,14 +380,19 @@ nodes:
       It is a LOCAL PRE-CHECK. Follow the Method's Process steps 1–5 with these answers supplied — the
       Method asks a live human for two of them and there is no human here, so do NOT ask:
 
-      - **Step 1, the fixed point:** the branch point of this build branch —
-        `git merge-base origin/$bootstrap.output.expected_base HEAD`, falling back to
-        `git merge-base $bootstrap.output.expected_base HEAD` if `origin/<ref>` doesn't resolve. If
+      - **Step 1, the fixed point:** the branch point of this build branch. A worktree cut with
+        `--from <feature>` may never have fetched the base, so run
+        `git fetch origin +refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH` first. The
+        explicit destination creates `origin/$BASE_BRANCH` even in a single-branch clone. A failed fetch is not fatal on its own. Then take
+        `git merge-base origin/$BASE_BRANCH HEAD`, falling back to
+        `git merge-base $BASE_BRANCH HEAD` if `origin/<ref>` doesn't resolve. If
         NEITHER resolves, do NOT fall back to the branch's first commit — that guarantees a
         "non-empty" diff that is not the Method's fixed point. Instead print "PRECHECK BLOCKED:
-        cannot resolve expected_base '$bootstrap.output.expected_base' via origin or local — no
-        merge-base found", emit that sentence as `findings`, and stop. Otherwise confirm the diff is
-        non-empty before spawning anything, as the Method requires.
+        cannot resolve base branch '$BASE_BRANCH' via origin or local — no
+        merge-base found", emit it as a blocked result (§ Blocked, below), and stop. Otherwise
+        confirm the diff is non-empty before spawning anything, as the Method requires. If the diff
+        is empty, print "PRECHECK BLOCKED: the diff against $BASE_BRANCH is empty, so there is
+        nothing to review", emit it as a blocked result, and stop.
       - **Step 2, the spec source:** already on disk for this slug — read
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/PRD.md` and
         `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/issues.json`, plus the tracker item
@@ -391,14 +402,14 @@ nodes:
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
         applies.** `/unic-archon-dlc:setup` owns that file and `docs/agents/triage-labels.md`, and
         `setup-matt-pocock-skills` is not a Plugin dependency — a run writes another host's template over
-        the first and reverts the second to a five-role vocabulary (ADR-0024). Never run it.
+        the first and reverts the second to a five-role vocabulary. Never run it.
 
       ## The tracker contract
       `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
       tracker contract. This node needs the first. Read it before the first tracker call.
       - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
         server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag here and name no provider: the DLC owns the what and none of the how, and a
         flag table frozen in this file is stale the moment the tool changes.
       - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
         explicitly in every call, and derive nothing from a remote URL.
@@ -417,29 +428,87 @@ nodes:
       Run no tracker or PR mutation of any kind: no discussion on a PR, no edit to one, no write call
       against the tracker's API by any route, no item creation, no role change, no discussion. The
       read-only issue queries in step 2 are the only tracker traffic allowed here. /pr-review is the
-      only Box with posting authority; this axis pair is here to inform the build report and the human
-      at build-pr-gate. Emit the aggregated `## Standards` / `## Spec` text as `findings` for the
-      report node to fold in.
+      only Box with posting authority. Emit the aggregated `## Standards` / `## Spec` text as
+      `findings` for the report node to fold in.
+
+      ## What your fields decide
+      This node is a gate input. The `evidence` node reads `status`, `hard_findings` and `notes`.
+      A non-empty `hard_findings` makes the build verdict `fail`, so the run opens no pull request.
+      A `status` other than `ran` makes the verdict `unresolved` when nothing else failed. `notes`
+      change no verdict. They reach evidence.json and the pull request description. Your prose
+      `findings` decides nothing; the report folds it in for the human.
+
+      ## Classify every finding as hard or a note
+      The Method already separates the classes. Step 4 asks the Standards sub-agent to tell hard
+      violations from judgement calls, and the Spec sub-agent reports (a) missing or partial
+      requirements, (b) scope creep and (c) requirements implemented wrong. Put each finding in
+      exactly one place:
+      - A Standards finding that breaches a documented standard goes in `hard_findings` with
+        `category: documented-standard`. Its `citation` quotes the standard's file and the rule.
+      - A Spec finding of kind (a) goes in `hard_findings` with `category: spec-missing`, and one of
+        kind (c) with `category: spec-wrong`. Its `citation` quotes the spec line it breaks.
+      - A baseline smell, any other judgement call, and a Spec finding of kind (b) go in `notes`,
+        one string each, and never in `hard_findings`.
+      Each `hard_findings` entry is `{ axis, category, citation, summary }`. `axis` is `standards`
+      or `spec`, and `summary` says in one sentence what is wrong and where. A hard finding you
+      cannot cite still goes in `hard_findings`, with an empty `citation`; never move it to `notes`.
+      Set `status` to `ran` and `blocked_reason` to "" when the review ran.
+
+      ## Blocked
+      Report `blocked` in each of the three cases this prompt names where the review cannot run: no
+      merge-base resolves, the `Agent` tool is unavailable, and the diff against the base is empty.
+      In those three cases emit every field: `status: blocked`, `blocked_reason` set to the sentence
+      you printed, `findings` set to the same sentence, and `hard_findings` and `notes` as empty
+      arrays. Every field is required, so omitting one aborts the run instead of reporting the block.
+
+      Report `blocked` too when one of the two sub-agents returns no result, because `evidence` must
+      not certify a build that one axis never read. Print "PRECHECK BLOCKED: the <axis> sub-agent
+      returned no result, so only one axis was reviewed", with <axis> set to `Standards` or `Spec`,
+      and set `blocked_reason` to that sentence. Keep everything the other axis reported: its
+      findings in `findings` under its heading, its hard findings in `hard_findings` and its notes
+      in `notes`. A hard finding from that axis still makes the verdict `fail`.
+
+      Two other stops also review nothing, and they stay as they are. A missing Method prints the
+      FATAL message above and stops, and a missing tracker contract prints the BLOCKED message above
+      and stops. Neither emits a blocked result.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else: print "PRECHECK BLOCKED: Agent tool
-      unavailable in an Archon prompt node — code-review step 4 cannot run as written" and emit that
-      same sentence as `findings`. That is a real finding about the container, not a detail to route
+      unavailable in an Archon prompt node — code-review step 4 cannot run as written" and emit it
+      as a blocked result. That is a real finding about the container, not a detail to route
       around.
     output_format:
       type: object
       properties:
         findings: { type: string }
-      required: [findings]
+        status:
+          type: string
+          enum: [ran, blocked]
+        blocked_reason: { type: string }
+        hard_findings:
+          type: array
+          items:
+            type: object
+            properties:
+              axis: { type: string }
+              category:
+                type: string
+                enum: [documented-standard, spec-missing, spec-wrong]
+              citation: { type: string }
+              summary: { type: string }
+            required: [axis, category, citation, summary]
+        notes:
+          type: array
+          items: { type: string }
+      required: [findings, status, blocked_reason, hard_findings, notes]
 
   # ---------------------------------------------------------------------------------------------
-  # verification — full suite + stub scan on the diff. Self-contained prompt (ADR-0023 §5).
+  # verification — full suite + stub scan on the diff. Self-contained prompt.
   # ---------------------------------------------------------------------------------------------
   - id: verification
     depends_on: [implement-review-precheck]
     # always_run: true — the exit code is a prose report, not a promise; a resume must re-run the
-    # suite against the CURRENT tree, never replay a cached PASSED from before a since-applied fix
-    # (ADR-0033).
+    # suite against the CURRENT tree, never replay a cached PASSED from before a since-applied fix.
     always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
@@ -468,8 +537,10 @@ nodes:
          `e2e` is null this node wants no e2e run at all and reports nothing about it — silence here
          means "not wanted", which is not the same fact as "could not run".
       2. Stub scan — inspect the diff against the base branch
-         (`git diff --name-only $BASE_BRANCH...HEAD`, source files only:
-         .mjs/.js/.ts/.py/.rb/.go/.rs). Flag any of these left in changed source:
+         (`git diff --name-only origin/$BASE_BRANCH...HEAD`, falling back to
+         `git diff --name-only $BASE_BRANCH...HEAD` if `origin/$BASE_BRANCH` doesn't resolve; source
+         files only: .mjs/.js/.ts/.py/.rb/.go/.rs). If neither ref resolves, put the stub scan in
+         `unresolved_needs` and name the ref that failed. Flag any of these left in changed source:
            - `TODO` / `FIXME` comments
            - Python `pass` as a whole statement
            - bare `return;` / `return null` / `return undefined` / `return None` used as a stub
@@ -519,10 +590,11 @@ nodes:
          `unresolved_needs` in every case**, as an empty array when nothing was unresolved — the schema
          requires the field, so omitting it aborts the run instead of reporting a clean result. The
          prose is for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
-         of us, plus `verification`'s three-state `test_outcome`, and withholds unless both verdicts
-         are green AND that test outcome is "pass"; its own verdict keeps `unresolved` and `fail`
-         apart rather than calling both red, and
-         `evidence_policy` then gates on the file that node writes.
+         of us, plus `verification`'s three-state `test_outcome` and the pre-check's `status` and
+         `hard_findings`. It records the verdict "pass" only when both verdicts are green, that test
+         outcome is "pass", and the pre-check ran with no hard finding; its verdict keeps
+         `unresolved` and `fail` apart rather than calling both red. It writes evidence.json on
+         every verdict, and only a "pass" verdict opens a pull request.
       Do not fix anything here; just report. The report and gate nodes consume this verdict.
     output_format:
       type: object
@@ -544,7 +616,7 @@ nodes:
   - id: goals-check
     depends_on: [verification]
     # always_run: true — same reason as verification: the coverage matrix is a fact about the
-    # CURRENT diff, and a resume must recompute it rather than reuse a cached verdict (ADR-0033).
+    # CURRENT diff, and a resume must recompute it rather than reuse a cached verdict.
     always_run: true
     context: fresh
     allowed_tools: [Read, Bash, Glob, Grep]
@@ -566,10 +638,11 @@ nodes:
          `passed` boolean (true only when every criterion is COVERED) and a `failures` array, one
          short string per MISSING criterion — blockers ONLY, never a non-blocking note. The prose is
          for the human at build-pr-gate. The `evidence` node reads `passed` and `failures` from both
-         of us, plus `verification`'s three-state `test_outcome`, and withholds unless both verdicts
-         are green AND that test outcome is "pass"; its own verdict keeps `unresolved` and `fail`
-         apart rather than calling both red, and
-         `evidence_policy` then gates on the file that node writes.
+         of us, plus `verification`'s three-state `test_outcome` and the pre-check's `status` and
+         `hard_findings`. It records the verdict "pass" only when both verdicts are green, that test
+         outcome is "pass", and the pre-check ran with no hard finding; its verdict keeps
+         `unresolved` and `fail` apart rather than calling both red. It writes evidence.json on
+         every verdict, and only a "pass" verdict opens a pull request.
     output_format:
       type: object
       properties:
@@ -581,18 +654,32 @@ nodes:
       required: [verdict, passed, failures]
 
   # ---------------------------------------------------------------------------------------------
-  # evidence — writes $ARTIFACTS_DIR/evidence.json ONLY when both verdicts are green; its mere
-  # PRESENCE is what workflow-level evidence_policy checks before allowing terminal `completed`
-  # (the engine gates on presence only — the content contract is this node's, ADR-0034). A SCRIPT,
-  # never a prompt: a prompt that both judges and certifies grades its own homework.
-  # always_run: true — its exit code is a write op, not a verdict; a resumed run must re-derive
-  # presence from the CURRENT verification/goals-check output, never trust a stale file (also why
-  # it deletes any existing evidence.json first, below) (ADR-0033/0034).
+  # evidence — writes $ARTIFACTS_DIR/evidence.json on EVERY verdict, with the verdict and the
+  # failures that produced it, and prints the verdict as JSON on stdout. It reads verification,
+  # goals-check and implement-review-precheck. A pre-check hard finding is a `fail`. A pre-check
+  # that did not run is `unresolved` when nothing else failed. guard-not-pass and open-pr branch on
+  # that printed verdict; workflow-level evidence_policy checks only that the file exists.
+  # A SCRIPT, never a prompt, because a prompt that both judges and certifies grades its
+  # own homework.
+  # always_run: true, because its exit code is a write op, not a verdict. A resumed run must
+  # re-derive the verdict from the CURRENT verification, goals-check and pre-check output, never
+  # trust a stale file (also why it deletes any existing evidence.json first, below).
+  # The pre-check arrives through `with:`, never through the script source. A node-output reference
+  # in the source substitutes raw, so a pre-check string holding a quote would end this script with
+  # a syntax error. Each `with:` binding reaches the script as an INPUTS_<NAME> environment
+  # variable, so no pre-check text is ever parsed as code. This node's `with:` binds only the four
+  # fields it reads, never `findings`, so the prose `findings` never counts against the environment
+  # size limit (measured on 0.12.1). `with:` on a script node needs Archon >= 0.10.0.
   # ---------------------------------------------------------------------------------------------
   - id: evidence
-    depends_on: [verification, goals-check]
+    depends_on: [implement-review-precheck, verification, goals-check]
     always_run: true
     runtime: bun
+    with:
+      precheck_status: $implement-review-precheck.output.status
+      precheck_blocked_reason: $implement-review-precheck.output.blocked_reason
+      precheck_hard_findings: $implement-review-precheck.output.hard_findings
+      precheck_notes: $implement-review-precheck.output.notes
     script: |
       import { existsSync, rmSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs'
       import { join } from 'node:path'
@@ -604,12 +691,12 @@ nodes:
       // not throw, so this node logs "wrote evidence.json" while the engine's presence gate reads
       // the real ARTIFACTS_DIR and finds nothing — a run failing closed with a success line in its
       // log. Do NOT fall back to the Session dir: the gate reads only this path, so a fallback
-      // would make that silent case permanent (ADR-0033/0034).
+      // would make that silent case permanent.
       const artifactsDir = process.env.ARTIFACTS_DIR
       if (!artifactsDir) {
         console.error(
           'evidence: ARTIFACTS_DIR is unset or empty — the engine did not export it to this script node. ' +
-            'The evidence gate requires Archon >= 0.7.0 (ADR-0033/0034).'
+            'The evidence gate requires Archon >= 0.7.0.'
         )
         process.exit(1)
       }
@@ -620,8 +707,8 @@ nodes:
       // Delete BOTH copies first: a resumed run reuses the same $ARTIFACTS_DIR and the same
       // Session dir, so a prior attempt's file would certify a red tree if this attempt fails
       // before writing a fresh one. The mirror needs this most — the engine's presence gate reads
-      // only the $ARTIFACTS_DIR copy, so a stale mirror survives an engine refusal and is what
-      // open-pr stages and a reviewer reads.
+      // only the $ARTIFACTS_DIR copy, so a stale mirror would survive a failed attempt and be what
+      // commit-session stages and a reviewer reads.
       if (existsSync(evidencePath)) rmSync(evidencePath)
       if (existsSync(mirrorPath)) rmSync(mirrorPath)
 
@@ -632,7 +719,7 @@ nodes:
       // (Never write a placeholder node id anywhere in this body, comments included. The DAG
       // loader reads every dollar-prefixed node-output token here as a real edge, so a placeholder
       // makes the whole Box fail to load with "references unknown node". A comment on this very
-      // spot once did exactly that. Nothing guards it now — read for it (#381).)
+      // spot once did exactly that. Nothing guards it now — read for it.)
       const verificationPassed = $verification.output.passed
       const goalsCheckPassed = $goals-check.output.passed
       const verificationFailures = $verification.output.failures
@@ -643,26 +730,81 @@ nodes:
       // `passed: true` with a non-empty `failures` array write a certificate whose own body listed
       // the failures. Both prompts define `failures` as blockers only, so a non-empty list is a
       // red verdict whatever the boolean says. This does not make the gate independent of the
-      // judge — only re-running the suite would, and ADR-0023 §5 rules that out (ADR-0034).
+      // judge. Only re-running the suite would do that.
       const verificationGreen = verificationPassed === true && verificationFailures.length === 0
       const goalsCheckGreen = goalsCheckPassed === true && goalsCheckFailures.length === 0
 
       // A check that could not run is `unresolved`, and unresolved is never a pass: an absent result
-      // and a green result are not the same fact (#430). `test` is the only need whose outcome is
+      // and a green result are not the same fact. `test` is the only need whose outcome is
       // mandatory here — every other need reports and none of them holds this gate.
       const testOutcome = '$verification.output.test_outcome'
       const unresolvedNeeds = $verification.output.unresolved_needs
 
-      // Three states in precedence order: a real failure is `fail`; a floor check that could not run
-      // is `unresolved`; only two green verdicts with a passing test are `pass`. The unresolved branch
-      // is tested FIRST because `verificationGreen` is already false whenever the test is unresolved —
-      // verification sets `passed` false for it — so testing green first would report an absent result
-      // as a failure.
+      // The pre-check's four fields, from the environment (see the header comment). A string field
+      // arrives as its raw text and an array field as JSON text (measured on 0.12.1). Read them
+      // defensively, because what this node cannot read is never a pass. Each read that is unset,
+      // does not parse, or gives a value of the wrong type adds its cause to `readErrors`, which goes
+      // to stderr and to `precheck_read_error`. `status` and `hard_findings` are self-reported by a
+      // prompt, exactly as `passed` is above.
+      const readErrors = []
+      const readJson = (name, text) => {
+        if (text === undefined) {
+          readErrors.push(`${name} unset`)
+          return undefined
+        }
+        try {
+          return JSON.parse(text)
+        } catch (err) {
+          readErrors.push(`${name} is not JSON (${err.message}). Its text is ${text}`)
+          return undefined
+        }
+      }
+      const typeName = (value) =>
+        value === null ? 'null' : Array.isArray(value) ? 'an array' : typeof value === 'object' ? 'an object' : `a ${typeof value}`
+      const statusText = process.env.INPUTS_PRECHECK_STATUS
+      if (statusText === undefined) readErrors.push('INPUTS_PRECHECK_STATUS unset')
+      else if (statusText === '') readErrors.push('INPUTS_PRECHECK_STATUS empty')
+      else if (statusText !== 'ran' && statusText !== 'blocked')
+        readErrors.push(`INPUTS_PRECHECK_STATUS is ${JSON.stringify(statusText)}, which is neither "ran" nor "blocked"`)
+      const precheckStatus = statusText ? statusText : null
+      const blockedReasonText = process.env.INPUTS_PRECHECK_BLOCKED_REASON
+      if (blockedReasonText === undefined) readErrors.push('INPUTS_PRECHECK_BLOCKED_REASON unset')
+      const precheckBlockedReason = blockedReasonText ?? ''
+      const hardFindingsText = process.env.INPUTS_PRECHECK_HARD_FINDINGS
+      const hardFindingsField = readJson('INPUTS_PRECHECK_HARD_FINDINGS', hardFindingsText)
+      if (hardFindingsField !== undefined && !Array.isArray(hardFindingsField))
+        readErrors.push(`INPUTS_PRECHECK_HARD_FINDINGS is ${typeName(hardFindingsField)}, not an array. Its text is ${hardFindingsText}`)
+      const notesText = process.env.INPUTS_PRECHECK_NOTES
+      const notesField = readJson('INPUTS_PRECHECK_NOTES', notesText)
+      if (notesField !== undefined && !Array.isArray(notesField))
+        readErrors.push(`INPUTS_PRECHECK_NOTES is ${typeName(notesField)}, not an array. Its text is ${notesText}`)
+      const precheckReadError = readErrors.join('; ')
+      // Every entry counts. An entry with an empty `citation` or a `category` outside the enum is
+      // still a hard finding, never dropped, because when in doubt the verdict stays red. A value
+      // that is not an array, but is present, counts as one entry for the same reason.
+      const hardFindings = Array.isArray(hardFindingsField)
+        ? hardFindingsField
+        : hardFindingsField === undefined || hardFindingsField === null
+          ? []
+          : [hardFindingsField]
+      const precheckNotes = Array.isArray(notesField) ? notesField : []
+      // The pre-check reviewed the code only when it says `ran` and both arrays it must emit are
+      // arrays. Anything else, `blocked` included, is a review that did not happen.
+      const precheckRan = precheckStatus === 'ran' && Array.isArray(hardFindingsField) && Array.isArray(notesField)
+
+      // Three states in precedence order: a real failure is `fail`; a check that could not run is
+      // `unresolved`; only two green verdicts with a passing test and a pre-check that ran clean are
+      // `pass`. A pre-check hard finding is a real failure, so it is tested first. The unresolved
+      // test branch comes before the green one because `verificationGreen` is already false whenever
+      // the test is unresolved. Verification sets `passed` false for it, so testing green first
+      // would report an absent result as a failure.
       let verdictState
-      if (testOutcome === 'unresolved' && verificationFailures.length === 0 && goalsCheckGreen) {
+      if (hardFindings.length > 0) {
+        verdictState = 'fail'
+      } else if (testOutcome === 'unresolved' && verificationFailures.length === 0 && goalsCheckGreen) {
         verdictState = 'unresolved'
       } else if (verificationGreen && goalsCheckGreen && testOutcome === 'pass') {
-        verdictState = 'pass'
+        verdictState = precheckRan ? 'pass' : 'unresolved'
       } else {
         verdictState = 'fail'
       }
@@ -671,20 +813,21 @@ nodes:
       // to STDOUT is its whole output. That makes stdout the machine channel and nothing else may go
       // there — every human line below uses console.error, which the run log still shows. Mixing one
       // progress line into stdout leaves a reader a string that is not JSON, and the reader is a
-      // `when:` expression with nowhere to put a parse failure. Nothing reads it yet: the `when:` that
-      // will consume it belongs to the ticket that makes this file unconditional, and a field with no
-      // reader here is that hand-off, not an oversight (#430 criterion 8).
+      // `when:` expression with nowhere to put a parse failure. Three readers: the `when:` of
+      // guard-not-pass, the `when:` of open-pr, and the cancel message of guard-not-pass, which names
+      // the verdict. Both `when:` expressions compare the `verdict` field with 'pass' and nothing
+      // else, so `fail` and `unresolved` take the same branch.
       console.log(JSON.stringify({ verdict: verdictState, test_outcome: testOutcome, unresolved_needs: unresolvedNeeds }))
 
-      if (verdictState !== 'pass') {
-        console.error(`evidence: withholding — verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length})`)
-        if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
-        process.exit(0)
-      }
+      console.error(`evidence: verdict=${verdictState} verification(passed=${verificationPassed}, failures=${verificationFailures.length}, test=${testOutcome}) goals-check(passed=${goalsCheckPassed}, failures=${goalsCheckFailures.length}) precheck(status=${precheckStatus}, hard=${hardFindings.length}, notes=${precheckNotes.length})`)
+      if (unresolvedNeeds.length > 0) console.error(`evidence: unresolved needs — ${unresolvedNeeds.join(', ')}`)
+      if (precheckReadError) console.error(`evidence: could not read the pre-check. ${precheckReadError}`)
 
-      // Both arrays are empty by construction here — the guard above returns on either being
-      // non-empty. They stay in the artefact so a reviewer reading evidence.json sees the two
-      // fields the gate checked rather than having to know which fields it consulted.
+      // Written on EVERY verdict, so the file the engine demands says what failed. The two failure
+      // arrays and `hard_findings` are the reason for a `fail`. `test_outcome` with
+      // `unresolved_needs`, and `precheck_status` with `precheck_blocked_reason`, are the reason for
+      // an `unresolved`; a null `precheck_status` means this node could not read the pre-check.
+      // Never return before this write.
       const evidence = {
         slug: '$bootstrap.output.slug',
         verdict: verdictState,
@@ -692,12 +835,18 @@ nodes:
         unresolved_needs: unresolvedNeeds,
         verification_failures: verificationFailures,
         goals_check_failures: goalsCheckFailures,
+        precheck_status: precheckStatus,
+        precheck_blocked_reason: precheckBlockedReason,
+        hard_findings: hardFindings,
+        precheck_notes: precheckNotes,
+        precheck_read_error: precheckReadError,
       }
       writeFileSync(evidencePath, JSON.stringify(evidence, null, 2))
       console.error(`evidence: wrote ${evidencePath} ✓`)
 
-      // Mirror into the repo-relative Session dir so a reviewer (and open-pr) can see it —
-      // $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes the worktree.
+      // Mirror into the repo-relative Session dir so a reviewer, and commit-session, which stages it,
+      // can see it. $ARTIFACTS_DIR resolves OUTSIDE the repo tree and is gone once /cleanup prunes
+      // the worktree.
       mkdirSync(sessionDir, { recursive: true })
       copyFileSync(evidencePath, mirrorPath)
       console.error(`evidence: mirrored to ${mirrorPath} ✓`)
@@ -716,13 +865,26 @@ nodes:
            list, never as prose in another section:
              - one line per need in `$verification.output.unresolved_needs`, naming the need;
              - `$bootstrap.output.install_report`, verbatim.
-           Write "every declared check ran" when `unresolved_needs` is empty. A check that could not
+             - when `precheck_status` in
+               `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json` is not `ran`,
+               or `precheck_read_error` there is not empty, one line for the code-review pre-check.
+               Name the status that `evidence` read, or write "no status" when it is null. Then add
+               `precheck_blocked_reason` when it is not empty, and `precheck_read_error` when it is
+               not empty.
+           Write "every declared check ran" only when `unresolved_needs` is empty, `precheck_status`
+           is `ran` and `precheck_read_error` is empty. A check that could not
            run is the fact a reader skims past when it is a sentence inside a paragraph, which is why
            it is a block of its own and why it goes above what was built.
         2. What Was Built — 3-5 bullets referencing each issue id + title implemented this cycle.
-           If goals-check reported MISSING criteria, lead with "⚠ goals-check found N uncovered
-           criteria — see matrix below."
-        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim.
+           Read `hard_findings` from
+           `$bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json`. If it holds any
+           entry, lead with "⚠ the code-review pre-check found N hard findings, so the verdict
+           is fail", then list each entry's `category`, `citation` and `summary`. If goals-check
+           reported MISSING criteria, write "⚠ goals-check found N uncovered criteria. See the
+           matrix below." after the pre-check warning, or first when there is none.
+        3. Goals-Check Coverage Matrix — paste $goals-check.output.verdict verbatim. Then add this
+           sentence. "COVERED means a test and an implementation exist, not that either is correct.
+           Any hard findings from the code-review pre-check are listed in section 2."
         4. Test Outcomes — open with `test: $verification.output.test_outcome`, then the counts, the
            coverage figure and any e2e result from $verification.output.verdict; note skipped/flaky. A
            need reported "unresolved" is named in section 1; this section carries what ran.
@@ -738,29 +900,21 @@ nodes:
       Print: "report written to $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md".
 
   # ---------------------------------------------------------------------------------------------
-  # open-pr — always runs (even in AFK mode); the gate below only PAUSES in hitl mode.
+  # commit-session — runs on EVERY verdict. Stages the named paths and commits them, so the work and
+  # the Session artefacts are committed before the verdict decides anything. A prompt,
+  # because telling the loop's uncommitted source and test files from scratch files is a judgement.
   # ---------------------------------------------------------------------------------------------
-  - id: open-pr
+  - id: commit-session
     depends_on: [report]
     context: fresh
     allowed_tools: [Read, Bash]
     prompt: |
-      You are the open-pr node of /build for slug "$bootstrap.output.slug".
+      You are the commit-session node of /build for slug "$bootstrap.output.slug". You stage and
+      commit. You do not push and you do not open a pull request. push-branch pushes, and open-pr
+      opens the pull request only on a "pass" verdict.
 
       Constants:
         SESSION = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
-
-      ## The tracker contract
-      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
-      tracker contract. This node needs the first. Read it before the first tracker call.
-      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
-        server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
-        flag table frozen in this file is stale the moment the tool changes.
-      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
-        explicitly in every call, and derive nothing from a remote URL.
-      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
-      docs/agents/issue-tracker.md", and act on nothing.
 
       1. Build the stage list. It is EXACTLY these named paths — an explicit list, never "everything
          changed by the build":
@@ -770,9 +924,9 @@ nodes:
            - SESSION/issues.json
            - SESSION/report.md
            - SESSION/build-state.json
-           - SESSION/evidence.json — ONLY if that file exists. The `evidence` node withholds it on
-             a red verdict, and `git add` on a path that does not exist fails with exit 128 and
-             takes the whole staging step with it. Check first; if it is absent, skip it and say so.
+           - SESSION/evidence.json. The `evidence` node writes it on every verdict, so it is
+             always there. If it is absent, STOP and print "BLOCKED: SESSION/evidence.json is
+             missing", and commit nothing.
            - each new `docs/adr/NNNN-*.md` the report node drafted, by name
          Derive the source/test entries by reading `git status --porcelain` and picking out the
          source and test files — then add them one at a time by name. A path already committed by a
@@ -781,7 +935,7 @@ nodes:
          SESSION/build-state.json is committed HERE and ONLY here — the loop never commits it. This
          one commit is the durable proof of the loop's anti-cheat record (`red_exit`,
          `red_unexpected_pass`, the per-slice phase order), which otherwise dies when `/cleanup`
-         prunes this worktree (ADR-0012).
+         prunes this worktree.
 
       ## Staging — named paths only
       Run one `git add <path>` per path in the list above. NEVER `git add -A`, `git add .` or
@@ -789,15 +943,113 @@ nodes:
       sweeps in scratch files it cannot see the origin of.
       NEVER stage `pr-body.md`, `*.tmp.md`, `*.scratch.md`, or anything under `$ARTIFACTS_DIR` —
       Archon's per-run directory, which resolves OUTSIDE the repo tree under
-      `~/.archon/workspaces/<name>/artifacts/`. (SESSION above is repo-relative and IS staged; write
-      the PR body inline rather than to a file, so there is no body file to leak.)
+      `~/.archon/workspaces/<name>/artifacts/`. (SESSION above is repo-relative and IS staged.)
       Then run `git status --porcelain` and confirm every staged entry is one of the named paths.
       Unstage anything else with `git restore --staged <path>` and say what you unstaged.
 
       2. Commit the staged set: `build($bootstrap.output.slug): session artefacts`.
 
-      3. Open a PR against the repository the tracker contract above names, targeting
-         `$bootstrap.output.expected_base`:
+      3. Print the commit hash and the list of paths it holds.
+
+  # ---------------------------------------------------------------------------------------------
+  # push-branch — runs on EVERY verdict, and pushes the branch commit-session committed on, to
+  # `origin`. A bash node, so a refusal or a failed push exits non-zero. The node fails,
+  # guard-not-pass and open-pr are both skipped, and the run ends `failed`. That is a different fact
+  # from a red verdict, because no work reached the remote. Before the push it refuses four cases:
+  # an empty $BASE_BRANCH, HEAD detached or on the run's base branch, a branch name that cannot go
+  # into the JSON below, and a Session artefact that is missing at HEAD or differs from the working
+  # tree. It checks the five Session paths commit-session stages: PRD.md, issues.json, report.md,
+  # build-state.json and evidence.json. A miss has two causes. commit-session did not commit, which a
+  # prompt node cannot report by failing. Or a resumed run re-ran `evidence` after the commit and the
+  # rewritten evidence.json differs, which needs a new run. It prints `git status --porcelain` to stderr before the push. Archon 0.12.1
+  # substitutes $BASE_BRANCH in a bash body. Its stdout is JSON only, read field
+  # by field by guard-not-pass and open-pr. git's own lines go to stderr.
+  # ---------------------------------------------------------------------------------------------
+  - id: push-branch
+    depends_on: [commit-session]
+    bash: |
+      set -e
+      if [ -z "$BASE_BRANCH" ]; then
+        echo "push-branch: the run's base branch is empty, so this node cannot tell whether HEAD is on it" >&2
+        exit 1
+      fi
+      branch=$(git rev-parse --abbrev-ref HEAD)
+      if [ "$branch" = "HEAD" ]; then
+        echo "push-branch: HEAD is detached, so there is no branch to push" >&2
+        exit 1
+      fi
+      if [ "$branch" = "$BASE_BRANCH" ]; then
+        echo "push-branch: HEAD is on the base branch $branch, so a push would put the work on it directly" >&2
+        exit 1
+      fi
+      case "$branch" in
+        *'"'* | *'\'*)
+          echo "push-branch: the branch name holds a double quote or a backslash, so it cannot be reported as JSON" >&2
+          exit 1
+          ;;
+      esac
+      session=$bootstrap.output.artifacts_dir/$bootstrap.output.slug
+      for name in PRD.md issues.json report.md build-state.json evidence.json; do
+        file=$(printf '%s' "$session/$name" | tr -s /)
+        if ! git cat-file -e "HEAD:$file" 2>/dev/null || ! git diff --quiet HEAD -- "$file"; then
+          echo "push-branch: $file at HEAD is missing or differs from the working tree. Either commit-session did not commit it, or this is a resumed run that re-ran evidence after the commit, which needs a new run" >&2
+          exit 1
+        fi
+      done
+      git status --porcelain >&2
+      git push -u origin "$branch" >&2
+      printf '{"branch":"%s","commit":"%s"}\n' "$branch" "$(git rev-parse HEAD)"
+
+  # ---------------------------------------------------------------------------------------------
+  # guard-not-pass — the sibling of open-pr. Its `when` is the exact negation of open-pr's, and both
+  # compare the verdict with 'pass' only, so `fail` and `unresolved` both end here and no third
+  # branch exists. It opens no pull request and writes nothing to the tracker. It ends the run
+  # `cancelled`, with the work already on the branch push-branch pushed.
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-not-pass
+    depends_on: [push-branch]
+    when: "$evidence.output.verdict != 'pass'"
+    cancel: >
+      /build verdict is $evidence.output.verdict, so /build opened no pull request. The work is on
+      branch $push-branch.output.branch at commit $push-branch.output.commit. On that branch, read
+      $bootstrap.output.artifacts_dir/$bootstrap.output.slug/report.md for what failed and which
+      checks could not run, and $bootstrap.output.artifacts_dir/$bootstrap.output.slug/evidence.json
+      for the failures the verdict rests on.
+
+  # ---------------------------------------------------------------------------------------------
+  # open-pr — the sibling of guard-not-pass. It runs only on a "pass" verdict. It sets no trigger
+  # rule. On any other verdict it is skipped, and so is build-pr-gate below. It stages and commits
+  # nothing. It opens the pull request from the pushed branch and links it.
+  # ---------------------------------------------------------------------------------------------
+  - id: open-pr
+    depends_on: [push-branch]
+    when: "$evidence.output.verdict == 'pass'"
+    context: fresh
+    allowed_tools: [Read, Bash]
+    prompt: |
+      You are the open-pr node of /build for slug "$bootstrap.output.slug".
+
+      Constants:
+        SESSION = $bootstrap.output.artifacts_dir/$bootstrap.output.slug/
+        BRANCH  = $push-branch.output.branch
+
+      commit-session committed the work and push-branch pushed BRANCH. Stage nothing, commit nothing
+      and push nothing here.
+
+      ## The tracker contract
+      `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` in this repository are the
+      tracker contract. This node needs the first. Read it before the first tracker call.
+      - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
+        server's own current tool list and build every call from it. Write no command, subcommand or
+        flag here and name no provider: the DLC owns the what and none of the how, and a
+        flag table frozen in this file is stale the moment the tool changes.
+      - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
+        explicitly in every call, and derive nothing from a remote URL.
+      If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
+      docs/agents/issue-tracker.md", and act on nothing.
+
+      1. Open a PR against the repository the tracker contract above names, from BRANCH, targeting
+         `$BASE_BRANCH`:
            Title: "build($bootstrap.output.slug): implementation"
            Body:  ## Summary  (TDD implementation for the slug; goals-check status; report link)
                   ## Review Checklist
@@ -806,8 +1058,14 @@ nodes:
                   - [ ] Coverage meets the configured threshold
                   - [ ] Tech-debt section in report.md is accurate
                   - [ ] Drafted ADRs (if any) are ready to record
+                  ## Pre-check notes
+                  One bullet per entry of `precheck_notes` in SESSION/evidence.json, or "none"
+                  when the array is empty. Read the file, not the pre-check's prose. List no
+                  hard finding here. A run with one has the verdict `fail` and never reaches
+                  this node.
+         Write the PR body inline rather than to a file, so there is no body file to leak.
 
-      4. Link the PR to its work. SESSION/issues.json carries a `tracker_id` for each slice
+      2. Link the PR to its work. SESSION/issues.json carries a `tracker_id` for each slice
          `/tickets` published. Link every one of those items to this PR through the registered
          skill's own link capability — a pull request and a tracker item each carry a links
          collection, and that collection is discoverable. Name no text token: a token written here
@@ -815,20 +1073,27 @@ nodes:
          the ids in the PR body under `## Work items` and say the links were not created. A slice
          with no `tracker_id` is reported, never invented.
 
-      5. Print the PR URL and the repository it was opened against.
+      If the tracker tool cannot open the PR, STOP and print "BLOCKED: the pull request could not be
+      opened" followed by the tool's error, verbatim. push-branch pushed BRANCH to `origin`, so a
+      contract repository that is not `origin`, such as a fork setup, is one cause. Open nothing else.
+
+      3. Print the PR URL and the repository it was opened against.
 
   # ---------------------------------------------------------------------------------------------
-  # build-pr-gate — HITL by default; skipped when gates.build == afk (PR already open above).
+  # build-pr-gate — runs only after open-pr, so only on a "pass" verdict. HITL by default; skipped
+  # when gates.build == afk, and the pull request open-pr opened stays open.
   # On reject: re-verify-and-fix from the reviewer's feedback, then re-pause (not a full rebuild).
   # ---------------------------------------------------------------------------------------------
   - id: build-pr-gate
     depends_on: [open-pr]
     when: "$bootstrap.output.gate == 'hitl'"
+    # Archon 0.12.1 substitutes node outputs in an approval message but not $BASE_BRANCH, so
+    # this message names the base through bootstrap's message, which starts with it.
     approval:
       message: >
-        Build implementation, goals-check matrix, and report are ready. Review the PR opened against
-        $bootstrap.output.expected_base. Approve to finish, or reject with feedback to trigger a
-        verify-and-fix pass.
+        Build implementation, goals-check matrix, and report are ready. $bootstrap.output.message
+        Review the PR opened against that base branch. Approve to finish, or reject with feedback to
+        trigger a verify-and-fix pass.
       on_reject:
         prompt: |
           The reviewer rejected the build PR with this feedback:

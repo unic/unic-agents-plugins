@@ -30,10 +30,26 @@
         "note": "A run whose preconditions fail is cancelled before any check runs."
       },
       {
+        "id": "no-merge",
+        "label": "Cancel paths",
+        "focus": [
+          "bootstrap",
+          "guard-not-ready",
+          "pr-check",
+          "guard-no-open-pr",
+          "verify-pr-base",
+          "guard-not-mergeable",
+          "merge",
+          "guard-not-merged"
+        ],
+        "note": "A path that does not merge on a result ends cancelled. A failed node ends the run failed. No path without an open PR reaches merge."
+      },
+      {
         "id": "happy-path",
         "label": "Happy path",
         "focus": [
           "bootstrap",
+          "pr-check",
           "test",
           "e2e",
           "coverage-gate",
@@ -71,11 +87,27 @@
       "size": [150, 48]
     },
     {
+      "id": "pr-check",
+      "type": "backend",
+      "label": "pr-check",
+      "sublabel": "reads the PR state",
+      "size": [190, 48],
+      "pos": [530, 40]
+    },
+    {
+      "id": "guard-no-open-pr",
+      "type": "external",
+      "label": "guard-no-open-pr",
+      "sublabel": "cancels the run",
+      "size": [150, 48],
+      "pos": [40, 126]
+    },
+    {
       "id": "test",
       "type": "backend",
       "label": "test",
       "sublabel": "runs the tests",
-      "pos": [530, 40],
+      "pos": [800, 40],
       "size": [190, 48]
     },
     {
@@ -83,7 +115,7 @@
       "type": "backend",
       "label": "e2e",
       "sublabel": "runs e2e if declared",
-      "pos": [800, 40],
+      "pos": [1070, 40],
       "size": [190, 48]
     },
     {
@@ -91,7 +123,7 @@
       "type": "backend",
       "label": "coverage-gate",
       "sublabel": "checks coverage",
-      "pos": [260, 190],
+      "pos": [260, 260],
       "size": [190, 48]
     },
     {
@@ -99,7 +131,7 @@
       "type": "backend",
       "label": "uat-prep",
       "sublabel": "writes qa-checks.md",
-      "pos": [530, 190],
+      "pos": [530, 260],
       "size": [190, 48]
     },
     {
@@ -107,39 +139,55 @@
       "type": "security",
       "label": "uat-gate",
       "sublabel": "gates.qa: hitl",
-      "pos": [1070, 190],
+      "pos": [1070, 260],
       "size": [190, 48]
     },
     {
       "id": "verify-pr-base",
       "type": "backend",
       "label": "verify-pr-base",
-      "sublabel": "checks the PR base",
-      "pos": [260, 340],
+      "sublabel": "re-reads PR state, base",
+      "pos": [260, 410],
       "size": [190, 48]
+    },
+    {
+      "id": "guard-not-mergeable",
+      "type": "external",
+      "label": "guard-not-mergeable",
+      "sublabel": "cancels the run",
+      "size": [150, 48],
+      "pos": [40, 410]
     },
     {
       "id": "merge-gate",
       "type": "security",
       "label": "merge-gate",
       "sublabel": "gates.qa: hitl",
-      "pos": [1070, 340],
+      "pos": [1070, 410],
       "size": [190, 48]
     },
     {
       "id": "merge",
       "type": "backend",
       "label": "merge",
-      "sublabel": "merges the PR",
-      "pos": [260, 430],
+      "sublabel": "merges, reports merged",
+      "pos": [260, 500],
       "size": [190, 48]
+    },
+    {
+      "id": "guard-not-merged",
+      "type": "external",
+      "label": "guard-not-merged",
+      "sublabel": "cancels the run",
+      "size": [150, 48],
+      "pos": [40, 500]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
       "label": "Prepare + check",
-      "wraps": ["bootstrap", "test", "e2e"],
+      "wraps": ["bootstrap", "pr-check", "test", "e2e"],
       "pad": 16
     },
     {
@@ -157,10 +205,26 @@
   ],
   "connections": [
     {
-      "id": "bootstrap-test",
+      "id": "bootstrap-pr-check",
       "from": "bootstrap",
-      "to": "test",
+      "to": "pr-check",
       "label": "ready"
+    },
+    {
+      "id": "pr-check-test",
+      "from": "pr-check",
+      "to": "test",
+      "label": "open"
+    },
+    {
+      "id": "no-open-pr",
+      "from": "pr-check",
+      "to": "guard-no-open-pr",
+      "label": "not open",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [[625, 150]]
     },
     {
       "id": "not-ready",
@@ -180,7 +244,7 @@
       "to": "coverage-gate",
       "fromSide": "bottom",
       "toSide": "top",
-      "via": [[895, 138], [355, 138]]
+      "via": [[1165, 210], [355, 210]]
     },
     {
       "id": "coverage-gate-uat-prep",
@@ -201,13 +265,20 @@
       "label": "all_done",
       "fromSide": "bottom",
       "toSide": "top",
-      "via": [[1165, 288], [355, 288]]
+      "via": [[1165, 358], [355, 358]]
     },
     {
       "id": "verify-pr-base-merge-gate",
       "from": "verify-pr-base",
       "to": "merge-gate",
-      "label": "hitl, base_ok",
+      "label": "hitl, mergeable",
+      "variant": "security"
+    },
+    {
+      "id": "not-mergeable",
+      "from": "verify-pr-base",
+      "to": "guard-not-mergeable",
+      "label": "not mergeable",
       "variant": "security"
     },
     {
@@ -217,7 +288,14 @@
       "label": "all_done",
       "fromSide": "bottom",
       "toSide": "right",
-      "via": [[1165, 454]]
+      "via": [[1165, 524]]
+    },
+    {
+      "id": "not-merged",
+      "from": "merge",
+      "to": "guard-not-merged",
+      "label": "not merged",
+      "variant": "security"
     }
   ],
   "cards": [
@@ -225,8 +303,9 @@
       "dot": "emerald",
       "title": "Merge condition",
       "items": [
-        "merge runs only when test is pass, e2e and coverage-gate are not fail, and base_ok is true",
-        "merge marks the linked items resolved"
+        "merge runs only when test is pass, e2e and coverage-gate are not fail, the PR is open, and base_ok is true",
+        "guard-not-mergeable cancels on the exact negation of that condition, and merge-gate asks only when merge would run",
+        "merge marks the linked items resolved, and guard-not-merged cancels when the merge did not land"
       ]
     },
     {

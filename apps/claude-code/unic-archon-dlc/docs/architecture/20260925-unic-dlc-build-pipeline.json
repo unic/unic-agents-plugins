@@ -41,6 +41,8 @@
           "goals-check",
           "evidence",
           "report",
+          "commit-session",
+          "push-branch",
           "open-pr",
           "build-pr-gate"
         ],
@@ -48,125 +50,143 @@
       },
       {
         "id": "evidence-and-approval",
-        "label": "Evidence and approval",
-        "focus": ["verification", "goals-check", "evidence", "report", "open-pr", "build-pr-gate"],
-        "note": "open-pr runs whatever evidence concluded. The evidence gate decides only whether the run ends completed."
+        "label": "Verdict and approval",
+        "focus": ["evidence", "report", "commit-session", "push-branch", "guard-not-pass", "open-pr", "build-pr-gate"],
+        "note": "Every verdict is reported, committed and pushed. Only a pass opens the PR. Any other verdict cancels the run."
       }
     ]
   },
   "components": [
-    {
-      "id": "bootstrap",
-      "type": "backend",
-      "label": "bootstrap",
-      "sublabel": "reads config",
-      "pos": [290, 40],
-      "size": [220, 48]
-    },
-    {
-      "id": "slopcheck",
-      "type": "messagebus",
-      "label": "slopcheck",
-      "sublabel": "new packages exist",
-      "pos": [910, 40],
-      "size": [220, 48]
-    },
     {
       "id": "guard-not-ready",
       "type": "external",
       "label": "guard-not-ready",
       "sublabel": "cancels the run",
       "pos": [40, 40],
-      "size": [160, 48]
+      "size": [150, 48]
+    },
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "reads config",
+      "pos": [260, 40],
+      "size": [190, 48]
+    },
+    {
+      "id": "slopcheck",
+      "type": "messagebus",
+      "label": "slopcheck",
+      "sublabel": "new packages exist",
+      "pos": [530, 40],
+      "size": [190, 48]
     },
     {
       "id": "run-build",
       "type": "backend",
       "label": "run-build",
       "sublabel": "writes build-state.json",
-      "pos": [290, 190],
-      "size": [220, 48]
+      "pos": [800, 40],
+      "size": [190, 48]
     },
     {
       "id": "implement-review-precheck",
       "type": "backend",
       "label": "implement-review-precheck",
       "sublabel": "Standards + Spec, in parallel",
-      "pos": [600, 190],
-      "size": [220, 48]
+      "pos": [1070, 40],
+      "size": [190, 48]
     },
     {
       "id": "verification",
       "type": "backend",
       "label": "verification",
       "sublabel": "tests, stubs, coverage",
-      "pos": [290, 340],
-      "size": [220, 48]
+      "pos": [260, 190],
+      "size": [190, 48]
     },
     {
       "id": "goals-check",
       "type": "backend",
       "label": "goals-check",
       "sublabel": "criteria to evidence",
-      "pos": [600, 340],
-      "size": [220, 48]
+      "pos": [530, 190],
+      "size": [190, 48]
     },
     {
       "id": "evidence",
       "type": "messagebus",
       "label": "evidence",
       "sublabel": "writes evidence.json",
-      "pos": [910, 340],
-      "size": [220, 48]
+      "pos": [800, 190],
+      "size": [190, 48]
     },
     {
       "id": "report",
       "type": "backend",
       "label": "report",
       "sublabel": "writes report.md",
-      "pos": [290, 490],
-      "size": [220, 48]
+      "pos": [1070, 190],
+      "size": [190, 48]
+    },
+    {
+      "id": "commit-session",
+      "type": "backend",
+      "label": "commit-session",
+      "sublabel": "stages named paths, commits",
+      "pos": [260, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "push-branch",
+      "type": "messagebus",
+      "label": "push-branch",
+      "sublabel": "pushes the branch",
+      "pos": [530, 340],
+      "size": [190, 48]
+    },
+    {
+      "id": "guard-not-pass",
+      "type": "external",
+      "label": "guard-not-pass",
+      "sublabel": "cancels the run",
+      "pos": [40, 426],
+      "size": [150, 48]
     },
     {
       "id": "open-pr",
       "type": "backend",
       "label": "open-pr",
       "sublabel": "opens the PR",
-      "pos": [600, 490],
-      "size": [220, 48]
+      "pos": [800, 340],
+      "size": [190, 48]
     },
     {
       "id": "build-pr-gate",
       "type": "security",
       "label": "build-pr-gate",
       "sublabel": "gates.build: hitl",
-      "pos": [910, 490],
-      "size": [220, 48]
+      "pos": [1070, 340],
+      "size": [190, 48]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
-      "label": "Prepare",
-      "wraps": ["bootstrap", "slopcheck"],
+      "label": "Prepare + red / green",
+      "wraps": ["bootstrap", "slopcheck", "run-build", "implement-review-precheck"],
       "pad": 16
     },
     {
       "kind": "region",
-      "label": "Red / green",
-      "wraps": ["run-build", "implement-review-precheck"],
+      "label": "Verify + report",
+      "wraps": ["verification", "goals-check", "evidence", "report"],
       "pad": 16
     },
     {
       "kind": "region",
-      "label": "Verify",
-      "wraps": ["verification", "goals-check", "evidence"],
-      "pad": 16
-    },
-    {
-      "kind": "region",
-      "label": "Deliver",
-      "wraps": ["report", "open-pr", "build-pr-gate"],
+      "label": "Commit + deliver",
+      "wraps": ["commit-session", "push-branch", "open-pr", "build-pr-gate"],
       "pad": 16
     }
   ],
@@ -187,10 +207,7 @@
     {
       "id": "packages-ok",
       "from": "slopcheck",
-      "to": "run-build",
-      "fromSide": "bottom",
-      "toSide": "top",
-      "via": [[1020, 138], [400, 138]]
+      "to": "run-build"
     },
     {
       "id": "loop-done",
@@ -203,8 +220,8 @@
       "from": "implement-review-precheck",
       "to": "verification",
       "fromSide": "bottom",
-      "toSide": "left",
-      "via": [[710, 288], [256, 288], [256, 364]]
+      "toSide": "top",
+      "via": [[1165, 138], [355, 138]]
     },
     {
       "id": "to-goals",
@@ -223,21 +240,53 @@
       "variant": "dashed",
       "fromSide": "top",
       "toSide": "top",
-      "via": [[400, 328], [1020, 328]]
+      "via": [[355, 178], [895, 178]]
+    },
+    {
+      "id": "precheck-evidence",
+      "from": "implement-review-precheck",
+      "to": "evidence",
+      "label": "status, hard findings",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [[1290, 64], [1290, 158], [895, 158]],
+      "labelAt": [1215, 158]
     },
     {
       "id": "to-report",
       "from": "evidence",
       "to": "report",
-      "label": "any verdict",
+      "label": "any verdict"
+    },
+    {
+      "id": "to-commit",
+      "from": "report",
+      "to": "commit-session",
       "fromSide": "bottom",
       "toSide": "top",
-      "via": [[1020, 438], [400, 438]]
+      "via": [[1165, 288], [355, 288]]
+    },
+    {
+      "id": "to-push",
+      "from": "commit-session",
+      "to": "push-branch"
+    },
+    {
+      "id": "not-pass",
+      "from": "push-branch",
+      "to": "guard-not-pass",
+      "label": "not pass",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [[625, 450]]
     },
     {
       "id": "to-open-pr",
-      "from": "report",
-      "to": "open-pr"
+      "from": "push-branch",
+      "to": "open-pr",
+      "label": "pass"
     },
     {
       "id": "to-gate",
@@ -252,9 +301,11 @@
       "dot": "cyan",
       "title": "Evidence gate",
       "items": [
-        "evidence writes evidence.json only on a pass verdict",
-        "open-pr runs whatever evidence concluded",
-        "evidence_policy ends the run completed only when evidence.json exists"
+        "evidence writes evidence.json on every verdict",
+        "evidence reads the pre-check. A hard finding is fail, and a pre-check that did not run is unresolved when nothing else failed",
+        "report, commit-session and push-branch run on every verdict, so a red build still reaches its branch",
+        "open-pr runs only on a pass, and guard-not-pass cancels the run on any other verdict",
+        "A failed push ends the run failed, and evidence_policy is only a backstop"
       ]
     }
   ]

@@ -5,21 +5,21 @@ description: >
   is where refactoring lives now that /build's loop has no REFACTOR phase) and Spec (does the diff match
   what was asked for) — as parallel sub-agents, grounded in the Intent Brief composed once in prep from
   the linked work items, the referenced docs pages, the PR description, and PRD.md. Synthesises this run's
-  findings, reconciles them against the prior iteration (new / still-present / fixed / regressed), then —
+  findings, reconciles them against the prior iteration (new / still-present / fixed / unverified / regressed), then —
   after a config-gated human confirm — posts/updates one structured summary discussion plus per-line
   discussions on the current PR, through the tracker its contract at `docs/agents/issue-tracker.md`
   names. Harvests unic-pr-review's review
-  learnings without its host-specific code or any dependency (ADR-0016/0017). Ported to the key-discriminated node
-  schema (ADR-0011); inherits /build's self-contained-node conventions (ADR-0023 §5). This Box holds the
-  only posting authority in the lifecycle. See ADR-0026, ADR-0030, ADR-0031.
+  learnings without its host-specific code or any dependency. Ported to the key-discriminated node
+  schema; inherits /build's self-contained-node conventions. This Box holds the
+  only posting authority in the lifecycle.
 
-# Required at the workflow level so the review-gate approval message reaches the user (ADR-0011).
+# Required at the workflow level so the review-gate approval message reaches the user.
 interactive: true
 
 nodes:
   # ---------------------------------------------------------------------------------------------
   # bootstrap — parse the slug from $ARGUMENTS, read config. A prompt node (NOT a script) so it needs
-  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT (ADR-0023 §5): it reads .archon/unic-dlc.config.yaml
+  # no plugin-lib import and no $CLAUDE_PLUGIN_ROOT. It reads .archon/unic-dlc.config.yaml
   # with its own tools. Posting is AFK-safe; the human checkpoint here is the review-gate, and the real
   # merge gate lives in /qa.
   # ---------------------------------------------------------------------------------------------
@@ -40,12 +40,14 @@ nodes:
              `pr-review.confidence_threshold` (default 60)
              `pr-review.inline_comments`      (default true)
              `docs.type` / `docs.access`      (for intent composition from docs)
-             `project.branching`              (default "gitflow")
              the whole `sdlc_needs` block
       3. If slug and config are both present → status "ready".
          (There is no PRD precondition: intent is composed from whatever sources resolve — see prep.)
 
-      Compute `expected_base` from branching: "develop" when branching == "gitflow", else "main".
+      This run's base branch is `$BASE_BRANCH`. Archon resolves it before this node starts, from
+      `--base`, then `worktree.baseBranch` in `.archon/config.yaml`, then the codebase default. Read no
+      base branch from the config. prep diffs against the PR's own target branch when there is a PR,
+      and against `$BASE_BRANCH` only when there is none.
 
       ## The `sdlc_needs` block — a key names a need, never a tool
       Every key in it names a NEED of this project's development process. `test` names the need;
@@ -60,11 +62,11 @@ nodes:
       arrives null stays null. What happens next depends on the node: one that wants that need reports
       an **unresolved** check, one that does not want it reports nothing at all, and neither fabricates
       a command — a guessed command reports a result that means nothing.
-      **This Box runs no build, lint, type-check or test command by instruction** (ADR-0026): it
-      carries the block so that `reconcile` can tell the reader which checks the project has and this
-      review did not run. `install` is the exception and is not a check — you run it below, once,
-      because a sub-agent that decides on its own that it needs to run something should fail on that
-      decision rather than on which worktree the run drew (ADR-0037 §6).
+      **This Box runs no build, lint, type-check or test command by instruction**. It
+      carries the block so that `reconcile` can tell the reader which checks the project declares and
+      that this Box instructed none of them. `install` is the exception and is not a check. You run it
+      below, once, because a sub-agent that decides on its own that it needs to run something should
+      fail on that decision rather than on which worktree the run drew.
 
       ## Install once, and say what you did
       One Archon worktree serves this whole run and may or may not already carry this project's
@@ -85,9 +87,9 @@ nodes:
       ALWAYS emit EVERY required field, including in the no-slug and no-config branches, so the object
       validates before a guard can cancel. When a value cannot be read, fall back to: slug "" (if
       no-slug), artifacts_dir "workflows", gate "hitl", confidence_threshold 60, inline_comments
-      "true", branching "gitflow", expected_base "develop". `inline_comments` is emitted as the STRING
-      "true"/"false" (enum) so downstream `when` comparisons are reliable. Set `message` to a
-      human-readable reason for any non-ready status.
+      "true". `inline_comments` is emitted as the STRING "true"/"false" (enum) so downstream `when`
+      comparisons are reliable. In EVERY branch, start `message` with "Base branch: $BASE_BRANCH."
+      and follow it with a human-readable reason for any non-ready status.
     output_format:
       type: object
       properties:
@@ -103,7 +105,6 @@ nodes:
         inline_comments:
           type: string
           enum: ['true', 'false']
-        branching: { type: string }
         sdlc_needs:
           type: object
           properties:
@@ -118,12 +119,11 @@ nodes:
             coverage: { type: [string, 'null'] }
           required: [install, build, test, e2e, lint, format, typecheck, dev, coverage]
         install_report: { type: string }
-        expected_base: { type: string }
         message: { type: string }
-      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, branching, sdlc_needs, install_report, expected_base, message]
+      required: [status, slug, artifacts_dir, gate, confidence_threshold, inline_comments, sdlc_needs, install_report, message]
 
   # ---------------------------------------------------------------------------------------------
-  # guard — expected precondition failures cancel cleanly (ADR-0011: cancel vs fail). One guard,
+  # guard — expected precondition failures cancel cleanly. One guard,
   # because there is no repository to resolve: `docs/agents/issue-tracker.md` names it.
   # ---------------------------------------------------------------------------------------------
   - id: guard-not-ready
@@ -138,12 +138,12 @@ nodes:
   # prep — the shared context builder. Identifies the open PR, computes the diff, categorises the
   # changed files, composes ONE Intent Brief from every available source, detects the prior review
   # iteration, and writes everything to <artifacts_dir>/<slug>/pr-review/ so the review node reads it
-  # off disk (fresh nodes share no memory — ADR-0012/0015). Composing intent once and injecting it into
-  # both review axes is the primary quality lever (ADR-0026): each axis judges the diff against what the
+  # off disk (fresh nodes share no memory). Composing intent once and injecting it into
+  # both review axes is the primary quality lever, because each axis judges the diff against what the
   # PR is SUPPOSED to do.
   #
   # The five changed-file category booleans no longer gate node spawning — the seven conditionally
-  # spawned aspect nodes collapsed into one always-running `review` node (#281). They stay because they
+  # spawned aspect nodes collapsed into one always-running `review` node. They stay because they
   # are durable diff metadata in prep.json that a reader (and a future spawn decision) can use; nothing
   # reads them today. Retire them or find them a consumer in a follow-up, not in a rewiring slice.
   # ---------------------------------------------------------------------------------------------
@@ -166,7 +166,7 @@ nodes:
       tracker contract. This node needs the first. Read it before the first tracker call.
       - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
         server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), and a
+        flag here and name no provider: the DLC owns the what and none of the how, and a
         flag table frozen in this file is stale the moment the tool changes.
       - **Addressing** — its § Addressing names the repository this run acts on. Name that repository
         explicitly in every call, and derive nothing from a remote URL.
@@ -176,13 +176,37 @@ nodes:
 
       ## 1. Identify the open PR + read its description
       Ask the tracker for the open PR whose source branch is the current branch on that repository, and
-      read its number, title, description body, source branch and target branch. If the tracker has no
-      queryable PR at all, note that and continue — the review still runs off the diff.
-      Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an intent source).
+      read its number, title, description body, source branch and target branch. Four outcomes:
+        - The query succeeds and returns a PR. Store PR_ID, PR_TITLE, and the PR DESCRIPTION BODY (an
+          intent source).
+        - The query succeeds and confirms that no open PR exists for this branch. Note that and
+          continue. The review still runs off the diff.
+        - The tracker contract's § Access names no server or skill that can list pull requests, so
+          this tracker has no PRs to query. Print "prep: this tracker exposes no pull requests" and
+          continue as for a confirmed no-PR. This is a fact the contract states, not an error.
+        - The query fails or errors, for example on auth, a rate limit or a timeout. Print
+          "prep: BLOCKED: the tracker query for this branch's PR failed: <error>". Set `base_ref` to "",
+          write no diff, and skip to the emit rule at the end of this node. A failed query does not
+          prove that no PR exists, and the fallback to `$BASE_BRANCH` below is only for that proof.
 
       ## 2. Compute the diff + categorise changed files
-      BASE_REF = the upstream base (merge-base of the PR base branch and HEAD). Try
-      `git merge-base origin/$bootstrap.output.expected_base HEAD`; fall back to `HEAD~1`.
+      DIFF_BASE = the branch this PR will merge into. When step 1 found a PR, it is the PR's target
+      branch, because that is the diff that will merge. When step 1 confirmed that no PR exists, or that
+      the tracker exposes none, it is `$BASE_BRANCH`. When both exist and differ, set `base_warning` to "the PR targets <PR target>
+      but this run's base branch is $BASE_BRANCH. Reviewing the diff against <PR target>.", print it
+      as "prep: WARNING: <base_warning>", and carry on. Otherwise set `base_warning` to "".
+      DIFF_BASE may be a branch this clone has never fetched, so run
+      `git fetch origin +refs/heads/<DIFF_BASE>:refs/remotes/origin/<DIFF_BASE>` first. The explicit
+      destination creates `origin/<DIFF_BASE>` even in a single-branch clone, whose refspec omits it. If the fetch fails, print "prep: fetch of origin/<DIFF_BASE> failed: <error>" and go on.
+      A failed fetch is not fatal on its own. Then set BASE_REF to
+      `git merge-base origin/<DIFF_BASE> HEAD`, falling back to `git merge-base <DIFF_BASE> HEAD` when
+      `origin/<DIFF_BASE>` does not resolve. Print "prep: diff base is <DIFF_BASE> (<source>, via
+      <ref>)", where <source> is "PR target" or "run base, no PR" and <ref> is "origin/<DIFF_BASE>" or
+      "local <DIFF_BASE>", whichever resolved.
+      If NEITHER resolves, do NOT fall back to `HEAD~1` or to any other commit. A one-commit diff holds
+      only the last commit, so the review would judge that commit instead of the whole change. Print
+      "prep: BLOCKED: cannot resolve diff base '<DIFF_BASE>' via origin or local", set `base_ref` to
+      "", write no diff, and skip to the emit rule at the end of this node.
       Write the unified diff to `SESSION/diff.patch` (`git diff <BASE_REF>...HEAD`) and the changed-file
       list to `SESSION/changed-files.txt` (`git diff --name-only <BASE_REF>...HEAD`).
       Categorise the changed files into these STRING booleans ("true"/"false"):
@@ -222,20 +246,62 @@ nodes:
       (`<!-- unic-dlc-pr-review:finding=<hash> -->`) into `prior_findings` (each: hash, aspect, file,
       title, anchored, prior_verdict) so reconcile can classify against them. EVERY prior finding
       carries that marker: an anchored discussion carries it, and the prior summary carries one beside
-      each finding it renders. Set `anchored` to "true" when you found the hash on a discussion
+      each finding it renders. Read only `finding=` markers as findings. A reply this Box posts
+      carries a `<!-- unic-dlc-pr-review:reply=<hash>:<verdict> -->` marker instead, and a reply is
+      never a finding of its own. Set `anchored` to "true" when you found the hash on a discussion
       anchored to a file and a line, and "false" when you found it only in the summary body — reconcile needs to know which
-      prior findings own a live thread. Set `prior_verdict` to "fixed" when you found the marker in
-      the summary's fixed list, and "open" otherwise: without it a finding the prior iteration RESOLVED
+      prior findings own a live thread. Set `prior_verdict` by the first rule that holds:
+        1. If the marker is in the summary's fixed list, set "fixed".
+        2. If the marker is in the summary's list headed "Not reported this iteration, not verified",
+           set "unverified".
+        3. If the finding is anchored, its hash appears nowhere in the prior summary, and its thread
+           is resolved or its latest reply marker is `<!-- unic-dlc-pr-review:reply=<hash>:fixed -->`,
+           set "fixed". A finding retired in an earlier iteration is in no part of the summary, so its
+           thread is the only record that it was resolved. That covers a thread an older Box resolved,
+           which carries no `reply=` marker. Without this rule, the next iteration reads such a
+           finding as "open" and rules it `unverified` on a resolved thread. The rule never applies to
+           a hash the prior summary shows anywhere, for example in a severity section. Such a finding
+           was open at the prior iteration, even when a killed run left its thread's latest reply
+           marker at `fixed`.
+        4. Otherwise, set "open".
+      Without `prior_verdict`, a finding the prior iteration RESOLVED
       reads exactly like one it reported, so it would be re-reported as fixed on every later iteration
-      and `regressed` could never fire. Read `file` from the locator the summary renders, and
+      and `regressed` could never fire. A scoped `unverified` finding has no thread, so the summary's
+      "Not reported this iteration, not verified" list is the only place its hash survives.
+      Read `file` from the locator the summary renders beside the marker, in a severity section or in
+      either list, and
       **a locator that is one of the three literal scope tokens — `pull request`, `work item`,
       `repository` — is a scope, not a path: record the token verbatim in `file`.** A host may nest a
       reply under its parent rather than listing every comment flat, so walk each thread's replies too.
       If the tracker exposes no discussion at all, set iteration 1 and prior_findings [].
+
+      ## 5. Record this head and read the prior one
+      Run `git rev-parse HEAD > SESSION/head.txt` in the reviewed tree. reconcile writes the summary's
+      head marker from that file, so the next iteration reads back the commit this run reviewed, never
+      a commit id a model typed. Check that SESSION/head.txt holds exactly 40 or 64 hexadecimal
+      characters and nothing else but a line end. A SHA-256 repository has 64. If it does not, print "prep: BLOCKED: SESSION/head.txt does not
+      hold a commit id", set `base_ref` to "", and skip to the emit rule at the end of this node, so
+      `guard-no-diff-base` cancels the run.
+      Then read the prior head. The prior summary, the discussion with the highest iteration marker,
+      carries `<!-- unic-dlc-pr-review:head=<commit id> -->` beside its iteration marker. Set
+      `prior_head` and `prior_head_status` as follows:
+        - If there is no such marker, or iteration is 1, set `prior_head` "" and `prior_head_status`
+          "absent". A summary that an older Box posted carries no head marker.
+        - If the marker's commit resolves, set `prior_head` to the commit id and `prior_head_status`
+          "recorded". It resolves when `git cat-file -e <commit id>^{commit}` succeeds, first as it is
+          and again after `git fetch origin <commit id>`.
+        - If the marker's commit still does not resolve after that fetch, set `prior_head` "" and
+          `prior_head_status` "unreachable". When the fetch failed, print "prep: fetch of prior head
+          <commit id> failed: <error>". The cause may be a rebase or a force push, or a host that
+          refuses a fetch by commit id. This node cannot tell which.
+      Print "prep: prior head <prior_head_status> <prior_head>".
       Write `SESSION/prep.json` mirroring the emitted object for durability.
 
       ALWAYS emit EVERY required field so the object validates (downstream nodes and `prep.json` assume
-      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". `contradictions` and
+      they exist). When no PR is queryable, use `pr_id` "" and `pr_title` "". When step 1, 2 or 5
+      stopped as BLOCKED, use `base_ref` "", the STRING "false" for every category, `intent_available`
+      "false", iteration 1, `prior_head` "", `prior_head_status` "absent", and `[]` for both arrays, and still write `SESSION/prep.json` mirroring that
+      object, so the cancelled run leaves a record of why. `contradictions` and
       `prior_findings` are ALWAYS arrays — `[]` when there is nothing to report. Emit the structured object.
     output_format:
       type: object
@@ -243,6 +309,7 @@ nodes:
         pr_id: { type: string }
         pr_title: { type: string }
         base_ref: { type: string }
+        base_warning: { type: string }
         has_source: { type: string, enum: ['true', 'false'] }
         has_tests: { type: string, enum: ['true', 'false'] }
         has_types: { type: string, enum: ['true', 'false'] }
@@ -251,6 +318,8 @@ nodes:
         intent_available: { type: string, enum: ['true', 'false'] }
         contradictions: { type: array, items: { type: string } }
         iteration: { type: number }
+        prior_head: { type: string }
+        prior_head_status: { type: string, enum: ['recorded', 'absent', 'unreachable'] }
         prior_findings:
           type: array
           items:
@@ -261,9 +330,9 @@ nodes:
               file: { type: string }
               title: { type: string }
               anchored: { type: string, enum: ['true', 'false'] }
-              prior_verdict: { type: string, enum: ['open', 'fixed'] }
+              prior_verdict: { type: string, enum: ['open', 'fixed', 'unverified'] }
             required: [hash, aspect, file, title, anchored, prior_verdict]
-      required: [pr_id, pr_title, base_ref, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_findings]
+      required: [pr_id, pr_title, base_ref, base_warning, has_source, has_tests, has_types, has_docs, touches_error_handling, intent_available, contradictions, iteration, prior_head, prior_head_status, prior_findings]
 
   # =============================================================================================
   # review — ONE node hosting the `code-review` Method's OWN two-axis fan-out (Standards · Spec).
@@ -273,17 +342,32 @@ nodes:
   # and upstream now maintains. The Method implements its own parallelism — its step 4 spawns two
   # sub-agents — so the Harness delegating to it is the whole point: nothing about running two
   # sub-agents needs the Harness, and re-implementing step 4 as two Archon nodes is the exact defect
-  # ADR-0030's structural bar forbids. The Harness keeps what no Method supplies: the Intent Brief,
-  # the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces
-  # (#281, amending ADR-0026).
+  # to avoid, because upstream maintains the Method's procedure and a copy here drifts. The Harness
+  # keeps only what no Method supplies: the Intent Brief, the finding contract below, hash-keyed re-review, the config gate and the two posting surfaces.
   #
   # The finding contract lives in the node's own prompt below, under "## The finding contract". A YAML
   # comment is not part of a prompt, so a rule stated only here is invisible at run time. Every rule
   # this Box must honour is written in the prompt that honours it, for that reason.
   # =============================================================================================
 
+  # ---------------------------------------------------------------------------------------------
+  # guard-no-diff-base. prep emits an empty base_ref when the tracker query failed, when prep cannot
+  # resolve the branch the PR merges into, or when SESSION/head.txt holds no commit id. A guessed base gives review a diff of other changes than
+  # the PR's, so the guard cancels the run.
+  # ---------------------------------------------------------------------------------------------
+  - id: guard-no-diff-base
+    depends_on: [prep]
+    when: "$prep.output.base_ref == ''"
+    cancel: >
+      /pr-review cannot resolve the branch this PR merges into, or cannot record the commit it
+      reviews, so it reviews nothing. prep's "prep: BLOCKED" line says which. When SESSION/head.txt
+      holds no commit id, check that the worktree is a git checkout with a HEAD, and re-run. When the tracker query failed, fix the tracker access and re-run.
+      When a PR exists, its target branch must exist on the remote, so retarget the PR or push that
+      branch, then re-run. With no PR, dispatch with --base <branch>.
+
   - id: review
     depends_on: [prep]
+    when: "$prep.output.base_ref != ''"
     context: fresh
     allowed_tools: [Read, Write, Bash, Glob, Grep, Agent]
     prompt: |
@@ -291,20 +375,32 @@ nodes:
       SESSION = <artifacts_dir>/<slug>/pr-review/ (artifacts_dir=$bootstrap.output.artifacts_dir).
       threshold = $bootstrap.output.confidence_threshold.
 
+      First delete SESSION/findings/review.json if it exists. SESSION persists between runs, so a file
+      an earlier iteration left there would let `synthesize` publish that iteration's findings, and
+      `reconcile` its reported checks, as this one's.
+      **Every stop after this point writes SESSION/findings/review.json first.** Write the sentence you
+      print as both `blocked` and `standards_report`, empty `findings`, `positives` and
+      `reported_checks` arrays, and `subagents_ran` as the rule below sets it. This holds for the
+      missing-Method stop, the `Agent`-unavailable stop, a fixed point that does not resolve, an empty
+      diff, and any other stop. A stopped review is not a clean review, and `blocked` is how `synthesize`
+      and `reconcile` tell the two apart.
+
       Read `.archon/methods/code-review/SKILL.md` in full, by that literal repo-relative path. That is the
-      one path a Method lives at: an Archon node cannot import anything from the Plugin (ADR-0023 §5),
-      and the config and `.local` override tiers are retired (ADR-0031, amended). If the file is missing that
+      one path a Method lives at: an Archon node cannot import anything from the Plugin,
+      and the config and `.local` override tiers are retired. If the file is missing that
       is FATAL for this node: print "code-review Method not found at
-      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup" and stop. Do not review from
+      .archon/methods/code-review/SKILL.md — run /unic-archon-dlc:setup", write
+      SESSION/findings/review.json as the stop rule above says, and stop. Do not review from
       memory of what the Method says.
 
       Follow its Process steps 1–5. It asks a live human for two inputs; there is no human in this node,
       so both are supplied here and you must NOT ask:
 
       - **Step 1, the fixed point:** `$prep.output.base_ref` — prep already computed it as the
-        merge-base of the PR base branch and HEAD. Confirm it resolves and the diff is non-empty before
-        spawning anything, as the Method requires. prep also wrote the diff to SESSION/diff.patch and
-        the changed-file list to SESSION/changed-files.txt; use them rather than recomputing.
+        merge-base of HEAD and the PR's target branch, or `$BASE_BRANCH` when there is no PR. Confirm it
+        resolves and the diff is non-empty before spawning anything, as the Method requires. prep also
+        wrote the diff to SESSION/diff.patch and the changed-file list to SESSION/changed-files.txt; use
+        them rather than recomputing.
       - **Step 2, the spec source:** `SESSION/intent-brief.md` — prep already distilled it from the
         linked work items, the referenced docs, the PR description and PRD.md, with a numbered
         Acceptance Criteria list. Never ask where the spec is. If
@@ -313,18 +409,21 @@ nodes:
       - **The "/setup-matt-pocock-skills if `docs/agents/issue-tracker.md` is missing" fallback never
         applies.** `/unic-archon-dlc:setup` owns that file and `docs/agents/triage-labels.md`, and
         `setup-matt-pocock-skills` is not a Plugin dependency — a run writes another host's template over
-        the first and reverts the second to a five-role vocabulary (ADR-0024). Never run it.
+        the first and reverts the second to a five-role vocabulary. Never run it.
 
       Then steps 3–5 verbatim:
       - Step 3: gather this repo's standards sources (CLAUDE.md / AGENTS.md / CONTRIBUTING.md /
         CODING_STANDARDS.md — whatever exists) and take the Method's twelve-item Fowler smell baseline
         as written. This baseline is where refactoring now lives: /build's loop has no REFACTOR phase,
-        because `tdd` puts refactoring in the review stage (#281).
+        because `tdd` puts refactoring in the review stage.
       - Step 4: send ONE message with two `Agent` tool calls, `general-purpose` subagent for both.
         **Paste the twelve-item smell baseline IN FULL into the Standards sub-agent's prompt** — step 4
         is explicit that the sub-agent has no other access to it, and an abridged paste silently
         narrows the review. Add SESSION/intent-brief.md to BOTH sub-agent prompts: intent-grounding is
         this Box's quality lever, so neither axis judges the diff without knowing what it was for.
+        **End BOTH sub-agent prompts with this request, word for word:** "End your report with a
+        section headed `Commands I ran`. List every command you ran other than reading files and git,
+        one per line, each with the outcome you observed. If you ran none, write `none`."
       - Step 5: aggregate under `## Standards` and `## Spec`. Never merge or rerank the two axes.
 
       ## The finding contract
@@ -359,18 +458,56 @@ nodes:
         documented requirement the diff misses.
       - Also collect `positives` (things done well) across both axes, for the "What's good" section.
 
+      ## Reported checks
+      This Box instructs no check, but a sub-agent may run one on its own. Read the `Commands I ran`
+      section of each sub-agent's report. A **check** is a command that runs the project's toolchain to
+      verify the code, as a build, test, lint, format, type-check, coverage or e2e run does, or a
+      command that starts a dev server. Record only checks. Drop every other command, such as one that
+      lists files, reads JSON, evaluates a snippet or queries the package manager. Record each check
+      in `reported_checks` as one entry per need it serves:
+        { "axis": "standards" | "spec", "need": "<need>", "outcome": "<outcome>" }
+      - `need` is exactly one of `build`, `test`, `e2e`, `lint`, `format`, `typecheck`, `dev`,
+        `coverage` or `undeclared`. A check that serves two needs, such as one command that lints and
+        type-checks, takes one entry per need.
+      - Judge which need a check serves from what it does. A check that type-checks the code serves
+        `typecheck`, whatever its text. Never decide it by comparing the command's text with a value
+        in `$bootstrap.output.sdlc_needs`. A Consumer's value can take a shape the reported command
+        does not share, and a text match then reports a declared need as undeclared.
+      - Set `need` to "undeclared" when the need the check serves has no value set in
+        `$bootstrap.output.sdlc_needs`, or when the check serves none of the eight needs above.
+      - A command that installs dependencies serves `install`. Never record it, because `bootstrap`'s
+        install report covers it.
+      - Never record the command text. The summary names the need only.
+      - `outcome` is "passed", "failed" or a short outcome such as "failed with 2 type errors", as the
+        sub-agent reported it. It names no command and no tool. It is a self-report, and nothing in
+        this Box verifies it.
+      The array is empty when no sub-agent reported a check. A finding a sub-agent raised from a
+      failed check stays a finding like any other. Record the check here as well, and leave the
+      finding where the contract above puts it.
+      **After you have recorded `reported_checks`, remove the `Commands I ran` section from both
+      reports** before you store them below. That section names commands and states their results as
+      reported, and `synthesize` renders `spec_report` in the summary.
+
       Write SESSION/findings/review.json as:
-        {"findings": [...], "positives": [...],
-         "standards_report": "<the ## Standards text>", "spec_report": "<the ## Spec text>"}
-      Keep `standards_report` and `spec_report` as the Method's own prose — synthesize renders
-      `spec_report` as the Intent Check section, which is how AC-coverage survives the collapse of the
-      old intent-check node.
+        {"findings": [...], "positives": [...], "reported_checks": [...], "subagents_ran": <true|false>,
+         "blocked": "", "standards_report": "<the ## Standards text>",
+         "spec_report": "<the ## Spec text>"}
+      Keep `standards_report` and `spec_report` as the Method's own prose, less the `Commands I ran`
+      section. synthesize renders `spec_report` as the Intent Check section, which is how AC-coverage
+      survives the collapse of the old intent-check node.
+      Set `subagents_ran` to true when at least one review sub-agent started, and to false otherwise,
+      on every path, a stop included. `reconcile` reads it to decide whether the checks block says
+      that a review sub-agent may still have run a check on its own.
+      `blocked` is "" for a review that ran to the end, and the printed sentence for a stop. A reader
+      of this file treats the review as **blocked** when `blocked` is not empty or `subagents_ran` is
+      not true. A review that ran to the end always started a sub-agent.
 
       If the `Agent` tool is unavailable in this node and you cannot spawn the two sub-agents, do NOT
       silently restructure the review into something else (not one axis, not seven aspects): print
       "REVIEW BLOCKED: Agent tool unavailable in an Archon prompt node — code-review step 4 cannot run
-      as written", write SESSION/findings/review.json with that sentence as `standards_report` and
-      empty arrays, and stop. That is a real finding about the container, not a detail to route around.
+      as written", write SESSION/findings/review.json as the stop rule above says, with
+      `subagents_ran: false`, and stop. That is a real finding about the container, not a detail to
+      route around.
 
   # ---------------------------------------------------------------------------------------------
   # synthesize — THIS RUN ONLY. Reads the review node's single SESSION/findings/review.json, dedupes
@@ -387,7 +524,17 @@ nodes:
       You are the synthesize node of /pr-review for slug "$bootstrap.output.slug".
       SESSION = <artifacts_dir>/<slug>/pr-review/  (artifacts_dir=$bootstrap.output.artifacts_dir).
 
-      1. Read SESSION/findings/review.json — the review node's Standards + Spec output.
+      1. First delete SESSION/findings.json and SESSION/summary-sections.md if they exist, because
+         SESSION persists between runs. Then read SESSION/findings/review.json, the review node's
+         Standards and Spec output. If it is missing, print "synthesize: BLOCKED: no review.json", write
+         no SESSION/findings.json and no SESSION/summary-sections.md, emit 0 for every count, and stop.
+         An empty findings file would let `reconcile` rule fixed every prior finding whose file
+         changed between the two heads.
+         If the review is **blocked**, as the review node defines it, write `[]` to
+         SESSION/findings.json, and write to SESSION/summary-sections.md only a callout,
+         `> ⚠ This review stopped before it finished: <blocked>`, with the `blocked` sentence, or "no reason
+         recorded" when the field is missing. Write no Intent Check, no severity section and no
+         "What's good". Emit 0 for every count and skip steps 2 to 5.
       2. Merge its `findings`, DEDUPE overlaps (same file + near-identical title across the two axes →
          keep the highest-confidence one, note the other axis). Ensure each finding has its stable
          `hash`. Do NOT rerank one axis against the other; deduping identical findings is not reranking.
@@ -398,8 +545,15 @@ nodes:
       4. Collect any contradictions from `$prep.output.contradictions`.
       5. Assemble the body SECTIONS (no iteration header / delta yet — reconcile adds those):
            - `> ⚠ Intent sources disagree: …` callout (only if contradictions)
-           - `### Intent Check` — render the review node's `spec_report` verbatim. The Spec axis IS the
-             AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
+           - `### Intent Check`. Render the review node's `spec_report` verbatim, except that the
+             render states no check result as a fact. Two rules apply to each line:
+               - Drop a line that only reports a command the sub-agent ran, or that a build, lint,
+                 format, type-check, test or other check passed or failed.
+               - When a line gives an acceptance-criterion verdict and also a check result, as in
+                 "AC 2 met: `<cmd>` passes", keep the verdict and remove the check result from the
+                 line. A check result appears in the summary only in the checks block.
+             A line that cites a command only to judge an acceptance criterion stays. The Spec axis IS
+             the AC-coverage judgement (requirements missing or partial, scope creep, requirements that look
              implemented but wrong), so it replaces the old per-AC verdict list. Omit the section only
              when `$prep.output.intent_available == "false"`.
            - `### 🔴 Critical (N)` / `### 🟠 Important (N)` / `### 🟡 Minor / Suggestions` — each finding a
@@ -414,6 +568,12 @@ nodes:
              iteration reads its hash back; a finding rendered without one is invisible to the run
              after this and starts again as new. Markdown hides the comment from the reader.
            - `### ✅ What's good` — always present, from `positives`.
+         **State no check result as a fact, in "What's good" or in any other section.** A positive
+         that says a build, lint, type-check or test passes is a sub-agent's report of a check this
+         Box did not run, so drop it from the sections. `reconcile` renders `reported_checks` in the
+         checks block, attributed to the sub-agent. The one exception is a finding raised from a failed
+         check. It stays in its severity section like any other finding, and its own body may cite the
+         failure it was raised from.
       Write the deduped this-run set to SESSION/findings.json (each finding incl. its hash) and the body
       sections to SESSION/summary-sections.md.
       **Every finding in findings.json is rendered in the sections — count them and check.** The
@@ -443,7 +603,31 @@ nodes:
       You are the reconcile node of /pr-review for slug "$bootstrap.output.slug" — the re-review
       coordinator. SESSION = <artifacts_dir>/<slug>/pr-review/. ITERATION = $prep.output.iteration.
 
-      1. Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration).
+      1. First delete SESSION/comment.md, SESSION/threads.json and SESSION/changed-between-heads.txt
+         if they exist. SESSION persists between runs, so a file an earlier run left there would let
+         `post` publish that run's verdicts when this node stops early.
+         If SESSION/findings.json is missing, print "reconcile: BLOCKED: no findings.json", write no
+         SESSION/comment.md, and stop, because `synthesize` stopped and no prior finding can be ruled.
+         Read SESSION/findings.json (this run) and SESSION/prep.json → `prior_findings` (prior iteration),
+         `prior_head` and `prior_head_status`. Read SESSION/findings/review.json too, and note whether
+         the review is **blocked**, as the review node defines it. Treat a file you cannot read or
+         parse as blocked as well.
+         Before you classify anything, write the change between the two heads to
+         SESSION/changed-between-heads.txt. When `prior_head_status` is "recorded", run
+         `git -c core.quotePath=false diff --name-only <prior_head> "$(cat SESSION/head.txt)" > SESSION/changed-between-heads.txt`.
+         `core.quotePath=false` makes git print a non-ASCII path as it is, not quoted, so it can match a
+         finding's `file`. A rename lists only the new path, so a finding on the old path is
+         `unverified`.
+         Otherwise create the file empty, because there is no prior head to compare against.
+         Check the exit status of that `git diff`. A failed diff leaves the file empty, and an empty
+         file would make every reply say that the file did not change. If it exits non-zero, print
+         "reconcile: diff between heads failed: <error>", and from here on treat this run as one whose
+         `prior_head_status` is "unreachable": no finding is `fixed`, and step 5c adds its section.
+         This file is the only evidence a `fixed` verdict may rest on. SESSION/changed-files.txt is the
+         PR's diff against its base, and it plays no part in a `fixed` verdict.
+         Before you compare a finding's `file` with a line of this file, remove one leading `/` from
+         the `file`. Some hosts store a thread's path with a leading `/`, and `git diff --name-only`
+         prints none.
       2. Classify each finding against prior_findings. Match on the `hash` first. Where no hash
          matches, match on **aspect + semantic title + `file`**, with one exception that is the whole
          point of this step: **`file` differing between a path and a scope token is not a mismatch.**
@@ -455,12 +639,12 @@ nodes:
          prior findings that share a title in different files. Step 3 needs each prior hash used once,
          so break the tie in this order and record which prior you picked: the closest semantic title,
          then the one whose `anchored` is "true", then the lexically smallest hash. A prior finding you
-         did not pick stays unmatched, and step 3 rules it `fixed`.
+         did not pick stays unmatched, and the rule for an unmatched prior below gives its verdict.
          Two one-off notes cover the prior iterations already live on real pull requests:
-           - A prior iteration posted before #281 carries the retired seven aspect names (code-quality,
+           - A prior iteration posted by an earlier version of this Box carries the retired seven aspect names (code-quality,
              tests, silent-failure, type-design, comment-rot, simplifier, intent-check) where this run
              carries "standards" / "spec". Match those on semantic title alone, ignoring the aspect, so
-             the first re-review after the rewiring does not report every finding as new.
+             the first re-review after the switch to two axes does not report every finding as new.
            - A prior iteration posted by a Box older than the anchorable/scoped rule gave a scoped
              finding an invented `file` — a path that merely sat near the problem. Its prior `file` is
              a path and this run's is `pull request`, `work item` or `repository`, so they differ by
@@ -468,21 +652,35 @@ nodes:
              aspect + semantic title alone. Reading the differing `file` as "no match" reports a live
              finding as `fixed` and replies "✅ resolved" to it, which is the defect this whole step
              exists to prevent.
-         Classifications:
-           - new           — no prior match
-           - still-present — matched a prior finding still valid this run
-           - fixed         — a prior finding whose `prior_verdict` is "open" with NO match this run
+         Classifications, by `prior_verdict`:
+           - new           — a finding this run with no prior match
+           - still-present — a prior finding whose `prior_verdict` is "open" or "unverified" and which
+                             matches a finding this run
+           - fixed         — a prior finding whose `prior_verdict` is "open" or "unverified", with NO
+                             match this run, whose `file` is a path, and whose path appears as a line
+                             of SESSION/changed-between-heads.txt. The file changed between the two
+                             recorded heads. That change is necessary for a fix and does not prove it.
+           - unverified    — a prior finding whose `prior_verdict` is "open" or "unverified", with NO
+                             match this run, and which is not `fixed` by the rule above. Its file did
+                             not change between the two heads, its `file` is a scope token, or there is
+                             no prior head. When `prior_head_status` is not "recorded", or the review
+                             is blocked, every unmatched prior of this kind is `unverified` and none
+                             is `fixed`. The review omitting
+                             a finding is not evidence that the finding is gone, because the reviewer
+                             varies between runs on the same commit.
            - regressed     — a prior finding whose `prior_verdict` is "fixed" and which matches a
                              finding this run: the previous iteration resolved it and it is back
            - retired       — a prior finding whose `prior_verdict` is "fixed" and which STILL has no
-                             match. It was reported fixed and stayed fixed, so it leaves the ledger:
-                             step 5 does not re-list it and it carries no marker forward. Without
-                             this, an already-fixed finding is ruled `fixed` again every run, the
-                             fixed list grows without bound, and the "since iteration N−1" delta
-                             counts findings fixed several iterations ago as though they were fixed
-                             this one. The ceiling: a retired finding that reappears two iterations
-                             later reads as `new`, because nothing carries its hash any more. The
-                             ledger has to end somewhere and this is where it ends.
+                             match. It was reported fixed and stayed fixed, so step 5 does not
+                             re-list it. Without this, an already-fixed finding is ruled `fixed`
+                             again every run, the fixed list grows without bound, and the "since
+                             iteration N−1" delta counts findings fixed several iterations ago as
+                             though they were fixed this one. An anchored retired finding keeps its
+                             thread, and prep reads it back as "fixed", so it stays `retired` and
+                             returns as `regressed`. Only a retired finding with no thread leaves the
+                             ledger. If it comes back, it reads as `new`. Only a prior
+                             `fixed` can retire. A prior `unverified` with no match is `fixed` or
+                             `unverified` by the rules above, never `retired`.
          **The prior hash is the identity. Carry it forward.** The moment a finding matches a prior
          one, overwrite this run's hash with the prior finding's hash and use that hash everywhere
          downstream: in the summary, in the plan, in every count. Only a `new` finding keeps the hash
@@ -491,42 +689,51 @@ nodes:
          loses the thread and the history that go with it. A finding that was anchorable last iteration
          and is scoped this one is still-present, not new: the scope changed, the finding did not.
       3. **Emit a verdict for EVERY prior finding.** Walk `prior_findings` and confirm each hash appears
-         exactly once in the classified set, as still-present, fixed, regressed or retired. A prior
-         finding you cannot match to anything this run gets `fixed` or `retired` per its
-         `prior_verdict` — say so explicitly rather than dropping it, because a dropped prior finding
-         leaves its thread live with no reply and no resolution.
+         exactly once in the classified set, as still-present, fixed, unverified, regressed or
+         retired. A prior finding you cannot match to anything this run gets `fixed`, `unverified` or
+         `retired` per the rules above. Say so explicitly rather than dropping it, because a dropped
+         prior finding leaves its thread live with no reply and no resolution.
+         Then check every `fixed` verdict against SESSION/changed-between-heads.txt. Its `file`, without
+         a leading `/`, must be a line of that file. Rule a `fixed` that fails the check `unverified`.
          Then state both numbers: the count of prior findings and the count of verdicts. They are
          equal. If they are not, you have dropped one — go back and classify it.
          **Because you loop until they match, that equality alone evidences nothing — so publish the
          two numbers that CAN come out wrong.**
-         `unverified_fixed` is how many of your `fixed` verdicts rest on absence alone: the prior
-         finding named a changed file and a line, and THIS run's diff does not touch that file at all.
-         Nothing in the diff could have fixed it, so the match probably failed instead. Count a scoped
-         prior here too — no diff localises a finding about the pull request or the repository, so a
-         scoped `fixed` is never more than "it did not come up again". This is the match-health signal:
-         it is not the same as `fixed`, because a `fixed` verdict on a finding whose file the diff DID
-         change is evidence, and one on a file nothing touched is a guess.
+         `unverified` is how many prior findings you ruled `unverified`. A reworded re-report that
+         fails to match shows up as an `unverified` prior beside a `new` finding with a similar title
+         in the same file.
          `unmatched_priors` is how many prior findings you could not account for at all, and it is the
          number that must be zero.
-      4. Compute the "since iteration N−1" delta: X fixed · Y still present · Z regressed · W new
+      4. Compute the "since iteration N−1" delta: X fixed · U unverified · Y still present · Z regressed · W new
          (skip the delta line entirely when ITERATION == 1). `retired` findings are NOT in the delta:
          they were already reported fixed, so counting them again is what made the delta describe the
          whole history instead of this iteration.
       5. FINALISE the summary body → SESSION/comment.md, in this exact frame:
 
            <!-- unic-dlc-pr-review:iteration=<ITERATION> -->
+           <!-- unic-dlc-pr-review:head=<the content of SESSION/head.txt> -->
            ## unic-dlc /pr-review — $prep.output.pr_title · Iteration <ITERATION>
 
+           <base warning callout, when `$prep.output.base_warning` is not empty: quote it verbatim>
            <contradictions callout, if any>
-           ### Checks this review did not run
+           ### Checks this review was not asked to run
            <the block — see step 5b>
            ### Since iteration <ITERATION-1>        (only when ITERATION > 1)
+           <no-prior-head section, see step 5c>
            <delta line>
            <the ### Intent Check / severity / What's good sections from SESSION/summary-sections.md,
             with every marker rewritten — see below>
            ---
            🤖 Generated by unic-archon-dlc · Iteration <ITERATION> · re-run `/unic-dlc-pr-review $bootstrap.output.slug` to update.
 
+         **Write the head marker from SESSION/head.txt with a command, never by typing the commit id**,
+         for example `printf '<!-- unic-dlc-pr-review:head=%s -->\n' "$(cat SESSION/head.txt)"`, and
+         check afterwards that the commit id in SESSION/comment.md is 40 or 64 hexadecimal characters
+         and equals the content of SESSION/head.txt. If it does not, print "reconcile: BLOCKED: the head
+         marker does not match SESSION/head.txt", write no SESSION/comment.md, and stop. The next
+         iteration's prep reads this marker back as its prior head. `post`
+         rewrites the summary in place on every run, so the marker always names the head of the latest
+         iteration.
          Before anything else, check what you were handed: every hash in SESSION/findings.json appears
          exactly once as a marker in the pasted sections. If one is absent, synthesize dropped a
          finding — render it into its severity section yourself rather than publishing a summary that
@@ -537,37 +744,93 @@ nodes:
          just replaced. Pasting the sections unchanged would publish the very hash the carry-forward
          exists to retire, and the next iteration would read it back and report the finding as new.
          Tag each still-present / regressed finding inline in its section (e.g. "(still present since
-         iteration N−1)" / "(⚠ regressed)"). Under the delta line, name every `fixed` finding by title
-         in one short list, **each entry preceded by its own
+         iteration N−1)" / "(⚠ regressed)"). Under the delta line, name every `fixed` finding by its
+         locator and title in one short list, **each entry preceded by its own
          `<!-- unic-dlc-pr-review:finding=<hash> -->` marker**: a fixed finding leaves no other trace in
          this iteration's sections, and a scoped one leaves no thread either, so this list is both the
          only place the reader sees it resolved and the only place the next iteration can read its hash
          back. A fixed finding whose marker you omit cannot return as `regressed` — it returns as new,
          which is the classification this whole node exists to keep stable.
-      5b. Fill the "Checks this review did not run" block. It is a block of its own, in the frame
-         above every finding, and it is present in EVERY iteration — a reader skimming for severity
-         must not be able to pass over it. Three sentences, in this order:
-           - **This Box runs no build, lint, type-check or test command by instruction**, so nothing
-             below checks a claim the author made about one. That is deliberate: running a check
-             against a claim is a Method's procedure, not this Harness's (ADR-0030).
-           - Which **checks** the project declares: name the keys of `$bootstrap.output.sdlc_needs`
-             whose value is set, `install` excluded, and say that this review executed none of them.
-             Leave `install` out of that sentence — this Box does run it, and the line below reports
-             what happened, so naming it here would deny something the next line proves. Name the
-             keys, never their values: the command is the project's business and this Box names no
-             tool.
+         Under the fixed list, name every `unverified` finding by its locator and title in a second
+         short list, headed "Not reported this iteration, not verified", each entry preceded by its own
+         `<!-- unic-dlc-pr-review:finding=<hash> -->` marker. The next iteration's prep reads
+         `prior_verdict` "unverified" from this list, and for a scoped finding it is the only place the
+         hash survives.
+         In both lists the locator is the one the severity sections use, `` `file:line` `` or the
+         scope token alone. The next iteration's prep reads `file` from it, so a scoped finding keeps
+         its scope token and can never be ruled `fixed` against a guessed path.
+      5b. Fill the "Checks this review was not asked to run" block. It is a block of its own, in the
+         frame above every finding, and it is present in EVERY iteration, so a reader skimming for
+         severity cannot pass over it. Read `reported_checks` and `subagents_ran` from
+         SESSION/findings/review.json. When the file cannot be parsed, or lacks `subagents_ran` or
+         `reported_checks`, the report is **unreadable**. A missing file counts as unreadable too, as a
+         defence only, because `synthesize` and this node stop first when it is missing. Then treat
+         `reported_checks` as empty and keep the sentence on sub-agents below. An unreadable report is
+         never a sub-agent's claim. Then write these parts, in this order:
+           - **This Box instructed none of the project's declared checks**, so nothing in this review
+             verifies a claim that a build, lint, type-check or test passes. That is deliberate,
+             because running a check against a claim is a Method's procedure, not this Harness's.
+           - Which **checks** the project declares. Name the keys of `$bootstrap.output.sdlc_needs`
+             whose value is set, `install` excluded. Leave `install` out of that sentence. This Box
+             does run it, and the last line reports what happened. Name the keys, never their values,
+             because the command is the project's business and this Box names no tool. When no key
+             other than `install` is set, write that the project declares no check.
+           - Say that a review sub-agent may still have run one of them on its own, or, when the
+             project declares no check, that a review sub-agent may still have run a check on its
+             own. Leave this sentence out only when the file says `subagents_ran: false`, because
+             then no sub-agent ran.
+           - When the report is unreadable, say in one line that `review` left no readable report of
+             what its sub-agents ran.
+           - One line per entry of `reported_checks`, as a claim of the sub-agent that names the need
+             and the outcome, never the command. For example, "The Standards review sub-agent
+             reported that it ran `typecheck` and that it passed. This Box did not run or verify it."
+             For an entry whose `need` is "undeclared", write "a check that matches none of the
+             project's declared needs" in place of the need. Write no line when the array is empty.
            - `$bootstrap.output.install_report`, verbatim.
-         Without this block that admission lives only in the plugin's own issue tracker, where the
+         Never write that no check ran in this review, or that the review ran none of the declared
+         checks. The Box's instruction does not bind a sub-agent, so neither sentence is known to be
+         true. Without this block the warning lives only in the plugin's own issue tracker, where the
          developer reading a review never sees it.
+      5c. When ITERATION > 1 and there is no usable prior head, add a section above the delta line.
+         There is no usable prior head when `$prep.output.prior_head_status` is not "recorded", or
+         when the diff in step 1 failed. The section tells the developer, in plain words:
+           - Why no finding could be ruled fixed this iteration. Either the prior iteration recorded
+             no head commit, as a summary from an older Box does ("absent"), or the recorded head
+             could not be reached ("unreachable", or a failed diff).
+           - What is asked of them. They check each finding in the "Not reported this iteration, not
+             verified" list by hand, and resolve the ones that no longer apply.
+           - That the check is automatic again from the next iteration, unless the head again cannot
+             be reached.
       6. Build the thread plan → SESSION/threads.json: an array of
-         { kind, file, line, severity, hash, classification, body }. Every entry's `body` starts with
-         the hidden marker `<!-- unic-dlc-pr-review:finding=<hash> -->` and then the rendered finding.
+         { kind, file, line, severity, hash, classification, body, reply }. `body` is the thread's
+         first comment: the hidden marker `<!-- unic-dlc-pr-review:finding=<hash> -->` and then the
+         rendered finding. `reply` is a reply on the thread: the hidden marker
+         `<!-- unic-dlc-pr-review:reply=<hash>:<verdict> -->` and then the reply text. The verdict is
+         the entry's `classification`, except that a `retired` entry writes `fixed`. `hash` in
+         both markers is the hash of the thread's own finding, the one the thread was opened with,
+         which step 2 carried forward. Set a field to null where the entry needs none.
          `kind` is "reply" or "anchor", and each kind has its own admission rule:
            - **reply** — one entry for EVERY prior finding whose `anchored` is "true", carrying its
-             verdict as `classification` (still-present / fixed / regressed) and the hash its thread's
-             marker already holds. `post` finds the thread by that marker alone, so a reply entry sets
-             `file: null` and `line: null` — the thread already sits where it sits. A `fixed` entry's
-             body is a "✅ resolved in iteration <ITERATION>" reply.
+             verdict as `classification` (still-present / fixed / unverified / regressed / retired)
+             and the hash its thread's marker already holds. `post` finds the thread by that marker
+             alone, so a reply entry sets `file: null` and `line: null` — the thread already sits where
+             it sits. Fill `body` and `reply` per classification:
+               - still-present. `body` is the updated finding. `reply` says the finding was reported
+                 again in iteration <ITERATION>, and `post` uses it only when the thread is resolved.
+               - fixed, and retired. `reply` is "✅ resolved in iteration <ITERATION>". Its marker
+                 carries the verdict `fixed` for both, `<!-- unic-dlc-pr-review:reply=<hash>:fixed -->`,
+                 because prep reads that verdict back. `post` posts a retired entry's reply only when
+                 the thread is not resolved and carries no fixed reply yet. So a rerun posts the fixed reply that a killed
+                 run never posted. It does not resolve a thread whose fixed reply is already there,
+                 because a killed run that replied but changed no status looks the same as a person who
+                 reopened the thread on purpose.
+               - unverified. `reply` says that the review did not report the finding this iteration,
+                 why it is not ruled fixed (its file did not change since the prior iteration, or the
+                 finding is scoped, or there is no prior head, or the review is blocked), and that the
+                 author should check it by hand and resolve the thread if the finding is gone. For a
+                 blocked review, the reason reads "the review stopped before it finished, so this
+                 finding could not be checked", followed by the `blocked` sentence.
+               - regressed. `reply` says the finding is back in iteration <ITERATION>.
            - **anchor** — one entry for every finding this run that is anchorable AND owns no thread
              yet: classification `new`, or a match against a prior finding whose `anchored` is "false".
              It carries the real changed-file path in `file` and the real diff line in `line`.
@@ -580,7 +843,12 @@ nodes:
          it owns no prior thread the summary carries it alone, tagged by step 5. A prior finding whose
          `anchored` is "false" is likewise carried by the summary: its verdict is the tag, and there is
          no thread to reply to.
-      Emit iteration, the delta counts, and the two counts from step 3.
+      Emit iteration, the delta counts, and the two counts from step 3. Emit `stopped` as "" when you
+      wrote SESSION/comment.md and the review is not blocked. When the review is blocked and you wrote
+      SESSION/comment.md, emit the `blocked` sentence as `stopped`, or "review stopped, no reason
+      recorded" when the field is missing. When you stop without SESSION/comment.md, emit the BLOCKED
+      sentence you printed as `stopped`, ITERATION as `iteration`, and 0 for every count, so the gate
+      shows the stop.
     output_format:
       type: object
       properties:
@@ -592,10 +860,23 @@ nodes:
         prior_count: { type: number }
         verdicts: { type: number }
         retired: { type: number }
-        unverified_fixed: { type: number }
+        unverified: { type: number }
         unmatched_priors: { type: number }
+        stopped: { type: string }
       required:
-        [iteration, fixed, still_present, regressed, new, retired, prior_count, verdicts, unverified_fixed, unmatched_priors]
+        [
+          iteration,
+          fixed,
+          unverified,
+          still_present,
+          regressed,
+          new,
+          retired,
+          prior_count,
+          verdicts,
+          unmatched_priors,
+          stopped,
+        ]
 
   # ---------------------------------------------------------------------------------------------
   # review-gate — HITL by default; skipped when gates.pr-review == afk. Shows the finalised summary +
@@ -606,16 +887,23 @@ nodes:
     when: "$bootstrap.output.gate == 'hitl'"
     approval:
       message: >
-        /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Findings:
+        /pr-review for "$bootstrap.output.slug" — iteration $reconcile.output.iteration. Stopped:
+        "$reconcile.output.stopped". When that starts with "reconcile: BLOCKED", reconcile wrote no
+        SESSION/comment.md, its counts below are zeros, and APPROVE posts nothing. Any other non-empty
+        value is the review node's stop. Then the summary carries a stop callout in place of this
+        iteration's findings, and no prior finding is ruled fixed. Findings:
         $synthesize.output.critical critical · $synthesize.output.important important ·
         $synthesize.output.minor minor. Since last: $reconcile.output.fixed fixed ·
+        $reconcile.output.unverified unverified ·
         $reconcile.output.still_present still present · $reconcile.output.regressed regressed ·
         $reconcile.output.new new. Prior findings $reconcile.output.prior_count · verdicts
-        $reconcile.output.verdicts, of which $reconcile.output.unverified_fixed were ruled fixed on
-        absence alone — this run's diff touches nothing that could have fixed them — and
-        $reconcile.output.unmatched_priors could not be accounted for at all. The last number should be
-        zero; a high one before it means the match is failing rather than that the author fixed
-        everything. Those two are what a broken match shows up in, not the equal pair.
+        $reconcile.output.verdicts, of which $reconcile.output.unverified are unverified and
+        $reconcile.output.unmatched_priors could not be accounted for at all. An unverified finding is
+        one the review omitted whose file did not change since the prior iteration's head, or which is
+        scoped, or which has no prior head to compare against. The last number should be zero. A
+        reworded re-report that fails to match shows up as an unverified prior beside a new finding
+        with a similar title in the same file. Those two are what a broken match shows up in, not the
+        equal pair.
         Review SESSION/comment.md (the composed summary) and SESSION/threads.json (the thread plan). APPROVE to post/update the summary
         discussion and the per-line ones on the PR. REJECT to halt
         without posting.
@@ -641,7 +929,7 @@ nodes:
       writes a review — so read it before the first call.
       - **Access** — its § Access names the MCP server or skill that serves this tracker. Read that
         server's own current tool list and build every call from it. Write no command, subcommand or
-        flag here and name no provider: the DLC owns the what and none of the how (ADR-0016), a flag
+        flag here and name no provider: the DLC owns the what and none of the how, a flag
         table frozen in this file is stale the moment the tool changes, and inventing a subcommand is
         the one defect no test without a live tenant can catch. Ask what the tracker supports; do not
         assume.
@@ -656,6 +944,14 @@ nodes:
         explicitly in every call, and derive nothing from a remote URL.
       If the file is absent, STOP and print "BLOCKED: this repository has no tracker contract at
       docs/agents/issue-tracker.md", and post nothing.
+
+      ## Before anything is posted
+      Check SESSION/comment.md first. If it is missing, or its `head=` marker differs from the content
+      of SESSION/head.txt, or its `iteration=` marker differs from ITERATION, print "post: BLOCKED:
+      SESSION/comment.md is missing or belongs to another run", post nothing, and stop. Print that
+      BLOCKED line only, and no closing line. This node runs
+      even when reconcile stopped early, and SESSION persists between runs, so a stale file would
+      publish an earlier run's verdicts.
 
       ## The summary discussion (always)
       Read SESSION/comment.md. **A discussion on the pull request itself** is what carries it — the
@@ -687,15 +983,46 @@ nodes:
           finding. Within the anchored discussions the marker is the thread's identity and is the only
           key you need — the entry carries no file and no line on purpose, because the file the thread
           sits on is where an earlier iteration put it, not necessarily where the finding lives now.
+          **Read the thread's status and its replies before you act.** Two facts decide what you write:
+            - Whether the thread is resolved. If the tracker cannot report a thread's status, print
+              "inline: this tracker reports no thread status; reopen and resolve skipped where they
+              depend on it" once, and treat every thread as not resolved.
+            - The thread's latest reply marker, `<!-- unic-dlc-pr-review:reply=<hash>:<verdict> -->`,
+              found in its replies. The entry's hash is the hash in the thread's own `finding=` marker,
+              never one this run computed fresh.
+          **The repeat rule.** Post the entry's `reply` only when the thread's latest reply marker
+          does not hold this hash and this verdict. A `retired` entry's verdict is `fixed`. This rule
+          keeps a rerun after a killed run from repeating a reply. It also keeps a third iteration on
+          the same commit from repeating one. A finding that went fixed, then regressed, then fixed
+          again still gets each reply once. Read what is posted from the PR's threads and their
+          markers only, never from an earlier run's session directory.
+          **A reopen always posts its reply**, whatever the repeat rule says. Reopen first, then post
+          the reply. A rerun finds the thread already open and does not reopen it, so this repeats
+          nothing on a rerun. A run killed after the reopen and before the reply leaves the thread open
+          with no new reply.
           Then act on `classification`:
-            - still-present → update that discussion's body in place.
-            - fixed         → reply "✅ resolved in iteration <ITERATION>" and mark it resolved where the
-                              tracker carries a resolved status (best-effort; otherwise just reply).
+            - still-present → update that discussion's body in place with `body`. When the thread is
+                              resolved, reopen it, whoever resolved it, then post `reply`. Where the
+                              tracker offers no reopen, post `reply` under the repeat rule.
+            - fixed         → post `reply` under the repeat rule. Mark the thread resolved where the
+                              tracker carries a resolved status and the thread is not resolved yet.
+                              Where the tracker has no resolved status, the reply is all you post.
                               Replying and changing a status may be two separate operations on the
                               same thread; ask, rather than assuming one call does both.
-            - regressed     → reopen it noting the regression. Where the tracker offers no reopen,
-                              reply on that same thread saying the finding is back. A reply entry
+            - retired       → do nothing when `$prep.output.prior_head_status` is "absent". An older
+                              Box posted the prior iteration, and its resolved reply carries no
+                              `reply=` marker, so a reply now would be a second "resolved" and could
+                              resolve a thread a person reopened on purpose. Do nothing when the thread
+                              is already resolved. Otherwise, when the thread carries no
+                              `reply=<hash>:fixed` marker, act as for fixed. When it carries one, do
+                              nothing, even when the thread is open.
+            - unverified    → post `reply` under the repeat rule, and leave the thread's status as it
+                              is. A person resolves it once they have checked it by hand.
+            - regressed     → reopen it when it is resolved, then post `reply`. Where the tracker
+                              offers no reopen, or the thread is open, post `reply` under the repeat
+                              rule on that same thread. A reply entry
                               carries no file and no line, so it has nothing to anchor a new thread to.
+          Reopening, like resolving, may be a status change separate from the reply; ask.
           Answer every reply entry before you finish, and report a marker that matches no thread by its
           hash in your final line: a prior thread left with no reply and no resolution is the defect
           this plan exists to prevent.
@@ -733,7 +1060,12 @@ nodes:
       AFK the gate is skipped, so this line is the only place the run states that every prior finding
       was answered:
       "pr-review: iteration <ITERATION> posted for \"$bootstrap.output.slug\" —
-      <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved) ·
+      <summary action>, <n> inline (<new> new · <upd> updated · <fixed> resolved · <reopened> reopened ·
+      <unv> unverified replied · <skipped> replies already posted) ·
       $reconcile.output.prior_count prior findings, $reconcile.output.verdicts verdicts,
-      $reconcile.output.retired retired, $reconcile.output.unverified_fixed unverified-fixed,
+      $reconcile.output.retired retired, $reconcile.output.unverified unverified,
       $reconcile.output.unmatched_priors unaccounted. ✓"
+      The inline counts are what this node did. `<new>` counts anchor entries opened. `<upd>` counts
+      still-present bodies updated. `<fixed>` counts threads this node marked resolved, including
+      retired entries it handled as fixed. `<reopened>` counts threads it reopened. `<unv>` counts unverified
+      replies it posted. `<skipped>` counts replies the repeat rule held back.
