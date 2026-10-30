@@ -18,10 +18,6 @@
       "source": "./apps/claude-code/unic-confluence"
     },
     {
-      "name": "unic-archon-dlc",
-      "source": "./apps/claude-code/unic-archon-dlc"
-    },
-    {
       "name": "unic-pr-review",
       "source": "./apps/claude-code/unic-pr-review"
     },

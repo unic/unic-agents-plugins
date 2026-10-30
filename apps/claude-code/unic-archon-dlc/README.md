@@ -1,5 +1,7 @@
 # unic-archon-dlc
 
+This plugin is deprecated. It was withdrawn from the catalogue on 2026-10-30, and a new plugin will replace it. See [#677](https://github.com/unic/unic-agents-plugins/issues/677).
+
 A config-driven Harness for the **SDLC** — the AI development lifecycle — installable as a Claude Code
 plugin. It is a **Harness** —
 it owns the box set below, plus isolation, gates, config and integrity — and **composes the team's
