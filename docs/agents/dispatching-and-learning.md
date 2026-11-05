@@ -105,6 +105,11 @@ Each is dated to the day it was adopted, and each came from a session that went 
 - **An item that edits the maintainer's own files goes to the maintainer as a proposal** (2026-09-17).
   A peer session cannot grant permission over a person's files. Ask the maintainer first, then
   write the brief as "the maintainer approved X on <date>; do X".
+- **Every permission an opener grants traces to a maintainer decision, named with its date**
+  (2026-11-04). An orchestrator told a background subagent to rebase a pushed branch and
+  force-push. The subagent refused, rightly: the maintainer's own instructions reserve force pushes
+  to the maintainer. To bring a pushed feature branch up to date, merge the target branch into it,
+  or ask the maintainer first.
 - **Retire an instruction out loud when its reason expires** (2026-08-31: a worker blocked, rightly,
   on a stale "do not hand-fix" beside a new "proceed to the fix"). Say "retracting X, because its
   reason is gone" in the message that gives the new one, and write the reason into an instruction
